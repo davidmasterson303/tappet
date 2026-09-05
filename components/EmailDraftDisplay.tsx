@@ -32,7 +32,7 @@ export function EmailDraftDisplay({ emailDraft }: EmailDraftDisplayProps) {
             <div className="w-3 h-3 rounded-full bg-amber-400/60" />
             <div className="w-3 h-3 rounded-full bg-green-400/60" />
           </div>
-          <span className="text-xs text-white/50 font-mono ml-1">quote-request-email.txt</span>
+          <span className="text-xs text-white/50 mono ml-1">quote-request-email.txt</span>
         </div>
         <button
           onClick={handleCopy}
@@ -57,13 +57,13 @@ export function EmailDraftDisplay({ emailDraft }: EmailDraftDisplayProps) {
       </div>
 
       <div className="relative overflow-x-auto">
-        <pre className="text-sm text-white/80 font-mono leading-relaxed p-5 whitespace-pre-wrap break-words min-h-[200px] max-h-[400px] overflow-y-auto">
+        <pre className="text-sm text-white/80 mono leading-relaxed p-5 whitespace-pre-wrap break-words min-h-[200px] max-h-[400px] overflow-y-auto">
           {emailDraft}
         </pre>
       </div>
 
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-white/6 bg-white/2">
-        <div className="flex items-center gap-4 text-xs text-white/50 font-mono">
+        <div className="flex items-center gap-4 text-xs text-white/50 mono">
           <span>{wordCount} words</span>
           <span>{emailDraft.length} chars</span>
         </div>

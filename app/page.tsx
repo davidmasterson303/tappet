@@ -172,7 +172,7 @@ function GarageContents() {
                 lockup is set in, which is what makes the page and the mark look
                 like the same object.
               */}
-              <p className="font-mono text-xs uppercase tracking-[0.22em] text-white/55 mb-3">
+              <p className="mono text-xs uppercase tracking-[0.22em] text-white/55 mb-3">
                 Three cars, researched end to end
               </p>
               {/*
@@ -257,7 +257,7 @@ function GarageContents() {
               {!isLoading && !queryError && fleet.count > 0 && (
                 <dl className="mt-7 flex flex-wrap items-baseline gap-x-10 gap-y-3">
                   <div>
-                    <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                    <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                       In the garage
                     </dt>
                     <dd className="mono num mt-1 text-2xl text-white tabular-nums">{fleet.count}</dd>
@@ -265,7 +265,7 @@ function GarageContents() {
 
                   {fleet.averageScore !== null && (
                     <div>
-                      <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                      <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Average health{fleet.scored < fleet.count ? ` · ${fleet.scored} of ${fleet.count}` : ''}
                       </dt>
                       <dd className="mono num mt-1 text-2xl text-white tabular-nums">
@@ -276,7 +276,7 @@ function GarageContents() {
 
                   {fleet.openRecalls > 0 && (
                     <div>
-                      <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                      <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Open recalls
                       </dt>
                       {/*

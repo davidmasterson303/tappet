@@ -83,7 +83,7 @@ export default function MaintenanceItemDetailsDialog({
                   <Hash className="h-3.5 w-3.5" />
                   Part #
                 </p>
-                <p className="text-sm font-semibold text-white font-mono">{item.part_number}</p>
+                <p className="text-sm font-semibold text-white mono">{item.part_number}</p>
               </div>
             )}
 

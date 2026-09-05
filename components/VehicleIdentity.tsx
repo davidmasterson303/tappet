@@ -596,7 +596,7 @@ export function VehicleIdentity({
               both wrapped. Tracked at 0.08em they fit on one line together,
               which is what the compact row was always supposed to be.
             */}
-            <p className="font-mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55">
+            <p className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55">
               No photograph yet
             </p>
             {emptyAction}

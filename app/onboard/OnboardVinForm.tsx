@@ -99,7 +99,7 @@ export default function OnboardVinForm() {
                 <Label htmlFor="vin" className="text-sm font-medium text-white/80">
                   Vehicle Identification Number (VIN)
                 </Label>
-                <span className={`text-xs font-mono tabular-nums transition-colors ${vin.length === 17 ? 'text-green-400' : 'text-white/50'}`}>
+                <span className={`text-xs mono tabular-nums transition-colors ${vin.length === 17 ? 'text-green-400' : 'text-white/50'}`}>
                   {vin.length}/17
                 </span>
               </div>
@@ -109,7 +109,7 @@ export default function OnboardVinForm() {
                 value={vin}
                 onChange={(e) => setVin(e.target.value.toUpperCase())}
                 maxLength={17}
-                className="font-mono text-base"
+                className="mono text-base"
                 disabled={loading}
                 autoComplete="off"
                 spellCheck={false}

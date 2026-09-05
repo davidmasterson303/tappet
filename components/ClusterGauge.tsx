@@ -234,6 +234,22 @@ export function ClusterGauge({
     makes for a `null` driver. Colouring an unmeasured dial would assert a
     condition nobody checked, which is the overclaim in a different paint.
   */
+  /*
+    ── ⚠ A hairline is a rendered width, not a viewBox number — 5 Sep ────────
+
+    The stroke was a flat `3`, which is 3 *user units* in a 200-unit viewBox —
+    so it scales with `size` like everything else. That is correct for ticks
+    and type and wrong for a hairline: when the dial went from 240 to 320 to
+    make the numeral dominant, the arc thickened with it and a critique that
+    had passed B3 twice re-opened it — "roughly three times the relative weight
+    of the north-star's. Not yet a hairline."
+
+    Dividing by the scale factor holds the *rendered* stroke at 3px whatever
+    the dial's size, which is what "hairline" means and why the garage's 56px
+    dials and this 320px one now draw the same line.
+  */
+  const hairline = 3 * (200 / size);
+
   const ink = unknown ? 'rgb(255 255 255 / 0.38)' : band.color;
   const inkRgb = unknown ? '255 255 255' : band.rgb;
 
@@ -352,7 +368,7 @@ export function ClusterGauge({
             ticks lost half a pixel with it; the reading stopped looking like
             jewellery.
           */
-          strokeWidth={3}
+          strokeWidth={hairline}
           strokeLinecap="butt"
           /*
             Dashed when there is no reading. The scale is still real — this is
@@ -402,7 +418,7 @@ export function ClusterGauge({
               product rather than about the car.
             */
             stroke={settled ? '#EDE7DF' : 'var(--info)'}
-            strokeWidth={3}
+            strokeWidth={hairline}
             /*
               ⚠ Round on the value arc, butt on the track beneath it.
 

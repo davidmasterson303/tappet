@@ -168,7 +168,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                         </p>
                       )}
                       {campaignNum && (
-                        <p className="text-xs text-white/50 mt-1.5 font-mono">
+                        <p className="text-xs text-white/50 mt-1.5 mono">
                           Campaign #{campaignNum}
                         </p>
                       )}

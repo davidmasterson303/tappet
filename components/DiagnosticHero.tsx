@@ -218,6 +218,13 @@ export default function DiagnosticHero({
     <section
       ref={containerRef}
       aria-label={vehicleName}
+      /* ⚠ A deeper cut on this one panel — dossier B5.
+         `--register-chamfer` is 18px, which reads on a 400px card and vanishes
+         on a 2700px plate: a critique that had passed B5 twice called the hero
+         "square-cornered while every panel around it is cut". A chamfer is a
+         proportion of the thing it cuts, and the largest panel on the page
+         needs the largest one. 40px is the notch at this width. */
+      style={{ '--register-chamfer': '40px' } as React.CSSProperties}
       className={`cut-panel overflow-hidden border border-white/8${
         stacked ? '' : ' flex flex-col sm:flex-row sm:items-stretch'
       }`}

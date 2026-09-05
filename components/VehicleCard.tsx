@@ -493,7 +493,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               wordmark and the page heading — one type system rather than a
               serif mark sitting on a sans page.
             */}
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+            <p className="mono text-xs uppercase tracking-[0.18em] text-white/55">
               {vehicle.year} {vehicle.make}
             </p>
             {/*

@@ -387,7 +387,7 @@ export function VehiclePhotoUploadDialog({
 
                 <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/65 backdrop-blur-sm rounded-lg px-2 py-1 border border-white/10 pointer-events-none">
                   <Move className="h-3 w-3 text-info" />
-                  <span className="text-xs font-mono text-white/55">
+                  <span className="text-xs mono text-white/55">
                     {focalX.toFixed(0)}% {focalY.toFixed(0)}%
                   </span>
                 </div>
