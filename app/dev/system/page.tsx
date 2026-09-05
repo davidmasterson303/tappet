@@ -5,9 +5,7 @@ import { AlertTriangle, Check, Gauge, Plus, Search, Wrench } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BuildGauge } from '@/components/BuildGauge';
 import { ClusterGauge } from '@/components/ClusterGauge';
-import type { BuildPosition } from '@wellkept/core/build-progress';
 
 /*
  * The design system on one page — tokens, then the controls built from them.
@@ -224,12 +222,6 @@ const STATES: ReadonlyArray<{
   { label: 'Disabled', disabled: true, note: 'stated fill and ink' },
 ];
 
-const BUILD: BuildPosition = {
-  points: 14,
-  zone: 'heavily-modified',
-  label: 'Heavily modified',
-  needle: 62,
-};
 
 /*
  * The four values the plate above actually carries, sampled from it.
@@ -438,12 +430,12 @@ export default function DesignSystemPage() {
           blurb="Attention and critical are the same hue now, so the treatment is what separates them: attention is ink on a wash, critical is a solid fill. That is the whole of B3 — severity as intensity and area, never as a second hue, and never as colour alone. Each chip still carries an icon and a word."
         >
           <div className={GRID}>
-            <Swatch name="attention-amber" />
-            <Swatch name="attention-amber-wash" />
-            <Swatch name="critical-red" note="hot sodium, not salmon" />
-            <Swatch name="critical-red-solid" note="the filled case" />
-            <Swatch name="critical-red-wash" />
-            <Swatch name="confirm-green" note="ink, holding no green" />
+            <Swatch name="attention" />
+            <Swatch name="attention-wash" />
+            <Swatch name="critical" note="hot sodium, not salmon" />
+            <Swatch name="critical-solid" note="the filled case" />
+            <Swatch name="critical-wash" />
+            <Swatch name="confirm" note="ink, carrying no hue" />
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="chamfer-sm inline-flex items-center gap-1.5 border border-[color:var(--attention-border)] bg-[color:var(--attention-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--attention)]">
@@ -480,29 +472,27 @@ export default function DesignSystemPage() {
             <Swatch name="build-redline" note="not part of the ramp" />
             <Swatch name="build-redline-track" />
           </div>
-          <div className="flex flex-wrap items-end gap-8 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
-            <div className="space-y-2 text-center">
-              <ClusterGauge score={82} variant="card" size={104} />
+          {/*
+            One gauge, at display scale — brief B7 and the critique's cut.
+
+            This was four 104px dials in a row, which is a thumbnail sheet
+            rather than a specimen: the reading is the instrument's whole
+            claim, and printing it smaller than the body copy beside it says
+            the opposite. The `null` face stays because it is the one state a
+            reader cannot infer from the others — a dashed track and an em
+            dash, never a zero.
+          */}
+          <div className="cut-panel flex flex-col items-center gap-10 border border-white/8 bg-[hsl(var(--surface-1))] p-10 sm:flex-row sm:items-end sm:justify-center sm:gap-16">
+            <div className="space-y-3 text-center">
+              <ClusterGauge score={82} variant="card" size={260} />
               <p className="mono text-[11px] text-[color:var(--text-muted)]">
-                health 82
+                health 82 · the ramp&rsquo;s off-white end
               </p>
             </div>
-            <div className="space-y-2 text-center">
-              <ClusterGauge score={61} variant="card" size={104} />
+            <div className="space-y-3 text-center">
+              <ClusterGauge score={null} variant="card" size={130} />
               <p className="mono text-[11px] text-[color:var(--text-muted)]">
-                health 61
-              </p>
-            </div>
-            <div className="space-y-2 text-center">
-              <ClusterGauge score={null} variant="card" size={104} />
-              <p className="mono text-[11px] text-[color:var(--text-muted)]">
-                null — not zero
-              </p>
-            </div>
-            <div className="space-y-2 text-center">
-              <BuildGauge position={BUILD} size={104} />
-              <p className="mono text-[11px] text-[color:var(--text-muted)]">
-                build 14 pts
+                null — a dashed track, never a zero
               </p>
             </div>
           </div>

@@ -75,8 +75,11 @@ nav {
     --focus-ring-soft: rgb(34 211 238 / 0.22);
 
     /* The build dial's redline — v8 §4c. Deliberately hotter and more
-       orange-shifted than --critical (#F87171): a redline that matched the
-       alert red would be read as an alert. Do not harmonise them. */
+       orange-shifted than --critical: a redline that matched the alert colour
+       would be read as an alert. Do not harmonise them.
+       ⚠ The hex this sentence used to quote (#F87171) has been wrong since the
+       B3 collapse; --critical is #FF8A3D. The rule is unchanged, and the value
+       lives at --build-redline rather than here. */
     /*
       A disabled control's own fill and ink — v8 §8a.
 
@@ -104,8 +107,20 @@ nav {
     --text-disabled: #6E6B67;
     --surface-disabled: #1B1917;
 
-    --build-redline: #FF4436;
-    --build-redline-track: rgb(255 68 54 / 0.22);
+    /*
+     * ⚠ Hue 5 -> hue 20 on 4 Sep. This was `#FF4436`, and it was the last true
+     * red left on the specimen after the B3 collapse — missed by that pass
+     * because it sits outside the three renamed semantic families and is named
+     * for a thing rather than for a colour.
+     *
+     * The note below still governs and is the reason it does not simply become
+     * `--critical`: a redline must not match the alert colour, or a dial at its
+     * limit reads as a fault. It stays hotter and more saturated than
+     * `--critical` (#FF8A3D) and sits at the very top of the sodium range
+     * rather than outside it. Do not harmonise the two.
+     */
+    --build-redline: #FF5A0A;
+    --build-redline-track: rgb(255 90 10 / 0.22);
 
     /*
      * The build ramp — v8 §6's prerequisite.
@@ -2162,6 +2177,42 @@ nav {
     border-right-color: rgba(255, 255, 255, 0.04);
     border-bottom-color: rgba(255, 255, 255, 0.03);
   }
+  /*
+   * A panel that takes the cut without taking `.panel-cut`'s whole treatment —
+   * brief B4.
+   *
+   * `.panel-cut` brings a surface, a border, an inner light and the grain with
+   * it, which is right for a hero module and wrong for a container that already
+   * states its own surface. This is the clip and the bevel highlight only.
+   *
+   * ⚠ Anything focusable inside a clipped container still needs `ring-inset`,
+   * for the reason `button.tsx` gives at length: `clip-path` clips box-shadow,
+   * and an outside focus ring drawn at the container's edge is cut away.
+   */
+  .cut-panel {
+    position: relative;
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer)) 0,
+      100% var(--register-chamfer),
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .cut-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: calc(var(--register-chamfer) * 1.42);
+    height: 1px;
+    background: rgb(255 255 255 / 0.16);
+    transform-origin: top right;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+
   .glass-panel {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(12px);

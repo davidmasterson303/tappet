@@ -306,7 +306,21 @@ export function ClusterGauge({
           d={TRACK}
           fill="none"
           stroke={isCard ? `rgba(${inkRgb},0.10)` : 'rgb(255 255 255 / 0.08)'}
-          strokeWidth="6"
+          /*
+            ⚠ 6 -> 3 on the card face, brief B7: "a hairline arc, not a filled
+            ring". A 6px stroke on a 172 viewBox reads as a donut — a stock
+            dashboard widget — and the whole point of this instrument is that
+            it looks measured rather than dashboarded.
+
+            The round cap on the value arc below is doing more work at this
+            weight than it did at 6, not less: at 3px it terminates as a dot,
+            which is what the north-star draws.
+
+            The hero face keeps 6. It carries ticks, a needle and the ignition
+            sweep, and a hairline arc under a 2px tick would put the reading
+            beneath its own scale.
+          */
+          strokeWidth={isCard ? 3 : 6}
           strokeLinecap="butt"
           /*
             Dashed when there is no reading. The scale is still real — this is
@@ -331,7 +345,7 @@ export function ClusterGauge({
             d={TRACK}
             fill="none"
             stroke={band.color}
-            strokeWidth="6"
+            strokeWidth={isCard ? 3 : 6}
             /*
               ⚠ Round on the value arc, butt on the track beneath it.
 
@@ -530,7 +544,19 @@ export function ClusterGauge({
         <text
           x={CX}
           y={isCard ? CY : 108}
-          className="num gauge-reading"
+          /*
+            `display-instrument` joins `num` on 4 Sep — brief B2 puts the
+            condensed grotesk in the display slot, and the reading is the
+            largest piece of type this component sets. `num` stays for the
+            tabular figures, which is the reason the font-size note below was
+            measurable in the first place.
+
+            ⚠ `gauge-reading` must stay too: `inclusive-affordances.test.ts`
+            keys the forced-colors rules off the `gauge-*` classes, and forced
+            colors overrides SVG fill — rename it and the stylesheet keeps
+            reviewing perfectly while applying to nothing.
+          */
+          className="num display-instrument gauge-reading"
           textAnchor="middle"
           dominantBaseline="central"
           fill={unknown ? ink : isCard ? '#FFFFFF' : band.color}
