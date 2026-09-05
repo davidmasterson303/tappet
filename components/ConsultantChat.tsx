@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Loader as Loader2, Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy } from 'lucide-react';
-import { logger } from '@crewchief/core/logger';
-import { isDemoVehicleId } from '@crewchief/core/demo';
+import { logger } from '@wellkept/core/logger';
+import { isDemoVehicleId } from '@wellkept/core/demo';
+import { ADVISOR_NAME } from '@wellkept/core/prompts';
+import { refusalCopy } from '@wellkept/core/access';
+import { demoQuestionsFor } from '@wellkept/core/demo-answers';
 import { isDemoMode } from '@/lib/demo-mode';
-import { wishlistItemIdentifier } from '@crewchief/core/wishlist-identifier';
+import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
 import {
   sendConsultantMessage,
   createConsultantSession,
@@ -21,10 +24,12 @@ import {
 } from '@/app/actions';
 import { QuoteRequestDialogV2 } from './QuoteRequestDialogV2';
 import { toast } from 'sonner';
-import { invalidateDashboardCache } from '@crewchief/core/query-invalidation';
+import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
-import { CONTEXT_KIND_LABELS, type ContextKind } from '@crewchief/core/consultant-context-kinds';
-import { parseAnswerLine } from '@crewchief/core/answer-markup';
+import { CONTEXT_KIND_LABELS, type ContextKind } from '@wellkept/core/consultant-context-kinds';
+import { AnswerRuns } from '@/components/AnswerLine';
+import { parseAnswer } from '@wellkept/core/answer-markup';
+import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
 
 /*
  * These are the four collections this component *renders*, and no longer the
@@ -133,28 +138,6 @@ function getFollowUps(lastMessage: string): string[] {
   return FOLLOW_UP_SUGGESTIONS.default;
 }
 
-/**
- * Draws the runs `@crewchief/core/answer-markup` identifies.
- *
- * The tokenising moved to core on 5 Aug because the Expo advisor had none of
- * it: the same answer rendered as literal `**$1,461**` on the phone while the
- * web showed it bold. One-client capability, second client silently without —
- * the same shape as the health band and the context-kind labels.
- *
- * Only the drawing is web. React Native has no `<strong>`.
- */
-function renderMarkdownLine(line: string, key: number) {
-  const tokens = parseAnswerLine(line);
-
-  return tokens.map((token, index) =>
-    token.bold ? (
-      <strong key={`b-${key}-${index}`} className="font-semibold text-white">{token.text}</strong>
-    ) : (
-      <span key={`t-${key}-${index}`}>{token.text}</span>
-    )
-  );
-}
-
 /*
  * What the model was actually given.
  *
@@ -193,7 +176,7 @@ function renderMarkdownLine(line: string, key: number) {
  *
  * ── Where the words themselves live ────────────────────────────────────────
  *
- * `@crewchief/core/consultant-context-kinds`, since the Expo advisor screen
+ * `@wellkept/core/consultant-context-kinds`, since the Expo advisor screen
  * renders this same row. The labels are a provenance claim, so a second copy on
  * the phone would let the two clients describe one answer differently. Only the
  * icons below are web — Lucide has no React Native build here.
@@ -597,6 +580,14 @@ export default function ConsultantChat({
          * model, not what the model used, and deliberately absent on replayed
          * history. */
         sources: result.contextKinds ?? [],
+        /*
+          ⚠ Set by the server when this answer was written in advance rather
+          than generated — the demo, which makes no model call at all since
+          30 Aug. It rides on the message rather than on component state so a
+          scrolled-back conversation cannot lose the label while keeping the
+          answer, which is the one way this could quietly become a lie.
+        */
+        isSample: result.isSample === true,
       };
       setMessages([...optimisticMessages, assistantMsg]);
       setCurrentFollowUps(getFollowUps(result.response || ''));
@@ -691,7 +682,7 @@ export default function ConsultantChat({
       `100vh` there too: same number on a desktop, correct on a tablet with a
       collapsing browser chrome.
     */
-    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 rounded-none md:rounded-2xl overflow-hidden flex bg-slate-950/90 md:shadow-xl md:shadow-black/40 animate-consultant-fade">
+    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 overflow-hidden flex md:cut-panel bg-[hsl(var(--card))] md:shadow-xl md:shadow-black/40 animate-consultant-fade">
       {/*
         Below md the sidebar becomes a drawer. As a permanent flex child it
         took 256px of a 375px viewport, leaving ~119px for the thread — the
@@ -709,15 +700,21 @@ export default function ConsultantChat({
       <div
         className={`${
           sidebarOpen ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'
-        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-black/40 md:flex-shrink-0`}
+        /* ⚠ No second surface from `md` up — dossier B6. `bg-black/40` inside a
+           card-coloured frame is what made this read as "a frame inside a
+           frame": the sidebar was a differently-lit panel rather than one side
+           of a divided one. The `border-r` is the division, and one hairline is
+           all a division needs. The drawer keeps its own opaque ground below
+           `md`, where it floats over the thread rather than sitting beside it. */
+        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-transparent md:flex-shrink-0`}
       >
         <div className="p-4 border-b border-white/8">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm text-white">Conversations</h3>
+            <h3 className="mono text-xs uppercase tracking-widest text-white/70">Conversations</h3>
             <Button
               size="sm"
               onClick={handleNewChat}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs chamfer-sm"
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               New
@@ -729,7 +726,23 @@ export default function ConsultantChat({
               placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs"
+              className="text-xs"
+              /*
+                ⚠ Inline, because `pl-8` loses here and that is not obvious.
+
+                `.field-sm` lives in `@layer utilities` and sets the `padding`
+                **shorthand**. Same specificity as `pl-8`, declared later, so it
+                wins — measured live: `padding-left` resolved to 10px while the
+                icon's right edge sat at 26px, putting the glyph on top of the
+                first characters of its own placeholder. A design critique of
+                the rendered page saw it as a rendering fault, which it is.
+
+                The fix belongs in that class eventually — a component's padding
+                should not outrank a caller's utility — but moving `.field-sm`
+                out of the utilities layer changes every field in the app, and
+                this is one input.
+              */
+              style={{ paddingLeft: '2rem' }}
             />
           </div>
         </div>
@@ -748,18 +761,28 @@ export default function ConsultantChat({
                 <button
                   key={session.id}
                   onClick={() => handleSessionClick(session.id)}
-                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                  /* ⚠ A left rule, not a filled card — dossier B6. The active
+                     row was a tinted box inside a bordered panel inside a
+                     bordered frame; the critique counted the nesting and asked
+                     for "the cyan hairline, not a grey card". A rule marks a
+                     position without adding a container. */
+                  /* ⚠ No fill on the active row. B10 of the system brief
+                     reserves large fills for hover and critical, and a resting
+                     selection is neither — the cyan hairline plus off-white
+                     title is the whole active state. Hover keeps its wash,
+                     which is exactly the case a fill is for. */
+                  className={`w-full text-left p-3 border-l-2 transition-colors ${
                     activeSessionId === session.id
-                      ? 'bg-cyan-400/10 border border-cyan-400/25'
-                      : 'hover:bg-white/5 border border-transparent'
+                      ? 'border-[color:var(--info)]'
+                      : 'border-transparent hover:bg-white/4'
                   }`}
                 >
                   <p className={`text-xs font-medium line-clamp-2 leading-snug ${
-                    activeSessionId === session.id ? 'text-cyan-300' : 'text-white/80'
+                    activeSessionId === session.id ? 'text-[color:var(--text-primary)]' : 'text-white/80'
                   }`}>
                     {session.title}
                   </p>
-                  <p className="text-xs text-white/50 mt-1">
+                  <p className="mono text-xs text-white/50 mt-1">
                     {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </button>
@@ -790,24 +813,43 @@ export default function ConsultantChat({
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md animate-fade-in">
-                <div className="w-14 h-14 rounded-2xl bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
+                <div className="w-14 h-14 chamfer-sm bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
                   <MessageSquare className="h-7 w-7 text-info" />
                 </div>
-                <h3 className="text-lg font-bold mb-2 text-white">Hey, CrewChief here.</h3>
+                {/*
+                  The advisor is Jay; the product is Well Kept. Both names come
+                  from one constant in core, so this greeting, the turn bylines
+                  below and the name the model is given cannot drift apart.
+                */}
+                <h3 className="text-lg font-bold mb-2 text-white">Hey, {ADVISOR_NAME} here.</h3>
                 <p className="text-white/55 mb-5 text-sm leading-relaxed">
                   I know your {vehicle.year} {vehicle.make} {vehicle.model} inside and out. What&apos;s on your mind?
                 </p>
                 <div className="grid gap-2 text-left">
-                  {[
+                  {/*
+                    ── ⚠ On the demo these MUST be the questions it holds ─────
+
+                    The demo answers from a fixed set of pre-written answers and
+                    matches on the exact question. These four prompts were
+                    written for a live model and match none of them — so every
+                    chip dead-ended in "the demo answers a fixed set of
+                    questions", on the one surface a recruiter is sent to.
+
+                    A prompt that cannot be answered is worse than no prompt.
+                    So the demo offers its own questions and the product offers
+                    the open ones, and the two lists cannot drift because the
+                    demo's come from the module that answers them.
+                  */}
+                  {(isDemoVehicleId(vehicleId) ? demoQuestionsFor(vehicleId).map((entry) => entry.question) : [
                     'Something acting funny? Let\'s figure it out.',
                     'Planning your next round of work? I\'ll help prioritize.',
                     'Got a quote from a shop? Send it over for a second opinion.',
                     'Thinking about mods? I know what works on these.',
-                  ].map((suggestion, i) => (
+                  ]).map((suggestion, i) => (
                     <button
                       key={i}
                       onClick={() => handleSend(suggestion)}
-                      className="text-left p-3 bg-white/5 hover:bg-cyan-400/8 border border-white/8 hover:border-cyan-400/25 rounded-xl text-sm text-white/65 hover:text-white transition-all"
+                      className="text-left p-3 bg-white/5 hover:bg-[color:var(--info)]/8 border border-white/8 hover:border-[color:var(--info-border)]/25 chamfer-sm text-sm text-white/65 hover:text-white transition-all"
                     >
                       {suggestion}
                     </button>
@@ -828,11 +870,23 @@ export default function ConsultantChat({
                     which is which, so an 8x8 'CC' circle on every turn was
                     paying for information the layout already carried.
                   */}
+                  {/*
+                    ⚠ The sparkle is gone — dossier §7. The note above already
+                    argued the identity is a label row rather than an avatar and
+                    removed a 'CC' circle for "paying for information the layout
+                    already carried"; a four-point sparkle was the same purchase
+                    made again, and it is the single most generic "this is AI"
+                    mark there is. The word JAY says it.
+
+                    Mono throughout — B1 and B8 both put bylines and timestamps
+                    in the monospace register. `·` rather than a space so the
+                    name and the time read as one stamp.
+                  */}
                   {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                      <span className="text-xs font-semibold uppercase tracking-widest text-white/50">CrewChief</span>
-                      <span className="text-xs text-white/50">
+                    <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                      <span>{ADVISOR_NAME}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -840,10 +894,10 @@ export default function ConsultantChat({
                   <div
                     className={
                       msg.role === 'user'
-                        ? 'max-w-[80%] bg-primary/90 text-primary-foreground rounded-2xl rounded-tr-sm p-4 overflow-hidden'
+                        ? 'max-w-[80%] chamfer-sm bg-primary text-primary-foreground p-4 overflow-hidden'
                         /*
                           Unboxed: no background, border, radius or padding. A
-                          CrewChief answer is a diagnosis, not a chat line, and
+                          an answer from Jay is a diagnosis, not a chat line, and
                           after this a container on this screen means
                           "structured payload" rather than "someone spoke".
 
@@ -852,7 +906,21 @@ export default function ConsultantChat({
                           accident; unboxed prose has no edges to stop it and
                           would run to ~120 characters on a wide panel.
                         */
-                        : 'measure text-white overflow-hidden'
+                        /*
+                          ⚠ A cyan hairline on the left — dossier B8.
+
+                          The paragraph above is the reason there is no box, and
+                          it stands: an answer is a diagnosis, not a chat line.
+                          A rule is not a box — it does not enclose, it marks a
+                          margin, which is what a ruled quotation has always
+                          done. It also gives an unboxed answer the one thing
+                          losing the bubble cost it: a visible left edge to
+                          scan down.
+
+                          Cyan because the brief reserves it for information,
+                          and this is the surface's only sustained block of it.
+                        */
+                        : 'measure overflow-hidden border-l-2 border-[color:var(--info)] pl-4 text-white'
                     }
                   >
                     {msg.documents && msg.documents.length > 0 && (
@@ -861,19 +929,107 @@ export default function ConsultantChat({
                           <AttachmentLink
                             key={docIdx}
                             doc={doc}
-                            className={`flex items-center gap-2 p-2 rounded-lg ${
+                            className={`flex items-center gap-2 p-2 chamfer-sm ${
                               msg.role === 'user'
-                                ? 'bg-cyan-700/60 hover:bg-cyan-700'
+                                ? 'bg-[color:var(--brand-accent-button)]/60 hover:bg-[color:var(--brand-accent-button)]'
                                 : 'bg-white/8 hover:bg-white/12'
                             } transition-colors`}
                           />
                         ))}
                       </div>
                     )}
+                    {/*
+                      ── ⚠ `parseAnswer`, not `split('\n')` + `parseAnswerLine` ─
+
+                      Two things the line-at-a-time route could not do, both of
+                      which the phone has had for a while:
+
+                      **Bullets.** `parseAnswer` consumes the `-`/`*` marker and
+                      says the line is a bullet; splitting by hand left the
+                      marker in the text, so a list the advisor wrote rendered
+                      on the web as prose beginning with a hyphen.
+
+                      **Figures.** A cost breakdown arrived as a run of
+                      identical paragraphs — "$115" weighted the same as the
+                      sentence around it — and a design critique named it the
+                      biggest miss on this screen. `parseAnswer` hands back the
+                      label and the amount already tokenised, so the numbers can
+                      line up in a column without this component guessing at
+                      what a number looks like.
+                    */}
                     <div className="space-y-1.5">
-                      {msg.content.split('\n').map((line: string, i: number) => (
-                        <p key={i} className="text-sm leading-relaxed break-words">{renderMarkdownLine(line, i)}</p>
-                      ))}
+                      {parseAnswer(msg.content).map((line, i: number) => {
+                        if (line.kind === 'figure' && line.figure) {
+                          const { total } = line.figure;
+                          return (
+                            <p
+                              key={i}
+                              /*
+                                ⚠ The summing row is promoted. A critique of the
+                                rendered page: "the total isn't a total" — it
+                                sat at the same weight as a $115 brake flush,
+                                so "the punchline row of the whole answer has
+                                no promotion". A heavier rule above it and a
+                                larger figure is what a printed estimate does,
+                                and `answer-markup` decides which row it is by
+                                reading the word the model wrote.
+                              */
+                              className={
+                                total
+                                  ? 'mt-1 flex items-baseline justify-between gap-4 border-t border-white/25 pt-2 text-sm leading-normal'
+                                  : 'flex items-baseline justify-between gap-4 border-b border-white/8 py-1 text-sm leading-normal last:border-b-0'
+                              }
+                            >
+                              <span className="min-w-0 break-words">
+                                <AnswerRuns tokens={line.figure.label} lineKey={i} />
+                              </span>
+                              {/*
+                                ⚠ Neither the house `.num` class nor
+                                `tabular-nums`, and the reason is what these
+                                amounts contain.
+
+                                They are not pure figures — they carry words
+                                and ranges: "$800 all-in", "~$1,900-2,100".
+                                Tabular figures give every glyph the width of a
+                                digit, **including the hyphen**, so "all-in"
+                                rendered with a gap either side of its dash and
+                                a critique reported it as "$800 all - in".
+                                `.num` adds the register's negative tracking on
+                                top, which was never meant for prose.
+
+                                Tabular buys decimal alignment, and these are
+                                right-aligned against a rule instead — the
+                                column lines up on its edge, which is what a
+                                printed estimate does with mixed amounts.
+                              */}
+                              <span
+                                className={`shrink-0 text-white ${
+                                  total ? 'text-base font-bold' : 'font-semibold'
+                                }`}
+                              >
+                                <AnswerRuns tokens={line.figure.amount} lineKey={i} />
+                              </span>
+                            </p>
+                          );
+                        }
+
+                        if (line.kind === 'bullet') {
+                          return (
+                            <p key={i} className="flex gap-2.5 text-sm leading-normal break-words">
+                              <span aria-hidden="true" className="mt-[0.6em] h-1 w-1 shrink-0 rounded-full bg-white/40" />
+                              <span className="min-w-0">
+                                <AnswerRuns tokens={line.tokens} lineKey={i} />
+                              </span>
+                            </p>
+                          );
+                        }
+
+                        return (
+                          <p key={i} className="text-sm leading-normal break-words">
+                            <AnswerRuns tokens={line.tokens} lineKey={i} />
+                          </p>
+                        );
+                      })}
                     </div>
                     {msg.wishlistActions && msg.wishlistActions.length > 0 && (
                       <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
@@ -887,16 +1043,16 @@ export default function ConsultantChat({
                               key={actionIdx}
                               onClick={() => handleAddToWishlist(action)}
                               disabled={isAdded || isAdding}
-                              className={`flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm transition-all ${
+                              className={`flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm transition-all ${
                                 isAdded
-                                  ? 'bg-green-500/15 border border-green-400/25 text-green-300 cursor-default'
-                                  : 'bg-info-wash border border-info-border text-info hover:bg-cyan-400/15 hover:border-cyan-400/40'
+                                  ? 'bg-white/6 border border-[color:var(--confirm)]/25 text-[color:var(--confirm)] cursor-default'
+                                  : 'bg-info-wash border border-info-border text-info hover:bg-[color:var(--info)]/15 hover:border-[color:var(--info-border)]/40'
                               }`}
                             >
                               {isAdding ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
                               ) : isAdded ? (
-                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-green-400" />
+                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--confirm)]" />
                               ) : (
                                 <Heart className="h-3.5 w-3.5 flex-shrink-0" />
                               )}
@@ -910,11 +1066,11 @@ export default function ConsultantChat({
                                 contrast, not size, makes a label recede.
                               */}
                               <span
-                                className={`text-xs capitalize ${isAdded ? 'text-green-300/60' : 'text-info/60'}`}
+                                className={`text-xs capitalize ${isAdded ? 'text-[color:var(--confirm)]/60' : 'text-info/60'}`}
                               >
                                 {action.type}
                               </span>
-                              {!isAdded && !isAdding && <span className="text-xs text-cyan-400 font-semibold">+ Add</span>}
+                              {!isAdded && !isAdding && <span className="text-xs text-[color:var(--info-strong)] font-semibold">+ Add</span>}
                             </button>
                           );
                         })}
@@ -943,11 +1099,11 @@ export default function ConsultantChat({
                           return (
                             <button
                               onClick={() => handleQuotePull(pullable.map((e: any) => e.id))}
-                              className="flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm min-h-[44px] bg-amber-400/10 border border-amber-400/25 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/40 transition-all"
+                              className="flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm min-h-[44px] bg-[color:var(--attention)]/10 border border-[color:var(--attention-border)]/25 text-[color:var(--attention)] hover:bg-[color:var(--attention)]/20 hover:border-[color:var(--attention-border)]/40 transition-all"
                             >
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 font-medium text-xs">Get competing quotes</span>
-                              <span className="text-xs text-amber-300/60">
+                              <span className="text-xs text-[color:var(--attention)]/60">
                                 {pullable.length} item{pullable.length > 1 ? 's' : ''}
                               </span>
                             </button>
@@ -979,6 +1135,69 @@ export default function ConsultantChat({
                   )}
 
                   {/*
+                    ── ⚠ UX-16 / LEG-05 · the disclosure, where the advice is ──
+
+                    **The product never said its advice was AI-generated**, and
+                    the safety disclaimer lived only on a Terms page nobody
+                    opens. A disclaimer at the point of advice is worth far more
+                    than one behind a link, and it costs a line of copy.
+
+                    Under every assistant turn, not once at the top of the
+                    thread: a person scrolling a long conversation reads the
+                    answer, not the header. `adviceDisclosure` keeps the wording
+                    identical here and on the phone — a safety sentence that
+                    says one thing on one client is this codebase's most
+                    repeated defect applied to the sentence that limits
+                    liability.
+                  */}
+                  {msg.role === 'assistant' && msg.content && msg.isSample && (
+                    /*
+                      ⚠ A pre-written answer says so, above the disclosure and
+                      not instead of it. The two sentences answer different
+                      questions — "who wrote this" and "when" — and a sample
+                      that only carried the AI disclosure would be claiming a
+                      model produced it for this visitor, which is precisely the
+                      class of defect the scan sweep and the quote bar were.
+                    */
+                    <p className="measure text-xs text-white/60 mt-2 italic">
+                      {refusalCopy('demo', 'generate')}
+                    </p>
+                  )}
+                  {/*
+                    ⚠ Set as apparatus, not as a second paragraph.
+
+                    A design critique asked for this once per thread instead of
+                    under every turn — "a tax on every message" — and that is
+                    the one note here I am not taking. The comment above says
+                    why and it still holds: a person scrolling a long
+                    conversation reads the answer, not the header, and this is
+                    the sentence that limits liability.
+
+                    What the critique was right about is weight: three lines of
+                    body-sized copy after every answer competed with the answer.
+                    A hairline and a tighter setting make it read as a footnote
+                    to the turn, which is what it is. Same words, same
+                    frequency, less shout.
+                  */}
+                  {/* ⚠ `mono` — dossier B1 puts every state label and piece of
+                      apparatus in the monospace register, and the note above
+                      already calls this apparatus rather than a second
+                      paragraph. Same words, same frequency; it now reads as the
+                      footnote it is rather than as more prose.
+
+                      ⚠ A comment cannot go between `&& (` and the element —
+                      that is a JS expression position, where a braced JSX
+                      comment is invalid. Third time this pass; tsc catches it,
+                      the suite does not, because the suite does not typecheck.
+                      And do not spell that comment form out here either: its
+                      closing sequence ends the comment you are writing. */}
+                  {msg.role === 'assistant' && msg.content && (
+                    <p className="mono measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
+                      {adviceDisclosure('consultant')}
+                    </p>
+                  )}
+
+                  {/*
                     Quiet utilities. Opacity, not display:none, so they stay in
                     the tab order — and pinned visible on touch, where there is
                     no hover to reveal them. Same rule as the garage card's
@@ -999,7 +1218,7 @@ export default function ConsultantChat({
 
                   {/* The user bubble keeps its timestamp, below and right. */}
                   {msg.role === 'user' && (
-                    <div className="text-xs text-white/50 mt-1">
+                    <div className="mono text-xs text-white/50 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
@@ -1011,9 +1230,8 @@ export default function ConsultantChat({
                   a message that had arrived. */}
               {loading && (
                 <div className="animate-fade-in flex flex-col items-start">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                    <span className="text-xs font-semibold uppercase tracking-widest text-white/50">CrewChief</span>
+                  <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                    <span>{ADVISOR_NAME}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-info flex-shrink-0" />
@@ -1040,7 +1258,7 @@ export default function ConsultantChat({
                           control that answers the wrong tap is worse than one
                           that is slightly too small, so this grows for real.
                         */
-                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-cyan-400/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
+                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-[color:var(--info)]/10 border border-white/10 hover:border-[color:var(--info-border)]/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
                       >
                         {suggestion}
                       </button>
@@ -1056,17 +1274,17 @@ export default function ConsultantChat({
                 if (highPriorityWishlist.length === 0) return null;
                 return (
                   <div className="animate-slide-up">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/8 border border-amber-400/20">
-                      <TriangleAlert className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                    <div className="flex items-center gap-3 p-3 chamfer-sm bg-[color:var(--attention-wash)] border border-[color:var(--attention-border)]/20">
+                      <TriangleAlert className="h-4 w-4 text-[color:var(--attention)] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-300">
+                        <p className="text-xs font-semibold text-[color:var(--attention)]">
                           {highPriorityWishlist.length} item{highPriorityWishlist.length > 1 ? 's' : ''} need attention
                         </p>
                         <p className="text-xs text-white/50 mt-0.5">Get quotes from local shops</p>
                       </div>
                       <a
                         href={`/dashboard/${vehicleId}?tab=wishlist`}
-                        className="flex-shrink-0 px-2.5 py-1 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 rounded-lg text-xs font-semibold text-amber-300 transition-colors"
+                        className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
                         Get Quote
                       </a>
@@ -1090,7 +1308,7 @@ export default function ConsultantChat({
               {selectedFiles.map((file, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 rounded-xl"
+                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 chamfer-sm"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <FileText className="h-4 w-4 text-info flex-shrink-0" />
@@ -1101,10 +1319,10 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
-                    className="ml-2 p-1 hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 chamfer-sm transition-colors"
                     disabled={uploadingFiles || loading}
                   >
-                    <X className="h-3.5 w-3.5 text-red-400" />
+                    <X className="h-3.5 w-3.5 text-[color:var(--critical)]" />
                   </button>
                 </div>
               ))}
@@ -1118,10 +1336,15 @@ export default function ConsultantChat({
             textarea is borderless inside it. Canonical order is still
             [attach, input, send] — attach beside the field, send last.
           */}
-          <div className="composer-panel rounded-xl">
+          {/*
+            ⚠ `group` so the helper line below can wait for focus. See its own
+            note — at rest the composer was three stacked rows for an idle
+            input, and only one of them was the input.
+          */}
+          <div className="composer-panel group chamfer-sm">
             <Textarea
               ref={textareaRef}
-              placeholder="Ask me anything about your vehicle..."
+              placeholder="What do you want to know about this car?"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -1141,7 +1364,7 @@ export default function ConsultantChat({
                 disabled={loading || uploadingFiles || selectedFiles.length >= 3}
                 aria-label="Attach a file"
                 title="Attach documents, invoices, or diagnostic reports"
-                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8"
+                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-[color:var(--info-strong)] hover:bg-[color:var(--info)]/8"
               >
                 <Paperclip className="h-[17px] w-[17px]" />
               </Button>
@@ -1152,7 +1375,7 @@ export default function ConsultantChat({
                 Truncates, never wraps — a second line here pushes the controls
                 around as mileage changes.
               */}
-              <span className="flex-1 min-w-0 truncate text-xs text-white/50">
+              <span className="mono flex-1 min-w-0 truncate text-xs text-white/50">
                 {vehicle.year} {vehicle.make} {vehicle.model}
                 {` · ${displayMileage.toLocaleString()} mi`}
                 {openItemCount > 0 && ` · ${openItemCount} open item${openItemCount === 1 ? '' : 's'}`}
@@ -1181,8 +1404,34 @@ export default function ConsultantChat({
             onChange={handleFileSelect}
             className="hidden"
           />
-          <p className="text-xs text-white/50 mt-2">
-            Enter to send &middot; Shift+Enter for new line &middot; Attach up to 3 files
+          {/*
+            ⚠ The keyboard half is desktop-only, and it was not.
+
+            "Enter to send · Shift+Enter for new line" rendered on a 390px
+            phone, where there is no Enter key doing that and no Shift at all —
+            a design critique called it "an instant tell that the mobile layout
+            is the desktop layout squeezed", and it was exactly that. The
+            attachment limit is true on every device, so it stays.
+          */}
+          {/*
+            ── ⚠ Shown on focus, not at rest ─────────────────────────────────
+
+            A critique of the rendered page called the composer "a monument":
+            three stacked rows for an idle input — the field, the vehicle chip,
+            and this. It is instruction for someone about to type, and at rest
+            nobody is.
+
+            ⚠ Not conditionally rendered. It stays in the DOM so a screen
+            reader reaches it and so the composer's height does not jump when
+            the field takes focus; only its opacity moves. The placeholder's
+            own size is untouched — 16px is R2's iOS zoom floor, not a
+            typographic choice.
+          */}
+          <p className="mt-2 text-xs text-white/50 opacity-0 transition-opacity group-focus-within:opacity-100">
+            <span className="hidden sm:inline">
+              Enter to send &middot; Shift+Enter for new line &middot;{' '}
+            </span>
+            Attach up to 3 files
           </p>
         </div>
       </div>

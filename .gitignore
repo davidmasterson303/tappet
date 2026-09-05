@@ -68,3 +68,10 @@ public/image*.png
 # resolution, for the same underlying reason: a full second copy of the repo
 # sitting inside the repo is something every tool has to be told to ignore.
 .claude/worktrees/
+
+# Screenshot output from the design-critic loop (~/Developer/design-loop). PNGs
+# at two viewports per iteration, and the same EAS-upload argument as
+# `.claude/worktrees/` above: untracked and unignored means it ships in the
+# build upload. `.env.agents` needs no line of its own — `.env*` already
+# catches it, which is the point of the catch-all.
+design-loop/

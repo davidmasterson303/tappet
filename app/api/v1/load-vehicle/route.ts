@@ -1,12 +1,10 @@
-import { logger } from '@crewchief/core/logger';
+import { logger } from '@wellkept/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@crewchief/core/types';
+import type { ApiResponse } from '@wellkept/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { resolveVehiclePhoto } from '@/lib/vehicle-photo';
-import { evaluateSchedule } from '@crewchief/core/service-due';
-import { historyLookups } from '@crewchief/core/service-history';
-import { healthDrivers } from '@crewchief/core/health-drivers';
+import { driversForVehicle } from '@wellkept/core/health-drivers';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +67,27 @@ function embedded<T>(value: unknown): T | undefined {
   subtract them would show a number the garage row it was opened from does not.
   That is the failure this whole file's rule is named after.
 */
+/*
+  ⚠ `last_generated` travels because **a verdict has to be able to say when it
+  was reached.**
+
+  On 23 Aug the M235i's detail screen read "a complete lack of documented
+  maintenance … impossible to assess its current condition" while its service
+  history listed five records and $1,461. Both were rendering honestly: the
+  stored summary was generated on 30 Jul, the line items were filed on 6 Aug,
+  and the row has not been recomputed since.
+
+  `generateVehicleHealthSummary` reads `maintenance_line_items` as of 5 Aug,
+  so a recompute would now produce the right answer — but nothing on the
+  mobile read path performs one, and this route returned no way for the client
+  to tell that the sentence it was given predates the records beside it. A
+  stale verdict that cannot be recognised as stale is indistinguishable from a
+  wrong one, and it tells the owner the app did not read the invoice they just
+  scanned.
+
+  One column, and it is what lets the screen refuse to present an out-of-date
+  reading as a current one.
+*/
 const VEHICLE_COLUMNS =
   'id,year,make,model,trim,color,vin,current_mileage,avg_miles_per_month,' +
   'image_url,custom_image_url,performance_mindedness,ownership_objective,' +
@@ -76,7 +95,7 @@ const VEHICLE_COLUMNS =
   'next_service_label,next_service_at_miles,next_service_due_on,' +
   'nhtsa_data(recalls),' +
   'recall_actions(campaign_number,addressed_at),' +
-  'vehicle_health_summary(health_score,summary,red_flags)';
+  'vehicle_health_summary(health_score,summary,red_flags,last_generated)';
 
 /**
  * Vehicle and knowledge-base read.
@@ -214,16 +233,18 @@ export async function GET(request: NextRequest): Promise<Response> {
     const schedule = knowledgeData?.maintenance_schedule;
     const history = historyResult.error ? [] : (historyResult.data ?? []);
 
-    const services = Array.isArray(schedule)
-      ? evaluateSchedule({
-          schedule,
-          currentMileage: (vehicle.current_mileage as number | null) ?? 0,
-          ...historyLookups(history),
-        })
-      : [];
+    /*
+      ⚠ The assembly moved into `driversForVehicle` — D10.
 
-    const drivers = healthDrivers({
-      services,
+      It was correct here and it was correct *only* here, which is why the web
+      dashboard rendered no drivers at all. Both clients read the one function
+      now; the three decisions this block used to make locally (empty schedule,
+      degraded history, `undefined` recalls) are stated in its docblock and are
+      unchanged.
+    */
+    const drivers = driversForVehicle({
+      schedule,
+      historyRows: history,
       /*
         `undefined` when the embed is absent, which the driver reads as "never
         checked" rather than "none". An empty array means NHTSA was asked and

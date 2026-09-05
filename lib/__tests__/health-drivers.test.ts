@@ -14,8 +14,8 @@ import {
   maintenanceDriver,
   mileageLoadDriver,
   recallDriver,
-} from '@crewchief/core/health-drivers';
-import type { ServiceDue } from '@crewchief/core/service-due';
+} from '@wellkept/core/health-drivers';
+import type { ServiceDue } from '@wellkept/core/service-due';
 
 /** A `ServiceDue` with only the fields the drivers read. */
 const due = (
@@ -75,12 +75,56 @@ describe('maintenanceDriver', () => {
       a gap in *our records*, not a fault in the car. Charging for it would let
       a car with no invoices score worse than one with a genuine overdue brake
       fluid — punishing the owner for our missing data.
+
+      Asserted against a car where **something** is known, because that is where
+      the property is actually observable: two clean services and one unknown
+      must score the same as two clean services alone.
+    */
+    const partial = maintenanceDriver([due('later'), due('later'), due('unknown')]);
+    const known = maintenanceDriver([due('later'), due('later')]);
+
+    expect(partial.score).toBe(known.score);
+    // Reported rather than absorbed. "—" on its own reads as a bug.
+    expect(partial.detail).toMatch(/1 service with no record to count from/);
+  });
+
+  it('scores nothing at all when nothing is known — FN-01b', () => {
+    /*
+      ⚠ **The defect this replaces, seen live on 23 Aug.** Three unknowns
+      produced `100 - 0 = 100` and the sentence *"Nothing overdue, across 3
+      tracked services"* — a **perfect maintenance score for a car with no
+      service records**, in the module written to stop absence reading as an
+      all-clear.
+
+      Both halves were individually right: not penalising an unknown is correct,
+      and 100 minus nothing is 100. What is wrong is **scoring at all** when
+      every input is a gap. `null` already means "we cannot say" here — the
+      no-schedule branch returns it — and this is the same absence reached one
+      step later.
     */
     const blind = maintenanceDriver([due('unknown'), due('unknown'), due('unknown')]);
 
-    expect(blind.score).toBe(100);
-    // Reported rather than absorbed. "—" on its own reads as a bug.
-    expect(blind.detail).toMatch(/3 services with no record to count from/);
+    expect(blind.score).toBeNull();
+    expect(blind.detail).toMatch(/No service records yet for any of 3 tracked services/);
+    // And it must not be dressed as good news on the way out.
+    expect(blind.detail).not.toMatch(/[Nn]othing overdue/);
+  });
+
+  it('leads with the absence when there is nothing else to report', () => {
+    /*
+      "Nothing overdue, across 8 tracked services. 3 services with no record to
+      count from." reads as a clean bill with a footnote — and the footnote is
+      the load-bearing half. When missing records are the only thing to say,
+      they are what the sentence opens with.
+    */
+    const mostlyBlind = maintenanceDriver([
+      due('later'),
+      due('unknown'),
+      due('unknown'),
+      due('unknown'),
+    ]);
+
+    expect(mostlyBlind.detail).toMatch(/^3 services with no record to count from\./);
   });
 
   it('describes the same car the number does', () => {
@@ -283,5 +327,52 @@ describe('healthDrivers', () => {
       expect(driver.score).toBeGreaterThanOrEqual(1);
       expect(driver.score).toBeLessThanOrEqual(100);
     }
+  });
+});
+
+describe('a driver says when it found nothing outstanding', () => {
+  /*
+    ── ⚠ What this fact is for, and why it is a fact ─────────────────────────
+
+    The dashboard renders a computed driver and a model-written claim about the
+    same subject, and on a car with a gap in its records they can disagree in
+    plain sight: "Maintenance 97 — nothing overdue among the 6 we can check"
+    directly above "Brake fluid overdue". Neither is wrong — `nextDueMileage`
+    counts an unrecorded service from the next interval boundary above the
+    odometer, while the model reads the same silence as "never done" — so the
+    screen names the disagreement instead of suppressing either side.
+
+    It reads this flag to do that. The alternative was a threshold in the
+    component (`score >= 80`), which would be the invented precision this whole
+    module refuses.
+  */
+  it('is set when nothing is overdue and nothing is due', () => {
+    const driver = maintenanceDriver([due('later'), due('soon'), due('later')]);
+
+    expect(driver.nothingOutstanding).toBe(true);
+  });
+
+  it('is not set when something is overdue or due', () => {
+    /*
+      The assertion that fails if the flag is ever hard-coded true — which
+      would make the screen announce a disagreement on a car where the two
+      sides agree that work is owed.
+    */
+    expect(maintenanceDriver([due('overdue'), due('later')]).nothingOutstanding).toBeFalsy();
+    expect(maintenanceDriver([due('due'), due('later')]).nothingOutstanding).toBeFalsy();
+  });
+
+  it('is not set when there is nothing to say at all', () => {
+    // `null` score. "We cannot say" is not "we looked and found nothing", and
+    // a screen that treated the two alike would claim a disagreement with a
+    // check that never ran.
+    expect(maintenanceDriver([]).nothingOutstanding).toBeFalsy();
+    expect(maintenanceDriver([due('unknown'), due('unknown')]).nothingOutstanding).toBeFalsy();
+  });
+
+  it('says the same thing about a clean recall check, and not about an absent one', () => {
+    expect(recallDriver([]).nothingOutstanding).toBe(true);
+    // Never checked — the FN-03 case. Absence is not a clean result.
+    expect(recallDriver(undefined).nothingOutstanding).toBeFalsy();
   });
 });

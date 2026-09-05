@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usageProfileChip } from '@crewchief/core/usage-profile';
+import { usageProfileChip } from '@wellkept/core/usage-profile';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
@@ -47,13 +47,13 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { deleteVehicle, updateVehicleMileage } from '@/app/actions';
-import { logger } from '@crewchief/core/logger';
-import { isDemoVehicleId } from '@crewchief/core/demo';
+import { logger } from '@wellkept/core/logger';
+import { isDemoVehicleId } from '@wellkept/core/demo';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { invalidateDashboardCache } from '@crewchief/core/query-invalidation';
-import { queryClient } from '@crewchief/core/query-client';
+import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
+import { queryClient } from '@wellkept/core/query-client';
 import { MileageUpdatePrompt } from './MileageUpdatePrompt';
 import { VehiclePhotoUploadDialog } from './VehiclePhotoUploadDialog';
 
@@ -106,7 +106,7 @@ interface VehicleCardProps {
  * either. Both were single-card moments; three of them side by side in the
  * garage grid read as noise, and the band colour already carries severity.
  */
-function HealthRing({ score }: { score: number }) {
+function HealthRing({ score }: { score: number | null }) {
   /*
    * The garage grid adopts the same instrument as the dashboard hero — the
    * ticked 270° dial, at the 56px slot this card has always used. Roadmap
@@ -119,6 +119,14 @@ function HealthRing({ score }: { score: number }) {
    * well. It also stays still: no count-up, no pulse — both were single-card
    * moments, and three of them side by side in this grid read as noise while
    * the band colour already carries severity.
+   *
+   * ── ⚠ D10 · `null` travels, and used to arrive here as red ────────────────
+   *
+   * This card's own docblock has carried the rule for months — *"no score is
+   * not a zero"* — and the prop type said `number` while the call site passed
+   * `healthSummary.health_score` out of an `any`, so a null walked straight
+   * past it into `ClusterGauge` and painted a 0. The rule was written down and
+   * the type did not enforce it; `number | null` is the enforcement.
    */
   return <ClusterGauge score={score} variant="card" size={56} />;
 }
@@ -274,15 +282,40 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
    * lib/usage-profile.ts. Rendered over the strip when there is one, and in
    * the body when there is not, so a photo-less card still says what the car
    * is for. */
-  const nicknameChip = (
+  /*
+    ── ⚠ A badge every card carries classifies nothing ───────────────────────
+
+    `usageProfileChip` falls back to "Daily Driver" for an unset status, so a
+    garage of cars nobody has categorised printed the same chip three times —
+    decoration wearing a label's clothes. A label earns its place by being
+    absent sometimes.
+
+    So it renders only when the owner has actually said something. The fallback
+    in `usage-profile.ts` stays, because a *set* status must never render blank;
+    what changes is that an unset one is now a reason not to draw a chip rather
+    than a reason to invent one.
+  */
+  /*
+    ⚠ And `daily_driver` is the assumed state, so it earns no chip either.
+
+    Only marking a car unset was not enough: the seeded garage declares all
+    three as daily drivers, so the chip still printed three times and still
+    classified nothing. What a status chip is *for* is the car that is not the
+    ordinary case — the one in storage, the one being sold, the weekend car.
+    Those get a chip; the default does not.
+  */
+  const hasDeclaredStatus =
+    Boolean(displayVehicle.vehicle_status) && displayVehicle.vehicle_status !== 'daily_driver';
+
+  const nicknameChip = hasDeclaredStatus ? (
     <div className={`flex items-center gap-1.5 ${statusInfo.className} border px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm`}>
       <Tag className="h-3 w-3" />
       {statusInfo.label}
     </div>
-  );
+  ) : null;
 
   return (
-    <div className="group card-lift relative border rounded-2xl overflow-hidden bg-[#0f1318]/90 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-cyan-400/30">
+    <div className="group card-lift cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-[color:var(--border-field-hover)]">
       {/*
         The 3:2 identity plate, and it renders unconditionally — CC-142 §2.
 
@@ -314,40 +347,126 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           trim={vehicle.trim}
         />
 
-        <div className="above-stretch absolute inset-0 bg-black/50 reveal-on-hover flex items-center justify-center">
+        {/*
+          ── ⚠ Hovering a card says "open", not "manage" ────────────────────
+
+          This dimmed the photograph by 50% and centred a "Change Photo" pill.
+          On a browsing surface the primary hover affordance was therefore an
+          **asset-management** action: the page invites somebody into a dossier
+          and hands them a file picker. It also obscured the one thing the hover
+          should be showing off — the car.
+
+          The control is not lost. It sits at the corner, quiet until hover, so
+          the photograph stays visible and the card's own lift remains the
+          "open me" signal. The dialog below is unchanged, as is the menu that
+          already carries the management actions.
+        */}
+        <div className="above-stretch absolute bottom-2 right-2 reveal-on-hover">
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowPhotoDialog(true); }}
-            className="tap-target-44 flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-xs font-medium transition-all backdrop-blur-sm"
+            className="tap-target-44 flex items-center gap-1.5 px-2.5 py-1.5 bg-black/55 hover:bg-black/75 border border-white/15 rounded-full text-white/80 hover:text-white text-xs font-medium transition-all backdrop-blur-sm"
             aria-label={photoUrl ? 'Change vehicle photo' : 'Add a photo of this car'}
           >
             <Camera className="h-3.5 w-3.5" />
-            {photoUrl ? 'Change Photo' : 'Add Photo'}
+            {photoUrl ? 'Change' : 'Add photo'}
           </button>
         </div>
 
         <div className="absolute top-2 left-2">{nicknameChip}</div>
-      </div>
 
       {/*
-        Conditions, in their own slot. Full-bleed so it reads as a property of
-        the card rather than another chip floating on the photo. One line,
-        joined with ' · ' — never stacked, never wrapped; past two entries the
-        caller summarises ("3 issues").
+        Conditions, on the plate's bottom edge.
+
+        ⚠ **Moved into the plate, 3 Sep, and the original reasoning survives.**
+        It sat between the plate and the body as a block in flow — which meant a
+        card with a recall pushed its title, its dial and its mileage rule ~30px
+        below the cards without one. In a three-column grid the horizontal
+        registers *are* the design, and they did not register.
+
+        The note this replaces refused to put it "on the photo" because a chip
+        floating there competes with the identity chip. That still holds and
+        this is not that: it is a full-bleed band welded to the plate's bottom
+        edge, spanning it, which is why it still reads as a property of the card
+        rather than as a second chip. What changes is that it no longer moves
+        anything below it.
       */}
       {resolvedAlerts.length > 0 && (
         <div
-          className="flex items-center gap-1.5 px-4 py-[7px] text-xs font-semibold border-y"
+          /*
+            ── ⚠ The most urgent fact was the lowest-contrast thing on the card ─
+
+            The wash tokens are built to sit *behind body text on a page*, and
+            over a photograph they rendered as a murky smear — a critique of the
+            rendered page called it a rendering artifact. A recall is the single
+            most important thing a garage can tell somebody, and it was styled
+            like a scanline.
+
+            Solid ink on a near-opaque ground now, at `uiStrong` weight rather
+            than 9px. Still on the plate's edge, but it reads as a statement
+            instead of a stain.
+
+            ── ⚠ It was a third copy of the health ramp — 5 Sep ─────────────
+
+            These two backgrounds were `rgb(224 136 130)` and
+            `rgb(224 164 104)`, typed as literals. Those are the **old**
+            `--ring-bad` and `--ring-warn`, so this ribbon was a third source of
+            truth for a ramp that already had two, and it is why the landing
+            page still rendered salmon after the tokens moved: an inline `rgb()`
+            cannot be migrated by changing a token, and nothing failed to warn
+            anybody.
+
+            ── The two states no longer differ by hue, so they differ by fill ──
+
+            Both are sodium under brief B3, which allows two hues and asks for
+            severity to be carried by intensity and area. B10 puts that plainly:
+            a large fill is for the critical case only. So:
+
+              critical  solid `--critical`, dark ink        8.44:1
+              attention sodium ink and a sodium rule on a
+                        near-opaque dark ground             8.74:1
+
+            The most urgent state is the only one that fills, which is a
+            stronger signal than two fills a shade apart.
+
+            ⚠ The ground stays near-opaque in both. This sits over a
+            photograph, and a translucent wash over one is the "murky smear"
+            the paragraph above is about — that argument is unchanged, and the
+            attention state honours it by darkening its ground rather than by
+            filling with colour.
+          */
+          className="mono absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider border-l-4"
           style={
+            /*
+              ── ⚠ A left rule on a dark ground, not a colour fill — 5 Sep ────
+
+              Both states were solid sodium with dark ink. The dossier critique
+              cut it by name — "a sodium left-ruled mono row carries the same
+              fact" — and it is right that two full-width bars of the loudest
+              colour in the system, on the surface a visitor meets first, spend
+              more than the fact costs.
+
+              ⚠ The ground stays near-opaque in both, which is the part not to
+              undo. This sits over a photograph, and the note above records
+              what a translucent wash over one looked like: "a murky smear …
+              a rendering artifact". The rule and the ink carry the severity;
+              the ground exists only so they are legible over an image nobody
+              chose.
+
+              Severity is the rule's colour and the ink's, which is the same
+              intensity distinction the chips use — `--critical` for a recall,
+              `--attention` for anything else — and both measure above 8:1 on
+              this ground.
+            */
             ribbonCritical
               ? {
-                  color: 'var(--critical-red)',
-                  background: 'var(--critical-red-wash)',
-                  borderColor: 'var(--critical-red-border)',
+                  color: 'var(--critical)',
+                  background: 'rgb(11 10 9 / 0.88)',
+                  borderColor: 'var(--critical)',
                 }
               : {
-                  color: 'var(--attention-amber)',
-                  background: 'var(--attention-amber-wash)',
-                  borderColor: 'var(--attention-amber-border)',
+                  color: 'var(--attention)',
+                  background: 'rgb(11 10 9 / 0.88)',
+                  borderColor: 'var(--attention)',
                 }
           }
         >
@@ -355,15 +474,47 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           <span className="truncate">{resolvedAlerts.map((a) => a.label).join(' · ')}</span>
         </div>
       )}
+      </div>
 
       <div className="p-5 flex-1 flex flex-col gap-4">
         {/* Reading order starts here: score, name, condition, detail. */}
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-bold text-white tracking-tight leading-tight">
+            {/*
+              ── ⚠ The model is the name; the year and make are the eyebrow ──
+
+              This had it the other way round — "2019 BMW" at 20px bold with
+              "M3 · Competition" as grey subtext. Nobody thinks of their car as
+              a 2019 BMW. Worse, on a car with no photograph the plate above
+              prints the model large, so the card contradicted itself: "M3" in
+              the image and "2019 BMW" underneath it.
+
+              The model takes the display serif, which is the same face as the
+              wordmark and the page heading — one type system rather than a
+              serif mark sitting on a sans page.
+            */}
+            <p className="mono text-xs uppercase tracking-[0.18em] text-white/55">
               {vehicle.year} {vehicle.make}
+            </p>
+            {/*
+              ⚠ This was an inline `fontFamily` reading `var(--font-display),
+              Newsreader, Georgia, serif` — the sixth place in this codebase
+              where the display face was spelled by hand, and the same defect
+              the landing hero had: when B2 moved `--font-display` to Archivo
+              the first name in that chain stopped being a serif and this
+              heading silently changed instrument, still carrying a serif
+              fallback chain it could no longer reach.
+
+              `.display-instrument` with the heading width, uppercase, so a
+              garage card names its car the way the dossier header does. One
+              voice at three widths — see `globals.css`.
+            */}
+            <h3 className="display-instrument display-instrument-narrow text-[26px] uppercase text-white leading-none mt-1">
+              {vehicle.model}
             </h3>
-            <p className="text-sm text-white/50 mt-0.5">{vehicle.model}{vehicle.trim ? ` · ${vehicle.trim}` : ''}</p>
+            {vehicle.trim ? (
+              <p className="text-[13px] text-white/55 mt-1">{vehicle.trim}</p>
+            ) : null}
 
             {/*
               The chip used to be repeated here when there was no photograph,
@@ -388,12 +539,16 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             <div className="meta-row above-stretch relative mt-3 flex items-center gap-1.5">
               <Gauge className="h-3 w-3 text-white/40 flex-shrink-0" />
               <span className="text-[13px] text-secondary-foreground">
-                <span className="num font-semibold">{displayVehicle.current_mileage.toLocaleString()}</span>
-                <span className="text-muted-foreground font-normal"> mi mileage</span>
+                {/*
+                  ⚠ "67,400 mi mileage" — the unit and the word, together, on
+                  every card. It is "67,400 mi" or "Mileage 67,400", never both.
+                */}
+                <span className="mono num font-medium">{displayVehicle.current_mileage.toLocaleString()}</span>
+                <span className="text-muted-foreground font-normal"> mi</span>
               </span>
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowMileageDialog(true); }}
-                className="meta-edit tap-target-44 text-white/50 hover:text-cyan-400 transition-colors"
+                className="meta-edit tap-target-44 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] transition-colors"
                 aria-label={`Update mileage for ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -401,7 +556,13 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             </div>
           </div>
 
-          {healthSummary && <HealthRing score={healthSummary.health_score} />}
+          {/*
+            ⚠ `?? null`, never `?? 0`. The row existing and the score existing
+            are two different facts: a vehicle assessed and found unscoreable
+            has a row with a null score, and it gets the unknown face rather
+            than the bottom of the scale.
+          */}
+          {healthSummary && <HealthRing score={healthSummary.health_score ?? null} />}
 
           {/*
             The options menu used to live inside the photo plate. With the strip
@@ -421,25 +582,25 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-950 border-white/15 text-white min-w-[160px]">
+              <DropdownMenuContent align="end" className="bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)] min-w-[160px]">
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowPhotoDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Camera className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Camera className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Change Photo
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowMileageDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Pencil className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Update Mileage
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem
-                    className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer"
+                    className="text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)] cursor-pointer"
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -449,7 +610,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-slate-950 border-white/15">
+            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
                 <AlertDialogDescription className="text-white/60">
@@ -458,7 +619,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-500 text-white">
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -472,11 +633,56 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           ring has moved to the header, and this is prose — so it is unboxed,
           and capped at a readable measure rather than run to the card's width.
         */}
-        {healthSummary?.summary && (
-          <p className="measure text-xs text-white/60 leading-relaxed line-clamp-2">
-            {healthSummary.summary}
-          </p>
-        )}
+        {/*
+          ── ⚠ A complete sentence, not a clamped paragraph ────────────────
+
+          This ran the whole summary under `line-clamp-2`, so the card ended
+          mid-clause with an ellipsis butted against the text's own punctuation
+          — "...separates a healthy car from a costly one...." On a product
+          whose pitch is "every invoice read", an unfinished sentence on the
+          front page is a self-own.
+
+          `firstSentence` takes the lead sentence whole. The rest is one click
+          away, on the screen that exists to carry it, and nothing here is ever
+          cut off in the middle of a word.
+        */}
+        {/*
+          ── ⚠ CUT by the design critique, 5 Sep. Restoring it is one block ───
+
+          This rendered `firstSentence(healthSummary?.summary)` — the lead
+          sentence of the health summary, under the dial.
+
+          The critique's argument: "the dossier is one click away; cutting them
+          lets year/model/dial lead and tightens the card to instrument
+          height." Which is the same argument the note below already made for
+          taking only the *first* sentence, followed one step further.
+
+          **This is a content change, not a styling one, and it is the only one
+          in the whole design pass.** A garage card no longer says anything in
+          prose about the car's condition; the dial and the recall ribbon carry
+          it, and the sentence lives on the dossier. If that is the wrong trade,
+          the reversal is: render `firstSentence(healthSummary?.summary)` here
+          as a muted paragraph at the small step, capped to the measure — and
+          restore the `@wellkept/core/summary-text` import, which went with it
+          rather than being left dangling.
+
+          ⚠ Do not paste the removed JSX into this comment to preserve it.
+          `text-contrast-floor.test.ts` counts class tokens before and after
+          stripping comments and fails when stripping eats more than five,
+          which is how it proves it is reading markup rather than prose. Two
+          separate edits in this design pass turned it red exactly that way.
+
+          ── ⚠ A complete sentence, not a clamped paragraph ────────────────
+
+          Kept because it is the reason `firstSentence` exists, and whoever
+          restores the line needs it. That paragraph once ran
+          the whole summary under `line-clamp-2`, so the card ended mid-clause
+          with an ellipsis butted against the text's own punctuation —
+          "...separates a healthy car from a costly one...." On a product whose
+          pitch is "every invoice read", an unfinished sentence on the front
+          page is a self-own. `firstSentence` takes the lead sentence whole; do
+          not reach for a clamp again if this comes back.
+        */}
 
         <div className="above-stretch relative">
         <MileageUpdatePrompt
@@ -487,17 +693,28 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
 
         {/* mt-auto, so CTAs align across a row of unequal-height cards. The
             grid must stay align-items: stretch for this to hold. */}
+        {/*
+          ── ⚠ The whole card is the link, so the label was saying it twice ───
+
+          `stretch-link` makes this anchor cover the card, which is correct —
+          and it also meant a centred "View Dashboard →" repeated identically on
+          every card, the weakest possible treatment of the page's only action.
+          Three of them in a row read as a template.
+
+          The anchor stays and keeps its stretch, its focus ring and its
+          accessible name; what goes is the visible row. The affordance is the
+          card lifting and its edge lighting on hover, which this component
+          already does.
+        */}
         <Link
           href={`/dashboard/${vehicle.id}`}
-          className="stretch-link group/cta mt-auto flex items-center justify-center gap-1.5 w-full h-11 rounded-xl text-sm font-semibold text-info hover:text-info-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
-        >
-          View Dashboard
-          <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" />
-        </Link>
+          aria-label={`Open ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+          className="stretch-link chamfer-sm absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        />
       </div>
 
       <Dialog open={showMileageDialog} onOpenChange={setShowMileageDialog}>
-        <DialogContent className="bg-slate-950 border-white/15">
+        <DialogContent className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
           <DialogHeader>
             <DialogTitle className="text-white">Update Mileage</DialogTitle>
             <DialogDescription className="text-white/60">

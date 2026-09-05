@@ -96,13 +96,85 @@ describe('iOS usage descriptions exist before the build is spent', () => {
   });
 
   it('explains what the app does with the permission, not that it wants one', () => {
-    // App Store review rejects strings that restate the permission ("needs
-    // camera access"). Each has to name the thing the person gets.
+    /*
+      App Store review rejects strings that restate the permission ("needs
+      camera access"). Each has to name the thing the person gets.
+
+      ⚠ The app's name is read from `app.json` rather than written here. It was
+      the literal `crewchief` until 30 Aug, and the rename to Well Kept would
+      have left this line matching a string that no longer exists anywhere —
+      green forever, checking nothing, on the exact assertion that exists to
+      stop a rejection. Deriving it means the next rename cannot do that.
+    */
+    const restatesPermission = new RegExp(
+      `^${appJson.name.toLowerCase()} (needs|requires) (the )?(camera|photo)`
+    );
     for (const [, key] of required) {
       const text = infoPlist[key] as string;
       expect(text).toMatch(/invoice/i);
-      expect(text.toLowerCase()).not.toMatch(/^crewchief (needs|requires) (the )?(camera|photo)/);
+      expect(text.toLowerCase()).not.toMatch(restatesPermission);
     }
+  });
+
+  it('describes every use of the photo library, not only one of them', () => {
+    /*
+      ── ⚠ MOB-01, and this guard was part of the defect ─────────────────────
+
+      `NSPhotoLibraryUsageDescription` said only *"…so you can attach an invoice
+      you have already photographed."* The library is also the **default source
+      for vehicle photographs** — `pickVehiclePhoto('library')` is what the
+      hero's "Add photo" opens, and the note beside it says library-rather-than-
+      camera is deliberate because a car picture is almost always one already
+      taken.
+
+      So a reviewer adding a picture of a car was told the app wanted the
+      library for invoices. Guideline 5.1.1 requires the string to be accurate
+      about what the data is used for.
+
+      ⚠ **And the check above ratcheted it in place.** `expect(text).toMatch(
+      /invoice/i)` is satisfied by the wrong string and would have failed the
+      right one had it dropped the word — a guard measuring the correct property
+      for one of two uses. This case is the other half: the string must mention
+      the car photograph too.
+    */
+    const text = infoPlist.NSPhotoLibraryUsageDescription as string;
+
+    expect(text).toMatch(/car|vehicle|photo of your/i);
+    expect(text).toMatch(/invoice/i);
+  });
+});
+
+describe('a dark app must not launch through a white flash', () => {
+  /*
+    ── MOB-05 ────────────────────────────────────────────────────────────────
+
+    No splash was configured at all, so Expo's default — white — was what a
+    reviewer saw for the second before the first frame of a dark-only product.
+    Not a rejection on its own; it is the **first thing they see**, and it reads
+    as unfinished.
+  */
+  it('configures a splash on the product surface', () => {
+    const splash = appJson.splash;
+
+    expect(splash).toBeDefined();
+    expect(splash.image).toBeTruthy();
+  });
+
+  it('paints it the page colour, not white', () => {
+    /*
+      ⚠ `surface.page` from `apps/mobile/src/theme/index.ts`. Read as a literal
+      here rather than imported, because this suite runs under the node
+      environment and the theme module pulls in the font layer — but the value
+      is asserted against the theme file's text so the two cannot drift.
+    */
+    const splash = appJson.splash;
+    expect(splash.backgroundColor.toUpperCase()).toBe('#100F0D');
+
+    const theme = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'theme', 'index.ts'),
+      'utf8'
+    );
+    expect(theme).toMatch(/page: '#100F0D'/);
   });
 });
 
@@ -117,7 +189,7 @@ describe('declarations that only bite after the build', () => {
 
       `false` is the correct answer and not a shortcut: the app's encryption is
       HTTPS/TLS to Supabase and Netlify, plus Keychain via `expo-secure-store`,
-      and both are exempt. It would have to become `true` only if CrewChief
+      and both are exempt. It would have to become `true` only if Well Kept
       shipped its own cryptography.
     */
     const infoPlist = appJson.ios?.infoPlist ?? {};

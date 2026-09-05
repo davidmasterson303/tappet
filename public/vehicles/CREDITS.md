@@ -2,8 +2,80 @@
 
 Answers `PHOTOGRAPHY_SPEC.md` (shipped in `design_handoff_v6_hero/`). Sourced 26 July 2026.
 
-Everything here is derived from five licensed masters. `build_assets.py` regenerates
-every derived file from `masters/` — the crops are reproducible, not hand-edited.
+Everything here is derived from five licensed masters.
+
+⚠ **The crops are hand-made artefacts, not reproducible output.** This line used
+to read "`build_assets.py` regenerates every derived file from `masters/` — the
+crops are reproducible, not hand-edited", and that was false: neither the script
+nor a `masters/` directory is in this repository, and §"Crops and sizes" below
+has said so since 2 Aug. The header and that section contradicted each other for
+a month, with the header stating the pleasant version first.
+
+It has now misled two readers. The 2 Aug audit proposed adding AVIF output to a
+script that does not exist. On 5 Sep it was cited — by me — as the reason
+replacing a demo photograph would "go around a documented pipeline"; there is no
+pipeline to go around. §"Crops and sizes" asked for exactly this fix and named
+the risk: "the one thing not to do is leave the instruction standing".
+
+---
+
+## ⚠ The three shipped demo cars are AI-generated as of 5 Sep 2026
+
+**Read this before the Pexels section below, which now describes superseded
+files.** `accord/`, `wrx/` and `m3/` — all twelve crops each — were regenerated
+from images made by `gemini-3-pro-image-preview`. The Pexels masters are no
+longer what ships; their licence section is kept because it is the provenance of
+what was here before and of the crop geometry these inherit.
+
+**Why.** The design loop's critique named the daylight stock photography as the
+single largest thing contradicting the product's own design system: "a warm
+sunset photo pillarboxed between flat slabs; not night, not wet asphalt, not
+sodium/cyan". David asked for the critic's advice to be followed, was told the
+licensing and authenticity consequences first, and confirmed twice.
+
+**All three, not one.** Replacing only the Accord — the car the critique was
+looking at — would have left the garage grid with one night car and two daylight
+ones, which is less coherent than three consistent daylight ones. The point of
+the change is that the set reads as one film.
+
+| Car | Source | Selected from |
+|---|---|---|
+| `accord/` | `design-loop/dossier/img/accord-night-2.png` | 3 |
+| `wrx/` | `design-loop/dossier/img/wrx-night-1.png` | 2 |
+| `m3/` | `design-loop/dossier/img/m3-night-1.png` | 2 |
+
+Each prompt asked for the same frame — the car three-quarter front on wet
+asphalt at night, sodium lamp above left throwing an orange reflection, a cold
+cyan light from the right raking the flank, camera at bumper height, both
+temperatures clearly present, restrained teal-and-orange grade, no text, logos,
+people, neon, underglow or light trails — varying only the car. `--ref` was
+`design-loop/design-system/north-star.png`, the frozen concept image the whole
+design system was built against.
+
+Crops were produced at the geometry the previous derivatives already used
+(`card-800` 800×533, `hero-3x2` 2400×1599, `portrait-3x4` 1600×2133,
+`detail-4x3` 1600×1200), with `sharp`'s attention-based crop, then re-encoded
+and blur-placeholdered by `npm run build:images` — the repository's own script,
+so the AVIF/WebP settings and `packages/core/src/vehicle-blur.ts` are the
+pipeline's rather than hand-tuned.
+
+### ⚠ Two things this does not resolve
+
+1. **These are generated images, not photographs.** Nothing in the product
+   claims otherwise — the demo is fixture data throughout, and these were never
+   photographs of any real owner's car even when they were Pexels files. But
+   "AI-generated imagery in shipped product marketing" is a disclosure posture,
+   and it is now a question this repository has an answer to whether or not
+   anyone decided it deliberately. It was decided deliberately: see above.
+
+2. **The trademark question the Pexels section raises is unchanged, and
+   arguably sharper.** Every generated frame still shows a recognisable marque —
+   Honda, Subaru and BMW badges are all legible. Generating a marque is a
+   different act from licensing a photograph of one. The Pexels licence used to
+   at least cover the copyright half; now neither half is covered by a licence,
+   only by the same "common practice and low risk" judgement that section
+   already flagged as worth a look before store assets are finalised. That look
+   is now more overdue, not less.
 
 ---
 

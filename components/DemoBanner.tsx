@@ -20,7 +20,7 @@ export default function DemoBanner() {
             href="https://davidmasterson.co/"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-mono text-xs font-semibold tracking-[0.18em] text-[#C4845C] hover:text-[#d49a72] transition-colors uppercase whitespace-nowrap truncate"
+            className="mono text-xs font-semibold tracking-[0.18em] text-[#C4845C] hover:text-[#d49a72] transition-colors uppercase whitespace-nowrap truncate"
           >
             DAVID MASTERSON.
           </a>

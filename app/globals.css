@@ -75,8 +75,11 @@ nav {
     --focus-ring-soft: rgb(34 211 238 / 0.22);
 
     /* The build dial's redline — v8 §4c. Deliberately hotter and more
-       orange-shifted than --critical-red (#F87171): a redline that matched the
-       alert red would be read as an alert. Do not harmonise them. */
+       orange-shifted than --critical: a redline that matched the alert colour
+       would be read as an alert. Do not harmonise them.
+       ⚠ The hex this sentence used to quote (#F87171) has been wrong since the
+       B3 collapse; --critical is #FF8A3D. The rule is unchanged, and the value
+       lives at --build-redline rather than here. */
     /*
       A disabled control's own fill and ink — v8 §8a.
 
@@ -104,8 +107,20 @@ nav {
     --text-disabled: #6E6B67;
     --surface-disabled: #1B1917;
 
-    --build-redline: #FF4436;
-    --build-redline-track: rgb(255 68 54 / 0.22);
+    /*
+     * ⚠ Hue 5 -> hue 20 on 4 Sep. This was `#FF4436`, and it was the last true
+     * red left on the specimen after the B3 collapse — missed by that pass
+     * because it sits outside the three renamed semantic families and is named
+     * for a thing rather than for a colour.
+     *
+     * The note below still governs and is the reason it does not simply become
+     * `--critical`: a redline must not match the alert colour, or a dial at its
+     * limit reads as a fault. It stays hotter and more saturated than
+     * `--critical` (#FF8A3D) and sits at the very top of the sodium range
+     * rather than outside it. Do not harmonise the two.
+     */
+    --build-redline: #FF5A0A;
+    --build-redline-track: rgb(255 90 10 / 0.22);
 
     /*
      * The build ramp — v8 §6's prerequisite.
@@ -121,10 +136,30 @@ nav {
      * the redline above is a separate axis and deliberately not part of this
      * ramp.
      */
+    /*
+     * ⚠ **The ramp cooled on 4 Sep, and the direction is inverted on purpose.**
+     *
+     * It ran steel → cyan → amber → orange, warming as the build climbed. B3
+     * allows two hues, and sodium is now the warning axis in full — attention,
+     * critical, and all four health bands. A build dial that warmed as it
+     * climbed would therefore be drawing "more modified" in the same language
+     * as "more wrong", on a dial whose own header says **nothing here is a
+     * failure state**.
+     *
+     * So heat is surrendered and the ramp climbs into cold instead: steel to
+     * bright cyan, intensity carrying distance from stock. A reader can still
+     * order it without a legend, and the two dials in this product can no
+     * longer be confused for one another — which is what the header asked for
+     * and what four warm bands beside four warm bands would have destroyed.
+     *
+     * `--build-stock` is unchanged. It is neutral steel, it belongs to neither
+     * hue, and at 4.42:1 it is an arc rather than text — the 3:1 floor for
+     * large graphics applies, not 4.5.
+     */
     --build-stock: #7d8794;           /* under 12 — untouched */
-    --build-mild: #9fc8d8;            /* 12–39  — bolt-ons */
-    --build-warm: #e0c168;            /* 40–69  — committed */
-    --build-far: #f0a35e;             /* 70+    — far side of sensible */
+    --build-mild: #8FB6C6;            /* 12–39  — bolt-ons */
+    --build-warm: #6FC9E4;            /* 40–69  — committed */
+    --build-far: #3ED0F0;             /* 70+    — far side of sensible */
 
     /* ── design-system vocabulary, aliased onto the app's tokens (v7 C0) ──
      *
@@ -167,7 +202,27 @@ nav {
      * colour at 40%, *not* `--text-muted`'s: do not "simplify" it to
      * `--text-muted` with an alpha, which would change the hue.
      */
-    --radius-sm: 8px;
+    /*
+     * ⚠ 8px -> 3px on 5 Sep. `.field` clips a chamfer AND carried this radius,
+     * so its other three corners stayed at 8px and the whole control read as a
+     * squircle with one corner missing — graded as "rounded" by a critique
+     * that was looking at the right thing.
+     *
+     * ⚠ Then 3px -> 0 the same day, because 3px was still wrong for a different
+     * reason. `.chamfer-sm` cuts ONE corner; the other three kept the radius,
+     * so a field read as a rounded rectangle with one corner missing — which
+     * is exactly how the critique described it, twice, while I was measuring
+     * the corner that had been cut.
+     *
+     * The notch argument that chose 3px belongs to `--radius`, which paints
+     * card borders. It does not apply here: `.field` is clipped, so the border
+     * is drawn and then cut, and `button.tsx` has been running `rounded-none`
+     * under the same clip since B4 without producing one.
+     *
+     * A control is square and chamfered. A panel is 5px and chamfered. Those
+     * are the only two geometries in the product.
+     */
+    --radius-sm: 0px;
     --border-subtle: rgb(255 255 255 / 0.08);
     --text-muted-40: rgb(245 243 240 / 0.4);
     /* 13px, the small-body step. It was specified with no value, so every call
@@ -188,13 +243,42 @@ nav {
         #0E7490 + #06181C             = 3.39:1  — FAILS. Never ship this pair.
         #0E7490 + #F2FBFD (light ink) = 5.10:1  — what this is now
       The old pairing already passed, so this is a design change rather than an
-      AA fix: every other surface in CrewChief is light-on-dark, and dark ink on
+      AA fix: every other surface in Well Kept is light-on-dark, and dark ink on
       the one filled CTA reads as a highlighter — the v4 failure where three
       competing CTAs on a screen meant no primary at all. It also keeps real
       distance between the fill and the reserved cyan-400 accent.
+
+      ── ⚠ Superseded 4 Sep. The action is off-white now. ───────────────────
+
+      Brief B10 reserves the two hues for line and light and allows a large
+      fill only for hover and critical; the roadmap's §11 had already settled
+      the same thing in its own words — **white for actions, the ramp for
+      state, red for alarm** — and the cyan fill was the last place that ruling
+      had not landed. Keeping it also made the specimen page contradict itself
+      in print: its own caption reads "cyan is never a call to action" directly
+      above six cyan call-to-action buttons.
+
+      ⚠ **The paragraph above is not wrong and is worth reading before
+      changing this again.** Its two objections survive the change intact:
+
+      - *"Dark ink on a filled CTA reads as a highlighter."* It does, and that
+        is now the point. The v4 failure it cites was **three competing CTAs on
+        one screen** — a problem of count, not of ink direction. One off-white
+        control on a graphite page is the strongest affordance the palette can
+        make, which is what a single primary is supposed to be.
+      - *"It keeps real distance from the reserved cyan-400 accent."* Off-white
+        is further from cyan-400 than cyan-700 ever was, so this is better
+        served, not sacrificed.
+
+      A neutral fill is not a hue fill. B10 constrains sodium and cyan; the
+      off-white rest state spends neither of them, which is what leaves the
+      sodium hover its full weight.
+
+        #EDE7DF + #100F0D (dark ink)  = 15.60:1   rest
+        #FB923C + #100F0D (dark ink)  =  8.46:1   hover, see button.tsx
     */
-    --primary: 193 82% 31%;              /* #0E7490  button fill */
-    --primary-foreground: 191 73% 97%;   /* #F2FBFD  near-white ink, 5.10:1 */
+    --primary: 34 28% 90%;               /* #EDE7DF  off-white fill */
+    --primary-foreground: 40 10% 6%;     /* #100F0D  page ground as ink, 15.60:1 */
     /*
       ⚠ No `--primary-hover`, and hover deliberately does NOT go up the ramp.
 
@@ -203,17 +287,44 @@ nav {
       omitted ink row: a value that was right beside dark ink and is wrong
       beside light. Hover is a live, readable state; nothing exempts it.
 
-      The existing call site is already correct. `hover:bg-primary/90` in
-      components/ui/button.tsx composites the fill toward the page ground,
-      making it *darker* — 5.87:1, better than the resting state. So the safe
-      hover is the one that was already there, and the fix is to not adopt this
-      half of the spec.
+      ⚠ Superseded with the fill above. Compositing toward the page ground was
+      the right answer while the rest state was a mid-cyan; against an
+      off-white rest state it would produce a dirty grey. Hover takes the
+      sodium fill now — `hoverable:bg-[var(--attention)]` in
+      components/ui/button.tsx, 8.46:1 against the same dark ink.
+
+      The spec's #0891B2 stays refused, for the reason this note gives and for
+      one more: hover is now the only place on a resting surface where a hue
+      fills an area, so it has to be the hue that means "the thing you are
+      about to touch", not the one that means "information".
     */
     --accent: 188 86% 53%;            /* #22D3EE  cyan-400, accent + glow */
     --accent-foreground: 190 60% 6%;
     --ring: 188 86% 53%;              /* focus ring stays brand cyan */
 
-    --destructive: 0 72% 51%;         /* #DC2626  solid, for button fills */
+    /*
+     * ⚠ Moved off pure red on 4 Sep, and it is the same value as
+     * `--critical-solid` — deliberately, because they are the same thing.
+     *
+     * B3 permits sodium and cyan and nothing else, and a `#DC2626` fill is the
+     * one place on the specimen where a third hue survived the collapse: not a
+     * wash or a hairline, but the largest saturated area on the page, sitting
+     * in the button row where a reader calibrates every other colour.
+     *
+     * It is written as a triplet because shadcn's `--destructive` is consumed
+     * as `hsl(var(--destructive))` — `24 92% 40%` **is** `#C2350B`. Two
+     * spellings of one colour is the defect this file has fixed repeatedly, so
+     * if one moves the other has to; they are adjacent here for that reason.
+     *
+     * ⚠ 4.66:1 against the near-white ink below, against 4.63:1 for the
+     * `#DC2626` it replaces. Both clear AA and the margin is thin, so this is
+     * a hue change that held contrast rather than one that improved it — an
+     * earlier version of this note claimed 5.28:1, which was measured for
+     * `#C2350B` before the hue correction moved the token to `#B85410` and was
+     * never updated. Anything darker here buys margin cheaply: `#A34509` is
+     * 5.90:1 for two shades of difference nobody would name.
+     */
+    --destructive: 24 84% 39%;        /* #B85410  = --critical-solid */
     --destructive-foreground: 0 0% 98%;
 
     --chart-1: 188 86% 53%;
@@ -223,45 +334,224 @@ nav {
     --chart-5: 0 65% 55%;
 
     /* ── radii: sharpened ─────────────────────────────────────────────── */
-    --radius: 0.875rem;               /* 14px, was 16px-equivalent */
-    --radius-xl: 20px;                /* hero photo modules only */
+    /*
+     * ⚠ 14px -> 5px, 20px -> 8px on 4 Sep, for brief B4.
+     *
+     * The brief's words are "no rounded-squircle geometry", and a 14px radius
+     * on a 44px control is a squircle by any reading. The cut is the product's
+     * geometry now, and a chamfer only reads as a cut against a corner that is
+     * nearly square — put a 10px diagonal on a 14px round and the two fight
+     * for the same 14 pixels and neither wins.
+     *
+     * Not 0. A hairline border on a true right angle renders a visible notch
+     * where the two strokes meet, on every renderer, and it is the kind of
+     * defect that reads as a mistake rather than as a decision. 5px is the
+     * smallest value that stays clean.
+     *
+     * ⚠ `--radius-full` is untouched and stays untouched. `rounded-full` is 94
+     * sites — pills, avatars, status dots — where this would read as a
+     * rendering fault, and the sport register already declined to collapse it
+     * for exactly that reason. Chips take the chamfer by asking for it, not by
+     * having their radius taken away.
+     */
+    --radius: 5px;                    /* was 14px — see B4 above */
+    --radius-xl: 8px;                 /* hero photo modules only */
 
     /* ── info: split out of brand cyan ────────────────────────────────── *
      * Anything merely informational — column headers, plain links,
      * non-CTA labels — uses this steel-blue so cyan reads unambiguously
      * as "brand / primary action". Never use brand cyan for a plain label. */
-    --info: #8FB4C4;
-    --info-strong: #ACC9D6;
-    --info-wash: rgb(143 180 196 / 0.14);
-    --info-border: rgb(143 180 196 / 0.32);
+    /*
+     * ── The two-hue collapse — brief B3, 4 Sep ────────────────────────────
+     *
+     * The locked brief allows sodium orange and cold cyan and nothing else.
+     * That is a hard constraint, and the interesting part is what it costs:
+     * with only two hues, a family can no longer be separated from another
+     * family *by hue*. Six palettes previously did exactly that — info was
+     * slate-blue, confirm was green, attention orange, critical salmon, the
+     * health ramp green-to-red, the build ramp steel-to-amber.
+     *
+     * So the separation moves onto two other axes, and both are stated here
+     * because a later reader will otherwise re-introduce a third hue to fix a
+     * collision this arrangement is deliberately absorbing:
+     *
+     *   1. **Heat means trouble, and only trouble.** Sodium is reserved for
+     *      the warning axis — attention, critical, and the health ramp. Nothing
+     *      that is merely *informational* is ever warm.
+     *
+     *   2. **Cold means capability.** Cyan carries information, focus, and the
+     *      build ramp. The build ramp was steel-to-amber and is now
+     *      steel-to-cyan, which is the largest single change here and the one
+     *      most likely to look like a mistake. It is not. Its own docblock
+     *      already said "nothing here is a failure state, so nothing is red";
+     *      under two hues, warm *is* the failure axis, so a build dial that
+     *      warms as it climbs would be saying the opposite of what it means.
+     *
+     * `--info` was `#8FB4C4`, a slate-blue that the brief names directly. It
+     * is a true cold cyan now, and measurably lighter: 10.20:1 on the page
+     * ground against the old 8.66:1.
+     */
+    --info: #7EC8DC;
+    --info-strong: #A5DCEC;
+    --info-wash: rgb(126 200 220 / 0.14);
+    --info-border: rgb(126 200 220 / 0.32);
 
     /* ── semantic families ────────────────────────────────────────────── */
-    --confirm-green: #4ADE80;
-    --confirm-green-wash: rgb(74 222 128 / 0.14);
-    --confirm-green-border: rgb(74 222 128 / 0.35);
+    /*
+     * Confirm is now **ink, not hue** — B3.
+     *
+     * "Good is carried by off-white" is the brief's phrasing and it is the
+     * better semantic anyway: a confirmation is the absence of a problem, and
+     * giving the absence of a problem its own colour is how a palette ends up
+     * with six of them. The chip still says "Logged" and still carries a check
+     * — the colour was never the thing doing the work.
+     *
+     * ⚠ **Renamed on 4 Sep, in the one deliberate pass the old note asked for.**
+     *
+     * It was `--confirm-green`, holding no green, and the argument for leaving
+     * it alone was that a rename is the defect §6 warns about — the stylesheet
+     * keeps reading perfectly while applying to nothing. That was right about
+     * the risk and wrong about the cost of waiting: the design-system specimen
+     * page prints token *names*, so on the one surface whose whole job is to
+     * describe the system, `--confirm-green` **was** the description. A reader
+     * graded the word, and the word was false.
+     *
+     * All three hue-named families moved together — `--confirm-green*`,
+     * `--critical-red*`, `--attention-amber*` — across nine files in one
+     * commit, so no half-renamed state exists at any point. The new names also
+     * match the design system's own export, which has always called this
+     * family `semantic.attention` rather than naming it after a hue.
+     */
+    --confirm: #EDE7DF;
+    --confirm-wash: rgb(237 231 223 / 0.10);
+    --confirm-border: rgb(237 231 223 / 0.28);
 
-    --attention-amber: #FB923C;
-    --attention-amber-wash: rgb(251 146 60 / 0.14);
-    --attention-amber-border: rgb(251 146 60 / 0.35);
+    /* Already sodium. The one family the brief did not have to move. */
+    --attention: #FB923C;
+    --attention-wash: rgb(251 146 60 / 0.14);
+    --attention-border: rgb(251 146 60 / 0.35);
 
-    /* critical is deliberately heavier than attention, so a scan lands on
-     * red first. Previously both sat at ~14% and read as equal weight. */
-    --critical-red: #F87171;
-    --critical-red-wash: rgb(248 113 113 / 0.22);
-    --critical-red-border: rgb(248 113 113 / 0.5);
-    --critical-red-solid: #DC2626;
+    /*
+     * Critical is deliberately heavier than attention, so a scan lands on it
+     * first. Previously both sat at ~14% and read as equal weight.
+     *
+     * ⚠ **Hue 11 -> hue 24 on 4 Sep.** The first pass at this set `#FF7A5C`,
+     * and the critique read it as salmon rather than as sodium — correctly.
+     * Sodium light sits around hue 24-27; anything under about 16 is read as
+     * red no matter what the token is called, and `#FF7A5C` was 11. The whole
+     * B3 collapse fails if the hot end of the one permitted warm hue does not
+     * look like that hue. `--ring-bad` (14) and `--critical-solid` (14) had
+     * the same fault and moved with it.
+     *
+     * ⚠ Under B3 that weight difference is now doing **all** of the work.
+     * Attention and critical used to differ by hue (orange versus salmon) and
+     * by fill; they are both sodium now, so the only thing separating them is
+     * intensity and how much area the fill covers. The brief asks for exactly
+     * this — "severity carried by intensity and fill" — and it is a genuinely
+     * thinner distinction than the one it replaces. Recorded in the drift
+     * register §3 for Design, because it is the kind of narrowing that is
+     * invisible until someone meets both chips in one column.
+     *
+     * Neither is ever the only signal: both chips carry an icon and a word.
+     */
+    --critical: #FF8A3D;
+    --critical-wash: rgb(255 138 61 / 0.22);
+    --critical-border: rgb(255 138 61 / 0.5);
+    --critical-solid: #B85410;
 
     /* ── health-ring band ramp ────────────────────────────────────────── *
      * Dedicated and ~15% desaturated versus the chip semantics, so a
      * mid-score ring never reads as "another issue chip". */
-    --ring-good: #7FCE9C;             /* >= 80 */
-    --ring-ok: #5FAEC0;               /* >= 60 */
-    --ring-warn: #E0A468;             /* >= 40 */
-    --ring-bad: #E08882;              /* <  40 */
+    /*
+      ── ⚠ `ok` moved off cyan on 3 Sep — #5FAEC0 → #B9C77E ────────────────
+
+      Three consecutive critiques of the rendered dashboard reached the same
+      objection, the third stating it flatly: *"61 is 'Fair' but rendered in
+      brand cyan… Fair should not wear the hero color; cyan is doing brand and
+      state simultaneously."*
+
+      That was exactly true. `#5FAEC0` is a desaturated cyan, and cyan is this
+      product's accent — the active tab, every link, the focus ring, the
+      batten. A reader met the same hue meaning "this is interactive" and "this
+      car is middling", and the strongest instance was a 48px cyan **61** sitting
+      under a cyan tab.
+
+      The replacement makes the ramp a ramp: green → yellow-green → orange →
+      red, four steps a reader can order without a legend. 10.5:1 on
+      `--background`, so it clears the contrast floor by the same margin the
+      others do, and it frees cyan to mean one thing.
+    */
+    /*
+      ── ⚠ The ramp left green on 4 Sep — brief B3 ─────────────────────────
+
+      The 3 Sep note above is still the governing argument and this change
+      keeps it: **the ramp must be orderable without a legend, and cyan must
+      not mean brand and state at once.** B3 removes green, so the ramp is
+      rebuilt on the only axis left to it — a single sodium intensity climb
+      from neutral to hot:
+
+        off-white → warm stone → sodium → hot sodium
+
+      Four steps a reader can still order, because they are ordered by heat
+      rather than by hue. It arguably states the semantic more plainly than
+      green→red did: a healthy car is not "green", it is *unremarkable*, and
+      off-white is what unremarkable looks like. Nothing to say is now
+      rendered as nothing being said.
+
+      It also strengthens 3 Sep rather than undoing it: cyan is not merely off
+      the ramp, it is off the entire warning axis and reserved for information
+      and focus.
+
+      Measured on `--background`: 15.60 / 10.67 / 7.12 / 5.51 — every band
+      clears the 4.5:1 body floor, and the old ramp's `good` was 10.23.
+
+      ⚠ `warn` is #DE8A3A and `--attention` is #FB923C. They are close,
+      and §1.2 of the drift register is about exactly this shape of collision.
+      They are kept apart by ~1.3:1 of luminance and by never appearing on the
+      same element — the ramp draws arcs, the chip sets text. Under a two-hue
+      brief there is no third hue to separate them with; that trade is logged
+      for Design rather than quietly absorbed.
+    */
+    --ring-good: #EDE7DF;             /* >= 80 — unremarkable */
+    --ring-ok: #D6BE9B;               /* >= 60 */
+    --ring-warn: #DE8A3A;             /* >= 40 */
+    --ring-bad: #FF6B1A;              /* <  40 */
 
     /* Loaded via the stylesheet link in app/layout.tsx — see the note there
-     * on why this is not next/font. */
-    --font-display: 'Newsreader';
+     * on why this is not next/font.
+     *
+     * ── Two display voices, both first-class — 4 Sep ──────────────────────
+     *
+     * The locked brief (B2) puts a condensed grotesk in the display slot: the
+     * specimen page is an instrument, and a transitional serif reads as a
+     * magazine. That is a change of *instrument*, not of size, so it needs its
+     * own token rather than a weight override.
+     *
+     * `--font-display` is the slot, and the slot now holds Archivo. Newsreader
+     * does not go away — it moves to `--font-editorial`, because the serif is
+     * still the right voice for marketing surfaces and deleting it would throw
+     * away the one thing the 30 Aug rebrand actually established.
+     *
+     * ⚠ `.display-serif` deliberately follows `--font-editorial`, not the
+     * slot. It is spelled across ~20 call sites and its name is a promise
+     * about what it renders; pointing it at a sans would leave every one of
+     * those sites lying quietly, which is the failure mode §6 of CLAUDE.md
+     * describes — half-applied, and readable as a design choice. Surfaces take
+     * the instrument voice by asking for `.display-instrument`, one site at a
+     * time and visibly.
+     */
+    --font-display: 'Archivo';
+    --font-editorial: 'Newsreader';
+
+    /*
+     * Token names, hex values and state labels.
+     *
+     * Tailwind's `font-mono` resolves to `ui-monospace`, which is SF Mono on
+     * this machine and something else on every other one. That is a strange
+     * property for any surface and an actively bad one for the page whose job
+     * is to show the system: it was being typeset differently for each reader.
+     */
+    --font-mono: 'JetBrains Mono';
 
     /* ── motion ───────────────────────────────────────────────────────── */
     --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
@@ -310,7 +600,43 @@ nav {
 
     --register-accent: var(--info);
     --register-rule: var(--border-subtle);
-    --register-chamfer: 0px;
+    /*
+     * ⚠ Was `0px`, and the `0px` was load-bearing for a reason that no longer
+     * applies. It existed so `.panel-cut`'s polygon would compute — a chamfer
+     * of `0` makes the clip a plain rectangle *on purpose instead of by
+     * accident*, because an undefined custom property is invalid at
+     * computed-value time and silently drops the whole `clip-path`.
+     *
+     * That argument is about the token being **defined**, not about its value,
+     * so moving it off zero costs nothing and the guard against undefined
+     * still holds.
+     *
+     * ⚠ 10px -> 18px, and the control cut 6px -> 12px, on 5 Sep.
+     *
+     * The first pass at this reasoned that "a cut that reads as an angle on a
+     * 700px panel reads as a broken corner on a 44px control", and picked the
+     * timid end of that range. Three consecutive critiques then graded B4
+     * partial with the same objection — the cut was *present* and did not
+     * *register*: at 6px on a 44px control it is 14% of the height, which the
+     * eye files as a rounded corner rather than as a decision.
+     *
+     * 12px is 27% of a 44px control. That is past the point where it could be
+     * mistaken for a radius, which is the whole requirement — B4 asks for the
+     * chamfer to be the surface's geometry, and a geometry nobody notices is
+     * not one.
+     *
+     * The original caution was right about the *shape* of the risk and wrong
+     * about where the line sits. It is still not free: much past this the cut
+     * starts eating the cap-height of a small chip's label, which is why the
+     * two values stay separate rather than collapsing to one.
+     *
+     * The sport register moves with it — see the note in that block.
+     */
+    --register-chamfer: 18px;
+    /* The control-sized cut. Buttons, fields and chips take this; panels take
+       the one above. Two values because one value cannot serve both a masthead
+       panel and a 24px chip without looking wrong on one of them. */
+    --register-chamfer-sm: 12px;
     --register-grain: transparent;
     /*
      * `--register-glow` (0.22 / 0.4) is deliberately NOT here. Its only reader
@@ -371,9 +697,18 @@ nav {
     /* Milled, not rounded. `--radius` is the one that moves the product. */
     --radius: 3px;
     --radius-xl: 3px;
-    --radius-sm: 2px;
+    /* ⚠ 2px -> 0. The default register's control radius went to 0 when `.field`
+       was found reading as a rounded rectangle with one corner cut; a *harder*
+       register cannot be the rounder of the two. Kept in this block rather than
+       dropped because the export sets it and the two documents should still be
+       comparable line for line. */
+    --radius-sm: 0px;
 
-    --register-chamfer: 16px;
+    /* ⚠ 16px -> 26px on 5 Sep. This is not decoration: the default register's
+       cut went to 18px, and a "harder" register whose chamfer is *shallower*
+       than the default's says the opposite of what it means. The two move
+       together or the register inverts. */
+    --register-chamfer: 26px;
     --register-accent: var(--build-far);
     --register-grain: rgb(255 255 255 / 0.03);
     --register-tracking: -0.03em;
@@ -557,21 +892,43 @@ nav {
     .gauge-track {
       stroke: GrayText;
     }
-    .gauge-arc,
-    .gauge-needle {
+    /* ⚠ The needle's selector was here and went with the element, 5 Sep.
+       `inclusive-affordances.test.ts` failed the moment the component stopped
+       rendering it — which is the whole point of that guard: a forced-colors
+       rule hooked to nothing keeps reviewing perfectly and stops applying, and
+       nobody in High Contrast is present to say so.
+
+       ⚠ Do not spell that selector here, even to explain it. The guard scans
+       this file raw and treats any mention as the rule still existing, so the
+       comment alone re-created the orphan it documents. */
+    .gauge-arc {
       stroke: Highlight;
     }
     .gauge-tick {
       stroke: CanvasText;
     }
-    .gauge-label,
+    /* ⚠ The tick-label selector was here and went with its element when the
+       dial's 0 and 100 labels were cut. Same pairing as the needle: a
+       forced-colors rule whose class nothing renders keeps reviewing perfectly
+       and applies to nothing, and `inclusive-affordances.test.ts` is what
+       notices. Do not spell that selector in this comment — the guard scans
+       the file raw and a mention re-creates the orphan. */
     .gauge-reading {
       fill: CanvasText;
     }
-    .gauge-hub {
-      fill: Canvas;
-      stroke: Highlight;
-    }
+    /*
+      ⚠ The hub's forced-colors rule was here and is deleted with the element.
+      The dial's needle no longer runs to a pivot, so there was nothing left for
+      it to style — and `inclusive-affordances.test.ts` asserts exactly this
+      pairing: a rule whose class the component stopped rendering keeps
+      reviewing perfectly while applying to nothing, which is the failure that
+      whole suite exists for, one level up.
+
+      The class name is deliberately not written out below. The assertion is a
+      substring search over this stylesheet, so naming it here would re-orphan
+      it in prose — the same trap `text-contrast-floor` sets for comments that
+      quote the token they are explaining.
+    */
     /* The bloom is decoration and reads as a smear once colours are forced. */
     .gauge-arc {
       filter: none !important;
@@ -685,20 +1042,38 @@ nav {
       linear-gradient(180deg, rgb(255 255 255 / 0.028), rgb(255 255 255 / 0.007) 45%, transparent),
       /* wall/floor seam */
       linear-gradient(rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.045)),
-      /* panel joins, wall only */
-      repeating-linear-gradient(90deg, transparent 0 139px, rgb(255 255 255 / 0.02) 139px 140px),
+      /*
+        ── ⚠ The panel joins are deleted — same defect as the belt's grain ────
+
+        `repeating-linear-gradient(90deg, transparent 0 139px, … 139px 140px)`:
+        a 1px line every 140px, full height, at 2% over a near-black wall.
+
+        It is the third instance of one mistake. A 1px repeating gradient
+        cannot survive a device pixel ratio it was not authored at — at 2x and
+        3x the phase shifts and the line resolves into visible banding — and
+        the period is fixed in pixels, so a 390px phone gets two or three of
+        them at arbitrary positions rather than the regular panelling the
+        concept describes. Successive design critiques named "the wall seams"
+        among the most obviously generated elements on screen; §9.2 cut this
+        element's bloom for the same class of reason and left these.
+
+        The **wall/floor seam above stays**: one horizontal line at a stated
+        horizon is geometry, and it is what makes the room read as a room.
+        These were texture.
+      */
       /* the room */
       linear-gradient(180deg, #0b0a09 0%, #131110 52%, #191713 64%, #15130f 100%);
     /*
-      Four lists, one order. Inserting the heat layer at position 4 shifts every
-      later entry, and getting that wrong is not cosmetic: `repeat-x` landing on
-      the wrong layer is how the beltline's brushed grain once climbed out of
-      its 11% band and textured the whole page. Counted rather than eyeballed —
-      8 layers, 8 entries in each list.
+      Four lists, one order. Removing a layer shifts every later entry, and
+      getting that wrong is not cosmetic: `repeat-x` landing on the wrong layer
+      is how the beltline's brushed grain once climbed out of its 11% band and
+      textured the whole page. Counted rather than eyeballed — **7 layers, 7
+      entries in each list** since the panel joins came out, and the `repeat-x`
+      that belonged to them went with it.
     */
-    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, no-repeat;
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 36%, 100% 1px, 100% 64%, 100% 100%;
-    background-position: 0 0, 0 0, 0 0, 0 0, 0 100%, 0 64%, 0 0, 0 0;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 36%, 100% 1px, 100% 100%;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 100%, 0 64%, 0 0;
   }
 
   /* The cockpit beltline — concept 1c, and the dashboard's half of the rhyme.
@@ -727,6 +1102,23 @@ nav {
     /* `--belt-y` stays here — it is this element's geometry and no register
        touches it. `--belt-led` moved to `:root`, because sport does. */
     --belt-y: 58%;
+    /*
+      ── ⚠ Where the band turns away, and why it is a knob ─────────────────
+
+      The end shading is a percentage of the element's *width*, and the band is
+      a percentage of the page's *height*. On a 1440px desktop that is a 260px
+      falloff over a 230px-tall band and it reads as a band turning away from
+      the light. On a 390px phone the same stops give a 70px falloff over a
+      330px-tall band — and two dark rectangles standing at the page edges,
+      which is how it appeared in a mobile screenshot: not atmosphere, a
+      rendering fault.
+
+      Same geometry, opposite reading, because the aspect ratio inverted. So
+      the stop and the alpha are knobs, and the media query below opens the
+      falloff until the shading has nowhere to read as an edge.
+    */
+    --belt-edge: 18%;
+    --belt-edge-ink: 0.55;
 
     background-color: #0a0a0b;
     background-image:
@@ -744,27 +1136,103 @@ nav {
         rgb(34 211 238 / calc(0.05 * var(--belt-led))),
         transparent 65%
       ),
-      /* brushed metal — 1px on, 2px off, so it reads as grain not stripes */
-      repeating-linear-gradient(
-        90deg,
-        rgb(255 255 255 / 0.03) 0 1px,
-        rgb(255 255 255 / 0.012) 1px 2px,
-        transparent 2px 3px
-      ),
+      /*
+        ── ⚠ The brushed-metal grain is deleted, and it was the pinstripes ────
+
+        1px on, 2px off, across the full width, in an 11% band pinned at
+        `--belt-y`. The comment claimed it "reads as grain not stripes" and at
+        1440px on a short page it did. On a phone, and on any page long enough
+        to scroll, that band lands in the middle of the content and starts and
+        stops at arbitrary heights — four separate design critiques, across
+        three different pages, reported it as a rendering artefact. The last
+        called it "the single most damaging flaw… on a design whose whole pitch
+        is meticulous, an artifact like this is fatal to the premise."
+
+        They were describing it accurately. A 1px repeating gradient over a
+        near-black ground cannot survive a device pixel ratio it was not
+        authored at: at 2x and 3x the phase shifts and the grain resolves into
+        visible banding, which is exactly what a "pinstripe" is.
+
+        The beltline keeps its ambient strip, its shading and its ground. What
+        went is the one layer that was texture for its own sake — see
+        `docs/design-system-drift.md` §10.5.
+      */
       /* the band's own shading, darker at both ends so it turns away */
-      linear-gradient(90deg, rgb(0 0 0 / 0.55), transparent 18%, transparent 82%, rgb(0 0 0 / 0.55)),
+      linear-gradient(
+        90deg,
+        rgb(0 0 0 / var(--belt-edge-ink)),
+        transparent var(--belt-edge),
+        transparent calc(100% - var(--belt-edge)),
+        rgb(0 0 0 / var(--belt-edge-ink))
+      ),
       /* floor sheen below the belt */
       linear-gradient(180deg, rgb(255 255 255 / 0.016), transparent 55%),
       /* the ground */
       linear-gradient(180deg, #0a0a0b 0%, #100f0d 46%, #0b0a09 100%);
-    /* repeat-x, not repeat, on the brushed layer. `repeat` tiles it down the
-     * page as well as across, so the grain climbed out of its 11% band and
-     * textured the entire background — visible behind the page title, which is
-     * nowhere near the beltline. */
-    background-repeat: no-repeat, no-repeat, repeat-x, no-repeat, no-repeat, no-repeat;
-    background-size: 92% 1px, 100% 100%, 100% 11%, 100% 11%, 100% 34%, 100% 100%;
-    background-position: 50% var(--belt-y), 0 0, 0 var(--belt-y), 0 var(--belt-y), 0 100%, 0 0;
+    /* ⚠ The `repeat-x` note that stood here belonged to the brushed layer,
+     * which is gone. Keeping it would have described a layer nobody could find
+     * — and its finding is preserved where it still applies, in the deletion
+     * note above: that band did not stay in its band. */
+    /* ⚠ Five layers now, not six — the lists below are positional and the
+     * grain's entry had to come out of each of them. A stale entry here does
+     * not error; it silently shifts every layer after it. */
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: 92% 1px, 100% 100%, 100% 11%, 100% 34%, 100% 100%;
+    background-position: 50% var(--belt-y), 0 0, 0 var(--belt-y), 0 100%, 0 0;
     background-attachment: scroll;
+  }
+
+  /*
+    ── ⚠ The phone drops the end shading entirely, and 8 bits is the reason ──
+
+    Opening the falloff out was the first attempt and it made the artefact
+    worse, which is what identified it. The bars are not geometry: they are
+    **banding**. A 0.55 black wash over a `#0a0a0b` ground traverses about four
+    of the 256 available levels, so the ramp can only step — and the wider the
+    falloff, the wider each step, which is why 44% turned two dark rectangles
+    into four visible stripes.
+
+    There is no stop position that fixes that. A gradient with nowhere to go
+    bands at every width; it only looked acceptable at 1440px because the steps
+    were 260px apart and read as one soft edge.
+
+    So the phone gets no end shading at all. The ambient strip, the grain, the
+    sheen and the ground are untouched — the beltline still reads, it just
+    stops drawing a frame it does not have the colour depth to draw.
+
+    ⚠ Do not "restore this properly" with a lower alpha. Lower alpha is fewer
+    levels, which is more banding, not less. If the band ever needs ends on a
+    phone, it needs a dither or a real image.
+  */
+  @media (max-width: 640px) {
+    .cockpit-belt {
+      --belt-edge-ink: 0;
+      /*
+        ── ⚠ The beltline moves off the phone, rather than being dimmed ──────
+
+        The strip is a 1px cyan line at `--belt-y`, and on a phone that lands
+        *in* the content rather than behind it: measured on the maintenance
+        page it ran straight under the mileage row, and on the dashboard it
+        crossed the dial's own baseline. Successive critiques read it as a
+        stray rule or a seam every time. The belt's own docblock calls it
+        "atmosphere, not a feature", and a hairline crossing a stat row is a
+        feature whatever it was meant to be.
+
+        ⚠ **`--belt-led: 0` is the obvious way to do this and it is forbidden.**
+        That token belongs to the register, which sets it on `<html>`, and a
+        declaration on this element would beat the inherited one — the exact
+        defect `register-tokens.test.ts` exists for, and it caught this
+        attempt. `--belt-y` is this element's own geometry, declared here
+        already, and no register touches it.
+
+        So the band is moved out of the box instead of dimmed. Everything
+        positioned against it — the strip, its bloom, the end shading — goes
+        with it, while the ground and the floor sheen are anchored elsewhere
+        and stay. The room keeps its floor and stops drawing a line across the
+        reading.
+      */
+      --belt-y: 220%;
+    }
   }
 
   /* Auth screens. The room is scenery there, not the subject — the form is —
@@ -773,7 +1241,12 @@ nav {
    * light only, which is the right reading for a screen whose whole job is
    * one form. */
   .service-bay-dim {
-    --bay-led: 0.4;
+    /*
+      ⚠ `--bay-led` 0.4 → 0.22 on 3 Sep. At 0.4 the ceiling wash still read as a
+      coloured bloom in a screenshot rather than as light falling on a surface,
+      which is the difference the whole `.service-bay` docblock is about.
+    */
+    --bay-led: 0.22;
     --bay-vignette: 0.55;
   }
 
@@ -800,24 +1273,39 @@ nav {
    * `relative`. It sits on top of the 1px border the navs already carry,
    * which is why it is 2px — 1px of light over 1px of border reads thin and
    * slightly grey. */
-  .bay-batten::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 2px;
-    pointer-events: none;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgb(34 211 238 / 0.55) 14%,
-      rgb(160 240 252 / 0.8) 50%,
-      rgb(34 211 238 / 0.55) 86%,
-      transparent 100%
-    );
-    box-shadow: 0 0 18px 2px rgb(34 211 238 / 0.28), 0 0 70px 16px rgb(34 211 238 / 0.08);
-  }
+  /*
+    ── ⚠ The fixture's line is cut, and this is the accent decision ──────────
+
+    `.bay-batten::after` drew a 2px cyan rule along the bottom of every nav. It
+    has been narrowed twice already — §9.2 took its bloom, §10.3 flattened its
+    five-stop gradient — and successive critiques kept finding it anyway, in
+    terms that got sharper each round: "the teal hairline under the nav… reads
+    as a leftover from another theme"; "an accent so timid it reads as an
+    artifact — give it to the actions or cut it."
+
+    Cut. David's call, on the critic's conviction.
+
+    ⚠ **The critic's actual proposal was "chartreuse + red and stop", and that
+    half is declined for a reason it could not see.** `#B9C77E` is not a brand
+    colour: it is `--ring-ok`, the health band for *Fair*. Making it the
+    interactive accent would put a link and a middling score in one hue —
+    exactly the collision that moved this band off cyan in the first place
+    (§10.2), transposed. The critic's own alternative is what stands: links are
+    an underlined neutral.
+
+    So the palette is now three jobs and three hues: **white** for what you can
+    act on, the **health ramp** for what the car is doing, **red** for an
+    alarm — plus the mark, which is cyan and appears once per screen.
+
+    ⚠ The mark keeps its glow, and that is not an oversight. `BRAND_COLOR.glow`
+    is Design's, pinned to their own SVG files by `brand.test.ts`. A critique
+    called the plate's backlight "the AI tell"; whether the package follows this
+    decision is Design's to make, not a thing to do to their files from here.
+    Logged in `docs/design-system-drift.md` §10.7.
+
+    The nav keeps its border. What went is the light on it.
+  */
+
 
   /* The signature photography treatment, as one class.
    *
@@ -1152,10 +1640,31 @@ nav {
   .turn-actions:focus-within {
     opacity: 1;
   }
+  /*
+    ⚠ `.meta-value` was here — a dashed rule under the editable figure — and it
+    lasted one round. Two further critiques read it as "dead affordances…
+    tooltip styling on a touch device where no tooltip can exist" and "broken
+    tooltips/abbr styling", which is correct: a dashed underline means
+    *definition*, not *editable*. The control says "Edit" in words now; see
+    `DashboardLayout`.
+
+*/
+
   @media (hover: none) {
     .reveal-on-hover,
-    .meta-edit,
     .turn-actions {
+      opacity: 1;
+    }
+    /*
+      ⚠ `.meta-edit` is back in the reveal list, and it is a word now.
+
+      The rule exists because a hover-only affordance is invisible on a phone —
+      that is the audit finding this whole block records, and it stands. What
+      briefly changed was hiding the affordance on touch instead, which left
+      the value with nothing to say it could be tapped. What actually needed
+      fixing was that the revealed thing was an unlabelled pencil.
+    */
+    .meta-edit {
       opacity: 1;
     }
   }
@@ -1183,6 +1692,18 @@ nav {
    *     control**. That is intended. What must not come back is a fill darker
    *     than its container.
    */
+  /*
+   * ⚠ The field takes the cut too — brief B4 names chips, buttons and cards,
+   * and a field sitting at a radius beside a chamfered button is the one
+   * inconsistency a reader's eye goes straight to.
+   *
+   * The focus treatment below is already a `box-shadow`, and `clip-path` clips
+   * box-shadow — so the 3px halo would have vanished the moment the clip
+   * landed. It is `inset` now. That is a real change in appearance, not a
+   * workaround: the halo is drawn inside the control's own edge rather than
+   * bleeding outside it, which is tighter and, on a field that sits in a
+   * two-column grid, stops the ring overlapping the field beside it.
+   */
   .field {
     width: 100%;
     min-height: 40px;
@@ -1190,6 +1711,13 @@ nav {
     background: hsl(var(--surface-3));
     border: 1px solid var(--border-field);
     border-radius: var(--radius-sm);
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer-sm)) 0,
+      100% var(--register-chamfer-sm),
+      100% 100%,
+      0 100%
+    );
     color: var(--text-primary);
     /*
      * 14px, because that is what shipped. Stock shadcn carried `text-sm` and C1
@@ -1222,7 +1750,7 @@ nav {
   .field:focus-visible {
     outline: none;
     border-color: var(--brand-accent);
-    box-shadow: 0 0 0 3px var(--focus-ring-soft);
+    box-shadow: inset 0 0 0 3px var(--focus-ring-soft);
   }
 
   /*
@@ -1233,13 +1761,13 @@ nav {
    * colouring did the first half and never the second.
    */
   .field[aria-invalid='true'] {
-    border-color: var(--critical-red-border);
+    border-color: var(--critical-border);
   }
 
   .field[aria-invalid='true']:focus,
   .field[aria-invalid='true']:focus-visible {
-    border-color: var(--critical-red);
-    box-shadow: 0 0 0 3px var(--critical-red-wash);
+    border-color: var(--critical);
+    box-shadow: inset 0 0 0 3px var(--critical-wash);
   }
 
   .field:disabled,
@@ -1359,16 +1887,35 @@ nav {
    * field, but the thing that should look focused is the panel, otherwise the
    * user sees a ring around an inner box floating inside an outer one.
    */
+  /*
+   * ⚠ No border of its own — dossier §7, 5 Sep.
+   *
+   * This wrapped a field that already draws one, so the composer read as two
+   * concentric boxes and the critique counted it in a chain "four containers
+   * deep". The panel still exists because `:focus-within` is what it is for —
+   * the whole composer lights when the field inside it takes focus, which a
+   * bare field cannot express — but it no longer draws an edge to do it.
+   */
   .composer-panel {
     background: hsl(var(--surface-1));
-    border: 1px solid hsl(var(--border));
+    border: 1px solid transparent;
     transition:
       border-color var(--duration-fast) var(--ease-standard),
       box-shadow var(--duration-fast) var(--ease-standard);
   }
+  /*
+   * ⚠ One ring — dossier B8, 5 Sep.
+   *
+   * This drew both a cyan border AND a 3px cyan halo, and once the resting
+   * border went transparent the two read as two concentric rings around a
+   * focused composer: "focus reads as a rendering fault rather than a state".
+   *
+   * The border alone is the ring. It is also the only one of the two that
+   * traces the panel's cut corner — a `box-shadow` is drawn on the border box
+   * and squares off a chamfer, which is its own reason not to use one here.
+   */
   .composer-panel:focus-within {
-    border-color: rgb(34 211 238 / 0.4);
-    box-shadow: 0 0 0 3px rgb(34 211 238 / 0.1);
+    border-color: var(--info);
   }
 
   /*
@@ -1410,11 +1957,89 @@ nav {
     }
   }
 
-  /* Editorial serif, for exactly one element per screen — a vehicle title or
-   * the single largest hero number. Never UI chrome, labels or tabular data. */
+  /* Editorial serif — the page's title and its section heads.
+   *
+   * ── ⚠ Widened 3 Sep, and the old rule is recorded because it was the
+   * problem. It read "for exactly one element per screen — a vehicle title or
+   * the single largest hero number", and held for a stretch where the only
+   * serif on a dashboard was the vehicle's name and the wordmark in the nav.
+   *
+   * Three consecutive critiques of the rendered page reached the same verdict
+   * independently, the third stating it plainly: the serif "appears exactly
+   * twice and nowhere else… that's not a pairing, it's a veneer. Commit the
+   * serif to section heads, or drop it." A typeface used once per screen is
+   * decoration applied to a product rather than a voice the product speaks in.
+   *
+   * So: titles and section heads. Still never UI chrome, never labels, and
+   * ⚠ **never tabular data** — the count-up on the cluster reading needs
+   * tabular figures or the digits reflow while they animate, which is the one
+   * place this must not go. Logged in `docs/design-system-drift.md` §10.1. */
   .display-serif {
-    font-family: var(--font-display), Georgia, serif;
+    font-family: var(--font-editorial), Georgia, serif;
     font-weight: 500;
+  }
+
+  /*
+   * The instrument voice — brief B2.
+   *
+   * Archivo carries a real `wdth` axis, which is the reason it is here rather
+   * than a face that merely ships narrow: one file sets the masthead at 62 and
+   * a section heading at 88, and the two read as the same voice at two widths
+   * instead of as two fonts.
+   *
+   * ⚠ `font-stretch` is the property that drives `wdth`, and it is inherited.
+   * A nested element that needs a different width has to say so — it will not
+   * get one by being smaller.
+   *
+   * The sport register does not need to override this the way it overrode
+   * `.display-serif`: the instrument voice is already the harder one, so the
+   * register changes width and tracking rather than instrument.
+   */
+  .display-instrument {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    font-stretch: 88%;
+    font-weight: 700;
+    letter-spacing: var(--register-tracking, -0.02em);
+  }
+
+  /* The masthead width. Separate from the class above because 62% is a poster
+     setting — it stops being legible somewhere around 32px, and a section
+     heading must not inherit it. */
+  .display-instrument-tight {
+    font-stretch: 62%;
+  }
+
+  /*
+   * The heading width — 5 Sep, dossier B1.
+   *
+   * Four consecutive critiques read section heads as "a wide bold sans", "a
+   * second display face", "regular-width bold". They were right and I checked
+   * the wrong thing three times: Archivo is loading, the class is applying, and
+   * `.display-instrument` is simply **88%**, which beside a 62% masthead reads
+   * as a different family rather than the same voice narrowed.
+   *
+   * 72% is the width that reads as condensed at heading sizes without reaching
+   * the poster setting the note above warns about. One voice, three widths:
+   * 62 for a masthead, 72 for a head, 88 where a run of words has to stay
+   * comfortable.
+   */
+  .display-instrument-narrow {
+    font-stretch: 72%;
+  }
+
+  /*
+   * Mono, as a class rather than as `font-mono`.
+   *
+   * Tailwind's utility points at the platform stack; this points at the token,
+   * so a token name and its value are set in the same face on every machine.
+   * `font-variant-numeric` is here and not at the call sites because every
+   * single use of this class is a value someone will compare against another
+   * value directly above or below it.
+   */
+  .mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
   }
 
   /* Tabular figures wherever digits line up in columns. */
@@ -1426,6 +2051,41 @@ nav {
    * here; see the sport block for why that substitution is the whole point
    * rather than a rename.
    */
+  /*
+   * ── The cut, as geometry rather than as decoration — brief B4 ────────────
+   *
+   * `.panel-cut` below is a whole panel: surface, border, inner light, grain
+   * and the clip. These two are the clip on its own, for elements that already
+   * have their own surface — a button, a chip, a field.
+   *
+   * ⚠ **`clip-path` clips box-shadow, and an outside focus ring is a
+   * box-shadow.** Tailwind's `ring-2` draws outside the border box, so putting
+   * a clip on a control silently removes its focus ring — visible to nobody
+   * running a mouse, and total for anyone on a keyboard. Every control that
+   * takes one of these classes must pair it with `ring-inset`. `button.tsx`
+   * says so at the call site too, because a rule stated only here is a rule
+   * the next person meets after they have already shipped the bug.
+   */
+  .chamfer {
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer)) 0,
+      100% var(--register-chamfer),
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .chamfer-sm {
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer-sm)) 0,
+      100% var(--register-chamfer-sm),
+      100% 100%,
+      0 100%
+    );
+  }
+
   .panel-cut {
     position: relative;
     background: var(--surface-2);
@@ -1444,10 +2104,21 @@ nav {
     );
   }
 
-  /* The cut edge wants a light on it, or it reads as a corner that fell off.
-     Scoped to sport because in the default register there is no bevel to
-     light — a 1px diagonal over a square corner is just a scratch. */
-  [data-register='sport'] .panel-cut::after {
+  /*
+   * The cut edge wants a light on it, or it reads as a corner that fell off.
+   *
+   * ⚠ Un-scoped from `[data-register='sport']` on 4 Sep. It was scoped because
+   * "in the default register there is no bevel to light — a 1px diagonal over
+   * a square corner is just a scratch", and that sentence was exactly right
+   * while `--register-chamfer` was `0px`. B4 moved it to 10px, so the default
+   * register now has the bevel the highlight was written for, and leaving the
+   * rule scoped would have shipped the cut without the light on it — the
+   * corner-that-fell-off this comment names.
+   *
+   * The width is derived from the token (`* 1.42` ≈ √2, the hypotenuse of the
+   * 45° cut), so it follows both registers without being told about either.
+   */
+  .panel-cut::after {
     content: '';
     position: absolute;
     top: 0;
@@ -1604,6 +2275,42 @@ nav {
     border-right-color: rgba(255, 255, 255, 0.04);
     border-bottom-color: rgba(255, 255, 255, 0.03);
   }
+  /*
+   * A panel that takes the cut without taking `.panel-cut`'s whole treatment —
+   * brief B4.
+   *
+   * `.panel-cut` brings a surface, a border, an inner light and the grain with
+   * it, which is right for a hero module and wrong for a container that already
+   * states its own surface. This is the clip and the bevel highlight only.
+   *
+   * ⚠ Anything focusable inside a clipped container still needs `ring-inset`,
+   * for the reason `button.tsx` gives at length: `clip-path` clips box-shadow,
+   * and an outside focus ring drawn at the container's edge is cut away.
+   */
+  .cut-panel {
+    position: relative;
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer)) 0,
+      100% var(--register-chamfer),
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .cut-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: calc(var(--register-chamfer) * 1.42);
+    height: 1px;
+    background: rgb(255 255 255 / 0.16);
+    transform-origin: top right;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+
   .glass-panel {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(12px);
@@ -1678,6 +2385,30 @@ nav {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/*
+ * The same shimmer, held still — for the design-system specimen only.
+ *
+ * A screenshot catches an infinite animation at whatever frame it happens to
+ * be on, and `shimmer`'s own extremes are its two dimmest: the highlight is at
+ * 50% of the sweep and the ends are near-flat. So the specimen was
+ * photographing three bars that all looked like plain grey blocks, and the
+ * critique's note was that a loading section which reads as an empty band is
+ * documenting nothing.
+ *
+ * A negative delay starts the animation partway in rather than delaying it, so
+ * pairing it with `paused` lands on a chosen frame instead of frame zero.
+ * -0.75s of a 1.5s cycle is the midpoint — the highlight at the centre of the
+ * bar, which is the frame worth showing.
+ *
+ * ⚠ Deliberately NOT inside `prefers-reduced-motion`. This is a still, not a
+ * motion effect, and a reader who has asked for less motion should see the
+ * same demonstration rather than a blank one.
+ */
+.skeleton-shimmer-frame {
+  animation-delay: -0.75s;
+  animation-play-state: paused;
 }
 
 /*

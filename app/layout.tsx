@@ -12,7 +12,7 @@ import { isDemoSite, shareDescription, siteOrigin } from '@/lib/site-role';
 const IS_DEMO = isDemoSite(process.env.CREWCHIEF_DEMO_SITE);
 import { AuthProvider } from '@/components/AuthProvider';
 import { SiteRoleProvider } from '@/components/SiteRoleProvider';
-import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@crewchief/core/intro-gate';
+import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@wellkept/core/intro-gate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -46,18 +46,39 @@ export const metadata: Metadata = {
      so each deployment claims itself.
   */
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || siteOrigin(IS_DEMO)),
-  title: 'CrewChief — Your Personal Auto Ownership Consultant',
+  /*
+    ── ⚠ Design's string table, 30 Aug — this is the App Store name ──────────
+
+    `Well Kept: Know Your Car` is the App Store name, and the page title is the
+    same string on purpose: a listing and its own marketing URL disagreeing
+    about what the product is called is the first thing a reviewer sees.
+
+    It replaces "Well Kept — Your Personal Auto Ownership Consultant", which was
+    the CrewChief title with the name swapped — a description standing where a
+    name belongs, and forty characters of it.
+  */
+  title: 'Well Kept: Know Your Car',
   /*
      The favicon, apple-touch-icon and SVG icon are NOT declared here — they
      are app/favicon.ico, app/icon.svg and app/apple-icon.png, served by the
-     same filename convention as opengraph-image.tsx below. All of them, and
-     the manifest's two PNGs, are generated from the Sweep 1024 master
-     (public/brand/crewchief-icon-1024.svg); regenerate together, never
-     hand-edit one.
+     same filename convention as opengraph-image.tsx below.
+
+     ⚠ **They are no longer generated together, and that is a known gap.**
+     `app/icon.svg` carries the Well Kept plate as of 1 Sep; `favicon.ico`,
+     `apple-icon.png` and the manifest's two PNGs are still the Sweep dial,
+     because regenerating them needs a rasteriser with Newsreader loaded — the
+     outlining step Design's package README describes, which is an export task
+     rather than a code one. A browser showing the plate in its tab and the dial
+     on a pinned shortcut is the visible symptom until that runs.
   */
   manifest: '/manifest.json',
+  /*
+    ⚠ Leads with the App Store subtitle — `AI-kept service records`, 23
+    characters, inside Apple's 30 — so the phrase somebody meets in the store
+    and the phrase they meet on the page are the same one.
+  */
   description:
-    'Track your vehicles, log service history, and get answers from an AI consultant that knows your car — its issues, schedule, and history.',
+    'AI-kept service records. Track your vehicles, log service history, and get answers from an AI that knows your car — its issues, schedule, and history.',
   /*
      Canonical, cheap insurance. `og:url` is treated as a canonicalisation hint
      by search engines, and the product site previously had no `<link rel=
@@ -65,12 +86,12 @@ export const metadata: Metadata = {
   */
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'CrewChief — Your Personal Auto Ownership Consultant',
+    title: 'Well Kept: Know Your Car',
     // Per-deployment. The product must never describe itself as a demo — see
     // `lib/site-role.ts` for why that sentence is expensive on this hostname.
     description: shareDescription(IS_DEMO),
     url: siteOrigin(IS_DEMO),
-    siteName: 'CrewChief',
+    siteName: 'Well Kept',
     /*
        No `images` key. `app/opengraph-image.tsx` is the card now, and Next
        emits its tags — absolute URL, real dimensions, correct content-type —
@@ -92,13 +113,31 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/*
+          Three families on one request, because a second <link> is a second
+          round trip to the same origin for no benefit.
+
+          Archivo carries a real `wdth` axis, which is what makes it the
+          instrument voice rather than a narrow face pretending to be one: the
+          masthead sets it at 62 and the section headings at 88, from one file.
+          The range is clipped to 62..100 and 500..800 — the only widths and
+          weights anything asks for — because a variable font billed by its
+          axis ranges gets meaningfully smaller when you stop shipping the
+          parts nobody sets.
+
+          JetBrains Mono replaces Tailwind's `ui-monospace` stack for token
+          names, hex values and state labels. That stack resolves to SF Mono on
+          this machine and to something else on every other one, so the
+          specimen page was being typeset differently for each reader — which
+          is a strange property for the page whose job is to show the system.
+        */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Archivo:wdth,wght@62..100,500..800&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
         {/*
           Decides the garage-door intro before the first paint. See
-          components/GarageDoor.tsx and @crewchief/core/intro-gate.
+          components/GarageDoor.tsx and @wellkept/core/intro-gate.
 
           It has to be a blocking inline script, and the two alternatives are
           both visibly wrong. Deciding in an effect means the page paints

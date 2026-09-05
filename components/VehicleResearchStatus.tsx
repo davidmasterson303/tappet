@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader as Loader2, CircleAlert as AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { enrichVehicle, getResearchStatus } from '@/app/actions';
-import { logger } from '@crewchief/core/logger';
+import { logger } from '@wellkept/core/logger';
 
 /**
  * Says what the dossier does not know yet, and does something about it.
@@ -202,7 +202,7 @@ export function VehicleResearchStatus({
     return (
       <div
         className="flex items-center justify-between gap-4 rounded-xl border p-4"
-        style={{ background: 'var(--critical-red-wash)', borderColor: 'var(--critical-red-border)' }}
+        style={{ background: 'var(--critical-wash)', borderColor: 'var(--critical-border)' }}
         role="status"
       >
         <div className="flex items-center gap-3">

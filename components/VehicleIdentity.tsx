@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Car } from 'lucide-react';
-import { vehicleField } from '@crewchief/core/vehicle-identity';
-import { vehicleBlurData } from '@crewchief/core/vehicle-blur';
-import { cardSlotSource } from '@crewchief/core/photo-slots';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { vehicleField } from '@wellkept/core/vehicle-identity';
+import { vehicleBlurData } from '@wellkept/core/vehicle-blur';
+import { cardSlotSource } from '@wellkept/core/photo-slots';
 
 /**
  * What a vehicle looks like — one component, two variants.
@@ -63,6 +62,33 @@ interface VehicleIdentityProps {
   trim?: string | null;
   /** Band height. The design default is 400px; it is a prop so it can flex. */
   height?: number;
+  /**
+   * Band height when there is no photograph to show.
+   *
+   * ⚠ A separate number rather than a fraction of `height`, because the two
+   * are not the same measurement: `height` is how tall a photograph should be,
+   * and this is how tall one line of 12px mono needs to be. The default is
+   * whichever is smaller, so a caller that never thinks about it cannot get
+   * 400px of empty gradient — which is what the dashboard hero was doing.
+   *
+   * A caller that arranges the empty plate differently says so. The hero puts
+   * it beside the reading rather than above it, where it is a column and wants
+   * the extra height.
+   */
+  emptyHeight?: number | string;
+  /**
+   * What a viewer can do about the missing photograph.
+   *
+   * ⚠ Rendered **only** in the empty state, which is what keeps "nothing is
+   * printed over a photograph" true. An empty plate that names its own gap and
+   * offers nothing is a label on a hole; a design critique of the dashboard
+   * called it dead space in the most valuable part of a phone screen, twice.
+   *
+   * A node rather than a handler so the caller owns the control's wording and
+   * its chrome — this component knows a photograph is missing, not what the
+   * surrounding product does about it.
+   */
+  emptyAction?: ReactNode;
   className?: string;
 }
 
@@ -110,6 +136,8 @@ export function VehicleIdentity({
   model,
   trim,
   height = 400,
+  emptyHeight,
+  emptyAction,
   className = '',
 }: VehicleIdentityProps) {
   /*
@@ -166,6 +194,34 @@ export function VehicleIdentity({
   const photoReady = src !== null && loadedUrl === src;
 
   /*
+    ── ⚠ Cover when it is safe to, contain when it is not — B2, 5 Sep ────────
+
+    The brief asks for a hero that covers its panel edge-to-edge, and the
+    docblock at the top of this file explains why that was removed: a
+    centre-anchored `cover` enlarged a 3:4 phone photo ~3x and kept a
+    horizontal band through the vertical middle — "the car was frequently not
+    in the hero at all". That finding is intact and this does not undo it.
+
+    What it does is stop applying the portrait remedy to landscape photographs.
+    The band is roughly 2.9:1. A 3:2 frame cropped to that loses height from
+    top and bottom of a picture composed with the car across the middle, which
+    is what every one of the demo plates is. A 3:4 frame cropped to the same
+    band loses about three quarters of its height, which is the documented
+    disaster.
+
+    So the rule is the aspect itself: landscape enough to survive the crop gets
+    `cover`, anything else keeps `contain` and the plate beside it. 1.4 is
+    below 3:2 (1.5) and comfortably above square, so the common phone shapes —
+    3:4 at 0.75 and 1:1 — stay contained.
+
+    ⚠ `null` until the probe fires, and `contain` is the fallback. An unknown
+    aspect must never be assumed croppable; the failure mode of guessing wrong
+    is a photograph of a car with no car in it.
+  */
+  const [aspect, setAspect] = useState<number | null>(null);
+  const fit = aspect !== null && aspect >= 1.4 ? 'cover' : 'contain';
+
+  /*
     `onLoad` alone would leave the photograph invisible forever on the exact
     case that is meant to be fastest.
 
@@ -189,10 +245,14 @@ export function VehicleIdentity({
 
   const field = vehicleField(make);
 
-  // `{year} {make} · {trim}` — each part optional, and the separator only
-  // earns its place when there is something on both sides of it.
+  /*
+    Only the photograph's accessible name needs this now — the empty band used
+    to print `{year} {make} · {trim}` as visible type, and that line is gone
+    because the layout around the band already carries it. `trim` stays a prop:
+    callers pass it, and it belongs to the vehicle whether or not this drawing
+    happens to render it.
+  */
   const lead = [year, make].filter(Boolean).join(' ');
-  const subtitle = [lead, trim].filter(Boolean).join(' · ');
 
   return (
     <div
@@ -203,8 +263,50 @@ export function VehicleIdentity({
         // instant before a photo decodes.
         background: field.gradient,
         ...(isBand
-          ? { height: `${height}px`, borderBottom: '1px solid rgb(255 255 255 / 0.08)' }
-          : { aspectRatio: '3 / 2' }),
+          /*
+            ── ⚠ The empty band is not a photograph's height ────────────────
+
+            `height` is the height of a photograph — 400px, the design default,
+            and right for one. With no photograph it was 400px of gradient: on
+            a 390px phone the plate plus the heading above it filled the entire
+            first screen, and the score — the reason the page exists — started
+            below the fold.
+
+            So the empty state takes the height its content needs. What it
+            holds is one line of 12px mono, and 168px gives that line air
+            without pretending a photograph is on its way.
+
+            ⚠ Keyed on `src`, not on the `photo` prop, so a URL that 404s
+            collapses the same way a missing one does. That is a downward
+            layout shift on the error path, and it is the better of the two
+            available failures — the alternative is the void this removes,
+            arrived at by a broken link instead of an empty column.
+          */
+          ? {
+              /*
+                A string passes straight through, so a caller can hand this a
+                `clamp()` and have the empty plate scale with the viewport —
+                which is the only way to make it a compact row on a phone and a
+                column beside the instrument on a desktop, since an inline
+                height cannot carry a media query.
+              */
+              height:
+                typeof emptyHeight === 'string' && !src
+                  ? emptyHeight
+                  : `${src ? height : (emptyHeight as number | undefined) ?? Math.min(height, 168)}px`,
+              borderBottom: '1px solid rgb(255 255 255 / 0.08)',
+            }
+          /*
+            ⚠ 4:3, not 3:2 — widened 3 Sep.
+
+            The photograph is the content on a garage page, and at 3:2 a row of
+            three cards occupied barely half a tall viewport while the bottom
+            was empty gradient. Taller plates give the collection the scale the
+            page was leaving on the floor, and they crop these particular
+            photographs better: all three are three-quarter views where the
+            interest is the body, not the ground in front of it.
+          */
+          : { aspectRatio: '4 / 3' }),
       }}
       data-variant={variant}
       data-has-photo={src ? 'true' : 'false'}
@@ -246,18 +348,83 @@ export function VehicleIdentity({
               backgroundPosition: 'center',
               filter: 'blur(34px) saturate(.8) brightness(.52)',
               transform: 'scale(1.08)',
-              opacity: blurSrc || photoReady ? 1 : 0,
-              transition: 'opacity 200ms ease-out',
+              /*
+                ── ⚠ It fades OUT when the photograph lands — dossier B2 ──────
+
+                This read `blurSrc || photoReady ? 1 : 0`, so the blurred
+                enlargement stayed up permanently behind a contained photo and
+                became the letterbox fill. A design critique named it directly:
+                "blur-extended letterboxing behind the hero — classic generated
+                filler". It was right; a smeared 8x copy of the same car is not
+                a design for the space beside a photograph, it is an apology
+                for it.
+
+                Inverting the condition keeps every load-time property the note
+                above argues for — the placeholder is still up on first paint,
+                still costs no request, still resolves into the sharp copy —
+                and stops the fill outliving its job. What shows beside a
+                contained photograph now is `field.gradient`, the plate this
+                component already paints and already treats as the design for a
+                photo that has not arrived.
+
+                ⚠ Whether the sharp copy is contained or cropped is decided by
+                its aspect — see `fit` above. This layer shows beside a
+                *contained* photograph only, which is now the portrait case
+                rather than every case.
+              */
+              opacity: photoReady ? 0 : 1,
+              transition: 'opacity 260ms ease-out',
             }}
           />
-          {/* The sharp copy. Contained — the whole vehicle, always. */}
+          {/*
+            The sharp copy. Contained — the whole vehicle, always.
+
+            ── ⚠ One grade, so three photographs read as one collection ───────
+
+            Owner photographs arrive at whatever temperature they were taken at,
+            and the seeded garage shows the problem plainly: a golden-hour amber
+            Accord beside a cold industrial-dock WRX. Four separate design
+            critiques of the rendered page named it every time — three colour
+            temperatures on one shelf reads as a scrapbook, which is the
+            opposite of an archive.
+
+            A studio grades the set. This is that, as one filter: pull most of
+            the colour out, cool what is left, and drop the brightness a touch so
+            the plates sit *in* the near-black page rather than glowing off it.
+
+            ⚠ Deliberately not a duotone. A hard two-tone map would make every
+            car the same object and throw away the one thing a photograph is
+            for — this is the owner's actual car. Desaturating to 55% keeps it
+            recognisably theirs while ending the temperature clash.
+
+            The blurred fill underneath already carries `saturate(.8)
+            brightness(.52)`; this is the same idea applied to the layer people
+            actually look at.
+          */}
           <div
             className="absolute inset-0 photo-layer"
+            data-graded="true"
             style={{
               ...photoLayerVars(src, formats),
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
+              backgroundSize: fit,
+              /*
+                ⚠ 72% across when the photograph is cropped — dossier B3.
+
+                The dial sits on this plate's lower-left third now, and a
+                centred crop put the car's bumper exactly there: "the 74 sits
+                on the Accord's bumper on desktop and over the grille on
+                mobile, so the two hero elements fight and neither dominates".
+                Pushing the crop right moves the car off the arc and leaves the
+                empty wet road the plate was composed with underneath it.
+
+                Only meaningful when `fit` is `cover` — a contained photograph
+                has no crop to anchor, and `backgroundPosition` on one is the
+                letterbox's alignment rather than the subject's.
+              */
+              backgroundPosition: fit === 'cover' ? '72% center' : 'center',
               backgroundRepeat: 'no-repeat',
+              /* The grade. See the note above — one treatment for the set. */
+              filter: 'saturate(0.55) brightness(0.92) contrast(1.06) hue-rotate(-4deg)',
               opacity: photoReady ? 1 : 0,
               transition: 'opacity 200ms ease-out',
             }}
@@ -314,7 +481,18 @@ export function VehicleIdentity({
               */
               {...({ fetchpriority: isBand ? 'high' : 'auto' } as Record<string, string>)}
               className="absolute w-0 h-0 opacity-0 pointer-events-none"
-              onLoad={() => setLoadedUrl(src)}
+              onLoad={(e) => {
+                /*
+                  The intrinsic aspect, captured here because this probe is the
+                  only element in the component that ever sees it — the two
+                  visible layers are CSS backgrounds, which report nothing.
+                */
+                const img = e.currentTarget;
+                if (img.naturalHeight > 0) {
+                  setAspect(img.naturalWidth / img.naturalHeight);
+                }
+                setLoadedUrl(src);
+              }}
               /*
                 Marks the *prop*, not the rendered URL. `src` may be a
                 card-scoped rewrite of it, and the guard above compares
@@ -336,47 +514,92 @@ export function VehicleIdentity({
       ) : (
         <>
           {/*
-            The oversized glyph, bleeding off the bottom-right corner.
+            ── ⚠ The empty plate says it is empty ─────────────────────────────
 
-            Decorative, at 11% — it is texture, not information. The twelve
-            body-style silhouettes in components/vehicle-illustrations are the
-            *informative* set: they tell an owner which body style the VIN
-            decoded to. Do not swap one for the other without deciding which
-            job the art is doing; using an informative silhouette at 11%
-            opacity wastes it.
+            This drew an oversized generic car outline bleeding off the corner
+            — and a design critique of the rendered page called it exactly
+            what it looked like: "a grey clip-art car silhouette", scanning as
+            a broken image on the first card a visitor sees.
+
+            The glyph is gone. What replaces it is the plate as a plate: the
+            field, a hairline inset frame, and one line saying what is missing.
+            An empty state that names itself is designed; a picture of a car
+            standing in for a picture of a car is a placeholder.
+
+            ⚠ The no-photo state is the **primary** design here, not a fallback
+            — this component's header says so, and the demo garage keeps one car
+            unphotographed on purpose so a visitor sees what their own will look
+            like before they upload. That is the whole reason it has to be worth
+            looking at.
           */}
-          <Car
-            aria-hidden="true"
-            className="absolute pointer-events-none text-white"
-            strokeWidth={0.55}
-            style={{
-              width: isBand ? 230 : 150,
-              height: isBand ? 230 : 150,
-              right: isBand ? -28 : -18,
-              bottom: isBand ? -46 : -30,
-              opacity: 0.11,
-            }}
-          />
+          {/*
+            ⚠ The frame is a card treatment, and only a card treatment.
 
-          <div
-            className={`absolute left-0 right-0 bottom-0 ${isBand ? 'p-8' : 'p-5'}`}
-          >
-            {model && (
-              <p
-                className="display-serif text-white tracking-tight leading-none truncate"
-                style={{ fontSize: isBand ? '2.25rem' : '1.5rem' }}
-              >
-                {model}
-              </p>
-            )}
-            {subtitle && (
-              <p
-                className="text-white/55 mt-1.5 truncate"
-                style={{ fontSize: '12.5px' }}
-              >
-                {subtitle}
-              </p>
-            )}
+            On a card it draws a plate: 12px in from a 4:3 box, it reads as an
+            edge with a margin. Stretched across the band it was a 700px-wide
+            hairline rectangle around nothing, and it was the third concentric
+            rounded rectangle in a row — hero section, then this, then the
+            band's own radius — all within 40px and all nearly the same value.
+          */}
+          {!isBand && (
+            <div
+              aria-hidden="true"
+              className="absolute pointer-events-none chamfer-sm border border-white/8"
+              style={{ inset: 12 }}
+            />
+          )}
+
+          {/*
+            ── ⚠ The band no longer names the car ────────────────────────────
+
+            It printed `model` in 36px serif with `{year} {make} · {trim}` under
+            it, and both are already on the screen: the page heading above the
+            hero is the same three facts. On a phone the two renderings sat
+            about 1100px apart, which is worse than adjacent — it reads as a
+            second car rather than a repeat.
+
+            This component's own docblock draws the line — *"Callers put a
+            vehicle's name in the layout around the band, not on top of it"* —
+            and the no-photo branch was the one place that broke it, on the
+            argument that the plate *is* the naming when there is no
+            photograph. That argument holds for a garage card, which has no
+            heading of its own. It never held for the dashboard hero.
+
+            So the empty band says the one thing the layout around it does not:
+            that there is no photograph. Same line the card uses.
+          */}
+          {/*
+            ⚠ A row on a phone, a column above it.
+
+            At 176px tall between the score and the recall banner, this was
+            "safety-critical content pushed a full viewport down by a
+            placeholder" — a design critique's heaviest penalty, twice. The
+            studio note it came with was explicit: empty states compressed to a
+            single quiet row. So on a phone the line and its action sit side by
+            side in about 64px, and from `sm` up — where the plate is a column
+            standing beside the instrument rather than a band above it — they
+            stack as before.
+          */}
+          <div className="absolute inset-0 flex flex-row items-center justify-center gap-3 px-4 sm:flex-col sm:gap-4">
+            {/*
+              ── ⚠ Visible on every viewport, and the tracking is why ─────────
+
+              Hiding it below `sm` was the previous attempt, on the argument
+              that the button says everything the label said. The next critique
+              read the result exactly as it looked: "'Add a photograph' dangles
+              at the bottom of the card with zero context… the button reads as
+              an orphan". A button in a bare strip does not say what the strip
+              is.
+
+              The real problem was never the label, it was 0.2em of tracking:
+              at that width the two elements needed about 394px inside 358 and
+              both wrapped. Tracked at 0.08em they fit on one line together,
+              which is what the compact row was always supposed to be.
+            */}
+            <p className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55">
+              No photograph yet
+            </p>
+            {emptyAction}
           </div>
 
           <div

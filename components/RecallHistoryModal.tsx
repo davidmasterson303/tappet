@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, AlertCircle, HelpCircle } from 'lucide-react';
-import { healthClaim } from '@crewchief/core/health-claims';
+import { healthClaim } from '@wellkept/core/health-claims';
+import { RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
 
 interface RecallHistoryModalProps {
   recalls: any[];
@@ -66,13 +67,23 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                   ? 'This vehicle has no recalls to date'
                   : 'We have not checked this vehicle for recalls yet'}
             </DialogDescription>
+            {/*
+              ⚠ §10 / D11. The description above says "found for this vehicle"
+              and "no recalls to date" — both of which an owner will read as
+              being about their car. The match was on year, make and model;
+              there is no VIN in this lookup and never has been. Same constant
+              as the alert card and the mobile screen.
+            */}
+            {checked && (
+              <p className="text-xs text-muted-foreground pt-1">{RECALL_MATCH_CAVEAT}</p>
+            )}
           </DialogHeader>
 
           {recalls.length === 0 ? (
             checked ? (
               <div className="text-center py-12">
                 <AlertCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                <p className="text-slate-600 font-medium">No recalls to date</p>
+                <p className="text-muted-foreground font-medium">No recalls to date</p>
                 <p className="text-slate-500 text-sm mt-2">This vehicle has a clean safety record</p>
               </div>
             ) : (
@@ -85,7 +96,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
               */
               <div className="text-center py-12">
                 <HelpCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-slate-600 font-medium">Recalls not checked yet</p>
+                <p className="text-muted-foreground font-medium">Recalls not checked yet</p>
                 <p className="text-slate-500 text-sm mt-2">
                   {healthClaim('recall', '', false).text}
                 </p>
@@ -99,14 +110,14 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                        <h3 className="font-semibold text-slate-900">{recall.Component || 'Component Unknown'}</h3>
+                        <h3 className="font-semibold text-foreground">{recall.Component || 'Component Unknown'}</h3>
                       </div>
                       <p className="text-sm text-slate-700 mb-3">{recall.Summary || recall.Description || 'No summary available'}</p>
-                      <div className="grid grid-cols-2 gap-3 text-xs text-slate-600 mb-3">
+                      <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground mb-3">
                         {recall.NHTSACampaignNumber && (
                           <div>
                             <span className="font-semibold">Campaign Number:</span>
-                            <div className="text-slate-700 font-mono mt-1">{recall.NHTSACampaignNumber}</div>
+                            <div className="text-slate-700 mono mt-1">{recall.NHTSACampaignNumber}</div>
                           </div>
                         )}
                         {recall.ManufacturerName && (
@@ -131,19 +142,19 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                       {recall.DefectSummary && (
                         <div className="mb-3">
                           <p className="text-xs font-semibold text-slate-700 mb-1">Defect:</p>
-                          <p className="text-xs text-slate-600">{recall.DefectSummary}</p>
+                          <p className="text-xs text-muted-foreground">{recall.DefectSummary}</p>
                         </div>
                       )}
                       {recall.ConsequenceSummary && (
                         <div className="mb-3">
                           <p className="text-xs font-semibold text-slate-700 mb-1">Consequence:</p>
-                          <p className="text-xs text-slate-600">{recall.ConsequenceSummary}</p>
+                          <p className="text-xs text-muted-foreground">{recall.ConsequenceSummary}</p>
                         </div>
                       )}
                       {recall.CorrectiveActionsSummary && (
                         <div>
                           <p className="text-xs font-semibold text-slate-700 mb-1">Corrective Action:</p>
-                          <p className="text-xs text-slate-600">{recall.CorrectiveActionsSummary}</p>
+                          <p className="text-xs text-muted-foreground">{recall.CorrectiveActionsSummary}</p>
                         </div>
                       )}
                     </div>

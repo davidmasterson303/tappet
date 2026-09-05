@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from '@crewchief/core/utils';
+import { cn } from '@wellkept/core/utils';
 
 /**
  * The button primitive — v8 §8a.
@@ -13,8 +13,13 @@ import { cn } from '@crewchief/core/utils';
  * rather than asserted:
  *
  *   - `rounded-md`. The radius happened to land near right, by coincidence —
- *     shadcn's `md` and this app's `md` are different numbers. `rounded-xl` is
- *     the design-system token every other control in the product uses.
+ *     shadcn's `md` and this app's `md` are different numbers. `rounded-xl` was
+ *     the design-system token every other control in the product used.
+ *     ⚠ Superseded 4 Sep by brief B4: the control's shape is now the 45-degree
+ *     cut, not a radius, so this carries `chamfer-sm rounded-none`. The defect
+ *     described here was real and is still worth knowing — it is why the
+ *     radius was ever a token rather than a literal — but do not read
+ *     `rounded-xl` off this paragraph as current.
  *
  *   - `ring-offset-2`. **An offset gap on a dark surface reads as a hairline
  *     crack, not a ring.** Settled for fields in v7 and never applied here. The
@@ -44,24 +49,46 @@ import { cn } from '@crewchief/core/utils';
  * the two rules costs 4px of desktop density and needs no new Tailwind variant.
  *
  * **Hover does not go up the ramp.** The spec says hover returns to cyan-600
- * (`#0891B2`). Measured against the light ink this now carries, that pairing is
- * **3.51:1 and fails AA** — the same shape of error as the ink row the spec
- * originally omitted. `hover:bg-primary/90` composites toward the page ground
- * instead, which is 5.87:1 and darker rather than lighter. The reasoning is in
+ * (`#0891B2`). It is refused, and since 4 Sep for a second reason as well as
+ * the original measured one: the rest fill is off-white and hover is the
+ * sodium fill, so hover is the only place on a resting surface where a hue
+ * fills an area. It has to be the hue that means "the thing you are about to
+ * touch", not the one that means "information". The reasoning is in
  * `app/globals.css` beside `--primary`.
+ *
+ * ⚠ `hoverable:` and `focusable:`, not `hover:` and `focus-visible:`. They are
+ * custom variants defined in `tailwind.config.ts` that compile to the real
+ * pseudo-class **and** to `[data-force~="…"]`, so the design-system specimen
+ * page can render a genuine hover state in a still screenshot without a second
+ * copy of the declaration to drift from. Writing both spellings on one element
+ * would emit two rules of equal specificity whose winner is decided by
+ * generated source order — so these replace the originals rather than joining
+ * them.
  */
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center whitespace-nowrap',
-    'rounded-xl text-sm font-medium transition-colors',
+    /*
+      The cut, not a radius — brief B4. `--radius` is 5px now and the shape of
+      the control is the 45-degree corner, which `.chamfer-sm` clips.
+
+      ⚠ `ring-inset` is not a style choice and must not be removed. `clip-path`
+      clips box-shadow, and Tailwind's `ring-2` is a box-shadow drawn OUTSIDE
+      the border box — so a clipped control with an outside ring has no visible
+      focus state at all. Nothing errors, nothing looks wrong to anyone using a
+      mouse, and it is total for anyone on a keyboard. The ring is drawn inside
+      the clip instead, which also lands it exactly where this file already
+      argued a ring belongs: touching the border rather than floating off it.
+    */
+    'chamfer-sm rounded-none text-sm font-medium transition-colors',
     // RB0 rule 3. `min-h` rather than `h` so a button that wraps grows instead
     // of clipping its own label.
     'min-h-[44px]',
     /*
-      No ring offset. `focus-visible:ring-2` sits directly on the border, which
-      is what makes it read as a halo on a dark surface rather than as a gap.
+      No ring offset. The ring sits directly on the border, which is what makes
+      it read as a halo on a dark surface rather than as a gap.
     */
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'focus-visible:outline-none focusable:ring-2 focusable:ring-inset focusable:ring-ring',
     /*
       A stated surface and stated ink. `disabled:opacity-50` is deliberately
       gone — see the docblock, and `text-contrast-floor.test.ts` for why an
@@ -74,26 +101,37 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        /*
+          Rest is the off-white fill; hover is the sodium one — brief B8/B10.
+
+          ⚠ Not `hoverable:bg-primary/90`, which is what this was. That
+          composited the fill toward the page ground and was correct while the
+          rest state was mid-cyan; against an off-white rest state the same
+          expression produces a dirty grey rather than a state change. The ink
+          does not move, because both fills are light: 15.60:1 at rest, 8.46:1
+          on hover, measured against `--primary-foreground`.
+        */
+        default:
+          'bg-primary text-primary-foreground hoverable:bg-[var(--attention)]',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          'bg-destructive text-destructive-foreground hoverable:bg-destructive/90',
         /*
           `bg-transparent`, never `bg-background`. Inherits whatever surface it
           sits on, so it can never render darker than its container — the
           defect this variant shipped with.
         */
         outline:
-          'border border-[color:var(--border-field)] bg-transparent hover:border-[color:var(--border-field-hover)] hover:bg-white/4',
+          'border border-[color:var(--border-field)] bg-transparent hoverable:border-[color:var(--border-field-hover)] hoverable:bg-white/4',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-white/5 hover:text-foreground',
+          'bg-secondary text-secondary-foreground hoverable:bg-secondary/80',
+        ghost: 'hoverable:bg-white/5 hoverable:text-foreground',
         /*
           A link is text, not a target — the 44px floor is about hit areas, and
           applying it here would put 44px of dead space around an inline word.
           `min-h-0` opts out explicitly so the exception is visible rather than
           looking like an oversight.
         */
-        link: 'min-h-0 text-primary underline-offset-4 hover:underline',
+        link: 'min-h-0 rounded-none text-primary underline-offset-4 hoverable:underline',
       },
       size: {
         default: 'px-4 py-2',

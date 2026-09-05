@@ -25,11 +25,17 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import DiagnosticHero from '@/components/DiagnosticHero';
 
 /**
- * The score and its band label are held back until the 900ms scan reveal
- * finishes, so a test that asserts them on the first frame is asserting the
- * loading state. This runs the reveal out.
+ * Runs any pending timers out.
+ *
+ * ⚠ This used to be `completeScan`, and it was load-bearing: the hero held its
+ * score behind a 900ms `setTimeout` that stood in for a diagnostic. D13 removed
+ * the timer, so the dial is live on mount and there is no reveal to complete.
+ *
+ * It is kept, and still called, precisely so this suite would notice a *new*
+ * timer appearing in front of the reading. If someone reintroduces a staged
+ * reveal, the assertions before this call are what fail.
  */
-function completeScan() {
+function settle() {
   act(() => {
     jest.advanceTimersByTime(1000);
   });
@@ -57,20 +63,27 @@ describe('the hero always renders', () => {
     expect(container.querySelectorAll('img').length).toBe(0);
 
     /*
-      The plate itself names the car, and the hero no longer repeats it.
+      ⚠ Nothing here names the car in visible type, and that is the third
+      revision of this assertion — worth stating plainly so it is not undone a
+      fourth time.
 
-      This used to assert the caption's serif "2015 BMW M235i" under a comment
-      saying "the vehicle is named beneath the band, not on it" — which was true
-      with a photograph and false without one. In the no-photo state the plate
-      *is* the naming, so the caption was a second copy about 150px away, and the
-      page heading a third a little higher up.
+      It first asserted a serif "2015 BMW M235i" caption beneath the band. That
+      became a duplicate of the plate's own name, so it moved to asserting the
+      plate's text. The plate's name was itself a duplicate of the page heading
+      that sits directly above this hero on the only screen that renders it —
+      adjacent on a desktop viewport, ~1100px apart on a phone.
 
-      What must stay true is that the hero identifies its vehicle. Asserted here
-      on the plate's own text and, below, on the section's accessible name.
+      What must stay true is that the hero *identifies* its vehicle, and it
+      does: through the section's accessible name, asserted in the next case.
+      What it says in ink is the thing the heading above cannot — that there is
+      no photograph, once.
     */
-    expect(screen.getByText('M235i')).toBeInTheDocument();
-    expect(screen.getByText(/2015 BMW/)).toBeInTheDocument();
-    expect(screen.getByText('No photo yet')).toBeInTheDocument();
+    expect(screen.getByText('No photograph yet')).toBeInTheDocument();
+    expect(plate(container).textContent).not.toContain('M235i');
+
+    // And the older wording is gone with the duplicate: two sentences about
+    // one missing photograph, 60px apart, in different words.
+    expect(container.textContent).not.toMatch(/no photo yet/i);
   });
 
   it('is identifiable to a screen reader whether or not it has a photo', () => {
@@ -104,9 +117,10 @@ describe('when the photo fails to load', () => {
 
     expect(plate(container).dataset.hasPhoto).toBe('false');
     expect(container.querySelectorAll('img').length).toBe(0);
-    // And the hero is still a hero — the plate names the vehicle where the
-    // broken photograph was, rather than leaving a hole.
-    expect(screen.getByText('M235i')).toBeInTheDocument();
+    // And the hero is still a hero — the plate stands where the broken
+    // photograph was, saying what is missing, rather than leaving a hole.
+    expect(screen.getByText('No photograph yet')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '2015 BMW M235i' })).toBeInTheDocument();
   });
 });
 
@@ -127,25 +141,207 @@ describe('the score', () => {
   it('renders the band label derived from the score, never free text', () => {
     render(<DiagnosticHero {...M235i} healthScore={74} />);
 
-    // Held back during the reveal — asserting here would test the placeholder.
-    expect(screen.queryByText('Fair')).not.toBeInTheDocument();
-
-    completeScan();
-
     // 74 is "Fair" (>= 60). A hand-written label is how 61 came to be "Good".
+    // Present immediately: there is no reveal to wait out any more.
+    expect(screen.getByText('Fair')).toBeInTheDocument();
+
+    settle();
     expect(screen.getByText('Fair')).toBeInTheDocument();
   });
 
-  it('says "Diagnostics complete" only once the scan is done, and only with a photo', () => {
-    render(<DiagnosticHero {...M235i} photo="https://example.test/car.jpg" healthScore={74} />);
+  /*
+    ── ⚠ D13 · the caption is a claim, and these are the teeth ────────────────
 
-    expect(screen.getByText('Scanning…')).toBeInTheDocument();
-    completeScan();
-    expect(screen.getByText('Diagnostics complete')).toBeInTheDocument();
+    The replaced test asserted `'Scanning…'` then `'Diagnostics complete'`, and
+    it passed for years while the app told every owner it had examined their
+    car. It was a correct test of the wrong behaviour — which is the failure
+    mode rule 5 is about, arriving from the other direction: not a guard that
+    checks nothing, but a guard that faithfully pins something untrue.
+  */
+  it('never claims a diagnostic it did not run', () => {
+    render(
+      <DiagnosticHero
+        {...M235i}
+        photo="https://example.test/car.jpg"
+        healthScore={74}
+        work={{ serviceRecords: 0, recalls: 0 }}
+      />
+    );
+
+    settle();
+
+    expect(screen.queryByText(/diagnostics complete/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/scanning/i)).not.toBeInTheDocument();
   });
 
-  it('is absent entirely when there is no score, rather than showing zero', () => {
-    render(<DiagnosticHero {...M235i} />);
-    expect(screen.queryByText('/100')).not.toBeInTheDocument();
+  /*
+    ── ⚠ Handoff §1.4 · the beat stays, and counts something true ────────────
+
+    An earlier pass deleted the count-up outright. David's call is the opposite:
+    keep the moment of assembly, change what it counts. So this asserts the
+    settled sentence *and* that the sweep never renders a phrasing the settled
+    state would not use — the failure mode of re-deriving the caption from the
+    animated value each frame would be "No service records on file" flashing
+    under a car with twelve.
+  */
+  it('names the records it actually read', () => {
+    render(<DiagnosticHero {...M235i} healthScore={74} work={{ serviceRecords: 12, recalls: 3 }} />);
+
+    settle();
+
+    expect(screen.getByText('Read 12 service records and 3 recall campaigns.')).toBeInTheDocument();
+  });
+
+  it('never shows an absence phrasing while counting up to a real figure', () => {
+    render(<DiagnosticHero {...M235i} healthScore={74} work={{ serviceRecords: 12, recalls: 3 }} />);
+
+    // Before the sweep settles: still the "Read …" shape, whatever the numeral.
+    expect(screen.queryByText(/no service records/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Read \d+ service record/)).toBeInTheDocument();
+
+    settle();
+    expect(screen.queryByText(/no service records/i)).not.toBeInTheDocument();
+  });
+
+  it('says so plainly when a check ran and found nothing', () => {
+    render(<DiagnosticHero {...M235i} work={{ serviceRecords: 0, recalls: 0 }} />);
+    settle();
+
+    expect(
+      screen.getByText(
+        'No service records on file, and no recalls found for this year, make and model.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  /*
+    ── ⚠ Handoff §1.4 · "show nothing rather than a timer" ───────────────────
+
+    Neither read resolved, so there is nothing true to say and no caption is
+    rendered. The earlier pass printed "Nothing read for this car yet." — a slot
+    filled to avoid looking unfinished, which is the reflex that produced the
+    timer in the first place.
+  */
+  it('renders no caption at all when nothing resolved', () => {
+    const { container } = render(
+      <DiagnosticHero {...M235i} photo="https://example.test/car.jpg" work={{ serviceRecords: null, recalls: null }} />
+    );
+    settle();
+
+    expect(container.textContent).not.toMatch(/read \d/i);
+
+    /*
+      Anti-vacuous: the same match finds a caption when there is one to find.
+
+      ⚠ Matched on the sentence rather than on `.label-uppercase`, which is
+      what this asserted before. The caption was set in that class — 12px mono
+      small caps, "READ 11 SERVICE RECORDS." — and a design critique of the
+      rendered page read it as a debug string. It is a sentence, punctuated as
+      one at source, and it is set as one now. A test pinned to the old class
+      would have failed for the wording being *fixed*.
+    */
+    const withWork = render(<DiagnosticHero {...M235i} work={{ serviceRecords: 4, recalls: null }} />);
+    settle();
+    expect(withWork.container.textContent).toMatch(/Read 4 service records\./);
+  });
+
+  /*
+    ── ⚠ D10 · a null score is not a zero, and this is where it was ──────────
+
+    The replaced assertion was `expect(queryByText('/100')).not.toBeInTheDocument()`
+    — vacuous twice over. `ClusterGauge` prints no denominator at all, so the
+    string was absent regardless; and it was checked against `healthScore`
+    *undefined*, the one case that renders no dial, so it never exercised the
+    defect. A car whose score is `null` rendered a full red dial reading 0.
+
+    Both states are asserted here, separately, because they are different
+    claims: `undefined` is "this caller shows no score", `null` is "this car has
+    no score".
+  */
+  it('renders no dial at all when the caller passes no score', () => {
+    const { container } = render(<DiagnosticHero {...M235i} />);
+    settle();
+
+    expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+
+  it('renders an unknown dial — not a zero — when the score is null', () => {
+    render(<DiagnosticHero {...M235i} healthScore={null} work={{ serviceRecords: 0, recalls: 0 }} />);
+    settle();
+
+    const dial = screen.getByRole('img', { name: /health score/i });
+    expect(dial).toHaveAttribute(
+      'aria-label',
+      'Health score not available — not enough history yet'
+    );
+
+    // The reading is a dash, and no band judgement is printed beside it.
+    expect(dial.textContent).toContain('—');
+    expect(dial.textContent).not.toMatch(/\b0\b/);
+    for (const band of ['Needs attention', 'Poor', 'Fair', 'Good', 'Excellent']) {
+      expect(screen.queryByText(band)).not.toBeInTheDocument();
+    }
+
+    // Anti-vacuous: this suite can still detect a real reading on the same path.
+    expect(screen.getByText('No score yet')).toBeInTheDocument();
+  });
+
+  it('offers the action that closes the gap, when the caller supplies one', () => {
+    const onAddRecord = jest.fn();
+    render(<DiagnosticHero {...M235i} healthScore={null} onAddRecord={onAddRecord} />);
+    settle();
+
+    expect(screen.getByText(/not enough history yet/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a service record' }));
+    expect(onAddRecord).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+    ── ⚠ The hero prints no generated prose at all, at any score ─────────────
+
+    It used to take the model's summary as `reason` and render it beside the
+    dial — the same string `HealthSummary` prints in "What's driving the score"
+    a few hundred pixels below, verbatim, in one screen.
+
+    The replaced test asserted a narrower rule: that the summary must not
+    appear beside an *unknown* score, because there was no assessment to
+    summarise. That rule is still true and is now true by construction, so
+    what is worth guarding is the wider one — the paragraph belongs where its
+    "generated by AI" disclosure is, and the hero links to it instead. This is
+    the assertion that fails if somebody threads the prose back up here.
+  */
+  it('does not render the model summary, and offers the report instead', () => {
+    const { container } = render(
+      <DiagnosticHero {...M235i} healthScore={74} driversHref="#health-report" />
+    );
+    settle();
+
+    expect(container.textContent).not.toMatch(/good condition/i);
+
+    const link = screen.getByRole('link', { name: /what.s driving this score/i });
+    expect(link).toHaveAttribute('href', '#health-report');
+  });
+
+  it('offers no route when the caller gives it nowhere to send anyone', () => {
+    // Anti-vacuous for the case above: the link is the caller's to supply, and
+    // an empty slot is not held open for it.
+    render(<DiagnosticHero {...M235i} healthScore={74} />);
+    settle();
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('sends an unknown score to the action, not to the report', () => {
+    /*
+      D10's state. There is nothing to explain, so a link to an explanation
+      would be the same overclaim as printing prose here — what is missing is
+      records, and the button is what closes that.
+    */
+    render(<DiagnosticHero {...M235i} healthScore={null} driversHref="#health-report" onAddRecord={() => {}} />);
+    settle();
+
+    expect(screen.queryByRole('link', { name: /driving this score/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add a service record' })).toBeInTheDocument();
   });
 });

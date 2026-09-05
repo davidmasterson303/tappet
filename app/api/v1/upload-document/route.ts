@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadInvoice } from '@/app/actions';
-import { logger } from '@crewchief/core/logger';
-import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@crewchief/core/validation';
-import type { ApiResponse } from '@crewchief/core/types';
+import { logger } from '@wellkept/core/logger';
+import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@wellkept/core/validation';
+import type { ApiResponse } from '@wellkept/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest): Promise<Response> {
   logger.info('API:UPLOAD_INVOICE', 'Upload request received');
 
-  const identifier = getClientIdentifier(request);
+  const identifier = getClientIdentifier(request, 'upload');
   const rateLimit = await checkRateLimit(identifier, 'upload');
   if (!rateLimit.allowed) {
     logger.warn('API:UPLOAD_INVOICE', 'Rate limit exceeded', { identifier });

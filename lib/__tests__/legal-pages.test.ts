@@ -18,10 +18,10 @@
  * the claims are still there.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SUBSCRIPTION_CANCEL_PATH } from '@crewchief/core/account-deletion';
+import { SUBSCRIPTION_CANCEL_PATH } from '@wellkept/core/account-deletion';
 
 import { CONTACT_EMAIL, LAST_UPDATED, OPERATOR } from '@/lib/legal';
 
@@ -116,8 +116,52 @@ describe('the two documents cannot contradict the app', () => {
   it('agrees with the app that deleting an account does not cancel billing', () => {
     // `subscriptionNotice` says this in the app. Both documents say it too,
     // because it is the one thing here that costs money to get wrong.
-    expect(termsText).toMatch(/deleting your crewchief account does not stop the/i);
+    expect(termsText).toMatch(/deleting your well kept account does not stop the/i);
     expect(privacyText).toMatch(/does not cancel an App Store subscription/i);
+  });
+});
+
+describe('the training promise is tied to the evidence for it', () => {
+  /*
+    ── LEG-01 ─────────────────────────────────────────────────────────────────
+
+    The Terms tell every reader "We do not use your content to train models."
+    Nothing in this codebase can enforce that. It is true only while the Gemini
+    key sits on a Cloud project with **active billing** — Google's terms make
+    the API a Paid Service on exactly that condition, and unbilled they reserve
+    the right to have humans read the input and output. The input here includes
+    invoices carrying an owner's name and a shop's street address.
+
+    So the claim's evidence lives outside the repo, in a billing console, and
+    the only durable link between them is a dated note beside the client that
+    uses the key. This asserts the two stay together: make the promise, carry
+    the receipt.
+
+    It deliberately does not assert the billing is *currently* live — no test
+    can know that. It asserts that somebody wrote down when they last looked,
+    which is the difference between an unverified claim and a stale one.
+  */
+  const gemini = read('lib/gemini.ts');
+
+  it('the Terms still make the claim this is all about', () => {
+    expect(flat(read('app/terms/page.tsx'))).toMatch(
+      /We do not use your content to train models/i
+    );
+  });
+
+  it('names the Cloud project the key belongs to', () => {
+    // The project id, not just "it's billed" — a claim nobody can re-check is
+    // the same as no claim, and this is the string you paste into the console.
+    expect(gemini).toMatch(/gen-lang-client-\d{10}/);
+  });
+
+  it('records when the billing state was last verified', () => {
+    expect(gemini).toMatch(/\b\d{1,2} \w+ 20\d{2}\b/);
+
+    // Anti-vacuous: a file that merely mentions Google must not satisfy this.
+    expect(/gen-lang-client-\d{10}/.test('const genAI = new GoogleGenAI({ apiKey });')).toBe(
+      false
+    );
   });
 });
 
@@ -144,26 +188,104 @@ describe('who operates the service, and who to write to about it', () => {
   */
 
   it('names a real operator rather than a bracketed placeholder', () => {
-    expect(OPERATOR).toBe('David Masterson');
+    /*
+      ⚠ Changed 30 Aug: the operator is **Southmoor Digital LLC**, not a person.
+
+      The pin is the point. This value decides who a reader is contracting with
+      and who is accountable for what the product says about their car, so it
+      moves only when David says it moves — an entity appearing or disappearing
+      here through a merge, a refactor or a find-and-replace is the failure this
+      exact literal exists to stop.
+    */
+    expect(OPERATOR).toBe('Southmoor Digital LLC');
 
     // Anti-vacuous: this must still be able to catch a placeholder coming back.
     expect(OPERATOR).not.toMatch(/[[\]]|TBD|not yet|to be decided/i);
     expect(OPERATOR.trim().length).toBeGreaterThan(0);
   });
 
+  it('every mailto in the product points at that address and no other', () => {
+    /*
+      ⚠ Found 30 Aug, and it had been live for months: the dashboard footer's
+      "Feedback" link was `mailto:feedback@crewchief.app` — a domain nobody
+      here owns. Mail sent from it went nowhere and told the sender nothing,
+      which is the worst shape a support channel can have: it looks answered.
+
+      It also survived the rename, because a find-and-replace on the product
+      name would have produced `feedback@wellkept.app` — the same dead address
+      wearing the new name. An address is not copy.
+
+      So the rule is one address, from one constant. This walks the tree rather
+      than watching that one file, because the next invented address will be in
+      a different component.
+    */
+    const walk = (dir: string, acc: string[] = []): string[] => {
+      for (const entry of readdirSync(dir)) {
+        if (entry === 'node_modules' || entry === '__tests__') continue;
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full, acc);
+        else if (/\.tsx?$/.test(entry)) acc.push(full);
+      }
+      return acc;
+    };
+
+    const files = [...walk(join(root, 'app')), ...walk(join(root, 'components'))];
+    expect(files.length).toBeGreaterThan(50); // a walker that finds nothing is not a clean tree
+
+    /*
+      ⚠ Comments are stripped first, and this file learned that the hard way:
+      the paragraph above quotes the dead address, and the component that used
+      to carry it explains itself the same way. Scanning raw text reported both
+      explanations as the defect they document.
+
+      Block comments are blanked rather than deleted so nothing else shifts.
+    */
+    const strip = (code: string) =>
+      code
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+        .replace(/\/\/.*$/gm, '');
+
+    const literals = new Set<string>();
+    for (const file of files) {
+      // `Array.from`, not a spread or a for-of over the iterator: the root
+      // tsconfig targets es5, so iterating one directly is TS2802. Same trap
+      // the ramp guard hit, and the house pattern is this.
+      for (const [, address] of Array.from(
+        strip(readFileSync(file, 'utf8')).matchAll(/mailto:([^"'`\s]+)/g)
+      )) {
+        // `mailto:${CONTACT_EMAIL}?subject=…` is the shape that passes: the
+        // address came from the constant. A literal is what this is looking for.
+        if (address.startsWith('${')) continue;
+        literals.add(address.split('?')[0]);
+      }
+    }
+
+    expect(Array.from(literals)).toEqual([]);
+  });
+
   it('names a contact address somebody actually reads', () => {
     /*
-      `crewchief.support@gmail.com` — deliberately not a domain address, and
-      that is worth recording because it looks like a compromise and is not.
+      ⚠ Moved 30 Aug: `crewchief.support@gmail.com` → `support@southmoordigital.com`,
+      iCloud Mail on the company's own domain, verified receiving from an
+      external sender that day.
 
-      `support@davidmasterson.co` carries David's name, which gives back most of
-      what a dedicated address was for, and `crewchief.co` is not his. Apple
-      requires a support *URL* in the listing, not a domain-based address, so a
-      customer is pointed at the site either way. The property that matters on a
-      privacy policy is that the address is answered — this one is verified
-      receiving and delegated to his own mailbox.
+      The old address was a considered choice rather than a compromise, and its
+      reasoning still governs: a *product* address rather than
+      `support@davidmasterson.co`, which carries David's name and gives back
+      most of what the separation was for. What changed is that the entity and
+      the domain that make a better answer possible now exist.
+
+      The part that could not wait is the name. The rename went through the copy
+      on 30 Aug, and this string would otherwise have been the last "crewchief"
+      rendering on a public legal page — under a policy signed by an LLC.
     */
-    expect(CONTACT_EMAIL).toBe('crewchief.support@gmail.com');
+    expect(CONTACT_EMAIL).toBe('support@southmoordigital.com');
+
+    // It has to be on the operator's domain, or the policy and the address are
+    // signed by different parties. Asserted as a property, not just a literal.
+    expect(CONTACT_EMAIL.endsWith('@southmoordigital.com')).toBe(true);
+    expect(CONTACT_EMAIL).not.toMatch(/gmail|crewchief/i);
   });
 
   it('would still catch a placeholder or an unreachable address coming back', () => {
@@ -202,8 +324,14 @@ describe('who operates the service, and who to write to about it', () => {
       file's own docblock is explicit that a date which moves for a CSS change
       teaches people the date means nothing. An exact pin makes every bump a
       line somebody had to write on purpose.
+
+      ⚠ Moved to 30 August with the operator becoming Southmoor Digital LLC.
+      Unlike the 19 August bump, this one is ahead of its own promote: web-live
+      has been frozen since 23 Aug, so the published policy still names David
+      personally. If the promote slips past the 30th, this literal and the
+      constant both move to the day it runs.
     */
-    expect(LAST_UPDATED).toBe('19 August 2026');
+    expect(LAST_UPDATED).toBe('30 August 2026');
     expect(new Date(LAST_UPDATED).getTime()).not.toBeNaN();
     expect(new Date(LAST_UPDATED).getTime()).toBeGreaterThanOrEqual(
       new Date('14 August 2026').getTime(),

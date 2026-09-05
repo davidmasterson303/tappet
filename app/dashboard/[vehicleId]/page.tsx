@@ -1,6 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+
 import dynamic from 'next/dynamic';
+import { recallsAreKnown } from '@wellkept/core/nhtsa-lookup';
+import { selectNhtsaRow } from '@/lib/nhtsa-row';
+import { driversForVehicle, driversSupportAScore } from '@wellkept/core/health-drivers';
+import type { ServiceHistoryRow } from '@wellkept/core/service-history';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import DashboardContent from '@/components/DashboardContent';
@@ -15,6 +21,7 @@ import { DashboardSkeleton } from '@/components/Skeletons';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VehicleResearchStatus } from '@/components/VehicleResearchStatus';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
+import { VehiclePhotoUploadDialog } from '@/components/VehiclePhotoUploadDialog';
 import { getHealthBand } from '@/hooks/use-health-band';
 
 /*
@@ -58,12 +65,44 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
     queryFn: async () => {
       const supabase = getClientSupabase();
 
-      const [vehicleResult, knowledgeResult, nhtsaResult, healthSummaryResult, recallActionsResult, historyResult] = await Promise.all([
+      const [vehicleResult, knowledgeResult, nhtsaResult, healthSummaryResult, recallActionsResult, recordsResult, historyResult] = await Promise.all([
         supabase.from('vehicles').select('*').eq('id', params.vehicleId).maybeSingle(),
         supabase.from('vehicle_knowledge_base').select('*').eq('vehicle_id', params.vehicleId).maybeSingle(),
-        supabase.from('nhtsa_data').select('recalls').eq('vehicle_id', params.vehicleId).maybeSingle(),
+        /*
+          ⚠ `lookup_status` travels — FN-03. Without it this page can only ask
+          "is there a row", which is true for a lookup NHTSA did not recognise
+          and is how a green tick lands on a truck with open campaigns.
+
+          ⚠ And it travels through `selectNhtsaRow`, not a bare `select`. The
+          column is not applied in production, and naming it in a select makes
+          PostgREST reject the entire query — so this read was returning `null`
+          for every vehicle and the recall banner below had never rendered for
+          anyone. See that helper for the full account.
+        */
+        selectNhtsaRow(supabase, params.vehicleId),
         supabase.from('vehicle_health_summary').select('*').eq('vehicle_id', params.vehicleId).maybeSingle(),
         supabase.from('recall_actions').select('campaign_number').eq('vehicle_id', params.vehicleId),
+        /*
+          The vehicle's maintenance records, serving two things at once — D10
+          and D13.
+
+          The rows feed `driversForVehicle`, which needs the descriptions and
+          dates to work out what has actually been serviced; their count is what
+          the hero's caption names. One query rather than a count query plus a
+          row query, and the same columns `app/api/v1/load-vehicle` selects, so
+          the two clients compute the drivers from identical input.
+
+          ⚠ A failed read must resolve to `null` rather than `0`. Zero is a
+          statement about the car ("no invoices on file"); null is a statement
+          about us ("we could not look"). `work-narration.ts` renders them
+          differently on purpose, and collapsing them here is how "no records"
+          would come to mean "read failed" on the one screen written to stop
+          absence reading as fact.
+        */
+        supabase
+          .from('maintenance_line_items')
+          .select('item_description, service_date, mileage_at_service, source')
+          .eq('vehicle_id', params.vehicleId),
         /*
           Score history, fetched here rather than inside HealthHistoryChart.
 
@@ -95,12 +134,21 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
       return {
         vehicle: vehicleResult.data,
         knowledge: knowledgeResult.data,
-        nhtsa: nhtsaResult.data,
+        nhtsa: nhtsaResult,
         healthSummary: healthSummaryResult.data,
         // Errors resolve to empty rather than throwing: a missing score history
         // is a normal state for a new vehicle, not a broken dashboard.
         history: (historyResult.data || []) as { health_score: number; recorded_at: string }[],
-        addressedCampaigns: (recallActionsResult.data || []).map((r: any) => r.campaign_number)
+        addressedCampaigns: (recallActionsResult.data || []).map((r: any) => r.campaign_number),
+        /*
+          `null` on failure, never `[]`. The drivers degrade correctly from an
+          empty list — every mileage-driven service still evaluates — but the
+          *caption* must not say "no service records on file" because a read
+          errored. Two consumers, two different tolerances, one honest absence.
+        */
+        serviceRows: recordsResult.error
+          ? null
+          : ((recordsResult.data || []) as ServiceHistoryRow[])
       };
     },
     enabled: !!params.vehicleId
@@ -109,6 +157,47 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
   // Before the loading and error branches: this is a hook, and it has to run
   // on every render regardless of which one this render takes.
   const vehicleImage = useVehicleImage(data?.vehicle);
+  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+
+  /*
+    ── ⚠ D10 · the drivers reach the web at last ─────────────────────────────
+
+    `healthDrivers` had exactly one caller — the mobile API route — so every
+    computed statement about this car ("No service schedule on record", "Recalls
+    have not been checked") existed and was rendered on the phone and nowhere on
+    the web. The dashboard drew a dial and three model-written tiles.
+
+    `recallsChecked` is not consulted here on purpose: `recallDriver` wants the
+    raw `recalls` value and distinguishes `undefined` from `[]` itself. Passing
+    it a pre-digested boolean would put that judgement in two places.
+  */
+  const drivers =
+    data === undefined
+      ? []
+      : driversForVehicle({
+          schedule: data.knowledge?.maintenance_schedule,
+          historyRows: data.serviceRows ?? [],
+          recalls: recallsAreKnown(data.nhtsa?.lookup_status, data.nhtsa?.recalls)
+            ? data.nhtsa?.recalls ?? []
+            : undefined,
+          currentMileage: data.vehicle?.current_mileage ?? null,
+          year: data.vehicle?.year ?? null,
+        });
+
+  /*
+    ── ⚠ D10 · refuse to band a score nothing computable supports ────────────
+
+    The score comes from the model; the drivers are computed from rows. When
+    *every* driver is null — no schedule or no records against it, no recall
+    lookup, no odometer-and-year — there is nothing checkable underneath the
+    number, and banding it would present a judgement about nothing as a reading.
+    That is the hardcoded 70 arriving by a longer route.
+
+    `driversSupportAScore` is `some`, not `every`: one null driver is the normal,
+    honest case the drivers exist to report, and refusing on it would blank the
+    dial for most real cars and train everyone to ignore the rule.
+  */
+  const scoreIsSupported = driversSupportAScore(drivers);
 
   if (isLoading) {
     return (
@@ -137,7 +226,24 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
 
   return (
     <ErrorBoundary>
-      <DashboardLayout vehicle={data.vehicle} currentPage="dashboard" vehicleImage={vehicleImage} healthSummary={data.healthSummary}>
+      {/*
+        ⚠ **UX-21 · `knowledge` was not passed, so the reliability reading was
+        missing from the dashboard alone.** `DashboardLayout` renders
+        "RELIABILITY 7/10" from `knowledge.reliability_score`, and the consultant
+        and vehicle-info pages both supply it — this one fetched the row (it is
+        `knowledgeResult` above, used for `research_status` twice on this very
+        page) and did not hand it over. One prop, and the effect was a fact that
+        appears on two screens and vanishes on the third.
+      */}
+      <DashboardLayout
+        vehicle={data.vehicle}
+        knowledge={data.knowledge}
+        currentPage="dashboard"
+        vehicleImage={vehicleImage}
+        healthSummary={data.healthSummary}
+        /* Every child below is a bordered section already — see the prop. */
+        contentSurface="bare"
+      >
         <div className="space-y-8">
           {/*
             Unconditional now. The hero used to render only when a photo
@@ -152,8 +258,60 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
             make={data.vehicle.make}
             model={data.vehicle.model}
             trim={data.vehicle.trim}
-            healthScore={data.healthSummary?.health_score}
-            reason={data.healthSummary?.summary}
+            /*
+              ⚠ `?? null` is deliberate and load-bearing, and the two absences
+              differ. No `vehicle_health_summary` row at all → `undefined` → no
+              dial, because nothing has ever been generated. A row whose
+              `health_score` is `null` → the unknown dial, because the model was
+              asked and declined to score.
+
+              Before D10 both arrived at `DiagnosticHero`'s `healthScore ?? 0`
+              and the second one drew a red dial reading 0.
+            */
+            healthScore={
+              data.healthSummary
+                ? scoreIsSupported
+                  ? data.healthSummary.health_score ?? null
+                  : null
+                : undefined
+            }
+            /*
+              ⚠ The model's summary used to be passed here as `reason`, and
+              `HealthSummary` prints the same string in "What's driving the
+              score" a few hundred pixels below. One paragraph, twice, in one
+              screen. It stays there — that is where the disclosure saying a
+              model wrote it lives — and the hero links to it instead.
+            */
+            driversHref="#health-report"
+            work={{
+              serviceRecords: data.serviceRows === null ? null : data.serviceRows.length,
+              /*
+                ⚠ Recalls are `null` unless the lookup is known to have run.
+                `recallsAreKnown` is the only thing that answers this — an
+                `nhtsa_data` row exists for lookups NHTSA did not recognise, so
+                `recalls?.length ?? 0` would report "0 recall campaigns" for a
+                truck nobody successfully checked. FN-03, again.
+              */
+              recalls: recallsAreKnown(data.nhtsa?.lookup_status, data.nhtsa?.recalls)
+                ? data.nhtsa?.recalls?.length ?? 0
+                : null,
+            }}
+            /*
+              D10's primary action. `/documents/[vehicleId]` is the Maintenance
+              page and its own button says "Upload Invoice" — the one place on
+              the web where a record actually gets added. Sending someone to a
+              screen that cannot do the thing is worse than offering nothing.
+            */
+            onAddRecord={() => router.push(`/documents/${params.vehicleId}`)}
+            addRecordLabel="Upload an invoice"
+            /*
+              The empty plate's own action. `VehicleCard` has offered this from
+              the garage since CC-142; the dashboard — the screen where the
+              plate is largest and emptiest — had no way to add a photograph at
+              all, so an owner had to go back to the garage to fix what this
+              page was pointing at.
+            */
+            onAddPhoto={() => setShowPhotoDialog(true)}
           />
 
           {data.nhtsa?.recalls && data.nhtsa.recalls.length > 0 && (
@@ -190,23 +348,37 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
           */}
           <div className="space-y-3">
             <CollapsibleSection
-              title="Health report"
+              /*
+                The section's header is the only heading for this content now —
+                the card inside used to carry "What's driving the score" as a
+                second one, and the hero links here with the same words. One
+                heading, and the link's text is its destination's name.
+              */
+              title="What's driving the score"
               storageKey={`dash:health:${params.vehicleId}`}
+              /* The hero's "What's driving this score" link points here, and
+                 the section opens itself when the hash names it. */
+              anchorId="health-report"
               defaultOpen
-              summary={healthSummaryLine(data.healthSummary?.health_score)}
+              summary={healthSummaryLine(
+                scoreIsSupported ? data.healthSummary?.health_score : null
+              )}
             >
               {/*
-                ⚠ `recallsChecked` is whether an NHTSA **row exists**, not
-                whether it listed recalls. Those are different facts and
-                conflating them is what put a green "No active recalls" tick on
-                a 2003 Accord whose lookup had never run. `maybeSingle()`
-                returns null when there is no row, which is the evidence.
+                ⚠ `recallsChecked` is whether the lookup **matched**, not
+                whether a row exists. Three facts, not one, and conflating them
+                is what put a green "No active recalls" tick on a 2003 Accord
+                whose lookup had never run — and, once that was fixed, would
+                have put the same tick on any car whose make NHTSA does not
+                recognise. `recallsAreKnown` is the one place that question
+                is answered; see `packages/core/src/nhtsa-lookup.ts`.
               */}
               <HealthSummary
                 healthSummary={data.healthSummary}
+                drivers={drivers}
                 vehicleId={params.vehicleId}
                 recalls={data.nhtsa?.recalls || []}
-                recallsChecked={Boolean(data.nhtsa)}
+                recallsChecked={recallsAreKnown(data.nhtsa?.lookup_status, data.nhtsa?.recalls)}
                 researchComplete={data.knowledge?.research_status === 'completed'}
               />
             </CollapsibleSection>
@@ -239,6 +411,20 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
             />
           </div>
         </div>
+        {/*
+          Mounted beside the layout rather than inside the hero: the hero draws
+          a plate and offers an action, and a modal that owns a file input, a
+          crop step and a router refresh is not a thing a presentational band
+          should be holding.
+        */}
+        <VehiclePhotoUploadDialog
+          vehicleId={params.vehicleId}
+          vehicleName={`${data.vehicle.year} ${data.vehicle.make} ${data.vehicle.model}`}
+          currentPhotoUrl={vehicleImage ?? undefined}
+          hasCustomPhoto={!!data.vehicle.custom_image_url}
+          open={showPhotoDialog}
+          onOpenChange={setShowPhotoDialog}
+        />
       </DashboardLayout>
     </ErrorBoundary>
   );

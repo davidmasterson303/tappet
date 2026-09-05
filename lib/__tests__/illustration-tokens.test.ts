@@ -46,9 +46,9 @@ const FORBIDDEN_TOKENS = [
   '--ring-ok',
   '--ring-warn',
   '--ring-bad',
-  '--confirm-green',
-  '--attention-amber',
-  '--critical-red',
+  '--confirm',
+  '--attention',
+  '--critical',
   '--destructive',
   '--info',
 ] as const;

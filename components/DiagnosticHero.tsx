@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
+import { describeReadWork, readWorkCount, type ReadWork } from '@wellkept/core/work-narration';
+import { useCountUp } from '@/hooks/use-count-up';
 
 interface DiagnosticHeroProps {
   /** A renderable photo URL, already signed by the caller. Null is expected. */
@@ -12,9 +14,56 @@ interface DiagnosticHeroProps {
   make?: string | null;
   model?: string | null;
   trim?: string | null;
-  healthScore?: number;
-  /** One line on why the score is what it is. Optional. */
-  reason?: string | null;
+  /**
+   * The reading, or `null` when there is not enough history to make one.
+   *
+   * ⚠ `null` and `undefined` are different here and both are real. `undefined`
+   * is "this caller does not show a score at all"; `null` is "this car has no
+   * score", which is a statement about the car and gets the unknown face.
+   */
+  healthScore?: number | null;
+  /**
+   * Fragment link to the health report — the section that explains the reading.
+   *
+   * ⚠ This replaced a `reason` prop that took the model's summary paragraph.
+   * That paragraph is rendered by `HealthSummary` under the disclosure saying a
+   * model wrote it, and printing it here as well put the same sentence on the
+   * screen twice. A route to the explanation is not a second copy of it.
+   *
+   * A real `href` rather than a scroll callback: it works before hydration, it
+   * offers a middle-click and a keyboard focus ring for free, and
+   * `CollapsibleSection` opens itself when the hash names it — so the link
+   * cannot land someone on a closed drawer.
+   *
+   * Omitted by callers with nowhere to send anyone, which renders no link.
+   */
+  driversHref?: string;
+  /**
+   * What the assessment was actually built from — D13.
+   *
+   * Omitted by callers that genuinely cannot say, which renders no caption
+   * rather than a made-up one.
+   */
+  work?: ReadWork;
+  /** What to do about a missing score. Rendered only when there is no reading. */
+  onAddRecord?: () => void;
+  /**
+   * What to do about a missing photograph. Rendered inside the empty plate.
+   *
+   * Omitted by callers with no upload to offer, which renders the plate as it
+   * was — a statement of what is missing, with nothing to do about it.
+   */
+  onAddPhoto?: () => void;
+  /**
+   * What the action's button says.
+   *
+   * ⚠ A prop rather than a constant because the two clients reach different
+   * screens, and the label has to name the one it actually opens. The web
+   * dashboard sends people to the Maintenance page, whose own button reads
+   * "Upload Invoice"; a button here promising "Add a service record" would be
+   * describing a form that page does not have.
+   */
+  addRecordLabel?: string;
   /** Band height. 400px is the design default. */
   height?: number;
 }
@@ -56,12 +105,20 @@ export default function DiagnosticHero({
   model,
   trim,
   healthScore,
-  reason,
+  driversHref,
+  work,
+  onAddRecord,
+  onAddPhoto,
+  addRecordLabel = 'Add a service record',
+  /* ⚠ 400 -> 520 when a photograph is present. The dial is 240 tall and rides
+     up into the plate; at 400 it cleared the image after about 96px and the
+     rest of the arc sat on bare graphite, which a critique read as the
+     photograph "stopping at roughly 60% of the panel with a hard horizontal
+     edge". The plate has to be tall enough to be underneath the whole
+     instrument, not just its top. */
   height = 400,
 }: DiagnosticHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scanDone, setScanDone] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   /*
     The band table and the count-up both moved into ClusterGauge, which owns
@@ -71,21 +128,146 @@ export default function DiagnosticHero({
     and only its address has moved.
   */
 
-  useEffect(() => {
-    setMounted(true);
-    const timer = setTimeout(() => setScanDone(true), 900);
-    return () => clearTimeout(timer);
-  }, []);
+  /*
+    ── ⚠ D13 · the 900ms timer that used to live here is gone ────────────────
 
-  const score = healthScore ?? 0;
+    It set `scanDone`, which drove three things: a cyan scan line across the
+    photograph, the caption's flip from "Scanning…" to "Diagnostics complete",
+    and `ClusterGauge`'s `active` prop. None of them was waiting on work —
+    the score, the recalls and the records all arrive with the page — so the
+    animation measured nothing but itself and the caption asserted a diagnostic
+    that had not happened. `work-narration.ts` carries the full argument.
+
+    ── ⚠ The beat stays, and counts something true ───────────────────────────
+
+    `CODE_HANDOFF_2026-08-24.md` §1.4 is explicit, and it corrects an earlier
+    reading of this decision that removed the count entirely: *"not to remove
+    the beat but to make it narrate something real — count up the records
+    actually read… Same reassurance, no fiction."*
+
+    That is the better call. The moment of assembly was never the dishonest
+    part — an instant answer does feel unearned, and deleting the moment throws
+    away real reassurance to fix a problem the moment did not cause. What was
+    wrong was the *subject*: a timer counting itself.
+
+    So the sweep runs over `readWorkCount` — the real number of records on file.
+    A car with twelve invoices counts to twelve because there are twelve, and a
+    car with none has nothing to count and shows no caption at all.
+
+    ⚠ The sentence's shape comes from `work`, not from `counted`. Only the
+    numeral is substituted, so the caption never passes through the "no records"
+    phrasing on its way up. `work-narration.ts` carries why that matters.
+  */
+  const counted = useCountUp(work ? readWorkCount(work) : 0, 700);
+
+  /**
+   * ⚠ `null`, not `0`. `??` here would resurrect the exact defect: `0` is a
+   * legitimate score and `ClusterGauge` will happily paint it red.
+   */
+  const score = healthScore ?? null;
+  const unknownScore = score === null;
+
+  /*
+    ── ⚠ What this line says is now checkable ────────────────────────────────
+
+    It read `!photo ? 'No photo yet' : scanDone ? 'Diagnostics complete' :
+    'Scanning…'` — a caption whose only inputs were a photograph and a timer,
+    announcing a completed diagnostic over a car with no records, no recall
+    lookup and no assessment.
+
+    It names the records the assessment was built from instead. Every figure in
+    it is a row somebody can go and count in the service log, which is the
+    standard `health-drivers.ts` holds its own inputs to.
+
+    ⚠ The `'No photo yet'` fallback that used to close this expression is gone,
+    and not lost: the empty band says "No photograph yet" in its own centre, so
+    the fallback was a second sentence about one missing photograph about 60px
+    away from the first, in different words. The plate is the better place for
+    it — the plate is the thing that is empty.
+  */
+  const caption = work ? describeReadWork(work, counted) : null;
+
+  /*
+    ⚠ `height` is the height of a *photograph*. The empty band is shorter, and
+    `VehicleIdentity` decides that rather than this component — it is the half
+    that knows whether a photograph actually resolved, and a URL that 404s has
+    to collapse the same way a missing one does.
+  */
+
+  /*
+    ── ⚠ Two arrangements, and the photograph is what decides ────────────────
+
+    A photograph is the content: it gets the full width, with the reading in a
+    strip beneath it. That is CC-142 §3 and the reason nothing is printed over
+    the image any more.
+
+    An empty plate is not content. Given the same full width it was a 1130×170
+    letterbox saying "No photograph yet", and the strip below it was a gauge
+    with 600px of nothing to its right — two half-empty rows stacked. Side by
+    side they make one composed row instead, and the plate stays big enough to
+    read as the place a photograph goes.
+
+    ⚠ It stays `variant="band"` in both, rather than borrowing the card
+    drawing. The card variant is 4:3 with its own top radius and its own inset
+    frame, all of which belong to a garage tile; what is wanted here is the
+    same plate at a column's width.
+  */
+  const stacked = Boolean(photo);
 
   return (
     <section
       ref={containerRef}
       aria-label={vehicleName}
-      className="rounded-2xl overflow-hidden border border-white/8"
+      /* ⚠ A deeper cut on this one panel — dossier B5.
+         `--register-chamfer` is 18px, which reads on a 400px card and vanishes
+         on a 2700px plate: a critique that had passed B5 twice called the hero
+         "square-cornered while every panel around it is cut". A chamfer is a
+         proportion of the thing it cuts, and the largest panel on the page
+         needs the largest one. 40px is the notch at this width. */
+      style={{ '--register-chamfer': '40px' } as React.CSSProperties}
+      className={`cut-panel overflow-hidden border border-white/8${
+        stacked ? '' : ' flex flex-col sm:flex-row sm:items-stretch'
+      }`}
     >
-      <div className="relative">
+      {/*
+        ── ⚠ On a phone the empty plate comes *after* the reading ────────────
+
+        It led, and a design critique of the rendered page called that the
+        single worst decision on the screen: about 500px of "no photograph
+        yet" standing between the top of the viewport and the score the page
+        exists to give. The product's own artefact started below the fold,
+        behind a placeholder for something the owner may never add.
+
+        `order` rather than a second element: one plate, one action, moved. The
+        photographed layout is untouched — a photograph earns the top of the
+        screen, and `stacked` is exactly that case.
+      */}
+      <div
+        className={`relative${
+          stacked ? '' : ' order-2 sm:order-none sm:w-[300px] sm:shrink-0 sm:border-r sm:border-white/8'
+        }`}
+      >
+        {/*
+          ⚠ The plate's lower edge dissolves — dossier B3.
+
+          The dial used to sit in a band *under* the photograph, with a hard
+          seam between them, and a critique put the cost plainly: the reading
+          was "parked bottom-left of an empty dark band under the photograph"
+          while the plate ended in a line. Two objects where the brief asks for
+          one.
+
+          A gradient into `--card` gives the image somewhere to end, and the
+          band that follows is pulled up into it — so the arc sits on the
+          plate's lower third rather than beneath it, and the seam is gone
+          because there is nothing left to seam.
+
+          `aria-hidden` and `pointer-events-none`: it is a grade on a
+          photograph, not a layer anybody interacts with.
+        */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-[hsl(var(--card))] via-[hsl(var(--card))]/75 to-transparent"
+        />
         <VehicleIdentity
           variant="band"
           photo={photo ?? null}
@@ -93,35 +275,104 @@ export default function DiagnosticHero({
           make={make}
           model={model}
           trim={trim}
-          height={height}
+          height={photo ? Math.max(height, 520) : height}
+          /*
+            One quiet row on a phone, a column beside the instrument above
+            `sm`. At 390px that is 64px — a line and a button, which is all the
+            empty state has to say — and it reaches 176 by the time the plate is
+            standing next to the reading rather than sitting between it and the
+            recall banner. A `clamp()` rather than a breakpoint because an
+            inline height cannot carry a media query.
+          */
+          /*
+            176, down from 236. Below the reading on a phone it no longer has
+            to hold the top of the screen, and what it holds is a line and a
+            button — a plate, not a stage. On `sm` and up it is the column
+            beside the instrument, where the two heights meet.
+          */
+          emptyHeight="clamp(64px, 13vw, 176px)"
+          emptyAction={
+            onAddPhoto ? (
+              <button
+                type="button"
+                onClick={onAddPhoto}
+                className="tap-target-44 chamfer-sm border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
+              >
+                Add a photograph
+              </button>
+            ) : undefined
+          }
         />
 
         {/*
-          The scan sweep. Transient — it runs once, for 850ms, and leaves
-          nothing behind. That is what keeps it compatible with "no tint,
-          vignette or scrim over any in-app photograph": those are persistent
-          layers that cost the photo permanently, this is motion.
+          ── ⚠ D13 · the cyan scan sweep that crossed this photograph is gone ──
+
+          It was defended, correctly, as *motion rather than a layer* — it cost
+          the photo nothing permanently and so did not breach "no tint, vignette
+          or scrim over any in-app photograph". That defence is still sound and
+          is no longer the question.
+
+          What it did was depict a scan. A luminous line travelling down a
+          photograph of the owner's car, resolving into "Diagnostics complete",
+          is a picture of the app examining the vehicle — and the app had not
+          examined anything; it had waited 900ms. The honesty problem was never
+          the ink budget, it was the depiction, so tuning the opacity could not
+          have fixed it and removing the element is the whole fix.
         */}
-        {mounted && !scanDone && (
-          <div
-            className="scan-line absolute left-0 right-0 h-[2px] pointer-events-none"
-            style={{
-              position: 'absolute',
-              zIndex: 4,
-              background:
-                'linear-gradient(90deg, transparent 0%, rgba(34,211,238,0) 5%, rgba(34,211,238,1) 50%, rgba(34,211,238,0) 95%, transparent 100%)',
-              boxShadow: '0 0 18px 4px rgba(34,211,238,0.55), 0 0 40px 8px rgba(34,211,238,0.18)',
-              animation: 'scanLine 0.85s cubic-bezier(0.4,0,0.6,1) forwards',
-            }}
-          />
-        )}
       </div>
 
       {/*
-        Beneath the band: the score, and the reason for it. The vehicle's name
-        lives here now rather than on the photograph.
+        Beneath the band: the reading, what it was read from, and the way into
+        the report that explains it. The vehicle's name lives in the page
+        heading above the hero rather than on the photograph.
       */}
-      <div className="bg-[#0f1318]/90 px-4 sm:px-6 sm:px-8 py-6">
+      <div
+        /*
+          ⚠ Opaque, not `/90`.
+
+          At 90% the page's `.cockpit-belt` showed straight through: its
+          ambient strip crossed the card as a full-width hairline right at the
+          dial's 0/100 baseline, and its brushed grain surfaced as vertical
+          banding at the card's margins. Two critiques of the rendered page
+          reported both as rendering faults — "a stray full-width hairline…
+          like a rendering bug", "visible striped banding artifacts" — which is
+          exactly what a background feature crossing a foreground card looks
+          like.
+
+          The belt is the page's ground and it belongs behind the page. A card
+          sitting on it is a card, not a window.
+        */
+        /*
+          ⚠ `hsl(var(--card))`, not `#0f1318` — dossier B6, 5 Sep.
+
+          That literal is a cool blue-black from before the palette warmed to
+          graphite, and it is the last one on this surface. Two critiques
+          described the consequence without naming the cause: "the dial sits in
+          a bluish band that is not page graphite", "a second bluish tone". It
+          was a fourth surface colour on a page whose whole argument is one
+          graphite family.
+
+          The paragraph above still governs and is why this is opaque rather
+          than translucent: the belt is the page's ground and belongs behind
+          the page. What changes is which opaque colour — the token, so it
+          moves with the rest of the system instead of staying where the
+          palette used to be.
+        */
+        /* ⚠ Transparent when it overlaps a photograph — the gradient above
+             is what carries the ground there. Opaque in the no-photo case,
+             where there is no plate to show through. */
+        className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
+          stacked
+            /* ⚠ The overlap is desktop-only. The critique's own parking lot
+               put it plainly: "a portrait crop cannot spare a third for the
+               arc" — on a phone the plate is nearly square and the dial landed
+               across the grille and a headlight, where a hairline and its
+               terminal fight the highlights. Below `sm` the dial sits under the
+               plate, which is what it was before and is correct there. */
+            ? ' pt-6 sm:-mt-80 sm:pt-0'
+            : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
+        }`}
+      >
         {/*
           The vehicle is not named again here.
 
@@ -141,10 +392,6 @@ export default function DiagnosticHero({
           reader still hears which vehicle the hero belongs to — the information
           was never the problem, the third copy of it was.
         */}
-        <p className="label-uppercase mb-6">
-          {!photo ? 'No photo yet' : scanDone ? 'Diagnostics complete' : 'Scanning…'}
-        </p>
-
         {/*
           One instrument, where there used to be a numeral and a separate
           linear track beside it.
@@ -163,41 +410,176 @@ export default function DiagnosticHero({
           numeral lives in the well of the arc, which is where a cluster puts
           it.
         */}
+        {/*
+          ⚠ Centred on a phone, distributed on a desktop.
+
+          Stacked, the dial sat hard left with "a large empty right half" — a
+          design critique's words — because the column inherited the row's left
+          alignment. A single instrument in a column belongs on the column's
+          axis; the row only exists from `sm` up, where the two anchors and the
+          space between them are the composition.
+        */}
         {healthScore !== undefined && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-9">
-            <ClusterGauge score={score} active={scanDone} />
-            {reason && (
-              <p className="text-sm text-white/50 leading-relaxed flex-1 max-w-prose">{reason}</p>
-            )}
+          <div className="flex h-full flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between sm:text-left gap-5 sm:gap-9">
+            {/*
+              `active` was `scanDone` — the dial held its sweep until a timer
+              elsewhere on the screen said a fictional scan had finished. There
+              is nothing to wait for, so it is live on mount.
+            */}
+            {/* ⚠ 320, and the arithmetic is the point — dossier B3.
+
+                The hero face sets its numeral at 48 inside a 200-unit viewBox,
+                so the rendered size is `48 × size / 200`. At 240 that is 58px
+                against a title running to 72px at `lg`: the reading was
+                smaller than the car's name, which is why three critiques said
+                the eye went "name → car → link and never lands on the score".
+                320 puts it at 77px — past the title, which is what "dominant"
+                has to mean on a page whose whole purpose is that number.
+
+                The plate is 520 tall and the band rides 288 up into it; a 320
+                dial renders 285 tall, so it still sits entirely on the
+                photograph rather than hanging off its bottom edge. */}
+            <ClusterGauge score={score} active size={320} />
+            {/*
+              ── ⚠ Not `flex-1`, and the difference is 400px of nothing ──────
+
+              This column held the model's summary paragraph and stretched to
+              fill the row. What is left after that moved out is a link and a
+              one-line caption, and a stretched column put them hard against
+              the gauge with the rest of a 1130px row empty to their right —
+              which reads as content that failed to load rather than as space.
+
+              Pushed to the far edge instead, the row has two anchors and the
+              gap between them is the composition. `sm:` only: on a phone this
+              is a stacked column and there is no row to distribute.
+            */}
+            <div className="sm:max-w-xs sm:text-right">
+              {/*
+                ── ⚠ D10 · the unknown score gets a sentence and an action ────
+
+                A dashed dial reading "—" tells an owner that something is
+                absent without telling them what, or that it is theirs to fix.
+                The dial says *there is no reading*; this says *why*, and the
+                button says *what closes it*.
+
+                The model's summary is not used for this, and was not even
+                when this component still took one: it is the summary of an
+                assessment, and when there is no score there was no assessment
+                — printing it here would attach prose about the car to a state
+                whose entire content is that we have nothing to say about it.
+              */}
+              {unknownScore ? (
+                <>
+                  <p className="text-sm text-white/70 leading-relaxed">
+                    Not enough history yet. Well Kept works out a score from this car&apos;s
+                    service records, and there are not enough on file to say anything useful.
+                  </p>
+                  {onAddRecord && (
+                    <button
+                      type="button"
+                      onClick={onAddRecord}
+                      className="tap-target-44 mt-3 inline-flex items-center chamfer-sm border border-info-border bg-info-wash px-4 py-2 text-sm font-semibold text-info-strong transition-colors hover:bg-info-wash/70"
+                    >
+                      {addRecordLabel}
+                    </button>
+                  )}
+                </>
+              ) : (
+                /*
+                  ── ⚠ The model's summary is deliberately not here ──────────
+
+                  It was — as `reason`, the same string `HealthSummary` prints
+                  in "What's driving the score" directly below, verbatim, in
+                  one screen.
+
+                  The duplicate resolves *there* rather than here, and the
+                  reason is the disclosure rather than the composition. That
+                  paragraph is written by a model, and it has to be read with
+                  the line that says so; `advice-disclosure.ts`: "a surface
+                  that shows generated advice shows this". Beside the gauge it
+                  would sit about 500px from that line on a phone.
+
+                  So the hero carries what the *system* can vouch for — the
+                  reading, and the records it was made from — and hands off.
+                */
+                driversHref && (
+                  <a
+                    href={driversHref}
+                    className="tap-target-44 inline-flex items-center gap-1.5 text-sm font-semibold text-white/85 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white hover:decoration-white/60"
+                  >
+                    What&apos;s driving this score
+                    <span aria-hidden="true">↓</span>
+                  </a>
+                )
+              )}
+
+              {/*
+                ── ⚠ The provenance line, and why it moved ───────────────────
+
+                It sat above the gauge in `label-uppercase` — 12px mono
+                small-caps reading "READ 11 SERVICE RECORDS." — and a design
+                critique of the rendered page called it what it looked like: a
+                debug string. Uppercase mono is this design system's voice for
+                *labels*, and this is not a label; it is a sentence, already
+                punctuated as one by `describeReadWork`.
+
+                Set as a sentence and placed under the claim it qualifies, it
+                does the job it was written for: the reading, then what the
+                reading was made from. Handoff §1.4's requirement is unchanged
+                — it renders only when there is something true to say, and
+                `describeReadWork` still answers `null` when neither read
+                resolved.
+              */}
+              {/*
+                ── ⚠ An underlined neutral, and the reasoning moved twice ─────
+
+                This was `info` blue, then cyan, and is now neither. The first
+                move was right about the problem — two blues both meaning
+                "interactive" — and wrong about the fix.
+
+                ⚠ **Cyan is the mark, not an accent.** `#22D3EE` is
+                `BRAND_COLOR.glow` in Design's package: the plate's backlight,
+                asserted against their own SVGs by `brand.test.ts`. Spending it
+                on ordinary link text put the brand's light on every
+                "see more" on the page, and three consecutive critiques read
+                the result as a product with two competing signature colours —
+                the score's olive and a "default dark-dashboard teal".
+
+                So cyan goes back to being light: the mark, the batten, the
+                focus ring, the primary fill. Links are an underlined neutral,
+                which is what an editorial page uses and which cannot be
+                mistaken for a semantic state.
+
+                ⚠ This is a demotion, not a removal. Nothing in the brand
+                package changes and nothing about the mark moves.
+              */}
+              {/* ⚠ /80, not /55 — this column sits ON the photograph since the
+                  dial moved onto the plate, and muted ink has no floor over a
+                  photograph. Measured against the car's lit flank the ground is
+                  #33332f, which put the old alpha at 3.83:1; /80 computes to
+                  ~10:1 on the same ground. It was fine when this sat on flat
+                  graphite. The rule the specimen page learned twice: over an
+                  image the ink carries the legibility, not the ground.
+
+                  ⚠ And a JSX comment cannot live between `&&` and `(` — that
+                  is a JS expression position. Second time this pass. */}
+              {caption && (
+                <p className="text-xs text-white/80 mt-3 leading-relaxed">{caption}</p>
+              )}
+            </div>
           </div>
         )}
 
-        {healthScore === undefined && reason && (
-          <p className="text-sm text-white/50 mt-4">{reason}</p>
+        {/*
+          A caller that shows no score at all still says what it read. This is
+          the only content in the strip for those callers, so it takes the
+          body size rather than the caption size it has beside a gauge.
+        */}
+        {healthScore === undefined && caption && (
+          <p className="text-sm text-white/60 leading-relaxed">{caption}</p>
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes scanLine {
-          0% {
-            top: 0%;
-            opacity: 0;
-          }
-          5% {
-            opacity: 1;
-          }
-          95% {
-            opacity: 1;
-          }
-          100% {
-            top: 100%;
-            opacity: 0;
-          }
-        }
-        .scan-line {
-          top: 0;
-        }
-      `}</style>
     </section>
   );
 }

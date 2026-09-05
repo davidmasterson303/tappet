@@ -3,7 +3,7 @@
  *
  * @jest-environment node
  *
- * The banding thresholds moved into `@crewchief/core/health-band` so the Expo
+ * The banding thresholds moved into `@wellkept/core/health-band` so the Expo
  * garage (Phase 3.2) reads the same ramp as the web dashboard. That move is
  * only worth anything if the web layer stays a *presentation* of the shared
  * judgement rather than quietly reintroducing its own.
@@ -22,7 +22,7 @@ import {
   getHealthBandJudgement,
   healthBandHex,
   type HealthBandName,
-} from '@crewchief/core/health-band';
+} from '@wellkept/core/health-band';
 import { getHealthBand } from '@/hooks/use-health-band';
 
 const ROOT = join(__dirname, '..', '..');
@@ -136,7 +136,7 @@ describe('the web layer', () => {
     // The regression this whole split exists to prevent: a local BANDS array
     // reappearing beside the shared one.
     const source = code(join('hooks', 'use-health-band.ts'));
-    expect(source).toContain('@crewchief/core/health-band');
+    expect(source).toContain('@wellkept/core/health-band');
     expect(source).not.toMatch(/min:\s*80/);
   });
 });
@@ -144,10 +144,30 @@ describe('the web layer', () => {
 describe('healthBandHex', () => {
   it('converts each band to six-digit hex for React Native', () => {
     // RN's StyleSheet has no rgba() string form, so the Expo garage needs this.
-    expect(healthBandHex(getHealthBandJudgement(100))).toBe('#7fce9c');
-    expect(healthBandHex(getHealthBandJudgement(70))).toBe('#5faec0');
-    expect(healthBandHex(getHealthBandJudgement(50))).toBe('#e0a468');
-    expect(healthBandHex(getHealthBandJudgement(10))).toBe('#e08882');
+    /*
+      ⚠ These four moved on 4 Sep. The ramp left green for the locked design
+      brief's two-hue rule and climbs sodium intensity instead:
+
+        off-white → warm stone → sodium → hot sodium
+
+      The 3 Sep note this replaces made the argument that mattered and it still
+      holds — cyan is the product's accent and must not also mean "Fair", which
+      is now true by a wider margin, because cyan is off the whole warning axis
+      rather than merely off one band of it. `--ring-good` in `app/globals.css`
+      carries the full reasoning.
+
+      **What this assertion is actually for has not changed at all.** It is not
+      protecting four particular colours; it is pinning the web token and the
+      value React Native reads to each other, because they are two files and
+      one decision. It failed on exactly the edit it was written to catch —
+      `app/globals.css` moved first and this pin refused the half-applied
+      state, which is the whole reason the numbers are spelled out here rather
+      than derived.
+    */
+    expect(healthBandHex(getHealthBandJudgement(100))).toBe('#ede7df');
+    expect(healthBandHex(getHealthBandJudgement(70))).toBe('#d6be9b');
+    expect(healthBandHex(getHealthBandJudgement(50))).toBe('#de8a3a');
+    expect(healthBandHex(getHealthBandJudgement(10))).toBe('#f4511e');
   });
 
   it('pads single-digit channels', () => {

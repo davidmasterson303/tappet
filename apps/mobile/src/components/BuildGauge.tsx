@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { CX, CY, R, TRACK, VIEW_H, VIEW_W, pointAt } from '@crewchief/core/cluster-geometry';
+import { CX, CY, R, TRACK, VIEW_H, VIEW_W, pointAt } from '@wellkept/core/cluster-geometry';
 import {
   REDLINE_FROM,
   buildRampFor,
   isRedlined,
   type BuildPosition,
-} from '@crewchief/core/build-progress';
+} from '@wellkept/core/build-progress';
 
 import { DIAL_MIN, build, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -24,8 +24,8 @@ import { useReducedMotion } from '../motion/reduced-motion';
  * health gauge would render an unmodified car as a critical failure and
  * announce it to a screen reader as one.
  *
- * So the geometry is shared through `@crewchief/core/cluster-geometry`, the
- * region is shared through `@crewchief/core/build-progress`, and the *meaning*
+ * So the geometry is shared through `@wellkept/core/cluster-geometry`, the
+ * region is shared through `@wellkept/core/build-progress`, and the *meaning*
  * is not shared with health at all. Two gauges in one cluster, one set of
  * numbers describing the glass.
  *
@@ -266,15 +266,28 @@ export default function BuildGauge({
       </Svg>
 
       {/*
-        The word, not the number. `points` is an internal unit and showing it
-        would invite the reader to treat it as a score out of something — which
-        is exactly the end state this dial exists to avoid. It stays on the
-        accessibility hint for anyone who wants it, as the web version keeps it
-        in a `title`.
+        ── R42 / R43 · one readout, and it names its own axis ────────────────
+
+        This caption used to be the bare word, and `BuildScreen` drew the same
+        word again directly beneath it — `Stock` over `Stock`, which reads as a
+        label above a value where the label has been filled in with the value.
+
+        So it becomes what it was pretending to be: `BUILD STAGE` naming the
+        axis, the zone as the value under it. That is `ClusterGauge`'s readout
+        structure, which this dial already shares the geometry of — and it is
+        what makes the needle's position mean something to somebody looking at
+        it.
+
+        ⚠ Still the word, never the number. `points` is an internal unit and
+        showing it would invite the reader to treat it as a score out of
+        something, which is exactly the end state this dial exists to avoid. It
+        stays on the accessibility hint for anyone who wants it, as the web
+        version keeps it in a `title`.
       */}
-      <Text style={styles.caption} accessibilityHint={`${points} points`}>
-        {label}
-      </Text>
+      <View style={styles.readout} accessibilityHint={`${points} points`}>
+        <Text style={styles.readoutLabel}>BUILD STAGE</Text>
+        <Text style={styles.caption}>{label}</Text>
+      </View>
     </View>
   );
 }
@@ -290,6 +303,8 @@ export const BUILD_SIZE = 150;
 
 const styles = StyleSheet.create({
   dial: { alignItems: 'center', flexShrink: 0, gap: 4 },
+  readout: { alignItems: 'center', gap: 2 },
+  readoutLabel: { ...type.label, color: text.muted },
   caption: { ...type.uiStrong, color: text.primary },
   /** The row scale's only mark. A word, so no tabular figures — there are none. */
   rowLabel: { ...type.uiStrong },

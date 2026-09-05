@@ -71,9 +71,34 @@ function pointAt(score: number, radius: number): { x: number; y: number } {
   points on this scale where the score's meaning changes, and the whole reason
   the dial is ticked rather than smooth.
 */
-const MAJORS = [0, 20, 40, 60, 80, 100];
+/* ⚠ 0 and 100 are gone — the terminals mark the arc's ends now, and a tick
+   under a dot is the same fact twice. The interior graduations stay: they are
+   the only thing on the hero face saying the scale is linear. */
+const MAJORS = [20, 40, 60, 80];
+/*
+  ── ⚠ Two numerals, and the second attempt at this ────────────────────────
+
+  Six numerals around a 160px arc is a scale competing with its own reading,
+  and a critique of the rendered dashboard named the clutter first.
+
+  The first reduction kept the *meaningful* points — the two ends plus the
+  three where the verdict changes, 40/60/80 — and dropped 20. The next round of
+  the same critique caught what that did: "tick labels sit at irregular
+  positions (40/60 crowding the top, 80 alone on the right)". Of course they
+  do. Removing one number from an evenly spaced set does not make the set
+  meaningful, it makes it look mismeasured, and on an instrument face — where
+  regularity *is* the craft — that is worse than the clutter it fixed.
+
+  So the numerals are the two ends of the scale, which is what a scale's
+  numerals are for, and the band boundaries keep saying what they say the way
+  an instrument says it: with a heavier tick. The verdict is written out under
+  the dial in words, which is more legible than a number a reader has to
+  compare against three remembered thresholds.
+
+  Every major still gets a mark, so the geometry is even all the way round.
+*/
+const LABELLED = [0, 100];
 const BOUNDARIES = new Set([40, 60, 80]);
-const MINORS = Array.from({ length: 21 }, (_, i) => i * 5).filter((t) => !MAJORS.includes(t));
 
 
 /**
@@ -132,7 +157,26 @@ function useIgnitionSweep(target: number, enabled: boolean): number {
 }
 
 interface ClusterGaugeProps {
-  score: number;
+  /**
+   * The reading, or `null` when there is not enough history to make one.
+   *
+   * ── ⚠ D10 · `null` is not a zero, and this dial used to draw it as one ────
+   *
+   * `DiagnosticHero` passed `healthScore ?? 0` and `VehicleCard` passed
+   * `healthSummary.health_score` straight through, so a car the model had
+   * declined to score — the state `app/actions.ts` was rewritten to produce
+   * rather than fake a 70 — arrived here as `0` and rendered a **full red dial
+   * reading 0, labelled "Needs attention"**. Not an error, not a blank: a
+   * confident worst-possible reading about a car nobody had assessed.
+   *
+   * That is the defect this whole file's sibling modules are written against —
+   * `health-drivers.ts` says it four times, the garage card calls it "no score
+   * is not a zero" — arriving through the one component that draws the number.
+   *
+   * So the type carries it. A caller cannot pass a missing score without
+   * deciding what a missing score looks like, because the compiler now asks.
+   */
+  score: number | null;
   /**
    * 'hero' is the full dial: minors every 5, numbered majors, needle and hub,
    * the reading on its own line beneath. 'card' is the same instrument at the
@@ -153,6 +197,22 @@ export function ClusterGauge({
 }: ClusterGaugeProps) {
   const isCard = variant === 'card';
 
+  /**
+   * No reading. Every branch below that would assert something about the car
+   * is switched off by this, rather than fed a substitute number.
+   */
+  const unknown = score === null;
+
+  /*
+    ⚠ Hooks run on every path, including the unknown one.
+
+    `0` here is a placeholder for arithmetic that is never drawn — the sweep is
+    disabled and the band is discarded when `unknown`. It must not become a
+    default score: the guards below are what stop it reaching the face, and the
+    reason it is safe to write is that nothing reads it.
+  */
+  const swept = useIgnitionSweep(score ?? 0, active && !isCard && !unknown);
+
   /*
     The card dial is deliberately still — no sweep, no count-up. VehicleCard's
     ring comment already settled this: those were single-card moments, and
@@ -160,14 +220,40 @@ export function ClusterGauge({
     colour already carries severity. Adopting the ticked dial there does not
     reopen it.
   */
-  const swept = useIgnitionSweep(score, active && !isCard);
-  const value = isCard ? score : swept;
+  const value = isCard ? score ?? 0 : swept;
 
   // Band comes from the *target*, never the swept value: the face must not
   // cycle amber → cyan → green on its way to a reading.
-  const band = useHealthBand(score);
+  const band = useHealthBand(score ?? 0);
 
-  const settled = isCard || Math.abs(swept - score) < 0.5;
+  /*
+    ⚠ The unknown face takes no band colour at all.
+
+    Not the lowest band, not a neutral green — the muted ink the rest of this
+    product uses for "we cannot say", the same choice `HealthDrivers` on mobile
+    makes for a `null` driver. Colouring an unmeasured dial would assert a
+    condition nobody checked, which is the overclaim in a different paint.
+  */
+  /*
+    ── ⚠ A hairline is a rendered width, not a viewBox number — 5 Sep ────────
+
+    The stroke was a flat `3`, which is 3 *user units* in a 200-unit viewBox —
+    so it scales with `size` like everything else. That is correct for ticks
+    and type and wrong for a hairline: when the dial went from 240 to 320 to
+    make the numeral dominant, the arc thickened with it and a critique that
+    had passed B3 twice re-opened it — "roughly three times the relative weight
+    of the north-star's. Not yet a hairline."
+
+    Dividing by the scale factor holds the *rendered* stroke at 3px whatever
+    the dial's size, which is what "hairline" means and why the garage's 56px
+    dials and this 320px one now draw the same line.
+  */
+  const hairline = 3 * (200 / size);
+
+  const ink = unknown ? 'rgb(255 255 255 / 0.38)' : band.color;
+  const inkRgb = unknown ? '255 255 255' : band.rgb;
+
+  const settled = isCard || unknown || Math.abs(swept - (score ?? 0)) < 0.5;
   const clamped = Math.max(0, Math.min(100, value));
 
   /*
@@ -194,13 +280,38 @@ export function ClusterGauge({
     put its reading, so the pointer stops short there and the hub goes. The
     hero has the room and keeps both.
   */
-  const tickR = { minorFrom: 76, minorTo: 79.5, majorFrom: 76, majorTo: 84 };
+  /*
+    ⚠ Ticks against the track, not floating outside it. `majorFrom: 76` left a
+    visible gap between the arc's outer edge and the mark — a critique of the
+    rendered dial called them "stray tick marks floating at odd angles outside
+    the ring", which is what a mark separated from the thing it marks looks
+    like. The track is `R = 70` with a stroke either side of it, so 74 is its
+    outer edge.
+  */
+  const tickR = { minorFrom: 74, minorTo: 78, majorFrom: 74, majorTo: 81 };
 
   return (
     <div
-      className={isCard ? 'flex flex-col items-center gap-1 flex-shrink-0' : 'flex-shrink-0'}
+      /*
+        ⚠ `w-fit` on the hero. The band label under the dial is `text-center`,
+        and in the hero's stacked mobile column this wrapper stretched to the
+        full 324px while the dial itself is 196 — so "Fair" centred on the
+        column and sat 64px to the right of the instrument it belongs to.
+        Hugging the drawing puts the two on one axis.
+      */
+      className={isCard ? 'flex flex-col items-center gap-1 flex-shrink-0' : 'w-fit flex-shrink-0'}
       role="img"
-      aria-label={`Health score ${Math.round(score)} out of 100 — ${band.label}`}
+      /*
+        ⚠ The unknown state has to be spoken, not merely undrawn. A dial that
+        renders "—" and announces "Health score 0 out of 100" would be honest
+        to the eye and false to a screen reader, which is the half of this
+        product nobody looks at while fixing the other half.
+      */
+      aria-label={
+        unknown
+          ? 'Health score not available — not enough history yet'
+          : `Health score ${Math.round(score)} out of 100 — ${band.label}`
+      }
     >
       <svg
         viewBox={viewBox}
@@ -209,46 +320,198 @@ export function ClusterGauge({
         aria-hidden="true"
         overflow="visible"
       >
+        {/*
+          ── The track is the scale, and a scale with no reading on it ────────
+
+          ⚠ On the card face it is drawn ONLY when there is nothing to read.
+
+          It is a 270° arc, not a ring, and it always has been — but at 10% ink
+          under a bright value arc it reads as the faint remainder of a circle,
+          and three critiques in a row called the dial "a closed ring". They
+          were describing what is on the screen: two concentric strokes of the
+          same geometry, one bright and one dim, which the eye resolves as one
+          ring with a lit portion rather than as an arc against its scale.
+
+          So a scored card face draws the value arc and its two terminals and
+          nothing else — the north-star's instrument, where the mark IS the
+          reading.
+
+          ⚠ The unknown face keeps it, and that is the whole point of the
+          paragraph below: a dashed track with no arc says "measured range, no
+          measurement". Delete it there and a car with no score renders as an
+          empty frame, which is indistinguishable from a component that failed
+          to load. The hero face keeps it too — it carries labels and ticks and
+          reads as a scale rather than as a mark.
+        */}
+        {(!isCard || unknown) && (
         <path
           className="gauge-track"
           d={TRACK}
           fill="none"
-          stroke={isCard ? `rgba(${band.rgb},0.10)` : 'rgb(255 255 255 / 0.08)'}
-          strokeWidth="6"
-          strokeLinecap="butt"
-        />
+          stroke={isCard ? `rgba(${inkRgb},0.10)` : 'rgb(255 255 255 / 0.08)'}
+          /*
+            ⚠ 6 -> 3, card face first (design-system B7) and then the hero
+            face too (dossier B1-B3): "a hairline arc, not a filled ring". A
+            6px stroke on a 172 viewBox reads as a donut — a stock dashboard
+            widget — and the whole point of this instrument is that it looks
+            measured rather than dashboarded.
 
-        <path
-          className="gauge-arc"
-          d={TRACK}
-          fill="none"
-          stroke={band.color}
-          strokeWidth="6"
-          strokeLinecap="butt"
-          pathLength={100}
-          strokeDasharray={`${clamped} 100`}
-          style={{
-            // The light is the data; a heavy bloom reads as chrome. Held back
-            // until the needle settles so the sweep itself stays crisp.
-            filter: settled ? `drop-shadow(0 0 4px rgba(${band.rgb},0.28))` : 'none',
-          }}
-        />
+            The round cap on the value arc below is doing more work at this
+            weight than it did at 6, not less: at 3px it terminates as a dot,
+            which is what the north-star draws.
 
-        {/* Minors — hairlines, every 5, hero only. */}
-        {!isCard &&
-          MINORS.map((tick) => (
-            <line
-              key={`m${tick}`}
-              className="gauge-tick"
-              x1={CX}
-              y1={CY - tickR.minorTo}
-              x2={CX}
-              y2={CY - tickR.minorFrom}
-              stroke="rgb(255 255 255 / 0.14)"
-              strokeWidth="1"
-              transform={`rotate(${angleFor(tick)} ${CX} ${CY})`}
+            ⚠ The hero face was held at 6 on the argument that "a hairline arc
+            under a 2px tick would put the reading beneath its own scale". The
+            dossier critique read that same stroke as a "thick cream-gold dial"
+            introducing "a fourth hue and a luxury mood" — the weight was what
+            made the ramp's `ok` band read as gold rather than as a value. The
+            ticks lost half a pixel with it; the reading stopped looking like
+            jewellery.
+          */
+          strokeWidth={hairline}
+          strokeLinecap="butt"
+          /*
+            Dashed when there is no reading. The scale is still real — this is
+            the instrument, and the range it measures has not gone away — but a
+            broken line reads as "not measured" the way an unbroken one reads as
+            "measured and empty". `strokeDasharray` on the *track* rather than a
+            second element, so there is nothing extra to keep in register.
+          */
+          strokeDasharray={unknown ? '2 5' : undefined}
+        />
+        )}
+
+        {/*
+          The lit arc *is* the claim — its length is the score. There is no
+          honest length for a score nobody has, so the unknown face has no arc
+          at all rather than a zero-length one. (A zero-length arc and a missing
+          arc look identical here only because the caps are butt; that is a
+          coincidence of styling, not a reason to draw a reading of 0.)
+        */}
+        {!unknown && (
+          <path
+            className="gauge-arc"
+            d={TRACK}
+            fill="none"
+            /*
+              ── ⚠ Off-white, not the band — dossier B3, 5 Sep ───────────────
+
+              This took `band.color`, and for a 74 that is `--ring-ok`, the
+              ramp's warm-stone step. Four consecutive critiques read the
+              result as "a thick cream-gold dial", "a fourth hue", "a luxury
+              mood" — and the last two named it as the single loudest thing on
+              the page after the photograph.
+
+              I raised this three times as a conflict rather than resolving it,
+              because the ramp is settled system and a brief line asking for
+              "no gold stroke" contradicts it. David ruled: trust the critic.
+
+              **What the ramp loses here it keeps one line down.** The arc is
+              the reading's *length*; the word beneath is the reading's
+              *verdict*, and the verdict is what a colour was ever saying. So
+              the band moves onto the word — see the label below — and the arc
+              stops competing with the numeral it encloses. Nothing about
+              `health-band.ts` changes; one consumer of it moved.
+
+              ⚠ Cyan only while it draws. The sweep is the instrument coming
+              alive, which is the one moment on this dial that is about the
+              product rather than about the car.
+            */
+            stroke={settled ? '#EDE7DF' : 'var(--info)'}
+            strokeWidth={hairline}
+            /*
+              ⚠ Round on the value arc, butt on the track beneath it.
+
+              The arc "terminates bluntly" was a critique's word for it, and on
+              a 6px stroke a square end reads as a cut rather than a reading.
+              The track keeps butt caps because it is the full sweep and its
+              ends are the scale's ends, which are marked by ticks — a rounded
+              track would push those ends past their own graduations.
+
+              ⚠ This does **not** make a 0 look like a reading: `strokeDasharray`
+              at 0 draws nothing at all, and a cap needs a dash to sit on.
+            */
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${clamped} 100`}
+            style={{
+              // The light is the data; a heavy bloom reads as chrome. Held back
+              // until the needle settles so the sweep itself stays crisp.
+              /* The halo follows the stroke, not the band — a coloured bloom
+                 under an off-white arc is the gold coming back at 28%. */
+              filter: settled ? 'drop-shadow(0 0 4px rgba(237,231,223,0.28))' : 'none',
+            }}
+          />
+        )}
+
+        {/*
+          ── The terminals — brief B7, 5 Sep ──────────────────────────────────
+
+          The arc has been 270° and open at the bottom since it was drawn; a
+          critique read it as "a near-closed ring" twice, and the geometry was
+          never what made it read that way. At a 3px hairline the two ends of a
+          270° sweep are simply too quiet to announce that the scale stops.
+
+          So the ends are stated rather than implied. A hollow dot at the
+          scale's start, a filled one at the reading — the north-star's
+          instrument language, and it costs two circles.
+
+          `pointAt` is the same function the ticks use, so these cannot drift
+          from the arc they sit on. `pointAt(0, R)` and `pointAt(clamped, R)`
+          are, by construction, exactly the path's own endpoints.
+
+          Card face only. The hero carries a needle and a full tick scale, and
+          a dot at the terminus of a needled dial is two things pointing at one
+          number.
+
+          ⚠ No terminal at all when there is no reading. A dot sitting at the
+          scale's zero would be a mark where the reading goes, on a face whose
+          entire argument is that it has no reading to show.
+        */}
+        {!unknown && (
+          <>
+            {/* ⚠ On both faces since the dossier loop — the hero dial needs the
+                terminals more than the card did, because it also carries a 0
+                and a 100 label and the arc's ends were the only unlabelled
+                thing on it.
+                ⚠ 2.6/3.2 -> 4/5.5. At the first sizes a critique could not tell
+                the terminals from antialiasing on the arc, which makes them
+                decoration rather than the marks that say the sweep ends. They
+                are drawn against a 3px stroke, so they have to be visibly
+                larger than it to read as a different kind of thing. */}
+            <circle
+              cx={pointAt(0, R).x}
+              cy={pointAt(0, R).y}
+              r={4}
+              fill="none"
+              stroke={`rgba(${inkRgb},0.45)`}
+              strokeWidth={2}
             />
-          ))}
+            <circle
+              cx={pointAt(clamped, R).x}
+              cy={pointAt(clamped, R).y}
+              r={5.5}
+              /* With the stroke. A coloured dot on an off-white arc is the
+                 same fourth hue in a smaller place. */
+              fill={settled ? '#EDE7DF' : 'var(--info)'}
+            />
+          </>
+        )}
+
+        {/*
+          ── ⚠ The every-5 hairlines are gone, and so is `MINORS` ─────────────
+
+          Twenty of them ringed a 160px arc, and a design critique of the
+          rendered page counted them as noise twice — "stray outer ticks", then
+          "drop raw ticks entirely". They read as texture rather than as a
+          scale: nobody measures a health score to the nearest five, and the
+          five marks that mean something were competing with fifteen that mean
+          nothing.
+
+          Deleted rather than switched off. A dead branch behind a constant is
+          how a reduction becomes a thing somebody restores by accident,
+          believing it was disabled for a release.
+        */}
 
         {/* Majors. On the card only the three band boundaries survive. */}
         {(isCard ? [40, 60, 80] : MAJORS).map((tick) => (
@@ -268,53 +531,75 @@ export function ClusterGauge({
         ))}
 
         {/* The numbers, on the majors. Upright — never rotated with the tick. */}
-        {!isCard &&
-          MAJORS.map((tick) => {
-            const { x, y } = pointAt(tick, 90);
-            return (
-              <text
-                key={`L${tick}`}
-                x={x}
-                y={y}
-                className="num gauge-label"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill={
-                  BOUNDARIES.has(tick) ? 'rgb(255 255 255 / 0.42)' : 'rgb(255 255 255 / 0.24)'
-                }
-                fontSize="10"
-                fontWeight="500"
-              >
-                {tick}
-              </text>
-            );
-          })}
+        {/*
+          ── ⚠ The 0 and 100 labels are cut — dossier §7 ────────────────────
+
+          They graduated a scale whose ends are now marked by the terminals,
+          and the brief cut them by name. Two numerals at the arc's feet were
+          also the last thing keeping the hero face readable as a chart of one
+          number rather than as the number.
+
+          What went with them is worth naming so it is not lost: they were the
+          site of UI-04, where one element broke the 12px type floor and the
+          4.5:1 contrast floor at the same time — measured live at 10px and
+          2.20:1 — and the fix was 0.55 alpha for a boundary tick and 0.50 for
+          an ordinary one, against `--background`. If labels ever return to
+          this dial, those are the floors they return under.
+        */}
 
         {/* Needle. Hero runs it to the pivot and caps it with a hub; the card
             stops it short, because its reading sits in the well. */}
-        <g transform={`rotate(${angleFor(clamped)} ${CX} ${CY})`}>
-          <line
-            className="gauge-needle"
-            x1={CX}
-            y1={42}
-            x2={CX}
-            y2={isCard ? 62 : CY}
-            stroke={band.color}
-            strokeWidth={isCard ? 3 : 2.5}
-            strokeLinecap={isCard ? 'round' : 'butt'}
-          />
-        </g>
-        {!isCard && (
-          <circle
-            className="gauge-hub"
-            cx={CX}
-            cy={CY}
-            r="5"
-            fill="rgb(12 11 10)"
-            stroke={band.color}
-            strokeWidth="1.5"
-          />
-        )}
+        {/*
+          ⚠ No needle without a reading. A needle points at a value; parking one
+          at the bottom of the scale is how the unknown state became "0" in the
+          first place, and it would be the most convincing wrong answer on the
+          face. The hub stays on the hero — it is the instrument, not the
+          reading — but takes the muted ink so nothing on a dark face glows a
+          judgement.
+        */}
+        {/*
+          ── ⚠ The hero has no pointer. The card still does ─────────────────
+
+          A full needle met a hub in the middle and read as a toy speedometer;
+          shortening it to a marker inside the track fixed that and produced
+          the next complaint — "a stubby needle-nub at the arc's end that reads
+          as a rendering artifact".
+
+          Both are symptoms of the same redundancy. The arc's own filled length
+          *is* the reading, and its rounded cap already marks where the value
+          falls. A second mark at the same angle adds nothing but a shape to
+          misread.
+
+          ── ⚠ And on 5 Sep the card lost it too ──────────────────────────
+
+          The exception read: *"the card variant keeps it, and that is not an
+          inconsistency: at 56px there is no room for a numeral in the well, so
+          the pointer is the only thing saying where on the scale the arc
+          stopped."*
+
+          **That condition stopped being true.** The card face sets the reading
+          at `fontSize` 60 in the middle of the well — it has said its own
+          number since the hub was removed. So the pointer went back to being
+          exactly what the paragraph above describes: a second mark at the same
+          angle as the arc's cap, adding nothing but a shape to misread.
+
+          Three consecutive critiques misread it, in the same words each time —
+          "a closed ring bisected by a dash". At the reading's angle the marker
+          lies almost horizontal and sits immediately beside the numeral, so it
+          reads as punctuation rather than as a position on a scale. The last
+          critique cut it by name: *"a workaround, not a mark."*
+
+          What says where the value falls now is the terminal dot, which is
+          drawn at `pointAt(clamped, R)` — the same angle this used, at the
+          arc's own end rather than beside it.
+
+          ⚠ Diagnosed wrongly first. The boundary tick at 80 sits 4.5° from an
+          82 reading's terminal, so it looked like the collision; the ticks were
+          removed and the dash was still there. They are restored above. The
+          lesson is in `CLAUDE.md` §1's shape — the artefact was a rendered SVG
+          the whole time, and reading it settled in one look what two rounds of
+          inference did not.
+        */}
 
         {/*
           The reading. Inter tabular via `.num`, per the type rule — a cluster
@@ -331,20 +616,84 @@ export function ClusterGauge({
           drawn around it and both ends are numbered. The full reading is in the
           container's aria-label, where the dial cannot be seen.
         */}
+        {/*
+          ⚠ In the well now, not on the bottom line.
+
+          The comment this replaces was accurate about its own constraint —
+          *"centring it in the well is not available once there is a hub: the
+          needle would cross the digits"* — and the constraint is gone with the
+          hub. The reading is the instrument's subject; sitting it between the
+          0 and 100 labels made it a caption to the dial instead of the point
+          of it.
+
+          108 rather than 100: the arc is open at the bottom, so the optical
+          centre of the drawn shape is above the geometric one, and type
+          centred on 100 rides high in it.
+        */}
         <text
           x={CX}
-          y={isCard ? CY : 150}
-          className="num gauge-reading"
+          y={isCard ? CY : 108}
+          /*
+            `display-instrument` joins `num` on 4 Sep — brief B2 puts the
+            condensed grotesk in the display slot, and the reading is the
+            largest piece of type this component sets. `num` stays for the
+            tabular figures, which is the reason the font-size note below was
+            measurable in the first place.
+
+            ⚠ And `display-instrument-tight` on 5 Sep. At 88% width beside a
+            masthead set at 62%, a critique read this numeral as "the body
+            sans" — which it was not, but the distance between the two widths
+            was doing a worse job than either would alone. The reading is the
+            product's centrepiece; it takes the masthead's cut.
+
+            ⚠ Tabular figures at 62% width are narrower than at 88%, so the
+            font-size note below over-states its margin rather than
+            under-stating it. It is left as measured: the number it quotes was
+            true when taken, and a comment that silently re-states an old
+            measurement as if it still held is worse than one that dates
+            itself.
+
+            ⚠ `gauge-reading` must stay too: `inclusive-affordances.test.ts`
+            keys the forced-colors rules off the `gauge-*` classes, and forced
+            colors overrides SVG fill — rename it and the stylesheet keeps
+            reviewing perfectly while applying to nothing.
+          */
+          className="num display-instrument display-instrument-tight gauge-reading"
           textAnchor="middle"
           dominantBaseline="central"
-          fill={isCard ? '#FFFFFF' : band.color}
+          /*
+            ⚠ Off-white on both faces since the dossier loop. The hero face
+            took `band.color`, so at a 74 the numeral rendered in the ramp's
+            `ok` warm stone and a critique read the whole dial as "gold" —
+            "a fourth hue and a luxury mood".
+
+            The arc keeps the band colour, because the arc IS the state and the
+            ramp is settled system. The numeral does not need to say the same
+            thing twice, and saying it in a mid-tone is what made a value look
+            like a finish. This is the card face's arrangement, which had it
+            right: coloured arc, off-white reading.
+          */
+          fill={unknown ? ink : '#FFFFFF'}
           // 60, not 64: tabular figures make "100" exactly 1.5x the width of
           // "88", and at 64 a perfect score measured 40.4px inside a 43.6px
           // well. It fit, with 1.6px a side. 60 buys the margin back.
-          fontSize={isCard ? 60 : 30}
+          /*
+            30 -> 40 on the hero. The dial was spending a large band of a phone
+            screen to say one number, and printing that number smaller than the
+            page's own subheadings. With the hub gone and the labels pushed out
+            there is room in the well for the reading to be the largest thing
+            in the instrument, which is what it is.
+          */
+          fontSize={isCard ? 60 : 48}
           fontWeight="700"
         >
-          {Math.round(value)}
+          {/*
+            An em dash, not a 0 and not an empty string. `health-drivers.ts`
+            settled the wording for a missing driver — "a dash on its own reads
+            as a bug" — which is why the sentence beneath the dial is not
+            optional and says what is missing.
+          */}
+          {unknown ? '—' : Math.round(value)}
         </text>
       </svg>
 
@@ -363,17 +712,70 @@ export function ClusterGauge({
       */}
       {(isCard || active) && (
         <span
+          /* ⚠ `mono` and caps since the dossier loop — B1 and B3 both put the
+             state word in the monospace register, where every other label on
+             the surface already sits. It is a state label, not prose. */
           className={
             isCard
-              ? 'text-xs font-semibold leading-none'
-              : 'block text-center font-semibold leading-none animate-fade-in'
+              ? 'mono text-xs font-medium uppercase tracking-wider leading-none'
+              : 'mono block text-center font-medium uppercase tracking-wider leading-none animate-fade-in'
           }
           style={{
-            color: band.color,
+            /*
+              ── ⚠ Neutral on the hero, so something leads ──────────────────
+
+              The numeral, the arc and this word were all the band's colour, and
+              a critique of the rendered dial said the consequence plainly:
+              "nothing leads". Three elements at the same weight in the same
+              hue is a set, not a hierarchy.
+
+              The reading is the subject and keeps the colour. The arc is the
+              same fact drawn, and keeps it too. This is the caption — it names
+              the band the number already sits in — so it takes ordinary ink.
+
+              ⚠ The card keeps the band colour, and the reason it gives is now
+              out of date: it read "at 56px there is no numeral in the well, so
+              this word *is* the reading". The card face has set a numeral in
+              that well since the hub was removed — the same expired exception
+              that kept a pointer on it. It keeps the colour anyway, because at
+              card size the word is the only thing carrying the band once the
+              numeral went off-white, and two neutral elements would say
+              nothing. Worth revisiting if the card ever grows a coloured mark
+              of its own.
+            */
+            /*
+              ⚠ Neutral on both faces, and this is the second answer to the
+              same question in two rounds.
+
+              When the arc went off-white I moved the band colour onto this
+              word, reasoning that the verdict had to live somewhere a glance
+              could find it. The next critique called that what it was: "FAIR
+              is set in gold … a third hue the system does not own, on a state
+              that is not a warning", and noted B4 had been ✅ before I did it.
+              A regression, and mine.
+
+              The better answer is the one the dial was already making: **the
+              number is the verdict.** 74 says fair more precisely than the
+              word does, and the word is its caption. Nothing on this
+              instrument needs a hue to carry state — the factor figures and
+              the warnings below carry severity, and those are the two places
+              sodium is allowed.
+            */
+            color: 'rgb(255 255 255 / 0.7)',
             ...(isCard ? {} : { fontSize: size * 0.07, marginTop: size * 0.02 }),
           }}
         >
-          {isCard ? band.short : band.label}
+          {/*
+            ⚠ Never a band. `getHealthBand(0)` returns a real judgement with a
+            real colour, and printing it here is what put "Needs attention"
+            under a car that had simply never been assessed. The unknown face
+            says which of the two it is.
+
+            "No score yet" rather than "Unknown": the *yet* is the load-bearing
+            word — it tells the owner this is a gap that closes, which is what
+            makes the action beneath it worth tapping.
+          */}
+          {unknown ? (isCard ? 'No score' : 'No score yet') : isCard ? band.short : band.label}
         </span>
       )}
     </div>

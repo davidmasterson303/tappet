@@ -9,12 +9,12 @@
  * health band and the context-kind labels, on the screen that carries the App
  * Store 4.2 argument.
  *
- * The tokenising is in `@crewchief/core/answer-markup` so both clients agree on
+ * The tokenising is in `@wellkept/core/answer-markup` so both clients agree on
  * what a line *means*; only the drawing is per-platform, since React Native has
  * no `<strong>` and the web has no `<Text>`.
  */
 
-import { parseAnswer, parseAnswerLine } from '@crewchief/core/answer-markup';
+import { parseAnswer, parseAnswerLine } from '@wellkept/core/answer-markup';
 
 /** The bold runs of a line, in order — what a renderer will emphasise. */
 function boldRuns(line: string): string[] {
@@ -165,5 +165,176 @@ describe('invoice totals reach the consultant prompt', () => {
     // confident lie about a real bill.
     const send = actions.slice(actions.indexOf('export async function sendConsultantMessage'));
     expect(send).toMatch(/typeof data\.total_cost !== 'number'/);
+  });
+});
+
+/**
+ * ── FN-14: single-asterisk emphasis, and the triple form ────────────────────
+ *
+ * Seen on the deployed demo, 23 Aug: *"of \*if\* it fails, it's \*when\*"* and
+ * *"you \*always\* replace them as a pair"* — asterisks rendered as characters,
+ * on the product's flagship feature. A screen reader says "asterisk when
+ * asterisk".
+ *
+ * `***x***` was worse: the bold rule consumed four of the six markers and left
+ * a stray `*` at each end.
+ */
+describe('emphasis, not asterisks', () => {
+  it('reads single-asterisk emphasis as emphasis', () => {
+    expect(parseAnswerLine("it's not *if* it fails, it's *when*")).toEqual([
+      { text: "it's not ", bold: false, italic: false },
+      { text: 'if', bold: false, italic: true },
+      { text: " it fails, it's ", bold: false, italic: false },
+      { text: 'when', bold: false, italic: true },
+    ]);
+  });
+
+  it('reads the triple form as both, not as bold plus a stray marker', () => {
+    expect(parseAnswerLine('this is ***urgent***')).toEqual([
+      { text: 'this is ', bold: false, italic: false },
+      { text: 'urgent', bold: true, italic: true },
+    ]);
+  });
+
+  it('still leaves arithmetic alone', () => {
+    /*
+      ⚠ The case that makes this hard, and the reason it is a scanner rather
+      than a lookbehind regex — which is a **parse-time SyntaxError** on Safari
+      before 16.4, not a failed match.
+    */
+    expect(parseAnswerLine('torque to 25 ft-lb * 2')).toEqual([
+      { text: 'torque to 25 ft-lb * 2', bold: false, italic: false },
+    ]);
+  });
+
+  it('leaves an unclosed marker as text', () => {
+    expect(parseAnswerLine('a * b')).toEqual([{ text: 'a * b', bold: false, italic: false }]);
+    expect(parseAnswerLine('**unfinished')).toEqual([
+      { text: '**unfinished', bold: false, italic: false },
+    ]);
+  });
+
+  it('does not treat a marker inside a word as emphasis', () => {
+    expect(parseAnswerLine('part*number')).toEqual([
+      { text: 'part*number', bold: false, italic: false },
+    ]);
+  });
+
+  it('keeps bold working beside it', () => {
+    expect(parseAnswerLine('that ran **$1,461** all-in')).toEqual([
+      { text: 'that ran ', bold: false, italic: false },
+      { text: '$1,461', bold: true, italic: false },
+      { text: ' all-in', bold: false, italic: false },
+    ]);
+  });
+});
+
+describe('a labelled money figure is its own kind of line', () => {
+  /*
+    ── ⚠ What this is for, and the line it must not cross ────────────────────
+
+    The advisor's cost answers arrived as a run of identical paragraphs, so
+    "$115" carried the same weight as the prose around it. A design critique of
+    the rendered consultant called it the biggest miss on the screen: the whole
+    value of the answer is the numbers, and nothing let them line up.
+
+    Recognising the shape is safe; *guessing* at it is not. Every assertion
+    below that expects `text` is the important half — a sentence forced into a
+    right-hand column is worse than a sentence.
+  */
+  const kinds = (answer: string) => parseAnswer(answer).map((line) => line.kind);
+
+  it('takes a short label and a money figure', () => {
+    expect(kinds('DCT fluid change: $280')).toEqual(['figure']);
+    expect(kinds('Bundled total: ~$1,900-2,100')).toEqual(['figure']);
+    expect(kinds('Water pump + thermostat: $800 all-in')).toEqual(['figure']);
+  });
+
+  it('splits it into halves a renderer can align', () => {
+    const [line] = parseAnswer('Brake fluid flush: $115');
+
+    expect(line.figure?.label.map((t) => t.text).join('')).toBe('Brake fluid flush');
+    expect(line.figure?.amount.map((t) => t.text).join('')).toBe('$115');
+    // The whole line survives too, for the client that does not know this kind.
+    expect(line.tokens.map((t) => t.text).join('')).toBe('Brake fluid flush: $115');
+  });
+
+  it('leaves a sentence alone, however much money is in it', () => {
+    /*
+      The real line from the seeded M3 answer. 66 characters after the colon:
+      it is prose, and a right-hand column would wrap it into a 390px gutter.
+    */
+    expect(
+      kinds('Rod bearing inspection: $180 parts + $600 labor (bundled with water pump) = ~$780')
+    ).toEqual(['text']);
+
+    expect(kinds('Bundled at a good independent Euro shop, here is the real number:')).toEqual([
+      'text',
+    ]);
+    expect(
+      kinds('For a 444hp car at 67k miles, that is genuinely reasonable preventive maintenance.')
+    ).toEqual(['text']);
+  });
+
+  it('declines a line whose emphasis straddles the colon', () => {
+    /*
+      Splitting `**Bundled total:** $x` leaves an unmatched `**` in each half
+      and the tokeniser would render the asterisks. This file's standing rule is
+      that unmatched syntax is left alone rather than mangled.
+    */
+    expect(kinds('**Bundled total:** $1,900')).toEqual(['text']);
+  });
+
+  it('leaves a bullet a bullet', () => {
+    // The marker is the model saying these belong together; promoting the item
+    // out of its list would reorder the model's own structure.
+    expect(kinds('- DCT fluid change: $280')).toEqual(['bullet']);
+  });
+
+  it('requires both a label and an amount, not merely the punctuation', () => {
+    expect(kinds('$: $')).toEqual(['text']);
+    expect(kinds('Total: $')).toEqual(['text']);
+  });
+});
+
+describe('the row the others add up to', () => {
+  /*
+    ── ⚠ Read from the label, never inferred from the number ─────────────────
+
+    "The total isn't a total" — a design critique of the rendered consultant,
+    on a breakdown where "Bundled total ~$1,900-2,100" carried the same weight
+    as a $115 brake flush.
+
+    The obvious implementation is to promote the largest figure. It is also
+    wrong: a range beats a single number, an "all-in" line beats the subtotal
+    it contains, and the biggest number in a list is not reliably its sum. That
+    would be the app deciding what the advisor meant. The model wrote the word;
+    this reads the word.
+  */
+  const totals = (answer: string) => parseAnswer(answer).map((l) => l.figure?.total);
+
+  it('marks a row whose label says total', () => {
+    expect(totals('Bundled total: ~$1,900-2,100')).toEqual([true]);
+    expect(totals('Total: $515')).toEqual([true]);
+  });
+
+  it('leaves the ordinary rows alone', () => {
+    expect(totals('Brake fluid flush: $115')).toEqual([false]);
+    expect(totals('Water pump + thermostat: $800 all-in')).toEqual([false]);
+  });
+
+  it('does not promote the largest figure', () => {
+    /*
+      The assertion that fails if somebody "improves" this into a max(). On the
+      seeded M3 answer the largest amount is the *last* line, "Add DCT + brake
+      fluid: ~$2,300-2,500 all-in", which is an addition to the total rather
+      than the total — and the row that says "total" is smaller than it.
+    */
+    const lines = parseAnswer(
+      ['Bundled total: ~$1,900-2,100', 'Add DCT + brake fluid: ~$2,300-2,500 all-in'].join('\n')
+    );
+
+    expect(lines[0].figure?.total).toBe(true);
+    expect(lines[1].figure?.total).toBe(false);
   });
 });
