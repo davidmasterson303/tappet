@@ -597,6 +597,56 @@ is what it is for. **So this change reaches the iOS app too**, and the phone has
 not been looked at since.
 
 
+### 3.12 ⚠ The iOS app is running the pre-4-September system — audit, 5 Sep
+
+No build was made and nothing on the phone was changed. This is the comparison
+David asked for after the web palette moved, and it is worse than expected.
+
+**Exactly one thing crossed to mobile: the health ramp.** It crossed because
+`packages/core/src/health-band.ts` is a genuinely shared module and
+`health-band.test.ts` pins its channels to the web tokens — that pin failed on
+the edit, which is what forced the two to move together.
+
+Everything else in `apps/mobile/src/theme/index.ts` is a **separate copy of the
+whole system** with nothing pinning it to `app/globals.css`, so none of it
+moved. `mobile-color-literals.test.ts` proves the app names no colour outside
+its own token layer, and `status-ramps-distinct.test.ts` compares mobile's
+status family to mobile's health ramp. Both are good guards and neither asks
+the question that matters here: *does the phone agree with the web?*
+
+| | mobile (unchanged) | web (4–5 Sep) | consequence |
+|---|---|---|---|
+| `status.confirm` | `#4ADE80` green | `--confirm` `#EDE7DF` off-white | the brief's banned hue, still shipping |
+| `status.dangerText` | `#F87171` salmon | `--critical` `#FF8A3D` sodium | ditto |
+| `status.danger` | `#DC2626` red | `--destructive` `#B85410` | ditto |
+| `build.mild/warm/far` | `#9FC8D8` → `#E0C168` → `#F0A35E` | `#8FB6C6` → `#6FC9E4` → `#3ED0F0` | ⚠ **the dial climbs in opposite directions** |
+| `build.redline` | `#FF4436` hue 5 | `#FF5A0A` hue 20 | true red vs top-of-sodium |
+| `radius.well/button/card` | 8 / 12 / 14 | 0 / 5 / 8 + chamfer | rounded vs milled |
+
+⚠ **The build ramp is the serious one, because it is a semantic inversion
+rather than a colour difference.** On the web the ramp climbs into cold, and it
+does so *because* sodium now owns the entire warning axis — a dial that warmed
+as it climbed would draw "more modified" in the same language as "more wrong".
+On the phone it still climbs into heat. The same dial, on the same account,
+means opposite things depending on which client the owner opens.
+
+**Three ways to close it, for Design and David rather than for me:**
+
+1. **Port the values.** Cheapest, and it re-creates the problem the day the web
+   moves again.
+2. **Pin them.** A test in the shape of `health-band.test.ts` asserting the
+   mobile theme's status, build and radius scales against `globals.css`. That
+   is the mechanism that made the health ramp the one thing that crossed, and
+   it is the only option that keeps working without anyone remembering.
+3. **Decide they are allowed to differ**, and say so by name — the design brief
+   already calls for "one language, two dialects", and a dialect may legitimately
+   round its corners where the other mills them. What it may not do is invert a
+   ramp's direction silently.
+
+⚠ Whichever is chosen, **nothing here is on the phone yet.** JS-only changes are
+free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
+
+
 ## 4. The export's five adherence rules, against what this repo already runs
 
 `specs/adherence-rules.spec.html` proposes five oxlint rules and says *"ship them
