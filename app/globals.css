@@ -261,8 +261,28 @@ nav {
     --chart-5: 0 65% 55%;
 
     /* ── radii: sharpened ─────────────────────────────────────────────── */
-    --radius: 0.875rem;               /* 14px, was 16px-equivalent */
-    --radius-xl: 20px;                /* hero photo modules only */
+    /*
+     * ⚠ 14px -> 5px, 20px -> 8px on 4 Sep, for brief B4.
+     *
+     * The brief's words are "no rounded-squircle geometry", and a 14px radius
+     * on a 44px control is a squircle by any reading. The cut is the product's
+     * geometry now, and a chamfer only reads as a cut against a corner that is
+     * nearly square — put a 10px diagonal on a 14px round and the two fight
+     * for the same 14 pixels and neither wins.
+     *
+     * Not 0. A hairline border on a true right angle renders a visible notch
+     * where the two strokes meet, on every renderer, and it is the kind of
+     * defect that reads as a mistake rather than as a decision. 5px is the
+     * smallest value that stays clean.
+     *
+     * ⚠ `--radius-full` is untouched and stays untouched. `rounded-full` is 94
+     * sites — pills, avatars, status dots — where this would read as a
+     * rendering fault, and the sport register already declined to collapse it
+     * for exactly that reason. Chips take the chamfer by asking for it, not by
+     * having their radius taken away.
+     */
+    --radius: 5px;                    /* was 14px — see B4 above */
+    --radius-xl: 8px;                 /* hero photo modules only */
 
     /* ── info: split out of brand cyan ────────────────────────────────── *
      * Anything merely informational — column headers, plain links,
@@ -490,7 +510,28 @@ nav {
 
     --register-accent: var(--info);
     --register-rule: var(--border-subtle);
-    --register-chamfer: 0px;
+    /*
+     * ⚠ Was `0px`, and the `0px` was load-bearing for a reason that no longer
+     * applies. It existed so `.panel-cut`'s polygon would compute — a chamfer
+     * of `0` makes the clip a plain rectangle *on purpose instead of by
+     * accident*, because an undefined custom property is invalid at
+     * computed-value time and silently drops the whole `clip-path`.
+     *
+     * That argument is about the token being **defined**, not about its value,
+     * so moving it off zero costs nothing and the guard against undefined
+     * still holds.
+     *
+     * 10px, not the sport register's 16: brief B4 makes the cut the default
+     * geometry of the product, and a cut that reads as an angle on a 700px
+     * panel reads as a broken corner on a 44px control. The registers still
+     * differ — sport is a deeper cut on harder radii — they simply no longer
+     * differ between "some geometry" and "none".
+     */
+    --register-chamfer: 10px;
+    /* The control-sized cut. Buttons, fields and chips take this; panels take
+       the one above. Two values because one value cannot serve both a masthead
+       panel and a 24px chip without looking wrong on one of them. */
+    --register-chamfer-sm: 6px;
     --register-grain: transparent;
     /*
      * `--register-glow` (0.22 / 0.4) is deliberately NOT here. Its only reader
@@ -1524,6 +1565,18 @@ nav {
    *     control**. That is intended. What must not come back is a fill darker
    *     than its container.
    */
+  /*
+   * ⚠ The field takes the cut too — brief B4 names chips, buttons and cards,
+   * and a field sitting at a radius beside a chamfered button is the one
+   * inconsistency a reader's eye goes straight to.
+   *
+   * The focus treatment below is already a `box-shadow`, and `clip-path` clips
+   * box-shadow — so the 3px halo would have vanished the moment the clip
+   * landed. It is `inset` now. That is a real change in appearance, not a
+   * workaround: the halo is drawn inside the control's own edge rather than
+   * bleeding outside it, which is tighter and, on a field that sits in a
+   * two-column grid, stops the ring overlapping the field beside it.
+   */
   .field {
     width: 100%;
     min-height: 40px;
@@ -1531,6 +1584,13 @@ nav {
     background: hsl(var(--surface-3));
     border: 1px solid var(--border-field);
     border-radius: var(--radius-sm);
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer-sm)) 0,
+      100% var(--register-chamfer-sm),
+      100% 100%,
+      0 100%
+    );
     color: var(--text-primary);
     /*
      * 14px, because that is what shipped. Stock shadcn carried `text-sm` and C1
@@ -1563,7 +1623,7 @@ nav {
   .field:focus-visible {
     outline: none;
     border-color: var(--brand-accent);
-    box-shadow: 0 0 0 3px var(--focus-ring-soft);
+    box-shadow: inset 0 0 0 3px var(--focus-ring-soft);
   }
 
   /*
@@ -1580,7 +1640,7 @@ nav {
   .field[aria-invalid='true']:focus,
   .field[aria-invalid='true']:focus-visible {
     border-color: var(--critical-red);
-    box-shadow: 0 0 0 3px var(--critical-red-wash);
+    box-shadow: inset 0 0 0 3px var(--critical-red-wash);
   }
 
   .field:disabled,
@@ -1827,6 +1887,41 @@ nav {
    * here; see the sport block for why that substitution is the whole point
    * rather than a rename.
    */
+  /*
+   * ── The cut, as geometry rather than as decoration — brief B4 ────────────
+   *
+   * `.panel-cut` below is a whole panel: surface, border, inner light, grain
+   * and the clip. These two are the clip on its own, for elements that already
+   * have their own surface — a button, a chip, a field.
+   *
+   * ⚠ **`clip-path` clips box-shadow, and an outside focus ring is a
+   * box-shadow.** Tailwind's `ring-2` draws outside the border box, so putting
+   * a clip on a control silently removes its focus ring — visible to nobody
+   * running a mouse, and total for anyone on a keyboard. Every control that
+   * takes one of these classes must pair it with `ring-inset`. `button.tsx`
+   * says so at the call site too, because a rule stated only here is a rule
+   * the next person meets after they have already shipped the bug.
+   */
+  .chamfer {
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer)) 0,
+      100% var(--register-chamfer),
+      100% 100%,
+      0 100%
+    );
+  }
+
+  .chamfer-sm {
+    clip-path: polygon(
+      0 0,
+      calc(100% - var(--register-chamfer-sm)) 0,
+      100% var(--register-chamfer-sm),
+      100% 100%,
+      0 100%
+    );
+  }
+
   .panel-cut {
     position: relative;
     background: var(--surface-2);
@@ -1845,10 +1940,21 @@ nav {
     );
   }
 
-  /* The cut edge wants a light on it, or it reads as a corner that fell off.
-     Scoped to sport because in the default register there is no bevel to
-     light — a 1px diagonal over a square corner is just a scratch. */
-  [data-register='sport'] .panel-cut::after {
+  /*
+   * The cut edge wants a light on it, or it reads as a corner that fell off.
+   *
+   * ⚠ Un-scoped from `[data-register='sport']` on 4 Sep. It was scoped because
+   * "in the default register there is no bevel to light — a 1px diagonal over
+   * a square corner is just a scratch", and that sentence was exactly right
+   * while `--register-chamfer` was `0px`. B4 moved it to 10px, so the default
+   * register now has the bevel the highlight was written for, and leaving the
+   * rule scoped would have shipped the cut without the light on it — the
+   * corner-that-fell-off this comment names.
+   *
+   * The width is derived from the token (`* 1.42` ≈ √2, the hypotenuse of the
+   * 45° cut), so it follows both registers without being told about either.
+   */
+  .panel-cut::after {
     content: '';
     position: absolute;
     top: 0;

@@ -18,12 +18,14 @@ import type { BuildPosition } from '@wellkept/core/build-progress';
  * mark fails by rendering wrong, not by throwing. The same is true of the
  * system underneath it, and more so, because the system has a second voice.
  *
- * `[data-register='sport']` is defined in `globals.css` and **set by nothing**
- * in the app — `grep data-register` returns the stylesheet, this file and
- * `register-tokens.test.ts`. So the register's whole perceptual claim (milled
- * radii, chamfered panels, hotter bay, a sans display face) has never been
- * looked at side by side with the voice it is supposed to contrast with. The
- * toggle at the top of this page is the first place it can be.
+ * ⚠ This page carried a DEFAULT/SPORT toggle and no longer does. The critique
+ * cut it, and the reason is worth keeping: once the scope decision moved the
+ * cut and the milled radii into the *default* register, a control offering to
+ * switch between two voices was advertising indecision on the one surface
+ * whose job is to state the voice. The register tokens are still specimened
+ * below — set `data-register` on `<html>` in devtools to see them move.
+ *
+ * `[data-register='sport']` is still set by nothing in the app itself.
  *
  * ── The swatches read the DOM, they do not restate the file ─────────────────
  *
@@ -134,6 +136,19 @@ function Swatch({ name, note }: { name: string; note?: string }) {
   );
 }
 
+/*
+ * The rail — brief B6.
+ *
+ * A 12-column grid whose first three columns are the section's name in mono
+ * and nothing else. It is `sticky` rather than `fixed`: a fixed rail would
+ * need the content column to carry a matching margin, which is two numbers
+ * that have to agree, and they stop agreeing the first time somebody changes
+ * one. Sticky keeps the label with its own section and needs no second number.
+ *
+ * ⚠ The rail collapses to a plain heading under `lg`. A three-column label
+ * beside a nine-column body is a desktop rhythm; on a phone it is a 90px
+ * column of orphaned words next to a squeezed one.
+ */
 function Section({
   id,
   title,
@@ -146,18 +161,23 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 space-y-5">
-      <div className="space-y-1">
-        <h2 className="display-instrument text-xl text-[color:var(--text-primary)]">
+    <section
+      id={id}
+      className="scroll-mt-24 border-t border-[color:var(--register-rule)] pt-12 lg:grid lg:grid-cols-12 lg:gap-8"
+    >
+      <div className="lg:col-span-3">
+        <h2 className="mono sticky top-8 text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
           {title}
         </h2>
+      </div>
+      <div className="mt-4 space-y-5 lg:col-span-9 lg:mt-0">
         {blurb ? (
           <p className="measure text-sm text-[color:var(--text-muted)]">
             {blurb}
           </p>
         ) : null}
+        {children}
       </div>
-      {children}
     </section>
   );
 }
@@ -174,6 +194,31 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const GRID = 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3';
+
+/*
+ * The button state row — brief B8.
+ *
+ * `force` drives `data-force`, which `hoverable:`/`focusable:` in
+ * `tailwind.config.ts` compile into alongside the real pseudo-classes. So this
+ * row renders the primitive's own hover and focus declarations rather than a
+ * copy of them, and it survives a still screenshot, which `:hover` does not.
+ *
+ * ⚠ Disabled is a real `disabled` attribute, not a forced one. The disabled
+ * styling hangs off `:disabled`, and faking it with an attribute would show a
+ * button that looks unavailable and is not — the one state where pretending
+ * has a behavioural consequence.
+ */
+const STATES: ReadonlyArray<{
+  label: string;
+  force?: string;
+  disabled?: boolean;
+  note: string;
+}> = [
+  { label: 'Default', note: 'primary fill' },
+  { label: 'Hover', force: 'hover', note: 'composites down' },
+  { label: 'Focus', force: 'focus', note: 'cyan ring, inset' },
+  { label: 'Disabled', disabled: true, note: 'stated fill and ink' },
+];
 
 const BUILD: BuildPosition = {
   points: 14,
@@ -199,15 +244,6 @@ const SAMPLED = [
 ];
 
 export default function DesignSystemPage() {
-  const [sport, setSport] = useState(false);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (sport) root.setAttribute('data-register', 'sport');
-    else root.removeAttribute('data-register');
-    return () => root.removeAttribute('data-register');
-  }, [sport]);
-
   return (
     <main className="min-h-screen bg-background">
       {/*
@@ -227,6 +263,15 @@ export default function DesignSystemPage() {
         to fix; two is a pattern somebody copies.
       */}
       <section className="relative isolate overflow-hidden">
+        {/*
+          A plain img, deliberately. The derivatives are built once by `sharp`
+          and committed (see public/design/CREDITS.md), which is the same
+          arrangement `public/vehicles/` already uses. Routing an
+          already-optimised WebP through `next/image` would re-encode it at
+          request time on the image CDN and bill for it, to produce the srcset
+          that is written out by hand below.
+        */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/design/specimen-hero-1600.webp"
           srcSet="/design/specimen-hero-960.webp 960w, /design/specimen-hero-1600.webp 1600w, /design/specimen-hero-2400.webp 2400w"
@@ -282,40 +327,7 @@ export default function DesignSystemPage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl space-y-14 px-6 py-14">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-xl border border-[color:var(--border-field)] p-1">
-            <button
-              type="button"
-              onClick={() => setSport(false)}
-              aria-pressed={!sport}
-              className={`mono min-h-[44px] rounded-lg px-4 text-xs uppercase tracking-widest transition-colors ${
-                sport
-                  ? 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
-                  : 'bg-white/10 text-[color:var(--text-primary)]'
-              }`}
-            >
-              Default register
-            </button>
-            <button
-              type="button"
-              onClick={() => setSport(true)}
-              aria-pressed={sport}
-              className={`mono min-h-[44px] rounded-lg px-4 text-xs uppercase tracking-widest transition-colors ${
-                sport
-                  ? 'bg-white/10 text-[color:var(--text-primary)]'
-                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
-              }`}
-            >
-              Sport register
-            </button>
-          </div>
-          <p className="text-xs text-[color:var(--text-muted)]">
-            Sets <span className="mono">data-register</span> on{' '}
-            <span className="mono">&lt;html&gt;</span>.
-          </p>
-        </div>
-
+      <div className="mx-auto max-w-6xl space-y-24 px-6 py-16">
         <Section
           id="palette"
           title="Two hues, and what they mean"
@@ -495,7 +507,7 @@ export default function DesignSystemPage() {
         <Section
           id="register"
           title="Register tokens"
-          blurb="The four values the sport register moves, plus the bay knobs it re-tunes. Toggle the switch above and watch these change."
+          blurb="The four values the sport register moves. The cut and the milled radii belong to the default register now, so sport is a deeper cut and a harder light rather than the only place geometry exists at all."
         >
           <div className={GRID}>
             <Swatch name="register-accent" />
@@ -533,9 +545,6 @@ export default function DesignSystemPage() {
             <p className="display-instrument text-4xl text-[color:var(--text-primary)]">
               Display, 88% width
             </p>
-            <p className="display-serif text-3xl text-[color:var(--text-primary)]">
-              Newsreader, the editorial voice
-            </p>
             <h3 className="text-xl font-semibold text-[color:var(--text-primary)]">
               Section heading, Inter semibold
             </h3>
@@ -557,11 +566,30 @@ export default function DesignSystemPage() {
         <Section
           id="buttons"
           title="Buttons"
-          blurb="44px floor everywhere, no ring offset, an explicit disabled fill rather than a group alpha."
+          blurb="One control, four states, in the order a reader meets them. Hover is a real hover — the primitive's hover declaration is written once and compiled to both the pseudo-class and a forced attribute, so this cell cannot drift away from the button you actually touch."
         >
-          <div className="rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] px-6 py-2">
+          <div className="border border-[color:var(--border)] bg-[hsl(var(--surface-1))] p-6">
+            <div className="grid gap-6 sm:grid-cols-4">
+              {STATES.map((state) => (
+                <div key={state.label} className="space-y-3">
+                  <p className="mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
+                    {state.label}
+                  </p>
+                  <Button
+                    data-force={state.force}
+                    disabled={state.disabled}
+                    className="w-full"
+                  >
+                    Add a car
+                  </Button>
+                  <p className="mono text-[10px] text-[color:var(--text-muted)]">
+                    {state.note}
+                  </p>
+                </div>
+              ))}
+            </div>
+
             <Row label="variants">
-              <Button>Add a car</Button>
               <Button variant="secondary">Secondary</Button>
               <Button variant="outline">Outline</Button>
               <Button variant="ghost">Ghost</Button>
@@ -575,29 +603,12 @@ export default function DesignSystemPage() {
               <Button size="icon" aria-label="Add">
                 <Plus className="h-4 w-4" />
               </Button>
-            </Row>
-            <Row label="with icon">
               <Button>
                 <Wrench className="mr-2 h-4 w-4" /> Log service
               </Button>
               <Button variant="outline">
                 <Search className="mr-2 h-4 w-4" /> Research
               </Button>
-            </Row>
-            <Row label="disabled">
-              <Button disabled>Add a car</Button>
-              <Button variant="outline" disabled>
-                Outline
-              </Button>
-              <Button variant="destructive" disabled>
-                Delete
-              </Button>
-            </Row>
-            <Row label="focus">
-              <Button id="focus-demo">Focused</Button>
-              <p className="text-xs text-[color:var(--text-muted)]">
-                Shot with --focus; the halo sits on the border, not off it.
-              </p>
             </Row>
           </div>
         </Section>

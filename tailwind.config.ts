@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 
 const config: Config = {
   darkMode: ['class'],
@@ -155,6 +156,34 @@ const config: Config = {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [
+    require('tailwindcss-animate'),
+    /*
+      `hoverable:` and `focusable:` — one declaration, two triggers.
+
+      The specimen page has to *show* hover and focus in a still screenshot,
+      and the obvious way to do that is to write the hover styling a second
+      time under a demo class. That is two sources of truth for one state, and
+      the failure mode is silent and permanent: someone tunes the real hover,
+      the demo keeps rendering the old one, and the page whose entire job is
+      showing the system starts lying about it.
+
+      A variant fixes it at the root. `hoverable:bg-primary/90` compiles to
+      both `:hover` and `[data-force~="hover"]`, so the demo and the real
+      control cannot drift — there is only one declaration to drift from.
+
+      `~=` rather than `=` so an element can force more than one state at once,
+      which the disabled+hover cell needs.
+
+      ⚠ These replace `hover:`/`focus-visible:` on the primitives rather than
+      joining them. Both spellings on one element would compile two rules of
+      equal specificity, and which one won would be decided by source order in
+      the generated stylesheet — an ordering nobody controls or can see.
+    */
+    plugin(({ addVariant }) => {
+      addVariant('hoverable', ['&:hover', '&[data-force~="hover"]']);
+      addVariant('focusable', ['&:focus-visible', '&[data-force~="focus"]']);
+    }),
+  ],
 };
 export default config;

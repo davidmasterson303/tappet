@@ -88,7 +88,28 @@ describe('the focus ring', () => {
   it('still has a visible focus ring', () => {
     // The pair. Removing the offset must not be achieved by removing the ring,
     // which would be a keyboard-accessibility regression dressed as a fix.
-    expect(button).toMatch(/focus-visible:ring-2/);
+    expect(button).toMatch(/focusable:ring-2/);
+  });
+
+  it('draws the ring INSIDE the clip, or it draws nothing at all', () => {
+    /*
+      ⚠ The single most important line in this file since 4 Sep.
+
+      Brief B4 gave the control a `clip-path` chamfer instead of a radius, and
+      **`clip-path` clips `box-shadow`**. Tailwind's `ring-2` is a box-shadow
+      drawn outside the border box, so a clipped button with a non-inset ring
+      has no visible focus state whatsoever.
+
+      That failure is silent in every way that matters: nothing errors, no test
+      of the ring's *colour* notices, and it is invisible to anyone using a
+      mouse. It is total for anyone navigating by keyboard.
+
+      So the chamfer and the inset are asserted as a pair. If a later change
+      removes the clip, this can go with it — but they move together or the
+      button loses its focus ring.
+    */
+    expect(button).toMatch(/chamfer-sm/);
+    expect(button).toMatch(/focusable:ring-inset/);
   });
 });
 
@@ -123,12 +144,21 @@ describe('the outline variant', () => {
   });
 });
 
-describe('the radius', () => {
-  it('uses the design-system token rather than shadcn’s', () => {
-    // shadcn's `md` and this app's `md` are different numbers. The old value
-    // landed near-right by coincidence, which is not the same as by decision.
-    expect(button).toMatch(/rounded-xl/);
+describe('the geometry', () => {
+  it('is a cut, not a radius, and never shadcn’s radius', () => {
+    /*
+      Was `rounded-xl`. Brief B4 made the 45-degree cut the product's geometry,
+      so the control states `rounded-none` and takes its shape from the clip.
+
+      `rounded-md` stays pinned out for the original reason, which the change
+      does not retire: shadcn's `md` and this app's `md` are different numbers,
+      and the old value landed near-right by coincidence rather than by
+      decision. A future edit reaching for a radius again should have to delete
+      this line to do it.
+    */
+    expect(button).toMatch(/rounded-none/);
     expect(button).not.toMatch(/rounded-md/);
+    expect(button).not.toMatch(/rounded-xl/);
   });
 });
 
@@ -140,11 +170,31 @@ describe('hover', () => {
       pairing is **3.51:1 and fails AA** — the same shape as the ink row that
       spec originally omitted.
 
-      `hover:bg-primary/90` composites toward the page ground instead: darker,
-      5.87:1, and better than the resting state. Pinned so "harmonising with the
-      design system" cannot quietly introduce a failing hover.
+      `hoverable:bg-primary/90` composites toward the page ground instead:
+      darker, 5.87:1, and better than the resting state. Pinned so "harmonising
+      with the design system" cannot quietly introduce a failing hover.
     */
-    expect(button).toMatch(/hover:bg-primary\/90/);
-    expect(button).not.toMatch(/hover:bg-\[#0891B2\]|hover:bg-cyan-600/);
+    expect(button).toMatch(/hoverable:bg-primary\/90/);
+    expect(button).not.toMatch(/hover(able)?:bg-\[#0891B2\]|hover(able)?:bg-cyan-600/);
+  });
+
+  it('uses one spelling of the state, never both', () => {
+    /*
+      `hoverable:` and `focusable:` are custom variants (`tailwind.config.ts`)
+      that compile to the real pseudo-class AND to `[data-force~="…"]`, so the
+      design-system specimen page can render a genuine hover in a still
+      screenshot without a second copy of the declaration.
+
+      Writing both spellings on one element emits two rules of equal
+      specificity, and which one wins is decided by order in the generated
+      stylesheet — an ordering nobody controls and no reviewer can see. So the
+      bare forms must not reappear beside the variants.
+
+      The negative lookbehind keeps `hoverable:`/`focusable:` from matching
+      themselves; without it this assertion fails on the very spelling it is
+      meant to require, which is how it was first written and how it was caught.
+    */
+    expect(button).not.toMatch(/(?<![a-z])hover:/);
+    expect(button).not.toMatch(/(?<![a-z])focus-visible:ring/);
   });
 });
