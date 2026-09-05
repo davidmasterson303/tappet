@@ -45,7 +45,7 @@ export default function MaintenanceItemDetailsDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg bg-[#0f1318] border-white/10 overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-lg bg-[hsl(var(--card))] border-[color:var(--border)] overflow-y-auto">
         <SheetHeader className="pb-4 border-b border-white/8">
           <SheetTitle className="text-white text-lg leading-snug pr-6">{item.description}</SheetTitle>
           {item.category && (

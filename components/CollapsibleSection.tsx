@@ -133,7 +133,7 @@ export default function CollapsibleSection({
           onClick={toggle}
           aria-expanded={open}
           aria-controls={panelId}
-          className="w-full flex items-start gap-3 px-5 py-4 text-left min-h-[56px] hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 focus-visible:ring-inset"
+          className="w-full flex items-start gap-3 px-5 py-4 text-left min-h-[56px] hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--info)] focus-visible:ring-inset"
         >
           <ChevronDown
             className={`h-4 w-4 mt-0.5 flex-shrink-0 text-white/40 transition-transform duration-200 ${

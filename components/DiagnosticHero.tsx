@@ -308,7 +308,23 @@ export default function DiagnosticHero({
           The belt is the page's ground and it belongs behind the page. A card
           sitting on it is a card, not a window.
         */
-        className={`bg-[#0f1318] px-4 sm:px-6 sm:px-8 py-6${
+        /*
+          ⚠ `hsl(var(--card))`, not `#0f1318` — dossier B6, 5 Sep.
+
+          That literal is a cool blue-black from before the palette warmed to
+          graphite, and it is the last one on this surface. Two critiques
+          described the consequence without naming the cause: "the dial sits in
+          a bluish band that is not page graphite", "a second bluish tone". It
+          was a fourth surface colour on a page whose whole argument is one
+          graphite family.
+
+          The paragraph above still governs and is why this is opaque rather
+          than translucent: the belt is the page's ground and belongs behind
+          the page. What changes is which opaque colour — the token, so it
+          moves with the rest of the system instead of staying where the
+          palette used to be.
+        */
+        className={`bg-[hsl(var(--card))] px-4 sm:px-6 sm:px-8 py-6${
           stacked ? '' : ' order-1 sm:order-none sm:flex-1'
         }`}
       >

@@ -71,7 +71,10 @@ function pointAt(score: number, radius: number): { x: number; y: number } {
   points on this scale where the score's meaning changes, and the whole reason
   the dial is ticked rather than smooth.
 */
-const MAJORS = [0, 20, 40, 60, 80, 100];
+/* ⚠ 0 and 100 are gone — the terminals mark the arc's ends now, and a tick
+   under a dot is the same fact twice. The interior graduations stay: they are
+   the only thing on the hero face saying the scale is linear. */
+const MAJORS = [20, 40, 60, 80];
 /*
   ── ⚠ Two numerals, and the second attempt at this ────────────────────────
 
@@ -374,7 +377,31 @@ export function ClusterGauge({
             className="gauge-arc"
             d={TRACK}
             fill="none"
-            stroke={band.color}
+            /*
+              ── ⚠ Off-white, not the band — dossier B3, 5 Sep ───────────────
+
+              This took `band.color`, and for a 74 that is `--ring-ok`, the
+              ramp's warm-stone step. Four consecutive critiques read the
+              result as "a thick cream-gold dial", "a fourth hue", "a luxury
+              mood" — and the last two named it as the single loudest thing on
+              the page after the photograph.
+
+              I raised this three times as a conflict rather than resolving it,
+              because the ramp is settled system and a brief line asking for
+              "no gold stroke" contradicts it. David ruled: trust the critic.
+
+              **What the ramp loses here it keeps one line down.** The arc is
+              the reading's *length*; the word beneath is the reading's
+              *verdict*, and the verdict is what a colour was ever saying. So
+              the band moves onto the word — see the label below — and the arc
+              stops competing with the numeral it encloses. Nothing about
+              `health-band.ts` changes; one consumer of it moved.
+
+              ⚠ Cyan only while it draws. The sweep is the instrument coming
+              alive, which is the one moment on this dial that is about the
+              product rather than about the car.
+            */
+            stroke={settled ? '#EDE7DF' : 'var(--info)'}
             strokeWidth={3}
             /*
               ⚠ Round on the value arc, butt on the track beneath it.
@@ -394,7 +421,9 @@ export function ClusterGauge({
             style={{
               // The light is the data; a heavy bloom reads as chrome. Held back
               // until the needle settles so the sweep itself stays crisp.
-              filter: settled ? `drop-shadow(0 0 4px rgba(${band.rgb},0.28))` : 'none',
+              /* The halo follows the stroke, not the band — a coloured bloom
+                 under an off-white arc is the gold coming back at 28%. */
+              filter: settled ? 'drop-shadow(0 0 4px rgba(237,231,223,0.28))' : 'none',
             }}
           />
         )}
@@ -446,7 +475,9 @@ export function ClusterGauge({
               cx={pointAt(clamped, R).x}
               cy={pointAt(clamped, R).y}
               r={5.5}
-              fill={band.color}
+              /* With the stroke. A coloured dot on an off-white arc is the
+                 same fourth hue in a smaller place. */
+              fill={settled ? '#EDE7DF' : 'var(--info)'}
             />
           </>
         )}
@@ -696,7 +727,21 @@ export function ClusterGauge({
               nothing. Worth revisiting if the card ever grows a coloured mark
               of its own.
             */
-            color: isCard ? ink : 'rgb(255 255 255 / 0.7)',
+            /*
+              ⚠ The band moved here from the arc — dossier B3.
+
+              The note below argued this word should be neutral so that "the
+              reading is the subject and keeps the colour". That was right
+              while the arc and numeral were coloured; with both off-white the
+              same argument inverts. Three neutral elements is not a hierarchy
+              either, and the verdict has to live somewhere a glance can find
+              it.
+
+              `--ring-good` is off-white, so a healthy car still reads as
+              unremarkable — B4's "good news in off-white ink" holds by
+              construction rather than by exception.
+            */
+            color: ink,
             ...(isCard ? {} : { fontSize: size * 0.07, marginTop: size * 0.02 }),
           }}
         >

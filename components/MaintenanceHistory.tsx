@@ -408,7 +408,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#0f1318] border-white/10 max-w-md">
+        <AlertDialogContent className="bg-[hsl(var(--card))] border-[color:var(--border)] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Maintenance Record</AlertDialogTitle>
             <AlertDialogDescription asChild>
