@@ -356,7 +356,13 @@ export default function DiagnosticHero({
              where there is no plate to show through. */
         className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
           stacked
-            ? ' -mt-72 pt-0'
+            /* ⚠ The overlap is desktop-only. The critique's own parking lot
+               put it plainly: "a portrait crop cannot spare a third for the
+               arc" — on a phone the plate is nearly square and the dial landed
+               across the grille and a headlight, where a hairline and its
+               terminal fight the highlights. Below `sm` the dial sits under the
+               plate, which is what it was before and is correct there. */
+            ? ' pt-6 sm:-mt-72 sm:pt-0'
             : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >

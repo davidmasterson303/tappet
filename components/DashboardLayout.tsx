@@ -782,7 +782,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit average monthly miles"
                   >
-                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month ? displayVehicle.avg_miles_per_month.toLocaleString() : '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi/mo</span>
                     <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
                       Edit

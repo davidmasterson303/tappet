@@ -496,10 +496,20 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
               {vehicle.year} {vehicle.make}
             </p>
-            <h3
-              className="text-[26px] text-white tracking-tight leading-none mt-1"
-              style={{ fontFamily: 'var(--font-display), Newsreader, Georgia, serif', fontWeight: 500 }}
-            >
+            {/*
+              ⚠ This was an inline `fontFamily` reading `var(--font-display),
+              Newsreader, Georgia, serif` — the sixth place in this codebase
+              where the display face was spelled by hand, and the same defect
+              the landing hero had: when B2 moved `--font-display` to Archivo
+              the first name in that chain stopped being a serif and this
+              heading silently changed instrument, still carrying a serif
+              fallback chain it could no longer reach.
+
+              `.display-instrument` with the heading width, uppercase, so a
+              garage card names its car the way the dossier header does. One
+              voice at three widths — see `globals.css`.
+            */}
+            <h3 className="display-instrument display-instrument-narrow text-[26px] uppercase text-white leading-none mt-1">
               {vehicle.model}
             </h3>
             {vehicle.trim ? (
@@ -533,7 +543,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   ⚠ "67,400 mi mileage" — the unit and the word, together, on
                   every card. It is "67,400 mi" or "Mileage 67,400", never both.
                 */}
-                <span className="num font-semibold">{displayVehicle.current_mileage.toLocaleString()}</span>
+                <span className="mono num font-medium">{displayVehicle.current_mileage.toLocaleString()}</span>
                 <span className="text-muted-foreground font-normal"> mi</span>
               </span>
               <button

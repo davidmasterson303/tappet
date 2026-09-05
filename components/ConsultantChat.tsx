@@ -700,11 +700,17 @@ export default function ConsultantChat({
       <div
         className={`${
           sidebarOpen ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'
-        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-black/40 md:flex-shrink-0`}
+        /* ⚠ No second surface from `md` up — dossier B6. `bg-black/40` inside a
+           card-coloured frame is what made this read as "a frame inside a
+           frame": the sidebar was a differently-lit panel rather than one side
+           of a divided one. The `border-r` is the division, and one hairline is
+           all a division needs. The drawer keeps its own opaque ground below
+           `md`, where it floats over the thread rather than sitting beside it. */
+        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-transparent md:flex-shrink-0`}
       >
         <div className="p-4 border-b border-white/8">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm text-white">Conversations</h3>
+            <h3 className="mono text-xs uppercase tracking-widest text-white/70">Conversations</h3>
             <Button
               size="sm"
               onClick={handleNewChat}

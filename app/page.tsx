@@ -260,7 +260,7 @@ function GarageContents() {
                     <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
                       In the garage
                     </dt>
-                    <dd className="num mt-1 text-2xl text-white tabular-nums">{fleet.count}</dd>
+                    <dd className="mono num mt-1 text-2xl text-white tabular-nums">{fleet.count}</dd>
                   </div>
 
                   {fleet.averageScore !== null && (
@@ -268,7 +268,7 @@ function GarageContents() {
                       <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Average health{fleet.scored < fleet.count ? ` · ${fleet.scored} of ${fleet.count}` : ''}
                       </dt>
-                      <dd className="num mt-1 text-2xl text-white tabular-nums">
+                      <dd className="mono num mt-1 text-2xl text-white tabular-nums">
                         {fleet.averageScore}
                       </dd>
                     </div>
@@ -292,7 +292,7 @@ function GarageContents() {
                         in the system now.
                       */}
                       <dd
-                        className="num mt-1 text-2xl tabular-nums"
+                        className="mono num mt-1 text-2xl tabular-nums"
                         style={{ color: 'var(--critical)' }}
                       >
                         {fleet.openRecalls}
