@@ -362,7 +362,7 @@ export default function DiagnosticHero({
                across the grille and a headlight, where a hairline and its
                terminal fight the highlights. Below `sm` the dial sits under the
                plate, which is what it was before and is correct there. */
-            ? ' pt-6 sm:-mt-72 sm:pt-0'
+            ? ' pt-6 sm:-mt-80 sm:pt-0'
             : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >
@@ -419,12 +419,20 @@ export default function DiagnosticHero({
               elsewhere on the screen said a fictional scan had finished. There
               is nothing to wait for, so it is live on mount.
             */}
-            {/* ⚠ 240, not the default — dossier B3 asks for a numeral at the
-                cap height of the vehicle name, which sets at text-5xl to
-                text-7xl. The dial was "a small numeral in a small arc"; the
-                reading is the reason the page exists and was the fourth
-                largest thing on it. */}
-            <ClusterGauge score={score} active size={240} />
+            {/* ⚠ 320, and the arithmetic is the point — dossier B3.
+
+                The hero face sets its numeral at 48 inside a 200-unit viewBox,
+                so the rendered size is `48 × size / 200`. At 240 that is 58px
+                against a title running to 72px at `lg`: the reading was
+                smaller than the car's name, which is why three critiques said
+                the eye went "name → car → link and never lands on the score".
+                320 puts it at 77px — past the title, which is what "dominant"
+                has to mean on a page whose whole purpose is that number.
+
+                The plate is 520 tall and the band rides 288 up into it; a 320
+                dial renders 285 tall, so it still sits entirely on the
+                photograph rather than hanging off its bottom edge. */}
+            <ClusterGauge score={score} active size={320} />
             {/*
               ── ⚠ Not `flex-1`, and the difference is 400px of nothing ──────
 
