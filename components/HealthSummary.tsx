@@ -148,7 +148,7 @@ function ClaimIcon({ claim }: { claim: HealthClaim }) {
     rule is what breaks it.
   */
   if (mayReassure(claim)) {
-    return <CheckCircle className="h-4 w-4 shrink-0 mt-0.5 text-green-400" aria-hidden="true" />;
+    return <CheckCircle className="h-4 w-4 shrink-0 mt-0.5 text-[color:var(--confirm)]" aria-hidden="true" />;
   }
   if (claim.state === 'unknown') {
     return <HelpCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/45" aria-hidden="true" />;
@@ -232,7 +232,7 @@ function HealthFactorRows({
               same bold sans any admin theme ships. The identity has to survive
               the scroll or it is a hat rather than a system.
             */}
-            <h4 className="display-serif text-[15px] text-white">{row.label}</h4>
+            <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">{row.label}</h4>
             {/*
               ⚠ An unmeasured driver takes muted ink, never a band. Banding a
               `null` asserts a condition nobody checked — the same overclaim
@@ -470,7 +470,7 @@ export default function HealthSummary({
 
   if (!healthSummary) {
     return (
-      <Card className="bg-slate-900/60 border-white/10">
+      <Card className="cut-panel bg-[hsl(var(--card))] border-[color:var(--border)]">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Activity className="h-5 w-5 text-info" />
@@ -528,7 +528,7 @@ export default function HealthSummary({
   if (compact) {
     return (
       <Card className={`border ${
-        healthSummary.health_score >= 80 ? 'bg-green-500/8 border-green-400/20'
+        healthSummary.health_score >= 80 ? 'bg-white/4 border-[color:var(--border)]'
         : healthSummary.health_score >= 60 ? 'bg-info-wash border-info-border'
         : 'bg-orange-500/8 border-orange-400/20'
       }`}>
@@ -543,7 +543,7 @@ export default function HealthSummary({
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 rounded-lg text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              className="chamfer-sm p-1.5 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Refresh health summary"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -553,7 +553,7 @@ export default function HealthSummary({
             <div className="pt-3 border-t border-white/8 space-y-1.5">
               {healthSummary.red_flags.slice(0, 2).map((flag: string) => (
                 <div key={flag} className="flex items-start gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-[color:var(--attention)] shrink-0 mt-0.5" />
                   <p className="text-xs text-white/65 leading-snug">{flag}</p>
                 </div>
               ))}
@@ -677,7 +677,7 @@ export default function HealthSummary({
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors"
+            className="text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors"
             aria-label="Refresh health summary"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -812,7 +812,7 @@ export default function HealthSummary({
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-5 w-5 text-white/45" />
-              <h4 className="display-serif text-[15px] text-white">Recommendations</h4>
+              <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
             </div>
             <ul className="space-y-2">
               {/*

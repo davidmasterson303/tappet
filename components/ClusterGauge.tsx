@@ -331,20 +331,25 @@ export function ClusterGauge({
           fill="none"
           stroke={isCard ? `rgba(${inkRgb},0.10)` : 'rgb(255 255 255 / 0.08)'}
           /*
-            ⚠ 6 -> 3 on the card face, brief B7: "a hairline arc, not a filled
-            ring". A 6px stroke on a 172 viewBox reads as a donut — a stock
-            dashboard widget — and the whole point of this instrument is that
-            it looks measured rather than dashboarded.
+            ⚠ 6 -> 3, card face first (design-system B7) and then the hero
+            face too (dossier B1-B3): "a hairline arc, not a filled ring". A
+            6px stroke on a 172 viewBox reads as a donut — a stock dashboard
+            widget — and the whole point of this instrument is that it looks
+            measured rather than dashboarded.
 
             The round cap on the value arc below is doing more work at this
             weight than it did at 6, not less: at 3px it terminates as a dot,
             which is what the north-star draws.
 
-            The hero face keeps 6. It carries ticks, a needle and the ignition
-            sweep, and a hairline arc under a 2px tick would put the reading
-            beneath its own scale.
+            ⚠ The hero face was held at 6 on the argument that "a hairline arc
+            under a 2px tick would put the reading beneath its own scale". The
+            dossier critique read that same stroke as a "thick cream-gold dial"
+            introducing "a fourth hue and a luxury mood" — the weight was what
+            made the ramp's `ok` band read as gold rather than as a value. The
+            ticks lost half a pixel with it; the reading stopped looking like
+            jewellery.
           */
-          strokeWidth={isCard ? 3 : 6}
+          strokeWidth={3}
           strokeLinecap="butt"
           /*
             Dashed when there is no reading. The scale is still real — this is
@@ -370,7 +375,7 @@ export function ClusterGauge({
             d={TRACK}
             fill="none"
             stroke={band.color}
-            strokeWidth={isCard ? 3 : 6}
+            strokeWidth={3}
             /*
               ⚠ Round on the value arc, butt on the track beneath it.
 
@@ -418,9 +423,13 @@ export function ClusterGauge({
           scale's zero would be a mark where the reading goes, on a face whose
           entire argument is that it has no reading to show.
         */}
-        {isCard && !unknown && (
+        {!unknown && (
           <>
-            {/* ⚠ 2.6/3.2 -> 4/5.5. At the first sizes a critique could not tell
+            {/* ⚠ On both faces since the dossier loop — the hero dial needs the
+                terminals more than the card did, because it also carries a 0
+                and a 100 label and the arc's ends were the only unlabelled
+                thing on it.
+                ⚠ 2.6/3.2 -> 4/5.5. At the first sizes a critique could not tell
                 the terminals from antialiasing on the arc, which makes them
                 decoration rather than the marks that say the sweep ends. They
                 are drawn against a 3px stroke, so they have to be visibly

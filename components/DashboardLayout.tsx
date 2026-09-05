@@ -619,12 +619,16 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 the garage cards and the landing page already use, and this was
                 the last screen setting a vehicle's name a different way.
 
-                ⚠ `display-serif` is licensed for "exactly one element per
-                screen — a vehicle title or the single largest hero number",
-                and this is that element. It became available when the empty
-                hero band stopped printing the model in 36px serif directly
-                below — which was the duplicate, and was also the screen's one
-                serif slot spent on the second copy.
+                ⚠ The serif is gone from this screen — dossier brief B1, and
+                the "exactly one element per screen" licence with it. That rule
+                existed to ration a face that no longer appears here: the
+                display slot is the condensed grotesk, and it is not rationed
+                because it does not shout. `--font-editorial` and
+                `.display-serif` still exist for a marketing surface that wants
+                them; this is not one.
+
+                The note below still holds and is why the eyebrow carries the
+                year and make.
 
                 R11's finding still holds and is why the eyebrow carries the
                 year and make: 36px of "2018 Honda Accord" wrapped to three
@@ -643,7 +647,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               <p className="label-uppercase mb-2">
                 {[vehicle.year, vehicle.make].filter(Boolean).join(' ')}
               </p>
-              <h1 className="display-serif text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-none">
+              <h1 className="display-instrument display-instrument-tight text-5xl sm:text-6xl lg:text-7xl uppercase text-white leading-[0.92]">
                 {[vehicle.model, vehicle.trim].filter(Boolean).join(' ')}
               </h1>
             </div>
@@ -678,7 +682,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit mileage"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi</span>
                     {/*
                       ── ⚠ A word, after two conventions both failed ──────────
@@ -732,7 +736,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit average monthly miles"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.avg_miles_per_month || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month || '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi/mo</span>
                     <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
                       Edit
@@ -812,7 +816,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               {knowledge?.reliability_score && (
                 <div className="flex flex-col gap-1">
                   <span className="label-uppercase">Model reliability</span>
-                  <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
+                  <span className="mono text-2xl font-medium text-white tabular-nums">
                     {knowledge.reliability_score}
                     <span className="text-sm text-white/50 ml-0.5">/10</span>
                   </span>

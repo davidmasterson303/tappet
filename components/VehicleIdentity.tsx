@@ -320,8 +320,37 @@ export function VehicleIdentity({
               backgroundPosition: 'center',
               filter: 'blur(34px) saturate(.8) brightness(.52)',
               transform: 'scale(1.08)',
-              opacity: blurSrc || photoReady ? 1 : 0,
-              transition: 'opacity 200ms ease-out',
+              /*
+                ── ⚠ It fades OUT when the photograph lands — dossier B2 ──────
+
+                This read `blurSrc || photoReady ? 1 : 0`, so the blurred
+                enlargement stayed up permanently behind a contained photo and
+                became the letterbox fill. A design critique named it directly:
+                "blur-extended letterboxing behind the hero — classic generated
+                filler". It was right; a smeared 8x copy of the same car is not
+                a design for the space beside a photograph, it is an apology
+                for it.
+
+                Inverting the condition keeps every load-time property the note
+                above argues for — the placeholder is still up on first paint,
+                still costs no request, still resolves into the sharp copy —
+                and stops the fill outliving its job. What shows beside a
+                contained photograph now is `field.gradient`, the plate this
+                component already paints and already treats as the design for a
+                photo that has not arrived.
+
+                ⚠ The photograph is still CONTAINED, not cropped. B2 also asks
+                for edge-to-edge, and that half is not done here: the docblock
+                at the top of this file records that a centre-anchored `cover`
+                enlarged a 3:4 phone photo ~3x and kept a horizontal band
+                through the vertical middle — "the car was frequently not in
+                the hero at all". Cropping properly needs the `focalX`/`focalY`
+                columns, which are still collected by
+                `VehiclePhotoUploadDialog` and read by nothing. That is the way
+                to do it and it is a bigger change than a fill.
+              */
+              opacity: photoReady ? 0 : 1,
+              transition: 'opacity 260ms ease-out',
             }}
           />
           {/*
