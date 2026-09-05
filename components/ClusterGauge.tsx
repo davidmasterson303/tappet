@@ -301,6 +301,30 @@ export function ClusterGauge({
         aria-hidden="true"
         overflow="visible"
       >
+        {/*
+          ── The track is the scale, and a scale with no reading on it ────────
+
+          ⚠ On the card face it is drawn ONLY when there is nothing to read.
+
+          It is a 270° arc, not a ring, and it always has been — but at 10% ink
+          under a bright value arc it reads as the faint remainder of a circle,
+          and three critiques in a row called the dial "a closed ring". They
+          were describing what is on the screen: two concentric strokes of the
+          same geometry, one bright and one dim, which the eye resolves as one
+          ring with a lit portion rather than as an arc against its scale.
+
+          So a scored card face draws the value arc and its two terminals and
+          nothing else — the north-star's instrument, where the mark IS the
+          reading.
+
+          ⚠ The unknown face keeps it, and that is the whole point of the
+          paragraph below: a dashed track with no arc says "measured range, no
+          measurement". Delete it there and a car with no score renders as an
+          empty frame, which is indistinguishable from a component that failed
+          to load. The hero face keeps it too — it carries labels and ticks and
+          reads as a scale rather than as a mark.
+        */}
+        {(!isCard || unknown) && (
         <path
           className="gauge-track"
           d={TRACK}
@@ -331,6 +355,7 @@ export function ClusterGauge({
           */
           strokeDasharray={unknown ? '2 5' : undefined}
         />
+        )}
 
         {/*
           The lit arc *is* the claim — its length is the score. There is no
@@ -367,6 +392,54 @@ export function ClusterGauge({
               filter: settled ? `drop-shadow(0 0 4px rgba(${band.rgb},0.28))` : 'none',
             }}
           />
+        )}
+
+        {/*
+          ── The terminals — brief B7, 5 Sep ──────────────────────────────────
+
+          The arc has been 270° and open at the bottom since it was drawn; a
+          critique read it as "a near-closed ring" twice, and the geometry was
+          never what made it read that way. At a 3px hairline the two ends of a
+          270° sweep are simply too quiet to announce that the scale stops.
+
+          So the ends are stated rather than implied. A hollow dot at the
+          scale's start, a filled one at the reading — the north-star's
+          instrument language, and it costs two circles.
+
+          `pointAt` is the same function the ticks use, so these cannot drift
+          from the arc they sit on. `pointAt(0, R)` and `pointAt(clamped, R)`
+          are, by construction, exactly the path's own endpoints.
+
+          Card face only. The hero carries a needle and a full tick scale, and
+          a dot at the terminus of a needled dial is two things pointing at one
+          number.
+
+          ⚠ No terminal at all when there is no reading. A dot sitting at the
+          scale's zero would be a mark where the reading goes, on a face whose
+          entire argument is that it has no reading to show.
+        */}
+        {isCard && !unknown && (
+          <>
+            {/* ⚠ 2.6/3.2 -> 4/5.5. At the first sizes a critique could not tell
+                the terminals from antialiasing on the arc, which makes them
+                decoration rather than the marks that say the sweep ends. They
+                are drawn against a 3px stroke, so they have to be visibly
+                larger than it to read as a different kind of thing. */}
+            <circle
+              cx={pointAt(0, R).x}
+              cy={pointAt(0, R).y}
+              r={4}
+              fill="none"
+              stroke={`rgba(${inkRgb},0.45)`}
+              strokeWidth={2}
+            />
+            <circle
+              cx={pointAt(clamped, R).x}
+              cy={pointAt(clamped, R).y}
+              r={5.5}
+              fill={band.color}
+            />
+          </>
         )}
 
         {/*
@@ -476,41 +549,36 @@ export function ClusterGauge({
           falls. A second mark at the same angle adds nothing but a shape to
           misread.
 
-          ⚠ The card variant keeps it, and that is not an inconsistency: at
-          56px there is no room for a numeral in the well, so the pointer is
-          the only thing saying where on the scale the arc stopped.
+          ── ⚠ And on 5 Sep the card lost it too ──────────────────────────
+
+          The exception read: *"the card variant keeps it, and that is not an
+          inconsistency: at 56px there is no room for a numeral in the well, so
+          the pointer is the only thing saying where on the scale the arc
+          stopped."*
+
+          **That condition stopped being true.** The card face sets the reading
+          at `fontSize` 60 in the middle of the well — it has said its own
+          number since the hub was removed. So the pointer went back to being
+          exactly what the paragraph above describes: a second mark at the same
+          angle as the arc's cap, adding nothing but a shape to misread.
+
+          Three consecutive critiques misread it, in the same words each time —
+          "a closed ring bisected by a dash". At the reading's angle the marker
+          lies almost horizontal and sits immediately beside the numeral, so it
+          reads as punctuation rather than as a position on a scale. The last
+          critique cut it by name: *"a workaround, not a mark."*
+
+          What says where the value falls now is the terminal dot, which is
+          drawn at `pointAt(clamped, R)` — the same angle this used, at the
+          arc's own end rather than beside it.
+
+          ⚠ Diagnosed wrongly first. The boundary tick at 80 sits 4.5° from an
+          82 reading's terminal, so it looked like the collision; the ticks were
+          removed and the dash was still there. They are restored above. The
+          lesson is in `CLAUDE.md` §1's shape — the artefact was a rendered SVG
+          the whole time, and reading it settled in one look what two rounds of
+          inference did not.
         */}
-        {!unknown && isCard && (
-          <g transform={`rotate(${angleFor(clamped)} ${CX} ${CY})`}>
-            {/*
-              ── ⚠ A pointer, not a needle on a spindle ────────────────────
-
-              It ran to the exact centre and met a 5px hub drawn over it —
-              which is what a toy speedometer looks like, and a design critique
-              of the rendered page said so. The hub existed for a reason worth
-              recording: without it the needle crossed the digits. It is not
-              needed now because the needle no longer reaches them.
-
-              What replaces it is a short marker riding just inside the track,
-              at the reading. A full-length needle floating without a pivot was
-              worse than either — it read as a stray line across the middle
-              rather than as something indicating a position on the arc.
-
-              And it clears the well completely, which is what lets the reading
-              move into it.
-            */}
-            <line
-              className="gauge-needle"
-              x1={CX}
-              y1={42}
-              x2={CX}
-              y2={62}
-              stroke={band.color}
-              strokeWidth={3}
-              strokeLinecap="round"
-            />
-          </g>
-        )}
 
         {/*
           The reading. Inter tabular via `.num`, per the type rule — a cluster
@@ -551,12 +619,25 @@ export function ClusterGauge({
             tabular figures, which is the reason the font-size note below was
             measurable in the first place.
 
+            ⚠ And `display-instrument-tight` on 5 Sep. At 88% width beside a
+            masthead set at 62%, a critique read this numeral as "the body
+            sans" — which it was not, but the distance between the two widths
+            was doing a worse job than either would alone. The reading is the
+            product's centrepiece; it takes the masthead's cut.
+
+            ⚠ Tabular figures at 62% width are narrower than at 88%, so the
+            font-size note below over-states its margin rather than
+            under-stating it. It is left as measured: the number it quotes was
+            true when taken, and a comment that silently re-states an old
+            measurement as if it still held is worse than one that dates
+            itself.
+
             ⚠ `gauge-reading` must stay too: `inclusive-affordances.test.ts`
             keys the forced-colors rules off the `gauge-*` classes, and forced
             colors overrides SVG fill — rename it and the stylesheet keeps
             reviewing perfectly while applying to nothing.
           */
-          className="num display-instrument gauge-reading"
+          className="num display-instrument display-instrument-tight gauge-reading"
           textAnchor="middle"
           dominantBaseline="central"
           fill={unknown ? ink : isCard ? '#FFFFFF' : band.color}

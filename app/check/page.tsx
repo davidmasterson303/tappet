@@ -141,7 +141,7 @@ export default function CheckPage() {
       />
       <div className="relative w-full max-w-xl">
         <header className="text-center mb-10">
-          <h1 className="display-instrument text-4xl sm:text-5xl uppercase text-[color:var(--text-primary)]">
+          <h1 className="display-instrument display-instrument-tight text-5xl sm:text-6xl uppercase leading-[0.95] text-[color:var(--text-primary)]">
             Is this repair quote fair?
           </h1>
           <p className="mt-3 text-[color:var(--text-muted)] text-base leading-relaxed">

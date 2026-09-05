@@ -208,10 +208,21 @@ nav {
      * squircle with one corner missing — graded as "rounded" by a critique
      * that was looking at the right thing.
      *
-     * 3px rather than 0 for the reason `--radius` gives: a hairline border on
-     * a true right angle renders a visible notch where the two strokes meet.
+     * ⚠ Then 3px -> 0 the same day, because 3px was still wrong for a different
+     * reason. `.chamfer-sm` cuts ONE corner; the other three kept the radius,
+     * so a field read as a rounded rectangle with one corner missing — which
+     * is exactly how the critique described it, twice, while I was measuring
+     * the corner that had been cut.
+     *
+     * The notch argument that chose 3px belongs to `--radius`, which paints
+     * card borders. It does not apply here: `.field` is clipped, so the border
+     * is drawn and then cut, and `button.tsx` has been running `rounded-none`
+     * under the same clip since B4 without producing one.
+     *
+     * A control is square and chamfered. A panel is 5px and chamfered. Those
+     * are the only two geometries in the product.
      */
-    --radius-sm: 3px;
+    --radius-sm: 0px;
     --border-subtle: rgb(255 255 255 / 0.08);
     --text-muted-40: rgb(245 243 240 / 0.4);
     /* 13px, the small-body step. It was specified with no value, so every call
@@ -686,7 +697,12 @@ nav {
     /* Milled, not rounded. `--radius` is the one that moves the product. */
     --radius: 3px;
     --radius-xl: 3px;
-    --radius-sm: 2px;
+    /* ⚠ 2px -> 0. The default register's control radius went to 0 when `.field`
+       was found reading as a rounded rectangle with one corner cut; a *harder*
+       register cannot be the rounder of the two. Kept in this block rather than
+       dropped because the export sets it and the two documents should still be
+       comparable line for line. */
+    --radius-sm: 0px;
 
     /* ⚠ 16px -> 26px on 5 Sep. This is not decoration: the default register's
        cut went to 18px, and a "harder" register whose chamfer is *shallower*
@@ -876,8 +892,16 @@ nav {
     .gauge-track {
       stroke: GrayText;
     }
-    .gauge-arc,
-    .gauge-needle {
+    /* ⚠ The needle's selector was here and went with the element, 5 Sep.
+       `inclusive-affordances.test.ts` failed the moment the component stopped
+       rendering it — which is the whole point of that guard: a forced-colors
+       rule hooked to nothing keeps reviewing perfectly and stops applying, and
+       nobody in High Contrast is present to say so.
+
+       ⚠ Do not spell that selector here, even to explain it. The guard scans
+       this file raw and treats any mention as the rule still existing, so the
+       comment alone re-created the orphan it documents. */
+    .gauge-arc {
       stroke: Highlight;
     }
     .gauge-tick {

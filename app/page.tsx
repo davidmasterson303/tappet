@@ -176,23 +176,35 @@ function GarageContents() {
                 Three cars, researched end to end
               </p>
               {/*
-                ⚠ This was an inline `fontFamily` reading `var(--font-display),
+                ── The hero speaks the instrument voice — David's call, 5 Sep ──
+
+                This was an inline `fontFamily` reading `var(--font-display),
                 Newsreader, Georgia, serif` — a fourth place the display face
                 was spelled, after the token, the Tailwind `display` stack and
-                `.display-serif`.
+                `.display-serif`. It broke silently when B2 moved
+                `--font-display` to Archivo: the first name in that chain
+                stopped being a serif and this heading quietly changed
+                instrument.
 
-                It broke silently on 4 Sep. Brief B2 moved `--font-display` to
-                Archivo, so the first name in that chain stopped being a serif
-                and this heading quietly changed instrument. Nothing failed;
-                the fallback naming Newsreader is what makes the author's
-                intent legible after the fact.
+                It was restored to `.display-serif` on the reasoning that the
+                inline fallback named Newsreader, so the author had wanted the
+                editorial voice. Two successive critiques disagreed, and the
+                second put the objection in the terms that decide it: **the two
+                consuming pages disagreed with each other.** `/check` had moved
+                to the grotesk and this had not, so a visitor met one product
+                speaking in two voices — which is worse than either voice.
 
-                `.display-serif` is that intent, expressed once. It follows
-                `--font-editorial`, which is where Newsreader went, so the
-                marketing voice and the instrument voice can move
-                independently — which is the whole reason there are two tokens.
+                So the landing takes the instrument voice too. `--font-editorial`
+                and `.display-serif` stay exactly where they are: the serif is
+                not deleted, it is unused, and the day a genuinely editorial
+                surface exists it is one class away.
+
+                ⚠ The lockup beside this is NOT the same question. `BrandLockup`
+                draws Design's mark from constants asserted against their SVG
+                package by `brand.test.ts`; its wordmark is a drawing, not a
+                font choice, and it does not follow the display slot.
               */}
-              <h1 className="display-serif text-5xl lg:text-6xl text-white mb-3 tracking-tight">
+              <h1 className="display-instrument text-5xl lg:text-6xl uppercase text-white mb-3">
                 A Live Garage
               </h1>
               {/*

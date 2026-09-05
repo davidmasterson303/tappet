@@ -228,15 +228,24 @@ const STATES: ReadonlyArray<{
  *
  * These are not the tokens — they are the photograph, read at four points, and
  * they are printed beside the tokens so the claim "the palette comes from the
- * plate" can be checked rather than believed. The tokens are brighter by
- * design: #C27D54 is what sodium light does to wet asphalt, and it is 3.6:1 on
- * this ground, which is a colour you can photograph but not set text in.
+ * plate" can be checked rather than believed.
+ *
+ * ⚠ Re-sampled on 5 Sep when the plate was replaced. The first plate was
+ * warm-only and a critique said so twice; the frame that replaced it carries
+ * both light sources, and the numbers moved a long way as a result. The road
+ * pool now reads **#F28928** against `--attention`'s #FB923C — the token and
+ * the photograph agree to within a couple of points, which is a much better
+ * argument than the first plate's #C27D54 could make.
+ *
+ * The lamp is sampled at its halo rather than its core, because the core is
+ * clipped to #FFFFFF and a swatch of pure white says nothing about the light
+ * that produced it.
  */
 const SAMPLED = [
-  { at: 'road pool', hex: '#C27D54', token: '--attention' },
-  { at: 'flank', hex: '#004C56', token: '--info' },
-  { at: 'lamp core', hex: '#FEECDC', token: '--foreground' },
-  { at: 'shadow', hex: '#030D0F', token: '--background' },
+  { at: 'road pool', hex: '#F28928', token: '--attention' },
+  { at: 'cyan sheet', hex: '#18D7DC', token: '--info' },
+  { at: 'lamp halo', hex: '#FDCA6D', token: '--foreground' },
+  { at: 'shadow', hex: '#081214', token: '--background' },
 ];
 
 export default function DesignSystemPage() {
@@ -276,15 +285,73 @@ export default function DesignSystemPage() {
           height={1536}
           loading="eager"
           decoding="async"
-          alt="A matte black BMW M3 parked on wet asphalt at night, lit by sodium streetlight from behind and a cold cyan reflection along its flank."
-          className="absolute inset-0 h-full w-full object-cover"
+          alt="A matte black BMW M3 parked on wet asphalt at night, a sodium streetlamp burning above it and a cold cyan light flooding the wet road to its right."
+          /*
+            ⚠ `object-position` differs by viewport, and it is the crop that
+            carries the brief rather than the composition.
+
+            The plate puts sodium centre-left and cyan hard right. A phone
+            viewport crops a 16:9 frame to roughly its middle third, which
+            keeps the lamp and throws the cyan away entirely — so the masthead
+            read sodium-only on mobile while reading correctly on desktop, and
+            the four chips beneath it went on claiming to be sampled from a
+            frame whose cold half was no longer on screen.
+
+            72% pulls the mobile crop toward the cyan without losing the lamp.
+            Desktop shows the whole frame and needs no help.
+          */
+          className="absolute inset-0 h-full w-full object-cover object-[72%_50%] sm:object-center"
         />
+        {/*
+          ⚠ The scrim's strength is measured, not chosen.
+
+          At `via-background/70` the sodium road read through it at `#6D4225`
+          behind the sub-copy — **2.58:1** for `--text-muted`, a real failure
+          that the headline above it hid, because off-white survives a ground
+          that muted ink does not.
+
+          The replacement plate is the reason it moved: the first one was dark
+          through the middle and this one puts a hot orange reflection there.
+          A scrim tuned against one photograph is not tuned against the next,
+          which is the argument for measuring it again whenever the plate
+          changes rather than trusting the value.
+
+          `from-95%` holds the ground fully opaque under the type column and
+          only then begins to fall away, so the photograph is untouched where
+          it is being looked at and absent where it is being read over.
+        */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent"
+          className="absolute inset-0 bg-gradient-to-r from-background from-5% via-background/95 via-45% to-transparent"
+        />
+        {/*
+          ⚠ A second scrim, from the bottom, and it is the one that makes this
+          safe rather than merely measured.
+
+          The left-to-right scrim above protects the headline column on
+          desktop. It protects nothing on a phone, where the crop moves, the
+          copy wraps most of the width, and the sampled-chip row sits across
+          the full frame — so legibility depended on which part of the
+          photograph the crop happened to land on, which is a property no
+          amount of measuring one screenshot can fix.
+
+          Anchoring darkness to the *bottom* pins it to the content instead of
+          to the frame: the copy and the chip row always sit on near-black, at
+          any viewport, over any crop, and the upper two-thirds of the plate —
+          the car, the lamp, the cyan flood — is untouched.
+        */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-background from-6% via-background/40 to-transparent"
         />
 
-        <div className="relative mx-auto flex min-h-[64vh] max-w-5xl flex-col justify-end px-6 pb-0 pt-24">
+        {/* ⚠ Taller on a phone, not shorter. The content stack barely changes
+            height between viewports while the frame narrows, so at a shared
+            64vh the copy and chips filled the mobile masthead and left the
+            photograph as a glow behind the title — a critique's words. 78vh
+            gives the plate room above the type on the viewport that has least
+            of it. */}
+        <div className="relative mx-auto flex min-h-[78vh] max-w-5xl flex-col justify-end px-6 pb-0 pt-24 sm:min-h-[64vh]">
           <p className="mono text-[11px] uppercase tracking-[0.2em] text-[color:var(--attention)]">
             Development only
           </p>
@@ -293,7 +360,23 @@ export default function DesignSystemPage() {
             <br />
             The System
           </h1>
-          <p className="measure mt-5 text-sm text-[color:var(--text-muted)]">
+          {/*
+            ⚠ `--text-primary`, not `--text-muted`, and the difference is the
+            ground rather than the emphasis.
+
+            Muted ink is calibrated against a flat dark surface. Over a
+            photograph it has no floor to hold — measured on the plate it came
+            back 2.48:1, and the first fix was a heavier scrim, which bought
+            the contrast by deleting the wet road where the two lights meet.
+            That is the half of the frame the sampled chips below are drawn
+            from, so the scrim was paying for legibility with the argument.
+
+            Off-white over the same unscrimmed road measures about 10:1. The
+            scrim is back to a light one that adds depth, and the ink carries
+            the legibility — which is the right division of labour, because one
+            of them is a photograph and the other is a value.
+          */}
+          <p className="mt-5 max-w-md text-sm text-[color:var(--text-primary)]">
             Every swatch below reads its value from the live cascade. Nothing on
             this page restates a number from <span className="mono">globals.css</span>.
           </p>
@@ -313,7 +396,7 @@ export default function DesignSystemPage() {
                   <span className="mono block truncate text-[11px] text-[color:var(--text-primary)]">
                     {s.hex}
                   </span>
-                  <span className="mono block truncate text-[10px] uppercase tracking-widest text-[color:var(--text-muted)]">
+                  <span className="mono block truncate text-[10px] uppercase tracking-widest text-[color:var(--text-primary)]/80">
                     {s.at}
                   </span>
                 </span>
@@ -781,9 +864,10 @@ export default function DesignSystemPage() {
             </div>
 
             <div className="cut-panel border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-1))] p-6 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-3))]">
-                <Gauge className="h-5 w-5 text-[color:var(--text-muted)]" />
-              </div>
+              {/* The glyph alone — the critique cut the disc it sat in, and
+                  the reason is that a circle drawn round an icon is app-store
+                  furniture rather than instrument. */}
+              <Gauge className="mx-auto h-6 w-6 text-[color:var(--text-muted)]" />
               <p className="mt-3 text-sm text-[color:var(--text-primary)]">
                 No odometer yet
               </p>

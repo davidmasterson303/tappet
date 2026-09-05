@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usageProfileChip } from '@wellkept/core/usage-profile';
-import { firstSentence } from '@wellkept/core/summary-text';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
@@ -616,11 +615,43 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           away, on the screen that exists to carry it, and nothing here is ever
           cut off in the middle of a word.
         */}
-        {firstSentence(healthSummary?.summary) && (
-          <p className="measure text-xs text-white/60 leading-relaxed">
-            {firstSentence(healthSummary?.summary)}
-          </p>
-        )}
+        {/*
+          ── ⚠ CUT by the design critique, 5 Sep. Restoring it is one block ───
+
+          This rendered `firstSentence(healthSummary?.summary)` — the lead
+          sentence of the health summary, under the dial.
+
+          The critique's argument: "the dossier is one click away; cutting them
+          lets year/model/dial lead and tightens the card to instrument
+          height." Which is the same argument the note below already made for
+          taking only the *first* sentence, followed one step further.
+
+          **This is a content change, not a styling one, and it is the only one
+          in the whole design pass.** A garage card no longer says anything in
+          prose about the car's condition; the dial and the recall ribbon carry
+          it, and the sentence lives on the dossier. If that is the wrong trade,
+          the reversal is: render `firstSentence(healthSummary?.summary)` here
+          as a muted paragraph at the small step, capped to the measure — and
+          restore the `@wellkept/core/summary-text` import, which went with it
+          rather than being left dangling.
+
+          ⚠ Do not paste the removed JSX into this comment to preserve it.
+          `text-contrast-floor.test.ts` counts class tokens before and after
+          stripping comments and fails when stripping eats more than five,
+          which is how it proves it is reading markup rather than prose. Two
+          separate edits in this design pass turned it red exactly that way.
+
+          ── ⚠ A complete sentence, not a clamped paragraph ────────────────
+
+          Kept because it is the reason `firstSentence` exists, and whoever
+          restores the line needs it. That paragraph once ran
+          the whole summary under `line-clamp-2`, so the card ended mid-clause
+          with an ellipsis butted against the text's own punctuation —
+          "...separates a healthy car from a costly one...." On a product whose
+          pitch is "every invoice read", an unfinished sentence on the front
+          page is a self-own. `firstSentence` takes the lead sentence whole; do
+          not reach for a clamp again if this comes back.
+        */}
 
         <div className="above-stretch relative">
         <MileageUpdatePrompt
