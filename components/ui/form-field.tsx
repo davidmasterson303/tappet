@@ -59,7 +59,7 @@ export const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
             This carried `invalid && 'border-red-400/60 focus-visible:ring-red-400/50'`.
             `aria-invalid` is already set two lines above, and `.field` now styles
             the control off that attribute — so the colouring came for free and the
-            hardcoded `red-400/60` was competing with `--critical-red-border`.
+            hardcoded `red-400/60` was competing with `--critical-border`.
 
             Driving it off the attribute also means anything that sets it — a form
             library, native validation, a future component — gets the treatment,

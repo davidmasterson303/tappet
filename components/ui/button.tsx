@@ -49,11 +49,12 @@ import { cn } from '@wellkept/core/utils';
  * the two rules costs 4px of desktop density and needs no new Tailwind variant.
  *
  * **Hover does not go up the ramp.** The spec says hover returns to cyan-600
- * (`#0891B2`). Measured against the light ink this now carries, that pairing is
- * **3.51:1 and fails AA** — the same shape of error as the ink row the spec
- * originally omitted. `hoverable:bg-primary/90` composites toward the page
- * ground instead, which is 5.87:1 and darker rather than lighter. The reasoning
- * is in `app/globals.css` beside `--primary`.
+ * (`#0891B2`). It is refused, and since 4 Sep for a second reason as well as
+ * the original measured one: the rest fill is off-white and hover is the
+ * sodium fill, so hover is the only place on a resting surface where a hue
+ * fills an area. It has to be the hue that means "the thing you are about to
+ * touch", not the one that means "information". The reasoning is in
+ * `app/globals.css` beside `--primary`.
  *
  * ⚠ `hoverable:` and `focusable:`, not `hover:` and `focus-visible:`. They are
  * custom variants defined in `tailwind.config.ts` that compile to the real
@@ -100,7 +101,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hoverable:bg-primary/90',
+        /*
+          Rest is the off-white fill; hover is the sodium one — brief B8/B10.
+
+          ⚠ Not `hoverable:bg-primary/90`, which is what this was. That
+          composited the fill toward the page ground and was correct while the
+          rest state was mid-cyan; against an off-white rest state the same
+          expression produces a dirty grey rather than a state change. The ink
+          does not move, because both fills are light: 15.60:1 at rest, 8.46:1
+          on hover, measured against `--primary-foreground`.
+        */
+        default:
+          'bg-primary text-primary-foreground hoverable:bg-[var(--attention)]',
         destructive:
           'bg-destructive text-destructive-foreground hoverable:bg-destructive/90',
         /*

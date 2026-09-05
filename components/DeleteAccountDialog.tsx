@@ -109,7 +109,7 @@ export function DeleteAccountDialog({
         <DialogHeader>
           <div
             className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
-            style={{ background: 'var(--critical-red-wash)' }}
+            style={{ background: 'var(--critical-wash)' }}
           >
             <TriangleAlert className="h-6 w-6 text-red-400" aria-hidden="true" />
           </div>
@@ -146,8 +146,8 @@ export function DeleteAccountDialog({
         <div
           className="rounded-lg border p-4 text-sm"
           style={{
-            background: 'var(--critical-red-wash)',
-            borderColor: 'var(--critical-red-border)',
+            background: 'var(--critical-wash)',
+            borderColor: 'var(--critical-border)',
           }}
         >
           <p className="label-uppercase mb-2">What gets deleted</p>

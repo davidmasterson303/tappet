@@ -75,7 +75,7 @@ nav {
     --focus-ring-soft: rgb(34 211 238 / 0.22);
 
     /* The build dial's redline — v8 §4c. Deliberately hotter and more
-       orange-shifted than --critical-red (#F87171): a redline that matched the
+       orange-shifted than --critical (#F87171): a redline that matched the
        alert red would be read as an alert. Do not harmonise them. */
     /*
       A disabled control's own fill and ink — v8 §8a.
@@ -212,9 +212,38 @@ nav {
       the one filled CTA reads as a highlighter — the v4 failure where three
       competing CTAs on a screen meant no primary at all. It also keeps real
       distance between the fill and the reserved cyan-400 accent.
+
+      ── ⚠ Superseded 4 Sep. The action is off-white now. ───────────────────
+
+      Brief B10 reserves the two hues for line and light and allows a large
+      fill only for hover and critical; the roadmap's §11 had already settled
+      the same thing in its own words — **white for actions, the ramp for
+      state, red for alarm** — and the cyan fill was the last place that ruling
+      had not landed. Keeping it also made the specimen page contradict itself
+      in print: its own caption reads "cyan is never a call to action" directly
+      above six cyan call-to-action buttons.
+
+      ⚠ **The paragraph above is not wrong and is worth reading before
+      changing this again.** Its two objections survive the change intact:
+
+      - *"Dark ink on a filled CTA reads as a highlighter."* It does, and that
+        is now the point. The v4 failure it cites was **three competing CTAs on
+        one screen** — a problem of count, not of ink direction. One off-white
+        control on a graphite page is the strongest affordance the palette can
+        make, which is what a single primary is supposed to be.
+      - *"It keeps real distance from the reserved cyan-400 accent."* Off-white
+        is further from cyan-400 than cyan-700 ever was, so this is better
+        served, not sacrificed.
+
+      A neutral fill is not a hue fill. B10 constrains sodium and cyan; the
+      off-white rest state spends neither of them, which is what leaves the
+      sodium hover its full weight.
+
+        #EDE7DF + #100F0D (dark ink)  = 15.60:1   rest
+        #FB923C + #100F0D (dark ink)  =  8.46:1   hover, see button.tsx
     */
-    --primary: 193 82% 31%;              /* #0E7490  button fill */
-    --primary-foreground: 191 73% 97%;   /* #F2FBFD  near-white ink, 5.10:1 */
+    --primary: 34 28% 90%;               /* #EDE7DF  off-white fill */
+    --primary-foreground: 40 10% 6%;     /* #100F0D  page ground as ink, 15.60:1 */
     /*
       ⚠ No `--primary-hover`, and hover deliberately does NOT go up the ramp.
 
@@ -223,11 +252,16 @@ nav {
       omitted ink row: a value that was right beside dark ink and is wrong
       beside light. Hover is a live, readable state; nothing exempts it.
 
-      The existing call site is already correct. `hover:bg-primary/90` in
-      components/ui/button.tsx composites the fill toward the page ground,
-      making it *darker* — 5.87:1, better than the resting state. So the safe
-      hover is the one that was already there, and the fix is to not adopt this
-      half of the spec.
+      ⚠ Superseded with the fill above. Compositing toward the page ground was
+      the right answer while the rest state was a mid-cyan; against an
+      off-white rest state it would produce a dirty grey. Hover takes the
+      sodium fill now — `hoverable:bg-[var(--attention)]` in
+      components/ui/button.tsx, 8.46:1 against the same dark ink.
+
+      The spec's #0891B2 stays refused, for the reason this note gives and for
+      one more: hover is now the only place on a resting surface where a hue
+      fills an area, so it has to be the hue that means "the thing you are
+      about to touch", not the one that means "information".
     */
     --accent: 188 86% 53%;            /* #22D3EE  cyan-400, accent + glow */
     --accent-foreground: 190 60% 6%;
@@ -235,7 +269,7 @@ nav {
 
     /*
      * ⚠ Moved off pure red on 4 Sep, and it is the same value as
-     * `--critical-red-solid` — deliberately, because they are the same thing.
+     * `--critical-solid` — deliberately, because they are the same thing.
      *
      * B3 permits sodium and cyan and nothing else, and a `#DC2626` fill is the
      * one place on the specimen where a third hue survived the collapse: not a
@@ -251,7 +285,7 @@ nav {
      * button got *more* legible by leaving red, which is worth knowing before
      * somebody reads this change as decoration.
      */
-    --destructive: 24 92% 40%;        /* #C2350B  = --critical-red-solid */
+    --destructive: 24 84% 39%;        /* #B85410  = --critical-solid */
     --destructive-foreground: 0 0% 98%;
 
     --chart-1: 188 86% 53%;
@@ -333,25 +367,42 @@ nav {
      * with six of them. The chip still says "Logged" and still carries a check
      * — the colour was never the thing doing the work.
      *
-     * ⚠ The token keeps the name `--confirm-green` while holding no green.
-     * That is not an oversight and it is not laziness: the name is spelled at
-     * every call site, and a rename is the defect §6 warns about — the
-     * stylesheet keeps reading perfectly while applying to nothing. It is
-     * renamed when the call sites are, in one deliberate pass, not as a side
-     * effect of a palette change.
+     * ⚠ **Renamed on 4 Sep, in the one deliberate pass the old note asked for.**
+     *
+     * It was `--confirm-green`, holding no green, and the argument for leaving
+     * it alone was that a rename is the defect §6 warns about — the stylesheet
+     * keeps reading perfectly while applying to nothing. That was right about
+     * the risk and wrong about the cost of waiting: the design-system specimen
+     * page prints token *names*, so on the one surface whose whole job is to
+     * describe the system, `--confirm-green` **was** the description. A reader
+     * graded the word, and the word was false.
+     *
+     * All three hue-named families moved together — `--confirm-green*`,
+     * `--critical-red*`, `--attention-amber*` — across nine files in one
+     * commit, so no half-renamed state exists at any point. The new names also
+     * match the design system's own export, which has always called this
+     * family `semantic.attention` rather than naming it after a hue.
      */
-    --confirm-green: #EDE7DF;
-    --confirm-green-wash: rgb(237 231 223 / 0.10);
-    --confirm-green-border: rgb(237 231 223 / 0.28);
+    --confirm: #EDE7DF;
+    --confirm-wash: rgb(237 231 223 / 0.10);
+    --confirm-border: rgb(237 231 223 / 0.28);
 
     /* Already sodium. The one family the brief did not have to move. */
-    --attention-amber: #FB923C;
-    --attention-amber-wash: rgb(251 146 60 / 0.14);
-    --attention-amber-border: rgb(251 146 60 / 0.35);
+    --attention: #FB923C;
+    --attention-wash: rgb(251 146 60 / 0.14);
+    --attention-border: rgb(251 146 60 / 0.35);
 
     /*
      * Critical is deliberately heavier than attention, so a scan lands on it
      * first. Previously both sat at ~14% and read as equal weight.
+     *
+     * ⚠ **Hue 11 -> hue 24 on 4 Sep.** The first pass at this set `#FF7A5C`,
+     * and the critique read it as salmon rather than as sodium — correctly.
+     * Sodium light sits around hue 24-27; anything under about 16 is read as
+     * red no matter what the token is called, and `#FF7A5C` was 11. The whole
+     * B3 collapse fails if the hot end of the one permitted warm hue does not
+     * look like that hue. `--ring-bad` (14) and `--critical-solid` (14) had
+     * the same fault and moved with it.
      *
      * ⚠ Under B3 that weight difference is now doing **all** of the work.
      * Attention and critical used to differ by hue (orange versus salmon) and
@@ -364,10 +415,10 @@ nav {
      *
      * Neither is ever the only signal: both chips carry an icon and a word.
      */
-    --critical-red: #FF7A5C;
-    --critical-red-wash: rgb(255 122 92 / 0.22);
-    --critical-red-border: rgb(255 122 92 / 0.5);
-    --critical-red-solid: #C2350B;
+    --critical: #FF8A3D;
+    --critical-wash: rgb(255 138 61 / 0.22);
+    --critical-border: rgb(255 138 61 / 0.5);
+    --critical-solid: #B85410;
 
     /* ── health-ring band ramp ────────────────────────────────────────── *
      * Dedicated and ~15% desaturated versus the chip semantics, so a
@@ -415,7 +466,7 @@ nav {
       Measured on `--background`: 15.60 / 10.67 / 7.12 / 5.51 — every band
       clears the 4.5:1 body floor, and the old ramp's `good` was 10.23.
 
-      ⚠ `warn` is #DE8A3A and `--attention-amber` is #FB923C. They are close,
+      ⚠ `warn` is #DE8A3A and `--attention` is #FB923C. They are close,
       and §1.2 of the drift register is about exactly this shape of collision.
       They are kept apart by ~1.3:1 of luminance and by never appearing on the
       same element — the ramp draws arcs, the chip sets text. Under a two-hue
@@ -425,7 +476,7 @@ nav {
     --ring-good: #EDE7DF;             /* >= 80 — unremarkable */
     --ring-ok: #D6BE9B;               /* >= 60 */
     --ring-warn: #DE8A3A;             /* >= 40 */
-    --ring-bad: #F4511E;              /* <  40 */
+    --ring-bad: #FF6B1A;              /* <  40 */
 
     /* Loaded via the stylesheet link in app/layout.tsx — see the note there
      * on why this is not next/font.
@@ -1634,13 +1685,13 @@ nav {
    * colouring did the first half and never the second.
    */
   .field[aria-invalid='true'] {
-    border-color: var(--critical-red-border);
+    border-color: var(--critical-border);
   }
 
   .field[aria-invalid='true']:focus,
   .field[aria-invalid='true']:focus-visible {
-    border-color: var(--critical-red);
-    box-shadow: inset 0 0 0 3px var(--critical-red-wash);
+    border-color: var(--critical);
+    box-shadow: inset 0 0 0 3px var(--critical-wash);
   }
 
   .field:disabled,

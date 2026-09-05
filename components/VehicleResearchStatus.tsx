@@ -202,7 +202,7 @@ export function VehicleResearchStatus({
     return (
       <div
         className="flex items-center justify-between gap-4 rounded-xl border p-4"
-        style={{ background: 'var(--critical-red-wash)', borderColor: 'var(--critical-red-border)' }}
+        style={{ background: 'var(--critical-wash)', borderColor: 'var(--critical-border)' }}
         role="status"
       >
         <div className="flex items-center gap-3">

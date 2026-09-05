@@ -18,14 +18,18 @@ import type { BuildPosition } from '@wellkept/core/build-progress';
  * mark fails by rendering wrong, not by throwing. The same is true of the
  * system underneath it, and more so, because the system has a second voice.
  *
- * ⚠ This page carried a DEFAULT/SPORT toggle and no longer does. The critique
- * cut it, and the reason is worth keeping: once the scope decision moved the
- * cut and the milled radii into the *default* register, a control offering to
- * switch between two voices was advertising indecision on the one surface
- * whose job is to state the voice. The register tokens are still specimened
- * below — set `data-register` on `<html>` in devtools to see them move.
+ * ⚠ This page carried a DEFAULT/SPORT toggle and a REGISTER TOKENS section.
+ * Both are gone, cut by successive critiques, and the reason is the same one
+ * twice: the scope decision moved the cut and the milled radii into the
+ * *default* register, so a page that documents the chamfer as an optional mode
+ * is arguing against the system it is describing. A specimen page states the
+ * voice; it does not offer to switch it.
  *
- * `[data-register='sport']` is still set by nothing in the app itself.
+ * `[data-register='sport']` is still defined in `globals.css` and still set by
+ * nothing in the app. It is a deeper cut and a harder light on top of this
+ * geometry now, rather than the only place geometry exists — inspect it by
+ * setting `data-register` on `<html>` in devtools. `register-tokens.test.ts`
+ * is what keeps it honest in the meantime.
  *
  * ── The swatches read the DOM, they do not restate the file ─────────────────
  *
@@ -214,8 +218,8 @@ const STATES: ReadonlyArray<{
   disabled?: boolean;
   note: string;
 }> = [
-  { label: 'Default', note: 'primary fill' },
-  { label: 'Hover', force: 'hover', note: 'composites down' },
+  { label: 'Default', note: 'off-white · 15.6:1' },
+  { label: 'Hover', force: 'hover', note: 'sodium fill · 8.5:1' },
   { label: 'Focus', force: 'focus', note: 'cyan ring, inset' },
   { label: 'Disabled', disabled: true, note: 'stated fill and ink' },
 ];
@@ -237,7 +241,7 @@ const BUILD: BuildPosition = {
  * this ground, which is a colour you can photograph but not set text in.
  */
 const SAMPLED = [
-  { at: 'road pool', hex: '#C27D54', token: '--attention-amber' },
+  { at: 'road pool', hex: '#C27D54', token: '--attention' },
   { at: 'flank', hex: '#004C56', token: '--info' },
   { at: 'lamp core', hex: '#FEECDC', token: '--foreground' },
   { at: 'shadow', hex: '#030D0F', token: '--background' },
@@ -289,7 +293,7 @@ export default function DesignSystemPage() {
         />
 
         <div className="relative mx-auto flex min-h-[64vh] max-w-5xl flex-col justify-end px-6 pb-0 pt-24">
-          <p className="mono text-[11px] uppercase tracking-[0.2em] text-[color:var(--attention-amber)]">
+          <p className="mono text-[11px] uppercase tracking-[0.2em] text-[color:var(--attention)]">
             Development only
           </p>
           <h1 className="display-instrument display-instrument-tight mt-3 text-[clamp(2.75rem,9vw,6.5rem)] uppercase leading-[0.92] text-[color:var(--text-primary)]">
@@ -431,7 +435,7 @@ export default function DesignSystemPage() {
         <Section
           id="status"
           title="Semantic status"
-          blurb="Attention and critical are both sodium now. They separate by intensity and by how much area the fill covers — never by hue, and never by colour alone: each chip carries an icon and a word."
+          blurb="Attention and critical are the same hue now, so the treatment is what separates them: attention is ink on a wash, critical is a solid fill. That is the whole of B3 — severity as intensity and area, never as a second hue, and never as colour alone. Each chip still carries an icon and a word."
         >
           <div className={GRID}>
             <Swatch name="attention-amber" />
@@ -442,16 +446,16 @@ export default function DesignSystemPage() {
             <Swatch name="confirm-green" note="ink, holding no green" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--attention-amber-border)] bg-[color:var(--attention-amber-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--attention-amber)]">
+            <span className="chamfer-sm inline-flex items-center gap-1.5 border border-[color:var(--attention-border)] bg-[color:var(--attention-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--attention)]">
               <AlertTriangle className="h-3.5 w-3.5" /> Attention
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--critical-red-border)] bg-[color:var(--critical-red-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--critical-red)]">
+            <span className="chamfer-sm inline-flex items-center gap-1.5 bg-[color:var(--critical-solid)] px-3 py-1 text-xs font-semibold text-[color:var(--primary-foreground)]">
               <AlertTriangle className="h-3.5 w-3.5" /> 2 open recalls
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--confirm-green-border)] bg-[color:var(--confirm-green-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--confirm-green)]">
+            <span className="chamfer-sm inline-flex items-center gap-1.5 border border-[color:var(--confirm-border)] bg-[color:var(--confirm-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--confirm)]">
               <Check className="h-3.5 w-3.5" /> Logged
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--info-border)] bg-[color:var(--info-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--info-strong)]">
+            <span className="chamfer-sm inline-flex items-center gap-1.5 border border-[color:var(--info-border)] bg-[color:var(--info-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--info-strong)]">
               From your invoice
             </span>
           </div>
@@ -505,35 +509,6 @@ export default function DesignSystemPage() {
         </Section>
 
         <Section
-          id="register"
-          title="Register tokens"
-          blurb="The four values the sport register moves. The cut and the milled radii belong to the default register now, so sport is a deeper cut and a harder light rather than the only place geometry exists at all."
-        >
-          <div className={GRID}>
-            <Swatch name="register-accent" />
-            <Swatch name="register-rule" />
-            <Swatch name="register-chamfer" />
-            <Swatch name="register-grain" />
-            <Swatch name="register-tracking" />
-            <Swatch name="radius" note="the one that moves the product" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="panel-cut border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
-              <p className="label-uppercase">panel-cut</p>
-              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-                Square in the default register, chamfered in sport.
-              </p>
-            </div>
-            <div className="machined rounded-xl border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
-              <p className="label-uppercase">machined</p>
-              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-                The milled edge treatment.
-              </p>
-            </div>
-          </div>
-        </Section>
-
-        <Section
           id="type"
           title="Type"
           blurb="Archivo is the instrument voice and holds the display slot; Newsreader stays the editorial voice on --font-editorial. JetBrains Mono carries every token name, value and state label, so the system is typeset the same on every machine."
@@ -566,7 +541,7 @@ export default function DesignSystemPage() {
         <Section
           id="buttons"
           title="Buttons"
-          blurb="One control, four states, in the order a reader meets them. Hover is a real hover — the primitive's hover declaration is written once and compiled to both the pseudo-class and a forced attribute, so this cell cannot drift away from the button you actually touch."
+          blurb="One control, four states, in the order a reader meets them. Rest is off-white — a neutral, so it spends neither hue — and hover is the one place on a resting surface where a hue fills an area. Hover here is a real hover: the primitive's declaration is written once and compiled to both the pseudo-class and a forced attribute, so this cell cannot drift away from the button you actually touch."
         >
           <div className="border border-[color:var(--border)] bg-[hsl(var(--surface-1))] p-6">
             <div className="grid gap-6 sm:grid-cols-4">
@@ -641,7 +616,7 @@ export default function DesignSystemPage() {
                 aria-invalid="true"
                 defaultValue="-12"
               />
-              <p className="text-xs text-[color:var(--critical-red)]">
+              <p className="text-xs text-[color:var(--critical)]">
                 Mileage cannot go backwards.
               </p>
             </div>

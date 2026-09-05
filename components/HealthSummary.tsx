@@ -751,7 +751,7 @@ export default function HealthSummary({
               >
                 <AlertTriangle
                   className="h-4 w-4 shrink-0 mt-0.5"
-                  style={{ color: 'var(--critical-red)' }}
+                  style={{ color: 'var(--critical)' }}
                   aria-hidden="true"
                 />
                 <p className="text-sm text-white/80 leading-snug">{flag}</p>

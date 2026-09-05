@@ -170,12 +170,35 @@ describe('hover', () => {
       pairing is **3.51:1 and fails AA** — the same shape as the ink row that
       spec originally omitted.
 
-      `hoverable:bg-primary/90` composites toward the page ground instead:
-      darker, 5.87:1, and better than the resting state. Pinned so "harmonising
-      with the design system" cannot quietly introduce a failing hover.
+      ⚠ The measurement is the point, not the value. On 4 Sep brief B10 moved
+      the rest fill to off-white and the hover fill to sodium, so the numbers
+      changed and the rule did not:
+
+        rest   #EDE7DF on #100F0D ink = 15.60:1
+        hover  #FB923C on #100F0D ink =  8.46:1
+        spec's #0891B2 on light ink   =  3.51:1  <- still refused
+
+      Pinned so "harmonising with the design system" cannot quietly introduce a
+      failing hover, in either palette.
     */
-    expect(button).toMatch(/hoverable:bg-primary\/90/);
+    expect(button).toMatch(/hoverable:bg-\[var\(--attention\)\]/);
     expect(button).not.toMatch(/hover(able)?:bg-\[#0891B2\]|hover(able)?:bg-cyan-600/);
+  });
+
+  it('changes something on hover', () => {
+    /*
+      The pair to the line above, and the reason it exists: `bg-primary` moved
+      from a mid-cyan to an off-white, and the old hover expression
+      (`bg-primary/90`) would have kept passing a "does not use cyan-600" test
+      while compositing off-white toward the page ground — a dirty grey that
+      reads as a rendering fault rather than as a state.
+
+      So assert that hover names a DIFFERENT fill from rest, not merely that it
+      names an acceptable one.
+    */
+    const rest = /bg-primary(?![-\w/])/;
+    expect(button).toMatch(rest);
+    expect(button).not.toMatch(/hoverable:bg-primary\//);
   });
 
   it('uses one spelling of the state, never both', () => {

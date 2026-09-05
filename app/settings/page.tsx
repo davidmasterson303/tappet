@@ -54,7 +54,7 @@ function SettingsSection({
       className="scroll-reveal rounded-lg border bg-card p-4 sm:p-6 edge-light"
       style={{
         ...revealDelay(index),
-        borderColor: isCritical ? 'var(--critical-red-border)' : undefined,
+        borderColor: isCritical ? 'var(--critical-border)' : undefined,
       }}
     >
       <div className="mb-5 flex items-start gap-3">
