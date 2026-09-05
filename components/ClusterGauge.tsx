@@ -484,56 +484,21 @@ export function ClusterGauge({
         ))}
 
         {/* The numbers, on the majors. Upright — never rotated with the tick. */}
-        {!isCard &&
-          LABELLED.map((tick) => {
-            /*
-              94, tracking the ticks. They end at 81 now, so this keeps the
-              same 13px of clearance the numerals needed when the marks reached
-              84 — the fix that stopped "80" reading as "-80". Moving one
-              without the other is how that collision comes back.
-            */
-            const { x, y } = pointAt(tick, 94);
-            return (
-              <text
-                key={`L${tick}`}
-                x={x}
-                y={y}
-                className="num gauge-label"
-                textAnchor="middle"
-                dominantBaseline="central"
-                /*
-                  ── ⚠ UI-04 · both floors broken on one element ──────────────
+        {/*
+          ── ⚠ The 0 and 100 labels are cut — dossier §7 ────────────────────
 
-                  Measured live on 23 Aug: **10px** type at **2.20:1** — the
-                  12px type floor and the 4.5:1 contrast floor, on the
-                  dashboard's headline instrument, at the same time.
+          They graduated a scale whose ends are now marked by the terminals,
+          and the brief cut them by name. Two numerals at the arc's feet were
+          also the last thing keeping the hero face readable as a chart of one
+          number rather than as the number.
 
-                  Measured against `--background` `#100F0D`: 0.24 alpha is
-                  **2.12:1** and 0.42 is **4.09:1**, so neither of the two
-                  values here cleared it and the boundary ticks were only
-                  slightly less illegible than the rest.
-
-                  0.55 is **6.24:1** for a boundary and 0.50 is **5.34:1** for
-                  an ordinary tick — the ramp's own floor, which the mobile
-                  theme states as the quietest a string may be. The distinction
-                  between the two survives; both are now readable.
-
-                  ⚠ **Not `text-*` utilities.** This is SVG, where Tailwind's
-                  text sizing does not apply and `font-size` is the attribute
-                  that works — which is also why every text scan in this repo is
-                  blind to it. `.gauge-label` carries the size in `globals.css`
-                  where forced-colors can reach it.
-                */
-                fill={
-                  BOUNDARIES.has(tick) ? 'rgb(255 255 255 / 0.55)' : 'rgb(255 255 255 / 0.5)'
-                }
-                fontSize="12"
-                fontWeight="500"
-              >
-                {tick}
-              </text>
-            );
-          })}
+          What went with them is worth naming so it is not lost: they were the
+          site of UI-04, where one element broke the 12px type floor and the
+          4.5:1 contrast floor at the same time — measured live at 10px and
+          2.20:1 — and the fix was 0.55 alpha for a boundary tick and 0.50 for
+          an ordinary one, against `--background`. If labels ever return to
+          this dial, those are the floors they return under.
+        */}
 
         {/* Needle. Hero runs it to the pivot and caps it with a hub; the card
             stops it short, because its reading sits in the well. */}

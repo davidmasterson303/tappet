@@ -505,8 +505,21 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       rather than 12, which is the R10 site this closes at the
                       same time. Visual weight is unchanged.
                     */
-                    className={`relative flex items-center gap-1.5 px-2.5 sm:px-4 py-3 min-h-[44px] text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ${
-                      isActive ? 'text-white bg-white/[0.08]' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                    /*
+                      ⚠ A cyan underline, not a filled pill — the brief's tab
+                      treatment. The fill was the only block of solid colour in
+                      the header and it read as a button rather than as a
+                      position; cyan is the system's focus-and-information hue
+                      and a 2px rule is the smallest thing that can carry
+                      "you are here".
+
+                      `mono` and caps because every other label on this surface
+                      is: a tab is a state label, not prose.
+                    */
+                    className={`mono relative flex items-center px-2.5 sm:px-4 py-3 min-h-[44px] text-[12px] uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border-b-2 ${
+                      isActive
+                        ? 'border-[color:var(--info)] text-[color:var(--text-primary)]'
+                        : 'border-transparent text-white/50 hover:text-white/80'
                     }`}
                   >
                     {/*
@@ -526,7 +539,20 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       overflowing at all. Unchanged from `sm` up, where there
                       was never a problem.
                     */}
-                    <Icon className={`hidden sm:block h-3.5 w-3.5 ${isActive ? 'text-cyan-400' : 'text-white/40'}`} />
+                    {/*
+                      ── ⚠ The glyphs are gone entirely — dossier §7 ───────────
+
+                      The note above already made the argument and stopped one
+                      step short: "the glyphs are decoration here: every tab is
+                      a word, and the word is what is read." It hid them below
+                      `sm` to fix an overflow. The brief cuts them outright, and
+                      the same sentence is the reason — a decoration that had to
+                      be hidden to make the navigation fit was never earning its
+                      place at any width.
+
+                      `Icon` stays in the tab table: it is the obvious thing to
+                      want back, and deleting it would take the mapping with it.
+                    */}
                     {label}
                     {/*
                       ── ⚠ One active indicator, and the fill is the one that

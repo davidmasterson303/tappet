@@ -434,17 +434,38 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             attention state honours it by darkening its ground rather than by
             filling with colour.
           */
-          className="absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border-t"
+          className="mono absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider border-l-4"
           style={
+            /*
+              ── ⚠ A left rule on a dark ground, not a colour fill — 5 Sep ────
+
+              Both states were solid sodium with dark ink. The dossier critique
+              cut it by name — "a sodium left-ruled mono row carries the same
+              fact" — and it is right that two full-width bars of the loudest
+              colour in the system, on the surface a visitor meets first, spend
+              more than the fact costs.
+
+              ⚠ The ground stays near-opaque in both, which is the part not to
+              undo. This sits over a photograph, and the note above records
+              what a translucent wash over one looked like: "a murky smear …
+              a rendering artifact". The rule and the ink carry the severity;
+              the ground exists only so they are legible over an image nobody
+              chose.
+
+              Severity is the rule's colour and the ink's, which is the same
+              intensity distinction the chips use — `--critical` for a recall,
+              `--attention` for anything else — and both measure above 8:1 on
+              this ground.
+            */
             ribbonCritical
               ? {
-                  color: '#0b0a09',
-                  background: 'var(--critical)',
+                  color: 'var(--critical)',
+                  background: 'rgb(11 10 9 / 0.88)',
                   borderColor: 'var(--critical)',
                 }
               : {
                   color: 'var(--attention)',
-                  background: 'rgb(11 10 9 / 0.86)',
+                  background: 'rgb(11 10 9 / 0.88)',
                   borderColor: 'var(--attention)',
                 }
           }

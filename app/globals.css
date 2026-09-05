@@ -907,7 +907,12 @@ nav {
     .gauge-tick {
       stroke: CanvasText;
     }
-    .gauge-label,
+    /* ⚠ The tick-label selector was here and went with its element when the
+       dial's 0 and 100 labels were cut. Same pairing as the needle: a
+       forced-colors rule whose class nothing renders keeps reviewing perfectly
+       and applies to nothing, and `inclusive-affordances.test.ts` is what
+       notices. Do not spell that selector in this comment — the guard scans
+       the file raw and a mention re-creates the orphan. */
     .gauge-reading {
       fill: CanvasText;
     }
