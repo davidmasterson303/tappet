@@ -4,20 +4,41 @@
     {
       "name": "crewchief-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "crewchief-dev-alt",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "autoPort": true
     },
     {
       "name": "crewchief-prod-verify",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start:verify", "--", "-p", "3100"],
+      "runtimeArgs": [
+        "run",
+        "start:verify",
+        "--",
+        "-p",
+        "3100"
+      ],
       "port": 3100
+    },
+    {
+      "name": "crewchief-design",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:design"
+      ],
+      "autoPort": true
     }
   ]
 }
