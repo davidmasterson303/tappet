@@ -702,7 +702,13 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 and a vertical rule down the middle of that would be dividing
                 nothing. `[&>*]:` reaches the children the grid already has
                 rather than adding a wrapper per stat. */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-0 sm:divide-x sm:divide-white/10 sm:[&>*]:px-4 sm:[&>*:first-child]:pl-0">
+            {/* ⚠ The rules exist on mobile too. The grid gave a 2x2 of floating
+                label/value pairs with nothing holding them together — "keep it
+                a strip". `divide-x` on a two-column grid rules between the
+                columns, and `border-y` closes it top and bottom, so it reads as
+                one object at both sizes instead of a strip that becomes four
+                loose facts. */}
+            <div className="grid grid-cols-2 gap-y-5 divide-x divide-white/10 border-y border-white/8 py-4 [&>*]:px-4 [&>*:nth-child(odd)]:pl-0 sm:flex sm:flex-wrap sm:items-end sm:gap-y-0 sm:border-y-0 sm:py-0 sm:[&>*:first-child]:pl-0 sm:[&>*:nth-child(odd)]:px-4">
               <div className="flex flex-col gap-1">
                 <span className="mono label-uppercase">Mileage</span>
                 {isEditingCurrentMileage ? (

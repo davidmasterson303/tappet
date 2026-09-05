@@ -259,7 +259,7 @@ function HealthFactorRows({
                    figures; the monospace face is what makes a right-aligned
                    column of them read as a spec table rather than as bold
                    sans that happens to line up. */
-                className="mono num text-xl font-medium leading-none"
+                className="mono num text-2xl font-medium leading-none"
                 style={{
                   /*
                     ── ⚠ One contract: colour is the verdict, and there is
