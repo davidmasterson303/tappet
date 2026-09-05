@@ -110,6 +110,12 @@ export default function DiagnosticHero({
   onAddRecord,
   onAddPhoto,
   addRecordLabel = 'Add a service record',
+  /* ⚠ 400 -> 520 when a photograph is present. The dial is 240 tall and rides
+     up into the plate; at 400 it cleared the image after about 96px and the
+     rest of the arc sat on bare graphite, which a critique read as the
+     photograph "stopping at roughly 60% of the panel with a hard horizontal
+     edge". The plate has to be tall enough to be underneath the whole
+     instrument, not just its top. */
   height = 400,
 }: DiagnosticHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -253,7 +259,7 @@ export default function DiagnosticHero({
         */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-[hsl(var(--card))] via-[hsl(var(--card))]/70 to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-[hsl(var(--card))] via-[hsl(var(--card))]/75 to-transparent"
         />
         <VehicleIdentity
           variant="band"
@@ -262,7 +268,7 @@ export default function DiagnosticHero({
           make={make}
           model={model}
           trim={trim}
-          height={height}
+          height={photo ? Math.max(height, 520) : height}
           /*
             One quiet row on a phone, a column beside the instrument above
             `sm`. At 390px that is 64px — a line and a button, which is all the
@@ -350,7 +356,7 @@ export default function DiagnosticHero({
              where there is no plate to show through. */
         className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
           stacked
-            ? ' -mt-24 pt-0'
+            ? ' -mt-56 pt-0'
             : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >
@@ -526,8 +532,18 @@ export default function DiagnosticHero({
                 ⚠ This is a demotion, not a removal. Nothing in the brand
                 package changes and nothing about the mark moves.
               */}
+              {/* ⚠ /80, not /55 — this column sits ON the photograph since the
+                  dial moved onto the plate, and muted ink has no floor over a
+                  photograph. Measured against the car's lit flank the ground is
+                  #33332f, which put the old alpha at 3.83:1; /80 computes to
+                  ~10:1 on the same ground. It was fine when this sat on flat
+                  graphite. The rule the specimen page learned twice: over an
+                  image the ink carries the legibility, not the ground.
+
+                  ⚠ And a JSX comment cannot live between `&&` and `(` — that
+                  is a JS expression position. Second time this pass. */}
               {caption && (
-                <p className="text-xs text-white/55 mt-3 leading-relaxed">{caption}</p>
+                <p className="text-xs text-white/80 mt-3 leading-relaxed">{caption}</p>
               )}
             </div>
           </div>

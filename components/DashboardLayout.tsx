@@ -689,7 +689,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 and a vertical rule down the middle of that would be dividing
                 nothing. `[&>*]:` reaches the children the grid already has
                 rather than adding a wrapper per stat. */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-0 sm:divide-x sm:divide-white/10 sm:[&>*]:px-5 sm:[&>*:first-child]:pl-0">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-0 sm:divide-x sm:divide-white/10 sm:[&>*]:px-4 sm:[&>*:first-child]:pl-0">
               <div className="flex flex-col gap-1">
                 <span className="mono label-uppercase">Mileage</span>
                 {isEditingCurrentMileage ? (
@@ -745,7 +745,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="mono label-uppercase">Avg. Monthly Miles</span>
+                <span className="mono label-uppercase">Avg</span>
                 {isEditingAvgMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -851,7 +851,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               */}
               {knowledge?.reliability_score && (
                 <div className="flex flex-col gap-1">
-                  <span className="mono label-uppercase">Model reliability</span>
+                  <span className="mono label-uppercase">Reliability</span>
                   <span className="mono text-2xl font-medium text-white tabular-nums">
                     {knowledge.reliability_score}
                     <span className="text-sm text-white/50 ml-0.5">/10</span>
