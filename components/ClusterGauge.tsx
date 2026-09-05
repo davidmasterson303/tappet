@@ -649,7 +649,19 @@ export function ClusterGauge({
           className="num display-instrument display-instrument-tight gauge-reading"
           textAnchor="middle"
           dominantBaseline="central"
-          fill={unknown ? ink : isCard ? '#FFFFFF' : band.color}
+          /*
+            ⚠ Off-white on both faces since the dossier loop. The hero face
+            took `band.color`, so at a 74 the numeral rendered in the ramp's
+            `ok` warm stone and a critique read the whole dial as "gold" —
+            "a fourth hue and a luxury mood".
+
+            The arc keeps the band colour, because the arc IS the state and the
+            ramp is settled system. The numeral does not need to say the same
+            thing twice, and saying it in a mid-tone is what made a value look
+            like a finish. This is the card face's arrangement, which had it
+            right: coloured arc, off-white reading.
+          */
+          fill={unknown ? ink : '#FFFFFF'}
           // 60, not 64: tabular figures make "100" exactly 1.5x the width of
           // "88", and at 64 a perfect score measured 40.4px inside a 43.6px
           // well. It fit, with 1.6px a side. 60 buys the margin back.
@@ -688,10 +700,13 @@ export function ClusterGauge({
       */}
       {(isCard || active) && (
         <span
+          /* ⚠ `mono` and caps since the dossier loop — B1 and B3 both put the
+             state word in the monospace register, where every other label on
+             the surface already sits. It is a state label, not prose. */
           className={
             isCard
-              ? 'text-xs font-semibold leading-none'
-              : 'block text-center font-semibold leading-none animate-fade-in'
+              ? 'mono text-xs font-medium uppercase tracking-wider leading-none'
+              : 'mono block text-center font-medium uppercase tracking-wider leading-none animate-fade-in'
           }
           style={{
             /*
@@ -706,8 +721,15 @@ export function ClusterGauge({
               same fact drawn, and keeps it too. This is the caption — it names
               the band the number already sits in — so it takes ordinary ink.
 
-              ⚠ The card keeps the band colour: at 56px there is no numeral in
-              the well, so this word *is* the reading rather than its caption.
+              ⚠ The card keeps the band colour, and the reason it gives is now
+              out of date: it read "at 56px there is no numeral in the well, so
+              this word *is* the reading". The card face has set a numeral in
+              that well since the hub was removed — the same expired exception
+              that kept a pointer on it. It keeps the colour anyway, because at
+              card size the word is the only thing carrying the band once the
+              numeral went off-white, and two neutral elements would say
+              nothing. Worth revisiting if the card ever grows a coloured mark
+              of its own.
             */
             color: isCard ? ink : 'rgb(255 255 255 / 0.7)',
             ...(isCard ? {} : { fontSize: size * 0.07, marginTop: size * 0.02 }),

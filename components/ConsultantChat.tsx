@@ -682,7 +682,7 @@ export default function ConsultantChat({
       `100vh` there too: same number on a desktop, correct on a tablet with a
       collapsing browser chrome.
     */
-    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 rounded-none md:rounded-2xl overflow-hidden flex bg-slate-950/90 md:shadow-xl md:shadow-black/40 animate-consultant-fade">
+    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 overflow-hidden flex md:cut-panel bg-[hsl(var(--card))] md:shadow-xl md:shadow-black/40 animate-consultant-fade">
       {/*
         Below md the sidebar becomes a drawer. As a permanent flex child it
         took 256px of a 375px viewport, leaving ~119px for the thread — the
@@ -757,12 +757,12 @@ export default function ConsultantChat({
                   onClick={() => handleSessionClick(session.id)}
                   className={`w-full text-left p-3 rounded-xl transition-all ${
                     activeSessionId === session.id
-                      ? 'bg-cyan-400/10 border border-cyan-400/25'
+                      ? 'bg-[color:var(--info)]/10 border border-[color:var(--info-border)]/25'
                       : 'hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   <p className={`text-xs font-medium line-clamp-2 leading-snug ${
-                    activeSessionId === session.id ? 'text-cyan-300' : 'text-white/80'
+                    activeSessionId === session.id ? 'text-[color:var(--text-primary)]' : 'text-white/80'
                   }`}>
                     {session.title}
                   </p>
@@ -797,7 +797,7 @@ export default function ConsultantChat({
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md animate-fade-in">
-                <div className="w-14 h-14 rounded-2xl bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
+                <div className="w-14 h-14 chamfer-sm bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
                   <MessageSquare className="h-7 w-7 text-info" />
                 </div>
                 {/*
@@ -833,7 +833,7 @@ export default function ConsultantChat({
                     <button
                       key={i}
                       onClick={() => handleSend(suggestion)}
-                      className="text-left p-3 bg-white/5 hover:bg-cyan-400/8 border border-white/8 hover:border-cyan-400/25 rounded-xl text-sm text-white/65 hover:text-white transition-all"
+                      className="text-left p-3 bg-white/5 hover:bg-[color:var(--info)]/8 border border-white/8 hover:border-[color:var(--info-border)]/25 rounded-xl text-sm text-white/65 hover:text-white transition-all"
                     >
                       {suggestion}
                     </button>
@@ -866,7 +866,7 @@ export default function ConsultantChat({
                   <div
                     className={
                       msg.role === 'user'
-                        ? 'max-w-[80%] bg-primary/90 text-primary-foreground rounded-2xl rounded-tr-sm p-4 overflow-hidden'
+                        ? 'max-w-[80%] chamfer-sm bg-primary text-primary-foreground p-4 overflow-hidden'
                         /*
                           Unboxed: no background, border, radius or padding. A
                           an answer from Jay is a diagnosis, not a chat line, and
@@ -889,7 +889,7 @@ export default function ConsultantChat({
                             doc={doc}
                             className={`flex items-center gap-2 p-2 rounded-lg ${
                               msg.role === 'user'
-                                ? 'bg-cyan-700/60 hover:bg-cyan-700'
+                                ? 'bg-[color:var(--brand-accent-button)]/60 hover:bg-[color:var(--brand-accent-button)]'
                                 : 'bg-white/8 hover:bg-white/12'
                             } transition-colors`}
                           />
@@ -1003,14 +1003,14 @@ export default function ConsultantChat({
                               disabled={isAdded || isAdding}
                               className={`flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm transition-all ${
                                 isAdded
-                                  ? 'bg-green-500/15 border border-green-400/25 text-green-300 cursor-default'
-                                  : 'bg-info-wash border border-info-border text-info hover:bg-cyan-400/15 hover:border-cyan-400/40'
+                                  ? 'bg-white/6 border border-[color:var(--confirm)]/25 text-[color:var(--confirm)] cursor-default'
+                                  : 'bg-info-wash border border-info-border text-info hover:bg-[color:var(--info)]/15 hover:border-[color:var(--info-border)]/40'
                               }`}
                             >
                               {isAdding ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
                               ) : isAdded ? (
-                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-green-400" />
+                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--confirm)]" />
                               ) : (
                                 <Heart className="h-3.5 w-3.5 flex-shrink-0" />
                               )}
@@ -1024,11 +1024,11 @@ export default function ConsultantChat({
                                 contrast, not size, makes a label recede.
                               */}
                               <span
-                                className={`text-xs capitalize ${isAdded ? 'text-green-300/60' : 'text-info/60'}`}
+                                className={`text-xs capitalize ${isAdded ? 'text-[color:var(--confirm)]/60' : 'text-info/60'}`}
                               >
                                 {action.type}
                               </span>
-                              {!isAdded && !isAdding && <span className="text-xs text-cyan-400 font-semibold">+ Add</span>}
+                              {!isAdded && !isAdding && <span className="text-xs text-[color:var(--info-strong)] font-semibold">+ Add</span>}
                             </button>
                           );
                         })}
@@ -1057,11 +1057,11 @@ export default function ConsultantChat({
                           return (
                             <button
                               onClick={() => handleQuotePull(pullable.map((e: any) => e.id))}
-                              className="flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm min-h-[44px] bg-amber-400/10 border border-amber-400/25 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/40 transition-all"
+                              className="flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm min-h-[44px] bg-[color:var(--attention)]/10 border border-[color:var(--attention-border)]/25 text-[color:var(--attention)] hover:bg-[color:var(--attention)]/20 hover:border-[color:var(--attention-border)]/40 transition-all"
                             >
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 font-medium text-xs">Get competing quotes</span>
-                              <span className="text-xs text-amber-300/60">
+                              <span className="text-xs text-[color:var(--attention)]/60">
                                 {pullable.length} item{pullable.length > 1 ? 's' : ''}
                               </span>
                             </button>
@@ -1205,7 +1205,7 @@ export default function ConsultantChat({
                           control that answers the wrong tap is worse than one
                           that is slightly too small, so this grows for real.
                         */
-                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-cyan-400/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
+                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-[color:var(--info)]/10 border border-white/10 hover:border-[color:var(--info-border)]/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
                       >
                         {suggestion}
                       </button>
@@ -1221,17 +1221,17 @@ export default function ConsultantChat({
                 if (highPriorityWishlist.length === 0) return null;
                 return (
                   <div className="animate-slide-up">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/8 border border-amber-400/20">
-                      <TriangleAlert className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                    <div className="flex items-center gap-3 p-3 chamfer-sm bg-[color:var(--attention-wash)] border border-[color:var(--attention-border)]/20">
+                      <TriangleAlert className="h-4 w-4 text-[color:var(--attention)] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-300">
+                        <p className="text-xs font-semibold text-[color:var(--attention)]">
                           {highPriorityWishlist.length} item{highPriorityWishlist.length > 1 ? 's' : ''} need attention
                         </p>
                         <p className="text-xs text-white/50 mt-0.5">Get quotes from local shops</p>
                       </div>
                       <a
                         href={`/dashboard/${vehicleId}?tab=wishlist`}
-                        className="flex-shrink-0 px-2.5 py-1 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 rounded-lg text-xs font-semibold text-amber-300 transition-colors"
+                        className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 rounded-lg text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
                         Get Quote
                       </a>
@@ -1266,10 +1266,10 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
-                    className="ml-2 p-1 hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 rounded-lg transition-colors"
                     disabled={uploadingFiles || loading}
                   >
-                    <X className="h-3.5 w-3.5 text-red-400" />
+                    <X className="h-3.5 w-3.5 text-[color:var(--critical)]" />
                   </button>
                 </div>
               ))}
@@ -1311,7 +1311,7 @@ export default function ConsultantChat({
                 disabled={loading || uploadingFiles || selectedFiles.length >= 3}
                 aria-label="Attach a file"
                 title="Attach documents, invoices, or diagnostic reports"
-                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8"
+                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-[color:var(--info-strong)] hover:bg-[color:var(--info)]/8"
               >
                 <Paperclip className="h-[17px] w-[17px]" />
               </Button>
