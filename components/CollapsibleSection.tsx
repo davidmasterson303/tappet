@@ -167,7 +167,7 @@ export default function CollapsibleSection({
               was a veneer rather than a voice — three critiques of the
               rendered page said so in a row.
             */}
-            <span className="display-instrument text-[17px] uppercase tracking-wide text-white sm:flex-1 sm:min-w-0 truncate">
+            <span className="display-instrument display-instrument-narrow text-[17px] uppercase tracking-wide text-white sm:flex-1 sm:min-w-0 truncate">
               {title}
             </span>
             {summary && !open && (

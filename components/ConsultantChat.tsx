@@ -708,7 +708,7 @@ export default function ConsultantChat({
             <Button
               size="sm"
               onClick={handleNewChat}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs chamfer-sm"
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               New
@@ -755,10 +755,15 @@ export default function ConsultantChat({
                 <button
                   key={session.id}
                   onClick={() => handleSessionClick(session.id)}
-                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                  /* ⚠ A left rule, not a filled card — dossier B6. The active
+                     row was a tinted box inside a bordered panel inside a
+                     bordered frame; the critique counted the nesting and asked
+                     for "the cyan hairline, not a grey card". A rule marks a
+                     position without adding a container. */
+                  className={`w-full text-left p-3 border-l-2 transition-colors ${
                     activeSessionId === session.id
-                      ? 'bg-[color:var(--info)]/10 border border-[color:var(--info-border)]/25'
-                      : 'hover:bg-white/5 border border-transparent'
+                      ? 'border-[color:var(--info)] bg-white/4'
+                      : 'border-transparent hover:bg-white/4'
                   }`}
                 >
                   <p className={`text-xs font-medium line-clamp-2 leading-snug ${
@@ -833,7 +838,7 @@ export default function ConsultantChat({
                     <button
                       key={i}
                       onClick={() => handleSend(suggestion)}
-                      className="text-left p-3 bg-white/5 hover:bg-[color:var(--info)]/8 border border-white/8 hover:border-[color:var(--info-border)]/25 rounded-xl text-sm text-white/65 hover:text-white transition-all"
+                      className="text-left p-3 bg-white/5 hover:bg-[color:var(--info)]/8 border border-white/8 hover:border-[color:var(--info-border)]/25 chamfer-sm text-sm text-white/65 hover:text-white transition-all"
                     >
                       {suggestion}
                     </button>
@@ -913,7 +918,7 @@ export default function ConsultantChat({
                           <AttachmentLink
                             key={docIdx}
                             doc={doc}
-                            className={`flex items-center gap-2 p-2 rounded-lg ${
+                            className={`flex items-center gap-2 p-2 chamfer-sm ${
                               msg.role === 'user'
                                 ? 'bg-[color:var(--brand-accent-button)]/60 hover:bg-[color:var(--brand-accent-button)]'
                                 : 'bg-white/8 hover:bg-white/12'
@@ -1027,7 +1032,7 @@ export default function ConsultantChat({
                               key={actionIdx}
                               onClick={() => handleAddToWishlist(action)}
                               disabled={isAdded || isAdding}
-                              className={`flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm transition-all ${
+                              className={`flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm transition-all ${
                                 isAdded
                                   ? 'bg-white/6 border border-[color:var(--confirm)]/25 text-[color:var(--confirm)] cursor-default'
                                   : 'bg-info-wash border border-info-border text-info hover:bg-[color:var(--info)]/15 hover:border-[color:var(--info-border)]/40'
@@ -1083,7 +1088,7 @@ export default function ConsultantChat({
                           return (
                             <button
                               onClick={() => handleQuotePull(pullable.map((e: any) => e.id))}
-                              className="flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm min-h-[44px] bg-[color:var(--attention)]/10 border border-[color:var(--attention-border)]/25 text-[color:var(--attention)] hover:bg-[color:var(--attention)]/20 hover:border-[color:var(--attention-border)]/40 transition-all"
+                              className="flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm min-h-[44px] bg-[color:var(--attention)]/10 border border-[color:var(--attention-border)]/25 text-[color:var(--attention)] hover:bg-[color:var(--attention)]/20 hover:border-[color:var(--attention-border)]/40 transition-all"
                             >
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 font-medium text-xs">Get competing quotes</span>
@@ -1268,7 +1273,7 @@ export default function ConsultantChat({
                       </div>
                       <a
                         href={`/dashboard/${vehicleId}?tab=wishlist`}
-                        className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 rounded-lg text-xs font-semibold text-[color:var(--attention)] transition-colors"
+                        className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
                         Get Quote
                       </a>
@@ -1292,7 +1297,7 @@ export default function ConsultantChat({
               {selectedFiles.map((file, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 rounded-xl"
+                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 chamfer-sm"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <FileText className="h-4 w-4 text-info flex-shrink-0" />
@@ -1303,7 +1308,7 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
-                    className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 rounded-lg transition-colors"
+                    className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 chamfer-sm transition-colors"
                     disabled={uploadingFiles || loading}
                   >
                     <X className="h-3.5 w-3.5 text-[color:var(--critical)]" />
@@ -1325,7 +1330,7 @@ export default function ConsultantChat({
             note — at rest the composer was three stacked rows for an idle
             input, and only one of them was the input.
           */}
-          <div className="composer-panel group rounded-xl">
+          <div className="composer-panel group chamfer-sm">
             <Textarea
               ref={textareaRef}
               placeholder="What do you want to know about this car?"

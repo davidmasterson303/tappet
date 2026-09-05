@@ -204,7 +204,7 @@ function GarageContents() {
                 package by `brand.test.ts`; its wordmark is a drawing, not a
                 font choice, and it does not follow the display slot.
               */}
-              <h1 className="display-instrument text-5xl lg:text-6xl uppercase text-white mb-3">
+              <h1 className="display-instrument display-instrument-tight text-5xl lg:text-6xl uppercase text-white mb-3">
                 A Live Garage
               </h1>
               {/*

@@ -1887,9 +1887,18 @@ nav {
    * field, but the thing that should look focused is the panel, otherwise the
    * user sees a ring around an inner box floating inside an outer one.
    */
+  /*
+   * ⚠ No border of its own — dossier §7, 5 Sep.
+   *
+   * This wrapped a field that already draws one, so the composer read as two
+   * concentric boxes and the critique counted it in a chain "four containers
+   * deep". The panel still exists because `:focus-within` is what it is for —
+   * the whole composer lights when the field inside it takes focus, which a
+   * bare field cannot express — but it no longer draws an edge to do it.
+   */
   .composer-panel {
     background: hsl(var(--surface-1));
-    border: 1px solid hsl(var(--border));
+    border: 1px solid transparent;
     transition:
       border-color var(--duration-fast) var(--ease-standard),
       box-shadow var(--duration-fast) var(--ease-standard);
@@ -1988,6 +1997,24 @@ nav {
      heading must not inherit it. */
   .display-instrument-tight {
     font-stretch: 62%;
+  }
+
+  /*
+   * The heading width — 5 Sep, dossier B1.
+   *
+   * Four consecutive critiques read section heads as "a wide bold sans", "a
+   * second display face", "regular-width bold". They were right and I checked
+   * the wrong thing three times: Archivo is loading, the class is applying, and
+   * `.display-instrument` is simply **88%**, which beside a 62% masthead reads
+   * as a different family rather than the same voice narrowed.
+   *
+   * 72% is the width that reads as condensed at heading sizes without reaching
+   * the poster setting the note above warns about. One voice, three widths:
+   * 62 for a masthead, 72 for a head, 88 where a run of words has to stay
+   * comfortable.
+   */
+  .display-instrument-narrow {
+    font-stretch: 72%;
   }
 
   /*

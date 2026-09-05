@@ -767,7 +767,7 @@ export default function DesignSystemPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="card-lift cut-panel border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
               <p className="label-uppercase">2019 BMW</p>
-              <p className="display-instrument mt-1 text-2xl text-[color:var(--text-primary)]">
+              <p className="display-instrument display-instrument-narrow mt-1 text-2xl uppercase text-[color:var(--text-primary)]">
                 M3
               </p>
               <p className="mt-1 text-sm text-[color:var(--text-muted)]">

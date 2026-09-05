@@ -243,7 +243,7 @@ function HealthFactorRows({
               same bold sans any admin theme ships. The identity has to survive
               the scroll or it is a hat rather than a system.
             */}
-            <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">{row.label}</h4>
+            <h4 className="display-instrument display-instrument-narrow text-[15px] uppercase tracking-wide text-white">{row.label}</h4>
             {/*
               ⚠ An unmeasured driver takes muted ink, never a band. Banding a
               `null` asserts a condition nobody checked — the same overclaim
@@ -843,7 +843,7 @@ export default function HealthSummary({
                 texture" on a surface whose grammar is line and mono. The 01-04
                 indices below already say this is a list. */}
             <div className="flex items-center gap-2 mb-3">
-              <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
+              <h4 className="display-instrument display-instrument-narrow text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
             </div>
             <ul className="space-y-2">
               {/*

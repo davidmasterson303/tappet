@@ -407,7 +407,21 @@ export function VehicleIdentity({
             style={{
               ...photoLayerVars(src, formats),
               backgroundSize: fit,
-              backgroundPosition: 'center',
+              /*
+                ⚠ 72% across when the photograph is cropped — dossier B3.
+
+                The dial sits on this plate's lower-left third now, and a
+                centred crop put the car's bumper exactly there: "the 74 sits
+                on the Accord's bumper on desktop and over the grille on
+                mobile, so the two hero elements fight and neither dominates".
+                Pushing the crop right moves the car off the arc and leaves the
+                empty wet road the plate was composed with underneath it.
+
+                Only meaningful when `fit` is `cover` — a contained photograph
+                has no crop to anchor, and `backgroundPosition` on one is the
+                letterbox's alignment rather than the subject's.
+              */
+              backgroundPosition: fit === 'cover' ? '72% center' : 'center',
               backgroundRepeat: 'no-repeat',
               /* The grade. See the note above — one treatment for the set. */
               filter: 'saturate(0.55) brightness(0.92) contrast(1.06) hue-rotate(-4deg)',
