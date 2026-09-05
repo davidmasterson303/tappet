@@ -57,8 +57,18 @@ const config: Config = {
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
       fontFamily: {
-        // Editorial serif for hero moments only — see .display-serif.
-        display: ['var(--font-display)', 'Georgia', 'serif'],
+        /*
+          ⚠ The fallback stack was `Georgia, serif` and had to move with the
+          token. `--font-display` was Newsreader until brief B2 put the
+          condensed grotesk in the display slot; a serif fallback under a sans
+          means the one reader whose network drops the font file gets a
+          different *kind* of face, not a near miss — and that is the reader
+          this list exists for.
+
+          The editorial serif is not gone, it is `--font-editorial`, which
+          `.display-serif` follows.
+        */
+        display: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         xl: 'var(--radius-xl)',

@@ -16,16 +16,16 @@ import { fleetSummary } from '@wellkept/core/fleet-summary';
 
 function VehicleCardSkeleton() {
   return (
-    <div className="border border-white/8 rounded-2xl overflow-hidden bg-slate-950/80">
+    <div className="cut-panel border border-white/8 overflow-hidden bg-[hsl(var(--card))]/90">
       <div className="aspect-[3/2] skeleton-shimmer" />
       <div className="p-5 space-y-4">
         <div className="space-y-2">
-          <div className="h-5 w-3/5 skeleton-shimmer rounded-lg" />
-          <div className="h-3 w-2/5 skeleton-shimmer rounded-lg" />
+          <div className="h-5 w-3/5 skeleton-shimmer chamfer-sm" />
+          <div className="h-3 w-2/5 skeleton-shimmer chamfer-sm" />
         </div>
-        <div className="h-16 skeleton-shimmer rounded-xl" />
-        <div className="h-12 skeleton-shimmer rounded-xl" />
-        <div className="h-11 skeleton-shimmer rounded-xl" />
+        <div className="h-16 skeleton-shimmer chamfer-sm" />
+        <div className="h-12 skeleton-shimmer chamfer-sm" />
+        <div className="h-11 skeleton-shimmer chamfer-sm" />
       </div>
     </div>
   );
@@ -67,7 +67,7 @@ function PublicNavActions() {
   if (!loading && user) {
     return (
       <Link href="/garage">
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all text-sm h-9 px-4">
+        <Button size="sm" className="font-semibold">
           My Garage
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
@@ -79,7 +79,7 @@ function PublicNavActions() {
     <div className="flex items-center gap-1 sm:gap-3">
       <Link
         href="/login"
-        className="px-2 sm:px-3 py-2 text-sm font-medium text-white/60 hover:text-white transition-colors rounded-xl whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+        className="chamfer-sm px-2 sm:px-3 py-2 text-sm font-medium text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         Sign in
       </Link>
@@ -175,10 +175,24 @@ function GarageContents() {
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-white/55 mb-3">
                 Three cars, researched end to end
               </p>
-              <h1
-                className="text-5xl lg:text-6xl text-white mb-3 tracking-tight"
-                style={{ fontFamily: 'var(--font-display), Newsreader, Georgia, serif', fontWeight: 500 }}
-              >
+              {/*
+                ⚠ This was an inline `fontFamily` reading `var(--font-display),
+                Newsreader, Georgia, serif` — a fourth place the display face
+                was spelled, after the token, the Tailwind `display` stack and
+                `.display-serif`.
+
+                It broke silently on 4 Sep. Brief B2 moved `--font-display` to
+                Archivo, so the first name in that chain stopped being a serif
+                and this heading quietly changed instrument. Nothing failed;
+                the fallback naming Newsreader is what makes the author's
+                intent legible after the fact.
+
+                `.display-serif` is that intent, expressed once. It follows
+                `--font-editorial`, which is where Newsreader went, so the
+                marketing voice and the instrument voice can move
+                independently — which is the whole reason there are two tokens.
+              */}
+              <h1 className="display-serif text-5xl lg:text-6xl text-white mb-3 tracking-tight">
                 A Live Garage
               </h1>
               {/*
@@ -253,9 +267,21 @@ function GarageContents() {
                       <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Open recalls
                       </dt>
+                      {/*
+                        ⚠ Was an inline `rgb(224 136 130)` — the fifth place
+                        the old health ramp's `bad` was spelled by hand, after
+                        the CSS token, the shared `health-band.ts` channels,
+                        the recall ribbon and the error text. Every one of them
+                        had to be found by looking at a rendered page, because
+                        an inlined literal cannot be migrated by moving a token
+                        and nothing warns that it was left behind.
+
+                        A recall is on the sodium axis like every other warning
+                        in the system now.
+                      */}
                       <dd
                         className="num mt-1 text-2xl tabular-nums"
-                        style={{ color: 'rgb(224 136 130)' }}
+                        style={{ color: 'var(--critical)' }}
                       >
                         {fleet.openRecalls}
                       </dd>
@@ -267,13 +293,13 @@ function GarageContents() {
           </div>
 
           {queryError && (
-            <div className="mb-8 p-4 border border-red-500/30 rounded-xl bg-red-500/8 flex items-center justify-between gap-4">
-              <p className="text-red-400 text-sm">Failed to load vehicles. Please try refreshing.</p>
+            <div className="chamfer-sm mb-8 p-4 border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] flex items-center justify-between gap-4">
+              <p className="text-[color:var(--critical)] text-sm">Failed to load vehicles. Please try refreshing.</p>
               <Button
                 onClick={() => window.location.reload()}
                 size="sm"
                 variant="outline"
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0"
+                className="border-[color:var(--critical-border)] text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] shrink-0"
               >
                 Refresh
               </Button>
@@ -342,7 +368,7 @@ function GarageContents() {
                 </p>
                 <Button
                   onClick={() => window.location.reload()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all h-10 px-5"
+                  className="font-semibold"
                 >
                   Retry
                 </Button>

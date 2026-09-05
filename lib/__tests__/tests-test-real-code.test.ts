@@ -58,6 +58,16 @@ const STATIC_ANALYSIS_SUITES = [
     asks for its tokens without the prefix.
   */
   'design-specimen-tokens.test.ts',
+  /*
+    Scans app/, components/ and hooks/ for palette values the system has
+    retired. Nothing to import: the subject is whether a colour was typed in by
+    hand somewhere, which importing the token layer tells you nothing about.
+
+    The failure it pins is the one that cost five separate findings across the
+    Sep palette migration — an inlined literal keeps rendering the old design
+    perfectly, and nothing reports that moving the token left it behind.
+  */
+  'retired-palette-literals.test.ts',
   'auth-posture.test.ts',
   'internal-fetch-posture.test.ts',
   // Reads app/, lib/ and packages/ off disk to prove that the one function in

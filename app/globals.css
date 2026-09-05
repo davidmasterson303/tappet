@@ -202,7 +202,16 @@ nav {
      * colour at 40%, *not* `--text-muted`'s: do not "simplify" it to
      * `--text-muted` with an alpha, which would change the hue.
      */
-    --radius-sm: 8px;
+    /*
+     * ⚠ 8px -> 3px on 5 Sep. `.field` clips a chamfer AND carried this radius,
+     * so its other three corners stayed at 8px and the whole control read as a
+     * squircle with one corner missing — graded as "rounded" by a critique
+     * that was looking at the right thing.
+     *
+     * 3px rather than 0 for the reason `--radius` gives: a hairline border on
+     * a true right angle renders a visible notch where the two strokes meet.
+     */
+    --radius-sm: 3px;
     --border-subtle: rgb(255 255 255 / 0.08);
     --text-muted-40: rgb(245 243 240 / 0.4);
     /* 13px, the small-body step. It was specified with no value, so every call
@@ -296,9 +305,13 @@ nav {
      * spellings of one colour is the defect this file has fixed repeatedly, so
      * if one moves the other has to; they are adjacent here for that reason.
      *
-     * 5.28:1 against the near-white ink below, up from 4.63:1. A destructive
-     * button got *more* legible by leaving red, which is worth knowing before
-     * somebody reads this change as decoration.
+     * ⚠ 4.66:1 against the near-white ink below, against 4.63:1 for the
+     * `#DC2626` it replaces. Both clear AA and the margin is thin, so this is
+     * a hue change that held contrast rather than one that improved it — an
+     * earlier version of this note claimed 5.28:1, which was measured for
+     * `#C2350B` before the hue correction moved the token to `#B85410` and was
+     * never updated. Anything darker here buys margin cheaply: `#A34509` is
+     * 5.90:1 for two shades of difference nobody would name.
      */
     --destructive: 24 84% 39%;        /* #B85410  = --critical-solid */
     --destructive-foreground: 0 0% 98%;

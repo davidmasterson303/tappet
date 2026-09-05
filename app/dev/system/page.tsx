@@ -728,7 +728,10 @@ export default function DesignSystemPage() {
               width/height still carry the real 2400x1792 so the box is
               reserved before the bytes arrive.
             */}
-            <div className="cut-panel relative isolate overflow-hidden border border-white/8">
+            <div
+              id="glass-demo"
+              className="cut-panel relative isolate overflow-hidden border border-white/8"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/design/glass-plate-960.webp"

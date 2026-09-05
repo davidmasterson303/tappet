@@ -98,3 +98,43 @@ full-bleed backdrop hides exactly the thing the specimen exists to show.
 >
 > Anamorphic, very shallow depth of field so the highlights are soft rounded
 > bokeh, fine film grain, restrained teal-and-orange grade.
+
+---
+
+## `check-plate-{1200,1920}.webp`
+
+| | |
+|---|---|
+| **Role** | Background plate on `/check`, replacing the drawn cyan room. |
+| **Generated** | 5 Sep 2026, `gen-image.mjs`, `gemini-3-pro-image-preview`, `--n 3 --aspect 16:9` |
+| **Styled to** | `design-loop/design-system/north-star.png` via `--ref` |
+| **Source** | `design-loop/design-system/img/check-plate-2.png` — 2752×1536 |
+| **Chosen** | 2 of 3, by measurement rather than by eye. The card sits centred, so all three were profiled over the region it covers: worst-case contrast for `--text-primary` was 3.08:1, **5.93:1** and 2.56:1. Only one of them could carry a card. |
+
+⚠ `/check` is the one page in the product that photographs its room; every
+other `.service-bay` surface draws it in CSS at zero bytes.
+`image-weight-budget.test.ts` lists five pages that must ship no photograph and
+`/check` is deliberately not among them — but that file now also caps this
+plate at 70 KB, so the exemption is bounded rather than open. `app/page.tsx`
+**is** on that list, which is why the landing keeps the drawn room.
+
+### The prompt, verbatim
+
+> Background plate for a web page's hero area. Role: background plate — a dark
+> interface card sits centred on top of it, so this image is atmosphere and must
+> never compete with the card.
+>
+> Subject: wet tarmac outside a service bay at night, thrown far out of focus. No
+> car, no people, no signage, no readable objects — only light on a wet surface.
+>
+> Composition: light gathers toward the upper edge and the two lower corners, and
+> the CENTRE OF THE FRAME FALLS TO NEAR-BLACK, because a card of text sits there.
+> A warm sodium lamp bleeds in from the upper left; a cold cyan reflection pools
+> along the lower right. Everything soft, nothing in focus.
+>
+> Critical: this must read as almost entirely dark. The highlights are small,
+> contained and at the edges. No large bright areas anywhere, and nothing bright
+> within the middle third in either direction.
+>
+> Anamorphic bokeh, heavy defocus, fine film grain, restrained teal-and-orange
+> grade. No text, no logos.

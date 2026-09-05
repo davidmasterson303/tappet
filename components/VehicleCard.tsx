@@ -316,7 +316,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
   ) : null;
 
   return (
-    <div className="group card-lift relative border rounded-2xl overflow-hidden bg-[#0f1318]/90 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-cyan-400/30">
+    <div className="group card-lift cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-[color:var(--border-field-hover)]">
       {/*
         The 3:2 identity plate, and it renders unconditionally — CC-142 §2.
 
@@ -403,21 +403,50 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             like a scanline.
 
             Solid ink on a near-opaque ground now, at `uiStrong` weight rather
-            than 9px. Still the same red family, still on the plate's edge, but
-            it reads as a statement instead of a stain.
+            than 9px. Still on the plate's edge, but it reads as a statement
+            instead of a stain.
+
+            ── ⚠ It was a third copy of the health ramp — 5 Sep ─────────────
+
+            These two backgrounds were `rgb(224 136 130)` and
+            `rgb(224 164 104)`, typed as literals. Those are the **old**
+            `--ring-bad` and `--ring-warn`, so this ribbon was a third source of
+            truth for a ramp that already had two, and it is why the landing
+            page still rendered salmon after the tokens moved: an inline `rgb()`
+            cannot be migrated by changing a token, and nothing failed to warn
+            anybody.
+
+            ── The two states no longer differ by hue, so they differ by fill ──
+
+            Both are sodium under brief B3, which allows two hues and asks for
+            severity to be carried by intensity and area. B10 puts that plainly:
+            a large fill is for the critical case only. So:
+
+              critical  solid `--critical`, dark ink        8.44:1
+              attention sodium ink and a sodium rule on a
+                        near-opaque dark ground             8.74:1
+
+            The most urgent state is the only one that fills, which is a
+            stronger signal than two fills a shade apart.
+
+            ⚠ The ground stays near-opaque in both. This sits over a
+            photograph, and a translucent wash over one is the "murky smear"
+            the paragraph above is about — that argument is unchanged, and the
+            attention state honours it by darkening its ground rather than by
+            filling with colour.
           */
           className="absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border-t"
           style={
             ribbonCritical
               ? {
                   color: '#0b0a09',
-                  background: 'rgb(224 136 130 / 0.92)',
-                  borderColor: 'rgb(224 136 130)',
+                  background: 'var(--critical)',
+                  borderColor: 'var(--critical)',
                 }
               : {
-                  color: '#0b0a09',
-                  background: 'rgb(224 164 104 / 0.92)',
-                  borderColor: 'rgb(224 164 104)',
+                  color: 'var(--attention)',
+                  background: 'rgb(11 10 9 / 0.86)',
+                  borderColor: 'var(--attention)',
                 }
           }
         >
@@ -489,7 +518,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </span>
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowMileageDialog(true); }}
-                className="meta-edit tap-target-44 text-white/50 hover:text-cyan-400 transition-colors"
+                className="meta-edit tap-target-44 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] transition-colors"
                 aria-label={`Update mileage for ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -523,25 +552,25 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-950 border-white/15 text-white min-w-[160px]">
+              <DropdownMenuContent align="end" className="bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)] min-w-[160px]">
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowPhotoDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Camera className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Camera className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Change Photo
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowMileageDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Pencil className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Update Mileage
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem
-                    className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer"
+                    className="text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)] cursor-pointer"
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -551,7 +580,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-slate-950 border-white/15">
+            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
                 <AlertDialogDescription className="text-white/60">
@@ -560,7 +589,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-500 text-white">
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -618,12 +647,12 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
         <Link
           href={`/dashboard/${vehicle.id}`}
           aria-label={`Open ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-          className="stretch-link absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+          className="stretch-link chamfer-sm absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         />
       </div>
 
       <Dialog open={showMileageDialog} onOpenChange={setShowMileageDialog}>
-        <DialogContent className="bg-slate-950 border-white/15">
+        <DialogContent className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
           <DialogHeader>
             <DialogTitle className="text-white">Update Mileage</DialogTitle>
             <DialogDescription className="text-white/60">
