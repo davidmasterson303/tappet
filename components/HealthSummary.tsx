@@ -580,7 +580,11 @@ export default function HealthSummary({
                   key={flag}
                   className="flex items-start gap-2.5 border-l-2 border-[color:var(--attention)] pl-3 py-1"
                 >
-                  <AlertTriangle className="h-3.5 w-3.5 text-[color:var(--attention)] shrink-0 mt-0.5" />
+                  {/* ⚠ The triangle is cut — dossier §7. "A 1px sodium left
+                      rule carries each row alone", and it does: the rule is the
+                      warning, and a glyph beside it is the same statement in a
+                      generic alert-list voice. The row is already sodium on
+                      three counts — rule, and nothing else needed one. */}
                   <p className="text-xs leading-snug text-[color:var(--text-primary)]">{flag}</p>
                 </div>
               ))}

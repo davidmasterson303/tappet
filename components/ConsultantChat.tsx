@@ -766,9 +766,14 @@ export default function ConsultantChat({
                      bordered frame; the critique counted the nesting and asked
                      for "the cyan hairline, not a grey card". A rule marks a
                      position without adding a container. */
+                  /* ⚠ No fill on the active row. B10 of the system brief
+                     reserves large fills for hover and critical, and a resting
+                     selection is neither — the cyan hairline plus off-white
+                     title is the whole active state. Hover keeps its wash,
+                     which is exactly the case a fill is for. */
                   className={`w-full text-left p-3 border-l-2 transition-colors ${
                     activeSessionId === session.id
-                      ? 'border-[color:var(--info)] bg-white/4'
+                      ? 'border-[color:var(--info)]'
                       : 'border-transparent hover:bg-white/4'
                   }`}
                 >
@@ -1370,7 +1375,7 @@ export default function ConsultantChat({
                 Truncates, never wraps — a second line here pushes the controls
                 around as mileage changes.
               */}
-              <span className="flex-1 min-w-0 truncate text-xs text-white/50">
+              <span className="mono flex-1 min-w-0 truncate text-xs text-white/50">
                 {vehicle.year} {vehicle.make} {vehicle.model}
                 {` · ${displayMileage.toLocaleString()} mi`}
                 {openItemCount > 0 && ` · ${openItemCount} open item${openItemCount === 1 ? '' : 's'}`}
