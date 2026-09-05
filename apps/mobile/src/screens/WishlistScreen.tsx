@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   ActivityIndicator,
   Alert,
@@ -13,14 +14,26 @@ import {
 
 import Button from '../components/Button';
 import Card from '../components/Card';
+import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import { wishlistItemIdentifier, type WishlistItemType } from '@crewchief/core/wishlist-identifier';
-import { formatCurrency } from '@crewchief/core/formatting-utils';
-import { completionPayload, type CompletionDraft } from '@crewchief/core/wishlist-completion';
+import { formatCurrency } from '@wellkept/core/formatting-utils';
+import { completionPayload, type CompletionDraft } from '@wellkept/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
-import { border, brand, radius, status, surface, text, type } from '../theme';
+import {
+  OPTICAL_CENTRE,
+  PAGE_BODY,
+  TABULAR,
+  border,
+  brand,
+  radius,
+  space,
+  status,
+  surface,
+  text,
+  type,
+} from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -44,23 +57,59 @@ import { interFace } from '../theme/fonts';
  * screen could have added and deleted items and never listed them. The bug was
  * invisible from the web app and would have looked like an empty wishlist here.
  *
- * ── Why a manual add, and only a manual one ─────────────────────────────────
+ * ── ⚠ 23 Aug: the free-text defence had expired ────────────────────────────
  *
- * The web adds items from three places — the dossier, the consultant, and a
- * manual dialog — because it has the surfaces that suggest them. The phone has
- * none of those yet, so a free-text add is the honest version: it is what "on
- * the go" means, and the suggestion-driven paths belong with the screens that
- * do the suggesting.
+ * This docblock used to say: *"The web adds items from three places — the
+ * dossier, the consultant, and a manual dialog — because it has the surfaces
+ * that suggest them. The phone has none of those yet, so a free-text add is the
+ * honest version."*
  *
- * The identifier comes from `@crewchief/core/wishlist-identifier`, which exists
- * because three call sites once built it three different ways and produced
- * duplicates, a lying "already added" state, and deletes that silently matched
- * nothing. A fourth spelling here would reintroduce all three.
+ * The phone had them. `vehicle_knowledge_base` is on the `load-vehicle`
+ * payload this screen sits one route from, `BuildScreen` had been reading
+ * `common_mods` out of it since the same morning, and `known_issues` and
+ * `maintenance_schedule` map onto the other two wishlist types exactly.
+ *
+ * David's verdict was *"totally underbaked"*, and the shape of the fix was his
+ * too: suggestions with Add and Learn more, filterable as you type.
+ * `WishlistAddScreen` is that catalogue; this screen is the list it feeds.
+ *
+ * ── What this screen is now ────────────────────────────────────────────────
+ *
+ * The list, and only the list: a summary line, the rows, and the two things
+ * you can do to a row. Adding moved off it entirely — the composer used to sit
+ * above the first item and made this a data-entry form with a list underneath.
+ *
+ * The identifier still comes from `@wellkept/core/wishlist-identifier`, which
+ * exists because three call sites once built it three different ways and
+ * produced duplicates, a lying "already added" state, and deletes that silently
+ * matched nothing. A fourth spelling anywhere reintroduces all three.
  */
 
 interface Props {
   vehicleId: string;
   onSignOut: () => void;
+  /**
+   * Opens the suggestions catalogue.
+   *
+   * ⚠ A route, not a sheet on this screen. `native-wishlist.spec.html`: *"Add
+   * is in the nav bar, not a floating action button. A FAB covers the last row
+   * and belongs to a different design language."*
+   */
+  onAdd: () => void;
+  /**
+   * Told when the list turns out to be empty, so the nav bar can drop its `+`.
+   *
+   * ⚠ The redundancy David flagged was two controls doing one job on a screen
+   * with nothing on it. I removed the wrong one first — a filled button is the
+   * affordance on an empty screen, and a corner glyph is not. So the button
+   * stays and the `+` stands down until there is a list to add to.
+   *
+   * Reported upward rather than decided in the navigator, because only this
+   * screen knows whether the fetch came back empty — and it must not be
+   * confused with "still loading", which is why it fires on the loaded state
+   * rather than on `items.length` at any moment.
+   */
+  onEmptyChange?: (empty: boolean) => void;
 }
 
 interface WishlistItem {
@@ -78,31 +127,64 @@ type State =
   | { kind: 'error'; message: string }
   | { kind: 'loaded'; items: WishlistItem[] };
 
-/** The three the route accepts. Anything else is a 400 from the server. */
-const TYPES: Array<{ value: WishlistItemType; label: string }> = [
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'modification', label: 'Mod' },
-  { value: 'issue', label: 'Issue' },
-];
-
 function estimate(item: WishlistItem): string | null {
   const total = (item.estimated_cost_parts ?? 0) + (item.estimated_cost_labor ?? 0);
   return total > 0 ? formatCurrency(total) : null;
 }
 
-export function WishlistScreen({ vehicleId, onSignOut }: Props) {
+/**
+ * ⚠ The list's total, summed from **the same array the rows render from**.
+ *
+ * Not a stored figure and not a second query. `native-wishlist.spec.html`
+ * records this system shipping "Wishlist · 4 items" over three rows and says
+ * why it matters: a count that disagrees with what is on screen is the fastest
+ * way to lose a user's trust in every other number. Deriving both from one
+ * array is the only version where they cannot disagree.
+ *
+ * Rows with no estimate contribute 0 and still count as a row — which is
+ * honest: it is a real item nobody has costed, and the summary says
+ * "estimated" for exactly that reason.
+ */
+function listTotal(items: readonly WishlistItem[]): number {
+  return items.reduce(
+    (sum, item) => sum + (item.estimated_cost_parts ?? 0) + (item.estimated_cost_labor ?? 0),
+    0
+  );
+}
+
+/**
+ * The row's chip.
+ *
+ * `category` when the item came from somewhere that assigned one — the
+ * progression ladder writes a role there — falling back to the item type in
+ * plain words. Never "Item": a chip that says nothing is a chip that should
+ * not be drawn, and every row has at least a type.
+ */
+const TYPE_WORD: Record<string, string> = {
+  issue: 'Known issue',
+  maintenance: 'Service',
+  modification: 'Modification',
+};
+
+function chipFor(item: WishlistItem): string {
+  return item.category?.trim() || TYPE_WORD[item.item_type ?? ''] || 'Service';
+}
+
+/**
+ * Whether a row may wear colour.
+ *
+ * ⚠ Only an **issue** can, and only because that is the one type where the
+ * research made a severity judgement. A service and a modification are things
+ * you plan; an issue is a thing that is wrong. Colouring more than that is how
+ * a list teaches its reader to ignore the colour — the spec's own point.
+ */
+function isUrgent(item: WishlistItem): boolean {
+  return item.item_type === 'issue';
+}
+
+export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [draftType, setDraftType] = useState<WishlistItemType>('maintenance');
-  const [saving, setSaving] = useState(false);
-  /*
-    The composer is closed by default. It used to sit permanently above the
-    list, which made this a data-entry form with a list underneath rather than
-    "your list" with a way to add to it — and it pushed the first real item
-    below the fold on a phone.
-  */
-  const [composerOpen, setComposerOpen] = useState(false);
   const [doneItem, setDoneItem] = useState<WishlistItem | null>(null);
   const [completing, setCompleting] = useState(false);
 
@@ -118,7 +200,15 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         setState({ kind: 'loaded', items: body.wishlistItems ?? [] });
       } catch (error) {
         const apiError = error as ApiRequestError;
-        if (apiError.status === 401) {
+        /*
+          ⚠ **MOB-08.** `isLocallySignedOut`, not any 401. A `device` 401 is
+          genuinely signed out; a `server` 401 may be a token the server would
+          accept a second later, and destroying a working session over one
+          response is how a spurious failure becomes a forced re-login. The
+          client's own docblock records a real tester hitting this three times out
+          of three on 5 Aug — and one screen consumed the distinction.
+        */
+        if (apiError.isLocallySignedOut) {
           onSignOut();
           return;
         }
@@ -134,45 +224,26 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
     void load();
   }, [load]);
 
-  const add = useCallback(async () => {
-    const itemName = draft.trim();
-    if (!itemName || saving) return;
+  /*
+    ── ⚠ MOB-09 · a write behind this screen used to be invisible ─────────────
 
-    setSaving(true);
-    try {
-      await apiRequest('/wishlist', {
-        method: 'POST',
-        body: {
-          vehicleId,
-          itemType: draftType,
-          itemName,
-          itemIdentifier: wishlistItemIdentifier(draftType, itemName),
-        },
-      });
-      setDraft('');
-      await load(true);
-    } catch (error) {
-      const apiError = error as ApiRequestError;
-      if (apiError.status === 401) {
-        onSignOut();
-        return;
-      }
-      /*
-        409 is a normal path, not a failure. The route returns it when the
-        identifier already exists — which is the dedupe working, and the honest
-        message is that it is already on the list rather than that something
-        broke.
-      */
-      Alert.alert(
-        apiError.status === 409 ? 'Already on the list' : 'Could not add that',
-        apiError.status === 409
-          ? `"${itemName}" is already on this vehicle's wishlist.`
-          : (apiError.message ?? 'Try again in a moment.')
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [draft, draftType, saving, vehicleId, load, onSignOut]);
+    Nothing in this app refetched on focus. Every screen loaded once on mount
+    and kept whatever it had — so adding to the wishlist, marking a recall
+    repaired, confirming an odometer or scanning an invoice all succeeded and
+    then returned to a screen that said they had not.
+
+    `useRefetchOnFocus` carries the full argument, including why this runs on
+    the first focus too rather than being clever about skipping it.
+  */
+  useRefetchOnFocus(load);
+
+  /*
+    Only ever from the loaded state. "Loading" is not "empty", and reporting it
+    as such would flash the nav bar's `+` out and back on every refresh.
+  */
+  useEffect(() => {
+    if (state.kind === 'loaded') onEmptyChange?.(state.items.length === 0);
+  }, [state, onEmptyChange]);
 
   const remove = useCallback(
     (item: WishlistItem) => {
@@ -195,7 +266,15 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 await load(true);
               } catch (error) {
                 const apiError = error as ApiRequestError;
-                if (apiError.status === 401) {
+                /*
+                  ⚠ **MOB-08.** `isLocallySignedOut`, not any 401. A `device` 401 is
+                  genuinely signed out; a `server` 401 may be a token the server would
+                  accept a second later, and destroying a working session over one
+                  response is how a spurious failure becomes a forced re-login. The
+                  client's own docblock records a real tester hitting this three times out
+                  of three on 5 Aug — and one screen consumed the distinction.
+                */
+                if (apiError.isLocallySignedOut) {
                   onSignOut();
                   return;
                 }
@@ -224,7 +303,15 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         await load(true);
       } catch (error) {
         const apiError = error as ApiRequestError;
-        if (apiError.status === 401) {
+        /*
+          ⚠ **MOB-08.** `isLocallySignedOut`, not any 401. A `device` 401 is
+          genuinely signed out; a `server` 401 may be a token the server would
+          accept a second later, and destroying a working session over one
+          response is how a spurious failure becomes a forced re-login. The
+          client's own docblock records a real tester hitting this three times out
+          of three on 5 Aug — and one screen consumed the distinction.
+        */
+        if (apiError.isLocallySignedOut) {
           onSignOut();
           return;
         }
@@ -264,9 +351,18 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
     );
   }
 
+  const empty = state.items.length === 0;
+
   return (
     <ScrollView
-      contentContainerStyle={styles.body}
+      /*
+        R37 / R57. Optically centred when the list is empty, top-aligned the
+        moment there is anything to read. `OPTICAL_CENTRE` only has slack to
+        distribute when the content is shorter than the display, so this is one
+        rule rather than a branch — the flag is here only because the empty
+        state is short *and* the list can be too on a tall phone.
+      */
+      contentContainerStyle={[styles.body, empty && OPTICAL_CENTRE]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
@@ -276,94 +372,27 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         />
       }
     >
-      {!composerOpen ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add something to the wishlist"
-          style={styles.openComposer}
-          onPress={() => setComposerOpen(true)}
-        >
-          <Text style={styles.openComposerText}>Add something</Text>
-        </Pressable>
-      ) : (
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.input}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Something this car needs"
-            placeholderTextColor={text.muted}
-            accessibilityLabel="What to add to the wishlist"
-            returnKeyType="done"
-            autoFocus
-            onSubmitEditing={() => void add()}
-          />
+      {/*
+        ── The summary line ────────────────────────────────────────────────────
 
-          {/*
-            ── The type is a refinement, not a toll gate ──────────────────────
+        ⚠ **The count and the total come from the same array**, and that is a
+        rule with a history. `native-wishlist.spec.html`: *"the total sums to
+        $4,980 and the four rows are all four rows. Stated because this system
+        has shipped 'Wishlist · 4 items' over three rows before; a count that
+        disagrees with what is on screen is the fastest way to lose a user's
+        trust in every other number."*
 
-            These were three equal chips with `maintenance` preselected, shown
-            before the text field had anything in it. That made a taxonomy
-            decision the *first* thing the screen asked for, and the answer
-            barely surfaced afterwards — nothing groups or filters by it, so the
-            user classified an item for no visible return.
-
-            Now they appear only once there is something to classify, and the
-            label says what they are for. The default still stands on its own:
-            most things a car needs are maintenance, and an unchanged default is
-            a correct answer rather than an unanswered question.
-          */}
-          {draft.trim().length > 0 && (
-            <View style={styles.typeBlock}>
-              <Text style={styles.typeLabel}>File it as</Text>
-              <View style={styles.typeRow}>
-                {TYPES.map((type) => (
-                  <Pressable
-                    key={type.value}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: draftType === type.value }}
-                    accessibilityLabel={`File as ${type.label}`}
-                    style={[styles.typeChip, draftType === type.value && styles.typeChipOn]}
-                    onPress={() => setDraftType(type.value)}
-                  >
-                    <Text style={[styles.typeText, draftType === type.value && styles.typeTextOn]}>
-                      {type.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <View style={styles.composerActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancel adding"
-              style={styles.composerCancel}
-              onPress={() => {
-                setComposerOpen(false);
-                setDraft('');
-              }}
-            >
-              <Text style={styles.composerCancelText}>Cancel</Text>
-            </Pressable>
-
-            <Button
-              label="Add"
-              variant="inverse"
-              /*
-                Named explicitly. The visible label shortened to "Add" when the
-                composer gained a Cancel beside it, and "Add" alone is a poor
-                accessible name — a screen reader user hears it with no object.
-                The visible text can be terse because the surrounding form is
-                visible; the accessible name cannot rely on that.
-              */
-              accessibilityLabel="Add to wishlist"
-              disabled={!draft.trim()}
-              busy={saving}
-              onPress={() => void add()}
-            />
-          </View>
+        `estimated` is said out loud rather than implied by a currency symbol.
+        Some rows carry no price at all — nobody has costed them — so the total
+        is a floor, and calling it an estimate is the honest framing §10 asks
+        for.
+      */}
+      {state.items.length > 0 && (
+        <View style={styles.summary}>
+          <Text style={styles.summaryLabel}>
+            {state.items.length} {state.items.length === 1 ? 'ITEM' : 'ITEMS'} · ESTIMATED
+          </Text>
+          <Text style={styles.summaryTotal}>{formatCurrency(listTotal(state.items))}</Text>
         </View>
       )}
 
@@ -374,13 +403,34 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
           one thing on a screen with nothing on it — which reads as indecision
           rather than helpfulness.
         */
+        /*
+          ⚠ The big CTA stays, and the **nav bar's `+` is what goes** — see the
+          header's note. I resolved the redundancy the wrong way round first.
+
+          On an empty screen a filled button is the affordance and a 22pt glyph
+          in the corner is a rounding error; once there are rows the `+` is
+          right and there is no empty state to compete with it. One control per
+          state, rather than one control per screen.
+        */
         <EmptyState
           headline="Nothing on the list yet"
-          body="Add what this car needs as you think of it. The advisor uses this list when it works out what a job would cost."
+          body="See what we already know this car needs — its known issues, its schedule, and the usual modifications. You can add anything of your own too."
+          actionLabel="See suggestions"
+          actionAccessibilityLabel="See what this car needs"
+          onAction={onAdd}
         />
       ) : (
-        state.items.map((item) => (
-          <Card key={item.id} style={styles.cardGap}>
+        state.items.map((item, index) => (
+          /*
+            ⚠ A divided row, not a `Card` each. The spec is explicit: *"rows get
+            whitespace and a hairline divider, never zebra striping"* — and a
+            stack of bordered cards is the same mistake in the other direction,
+            six boxes where the eye wants one list. The last row draws no rule.
+          */
+          <View
+            key={item.id}
+            style={[styles.item, index < state.items.length - 1 && styles.itemDivided]}
+          >
             <View style={styles.itemHead}>
               <Text style={styles.itemName}>{item.item_name}</Text>
               {estimate(item) && <Text style={styles.itemCost}>{estimate(item)}</Text>}
@@ -389,7 +439,12 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
             {item.description ? <Text style={styles.itemBody}>{item.description}</Text> : null}
 
             <View style={styles.itemFoot}>
-              <Text style={styles.itemMeta}>{item.category ?? item.item_type ?? 'Item'}</Text>
+              {/*
+                Neutral unless the row earned otherwise. The spec: *"semantic
+                colour does semantic work only — 'Control' and 'Durability' are
+                roles from the progression ladder, not severities."*
+              */}
+              <Chip label={chipFor(item)} tone={isUrgent(item) ? 'attention' : 'neutral'} />
               <View style={styles.itemActions}>
                 <Pressable
                   accessibilityRole="button"
@@ -409,7 +464,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 </Pressable>
               </View>
             </View>
-          </Card>
+          </View>
         ))
       )}
 
@@ -426,7 +481,36 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: 20, gap: 14, paddingBottom: 40 },
+  /*
+    ── The summary line ─────────────────────────────────────────────────────
+
+    Label left in the uppercase label role, total right at the editorial size in
+    tabular figures. It is the one big number on the screen and it earns that:
+    the list exists so somebody can see what this car is going to cost.
+  */
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: space.md,
+    paddingBottom: space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: border.panel,
+  },
+  summaryLabel: { ...type.label, color: text.muted },
+  summaryTotal: {
+    ...type.editorial,
+    fontSize: 26,
+    lineHeight: 32,
+    color: text.primary,
+    ...TABULAR,
+  },
+
+  /* Rows in one list, divided by a hairline. Never cards, never striped. */
+  item: { paddingVertical: space.md, gap: space.xs },
+  itemDivided: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
+
+  body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
   /*
@@ -488,9 +572,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  typeChipOn: { backgroundColor: surface.inverse },
+  /*
+    ⚠ The selected state is the brand fill, not white. It was `surface.inverse`
+    until 23 Aug, which put a white fill on a screen whose primary button is
+    cyan — the same two-filled-treatments conflict the retired `inverse` button
+    variant caused, one control down. See `Button`'s docblock.
+  */
+  typeChipOn: { backgroundColor: brand.primary },
   typeText: { color: text.secondary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
-  typeTextOn: { color: text.onInverse },
+  typeTextOn: { color: text.onPrimary },
 
   /*
     An explicit fill, **not `opacity`**, and that is a testability decision as

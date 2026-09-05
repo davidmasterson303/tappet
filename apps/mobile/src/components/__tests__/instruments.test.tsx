@@ -1,9 +1,9 @@
 import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo, Dimensions, StyleSheet, processColor } from 'react-native';
-import { R } from '@crewchief/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@crewchief/core/health-band';
-import { REDLINE_FROM, buildPosition } from '@crewchief/core/build-progress';
-import { vehicleFieldStops } from '@crewchief/core/vehicle-identity';
+import { R } from '@wellkept/core/cluster-geometry';
+import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+import { REDLINE_FROM, buildPosition } from '@wellkept/core/build-progress';
+import { vehicleFieldStops } from '@wellkept/core/vehicle-identity';
 
 import BuildGauge from '../BuildGauge';
 import ClusterGauge from '../ClusterGauge';
@@ -14,7 +14,7 @@ import GarageBay from '../GarageBay';
 import { BAY_HERO_MAX, BAY_HERO_MIN, bayHeroHeight } from '../BayRoom';
 import HealthDrivers from '../HealthDrivers';
 import Plinth from '../Plinth';
-import type { HealthDriver } from '@crewchief/core/health-drivers';
+import type { HealthDriver } from '@wellkept/core/health-drivers';
 import { DIAL_MIN, build, plinth, text } from '../../theme';
 
 /**
@@ -883,7 +883,14 @@ describe('the bay’s next-service row', () => {
     );
 
     view.getByText('NEXT SERVICE');
-    view.getByText('Engine oil and filter · in 420 mi');
+    /*
+      ⚠ **R21, 23 Aug.** The job and the timing are two nodes now, not one
+      dot-joined run — the job at `text.primary` and the timing quieter and
+      tabular beside it. It was the most actionable string on the home screen
+      rendered as a label-plus-run-on at one weight.
+    */
+    view.getByText('Engine oil and filter');
+    view.getByText('in 420 mi');
     await view.unmount();
   });
 
@@ -952,7 +959,8 @@ describe('the bay’s next-service row', () => {
       />
     );
 
-    view.getByText('Engine oil and filter · at 41,620 mi');
+    view.getByText('Engine oil and filter');
+    view.getByText('at 41,620 mi');
     await view.unmount();
   });
 });

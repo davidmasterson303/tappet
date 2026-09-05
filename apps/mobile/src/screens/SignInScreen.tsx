@@ -14,7 +14,7 @@ import {
 import { API_BASE_URL } from '../config';
 import Button from '../components/Button';
 import Field from '../components/Field';
-import Logo from '../components/Logo';
+import BrandLockup from '../components/BrandLockup';
 import { resetPassword, signIn, signUp } from '../auth/session';
 import { hasDevCredentials, signInWithDevCredentials } from '../auth/dev-session';
 import { checkSharedCore } from '../core-check';
@@ -118,7 +118,12 @@ export function SignInScreen() {
       <View style={styles.form}>
         {/* The stacked lockup, per the Sweep handoff: this screen had no mark. */}
         <View style={styles.lockup}>
-          <Logo variant="stacked" size={60} />
+          {/*
+            The full lockup, maker line and all. Sign-in is the first screen of
+            the product and the one place a name and its maker are the subject
+            rather than chrome — the same call the legal pages make on the web.
+          */}
+          <BrandLockup width={240} />
         </View>
         <Text style={styles.subtitle}>
           {isNew ? 'Create your garage' : 'Sign in to your garage'}
@@ -171,7 +176,7 @@ export function SignInScreen() {
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
         {/*
-          The inverse CTA, from the primitive rather than a sixth private copy.
+          The filled primary, from the primitive rather than a sixth private copy.
 
           `Button` carries the whole treatment: the white fill for a control
           that has to outrank everything, the disabled fill that stays light so
@@ -182,7 +187,7 @@ export function SignInScreen() {
         */}
         <Button
           label={isNew ? 'Create account' : 'Sign in'}
-          variant="inverse"
+          variant="primary"
           onPress={handleSubmit}
           disabled={!canSubmit}
           busy={busy}

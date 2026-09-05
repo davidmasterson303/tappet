@@ -1,4 +1,5 @@
-import type { DueStatus, ServiceDue } from './service-due';
+import { evaluateSchedule, type DueStatus, type ServiceDue } from './service-due';
+import { historyLookups, type ServiceHistoryRow } from './service-history';
 import { normaliseRecalls, worstSeverity, type NormalisedRecall } from './recalls';
 
 /**
@@ -51,6 +52,32 @@ export interface HealthDriver {
   score: number | null;
   /** One line saying what the number is made of. Always present, even at null. */
   detail: string;
+  /**
+   * Whether this driver found **nothing outstanding** on its subject.
+   *
+   * ── ⚠ Exists so a screen can notice two of its own voices disagreeing ─────
+   *
+   * The dashboard shows a computed driver and a model-written claim about the
+   * same subject, and on the seeded M3 they contradict each other in plain
+   * sight: "Maintenance 97 — nothing overdue among the 6 we can check" sits
+   * directly above "Brake fluid overdue", and four rounds of a design critique
+   * called that the single biggest failure on the page. For a product whose
+   * position is that it makes no claim the data cannot support, they were
+   * right.
+   *
+   * ⚠ **Neither side is wrong.** `nextDueMileage` counts a service with no
+   * record from the next interval boundary above the odometer — deliberately,
+   * because a car bought at 60,000 miles is not 52,500 miles overdue for an
+   * oil change — so a 40,000-mile item on a 67,400-mile car with no record is
+   * *later*, not overdue. The model reads the same missing record as "likely
+   * on original fluid". Two defensible readings of one absence.
+   *
+   * So the fix is not to silence either. It is to let the screen say they
+   * disagree and why, which needs a fact rather than a threshold: this is that
+   * fact, set by the driver that computed it. A UI guessing at it from
+   * `score >= 80` would be inventing the precision this file exists to refuse.
+   */
+  nothingOutstanding?: boolean;
 }
 
 /* ── Maintenance ─────────────────────────────────────────────────────────── */
@@ -123,13 +150,64 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
   const unknown = count('unknown');
 
   /*
+    ── ⚠ FN-01b · nothing known is not "nothing overdue" ─────────────────────
+
+    `STATUS_PENALTY.unknown` is **0**, and that is right: an owner should not be
+    marked down for records we do not have. But 0 penalty across every service
+    produces `100 - 0 = 100`, and the sentence beside it read *"Nothing overdue,
+    across 8 tracked services"* — a **perfect maintenance score for a car with
+    no service records at all**, in the one module written to stop absence being
+    rendered as an all-clear. Confirmed live on 23 Aug against the M235i.
+
+    The two halves were each defensible and the combination was not. Not
+    penalising an unknown is correct; **scoring at all when everything is
+    unknown is not**, because a score computed from no evidence is a claim.
+
+    `null` already means "we cannot say" here — the no-schedule branch above
+    returns it — so the fix is to reach the same conclusion from the same
+    absence, arrived at one step later.
+  */
+  if (unknown === services.length) {
+    return {
+      key: 'maintenance',
+      label,
+      score: null,
+      detail: `No service records yet for any of ${plural(services.length, 'tracked service')}.`,
+    };
+  }
+
+  /*
     The sentence is assembled from the same counts the score is, so it can never
     describe a different car than the number does.
+
+    ⚠ **The absence leads when there is nothing else to report.** "Nothing
+    overdue, across 8 tracked services. 3 services with no record to count from."
+    reads as a clean bill with a footnote, and the footnote is the load-bearing
+    half. When the only thing to say is that records are missing, that is what
+    the sentence opens with.
   */
   const parts: string[] = [];
   if (overdue > 0) parts.push(`${plural(overdue, 'service')} overdue`);
   if (due > 0) parts.push(`${due} due now`);
-  if (parts.length === 0) parts.push('Nothing overdue');
+
+  const counted = services.length - unknown;
+
+  if (parts.length === 0) {
+    const detail =
+      unknown > 0
+        ? `${plural(unknown, 'service')} with no record to count from. Nothing overdue among the ${counted} we can check.`
+        : `Nothing overdue, across ${plural(services.length, 'tracked service')}.`;
+
+    // Nothing overdue and nothing due: the only branch that reports a clear
+    // subject, and the only one a contradicting claim can be measured against.
+    return {
+      key: 'maintenance',
+      label,
+      score: clamp(100 - penalty),
+      detail,
+      nothingOutstanding: true,
+    };
+  }
 
   let detail = `${parts.join(', ')}, across ${plural(services.length, 'tracked service')}.`;
   if (unknown > 0) {
@@ -194,7 +272,13 @@ export function recallDriver(raw: unknown): HealthDriver {
   const recalls: NormalisedRecall[] = normaliseRecalls(raw);
 
   if (recalls.length === 0) {
-    return { key: 'recalls', label, score: 100, detail: 'No recalls on record.' };
+    return {
+      key: 'recalls',
+      label,
+      score: 100,
+      detail: 'No recalls on record.',
+      nothingOutstanding: true,
+    };
   }
 
   const penalty = FIRST_RECALL + (recalls.length - 1) * EACH_FURTHER_RECALL;
@@ -305,4 +389,95 @@ export function healthDrivers(params: {
       today: params.today,
     }),
   ];
+}
+
+/* ── One assembly, for every client ──────────────────────────────────────── */
+
+/**
+ * The three drivers for one vehicle, from the rows a client actually holds.
+ *
+ * ── ⚠ Why the assembly is here and not at each call site ────────────────────
+ *
+ * `healthDrivers` takes *evaluated* services, so every caller first has to run
+ * `evaluateSchedule` over the knowledge base's schedule with `historyLookups`
+ * built from the vehicle's maintenance rows — and get three separate things
+ * right while doing it: that a missing schedule is `[]` rather than a throw,
+ * that a failed history read degrades to no history rather than to no services,
+ * and that `recalls` stays `undefined` when NHTSA was never asked instead of
+ * becoming an empty array.
+ *
+ * `app/api/v1/load-vehicle/route.ts` got all three right. It was also the
+ * **only** caller, which is why the web dashboard rendered no drivers at all —
+ * and the reason D10 could specify "refuse to render a band when all three
+ * drivers return null" against a client that had no drivers to consult.
+ *
+ * Duplicating that assembly to fix it would be this codebase's most repeated
+ * defect volunteered for a second time: a capability that is subtly right in
+ * one client and subtly different in the other. So the assembly moves here,
+ * where both read it, and the third client that needs it inherits the three
+ * decisions rather than re-making them.
+ */
+export function driversForVehicle(params: {
+  /** `vehicle_knowledge_base.maintenance_schedule`. Anything not an array means no schedule. */
+  schedule: unknown;
+  /** `maintenance_line_items` rows. Pass `[]` for a read that failed — see below. */
+  historyRows: ServiceHistoryRow[];
+  /**
+   * Raw `nhtsa_data.recalls`.
+   *
+   * ⚠ `undefined` when the lookup never ran or did not resolve. `recallDriver`
+   * reads that as "not checked" and an empty array as "checked, none found",
+   * and they must not be collapsed.
+   */
+  recalls: unknown;
+  currentMileage?: number | null;
+  year?: number | null;
+  today?: string;
+}): HealthDriver[] {
+  /*
+    A failed history read degrades to *no history*, never to no services. Every
+    mileage-driven service still evaluates from the odometer alone; what is lost
+    is the date evidence, which `maintenanceDriver` reports as `unknown` and is
+    explicitly built not to charge for.
+  */
+  const services = Array.isArray(params.schedule)
+    ? evaluateSchedule({
+        schedule: params.schedule as Parameters<typeof evaluateSchedule>[0]['schedule'],
+        currentMileage: params.currentMileage ?? 0,
+        ...historyLookups(params.historyRows),
+        ...(params.today === undefined ? {} : { today: params.today.slice(0, 10) }),
+      })
+    : [];
+
+  return healthDrivers({
+    services,
+    recalls: params.recalls,
+    currentMileage: params.currentMileage,
+    year: params.year,
+    today: params.today,
+  });
+}
+
+/**
+ * Whether the drivers support showing a band at all.
+ *
+ * ── ⚠ D10 · "refuse to render a band when all three drivers return null" ────
+ *
+ * The health score comes from the model and the drivers are computed, so the
+ * two can disagree — and the disagreement that matters is the one where the
+ * model returns a confident number for a car about which *nothing computable is
+ * known*. Every driver `null` means: no service schedule or no records against
+ * it, no recall lookup, and no odometer-and-year pair. A score presented as a
+ * reading on top of that is a judgement about nothing, which is the same defect
+ * as the hardcoded 70 arriving by a longer route.
+ *
+ * ⚠ This is deliberately **all** rather than **any**. One null driver is
+ * normal and is exactly the case the drivers are written to report honestly —
+ * a car with an odometer and no recall check still supports a reading. Refusing
+ * on any null would suppress the band on most real vehicles and teach everyone
+ * to ignore the rule.
+ */
+export function driversSupportAScore(drivers: HealthDriver[]): boolean {
+  if (drivers.length === 0) return false;
+  return drivers.some((driver) => driver.score !== null);
 }

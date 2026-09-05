@@ -138,6 +138,18 @@ function blocker(file: string, seen = new Set<string>()): string | null {
  * Adding a name here without fixing the module fails the assertions below.
  */
 const PORTABLE: string[] = [
+  /*
+    Added 3 Sep. It takes its Supabase client as a parameter — deliberately, so
+    the browser client and the service-role one can both use it — and imports
+    nothing but core's logger, which is what makes it portable rather than an
+    exception. The judgement it feeds, `recallsAreKnown`, is already in core.
+
+    Not moved yet because the fallback it wraps is meant to be **deleted**: it
+    exists only until `nhtsa_data.lookup_status` is applied. Promoting a
+    module into the shared package on its way out invites a second client to
+    import it.
+  */
+  'lib/nhtsa-row.ts',
   // Every module that qualified has moved into packages/core/src.
   // A new portable module in lib/ belongs here until it moves.
   /*
@@ -234,6 +246,16 @@ const NOT_PORTABLE: Record<string, string> = {
   */
   'lib/ai-budget.ts': 'reads usage with the service role — reaches Supabase through lib/supabase',
   /*
+    The same split again, and the reasoning is the mirror of `ai-budget`'s. The
+    decision — what the paid features are, what the copy says, what an
+    unenforced gate means — is in `packages/core/src/paid-features.ts` and is
+    portable. Only the entitlement read needs a service-role client, and it
+    needs one for a sharper reason than usage does: a client that could read its
+    own entitlement row could write one.
+  */
+  'lib/feature-gate.ts':
+    'reads entitlements with the service role — reaches Supabase through lib/supabase',
+  /*
     The same split a third time. The vocabulary, the visitor-id rule and the
     cumulative counts are in `packages/core/src/funnel.ts` and are portable.
     Only the write needs a service-role client, and here that is not a detail:
@@ -290,6 +312,7 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/vehicle-photo.ts': 'mints signed URLs through a Supabase storage client',
   'lib/storage-objects.ts': 'reaches Supabase through lib/supabase',
   'lib/consultant-context.ts': 'queries Supabase — the shape it returns is portable, the loading is not',
+
   'lib/gemini.ts': 'client at module scope — a build-time server key (§19)',
   /*
     Server-only by construction, and deliberately so. It holds a service-role
@@ -298,7 +321,7 @@ const NOT_PORTABLE: Record<string, string> = {
     Worth saying why it is not split the way `image-resize` was: there is no
     portable half to rescue. What it does *is* the IO — call the model, validate,
     write four tables — and the one genuinely portable piece, the schema that
-    validates the response, already lives in `@crewchief/core/vehicle-utils`
+    validates the response, already lives in `@wellkept/core/vehicle-utils`
     where both this and the mobile client read it.
   */
   'lib/vehicle-research.ts': 'service-role client, the Gemini client, and a fetch to NHTSA',
@@ -310,7 +333,7 @@ const NOT_PORTABLE: Record<string, string> = {
     Canvas encoding is genuinely web-only, and the split is deliberate rather
     than reluctant: the arithmetic — scale factors, the quality ladder, whether
     a re-encode is even worth keeping — lives in
-    `@crewchief/core/image-resize` where it is portable and tested, and only
+    `@wellkept/core/image-resize` where it is portable and tested, and only
     the `document.createElement('canvas')` glue stays here.
 
     A React Native client will need its own encoder anyway (expo-image-manipulator

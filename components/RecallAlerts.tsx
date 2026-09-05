@@ -1,8 +1,9 @@
 'use client';
 
+import { RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ShieldAlert, ExternalLink, X, ChevronDown, ChevronUp, Check, Loader as Loader2 } from 'lucide-react';
+import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check, Loader as Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -14,12 +15,11 @@ interface RecallAlertsProps {
 }
 
 export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = [], onRecallAddressed }: RecallAlertsProps) {
-  const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [addressingId, setAddressingId] = useState<string | null>(null);
   const [localAddressed, setLocalAddressed] = useState<string[]>(addressedCampaigns);
 
-  if (dismissed || !recalls || recalls.length === 0) {
+  if (!recalls || recalls.length === 0) {
     return null;
   }
 
@@ -62,7 +62,21 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
   }
 
   return (
-    <div className="bg-red-500/8 border border-red-400/25 rounded-2xl overflow-hidden">
+    <div
+      className="border border-red-400/25 rounded-2xl overflow-hidden"
+      /*
+        ⚠ An opaque ground under the wash, not a translucent panel.
+
+        `bg-red-500/8` alone let the page's `.cockpit-belt` through — its
+        brushed grain surfaced as vertical stripes at this panel's margins,
+        reported twice as "faint vertical stripe artifacts… looks like an
+        unresolved texture or rendering bug". The hero card had the same fault
+        and the same fix: a card sitting on the page's ground is a card, not a
+        window. The wash is composited over `--background` here so the red
+        reads exactly as it did.
+      */
+      style={{ background: 'linear-gradient(rgb(239 68 68 / 0.08), rgb(239 68 68 / 0.08)), #100F0D' }}
+    >
       <div className="flex items-center justify-between px-5 py-4 border-b border-red-400/15">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-400/25 flex items-center justify-center flex-shrink-0">
@@ -88,13 +102,25 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
             <ExternalLink className="h-3.5 w-3.5" />
             NHTSA
           </Button>
-          <button
-            onClick={() => setDismissed(true)}
-            className="tap-target-44 w-7 h-7 flex items-center justify-center rounded-lg text-white/30 hover:text-white/60 hover:bg-white/8 transition-colors"
-            aria-label="Dismiss recalls"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          {/*
+            ── ⚠ There is no dismiss, and there should not be ─────────────────
+
+            A close button stood here and set `dismissed`, hiding every open
+            safety campaign on the vehicle for the rest of the session — one
+            tap, no confirmation, no way back short of a reload, on the one
+            panel in this product a reader must not miss. A design critique of
+            the rendered page flagged it as "a dismissible × on a
+            safety-critical recall banner".
+
+            The affordance a reader actually needs is already here and is a
+            statement about the world rather than about the panel: **Mark
+            addressed**, per campaign, which records that the work was done and
+            removes that campaign because it is genuinely finished. Dismiss
+            removes the notice while leaving the recall open, which is the same
+            distinction `health-claims.ts` draws between "checked, none found"
+            and "never checked" — an absence of the message is not an absence
+            of the thing.
+          */}
         </div>
       </div>
 
@@ -108,18 +134,41 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
               <div className="flex items-start gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
+                  {/*
+                    Stacks on a phone. Beside a two-line component title the
+                    button was squeezed against it and pushed "FUEL SYSTEM,
+                    GASOLINE" into a ragged wrap; below the notice it is where
+                    an action belongs — after the thing it acts on.
+                  */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white leading-snug">
                         {recall.Component || 'Component Unknown'}
                       </p>
+                      {/*
+                        ── ⚠ Not clamped. This is NHTSA's own text ───────────
+
+                        It was `line-clamp-2`, which on a 1440px desktop held
+                        the whole notice and on a 390px phone held about ten
+                        words. What fell off the M3's fuel-pump campaign was
+                        *"causing the engine to stall without warning"* — the
+                        consequence clause, cut on the platform this product is
+                        mostly read on, with no expand control to get it back.
+
+                        A recall summary is one to three sentences. There is no
+                        length problem here worth trading a safety consequence
+                        for, and `advice-disclosure.ts` already draws this line
+                        for recalls specifically: they are NHTSA's record,
+                        quoted, and the one place in this product where a
+                        reader missing the point is dangerous.
+                      */}
                       {recall.Summary && (
-                        <p className="text-xs text-white/55 mt-1 leading-relaxed line-clamp-2">
+                        <p className="text-xs text-white/55 mt-1 leading-relaxed">
                           {recall.Summary}
                         </p>
                       )}
                       {campaignNum && (
-                        <p className="text-xs text-white/50 mt-1.5 font-mono">
+                        <p className="text-xs text-white/50 mt-1.5 mono">
                           Campaign #{campaignNum}
                         </p>
                       )}
@@ -128,7 +177,15 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                       <button
                         onClick={() => handleMarkAddressed(campaignNum)}
                         disabled={isAddressing}
-                        className="tap-target-44 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/12 hover:border-white/20 text-white/70 hover:text-white text-xs font-medium transition-all disabled:opacity-50"
+                        /*
+                          ⚠ Not a ghost pill. On the dark red ground a 5% fill
+                          with 12% border and 70% ink read as disabled — a
+                          critique listed it under "inert controls" — which is
+                          the worst thing a safety panel's only action can look
+                          like. Solid ink, a real border, and text at full
+                          strength.
+                        */
+                        className="tap-target-44 self-start flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/12 hover:bg-white/20 border border-white/25 hover:border-white/40 text-white text-xs font-semibold transition-all disabled:opacity-50"
                       >
                         {isAddressing ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -166,6 +223,26 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
           </button>
         </div>
       )}
+      {/*
+        ── ⚠ §10 / D11 · matched on year, make and model, never on the VIN ────
+
+        This card names a count of "Active Recalls" for the vehicle, which reads
+        as a statement about *this car*. It is a statement about NHTSA's list for
+        its year, make and model — `nhtsa-lookup.ts` has never had a VIN to match
+        on. Telling an owner their specific car is affected, or clear, is the
+        overclaim `CLAUDE.md` §10 names explicitly.
+
+        ⚠ Not `adviceDisclosure`. A recall is NHTSA's record quoted, not
+        generated advice, and "written by AI" under a safety notice would be
+        false in the direction that gets it ignored.
+
+        The mobile recall screen renders the identical string. One sentence, two
+        clients, from one constant.
+      */}
+      <p className="px-5 py-3 text-xs text-white/50 border-t border-red-400/15">
+        {RECALL_MATCH_CAVEAT}
+      </p>
+
     </div>
   );
 }

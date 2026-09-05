@@ -1,5 +1,5 @@
 import { apiRequest, ApiRequestError } from './client';
-import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@crewchief/core/validation';
+import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@wellkept/core/validation';
 
 /**
  * Invoice upload — Phase 3.3's half that needs no camera.
@@ -38,7 +38,7 @@ import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@crewchief/core/validatio
  * connection: uploading eight megabytes in order to be told it is over the
  * limit spends someone's data and a minute of their time to learn something
  * knowable before the first byte leaves. The limits are imported from
- * `@crewchief/core/validation` rather than restated, so the two cannot drift.
+ * `@wellkept/core/validation` rather than restated, so the two cannot drift.
  */
 
 /** What the caller hands over — the shape React Native's FormData accepts. */
@@ -282,11 +282,11 @@ export function describeUploadError(error: unknown): string {
       different fix: nothing was sent, or nothing came back.
     */
     if (error.kind === 'timeout') {
-      return 'CrewChief took too long to read that invoice. Your photo was not lost — try again.';
+      return 'Well Kept took too long to read that invoice. Your photo was not lost — try again.';
     }
 
     if (error.kind === 'offline') {
-      return 'Could not reach CrewChief. Check your connection.';
+      return 'Could not reach Well Kept. Check your connection.';
     }
 
     /*
@@ -295,7 +295,7 @@ export function describeUploadError(error: unknown): string {
       blamed. The `__DEV__` diagnostic beside this carries the detail.
     */
     if (error.kind === 'request') {
-      return 'CrewChief could not send that invoice. This is a bug on our side, not a problem with your photo.';
+      return 'Well Kept could not send that invoice. This is a bug on our side, not a problem with your photo.';
     }
 
     if (error.status === 401) {
@@ -312,7 +312,7 @@ export function describeUploadError(error: unknown): string {
       */
       return error.isLocallySignedOut
         ? 'This device is signed out. Sign in again to upload this.'
-        : 'CrewChief would not accept this upload on your current session.';
+        : 'Well Kept would not accept this upload on your current session.';
     }
     if (error.status === 404) return 'That vehicle is no longer in your garage.';
     if (error.status === 413) return 'That file is too large to upload.';
@@ -329,4 +329,70 @@ export function describeUploadError(error: unknown): string {
     `__DEV__` diagnostic beside it now names the thrown type either way.
   */
   return 'Something went wrong uploading that invoice.';
+}
+
+/**
+ * A short-lived link to the stored invoice behind one scanned visit.
+ *
+ * ── ⚠ Two notes in this app said this could not be done ────────────────────
+ *
+ * *"The document is a stored file behind a signed URL and no route on this app
+ * mints one, so a 'view invoice' control could not work"* — `53bcf0a`, and
+ * again in `6560f1b`. Both were true when written. `/api/v1/document-url` is
+ * the route they were missing, and its authorization is the web action's,
+ * reachable by bearer token.
+ *
+ * ── ⛔ It 404s until `web-live` is promoted, and the copy says which ────────
+ *
+ * The route is new and the deployed API has been frozen since 23 Aug, so on a
+ * phone talking to `crewchief.davidmasterson.co` today this returns a 404 from
+ * a deployment that has never heard of the path — §8's "a 404 on a path that
+ * works perfectly on `main`", which is named there as the most confusing shape
+ * a bug can take.
+ *
+ * So a 404 is not reported as "invoice missing". It is reported as what it
+ * almost certainly is, in words somebody can act on. The distinction costs one
+ * branch and saves the next person half an hour of looking for a file that is
+ * sitting exactly where it should be.
+ */
+export async function invoiceUrl(
+  vehicleId: string,
+  documentId: string
+): Promise<{ url: string } | { error: string }> {
+  try {
+    const body = await apiRequest<{ success?: boolean; url?: string }>(
+      `/document-url?vehicleId=${encodeURIComponent(vehicleId)}&documentId=${encodeURIComponent(
+        documentId
+      )}`
+    );
+
+    if (body?.url) return { url: body.url };
+    return { error: 'That invoice could not be opened.' };
+  } catch (error) {
+    const apiError = error as ApiRequestError;
+
+    if (apiError.status === 404) {
+      return {
+        error:
+          'Opening the original invoice needs a newer version of the Well Kept API than this app is talking to.',
+      };
+    }
+
+    /*
+      ⚠ Not `describeUploadError`. Its copy is written for the upload flow and
+      reassures somebody about a photograph they have just taken — *"took too
+      long to read that invoice. Your photo was not lost"* — which is a
+      confident description of work that is not happening. Nothing is being
+      uploaded here and nothing is being read; a stored file is being fetched.
+    */
+    if (apiError.kind === 'offline') {
+      return { error: 'Could not reach Well Kept. Check your connection.' };
+    }
+
+    if (apiError.kind === 'timeout') {
+      return { error: 'That took too long. The invoice is still here — try again.' };
+    }
+
+    return { error: 'That invoice could not be opened.' };
+  }
 }

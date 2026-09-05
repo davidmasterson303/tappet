@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader as Loader2, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
-import Logo from '@/components/brand/Logo';
+import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
 
@@ -201,9 +201,9 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex group mb-6">
-            <Logo variant="stacked" size={60} />
+            <BrandLockup width={200} />
           </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
+          <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
           <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI consultant that knows your car.</p>
         </div>
 
@@ -314,7 +314,7 @@ export default function SignupPage() {
           <div className="mt-6 pt-6 border-t border-white/[0.08] text-center">
             <p className="text-white/50 text-sm">
               Already have an account?{' '}
-              <Link href="/login" className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium">
+              <Link href="/login" className="font-medium text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white/60">
                 Sign in
               </Link>
             </p>

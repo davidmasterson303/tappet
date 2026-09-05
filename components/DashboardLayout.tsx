@@ -4,17 +4,18 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, MessageSquare, Wrench, CreditCard as Edit2, Check, X, Info, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
-import Logo from '@/components/brand/Logo';
-import { isDemoVehicleId } from '@crewchief/core/demo';
+import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
+import { CONTACT_EMAIL } from '@/lib/legal';
+import { isDemoVehicleId } from '@wellkept/core/demo';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
-import { USAGE_PROFILES, usageProfileChip } from '@crewchief/core/usage-profile';
-import { invalidateDashboardCache } from '@crewchief/core/query-invalidation';
+import { USAGE_PROFILES, usageProfileChip } from '@wellkept/core/usage-profile';
+import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
 import { AccountMenu } from '@/components/AccountMenu';
 import { useHomeHref } from '@/hooks/use-home-href';
+import { getHealthBand } from '@/hooks/use-health-band';
 
 interface DashboardLayoutProps {
   vehicle: any;
@@ -23,6 +24,27 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   vehicleImage?: string;
   healthSummary?: { health_score?: number } | null;
+  /**
+   * Whether the layout draws a panel around `children`.
+   *
+   * ── ⚠ `'bare'` exists because a card inside a card inside a card ──────────
+   *
+   * The panel's padding, border and radius are what make a page of loose
+   * content read as a card on a ground. That is right for the pages whose
+   * children *are* loose content — vehicle info, documents, the consultant.
+   *
+   * The dashboard's children are already sections: `CollapsibleSection` draws
+   * its own 16px radius and border, and the cards inside those draw theirs. A
+   * design critique of the rendered page counted five concentric rounded
+   * rectangles from the viewport edge to a red-flag chip, four of them within
+   * 70px on a phone — where they stop reading as depth and start reading as
+   * stripes down the page edge. Measured at row 500 of a mobile capture: 17,
+   * 24, 27, border, 20. Four surfaces, seven levels of grey between them.
+   *
+   * So the outermost one goes on that page, and the sections speak for
+   * themselves.
+   */
+  contentSurface?: 'panel' | 'bare';
   /**
    * How the page behaves below `md`. R4.
    *
@@ -51,7 +73,7 @@ const tabs = [
   { key: 'vehicle-info', label: 'Vehicle Info', icon: Info, href: (id: string) => `/vehicle-info/${id}` },
 ] as const;
 
-export default function DashboardLayout({ vehicle, knowledge, currentPage, children, vehicleImage, healthSummary, mobileLayout = 'page' }: DashboardLayoutProps) {
+export default function DashboardLayout({ vehicle, knowledge, currentPage, children, vehicleImage, healthSummary, contentSurface = 'panel', mobileLayout = 'page' }: DashboardLayoutProps) {
   const appShell = mobileLayout === 'app-shell';
   const router = useRouter();
   const homeHref = useHomeHref();
@@ -65,6 +87,38 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
   const [scrolled, setScrolled] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const isDemo = isDemoVehicleId(vehicle.id);
+
+  /*
+    ── ⚠ The beltline belongs to the dashboard, and only to it ───────────────
+
+    `.cockpit-belt` went on every page this layout wraps. Its own docblock is
+    narrower than that: *"the cockpit beltline — concept 1c, and **the
+    dashboard's** half of the rhyme… the signed-in dashboard stands in a car."*
+
+    On the other three it is a brushed band crossing content it has no relation
+    to, and four design critiques reported it there as a rendering defect —
+    "lighter horizontal bands slice across the background behind the first
+    card… that's not patina, it's a broken gradient". The phone was fixed by
+    moving the band out of the box; the desktop kept it, and the reports kept
+    coming from the pages that never wanted it.
+
+    So it lit the room it was drawn for. The others took the plain ground,
+    which is what they were being read as anyway.
+
+    ── ⚠ And on 5 Sep it comes off the dashboard too ─────────────────────────
+
+    That scoping held for one reason: every report had come from a page the
+    band was never meant for. The dossier critique reported it from the
+    dashboard — "a faint blurred full-bleed band remains behind the plate", and
+    under Cut: "a blur doing an image's job; cut, do not replace."
+
+    That is the fifth independent reading of a rendered page calling this an
+    artefact, and the first from the room it was drawn for. The concept — the
+    signed-in dashboard stands in a car — was good, and the page now has an
+    actual photograph of one doing that job. A brushed gradient behind a night
+    plate is competing with the thing it was standing in for.
+  */
+  const belt = '';
 
   useEffect(() => {
     setDisplayVehicle(vehicle);
@@ -127,27 +181,49 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
    * R12 gives the phone its own compact breadcrumb, and the pill appears in
    * both that and the full one. Three colour thresholds copy-pasted into two
    * branches is how a green 79 and an amber 79 end up on the same page.
+   *
+   * ── ⚠ It had its own thresholds, and they disagreed with the dial ─────────
+   *
+   * The comment above was right about the risk and then missed it by one
+   * level: the two branches matched each other, and neither matched
+   * `getHealthBand` — the table the gauge, the ring and every band label read
+   * from. Its cut was 60/80 against the table's 40/60/80, and its palette was
+   * Tailwind's amber against the table's cyan.
+   *
+   * The visible result on the seeded M3: an amber **61** in the breadcrumb
+   * about 400px above a cyan **61 / Fair** on the dial. A design critique of
+   * the rendered page read those as two different measurements — which is
+   * exactly what two colours for one number claims.
+   *
+   * So the chip is furniture and the band supplies the ink. No second
+   * threshold anywhere.
    */
-  const healthPill = (score: number) => (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-        score >= 80
-          ? 'bg-green-500/15 text-green-300 border border-green-400/25'
-          : score >= 60
-          ? 'bg-amber-500/15 text-amber-300 border border-amber-400/25'
-          : 'bg-red-500/15 text-red-300 border border-red-400/25'
-      }`}
-    >
-      {score}
-    </span>
-  );
-
-  const getReliabilityBadge = (score: number) => {
-    if (score >= 8) return { text: 'Excellent', color: 'bg-green-500/20 text-green-300 border-green-400/30' };
-    if (score >= 6) return { text: 'Good', color: 'bg-info-wash text-info border-info-border' };
-    if (score >= 4) return { text: 'Fair', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30' };
-    return { text: 'Poor', color: 'bg-red-500/20 text-red-300 border-red-400/30' };
+  const healthPill = (score: number) => {
+    const band = getHealthBand(score);
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-xs font-semibold ${band.textClass}`}
+      >
+        <span className="num">{score}</span>
+        {/*
+          The band's own word, so the chip states the fact rather than posing a
+          number the reader has to go and decode. `short` because the
+          breadcrumb is 375px wide with a vehicle name already in it, and
+          "Needs attention" does not fit — it is an abbreviation of the same
+          judgement, never a softer one.
+        */}
+        <span className="font-medium text-white/50">{band.short}</span>
+      </span>
+    );
   };
+
+  /*
+    ⚠ The reliability verdict chip was here — `Excellent / Good / Fair / Poor`
+    over its own four thresholds — and it is deleted rather than left unused.
+    Its wording collided with the health band's ("Good" beside "Fair" for one
+    car) and a dormant second verdict ramp is precisely what somebody restores
+    later on the grounds that the row looks bare. See the stat itself below.
+  */
 
   const handleSaveAvgMileage = async () => {
     const value = parseInt(avgMileage);
@@ -228,27 +304,41 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
     <div
       className={
         appShell
-          ? 'flex-1 min-h-0 overflow-hidden flex flex-col md:flex-none md:min-h-screen md:block md:overflow-visible cockpit-belt'
-          : 'min-h-screen cockpit-belt'
+          ? `flex-1 min-h-0 overflow-hidden flex flex-col md:flex-none md:min-h-screen md:block md:overflow-visible${belt}`
+          : `min-h-screen${belt}`
       }
     >
       {/*
-        `bay-batten` is the one ambient accent per screen — the same luminous
-        hairline the public garage carries on its nav, so the signed-in app and
-        the demo read as one product rather than two. See globals.css; on `/`
-        it doubles as the service bay's light fixture, which is where the shape
-        came from.
+        ⚠ `bay-batten` is gone from here, and the class with it.
+
+        It was "the one ambient accent per screen" — a luminous cyan hairline
+        along the nav's bottom edge, shared with the public garage so the two
+        surfaces read as one product. Successive design critiques kept naming
+        it, finally as "a leftover from another theme" and "an accent so timid
+        it reads as an artifact". It is cut; globals.css carries the argument
+        and what the palette is now.
+
+        The class had no rule but that line, so leaving it on the element would
+        be markup pointing at nothing — the same shape as the forced-colors rule
+        that outlived the gauge's hub.
       */}
       {/* `shrink-0` so the nav keeps its height when it is a flex child of the
           shell; `sticky` is inert inside a non-scrolling column but stays for
           the `md`+ document, where it is doing real work. */}
-      <nav className={`${appShell ? 'shrink-0 ' : ''}sticky top-0 z-40 bay-batten backdrop-blur-xl transition-all duration-200 ${scrolled ? 'bg-black/98 border-b border-white/10 shadow-lg shadow-black/50' : 'bg-black/90 border-b border-white/8'}`}>
+      <nav className={`${appShell ? 'shrink-0 ' : ''}sticky top-0 z-40 backdrop-blur-xl transition-all duration-200 ${scrolled ? 'bg-black/98 border-b border-white/10 shadow-lg shadow-black/50' : 'bg-black/90 border-b border-white/8'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
           <div className={`flex items-center justify-between transition-all duration-200 ${scrolled ? 'py-3' : 'py-4'}`}>
             <div className="flex items-center gap-3">
               <Link href={homeHref} className="flex items-center group">
-                {/* 21px mark — the small cut, switched inside the component. */}
-                <Logo variant="horizontal" size={21} />
+                {/*
+                  ── 30 Aug · the plate replaces the dial ────────────────────
+
+                  `REBRAND_PROMPT.md` §4.1 sets a nav at *"the 28px plate mark +
+                  Newsreader small caps 19–20px"* — a mark and a wordmark rather
+                  than one drawing, because a bar is wide and short and the
+                  plate's own proportions fight that.
+                */}
+                <BrandWordmark size={28} />
               </Link>
 
               {/*
@@ -274,12 +364,22 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 <span>Garage</span>
                 <span className="text-white/50" aria-hidden="true">·</span>
                 <span className="text-white/70 truncate max-w-[7.5rem]">{vehicle.model}</span>
-                {healthSummary?.health_score != null && (
-                  <>
-                    <span className="text-white/50" aria-hidden="true">·</span>
-                    {healthPill(healthSummary.health_score)}
-                  </>
-                )}
+                {/*
+                  ⚠ No score chip in the phone breadcrumb.
+
+                  It rendered unconditionally, and the dashboard's reading is
+                  now the first thing under the header — so "61 Fair" sat in a
+                  pill about 200px above a dial saying 61 Fair, in a 390px bar
+                  already holding the monogram, the wordmark and two crumbs. A
+                  critique of the rendered page counted it as redundancy and as
+                  crowding, and it was both.
+
+                  The desktop crumb keeps its chip because it appears **only
+                  once the hero has scrolled away** (`scrolled`), which is the
+                  case this chip was actually for: carrying the reading when
+                  the instrument is no longer on screen. On a phone the header
+                  is the only bar there is and it has no room to spare.
+                */}
               </button>
 
               <div className="hidden sm:flex items-center gap-1 text-white/50 text-sm">
@@ -344,7 +444,18 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
             always here, always visible, and cannot be on screen twice because
             it only exists once.
           */}
-          <div className="flex border-t border-white/8 overflow-x-auto edge-fade-x">
+          {/* Full-bleed below `sm`: the strip is a rule across the screen, and
+              the 16px page gutter it was sitting inside was 32px the four tabs
+              needed. Unchanged from `sm` up.
+
+              ⚠ `px-1.5` inside the bleed. Without it the first tab's label
+              starts at x=0, hard against the bezel, and two design critiques
+              reported "Dashboard" as clipped — it was not (the strip measures
+              390 in a 390 viewport, no overflow), but a label touching the
+              screen edge reads as cut, which for a navigation item is the same
+              failure. Six pixels of air costs nothing: the four tabs measured
+              369px inside 390. */}
+          <div className="-mx-4 sm:mx-0 px-1.5 sm:px-0 flex border-t border-white/8 overflow-x-auto edge-fade-x">
               {tabs.map(({ key, label, icon: Icon, href }) => {
                 const isActive = currentPage === key;
                 return (
@@ -407,13 +518,112 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       rather than 12, which is the R10 site this closes at the
                       same time. Visual weight is unchanged.
                     */
-                    className={`relative flex items-center gap-1.5 px-4 py-3 min-h-[44px] text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ${
-                      isActive ? 'text-cyan-400 bg-cyan-400/5' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                    /*
+                      ⚠ A cyan underline, not a filled pill — the brief's tab
+                      treatment. The fill was the only block of solid colour in
+                      the header and it read as a button rather than as a
+                      position; cyan is the system's focus-and-information hue
+                      and a 2px rule is the smallest thing that can carry
+                      "you are here".
+
+                      `mono` and caps because every other label on this surface
+                      is: a tab is a state label, not prose.
+                    */
+                    className={`mono relative flex items-center px-2.5 sm:px-4 py-3 min-h-[44px] text-[12px] uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border-b-2 ${
+                      isActive
+                        ? 'border-[color:var(--info)] text-[color:var(--text-primary)]'
+                        : 'border-transparent text-white/50 hover:text-white/80'
                     }`}
                   >
-                    <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-cyan-400' : 'text-white/40'}`} />
+                    {/*
+                      ── ⚠ The icons are the reason a whole tab was unreachable ─
+
+                      Four tabs with a glyph and 32px of padding each measured
+                      about 490px. On a 390px phone that put "Maintenance" half
+                      off the right edge and "Vehicle Info" entirely off it —
+                      and while the strip does scroll and `edge-fade-x` softens
+                      the cut, a design critique of the rendered page reported
+                      the fourth tab as something the mobile layout "gives no
+                      hint exists". A scroll affordance is not discovery.
+
+                      The glyphs are decoration here: every tab is a word, and
+                      the word is what is read. Dropping them below `sm` and
+                      tightening the padding fits all four, so the strip stops
+                      overflowing at all. Unchanged from `sm` up, where there
+                      was never a problem.
+                    */}
+                    {/*
+                      ── ⚠ The glyphs are gone entirely — dossier §7 ───────────
+
+                      The note above already made the argument and stopped one
+                      step short: "the glyphs are decoration here: every tab is
+                      a word, and the word is what is read." It hid them below
+                      `sm` to fix an overflow. The brief cuts them outright, and
+                      the same sentence is the reason — a decoration that had to
+                      be hidden to make the navigation fit was never earning its
+                      place at any width.
+
+                      `Icon` stays in the tab table: it is the obvious thing to
+                      want back, and deleting it would take the mapping with it.
+                    */}
                     {label}
-                    {isActive && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full" />}
+                    {/*
+                      ── ⚠ One active indicator, and the fill is the one that
+                         went ─────────────────────────────────────────────────
+
+                      The active tab carried a cyan fill, cyan text *and* this
+                      underline: three markings for one state, which a design
+                      critique flagged as doubled state-marking. The underline
+                      is the one that survives — it is the cheapest in ink, it
+                      cannot be mistaken for a hover wash, and it leaves the
+                      label to say what it says.
+
+                      The text goes plain white rather than cyan for the same
+                      reason the fill went. See the note on links below: cyan is
+                      this product's *mark*, and spending it on ordinary state
+                      is what made a critique read the page as having two
+                      competing accents.
+                    */}
+                    {/*
+                      ⚠ White, not cyan — there were two teal rules here.
+
+                      The batten drew a cyan hairline along the bottom of this
+                      nav — it is cut now, but this history is why the marker is
+                      a fill — and the underline sat a couple of pixels above
+                      it. Two critiques, on two different pages, read the pair
+                      as a rendering fault: "one of them is leftover".
+
+                      Neither is. The batten is the room's light and runs the
+                      full width; this marks one tab. They just could not both
+                      be the same colour and remain two things.
+                    */}
+                    {/*
+                      ── ⚠ A fill, after two lines both failed ────────────────
+
+                      Third mechanism for one state, and the first two are
+                      worth recording because each fixed the previous
+                      complaint and earned a new one.
+
+                      It was a cyan underline beside the batten's cyan
+                      hairline: "the one accent color, used twice in the same
+                      2px of space". White fixed the colour and two critiques
+                      still called them "two competing lines doing one job" —
+                      the other half was that both sat on the same edge. Moving
+                      it to the top edge separated them and put it on the far
+                      side of the header divider from its own label: "a stray
+                      rule rather than an indicator… a fit-and-finish error no
+                      studio ships."
+
+                      A line was the wrong instrument. It has to live on an
+                      edge, and every edge here already belongs to something.
+                      A fill does not: it *is* the label's ground, so it cannot
+                      detach from the label, and it cannot be mistaken for the
+                      batten because it is not a line at all.
+
+                      ⚠ The fill alone. An earlier round objected to a fill
+                      *plus* cyan text *plus* an underline — three markings for
+                      one state. This is one.
+                    */}
                   </Link>
                 );
             })}
@@ -435,24 +645,72 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
         <div className={appShell ? 'hidden md:block md:mb-8' : 'mb-8'}>
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
             <div>
-              {/* R11 — 36px for "2018 Honda Accord" in 279px is three lines
-                  before the trim even appears. The desktop size is the one
-                  that was designed; the phone just never had its own. */}
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-1.5">
-                {vehicle.year} {vehicle.make} {vehicle.model}
+              {/*
+                ── The vehicle's name, set the way this product sets names ───
+
+                It was one line of heavy sans — `2019 BMW M3` at 48px — with
+                the trim in grey underneath. Three facts of three different
+                kinds in one weight: the model is the name, the year and make
+                place it, the trim qualifies it.
+
+                So: mono eyebrow for the placing, serif for the name, and the
+                trim joins the eyebrow where it belongs. It is the treatment
+                the garage cards and the landing page already use, and this was
+                the last screen setting a vehicle's name a different way.
+
+                ⚠ The serif is gone from this screen — dossier brief B1, and
+                the "exactly one element per screen" licence with it. That rule
+                existed to ration a face that no longer appears here: the
+                display slot is the condensed grotesk, and it is not rationed
+                because it does not shout. `--font-editorial` and
+                `.display-serif` still exist for a marketing surface that wants
+                them; this is not one.
+
+                The note below still holds and is why the eyebrow carries the
+                year and make.
+
+                R11's finding still holds and is why the eyebrow carries the
+                year and make: 36px of "2018 Honda Accord" wrapped to three
+                lines in 279px before the trim appeared. The name alone does
+                not wrap.
+              */}
+              {/*
+                ⚠ The trim is on the name, not in the eyebrow.
+
+                The eyebrow read "2019 BMW · COMPETITION" above "M3", and a
+                critique of the rendered page caught the grammar: the trim
+                modifies the model, and it was appearing before the word it
+                modifies. It is also how people say it — "M3 Competition" is
+                the car's name, "2019 BMW" is where to place it.
+              */}
+              <p className="label-uppercase mb-2">
+                {[vehicle.year, vehicle.make].filter(Boolean).join(' ')}
+              </p>
+              <h1 className="display-instrument display-instrument-tight text-5xl sm:text-6xl lg:text-7xl uppercase text-white leading-[0.92]">
+                {[vehicle.model, vehicle.trim].filter(Boolean).join(' ')}
               </h1>
-              {vehicle.trim && (
-                <p className="text-base text-white/50 font-medium">{vehicle.trim}</p>
-              )}
             </div>
 
             {/* R11 — `flex flex-wrap gap-8` wrapped these four into a ragged
                 2 + 2 with 32px gutters on a phone. A grid makes the two
                 columns deliberate rather than a consequence of how wide
                 "Reliability" happens to be. Unchanged from `sm` up. */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-8">
+            {/* ⚠ Hairline verticals — dossier B9. The stats read as a row of
+                unrelated facts because nothing separated them; a rule between
+                each is what makes a strip a strip. `divide-x` only from `sm`,
+                where the row exists — the phone lays them out as a 2x2 grid
+                and a vertical rule down the middle of that would be dividing
+                nothing. `[&>*]:` reaches the children the grid already has
+                rather than adding a wrapper per stat. */}
+            {/* ⚠ The rules exist on mobile too. The grid gave a 2x2 of floating
+                label/value pairs with nothing holding them together — "keep it
+                a strip". `divide-x` on a two-column grid rules between the
+                columns, and `border-y` closes it top and bottom, so it reads as
+                one object at both sizes instead of a strip that becomes four
+                loose facts. */}
+            <div className="grid grid-cols-2 gap-y-5 divide-x divide-white/10 border-y border-white/8 py-4 [&>*]:px-4 [&>*:nth-child(odd)]:pl-0 sm:flex sm:flex-wrap sm:items-end sm:gap-y-0 sm:border-y-0 sm:py-0 sm:[&>*:first-child]:pl-0 sm:[&>*:nth-child(odd)]:px-4">
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Mileage</span>
+                <span className="mono label-uppercase">Mileage</span>
                 {isEditingCurrentMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -476,15 +734,37 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit mileage"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi</span>
-                    <Edit2 className="meta-edit h-3.5 w-3.5 text-white/30 group-hover/edit:text-cyan-400 transition-colors" />
+                    {/*
+                      ── ⚠ A word, after two conventions both failed ──────────
+
+                      This was a pencil, revealed on hover and pinned visible on
+                      touch — and two critiques called it "ambiguous grey
+                      glyphs" and "unlabeled boxes". Replacing it with a dashed
+                      rule under the value did no better: the next two called
+                      that "dead affordances… tooltip styling on a touch device
+                      where no tooltip can exist" and "broken tooltips/abbr
+                      styling".
+
+                      Both were right, and about the same thing. A dashed
+                      underline means *definition*, a bare pencil means
+                      *something*, and neither says what tapping does. The
+                      control already carries the answer in its `aria-label`;
+                      this is that label, made visible.
+
+                      One affordance, one meaning, on every input type — no
+                      convention for the reader to guess at.
+                    */}
+                    <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
+                      Edit
+                    </span>
                   </button>
                 )}
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Avg. Monthly Miles</span>
+                <span className="mono label-uppercase">Avg</span>
                 {isEditingAvgMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -508,19 +788,36 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit average monthly miles"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.avg_miles_per_month || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month ? displayVehicle.avg_miles_per_month.toLocaleString() : '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi/mo</span>
-                    <Edit2 className="meta-edit h-3.5 w-3.5 text-white/30 group-hover/edit:text-cyan-400 transition-colors" />
+                    <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
+                      Edit
+                    </span>
                   </button>
                 )}
               </div>
 
+              {/*
+                ── ⚠ The label is gone; the chip names itself ────────────────
+
+                "STATUS" sat above a chip reading "Daily Driver", which is
+                already the label and the value in one — a critique called it
+                "doubled labeling… an AI-boilerplate tell", and on a phone the
+                pair took its own row with an empty column beside it.
+
+                The other three stats are label-over-value because their values
+                are bare numbers. This one is a word, and a word does not need
+                a word above it.
+              */}
               <div className="flex flex-col gap-1 relative">
-                <span className="label-uppercase">Status</span>
                 <div className="relative">
                   <button
                     onClick={() => !isDemo && setIsStatusOpen(o => !o)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                    /* ⚠ Mono caps, no glyph — dossier B9 and §7. The tag icon was garnish: the
+   chip's own words say what it is, and a glyph-per-row was counted as
+   "default component-library texture" against a brief whose grammar is line
+   and mono. A status is a state label, so it sets like every other one. */
+                    className={`mono flex items-center gap-2 px-3 py-1.5 chamfer-sm border text-xs uppercase tracking-wider transition-all ${
                       isDemo ? 'opacity-60 cursor-not-allowed' : 'hover:border-white/25 hover:bg-white/5'
                     } ${
                       displayVehicle.vehicle_status
@@ -528,11 +825,10 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                         : 'bg-white/5 border-white/15 text-white/50'
                     }`}
                   >
-                    <Tag className="h-3.5 w-3.5" />
                     {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
                   </button>
                   {isStatusOpen && (
-                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 rounded-xl shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
+                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 chamfer-sm shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
                       {Object.entries(USAGE_PROFILES).map(([key, cfg]) => (
                         <button
                           key={key}
@@ -550,18 +846,35 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 </div>
               </div>
 
+              {/*
+                ── ⚠ This is not the health score, and it read like it was ───
+
+                Two numbers with verdicts, on one screen, about one car: the
+                dial says **61 / Fair** and this said **6/10 · Good**. They are
+                different subjects — 61 is *this* car's condition from its own
+                records, 6/10 is how the 2019 M3 fares as a model — and nothing
+                on the screen said so. A design critique of the rendered page
+                read them as the same fact contradicting itself, which is the
+                only available reading when a label is one word long.
+
+                Two changes, and the second matters more than the first:
+
+                  - The label names the subject. "Reliability" beside a car's
+                    dashboard is naturally read as *this car's*.
+                  - The verdict chip is gone. "Good" next to "Fair" is the
+                    contradiction in its sharpest form, and the chip was the
+                    one element on the row asserting a judgement — the other
+                    three state readings and let the reader judge. The figure
+                    keeps its `/10`, which is what makes it a scale rather than
+                    a score out of a hundred read wrong.
+              */}
               {knowledge?.reliability_score && (
                 <div className="flex flex-col gap-1">
-                  <span className="label-uppercase">Reliability</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
-                      {knowledge.reliability_score}
-                      <span className="text-sm text-white/50 ml-0.5">/10</span>
-                    </span>
-                    <Badge variant="outline" className={`${getReliabilityBadge(knowledge.reliability_score).color} border text-xs`}>
-                      {getReliabilityBadge(knowledge.reliability_score).text}
-                    </Badge>
-                  </div>
+                  <span className="mono label-uppercase">Reliability</span>
+                  <span className="mono text-2xl font-medium text-white tabular-nums">
+                    {knowledge.reliability_score}
+                    <span className="text-sm text-white/50 ml-0.5">/10</span>
+                  </span>
                 </div>
               )}
             </div>
@@ -574,31 +887,58 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
 
         {/* The panel's padding, border and radius are what make it read as a
             card on a page. In app-shell mode there is no page for it to sit
-            on, so below `md` it is just the remaining height. */}
+            on, so below `md` it is just the remaining height — and see
+            `contentSurface` for the page that brings its own sections. */}
         <div
           className={
             appShell
-              ? 'flex-1 min-h-0 flex flex-col md:block md:glass-panel md:rounded-2xl md:p-6'
-              : 'glass-panel rounded-2xl p-4 sm:p-6'
+              /* ⚠ No frame in app-shell mode — dossier B6, 5 Sep.
+                 `appShell` is the advisor, and `ConsultantChat` draws its own
+                 cut-corner hairline frame. Wrapping it in a second one put a
+                 notch inside a notch about 24px apart, which three critiques
+                 read as "a card in a card" and "frame inside frame". The
+                 padding goes with the border: a frame's inset belongs to the
+                 frame that draws it. */
+              ? 'flex-1 min-h-0 flex flex-col md:block'
+              : contentSurface === 'bare'
+                ? ''
+                : 'glass-panel cut-panel p-4 sm:p-6'
           }
         >
           {children}
         </div>
 
         <footer className={`${appShell ? 'hidden md:flex ' : 'flex '}mt-10 pt-6 border-t border-white/6 items-center justify-between text-xs text-white/50`}>
-          {/* One-colour knockout: whole lockup in --text-primary, redline dropped. */}
+          {/*
+            ⚠ The footer takes the plate at its icon size, not the wordmark.
+
+            At 16px the name would sit under the 12px type floor, and Design's
+            reduction rule is a different drawing rather than smaller type. The
+            copyright line beside it already names the product in words.
+          */}
           <span className="flex items-center gap-2">
-            <Logo
-              variant="horizontal"
-              size={16}
-              mono
-              color="var(--text-primary)"
-              nameColor="var(--text-primary)"
-            />
+            <BrandLockup width={18} variant="icon" />
             <span>&copy; {new Date().getFullYear()}</span>
           </span>
           <div className="flex items-center gap-4">
-            <a href="mailto:feedback@crewchief.app" className="hover:text-white/50 transition-colors">Feedback</a>
+            {/*
+              This read `mailto:feedback@crewchief.app` until 30 Aug — a domain
+              nobody here owns, so every piece of feedback anyone sent from this
+              footer went nowhere, silently, for as long as the link existed.
+              It survived the rename because an address is not copy: a
+              find-and-replace would have invented `feedback@wellkept.app`,
+              which is the same defect with a newer name on it.
+
+              It points at the address the legal pages publish instead — the one
+              that is verified receiving and delegated to a real mailbox. One
+              address, named in one place, so a second one cannot drift.
+            */}
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Well Kept feedback')}`}
+              className="hover:text-white/50 transition-colors"
+            >
+              Feedback
+            </a>
             <Link href={homeHref} className="hover:text-white/50 transition-colors">Garage</Link>
           </div>
         </footer>

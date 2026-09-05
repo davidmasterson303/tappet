@@ -45,6 +45,29 @@ const STATIC_ANALYSIS_SUITES = [
   // Tailwind's generated utilities nor `clip-path`, so the rendered check the
   // guard would otherwise want is not available under any runner here.
   'register-tokens.test.ts',
+  /*
+    Checks that every `<Swatch name="…">` on the design-system specimen names a
+    custom property `globals.css` actually declares.
+
+    Nothing to import: the subject is the correspondence between a JSX prop and
+    a CSS declaration, and neither side is a module. The failure it pins is as
+    silent as this list gets — an undefined custom property paints no colour
+    and `getComputedStyle` returns the empty string, so the page renders a blank
+    square captioned with a dead token name. It shipped exactly that way on
+    4 Sep, when a token rename matched `--attention-amber` and the specimen
+    asks for its tokens without the prefix.
+  */
+  'design-specimen-tokens.test.ts',
+  /*
+    Scans app/, components/ and hooks/ for palette values the system has
+    retired. Nothing to import: the subject is whether a colour was typed in by
+    hand somewhere, which importing the token layer tells you nothing about.
+
+    The failure it pins is the one that cost five separate findings across the
+    Sep palette migration — an inlined literal keeps rendering the old design
+    perfectly, and nothing reports that moving the token left it behind.
+  */
+  'retired-palette-literals.test.ts',
   'auth-posture.test.ts',
   'internal-fetch-posture.test.ts',
   // Reads app/, lib/ and packages/ off disk to prove that the one function in
@@ -174,6 +197,56 @@ const STATIC_ANALYSIS_SUITES = [
   // cannot load, and the property is structural (does each return path carry
   // the affordance) rather than behavioural.
   'mobile-account-reachable.test.ts',
+  // Reads RootNavigator off disk to prove no route's back button falls back to
+  // its own name — `‹ VehicleDetail` on six screens, which is what a
+  // `headerShown: false` screen with no `title` publishes. Same constraint as
+  // the scans around it: the subject is React Native source this runner cannot
+  // load, and what regressed is declarative — whether a `Stack.Screen` carries
+  // a title — rather than anything a render would reach.
+  'mobile-back-labels.test.ts',
+  // Reads apps/mobile's screens for a section label built out of a car — the
+  // build screen's `NEXT STEPS FOR 2015 BMW M235I`, where uppercasing a model
+  // designation names a car that does not exist. React Native source this
+  // runner cannot load, and the property is where the string came from.
+  'mobile-section-labels.test.ts',
+  // Reads app/actions.ts to prove the health prompt's field contract and the
+  // parser that reads it are the same words. The invariant is a correspondence
+  // between two strings in one file — executing it would need a live Gemini
+  // call, a live Supabase and a real vehicle, and the correspondence cannot
+  // drift without one of the two sides being edited on disk.
+  'health-prompt-fields-are-read.test.ts',
+  // Reads app/actions.ts to prove a failed invoice extraction stops rather than
+  // writing a completed $0 invoice. Executing it needs a live Gemini vision
+  // call that fails in a particular way plus a live Supabase; what regressed —
+  // whether the catch returns, what it writes, whether the reader downstream
+  // accepts a zero — is decidable from the text.
+  'failed-extraction-is-not-a-zero-invoice.test.ts',
+  // Reads app/auth/callback/route.ts to prove the sign-in redirect cannot be
+  // pointed off-origin, and that a failed code exchange does not redirect at
+  // all. The route is a Next request handler pulling in `@supabase/ssr` and
+  // `next/server` at module scope, so it cannot be imported under this
+  // environment; the guard it must use is checked by name in the source.
+  'auth-callback-redirect.test.ts',
+  // Reads every file that calls Gemini and proves each calling function sits
+  // behind a spend ceiling — eleven of fourteen did not. Executing any of them
+  // needs a live key and would spend the money the test is about; what
+  // regressed is whether a ceiling appears in the same body as the call.
+  'every-generation-has-a-ceiling.test.ts',
+  // Reads app/ and components/ for a token background paired with hand-written
+  // ink — the pattern that put white on cyan at 1.81:1 on six controls, which
+  // the existing contrast scan structurally cannot see (bare `text-white` does
+  // not match `text-white\/\d+`, and the scan has no concept of a background).
+  // Ratios are not computed from class names on purpose; see the file.
+  'ink-on-a-fill.test.ts',
+  // Reads apps/mobile's screens for a focus subscription — without one, every
+  // write elsewhere in the app was invisible on the screen behind it. The
+  // behaviour needs a real navigator and a real focus event, and these screens
+  // are deliberately mounted directly in their own suites.
+  'screens-refetch-on-focus.test.ts',
+  // Reads the three files that carry the product's version and proves they
+  // agree. There is nothing to import: the subject is JSON on disk, and the
+  // failure mode is somebody bumping one of the three.
+  'one-product-one-version.test.ts',
   // Reads apps/mobile's screens for a Pressable that swaps its <Text> for an
   // ActivityIndicator without naming itself — the control loses its accessible
   // name at exactly the moment it is working. Same constraint as the scans
@@ -293,6 +366,12 @@ const STATIC_ANALYSIS_SUITES = [
   // backdrop — the rendered evidence is a browser measurement recorded in that
   // component's docblock. What regresses is which classes are declared.
   'button-primitive.test.ts',
+  // Sweeps app/, components/, core and the mobile source for the product's old
+  // name after the 30 Aug rename. There is nothing to import: the subject is
+  // the *absence* of a string across ~400 files, and the exemptions — the
+  // scheme, the bundle id, the persisted keys, the advisor's own name — are
+  // about what a literal means, which no runtime can answer.
+  'product-name.test.ts',
 ];
 
 /**
@@ -307,13 +386,13 @@ const DECLARED_SIMULATIONS = ['rls-ownership.test.ts'];
 /*
   App code is `@/…`, a relative path, or the shared workspace package.
 
-  The `@crewchief/` arm was added when Phase 2.4 moved the first module into
+  The `@wellkept/` arm was added when Phase 2.4 moved the first module into
   packages/core — and this suite failed the moment it did, which is the
   behaviour to keep. A suite whose subject moves out from under it should stop
   the build, not quietly start passing for the wrong reason.
 */
 const IMPORTS_APP_CODE =
-  /(?:from\s+|require\()\s*['"](?:@crewchief\/|@\/|\.\.?\/)(?!.*__tests__)/;
+  /(?:from\s+|require\()\s*['"](?:@wellkept\/|@\/|\.\.?\/)(?!.*__tests__)/;
 
 /*
   `.tsx` as well as `.ts`.

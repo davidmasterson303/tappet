@@ -138,7 +138,7 @@ export default function RlsCheckPage() {
         value={vehicleId}
         onChange={(e) => setVehicleId(e.target.value)}
         placeholder="db143cdc-e68c-46f0-849e-69f7a1873f58"
-        className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-2.5 mb-4 font-mono text-sm"
+        className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-2.5 mb-4 mono text-sm"
       />
 
       <button
@@ -176,7 +176,7 @@ export default function RlsCheckPage() {
             <tbody>
               {results.map((r) => (
                 <tr key={r.table} className="border-b border-white/10">
-                  <td className="py-2.5 font-mono text-xs text-white/70">{r.table}</td>
+                  <td className="py-2.5 mono text-xs text-white/70">{r.table}</td>
                   <td className="py-2.5 text-white/50">{r.label}</td>
                   <td className="py-2.5 text-right">
                     {r.verdict === 'BLOCKED' && <span className="text-emerald-400">BLOCKED</span>}

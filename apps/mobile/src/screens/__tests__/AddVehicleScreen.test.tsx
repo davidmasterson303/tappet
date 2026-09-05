@@ -140,7 +140,7 @@ describe('adding a car', () => {
 describe('the mileage rule', () => {
   it('refuses an implausible reading without spending a round trip', async () => {
     /*
-      The rule lives in `@crewchief/core/mileage-tracking` precisely so the
+      The rule lives in `@wellkept/core/mileage-tracking` precisely so the
       phone can refuse before the network. The server refuses too, because a
       client is not a guarantee — but a person who typed a wrong number should
       find out immediately.
@@ -306,7 +306,17 @@ describe('when the request fails', () => {
     // still throws, the screen still catches it, and the 401 branch is simply
     // never taken. Caught here by the test failing; worth naming because the
     // wrong call is the one that looks right.
-    mockApi.mockRejectedValue(new ApiRequestError({ status: 401, message: 'Unauthorized' }));
+    /*
+      ⚠ **`origin: 'device'` as of 24 Aug (MOB-08).** This screen used to sign
+      out on **any** 401, including a `server` one that a retry a second later
+      would have accepted — and then `return`ed without setting a state, so
+      offline with an expired token it showed skeletons forever with no error
+      and no retry.
+
+      A device-side 401 is the one that genuinely means "signed out", and it is
+      the one this case is about.
+    */
+    mockApi.mockRejectedValue(new ApiRequestError({ status: 401, origin: 'device', message: 'Unauthorized' }));
 
     const { props, view } = mount();
     await fillTheCar(user, await view);

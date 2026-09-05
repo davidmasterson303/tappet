@@ -6,7 +6,13 @@ import Button from '../components/Button';
 import Well from '../components/Well';
 import { API_BASE_URL } from '../config';
 import { border, radius, space, surface, text, type } from '../theme';
-import type { PurchaseResolution } from '@crewchief/core/purchase-flow';
+import type { PurchaseResolution } from '@wellkept/core/purchase-flow';
+import {
+  FREE_FEATURES,
+  FREE_FEATURE_COPY,
+  PAID_FEATURES,
+  PAID_FEATURE_COPY,
+} from '@wellkept/core/paid-features';
 
 /**
  * One thing somebody can buy.
@@ -33,7 +39,7 @@ export interface SubscriptionOption {
  *
  * Phase 6, E8. Presentational and orchestrating only: it renders what it is
  * given and calls back. Every decision about what a purchase *means* is in
- * `@crewchief/core/purchase-flow`, which is why this screen can be tested
+ * `@wellkept/core/purchase-flow`, which is why this screen can be tested
  * without StoreKit, a sandbox account or a network.
  *
  * ── ⚠ It never decides that somebody is entitled ────────────────────────────
@@ -100,7 +106,7 @@ export default function PaywallScreen({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
       <View style={styles.root}>
         <View style={styles.bar}>
-          <Text style={styles.barTitle}>CrewChief Plus</Text>
+          <Text style={styles.barTitle}>Well Kept Plus</Text>
           <Pressable
             onPress={onClose}
             hitSlop={12}
@@ -117,11 +123,59 @@ export default function PaywallScreen({
         </View>
 
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.headline}>More room for the advisor</Text>
+          {/*
+            ── ⚠ IAP-06 is killed rather than corrected ────────────────────────
+
+            This screen sold **an allowance**. The headline was "More room for
+            the advisor" and the lede said the paid tier *"raises that allowance
+            five times over"* — which was also wrong: 400,000 → 1,000,000 output
+            tokens is **2.5×**, a misleading claim about what a subscription buys
+            made inside the binary, which is Guideline 2.3.1 territory.
+
+            Deriving the figure from `TIERS` fixed the arithmetic and left the
+            deeper problem: *nobody can tell what they are buying*. A monthly
+            token allowance is a unit the customer has never seen, cannot observe
+            while using the app, and cannot relate to their own use.
+
+            The pricing decision of 24 Aug replaces it with a feature gate, so
+            there is **no multiple to state** and the sentence is deleted rather
+            than repaired. `entitlementMultiple()` exists only to keep that copy
+            honest and now has no caller.
+
+            ⚠ The list is rendered from `paid-features.ts` rather than written
+            here. The gate the server enforces and the promise this screen makes
+            are then the same object — a hand-written list on a paywall is a
+            second source of truth for what somebody just paid for, and the one
+            that drifts is always the one the customer read.
+          */}
+          <Text style={styles.headline}>Three features, one subscription</Text>
+
+          <View style={styles.features}>
+            {PAID_FEATURES.map((feature) => (
+              <View key={feature} style={styles.feature}>
+                <Text style={styles.featureLabel}>{PAID_FEATURE_COPY[feature].label}</Text>
+                <Text style={styles.featureBlurb}>{PAID_FEATURE_COPY[feature].blurb}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/*
+            ⚠ What stays free is on the paywall, not only in the marketing.
+
+            Somebody deciding whether to pay needs to know what happens if they
+            do not, and what happens when they stop. Everything below is stored
+            or looked up rather than generated, so it costs no model call and
+            needs no subscription — a lapsed subscriber keeps their service book,
+            which is their own record and was never ours to hold.
+
+            Recalls are on this list and that is not a pricing decision: they are
+            federal safety notices, and a defect notice an owner cannot see
+            because their card expired is not a version of this product that
+            should exist.
+          */}
+          <Text style={styles.freeHeading}>Free, with or without Plus</Text>
           <Text style={styles.lede}>
-            The free plan includes a monthly allowance for CrewChief&apos;s AI features — asking the
-            advisor, and building a maintenance picture for a car. Plus raises that allowance five
-            times over. Everything else in the app stays exactly as it is.
+            {FREE_FEATURES.map((feature) => FREE_FEATURE_COPY[feature].label).join(' · ')}
           </Text>
 
           {resolution?.message && (
@@ -192,7 +246,7 @@ export default function PaywallScreen({
             <Text style={styles.termsText}>
               Payment is taken by Apple when you confirm. A subscription renews automatically for
               the same period unless you turn renewal off at least 24 hours before it ends. You can
-              cancel any time in your Apple ID settings — deleting your CrewChief account does not
+              cancel any time in your Apple ID settings — deleting your Well Kept account does not
               stop the billing.
             </Text>
           </View>
@@ -265,6 +319,18 @@ const styles = StyleSheet.create({
   body: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
   headline: { ...type.editorial, color: text.primary },
   lede: { ...type.body, color: text.secondary },
+  /*
+    The three paid features, as a list rather than a paragraph. A paywall's job
+    is to be scannable — somebody deciding whether to spend money reads the
+    labels and stops, and prose makes them read all of it to find out whether
+    the thing they want is included.
+  */
+  features: { gap: space.md },
+  feature: { gap: 2 },
+  featureLabel: { ...type.uiStrong, color: text.primary },
+  featureBlurb: { ...type.value, color: text.secondary },
+  /** Same weight as a section label; what is free is not small print. */
+  freeHeading: { ...type.uiStrong, color: text.primary, marginTop: space.sm },
 
   banner: { marginTop: space.xs },
 

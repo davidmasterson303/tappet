@@ -9,9 +9,13 @@ import { everHadVehicle } from '../../onboarding/first-run-storage';
 
 import { GarageScreen } from '../GarageScreen';
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
+import { withSafeArea } from '../../test-support/safe-area';
+import DialChip from '../../components/DialChip';
+import { surface } from '../../theme';
 import { InvoiceScanScreen } from '../InvoiceScanScreen';
 import { RecallDetailScreen } from '../RecallDetailScreen';
 import { WishlistScreen } from '../WishlistScreen';
+import { WishlistAddScreen } from '../WishlistAddScreen';
 import { ServiceMilestoneScreen } from '../ServiceMilestoneScreen';
 import { SignInScreen } from '../SignInScreen';
 import { AddVehicleScreen } from '../AddVehicleScreen';
@@ -92,7 +96,8 @@ describe('the health score colour — never checked by the source scan', () => {
       />
     );
 
-    await view.findByText('2015 BMW M235i');
+    // Twice now — the hero's own title and the nav's, staggered by opacity.
+    await view.findAllByText('2015 BMW M235i');
 
     /*
       No backdrop passed: the helper derives each text's true surface from the
@@ -105,8 +110,7 @@ describe('the health score colour — never checked by the source scan', () => {
   it.each(SCORES)('reads at AA on the vehicle detail card at score %i', async (score) => {
     request.mockResolvedValue({ vehicle: VEHICLE(score) });
 
-    const view = await render(
-      <VehicleDetailScreen
+    const view = await render(withSafeArea(<VehicleDetailScreen
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
@@ -116,14 +120,68 @@ describe('the health score colour — never checked by the source scan', () => {
         onOpenWishlist={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenHealth={jest.fn()}
-      onOpenBuild={jest.fn()}
       onOpenMilestone={jest.fn()}
-      />
-    );
+      onOpenProfile={jest.fn()}
+      />));
 
-    await view.findByText('2015 BMW M235i');
+    // Twice now — the hero's own title and the nav's, staggered by opacity.
+    await view.findAllByText('2015 BMW M235i');
 
     expect(belowFloor(auditText(view))).toEqual([]);
+  });
+});
+
+describe('the hero pullback fades two strings in, and the walker cannot reach them', () => {
+  /*
+    ⚠ `auditText` skips text at opacity 0 — see the note in `contrast.ts`. The
+    nav title and the docked score chip are both invisible at rest and arrive
+    once the sheet covers the car, so the walker measures neither.
+
+    They are measured here instead, against the surface they actually appear
+    on, by passing the backdrop rather than deriving it. Without these two cases
+    the skip would be a hole rather than a correction.
+  */
+  it('reads at AA on the nav plate once it arrives', async () => {
+    request.mockResolvedValue({ vehicle: VEHICLE(61) });
+
+    const view = await render(
+      withSafeArea(
+        <VehicleDetailScreen
+          vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+          onBack={jest.fn()}
+          onSignOut={jest.fn()}
+          onAskAdvisor={jest.fn()}
+          onScanInvoice={jest.fn()}
+          onViewRecalls={jest.fn()}
+          onOpenWishlist={jest.fn()}
+          onOpenHistory={jest.fn()}
+          onOpenHealth={jest.fn()}
+          onOpenMilestone={jest.fn()}
+          onOpenProfile={jest.fn()}
+        />
+      )
+    );
+
+    await view.findAllByText('2015 BMW M235i');
+
+    /*
+      `surface.nav` is the plate's own fill, and it is the darkest step on the
+      ladder — so this is the real backdrop rather than a conservative stand-in.
+    */
+    const audits = auditText(view, surface.nav);
+    expect(audits.length).toBeGreaterThan(1);
+    expect(belowFloor(audits)).toEqual([]);
+  });
+
+  it.each(SCORES)('reads at AA on the docked chip at score %i', async (score) => {
+    /*
+      The chip's numeral is `healthBandHex`, so every band has to clear the
+      floor on `surface.card` — the pill's own fill. This is the colour a source
+      scan cannot see, on a surface that is not the page.
+    */
+    const view = await render(<DialChip score={score} />);
+
+    expect(belowFloor(auditText(view, surface.card))).toEqual([]);
   });
 });
 
@@ -195,8 +253,7 @@ describe('failure states, which are where sub-floor text hides', () => {
   it('the vehicle that is no longer there', async () => {
     request.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Vehicle not found' }));
 
-    const view = await render(
-      <VehicleDetailScreen
+    const view = await render(withSafeArea(<VehicleDetailScreen
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
@@ -206,10 +263,9 @@ describe('failure states, which are where sub-floor text hides', () => {
         onOpenWishlist={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenHealth={jest.fn()}
-      onOpenBuild={jest.fn()}
       onOpenMilestone={jest.fn()}
-      />
-    );
+      onOpenProfile={jest.fn()}
+      />));
 
     await view.findByText('This vehicle is no longer here');
     expect(belowFloor(auditText(view))).toEqual([]);
@@ -226,7 +282,12 @@ describe('the invoice scanner', () => {
       />
     );
 
-    await view.findByText('Scan an invoice');
+    /*
+      ⚠ **R47.** The screen's H1 is gone — it repeated the nav title 40pt above
+      it — so this waits on the lead line instead. It still has to wait on
+      *something*: an audit of an unmounted tree finds no text and passes.
+    */
+    await view.findByText(/Photograph a service invoice/);
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 });
@@ -235,8 +296,7 @@ describe('the advisor CTA, which is dark text on white', () => {
   it('is measured against its own surface, not the screen', async () => {
     request.mockResolvedValue({ vehicle: VEHICLE(74) });
 
-    const view = await render(
-      <VehicleDetailScreen
+    const view = await render(withSafeArea(<VehicleDetailScreen
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
@@ -246,10 +306,9 @@ describe('the advisor CTA, which is dark text on white', () => {
         onOpenWishlist={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenHealth={jest.fn()}
-      onOpenBuild={jest.fn()}
       onOpenMilestone={jest.fn()}
-      />
-    );
+      onOpenProfile={jest.fn()}
+      />));
 
     await view.findByText('Ask the advisor');
 
@@ -314,7 +373,8 @@ describe('the measurement itself', () => {
       />
     );
 
-    await view.findByText('2015 BMW M235i');
+    // Twice now — the hero's own title and the nav's, staggered by opacity.
+    await view.findAllByText('2015 BMW M235i');
     expect(auditText(view).length).toBeGreaterThan(4);
   });
 
@@ -524,7 +584,7 @@ describe('the wishlist', () => {
     });
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
     );
 
     await view.findByText('CVT fluid flush');
@@ -535,31 +595,63 @@ describe('the wishlist', () => {
     request.mockResolvedValue({ wishlistItems: [] });
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
     );
 
     await view.findByText('Nothing on the list yet');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 
-  it('reads at AA with the add button disabled', async () => {
+  it('reads at AA on the suggestions catalogue, chips and all', async () => {
     /*
-      The composer is behind a control now, so it has to be opened before the
-      disabled CTA exists to audit. Worth keeping rather than deleting: this
-      assertion only means anything because the disabled state is an explicit
-      fill rather than an `opacity` — a parent alpha never reaches `auditText`'s
-      comparison, so an opacity-greyed button would pass while being unreadable.
-    */
-    request.mockResolvedValue({ wishlistItems: [] });
+      ⚠ Repointed 23 Aug. This used to open `WishlistScreen`'s composer and
+      audit its disabled CTA; adding is a route now, and the composer is gone.
 
-    const user = userEvent.setup();
-    const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+      The claim is worth keeping and is bigger here than it was there. This
+      screen carries the most colour of any list in the app — a chip per row in
+      two tones, a search field, ghost and outline buttons side by side, and a
+      quiet third line — and the amber chip in particular is a tone `status`
+      only just stopped sharing with the health ramp.
+    */
+    request.mockImplementation((path: string) =>
+      path.startsWith('/wishlist')
+        ? Promise.resolve({ wishlistItems: [] } as never)
+        : Promise.resolve({
+            vehicle: { year: 2018, make: 'Honda', model: 'Accord' },
+            knowledge: {
+              known_issues: [
+                { part: 'Fuel injector seals', severity: 'High', description: 'Seals weep.' },
+                { part: 'CVT fluid', severity: 'Medium', description: 'Degrades and hunts.' },
+              ],
+              maintenance_schedule: [
+                { service: 'Engine oil', priority: 'Normal', description: 'Every 5,000 mi.' },
+              ],
+              common_mods: [{ name: 'Air filter', purpose: 'Reusable.', difficulty: 'Easy' }],
+            },
+          } as never)
     );
 
-    await user.press(await view.findByLabelText('Add something to the wishlist'));
+    const view = await render(
+      <WishlistAddScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        title="2018 Honda Accord"
+        onSignOut={jest.fn()}
+        onAskAdvisor={jest.fn()}
+        onAdded={jest.fn()}
+      />
+    );
 
-    await view.findByLabelText('Add to wishlist');
+    await view.findByText('Fuel injector seals');
+    /*
+      Both chip tones on screen at once, which is the case worth measuring. The
+      urgent one reads `Known issue` in the attention tone since R40 — the word
+      changed, the colour did not, and the colour is what this measures.
+    */
+    view.getAllByText('Known issue');
+    view.getByText('Modification');
+    // The section header too: `text.muted` on the page, uppercased.
+    view.getByText('DO FIRST');
+
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 
@@ -575,7 +667,7 @@ describe('the wishlist', () => {
 
     const user = userEvent.setup();
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
     );
 
     await user.press(await view.findByLabelText('Mark Front brake pads done'));
@@ -588,7 +680,7 @@ describe('the wishlist', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream is down' }));
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
     );
 
     await view.findByText('Could not load the wishlist');

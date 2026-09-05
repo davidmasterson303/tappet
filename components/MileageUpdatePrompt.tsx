@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertCircle } from 'lucide-react';
-import { calculateMileageUpdateStatus, formatMileagePromptMessage } from '@crewchief/core/mileage-tracking';
+import { calculateMileageUpdateStatus, formatMileagePromptMessage } from '@wellkept/core/mileage-tracking';
 
 interface MileageUpdatePromptProps {
   vehicle: {
@@ -29,7 +29,7 @@ export function MileageUpdatePrompt({ vehicle, onUpdateClick }: MileageUpdatePro
         <p className="text-sm font-medium text-gray-900">
           {formatMileagePromptMessage(status)}
         </p>
-        <p className="text-xs text-gray-700 mt-1">Tap to update mileage</p>
+        <p className="text-xs text-muted-foreground mt-1">Tap to update mileage</p>
       </div>
     </button>
   );

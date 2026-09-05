@@ -1,37 +1,61 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
-import type { HealthDriver } from '@crewchief/core/health-drivers';
-import { buildPosition } from '@crewchief/core/build-progress';
-import { showsModifications } from '@crewchief/core/mod-progression';
-import { UNKNOWN_TIMING, describeNextService, localToday } from '@crewchief/core/garage-next-service';
-import { normaliseRecalls } from '@crewchief/core/recalls';
+import type { HealthDriver } from '@wellkept/core/health-drivers';
+import { buildPosition } from '@wellkept/core/build-progress';
+import { showsModifications } from '@wellkept/core/mod-progression';
+import { UNKNOWN_TIMING, describeNextService, localToday } from '@wellkept/core/garage-next-service';
+import { componentPlainName, normaliseRecalls } from '@wellkept/core/recalls';
+import { healthVerdict } from '@wellkept/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import ClusterGauge, { CARD_SIZE } from '../components/ClusterGauge';
+import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
+import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import { type HealthReading } from '../components/HealthHistory';
-import Plinth from '../components/Plinth';
-import VehiclePlate from '../components/VehiclePlate';
+import ProvenanceRow from '../components/ProvenanceRow';
+import Icon from '../components/Icon';
+import ListGroup from '../components/ListGroup';
 import NavRow from '../components/NavRow';
 import SectionHeader from '../components/SectionHeader';
-import { space, text, type } from '../theme';
-import { getHealthBandJudgement } from '@crewchief/core/health-band';
+import {
+  HERO_DIM_MAX,
+  HERO_DIM_REST,
+  HERO_DIM_SPAN,
+  HERO_IMAGE_BLEED,
+  HERO_NAV_FADE_SPAN,
+  HERO_NAV_FADE_START,
+  HERO_PARALLAX_RATE,
+  HERO_SCALE_GAIN,
+  HERO_SHEET_OVERLAP,
+  HERO_TITLE_FADE_SPAN,
+  detailHeroHeight,
+  heroBands,
+} from '../theme/hero-motion';
+import { TABULAR, border, brand, hero, plinth, radius, space, surface, text, type } from '../theme';
+import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
 
-/** The board's hero height for the photograph on this screen. */
-const PHOTO_HERO = 196;
+/*
+  ⚠ `PHOTO_HERO = 196` is gone. The hero is no longer a band with a number on
+  it — `detailHeroHeight` clamps 62% of the display, and `heroBands` decides
+  which of the two layouts that height gets. See `theme/hero-motion.ts`.
+*/
 
 /**
  * Phase 3.2, second half — the detail behind a garage row.
@@ -69,7 +93,7 @@ const PHOTO_HERO = 196;
  *
  * ── Why the shared health band, again ───────────────────────────────────────
  *
- * Same reasoning as the garage: `@crewchief/core/health-band` holds the
+ * Same reasoning as the garage: `@wellkept/core/health-band` holds the
  * thresholds and the wording, the web dashboard reads it, and a local copy of
  * "80 is good" drifts silently. This screen and the row it came from must
  * agree, and the only way to guarantee that is to not have a second opinion.
@@ -79,6 +103,11 @@ interface HealthSummary {
   health_score?: number | null;
   summary?: string | null;
   red_flags?: unknown[] | null;
+  /**
+   * When this reading was taken. Added 23 Aug alongside `healthVerdict` — the
+   * screen cannot refuse an out-of-date sentence without knowing its date.
+   */
+  last_generated?: string | null;
 }
 
 interface Vehicle {
@@ -230,7 +259,48 @@ interface Knowledge {
  */
 interface HubCounts {
   services: number | null;
+  /**
+   * When the most recent service record was **filed**, ISO, or `null` if the
+   * count could not be read.
+   *
+   * ⚠ Filed rather than performed. It exists to date the health verdict against
+   * what it could have seen, and a visit dated 2 Aug that was scanned on the
+   * 6th was invisible to a summary generated on the 4th. `healthVerdict`
+   * carries the full argument.
+   */
+  servicesFiledAt: string | null;
   wishlist: { count: number; total: number } | null;
+}
+
+/**
+ * The most recent `created_at` among filed service records, or `null`.
+ *
+ * ⚠ Returns `null` for an empty list rather than "now" or the epoch. A car with
+ * no records has no filing date, and either substitute would be a claim: the
+ * epoch would call every verdict stale, and `now` would call every verdict
+ * current. §6 — a missing value is "we cannot say".
+ */
+function newestFiledAt(items: Array<{ created_at?: string | null }>): string | null {
+  let newest: string | null = null;
+  let newestAt = -Infinity;
+
+  for (const item of items) {
+    if (typeof item?.created_at !== 'string') continue;
+
+    /*
+      Parsed rather than compared as strings. These do all come from one
+      Postgres column and would sort lexically today — but that holds only while
+      every row carries the same offset and the same fractional precision, which
+      is a property of the data rather than of anything enforced here.
+    */
+    const at = Date.parse(item.created_at);
+    if (Number.isNaN(at) || at <= newestAt) continue;
+
+    newest = item.created_at;
+    newestAt = at;
+  }
+
+  return newest;
 }
 
 type State =
@@ -248,6 +318,7 @@ type State =
 
 export function VehicleDetailScreen({
   vehicleId,
+  title,
   onBack,
   onSignOut,
   onAskAdvisor,
@@ -256,11 +327,13 @@ export function VehicleDetailScreen({
   onOpenWishlist,
   onOpenHistory,
   onOpenHealth,
-  onOpenBuild,
   onOpenMilestone,
+  onOpenProfile,
   pickPhoto,
 }: {
   vehicleId: string;
+  /** The car's name from the row that opened this, so the nav is right during the fetch. */
+  title?: string;
   onBack: () => void;
   onSignOut: () => void;
   /*
@@ -279,15 +352,17 @@ export function VehicleDetailScreen({
     Callbacks, like every other destination here, for the reason the header
     gives: this screen does not know react-navigation exists.
 
-    `onOpenHealth` and `onOpenBuild` are where two instruments went. They were
+    `onOpenHealth` is where the health instrument went, and `onOpenWishlist`
+    now carries the build with it — see the hub's own note on R15. They were
     cards on this screen — a dial with three drivers and a chart, and a second
     dial with a five-rung ladder — and between them they were most of why the
     IA read as cluttered. `onOpenMilestone` was already a route and simply had
     no way in from here; it took a notification to reach it.
   */
   onOpenHealth: () => void;
-  onOpenBuild: () => void;
   onOpenMilestone: () => void;
+  /** The owner's four onboarding answers, editable. */
+  onOpenProfile: () => void;
   /**
    * The picker seam — this screen never imports `expo-image-picker`.
    *
@@ -305,6 +380,28 @@ export function VehicleDetailScreen({
 
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+
+  /*
+    ── The scroll driver ─────────────────────────────────────────────────────
+
+    One `Animated.Value`, one `Animated.event`, `useNativeDriver: true`, and an
+    `interpolate` for every derived value. Everything in this feature is
+    **scroll-linked** — there is no `Animated.timing` anywhere in it, because
+    the thumb is the clock.
+
+    ⚠ Every interpolation below must feed a `transform` or an `opacity`. Those
+    are exactly what the native driver supports; a `height`, a `top` or a colour
+    silently forces the JS driver and the whole hero starts dropping frames
+    under a finger. `VehicleDetailScreen.test.tsx` asserts it, because it is not
+    visible in a screenshot and not visible on a fast simulator either.
+  */
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  const heroH = detailHeroHeight(windowHeight);
+  const bands = heroBands(heroH);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -341,7 +438,7 @@ export function VehicleDetailScreen({
             health_history?: HealthReading[];
             knowledge?: Knowledge | null;
           }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
-          apiRequest<{ maintenanceLineItems?: unknown[] }>(
+          apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
             `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
           ),
           apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
@@ -357,12 +454,15 @@ export function VehicleDetailScreen({
           return;
         }
 
+        const filedItems =
+          servicesResult.status === 'fulfilled' &&
+          Array.isArray(servicesResult.value.maintenanceLineItems)
+            ? servicesResult.value.maintenanceLineItems
+            : null;
+
         const counts: HubCounts = {
-          services:
-            servicesResult.status === 'fulfilled' &&
-            Array.isArray(servicesResult.value.maintenanceLineItems)
-              ? servicesResult.value.maintenanceLineItems.length
-              : null,
+          services: filedItems === null ? null : filedItems.length,
+          servicesFiledAt: filedItems === null ? null : newestFiledAt(filedItems),
           wishlist:
             wishlistResult.status === 'fulfilled'
               ? summariseWishlist(wishlistResult.value.wishlistItems)
@@ -407,6 +507,19 @@ export function VehicleDetailScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /*
+    ── ⚠ MOB-09 · a write behind this screen used to be invisible ─────────────
+
+    Nothing in this app refetched on focus. Every screen loaded once on mount
+    and kept whatever it had — so adding to the wishlist, marking a recall
+    repaired, confirming an odometer or scanning an invoice all succeeded and
+    then returned to a screen that said they had not.
+
+    `useRefetchOnFocus` carries the full argument, including why this runs on
+    the first focus too rather than being clever about skipping it.
+  */
+  useRefetchOnFocus(load);
 
   /**
    * Add or replace this car's photograph.
@@ -542,10 +655,39 @@ export function VehicleDetailScreen({
     names the worst open component is information. `component` is NHTSA's own
     short field; the summary would be a paragraph.
   */
-  const worstRecall = open[0]?.component
-    ? openRecalls === 1
-      ? `${open[0].component}. Free to fix at a franchised dealer.`
-      : `Worst: ${open[0].component}. Free to fix at a franchised dealer.`
+  /*
+    ── The verdict, and why it is not `health.summary` ───────────────────────
+
+    See `healthVerdict` in `@wellkept/core/health-claims` for the defect: this
+    screen read "a complete lack of documented maintenance" over a car with five
+    filed services, because the stored sentence was written before they arrived
+    and nothing on this path recomputes it.
+
+    Computed here because this is the first point at which both of its inputs
+    exist — the open recall count is worked out immediately above, and the
+    service count came back with the load.
+  */
+  const verdict = healthVerdict({
+    summary: health?.summary,
+    generatedAt: health?.last_generated,
+    serviceCount: counts.services,
+    newestFiledAt: counts.servicesFiledAt,
+    openRecalls,
+  });
+
+  /*
+    ⚠ **R28 / §6.** It printed `Worst: AIR BAGS:SIDE/WINDOW:HEAD` — NHTSA's
+    taxonomy string, in caps, in the product's loudest banner. `componentPlainName`
+    with `short` names the system alone, because this is one line carrying a
+    component, a severity and an instruction and the qualifiers do not fit in it.
+
+    "Worst:" is gone with it. The banner already sits under a count, so the
+    superlative was doing nothing a reader could act on — it now reads as one
+    sentence: *"Airbags — free to fix at a franchised dealer."*
+  */
+  const worstComponent = componentPlainName(open[0]?.component ?? null, { short: true });
+  const worstRecall = worstComponent
+    ? `${worstComponent} — free to fix at a franchised dealer.`
     : null;
 
   /*
@@ -572,22 +714,21 @@ export function VehicleDetailScreen({
   );
 
   /*
-    ⚠ `completed` is empty and it is empty everywhere — `modification_tracking`
-    holds no rows across the product, re-confirmed against the live database on
-    23 Aug. So every car reads Stock. That is the honest state, and `BuildScreen`
-    is where it is explained rather than merely displayed.
-  */
-  const buildLabel = buildPosition([]).label;
-
-  /*
     ── What each row says is behind it ───────────────────────────────────────
 
     ⚠ `null` where the count could not be fetched, and `NavRow` renders nothing
     for it. Never "0": a row reading "Wishlist 0" claims the list is empty,
     which is a statement a failed request has not earned. See `HubCounts`.
   */
-  const serviceDue =
-    nextService.kind === 'known' ? `${nextService.service} · ${nextService.timing}` : UNKNOWN_TIMING;
+  /*
+    ⚠ The **timing** only, not the service name.
+
+    It read "Engine Oil & Filter Change · in 4,000 mi", which is a sentence in a
+    slot sized for a number — it squeezed the row's own label down to "Se…".
+    The service is named on the screen this row opens; what belongs here is
+    when.
+  */
+  const serviceDue = nextService.kind === 'known' ? nextService.timing : UNKNOWN_TIMING;
 
   const historyCount =
     counts.services === null ? null : `${counts.services}`;
@@ -599,82 +740,245 @@ export function VehicleDetailScreen({
         ? `${counts.wishlist.count} · ${money.format(counts.wishlist.total)}`
         : `${counts.wishlist.count}`;
 
+  const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || title || '';
+
+  /*
+    ── The interpolations ────────────────────────────────────────────────────
+
+    Every one is driven by `scrollY` and lands on a transform or an opacity.
+    The formulas are the handoff's §3 table verbatim; the only translation is
+    that a value the handoff expresses through `k` is expressed here through the
+    scroll offset that produces that `k` — see `dialFlight`, which does that
+    conversion once and has tests on it.
+  */
+  const dim = scrollY.interpolate({
+    inputRange: [0, HERO_DIM_SPAN],
+    outputRange: [HERO_DIM_REST, HERO_DIM_MAX],
+    extrapolate: 'clamp',
+  });
+
+  /* The hero's contents drift, and the frame does not. Two planes, two rates. */
+  const heroDrift = scrollY.interpolate({
+    inputRange: [0, 1000],
+    outputRange: [0, -1000 * HERO_PARALLAX_RATE],
+    extrapolate: 'clamp',
+  });
+
+  const photoScale = scrollY.interpolate({
+    inputRange: [0, HERO_DIM_SPAN],
+    outputRange: [1, 1 + HERO_SCALE_GAIN],
+    extrapolate: 'clamp',
+  });
+
+  /* Gone before the nav title arrives — see `HERO_TITLE_FADE_SPAN`. */
+  const identityFade = scrollY.interpolate({
+    inputRange: [0, HERO_TITLE_FADE_SPAN],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const navFade = scrollY.interpolate({
+    inputRange: [HERO_NAV_FADE_START, HERO_NAV_FADE_START + HERO_NAV_FADE_SPAN],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const sheetShadow = scrollY.interpolate({
+    inputRange: [0, HERO_DIM_SPAN],
+    outputRange: [0.28, 0.7],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <ScrollView
-      contentContainerStyle={styles.body}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void load(true)}
-          tintColor={text.muted}
-        />
-      }
-    >
-      {/*
-        The 196pt photo hero — no longer deferred.
+    /*
+      ── The four planes, in render order ──────────────────────────────────────
 
-        Three things changed on 15 Aug and all three were prerequisites:
-        `photo_url` turned out to have been on this payload since `2eb172a`;
-        `VehiclePlate` moved the timeout and the fallback into one component, so
-        showing a photo here reuses that net rather than doubling it; and
-        `/api/v1/upload-photo` means a car that lands on the plate can be given
-        a picture from this screen instead of being stuck there.
+      Hero, then the sheet, then the nav, then the dial and its chip — all
+      siblings of the screen root.
 
-        ⚠ It will show the plate on this account until the M235i's 2.3 MB
-        original is replaced — that file has never decoded on a device. That is
-        the fallback working, not the hero failing, and the control to fix it is
-        on the plate itself.
-      */}
-      {photoError && (
-        <AlertBanner tone="critical" headline="That photo was not saved" body={photoError} />
-      )}
+      ⚠ **This is render order, not `zIndex`.** The handoff is explicit and the
+      reason is Android: `zIndex` interacts with `elevation` there in ways that
+      cost an afternoon. If the order is right no `zIndex` is needed, and there
+      is none in this file.
+    */
+    <View style={styles.screen}>
+      {/* ── z0 · HERO — pinned. Only its contents move. ─────────────────────── */}
+      <View style={[styles.hero, { height: heroH }]} pointerEvents="box-none">
+        {vehicle.photo_url ? (
+          <Animated.Image
+            source={{ uri: vehicle.photo_url }}
+            /*
+              ⚠ Over-rendered by `HERO_IMAGE_BLEED` top and bottom. RN scales
+              about the centre, so at `HERO_SCALE_GAIN` the image grows ~7% each
+              way — without the bleed the photograph's top edge walks into frame
+              at the end of the drift.
 
-      <VehiclePlate
-        photo={vehicle.photo_url}
-        year={vehicle.year}
-        make={vehicle.make}
-        model={vehicle.model}
-        trim={vehicle.trim}
-        height={PHOTO_HERO}
-        onAddPhoto={pickPhoto ? () => void onAddPhoto() : undefined}
-        busy={uploading}
-      />
+              `cover`, focal point high. **Not** `contain`, no letterbox, no
+              side gutters: that geometry is the bug being removed — at 150pt a
+              3:4 phone snapshot letterboxed into purple bars.
+            */
+            style={[
+              styles.heroImage,
+              { transform: [{ translateY: heroDrift }, { scale: photoScale }] },
+            ]}
+            resizeMode="cover"
+            accessibilityRole="image"
+            accessibilityLabel={name ? `${name} photo` : 'Vehicle photo'}
+          />
+        ) : (
+          <HeroEmpty />
+        )}
 
-      <View style={styles.headerBlock}>
-        <Text style={styles.name}>
-          {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}
-        </Text>
+        {/* The bay light going down as the floor comes up — shadow, not chrome. */}
+        <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
+
+        {/* Fixed. The contrast floor the name sits on. Never animates. */}
+        <HeroBed />
+
+        <Animated.View
+          style={[
+            styles.identity,
+            { bottom: bands.titleAnchor, opacity: identityFade, transform: [{ translateY: heroDrift }] },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
+            {name}
+          </Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </Animated.View>
+
         {/*
-          ⚠ The spec's subtitle: **"61,240 mi · xDrive"** — the odometer first.
-
-          Mileage used to live five rows down in a "Details" card, which put the
-          single most-checked number about a car below two instruments and a
-          list of links. It is identity, not detail: it is how an owner knows
-          which car they are looking at and roughly what state it is in.
+          The photo control, kept. It was on `VehiclePlate`, which this hero
+          replaces — and it is the only way to give a car a picture from this
+          screen. It rides the identity's fade so it is gone by the time the
+          sheet reaches it.
         */}
-        {subtitle ? <Text style={styles.trim}>{subtitle}</Text> : null}
+        {pickPhoto && (
+          <Animated.View style={[styles.photoAction, { opacity: identityFade }]}>
+            {/*
+              ⚠ `Button`, not a hand-rolled `Pressable` that swaps its label for
+              a spinner. RN derives a control's name from its `<Text>` children,
+              so that pattern goes anonymous at exactly the moment something is
+              happening — `mobile-busy-controls-named` holds the app at zero of
+              them, and it caught this one.
+
+              It wears the hero's pill fill because it floats over a photograph;
+              the busy behaviour is the primitive's.
+            */}
+            <Button
+              label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
+              variant="ghost"
+              size="small"
+              busy={uploading}
+              onPress={() => void onAddPhoto()}
+              style={styles.pill}
+            />
+          </Animated.View>
+        )}
       </View>
 
+      {/* ── z2 · SHEET — the only thing that travels. ───────────────────────── */}
+      <Animated.ScrollView
+        style={styles.scroller}
+        contentContainerStyle={styles.scrollBody}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void load(true)}
+            tintColor={text.muted}
+            progressViewOffset={insets.top + 44}
+          />
+        }
+      >
+        {/*
+          The gap the hero shows through. `HERO_SHEET_OVERLAP` is how far the
+          sheet already rests **onto** the car at zero scroll — the floor is
+          never fully down.
+        */}
+        <View style={{ height: heroH - HERO_SHEET_OVERLAP }} pointerEvents="none" />
+
+        <Animated.View style={[styles.sheet, { shadowOpacity: sheetShadow }]}>
+          {/*
+            The batten's lit hairline on the leading edge. This is a floor
+            arriving, not an iOS modal — square top corners, no rounded card.
+          */}
+          <View style={styles.sheetEdge} pointerEvents="none" />
+
+          <View style={styles.body}>
+            {photoError && (
+              <AlertBanner tone="critical" headline="That photo was not saved" body={photoError} />
+            )}
       {/*
-        ── The reading, and one way in to the account of it ────────────────────
-
-        The 104pt **card** dial, not the hero. The board is explicit — *"Hero ·
-        184pt … Garage bay and nothing else — one dial per screen"* — and a
-        second hero here plus a sweep pushed everything this screen exists to
-        lead to below the fold.
-
-        What left this card on 23 Aug: the three drivers and the history chart.
-        They are the *account* of the score rather than the score, they need
-        room to explain themselves, and they were two of the reasons this screen
-        read as a stack of instruments. `HealthScreen` is one tap down.
+        ⚠ The dial is **not** here any more — it is in the hero, on the plane
+        above this sheet. What stays is the sentence and the way in to the
+        account of it; a second copy of the reading on the same screen would be
+        the duplication the hero exists to remove.
       */}
       {score !== null && band && (
         <Card>
-          <Plinth>
-            <ClusterGauge score={score} variant="card" size={CARD_SIZE} />
-          </Plinth>
-          {health?.summary ? <Text style={styles.summary}>{health.summary}</Text> : null}
-          <NavRow label="What is driving this score" onPress={onOpenHealth} last />
+          {/*
+            ── ⚠ The card carries the score it is explaining ──────────────────
+
+            David, 23 Aug: *"I don't like that driving score details are still
+            visible after the user can no longer see the actual score — on
+            scroll, the score exits the viewport well earlier than the
+            description."*
+
+            The dial is on the hero and the chip is in the nav, so the number
+            never technically leaves — but neither is *beside the sentence about
+            it* by the time the sentence is on screen. A paragraph explaining a
+            reading you have to look away to find is a paragraph about nothing.
+
+            So the reading is repeated here at the value size, in the band
+            colour, with the verdict beside it. Three appearances of one number
+            sounds like a lot and is not: only two are ever visible at once, at
+            different scales and doing different jobs — the dial is the
+            instrument, the chip is chrome, and this is the subject of the
+            paragraph under it.
+          */}
+          <View style={styles.scoreHead}>
+            <Text style={[styles.scoreValue, { color: healthBandHex(band) }]}>{score}</Text>
+            <Text style={[styles.scoreBand, { color: healthBandHex(band) }]}>{band.label}</Text>
+          </View>
+
+          {/*
+            ⚠ `verdict.text`, never `health.summary`. The stored sentence is
+            shown only when the reading is current; when it predates the records
+            on file, what renders instead is a statement of that, and the
+            sentence itself does not appear at all — see `healthVerdict`.
+          */}
+          {verdict.text ? <Text style={styles.summary}>{verdict.text}</Text> : null}
+
+          {/*
+            What the number was worked out from, named. This is the half that
+            makes a contradiction like the one above visible while somebody is
+            looking at the screen, rather than only to whoever thinks to open
+            the service history and compare.
+          */}
+          <ProvenanceRow kinds={verdict.inputs} />
+
+          {/*
+            ── R24 · a list row, not a link floating in a paragraph ──────────
+
+            `NavRow` with `last` draws no divider, so this chevron row sat
+            directly under the provenance line with nothing separating them —
+            it read as a link inside the text block rather than as the card's
+            way out. The rule it now follows is the one `ListGroup` uses: a row
+            is separated from what it is not part of.
+
+            The whole card is deliberately **not** the target. It carries the
+            score, the verdict and the provenance, and three different things to
+            read do not make one thing to press.
+          */}
+          <View style={styles.cardExit}>
+            <NavRow icon="gauge" label="What is driving this score" onPress={onOpenHealth} last />
+          </View>
         </Card>
       )}
 
@@ -720,29 +1024,32 @@ export function VehicleDetailScreen({
         a wishlist total, the next service. Where it does not know, it carries
         **nothing** — never a zero, which would claim the place is empty.
       */}
-      <Card>
-        <SectionHeader title="This car" />
-        <NavRow label="Service due" count={serviceDue} onPress={onOpenMilestone} />
-        <NavRow label="Service history" count={historyCount} onPress={onOpenHistory} />
-        <NavRow label="Wishlist" count={wishlistCount} onPress={onOpenWishlist} />
-        {/*
-          The build, now a route. It was a dial reading Stock and a five-rung
-          scale with a marker on it, and nothing on that card could be pressed —
-          `BuildScreen` carries what was wrong with it and what it does instead.
+      {/*
+        ── ⚠ R14 / R15 · five rows became three ──────────────────────────────
 
-          Shown only when the owner has not answered "stock". `showsModifications`
-          is the one genuine off switch, and it is "not now" rather than "never".
+        It was `Service due`, `Service history`, `Wishlist`, `Build` and `Scan an
+        invoice` — five siblings off a flat list, four of which were two pairs
+        answering one question each.
+
+        `Service` is what this car has had done and what it needs; `Plan` is
+        what to do to it next, needs and mods. Both open on the segment their
+        row named, so nothing that used to be one tap away is now two.
+
+        The counts move with them. `Service` shows the history count because
+        that is the countable fact; `Plan` shows the needs count and total,
+        which is the number an owner is actually tracking.
+      */}
+      <ListGroup label="This car">
+        <NavRow icon="clock" label="Service" count={serviceDue} onPress={onOpenMilestone} />
+        <NavRow icon="wrench" label="History" count={historyCount} onPress={onOpenHistory} />
+        <NavRow icon="heart" label="Plan" count={wishlistCount} onPress={onOpenWishlist} />
+        {/*
+          No `detail` line any more. The spec's rows are one line each, and a
+          two-line row in a group of one-liners is the row that looks broken —
+          "Scan an invoice" already says what it does.
         */}
-        {showsModifications(vehicle.performance_mindedness) && (
-          <NavRow label="Build" count={buildLabel} onPress={onOpenBuild} />
-        )}
-        <NavRow
-          label="Scan an invoice"
-          detail="Photograph a bill and its lines are filed here"
-          onPress={onScanInvoice}
-          last
-        />
-      </Card>
+        <NavRow icon="file-text" label="Scan an invoice" onPress={onScanInvoice} last />
+      </ListGroup>
 
       {/*
         ── The one filled primary ─────────────────────────────────────────────
@@ -757,35 +1064,132 @@ export function VehicleDetailScreen({
       {/*
         ── What the owner told us ─────────────────────────────────────────────
 
-        `ListRow`, not `NavRow`, and the difference is the point of having both:
-        these are **facts** the product holds about the car, so the label is the
-        caption and the value is the payload. Nothing here goes anywhere.
+        ⚠ A **destination**, not a read-only card. It was four `ListRow`s with
+        no way to change any of them — David's *"why are we showing these
+        details with no option to update? all should be editable."* The honest
+        answer was that nothing in the product could write them:
+        `PATCH /api/v1/vehicles` took a mileage reading and nothing else.
 
-        ⚠ Mileage is deliberately absent — it moved into the identity line at the
-        top of the screen. Repeating it here would be the card duplication this
-        screen was cleaned up to remove.
+        A row rather than inline editing, because one of these answers turns a
+        whole surface on and off — `stock` hides the Build route — and that
+        deserves a deliberate save rather than happening under a finger.
       */}
-      <Card>
-        <SectionHeader title="What you told us" />
-        <Row
-          label="Average per month"
-          value={
-            typeof vehicle.avg_miles_per_month === 'number'
-              ? `${miles.format(vehicle.avg_miles_per_month)} mi`
-              : null
-          }
+      <ListGroup label="What you told us">
+        <NavRow
+          icon="sliders"
+          label="How you use this car"
+          count={vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null}
+          onPress={onOpenProfile}
+          last
         />
-        <Row label="Use" value={vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null} />
-        <Row
-          label="Goal"
-          value={vehicle.performance_mindedness ? humanise(vehicle.performance_mindedness) : null}
-        />
-        <Row
-          label="Objective"
-          value={vehicle.ownership_objective ? humanise(vehicle.ownership_objective) : null}
-        />
-      </Card>
-    </ScrollView>
+      </ListGroup>
+          </View>
+        </Animated.View>
+      </Animated.ScrollView>
+
+      {/* ── z6 · NAV — pills at rest, a solid plate once the sheet arrives. ─── */}
+      <Animated.View
+        style={[styles.navPlate, { height: insets.top + 44, opacity: navFade }]}
+        pointerEvents="none"
+      />
+
+      <View style={[styles.navRow, { top: insets.top }]} pointerEvents="box-none">
+        <Pressable
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back to the garage"
+          /*
+            ── ⚠ R25 · 36pt drawn, 44pt tappable ──────────────────────────────
+
+            The pill is 36 tall because that is what reads correctly over a
+            photograph — a 44pt glass slab is a bar, not a pill. `hitSlop` is
+            React Native's version of the `.tap-target-44` pseudo-element: the
+            drawn size is unchanged and the target grows around it.
+
+            Legal here for the same reason the pseudo-element is: these are
+            **standalone** targets at opposite ends of the nav row, so the
+            expanded areas cannot overlap each other or anything else. Inside a
+            dense list it would not be.
+          */
+          hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+          style={({ pressed }) => [styles.pill, styles.backPill, pressed && styles.pillPressed]}
+        >
+          <Icon name="chevron-left" size={16} color={brand.accent} />
+          <Text style={styles.backLabel}>Garage</Text>
+        </Pressable>
+
+        {/*
+          ⚠ The title is laid out in the flow, not absolutely centred.
+
+          Centred across the full width, "2015 BMW M235i" sits under the chip by
+          8pt and "2019 Mercedes-AMG C63 S" runs under both it and the controls
+          to its right. The title is the only thing keeping the car from being
+          anonymous once the hero is covered, so it does not share space with
+          chrome — it takes the slack and truncates.
+        */}
+        <Animated.Text style={[styles.navTitle, { opacity: navFade }]} numberOfLines={1}>
+          {name}
+        </Animated.Text>
+
+        {/* The slot the chip occupies. Reserved in the flow so the title clears it. */}
+        <View style={styles.navChipSlot} pointerEvents="none" />
+      </View>
+
+      {/*
+        ── z7 · THE SCORE, in the nav ──────────────────────────────────────────
+
+        ⚠ **The hero dial is gone, and this is what replaced it.** David,
+        23 Aug: *"we can lose the dial with health score overlaying car image.
+        The animation is fun but info is redundant and it might cover an
+        important part of the car image people care about."*
+
+        Both halves are right, and the second is the one that settles it. The
+        photograph is the only place in the product an owner sees their own car,
+        and a 160pt plinth sat in the middle of it — over the roofline on most
+        3:4 phone snapshots. An instrument that obscures the subject it is
+        reporting on has its priorities inverted.
+
+        The redundancy was real too, and self-inflicted: the health card gained
+        its own reading earlier the same day, so by then the score appeared
+        three times. Two remain, and they do different jobs — this is chrome
+        that persists, and the card's is the subject of the paragraph under it.
+
+        What went with it: `dialFlight`, the 1.6× climb, the crossfade, and the
+        layering invariant that was the hardest part of the design. There is no
+        travelling instrument left to collide with the sheet, so the rule that
+        governed it has nothing to govern. That is a real simplification rather
+        than a deletion — logged for Design in `docs/design-system-drift.md`.
+      */}
+      {score !== null && band && (
+        <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
+          {/*
+            ── R10 / R25 · it is a control now, and it says so ────────────────
+
+            The chip was `pointerEvents="none"` chrome: an arc and the numeral
+            70, which a screen reader announced as "Health score 70 out of 100 —
+            Fair" and then offered nothing to do with. Meanwhile the only way
+            into the health detail was a row most of the way down the sheet.
+
+            It persists through the whole scroll, so it is the one affordance
+            that is always in reach. The spoken name says where it goes, because
+            a reading and a door to a reading are different things and the arc
+            cannot distinguish them.
+
+            ⚠ `hitSlop`, for the same reason as the back pill — the chip is
+            drawn at the size that reads over a photograph, and the target is
+            grown around it rather than the drawing being inflated.
+          */}
+          <Pressable
+            onPress={onOpenHealth}
+            accessibilityRole="button"
+            accessibilityLabel={`Health score ${score}, ${band.label}. Opens health detail.`}
+            hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
+          >
+            <DialChip score={score} />
+          </Pressable>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -804,16 +1208,139 @@ function Row({ label, value }: { label: string; value: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: surface.page },
+
+  /* ── z0 · the pinned hero ─────────────────────────────────────────────── */
+  /**
+   * Absolutely positioned and **never moves**. Only its contents drift.
+   *
+   * `overflow: hidden` is what makes the bleed and the pull-back legal: the
+   * image is `heroH + 120` tall and grows another 7% each way, and all of that
+   * has to be clipped to this frame.
+   */
+  hero: { position: 'absolute', left: 0, right: 0, top: 0, overflow: 'hidden' },
+  heroImage: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -HERO_IMAGE_BLEED,
+    bottom: -HERO_IMAGE_BLEED,
+    width: '100%',
+  },
+  /** Flat, not a gradient. The room going dark, driven by scroll. */
+  dim: { backgroundColor: hero.shadow },
+  identity: { position: 'absolute', left: space.xl, right: space.xl },
+  /**
+   * The display face, on the photograph.
+   *
+   * ⚠ Legal here because of `HeroBed`'s guaranteed floor, not in spite of the
+   * photograph — see that component for the argument. The size comes from
+   * `heroBands`, because the compact branch drops it to 28.
+   */
+  name: { ...type.editorial, color: text.primary, letterSpacing: -0.5 },
+  subtitle: { ...type.body, fontSize: 15, color: text.secondary, marginTop: 4 },
+
+  photoAction: { position: 'absolute', right: space.lg, bottom: space.lg },
+  /**
+   * The floating controls over the photograph.
+   *
+   * ⚠ **No `BlurView`.** There is no glassmorphism anywhere in this product —
+   * `plinth`'s own note carries the case that already tried it and the 1.09:1
+   * defect it produced. A solid fill at 0.78 is measurable; a blur over an
+   * unknown photograph is not.
+   */
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    minHeight: 36,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+    backgroundColor: hero.pill,
+    justifyContent: 'center',
+  },
+  pillPressed: { backgroundColor: surface.raised },
+  pillLabel: { ...type.label, color: text.primary },
+  backPill: { paddingLeft: space.sm },
+  backLabel: { ...type.uiStrong, color: brand.accent },
+
+  /* ── z2 · the sheet ───────────────────────────────────────────────────── */
+  scroller: { flex: 1 },
+  scrollBody: { paddingBottom: space.h2 },
+  /**
+   * Opaque, **square** top corners.
+   *
+   * This is a floor arriving, not an iOS modal — a rounded card top would make
+   * it a sheet you can dismiss, which is the wrong affordance for something
+   * that is simply the rest of the page.
+   */
+  sheet: {
+    backgroundColor: surface.page,
+    shadowColor: hero.sheetShadow,
+    shadowOffset: { width: 0, height: -18 },
+    shadowRadius: 22,
+    /* `shadowOpacity` is animated; elevation is Android's own and is static. */
+    elevation: 12,
+  },
+  /** The batten's lit hairline, on the leading edge. `environment.css`'s gradient. */
+  sheetEdge: { height: 1, backgroundColor: brand.accent, opacity: 0.55 },
+
+  /* ── z6 · the nav ─────────────────────────────────────────────────────── */
+  navPlate: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    backgroundColor: surface.nav,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: border.panel,
+  },
+  navRow: {
+    position: 'absolute',
+    left: space.lg,
+    right: space.lg,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  /** `flex: 1` and it truncates — see the ⚠ at the call site. */
+  navTitle: { ...type.uiStrong, color: text.primary, flex: 1, textAlign: 'center' },
+  navChipSlot: { width: DIAL_CHIP_SLOT },
+
+  /* ── z7 · the score chip ──────────────────────────────────────────────── */
+  dialChip: { position: 'absolute', right: space.lg, alignItems: 'flex-end' },
+  /* R24. The rule that separates a card's exit from its content. */
+  cardExit: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+    marginTop: space.sm,
+  },
+
+  /*
+    The reading, at the value size rather than the instrument's. Tabular so it
+    does not shift as the score moves between sweeps.
+  */
+  scoreHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  /*
+    ⚠ **R7 · sans, because this screen's serif role is the hero title.**
+
+    This was `type.editorial` at 30, which put **two** serif roles on one screen
+    — the 36pt car name over the photograph and this. The theme's own rule is
+    "one serif role per screen, never two", and the system offers two kinds of
+    role, (a) a name and (b) a single hero numeral. A screen picks one.
+
+    On this screen the name wins: it is the signature, it is the only place an
+    owner sees their own car, and the numeral is the *subject of the paragraph
+    under it* rather than the screen's headline. The `Health` screen is where
+    the numeral is the hero, and that is where role (b) is spent.
+  */
+  scoreValue: { ...type.title, fontSize: 30, lineHeight: 34, ...TABULAR },
+  scoreBand: { ...type.label, color: text.muted },
+
   body: { padding: space.lg, gap: space.md },
 
   headerBlock: { gap: 2 },
-  name: {
-    ...type.editorial,
-    fontSize: 26,
-    lineHeight: 32,
-    color: text.primary,
-    letterSpacing: -0.5,
-  },
   trim: { ...type.body, color: text.muted },
 
   /* The same real surface step the garage cards now use — not a 5% wash. */

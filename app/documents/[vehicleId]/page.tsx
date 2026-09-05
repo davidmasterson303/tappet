@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { FileText, CircleCheck as CheckCircle2, Calendar, MessageSquare } from 'lucide-react';
+import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
+import { formatDate } from '@wellkept/core/formatting-utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -169,12 +170,61 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
 
   const hasHistory = (visits?.length ?? 0) > 0;
 
+  /*
+    ── ⚠ The synthesis line, built only from what the rows hold ──────────────
+
+    A design critique: "a concierge page would lead with a synthesis line…
+    right now the page has no summary layer at all; it's chronology with no
+    insight." It suggested "3 visits · $1,700 · last serviced Jan 2025 at
+    66,900 mi".
+
+    Three of those four facts are in the table. **The odometer is not** —
+    `maintenance_line_items` has no mileage column, so "at 66,900 mi" would be
+    a number invented to complete a sentence. It is left out rather than
+    guessed, which is the same rule the health drivers hold themselves to.
+
+    ⚠ The spend is what this history *records*, not what the car has cost.
+    Rows arrive from uploaded invoices, so a visit nobody uploaded is missing
+    from it — the wording says "recorded" for that reason and must keep saying
+    something like it.
+  */
+  const summary = (() => {
+    if (!visits || visits.length === 0) return null;
+
+    const spend = visits.reduce((total, visit) => total + visit.total, 0);
+    const dated = visits.filter((visit) => visit.date);
+    const latest = dated.length > 0 ? dated[0].date : null;
+
+    return [
+      `${visits.length} ${visits.length === 1 ? 'visit' : 'visits'}`,
+      `${currency.format(spend)} recorded`,
+      latest ? `last ${formatDate(latest)}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  })();
+
   return (
-    <DashboardLayout vehicle={vehicle} currentPage="maintenance" vehicleImage={vehicleImage}>
+    <DashboardLayout
+      vehicle={vehicle}
+      currentPage="maintenance"
+      vehicleImage={vehicleImage}
+      /*
+        The visit records draw their own borders, so the layout's panel was a
+        third rounded rectangle around them — page panel, then card, then the
+        rules inside it. Two critiques counted that nesting on this page.
+      */
+      contentSurface="bare"
+    >
       <div className="space-y-6">
-        <div className="flex justify-between items-center mb-8">
+        {/*
+          ⚠ Stacks on a phone. Side by side, the button squeezed the heading
+          into "Service / History" over two lines at 390px — a two-word title
+          wrapping around a control is the layout deciding what the copy says.
+        */}
+        <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Service History</h2>
+            <h2 className="display-serif text-2xl text-white">Service history</h2>
             {/*
               This read "Digitized by <the vision model>" whenever any
               history existed. Naming the model from the constant fixed one
@@ -191,16 +241,53 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
               name the model again for the ones that earned it.
             */}
             <p className="text-white/50 text-sm mt-1">
-              {hasHistory ? 'Every visit on file' : 'Upload an invoice to build your history'}
+              {summary ?? 'Upload an invoice to build your history'}
             </p>
           </div>
+          {/*
+            ⚠ A link, not a pill sitting between a heading and its content.
+
+            A critique: "a pill button named after a different tab, doing
+            navigation dressed as an action… on mobile it pushes the first card
+            below the fold." Two of those three are fixable without lying about
+            where it goes — it is navigation, so it looks like navigation, and
+            it stops taking a button's worth of vertical space above the
+            records.
+          */}
           <Button
-            variant="outline"
-            className="border-info-border text-info hover:bg-cyan-500/10"
+            variant="ghost"
+            /*
+              ⚠ Full-strength ink. As a link at 70% it was, in a critique's
+              words, "typographically invisible… the same visual grammar as the
+              data around it", and this is the page's one creation action.
+              Quiet is not the same as faint: it keeps the link's grammar and
+              stops whispering.
+            */
+            className="h-auto self-start p-0 text-sm font-semibold text-white underline decoration-white/35 underline-offset-4 hover:bg-transparent hover:decoration-white"
             onClick={() => router.push(`/consultant/${params.vehicleId}`)}
           >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Upload Invoice
+            {/*
+              ⚠ The glyph matches the destination. This was a speech bubble on
+              a button labelled "Upload Invoice" — a critique called it "the
+              wrong icon entirely, that's a chat glyph". It is not wrong about
+              where the button goes: uploading an invoice happens in the
+              consultant, by sending it.
+
+              ⚠ Third wording, and the last two were both half right. "Upload
+              Invoice" with a speech-bubble glyph was called the wrong icon;
+              naming the destination instead — "Upload in Consultant" — fixed
+              the glyph and produced "feature-name jargon" and "a speech-bubble
+              icon that doesn't say upload".
+
+              Both notes were about the same confusion: the control was
+              describing its *route* rather than its *outcome*. What a person
+              wants is a service record on file; the consultant is how this
+              product does that, which is a detail of the path and not the point
+              of the button. So it names the outcome and the glyph agrees with
+              the outcome.
+            */}
+            <Plus className="w-4 h-4 mr-2" />
+            Add a service record
           </Button>
         </div>
 
@@ -222,7 +309,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
             </p>
             <Button
               variant="outline"
-              className="border-info-border text-info hover:bg-cyan-500/10 mt-6"
+              className="mt-6 border-white/20 text-white/80 hover:border-white/35 hover:bg-white/5 hover:text-white"
               onClick={() => router.push(`/consultant/${params.vehicleId}`)}
             >
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -231,19 +318,55 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
           </div>
         )}
 
+        {/*
+          ⚠ Capped. The records ran the full ~1180px content width, so a
+          40-character line item stretched a hairline across 1150px with its
+          price orphaned at the far right — two critiques asked for a receipt
+          column around 640–720px. An invoice is a narrow document; it does not
+          get wider because the window did.
+        */}
         {hasHistory && (
-          <div className="grid gap-4">
+          <div className="grid gap-4 sm:max-w-3xl">
             {visits!.map((visit) => (
               <div
                 key={visit.key}
-                className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-cyan-500/40 transition-colors"
+                className="rounded-xl border border-white/10 p-5 transition-colors hover:border-white/25"
+                /*
+                  ⚠ Opaque. At 3% the beltline's ambient strip — a 1px cyan
+                  hairline at `--belt-y` — crossed this card, and on the first
+                  record it landed straight through the shop's name. Same fault
+                  and same fix as the dashboard hero: a card sitting on the
+                  page's ground is a card, not a window.
+                */
+                style={{ background: '#15171b' }}
               >
-                <div className="flex gap-4 items-start">
-                  <div className="bg-info-wash p-3 rounded-lg border border-info-border flex-shrink-0">
-                    <FileText className="text-info w-6 h-6" />
-                  </div>
+                {/*
+                  ── ⚠ A record, not a tile with a bulleted list beside it ────
+
+                  This was a two-column flex: an icon tile and a list on the
+                  left, the total floating in a 130px column on the right. A
+                  design critique measured what that cost — "the single most
+                  important number per card has no anchor", sitting "indented
+                  past the card edge but short of the bullet column, aligned to
+                  nothing" — and named the repeated generic document glyph on
+                  every card as informationless repetition.
+
+                  A service visit is an invoice. So it is set as one: the shop
+                  and the date as a header, the line items beneath, and the
+                  total behind a rule at the foot where a total goes. The icon
+                  is gone; the shop's name is the identity.
+                */}
+                <div>
                   <div>
-                    <h3 className="text-base font-semibold text-white flex items-center gap-2 flex-wrap">
+                    {/*
+                      ⚠ Sans, not the display serif. Setting a shop's name in
+                      Newsreader at body size looked, in a critique's words,
+                      "like an unstyled font fallback rather than a choice" —
+                      the serif is for the page's display moments, and applying
+                      it one level deeper cheapened both. Drift §10.1 says
+                      titles and section heads; a record's subject is neither.
+                    */}
+                    <h3 className="text-sm font-medium text-white/60 flex items-center gap-2 flex-wrap">
                       {visit.vendor}
                       {/*
                         The badge, back — and gated on data this time.
@@ -272,32 +395,110 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
                         </span>
                       )}
                     </h3>
+                    {/*
+                      ⚠ `formatDate`, not the raw column.
+
+                      This printed `visit.date` straight from `service_date` —
+                      "2025-01-20" — in a product wearing a small-caps serif
+                      wordmark, which a critique called the tell that nobody
+                      read the page in character. And the helper had its own
+                      bug: a date-only string parsed as UTC midnight rendered a
+                      day early anywhere west of Greenwich. Both fixed; see
+                      `formatting-utils.ts`.
+
+                      The calendar glyph goes with it — a date needs no icon to
+                      be recognised as a date.
+                    */}
+                    {/*
+                      ── ⚠ The date leads, and the shop follows it ────────────
+
+                      The shop's name was the card's heading — bold, white — and
+                      on this car it is the same string on two consecutive
+                      visits, so a critique read them as "accidental
+                      duplicates" and pointed at the fix: "the *date* is the
+                      scannable key."
+
+                      It is also one fewer tracked-caps line, which the same
+                      critique counted five of on one screen: "the tell of a
+                      design leaning on a single trick." The date is a date
+                      now, set plainly, and the shop is the quieter half above
+                      it.
+                    */}
                     {visit.date && (
-                      <div className="flex items-center gap-4 text-sm text-white/50 mt-1">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {visit.date}
-                        </span>
-                      </div>
+                      <p className="mt-0.5 text-base font-semibold text-white">
+                        {formatDate(visit.date)}
+                      </p>
                     )}
-                    <ul className="mt-3 space-y-1.5">
+                    {/*
+                      ── ⚠ The line prices were here all along ────────────────
+
+                      Three design critiques asked for them — "a ledger without
+                      numbers on its lines is not a ledger", "the core object of
+                      this screen is under-designed" — and I refused twice, on
+                      the claim that `total_cost` was the visit's total repeated
+                      on every row.
+
+                      That was wrong, and checkable in one query: the M3's
+                      January visit is 89 + 28 + 155 + 145 + 378 + 220 = 1015,
+                      which is exactly the total this card was already printing.
+                      `groupIntoVisits` **sums** the column — if it held the
+                      visit total per row the figure would have been six times
+                      too large, and the page would have said so from the first
+                      screenshot.
+
+                      CLAUDE.md §1: verify against the artefact, never the
+                      board. I had a belief about a column and did not query it.
+
+                      ⚠ Rhythm, not a metronome: no rule between items — a
+                      critique counted "six identical hairlines inside one card"
+                      — spacing separates the lines and the only rule is the one
+                      above the total, which is where an invoice puts it.
+                    */}
+                    <ul className="mt-4 space-y-1.5 border-t border-white/8 pt-3">
                       {visit.items.map((item) => (
-                        <li key={item.id} className="text-sm text-white/75 flex items-start gap-2">
-                          <div className="w-1 h-1 rounded-full bg-white/30 flex-shrink-0 mt-2" />
-                          <span>
+                        <li
+                          key={item.id}
+                          className="flex items-baseline justify-between gap-6 text-sm text-white/75"
+                        >
+                          <span className="min-w-0">
                             {item.item_description}
                             {item.part_number && (
                               <span className="text-white/50 ml-2 text-xs">{item.part_number}</span>
                             )}
                           </span>
+                          {item.total_cost != null && (
+                            <span className="shrink-0 tabular-nums text-white/60">
+                              {currency.format(Number(item.total_cost))}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                </div>
 
-                <div className="flex flex-col items-end gap-3 min-w-[130px]">
-                  <span className="text-xl font-bold text-white">{currency.format(visit.total)}</span>
+                    <div className="mt-3 flex items-baseline justify-between gap-4 border-t border-white/15 pt-3">
+                      <span className="label-uppercase">Total</span>
+                      {/*
+                        ⚠ Serif, and this is the one place on the page it earns
+                        the exception to "never tabular data".
+
+                        A critique: the serif "appears exactly three times…
+                        everything else is generic bold sans. '$1,015.00' in
+                        heavy grotesk is the loudest element on every card and
+                        belongs to a different, cheaper product." It is right —
+                        the total is the visit's headline, and it was set in the
+                        UI face.
+
+                        The rule it bends is `display-serif`'s ban on tabular
+                        data, which exists because the cluster reading counts up
+                        and Newsreader would reflow the digits mid-animation.
+                        Nothing here animates: this figure is printed once and
+                        never moves.
+                      */}
+                      <span className="display-serif text-xl text-white">
+                        {currency.format(visit.total)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

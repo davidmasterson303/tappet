@@ -30,7 +30,7 @@ export default function CardStatesPage() {
    *
    * The first version of this page reused the Accord's demo UUID, and every
    * card rendered the Accord photograph under "2019 BMW M3" text — because
-   * VehicleCard hard-overrides demo vehicles from @crewchief/core/demo's DEMO_IMAGES and
+   * VehicleCard hard-overrides demo vehicles from @wellkept/core/demo's DEMO_IMAGES and
    * ignores image_url entirely for them. Useful accident: it is a live
    * demonstration of the two-sources-of-truth problem that A6 exists to delete.
    *
@@ -128,6 +128,24 @@ export default function CardStatesPage() {
         activeRecalls: 0,
         healthSummary: { health_score: 80 },
       },
+    },
+    {
+      title: 'Assessed, and not scoreable (D10)',
+      note:
+        'A row exists and health_score is null — the model was asked and declined. Must be a ' +
+        'dashed dial reading “—”, never a red 0. This is the state that shipped as “Needs ' +
+        'attention” on cars nobody had assessed.',
+      props: {
+        vehicle: base,
+        activeRecalls: 0,
+        healthSummary: { health_score: null, summary },
+      },
+    },
+    {
+      title: 'Never assessed',
+      note: 'No summary row at all. No dial — distinct from a null score, which is a statement ' +
+        'about the car rather than about whether we have ever looked.',
+      props: { vehicle: base, activeRecalls: 0 },
     },
   ];
 

@@ -1,6 +1,416 @@
-# CrewChief roadmap — image pipeline, backdrop, cockpit direction, and responsive web
+# Well Kept roadmap — image pipeline, backdrop, cockpit direction, and responsive web
 
-> ### ⚠ START HERE — handoff into the device-testing thread
+> ### ⚠ START HERE — 4 Sep 2026, the design pass
+>
+> Two days of a design-critic loop: each page screenshotted at 390px and 1440px, handed
+> to a critic in a fresh context with **no code and no history**, scored against a studio
+> bar, fixed, re-judged. 39 commits, all on `main`, none deployed. Both suites green
+> (185 web / 26 mobile).
+>
+> | page | rounds | score |
+> |---|---|---|
+> | dashboard | 11 | 4 → 6 |
+> | consultant | 2 | 5 → 6 |
+> | vehicle info | 3 | 4 → 6 |
+> | maintenance | 5 | 4 → 6 |
+> | landing | 3 | 4 → 5 |
+>
+> `/garage`, `/settings`, `/onboard` are **unjudged** — they 307 without a session, so an
+> anonymous capture cannot reach them. That needs a test account or a signed-in capture.
+>
+> #### ⛔ Three shipped bugs the suite never saw
+>
+> - **No dashboard had ever shown a recall.** Three reads named `nhtsa_data.lookup_status`
+>   in their `select`; that column does not exist in production and PostgREST rejects the
+>   *whole query* for one unknown column, so the row came back null. The seeded M3 has two
+>   open campaigns. Fixed in `lib/nhtsa-row.ts` — and ⚠ **migration `20260824100000` is
+>   still unapplied**, so the fallback is what is carrying it.
+> - **Every service date rendered a day early** west of Greenwich — a date-only string
+>   parsed as UTC midnight. Fixed in `formatting-utils.ts`; the test pins a timezone,
+>   because in UTC (which is what CI runs) the bug is invisible.
+> - **`.field-sm` beat `pl-8`** — it sets the `padding` shorthand from `@layer utilities`,
+>   so the consultant's search icon printed on top of its own placeholder.
+>
+> #### Open, and David's
+>
+> - **`20260824100000`** (the recall column) and **`20260903120000`** (demo copy
+>   punctuation) both await the SQL editor.
+> - **The mark's cyan halo.** Successive critiques call the plate's backlight the page's
+>   remaining tell. It is `BRAND_COLOR.glow`, pinned to Design's SVGs by `brand.test.ts` —
+>   drift §11.3. Everything *else* cyan is gone: §11 settled the palette as white for
+>   actions, the health ramp for state, red for alarm.
+> - **The landing shutter.** A drawn gradient stack; the critic wants a real graded
+>   surface. Scrimmed for now so it stops competing with the copy.
+>
+> ⚠ Two fixes of mine created the next defect, both caught only by re-rendering: the
+> edit affordance (pencil → dashed rule → the word "Edit") and the active-tab marker
+> (cyan line → white line → top edge → a fill). If a change here looks obviously right,
+> screenshot it before believing it.
+>
+> ---
+>
+> ### START HERE — 30 Aug 2026, the rebrand day
+>
+> Written at the end of the 30 Aug session. **The product is now Well Kept, the advisor is
+> Jay, the operator is Southmoor Digital LLC, there is no free tier, and the demo makes no
+> model calls.** None of it is on a hostname. Everything below this block is history.
+>
+> The plan of record for launch is still outside this repo, in
+> `~/Documents/Claude/Projects/davidmasterson.co/` — plus, new today,
+> **`Well Kept brand identity redesign.zip`** in `~/Downloads`, whose
+> `REBRAND_PROMPT.md` is Design's handoff and the spec for what is left.
+>
+> ---
+>
+> #### ⛔ Nothing shipped today is live, and the gap is now large
+>
+> ```
+> crewchief.davidmasterson.co        02b36c6e   23 Aug   ← still says CrewChief, still David
+> crewchief-demo.davidmasterson.co   9b789a87   23 Aug        Masterson, still the gmail
+> main                               38 commits ahead, 17 of them unpushed
+> ```
+>
+> Curled anonymously with a cache-buster at the end of the session: `/privacy` serves
+> **David Masterson** and **crewchief.support@gmail.com**, twice each. Both are corrected in
+> the tree and neither is corrected in public. A green suite is not a fixed page.
+>
+> ⚠ **This is the most consequential thing on the board.** `crewchief.davidmasterson.co` is
+> the App Store listing's privacy URL and the origin the phone talks to. Everything from
+> §8 still applies: promote `web-live` before the next mobile build, run
+> `scripts/sql/reconcile-rls-2026-08-24.sql` first, and set `AI_HEALTH_SECRET` on both
+> Netlify sites.
+>
+> #### What landed 30 Aug
+>
+> | | |
+> |---|---|
+> | `9d2dc41` | **the rename** — 355 files, `@wellkept/*`, every user-visible string, metadata, the iOS display name, fixtures, doc headers |
+> | `afb0b0f` | `OPERATOR` = **Southmoor Digital LLC** |
+> | `1bb9f64` | **the advisor is Jay**, from one constant (`ADVISOR_NAME`) that four sites interpolate |
+> | `26759f8` · `edc53f4` | the pricing model, derived from the price; **$3.99 / $39.90** |
+> | `663908a` | `access.ts` — no free tier, a lapse drops to read-only; `demo-answers.ts` |
+> | `10a06a2` | **the demo makes no model call at all** — the last unauthenticated path to Gemini |
+> | `3c4ad01` | `CONTACT_EMAIL` = **support@southmoordigital.com** |
+> | `b1e2baa` | the quote panel's fake progress bar, D11's fifth surface, LEG-01's receipt, the dead footer mailto |
+>
+> **181 web suites / 3166 tests, 26 mobile / 451, typecheck and production build clean.**
+> Both legal pages verified in the *production build*: operator, address and date all render.
+>
+> #### The pricing model, settled
+>
+> The ceiling is **derived from the price** (`packages/core/src/ai/pricing.ts`) so breakeven
+> is structural rather than tuned. Two things decide it and neither is obvious:
+>
+> - **The annual plan sets the ceiling**, always — one ceiling serves every subscriber, so it
+>   must be safe for the worst-paying one. $39.90 nets $2.83/month. The monthly price never
+>   enters the arithmetic, which is why $4.99 → $3.99 cost nothing in safety.
+> - **Worst case is priced at the Pro rate**, not Flash, because `decideBudget` counts tokens
+>   without recording which model produced them.
+>
+> ⚠ **A 21 Aug entry further down this file settles the price at `$3.99/mo · $29.99/yr +
+> 7-day trial`, and both halves of it are superseded.** The annual went to $29.99 for part of
+> 30 Aug on the strength of that entry and came back to $39.90 the same day; the trial was
+> removed. It is worth knowing the older line exists rather than meeting it cold — it is not
+> a stray, it was a real decision, and $9 a year on the annual moves the ceiling by 70,000
+> tokens because the annual is the plan the fuse is sized for.
+>
+> Derived paid ceiling: **283,000 output-equivalent tokens**. Measured against real per-call
+> costs, a heavy month — 120 advisor turns, 2 dossiers, 24 scans, 12 health summaries, 20 mod
+> analyses — is **$1.21**, or 43% of it.
+>
+> ⛔ **The live ceilings are unchanged and still wrong**: `paid` is 1,000,000 (3.5× what it
+> earns) and `free` is 400,000. They cannot move until the gate is enforced, because 283,000
+> is *below* the free ceiling and applying it would invert the tiers. `ai-pricing.test.ts`
+> pins that gap; the pins are meant to fail when somebody closes it.
+>
+> #### Next, in order
+>
+> | # | What | Who |
+> |---|---|---|
+> | **1** | **Promote `web-live`** — the rename, the operator, the address and the demo fix are all sitting behind it. SQL trip and `AI_HEALTH_SECRET` first | **David**, then Claude Code |
+> | **2** | ⚠ **Gemini billing → prepay.** Google shows *Action Required*; a lapse stops the advisor, scanning and the dossier — and quietly falsifies the Terms sentence `lib/gemini.ts` now carries the receipt for | **David · 10 min** |
+> | **3** | ⚠ **The bundle id is open again.** Design's second pass said keep `co.davidmasterson.crewchief`; David's 30 Aug §0 lists it as still his, against `com.southmoordigital.wellkept`. ⚠ The two documents also disagree on the prefix — Design writes `co.`, the §0 note `com.` — and the App Store record binds to one permanently | **David · one word** |
+> | **4** | ~~Recalls in the paywall~~ — **settled 30 Aug: recalls are PAID.** Design gated them, reversed to free, and David overruled both. `PaidFeature` carries `recalls`; the test asserts it in the opposite direction and keeps the argument against it visible | closed |
+> | **5** | ✅ **Brand package implemented, 30 Aug–1 Sep.** `BrandLockup` on both clients from one set of constants in `packages/core/src/brand.ts`, asserted against Design's SVGs; every placement swapped; the dial and both old lockups deleted; the share card rebranded. ⛔ **What is left is an export, not code:** `favicon.ico`, `apple-icon.png`, the manifest PNGs and the iOS icon set need a rasteriser with Newsreader loaded, and the iOS set needs the native build | Claude Code · then David |
+> | **6** | E8 — `expo-iap` and the store adapter, then enforce the gate, then the ceilings | Claude Code · costs a build |
+> | 7 | Paywall as the front door; onboarding ends at a purchase | Claude Code · after 6 |
+>
+> #### Known and deliberate — do not re-report these
+>
+> - **The advisor is Jay and the product is Well Kept.** Different words on purpose. The
+>   disclosure deliberately says "written by AI" and never "written by Jay" — a first name in
+>   a liability sentence reads as a person vouching.
+> - **`crewchief://`, the storage keys, `CREWCHIEF_DEMO_SITE` and the bundle id still say
+>   CrewChief.** Each is held for a different reason; `product-name.test.ts`'s exemption list
+>   is the record, and every entry carries its argument. Read it before assuming a hit is a
+>   miss.
+> - **The two `public/brand/crewchief-lockup-*.svg` still draw the old wordmark.** They are
+>   vector outlines, so grep reports them clean. Design replaces rather than edits them.
+> - **The bundle id and the deep-link scheme keep the old name on purpose** — Design's
+>   ruling for the id, shipped-builds compatibility for the scheme. ⚠ Design's §1 also
+>   says `@crewchief/core` stays; the scope was already renamed to `@wellkept/core` in
+>   `9d2dc41` and reverting it would be churn. "Not required" is not "unwelcome".
+> - **`RECALL_ALERTS_AFTER_LAPSE` is `false`** — David's call, 30 Aug: no features that incur
+>   costs for a lapsed account.
+> - **The demo's six sample answers are approved** and are drafts only in the sense that
+>   Design owns the voice.
+> - `PAID_FEATURES_ENFORCED` is still off, `PaywallScreen` is mounted by no navigator, and no
+>   StoreKit library is installed. Nothing can be bought.
+> - **Seven migrations still pending**, `20260729060000` first — mod details still fail to save.
+> - `verify:mobile` reports PARTIAL: `MOBILE_TEST_TOKEN` expired 2 Aug.
+> - ⚠ **A browser tab shows the new plate; a pinned shortcut still shows the dial.** Not a
+>   bug — `app/icon.svg` is code and the binaries are an export. See drift register §7.2a.
+> - ⚠ **§0's "Inter is still unbundled" is stale.** All five Inter faces and Newsreader load
+>   through `useFonts` from `FONT_ASSETS`; the app is not rendering in San Francisco. Worth
+>   confirming on the phone, but the code says otherwise.
+> - ⚠ **`mobile-native-build-inputs.test.ts` flaked twice on 30 Aug** — failed inside a full
+>   `npm test` run, passed in isolation immediately after, both times. It does real
+>   filesystem work (it walks the repo to check the EAS upload size), so a concurrent
+>   write is the likely cause. Not diagnosed. Worth doing before it teaches somebody to
+>   re-run a red suite instead of reading it — which is how a real failure gets missed.
+>
+> #### ⚠ What is still open in `lib/legal.ts`
+>
+> The operator is the LLC and the address is on its domain. Two things are not settled and
+> both are recorded in that file's header: **no company address appears in either document**,
+> and **the Apple membership is still Individual**, so the store listing will name David
+> while the policy names the company. Closing that is a D-U-N-S, a fresh enrolment and an app
+> transfer — not a code change.
+>
+> ⚠ `LAST_UPDATED` is **30 August 2026** and that is a ship date. If the promote slips past
+> today, the constant and the pin in `legal-pages.test.ts` both move to the day it runs.
+>
+
+> ### 25 Aug 2026 — into the feedback thread. **Superseded by the block above.**
+>
+> Its deploy block, its next-list and its rename section are all out of date: the rename
+> happened, the operator and contact changed, and the unpromoted gap grew from 27 commits
+> to 38. What it still carries correctly is the migration state, the promote preconditions
+> and the three waves of 23–25 Aug.
+>
+> Written at the start of the 25 Aug session, for the thread where **David uses the app and
+> reports what is wrong with it**. Everything below this block is history; the two blocks
+> under it are the 22–23 Aug device handoff and are superseded on every fact that moved.
+>
+> The plan of record for launch is **not in this repo** — it is
+> `~/Documents/Claude/Projects/davidmasterson.co/`:
+>
+> | | |
+> |---|---|
+> | `LAUNCH_RUNBOOK_2026-08-24.md` | the five phases, who does each step, and the submission gate |
+> | `CREWCHIEF_QA_AUDIT_2026-08-24.md` | 119 findings; the register every `SEC-`/`FN-`/`IAP-` id in a commit message points at |
+> | `CODE_HANDOFF_2026-08-24.md` | the four decisions that changed audit fixes, and what is blocked on David |
+> | `WELLKEPT_RENAME_PACKAGE_2026-08-24.md` | the rename, file by file, blocked on the name |
+> | `CREWCHIEF_DECISION_REGISTER_2026-08-24.md` | D-numbered product calls; D10, D11 and D13 are shipped |
+>
+> ---
+>
+> #### ⚠ The one fact that changes how feedback gets handled: both hostnames are frozen at 23 Aug
+>
+> ```
+> crewchief.davidmasterson.co        02b36c6e   23 Aug   ← the app's API and the App Store URL
+> crewchief-demo.davidmasterson.co   9b789a87   23 Aug
+> main                               0a2dd9a    27 commits ahead, and this time it is real code
+> ```
+>
+> Read off `/api/version` on both hostnames on 25 Aug, not inferred from a push. `git diff
+> --stat web-live..main` is **191 files**, so the "docs-only means both hosts are current"
+> check below now says the opposite: they are not.
+>
+> ⚠ **The phone is newer than the API it talks to.** `app.json` → `extra.apiBaseUrl` is
+> `crewchief.davidmasterson.co`, and Metro serves the phone whatever is in this working tree.
+> So a screen can be correct in the repo and wrong on the device, because the route it calls
+> is 23 Aug. Everything in this batch that changed a payload is in that gap — the profile
+> branch of `PATCH /api/v1/vehicles` (`6560f1b`), `lookup_status` on the recall payloads,
+> the nullable health score, `last_generated` on the garage embed. **When a device report
+> looks impossible, check whether it needs an unpromoted route before debugging the screen.**
+>
+> ⚠ **`crewchief.davidmasterson.co` still renders "Coming soon"** — curled today. `65e9377`
+> removes it on the product host and is unpromoted. That is the page App Review opens.
+>
+> Promoting is not free and is not cosmetic (§8): it publishes the API shipped apps depend
+> on, and a Netlify build is real money. Three things must be true first, and the first two
+> are David's:
+>
+> 1. **Run `scripts/sql/reconcile-rls-2026-08-24.sql`** in the SQL editor — six queries, and
+>    `DB-01` (whether `invoice_line_items`' `EXISTS`-only DELETE policy is a live cross-tenant
+>    read) **cannot be settled without it**. Nothing in the DB lane should change first.
+> 2. **Set `AI_HEALTH_SECRET` on both Netlify sites** (it falls back to
+>    `CONSULTANT_HEALTH_SECRET`, which `docs/qa-script.md` records as unset on prod). Once
+>    this batch lands, `/api/health/ai` answers 404 to everyone without it — §7, two places.
+> 3. **`web-live` before the next mobile build**, or the build ships calling routes that are
+>    not there.
+>
+> `promote-web` now runs `next build` before it merges, and `promote-demo` waits for the
+> deploy and confirms the hostname is serving the merge commit rather than printing an
+> instruction. `verify-demo` **warns** rather than failing when the AI-health secret is
+> missing locally — the credential is checked on the deployment, so this machine not having
+> it says nothing about the deployment.
+>
+> Six commits are also **unpushed to `origin/main`** (`9b061c4`..`0a2dd9a`). Pushing `main`
+> costs nothing and publishes nothing.
+>
+> #### ⛔ Seven migrations pending — one SQL trip, and two of them back live fixes
+>
+> ```
+> node scripts/check-migrations.mjs --pending      # verified 25 Aug: 47 applied · 7 pending
+> ```
+>
+> | | |
+> |---|---|
+> | `20260729060000` | ⛔ **still the live defect.** `modification_details.performance_goal` does not exist, the upsert fails `42703`, and every mod analysis is billed and discarded |
+> | `20260824100000` | `nhtsa_data.lookup_status` — until it lands, a recall lookup cannot record what it concluded. The write tolerates the absence and logs at error level naming the migration |
+> | `20260824120000` | `orphaned_apple_subscriptions` — until it lands, deleting an account still orphans a live Apple subscription with nothing to reconcile against |
+> | `20260821140000` | the mod-detail content cache |
+> | `20260822120000` | the sweep heartbeat |
+> | `20260104022655` · `20260314143627` | older drift; the first is a column whose last reader was deleted 7 Aug |
+>
+> #### What landed 23–25 Aug, in three waves
+>
+> **23 Aug — the phone became a product, off David's own device notes.** The garage photo is
+> the screen rather than a 112pt panel; the vehicle screen is a hub of pushed routes rather
+> than ten stacked read-outs; Build became a place, with the three rungs' reasoning that had
+> been computed and discarded; the wishlist got the research catalogue it already had on the
+> payload; add-a-car got year/make/model lists and live vPIC VIN decode; recalls can be marked
+> repaired (`recall_actions`, never "Repaired" — "you marked this on 23 Aug"); the four
+> onboarding answers became editable, which matters because `performance_mindedness = 'stock'`
+> hides the Build route and had no way back on.
+>
+> ⚠ The hero pullback's travelling dial was built that afternoon and **deliberately deleted
+> the same day** (`59cbe30`) on David's note that it covers the car — taking three hard-won
+> guards with it, recorded in the test file and the drift register rather than left dormant.
+>
+> **24 Aug — the QA audit wave, `0e01f81`..`4e3bb5e`.** Fourteen commits, thematic labels on
+> one progressive file state (`app/actions.ts` is 6,500 lines), each typechecking standalone.
+> The ones worth knowing as a tester:
+>
+> - **Every health score this app ever generated was 70.** The prompt says `healthScore`,
+>   the parser read `health_score`, and the neutral default went into the column a gauge
+>   reads. `maintenance` separately scored 100 — "Nothing overdue" — for a car with no records.
+> - **Recalls were fetched once per vehicle, ever**, and a make NHTSA does not recognise
+>   returns `Count: 0` — byte-identical to a clean car. Only a confirmed match permits an
+>   all-clear now; existing rows backfill to `unknown`, never `matched`.
+> - **A failed invoice extraction was stored as a completed $0 invoice**, so the advisor
+>   answered "$0" for a real bill and nothing would ever retry it.
+> - Security: a cross-tenant service-role DELETE on an unchecked id, four unguarded
+>   `'use server'` exports, an open redirect on the App Store hostname, a rate limiter two
+>   parallel requests could switch off, eleven Gemini call sites with no ceiling.
+> - IAP: the chain proved "Apple signed this", never "for CrewChief"; deleting an account
+>   orphaned a live subscription permanently.
+> - iOS: a cold-start notification tap trapped you with no back button, and **nothing
+>   refetched on focus** — every write succeeded and returned to a screen saying it had not.
+> - Design v8.3: ten flat screens became five, the white filled primary is retired, and the
+>   three-tab bar is hand-rolled (installing `bottom-tabs` would re-split the jest majors).
+> - Version is `1.0.0` in all three files, and `/api/version` reports it beside the commit.
+>
+> **24–25 Aug — the product decisions, applied.** A null score is now an unknown state on all
+> three clients (dashed track, em dash, "No score yet") rather than a red dial reading 0; the
+> dashboard hero's fake 900ms "diagnostic" is gone and the beat now counts records actually
+> read; the AI disclosure reaches all four surfaces it was written for; **pricing moved from a
+> token allowance to three named features** — free is everything the product stores or looks
+> up, paid is the advisor, invoice scanning and the dossier, which are exactly the three that
+> call a model.
+>
+> #### Verified on 25 Aug, not assumed
+>
+> - `176 web suites / 3098 tests` and `26 mobile / 451` green on a clean tree.
+> - Both hostnames' `/api/version`; 7 pending migrations; product host still says "Coming
+>   soon"; the demo masthead renders and the product host carries none of it.
+> - ⚠ **The rename package's own verification command cannot pass.** It says
+>   `grep -o "PORTFOLIO DEMO"`; the string in `DemoBanner.tsx` is "Portfolio Demo", uppercased
+>   by CSS. Grep for that, or the check reads as a missing masthead on a correct build.
+>
+> #### Known and deliberate — do not re-report these
+>
+> - **"Failed to save details" on a modification** — the `20260729060000` migration.
+> - **A dashed dial reading "No score yet"** is D10 working, not a broken gauge.
+> - **Nothing can be bought.** `PAID_FEATURES_ENFORCED` is off, `PaywallScreen` is mounted by
+>   no navigator, and no StoreKit library is installed. The flag is not a rollout switch: a
+>   feature may only be gated behind a purchase the app can actually make. Turning it on
+>   withdraws three features from every existing account with no way back.
+> - **The AI disclosure says "AI" unqualified** — the persona name is blocked on David, and a
+>   test asserts no placeholder and no guessed name shipped. That test is what should fail
+>   when the name is chosen.
+> - **The floating gear in device screenshots is `expo-dev-client`'s dev menu**, not the app.
+> - **`QuoteGenerationProgress.tsx` is still a fake progress bar** — a 7.5s timer to 100% with
+>   a step claiming to check regional labour rates the app has no location data for. Known,
+>   flagged, deliberately outside the scope that named the invoice scanner.
+> - `VehicleDetailScreen` says nothing about recalls when a car has none, and
+>   `ServiceMilestoneScreen` titles both empty states alike — **still David's calls**.
+> - **`verify:mobile` reports PARTIAL**: `MOBILE_TEST_TOKEN` expired 2 Aug.
+>
+> #### Next, in order
+>
+> | # | What | Who |
+> |---|---|---|
+> | **1** | Feedback from using the app — screenshots, not video | **David** |
+> | **2** | ⚠ **Switch the Gemini billing account to prepay.** Google shows *Action Required*; if it lapses the advisor, invoice scanning and the dossier all stop — and the Terms sentence that says content is not used for training stops being true with it | **David · 10 min** |
+> | **3** | The SQL trip: seven migrations + `reconcile-rls-2026-08-24.sql` | **David · one editor session** |
+> | **4** | **The advisor's name.** LEG-11's product half is settled — Well Kept, renamed in the tree on 30 Aug. What is still blocked is the *character*, and with it the persona rewrite; the bundle id and the App Store Connect record wait on `southmoordigital.com` | **David · decision** |
+> | **5** | Promote `web-live` (then `demo-live`), once 2 and 3 are done | Claude Code · on David's word |
+> | **6** | E8 — `expo-iap` and the store adapter, then `PAID_FEATURES_ENFORCED` | Claude Code · costs a build |
+> | 7 | **IAP-02** — a sandbox purchase still grants the paid tier on a fresh account. ⚠ Its stated fix is per-profile `env` in `eas.json` pointing non-production builds at a **different backend**, which does not exist; standing one up is a spend decision, not a code change | **David · decision**, then Claude Code |
+>
+> Closed 30 Aug: LEG-01's project-id comment in `lib/gemini.ts`, with a guard tying the
+> Terms' training promise to a dated billing check; the web cost breakdown's missing AI
+> disclosure (D11's fifth surface — the guard's table had a mobile row and no web one); the
+> quote panel's fake progress bar, the last of the three; and the dashboard footer's
+> `feedback@crewchief.app` link, which pointed at a domain nobody here owns.
+>
+> Also David's, unchanged: `AI_HEALTH_SECRET` on both Netlify sites, `MOBILE_TEST_TOKEN`,
+> the reviewer account's password, and registering `southmoordigital.com` before any App
+> Store Connect record exists.
+>
+> #### The rename happened on 30 Aug — the mechanical half
+>
+> **CrewChief → Well Kept** across 355 files: the npm scope (`@wellkept/*`), every
+> user-visible string, metadata, the iOS display name, permission strings, fixtures and doc
+> headers. `product-name.test.ts` now fails on the old name outside an exemption list where
+> every entry carries its reason — that list is the record of what still legitimately says
+> "CrewChief", so read it before assuming a hit is a miss.
+>
+> ⚠ **Held back deliberately, and each for a different reason:** the advisor is still called
+> CrewChief (a character, not a product, and its new name is unchosen — four sites that must
+> move together); `crewchief://` is in shipped notifications; the storage keys hold real
+> state; `CREWCHIEF_DEMO_SITE` is half of a pair whose other half is in Netlify; the bundle
+> id, the Expo slug and both hostnames were David's explicit do-not-touch list.
+>
+> **Southmoor Digital LLC exists**, and as of 30 Aug it is the `OPERATOR` in `lib/legal.ts`,
+> with `LAST_UPDATED` moved to match. ⛔ **Neither is published** — `web-live` is frozen at
+> 23 Aug, so the live privacy policy and terms still name David personally. The date in the
+> file is a promise until that promote runs; if it slips past 30 Aug, the date moves with it.
+>
+> ⚠ The Apple membership is still **Individual**, so the store listing names David while the
+> policy names the LLC. Closing that is a D-U-N-S, a fresh enrolment and an app transfer —
+> not a code change. And no company address appears in either document, because nobody has
+> given one.
+>
+> #### ⏳ Incoming from Design — a six-part Well Kept package
+>
+> Announced 30 Aug, **not yet delivered**: the brand (mark, construction grid, clear space,
+> the full iOS icon set with reduction rules, voice, and the rename as a diff), the store
+> listing and paywall, the landing site, the onboarding and garage templates rebranded (new
+> nav lockup, the truck glyph retired), and `WELL_KEPT_REBRAND_PROMPT.md` as the handoff.
+>
+> Tagline: **"An AI that keeps the record, so the care keeps itself."** Store subtitle:
+> **"AI-kept service records"** (23 chars, inside Apple's 30).
+>
+> This is what §7 of `docs/design-system-drift.md` is waiting on — the two lockup SVGs still
+> draw the old wordmark as outlines, and the wordmark's tracking was cut for one nine-letter
+> word rather than two.
+>
+> ⚠ `lib/site-role.ts` treats an unset variable as "this is the product" — deliberately, so
+> the App Store hostname can never accidentally serve the demo masthead. That is also exactly
+> what makes a missed rename **invisible on the demo host**, which is why the curl check above
+> matters and why it has to be spelled correctly.
+>
+
+> ### 22–23 Aug — handoff into the device-testing thread. **Superseded by the block above.**
+>
+> Its deploy block reads "both hostnames level with `main`", which was true on 23 Aug and is
+> not now; its three pending migrations are seven; and its "next" table is closed except for
+> the migrations and E8. What it still carries correctly is the iteration loop, the Apple
+> team trap, and the measured dossier cost.
 >
 > Written at the end of the 22 Aug session. **CrewChief is installed and signed in on
 > David's iPhone**, and he is about to test it by hand and make changes. This block is
@@ -60,11 +470,22 @@
 > #### What is deployed where
 >
 > ```
-> crewchief.davidmasterson.co        c0873aea   ← the app's API and the App Store URL
-> crewchief-demo.davidmasterson.co   eef03da    ← 26 commits behind, deliberately
-> main                               341cf68, pushed, clean
-> unpromoted                         4 to web-live, 26 to demo-live
+> crewchief.davidmasterson.co        02b36c6e   ← the app's API and the App Store URL
+> crewchief-demo.davidmasterson.co   9b789a87   ← same commit, promoted 23 Aug
+> main                               ahead by docs commits only
+> unpromoted                         no code — see below
 > ```
+>
+> ⚠ `main` will normally sit a commit or two ahead of both hosts, because the note recording
+> a promote is written *after* it. **That is not drift and must not be promoted for.** A
+> Netlify build costs real money here — 111 of them were 99% of a $34 bill — and publishing a
+> markdown file would spend two. Check `git diff --stat web-live..main`: if it is `docs/`
+> only, both hosts are current.
+>
+> Updated 23 Aug. **Both hostnames are level with `main` for the first time since the
+> release branches were introduced** — the demo was 26 commits behind and is not any more.
+> The two merge commits are `02b36c6e` (web-live) and `9b789a87` (demo-live); both were
+> confirmed by reading `/api/version` off the hostname rather than by trusting the push.
 >
 > ⚠ `/api/version` reports the **merge** commit, never the `main` commit named in a promote.
 > This has cost real time twice.
@@ -261,6 +682,38 @@
 > ⚠ **The fix is on `main`, and nothing deploys from `main`.** Until someone promotes, the
 > nightly sweep runs the old code from `web-live`. Whether it fires at all is unknown — see
 > the heartbeat, which exists precisely because that question has no answer today.
+>
+> #### 🚀 Promoted to both hosts, 23 Aug — the demo caught up
+>
+> ```
+> crewchief.davidmasterson.co        02b36c6e   built 16:58   ← 9 commits
+> crewchief-demo.davidmasterson.co   9b789a87   built 17:01   ← 32 commits
+> ```
+>
+> Ordered, as §8 requires: `main → web-live → (verify) → demo-live`. The demo gate's whole
+> method is to interrogate the exact build about to become the demo, which it can only do
+> once that commit is live on `web-live`.
+>
+> **The web promote was not optional this time.** The mobile client talks to
+> `crewchief.davidmasterson.co`, and this batch adds `/api/v1/recalls` plus three column-list
+> changes the rebuilt vehicle screen reads. Testing on the phone against the old build would
+> have produced a 404 on a path that works perfectly on `main` — the shape §8 calls the most
+> confusing a bug can take.
+>
+> Verified rather than assumed, on the live hostnames:
+>
+> - `/api/v1/recalls` returns **401, not 404** — the route deployed and is authorizing.
+> - `load-vehicle` on the demo returns `recall_actions: []` and the three `next_service_*`
+>   fields **anonymously**. That was the real risk in this batch: an embed RLS blocks does not
+>   return an empty array, it fails the whole select, and the demo reads as anon.
+> - `verify-demo` passes. Its two warnings — the garage and dashboard shells not carrying
+>   vehicle names in the initial HTML — are structural and predate this: the page is a client
+>   component, and the raw response is a `__next_f` stream.
+>
+> ⚠ The gate caught a real defect before either host moved: `npm run typecheck` failed on a
+> `Map` iterator spread in a new test (root tsconfig targets es5). `tsc -p tsconfig.json` had
+> been run before the file existed and `jest` after, so the one command that would have seen
+> it never ran against the finished state. Fixed in `ff1fad82`.
 >
 > #### 🚀 Promoted to `web-live`, 22 Aug — product host only
 >
@@ -738,6 +1191,21 @@
 > nothing routes to it** — wire it when the adapter lands. **E6** (upgrade prompt, ~0.5 ed) is
 > genuinely unblocked the moment IAP ships.
 >
+> ⚠ **What the subscription sells changed on 24 Aug, and the gate is already built.** The paid
+> tier is no longer a larger token allowance; it is three named features — the advisor, invoice
+> scanning and the dossier. `packages/core/src/paid-features.ts` carries the argument,
+> `lib/feature-gate.ts` enforces it, and it is wired at all four paid entry points. IAP-06 is
+> closed by deletion rather than correction: with no allowance in the pitch there is no multiple
+> to state, so `entitlementMultiple()` is gone along with the "five times over" copy. The
+> ceilings in `ai/budget.ts` are untouched and still enforced — their role is now abuse
+> protection behind the gate rather than the thing being sold.
+>
+> ⚠ **`PAID_FEATURES_ENFORCED` is off, and turning it on is part of this item rather than a
+> config change.** It encodes one rule — a feature may only be gated behind a purchase the app
+> can actually make — so it stays off until the adapter lands and the paywall is routed to.
+> Flipping it before then withdraws three features from every existing account with no way back.
+> `paid-features.test.ts` asserts the default.
+>
 > #### Housekeeping
 >
 > - **`demo-live` is 2 commits behind** — missing the recall safety fix and the research fix.
@@ -966,7 +1434,7 @@
 >   delivery loop `dryRun` skips.
 > - **`account_entitlements` must never become user-writable.** A scoped `FOR ALL` policy is
 >   correct on every other table in this schema and is a free subscription on that one.
-> - **`resolveTier` is deleted.** Use `resolveEntitledTier` from `@crewchief/core/entitlement`.
+> - **`resolveTier` is deleted.** Use `resolveEntitledTier` from `@wellkept/core/entitlement`.
 > - **A new table in `public` does not inherit the 1 Aug TRUNCATE revoke.** Carry its own
 >   `REVOKE TRUNCATE … FROM authenticated`; `truncate-revoked.test.ts` fails the build otherwise.
 > - **`/load-maintenance-data` returns two things that look like history.** `lineItems` is
@@ -1099,7 +1567,7 @@ this file** — read those first if you are picking this up cold.
 > **Verified before closing:** `fetchpriority` ships on the hero's request
 > (`VehicleIdentity.tsx:296`, spelled lowercase and cast — React 18.2 has no
 > camelCase prop and warns), the same treatment is on `GarageDoor.tsx:253`, and
-> the blur-up fill is `vehicleBlurData` from `@crewchief/core/vehicle-blur`.
+> the blur-up fill is `vehicleBlurData` from `@wellkept/core/vehicle-blur`.
 >
 > **The residue, stated as its own thing:** a real `<link rel=preload>` for the
 > dashboard hero is blocked on the dashboard server-rendering its vehicle, which
@@ -1944,7 +2412,7 @@ capability claim found in that file.
 
 An audit of the whole file — 109 symbols named in `how:`/`pitch:` lines, checked
 against the tree — found **no third false capability claim**, but **ten stale
-`lib/` paths** left over from the Phase 2.4 move into `@crewchief/core`.
+`lib/` paths** left over from the Phase 2.4 move into `@wellkept/core`.
 `lib/onboarding.ts` was among them, and the knowledge base corrected exactly that
 path on 28 July: the fix reached the KB and never reached the features file. All
 ten now resolve.
@@ -2176,7 +2644,7 @@ at once, and `tsc` is perfectly happy about it. Always go through
    takes it to a shop.
 8. **Bundle output is real evidence when a screen cannot be run.** `expo export`
    plus `strings` on the `.hbc` proved the new Account screen *and* its
-   cross-package `@crewchief/core` import are genuinely in the iOS binary. It is
+   cross-package `@wellkept/core` import are genuinely in the iOS binary. It is
    not a substitute for rendering it, and the roadmap says so.
 
 ## Decisions waiting on David — nothing else is blocked on code

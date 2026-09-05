@@ -1,10 +1,11 @@
-import { logger } from '@crewchief/core/logger';
+import { logger } from '@wellkept/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@crewchief/core/types';
+import type { ApiResponse } from '@wellkept/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
-import { validateMileageUpdate } from '@crewchief/core/mileage-tracking';
-import { buildBaselineRow, isBaselineAge } from '@crewchief/core/onboarding-baseline';
+import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
+import { validateProfileUpdate } from '@wellkept/core/vehicle-profile';
+import { buildBaselineRow, isBaselineAge } from '@wellkept/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { resolveVehiclePhotos } from '@/lib/vehicle-photo';
 
@@ -60,6 +61,27 @@ export const dynamic = 'force-dynamic';
   about: the board said the migration was the blocker, and the artefact said
   otherwise.
 */
+/*
+  ⚠ `last_generated` travels because **a verdict has to be able to say when it
+  was reached.**
+
+  On 23 Aug the M235i's detail screen read "a complete lack of documented
+  maintenance … impossible to assess its current condition" while its service
+  history listed five records and $1,461. Both were rendering honestly: the
+  stored summary was generated on 30 Jul, the line items were filed on 6 Aug,
+  and the row has not been recomputed since.
+
+  `generateVehicleHealthSummary` reads `maintenance_line_items` as of 5 Aug,
+  so a recompute would now produce the right answer — but nothing on the
+  mobile read path performs one, and this route returned no way for the client
+  to tell that the sentence it was given predates the records beside it. A
+  stale verdict that cannot be recognised as stale is indistinguishable from a
+  wrong one, and it tells the owner the app did not read the invoice they just
+  scanned.
+
+  One column, and it is what lets the screen refuse to present an out-of-date
+  reading as a current one.
+*/
 const GARAGE_COLUMNS =
   'id,year,make,model,trim,color,current_mileage,image_url,custom_image_url,' +
   'performance_mindedness,ownership_objective,created_at,' +
@@ -67,7 +89,7 @@ const GARAGE_COLUMNS =
   'next_service_label,next_service_at_miles,next_service_due_on,' +
   'nhtsa_data(recalls),' +
   'recall_actions(campaign_number,addressed_at),' +
-  'vehicle_health_summary(health_score,summary,red_flags)';
+  'vehicle_health_summary(health_score,summary,red_flags,last_generated)';
 
 interface GarageRow {
   id: string;
@@ -202,7 +224,7 @@ export async function PATCH(request: NextRequest): Promise<Response> {
     return rateLimitResponse(rateLimit);
   }
 
-  let body: { vehicleId?: unknown; currentMileage?: unknown; isCorrection?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
@@ -227,6 +249,59 @@ export async function PATCH(request: NextRequest): Promise<Response> {
   */
   const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
   if (!access.ok) return access.response;
+
+  /*
+    ── ⚠ Two updates through one verb, and the split is deliberate ────────────
+
+    A mileage reading and the owner's four onboarding answers are both a PATCH
+    on the same resource, so they share a route — and share nothing else. The
+    mileage path has its own rule (`validateMileageUpdate`), its own 422
+    semantics and a `last_mileage_update_date` side effect; the profile path has
+    a different rule and no side effect.
+
+    Branching on **which fields arrived** rather than on a mode flag: a flag is
+    a second thing a caller can get wrong, and the body already says what it
+    means. `currentMileage` present means a reading; anything else means the
+    profile.
+
+    Added 23 Aug because the vehicle screen rendered four answers with **no
+    write path at any layer** — David's *"why are we showing these details with
+    no option to update?"* The honest answer was that nothing could.
+  */
+  if (body.currentMileage === undefined) {
+    const decision = validateProfileUpdate(body);
+
+    if (!decision.ok) {
+      /*
+        422, matching the mileage path: the request is well-formed and the
+        caller is authorized, and what failed is a rule about a value. The
+        message is written to be shown to the person who typed it.
+      */
+      return Response.json({ success: false, error: decision.message } as ApiResponse, {
+        status: 422,
+      });
+    }
+
+    const { error: profileError } = await access.client
+      .from('vehicles')
+      .update(decision.changes!)
+      .eq('id', vehicleId);
+
+    if (profileError) {
+      logger.error('API:PATCH_VEHICLE', new Error(profileError.message), { vehicleId });
+      return Response.json({ success: false, error: 'Could not save that' } as ApiResponse, {
+        status: 500,
+      });
+    }
+
+    logger.info('API:PATCH_VEHICLE', 'Vehicle profile updated', {
+      vehicleId,
+      // The field names, never their values — an objective is the owner's prose.
+      fields: Object.keys(decision.changes!),
+    });
+
+    return Response.json({ success: true, updated: Object.keys(decision.changes!) } as ApiResponse);
+  }
 
   const { data: vehicle, error: readError } = await access.client
     .from('vehicles')

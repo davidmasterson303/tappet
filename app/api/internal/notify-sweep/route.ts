@@ -1,20 +1,21 @@
 import { timingSafeEqual } from 'node:crypto';
+import { selectNhtsaRow } from '@/lib/nhtsa-row';
 
-import { logger } from '@crewchief/core/logger';
+import { logger } from '@wellkept/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getServiceRoleClient } from '@/lib/supabase';
 import { sendToAccount } from '@/lib/push-send';
-import { normaliseRecalls } from '@crewchief/core/recalls';
-import { recallNotification, serviceDueNotification } from '@crewchief/core/notifications';
+import { normaliseRecalls } from '@wellkept/core/recalls';
+import { recallNotification, serviceDueNotification } from '@wellkept/core/notifications';
 import {
   evaluateSchedule,
   isWorthNotifying,
   milestoneReason,
   nextMilestone,
   nextService,
-} from '@crewchief/core/service-due';
-import { historyLookups } from '@crewchief/core/service-history';
+} from '@wellkept/core/service-due';
+import { historyLookups } from '@wellkept/core/service-history';
 import {
   applySendCap,
   digestRecalls,
@@ -23,14 +24,19 @@ import {
   shouldRaiseService,
   vehiclesToGenerate,
   type GenerationCandidate,
-} from '@crewchief/core/notification-sweep';
-import { researchVehicleDossier, SWEEP_RESEARCH_TIMEOUT_MS } from '@/lib/vehicle-research';
+  recallsToRefresh,
+} from '@wellkept/core/notification-sweep';
+import {
+  fetchNHTSARecalls,
+  researchVehicleDossier,
+  SWEEP_RESEARCH_TIMEOUT_MS,
+} from '@/lib/vehicle-research';
 
 /**
  * The nightly sweep. Phase 5, C1–C3.
  *
  * Reads every vehicle, decides who needs telling, sends the pushes. All of the
- * *deciding* is in `@crewchief/core/notification-sweep` — this file is the IO
+ * *deciding* is in `@wellkept/core/notification-sweep` — this file is the IO
  * around it, deliberately, because the decisions are the part that has to be
  * right and they should be testable without a database.
  *
@@ -45,7 +51,7 @@ import { researchVehicleDossier, SWEEP_RESEARCH_TIMEOUT_MS } from '@/lib/vehicle
  *
  * This endpoint sends push notifications to every account in the product. An
  * unauthenticated one would be the most abusable surface in the app by a wide
- * margin — not a data leak, but a way to make CrewChief spam its own users
+ * margin — not a data leak, but a way to make Well Kept spam its own users
  * until they uninstall it.
  *
  * So: a shared secret, compared in constant time, and **it fails closed**. If
@@ -110,6 +116,9 @@ interface SweepSummary {
    * before a run that costs money.
    */
   generationPlanned: number;
+  /** FN-02. How many stale NHTSA lookups this run re-fetched, and how many waited. */
+  recallsRefreshPlanned: number;
+  recallsRefreshBacklog: number;
   /** Dossiers generated this run for cars that had never had one. C4. */
   schedulesGenerated: number;
   /** Eligible cars left for tomorrow because the generation budget ran out. */
@@ -182,6 +191,8 @@ export async function POST(request: NextRequest) {
     recallsSent: 0,
     servicesSent: 0,
     generationPlanned: 0,
+    recallsRefreshPlanned: 0,
+    recallsRefreshBacklog: 0,
     schedulesGenerated: 0,
     generationBacklog: 0,
     capped: false,
@@ -202,6 +213,17 @@ export async function POST(request: NextRequest) {
     per-page budget would spend ten on every page.
   */
   const generationCandidates: GenerationCandidate[] = [];
+  /**
+   * Cars whose NHTSA lookup is stale, failed, or was never resolved — FN-02.
+   *
+   * Same reasoning as the two above: the refresh budget is a property of the
+   * run, and a per-page one would spend it forty times a night.
+   */
+  const refreshCandidates: Array<{
+    vehicle: VehicleRow;
+    nextCheckDue: string | null;
+    lookupStatus: string | null;
+  }> = [];
   /** Vehicle rows kept by id, so a generated car can be re-evaluated without re-reading it. */
   const scanned = new Map<string, { row: VehicleRow; name: string }>();
 
@@ -234,7 +256,7 @@ export async function POST(request: NextRequest) {
       const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'your car';
       scanned.set(vehicle.id, { row: vehicle, name });
 
-      await collectRecalls(client, vehicle, name, recallCandidates);
+      await collectRecalls(client, vehicle, name, recallCandidates, refreshCandidates);
       await collectService(client, vehicle, name, today, serviceCandidates, generationCandidates);
     }
 
@@ -254,6 +276,57 @@ export async function POST(request: NextRequest) {
     would be a trap sprung by exactly the person being careful. The generation
     is behind the same flag as the send, deliberately.
   */
+  /*
+    ── ⚠ FN-02: the recall data unfreezes here ───────────────────────────────
+
+    Before this, recalls were fetched **once per vehicle, ever**. `.insert()`
+    against a `UNIQUE NOT NULL` column raised `23505` on every subsequent call,
+    into a variable nobody read, and `researchVehicleDossier` short-circuits on
+    `research_status === 'completed'` — so there was no second entry point. A
+    2020 WRX added in February with zero recalls that day shows a green tick and
+    "No active recalls" **forever**, and this sweep reads the same frozen array
+    and raises nothing.
+
+    Placed before the sends, deliberately: a campaign that arrives in tonight's
+    refresh should produce tonight's notification, not tomorrow's. It is the
+    same argument the generation pass above makes.
+
+    ⚠ **Behind `dryRun` with everything else that costs anything.** A dry run is
+    documented as "every query, every decision, no sends"; firing forty
+    outbound requests to somebody else's API during a diagnostic run would be a
+    trap sprung by the person being careful.
+  */
+  const refreshPlan = recallsToRefresh(refreshCandidates);
+  summary.recallsRefreshPlanned = refreshPlan.send.length;
+  summary.recallsRefreshBacklog = refreshPlan.considered - refreshPlan.send.length;
+
+  if (refreshPlan.capped) {
+    /*
+      Warn, not error — same distinction as the generation cap. A backlog of
+      stale lookups is a garage that grew, not a dedupe that broke.
+    */
+    logger.warn('CRON:SWEEP', 'Recall refresh budget spent; the rest wait for tomorrow', {
+      refreshed: refreshPlan.send.length,
+      waiting: summary.recallsRefreshBacklog,
+    });
+  }
+
+  if (!dryRun) {
+    for (const candidate of refreshPlan.send) {
+      /*
+        Sequential rather than `Promise.all`. Forty parallel requests to NHTSA
+        from one function is exactly the burst the cap exists to prevent, and
+        the cap would be doing nothing if the batch fired at once anyway.
+      */
+      await fetchNHTSARecalls(
+        candidate.vehicle.id,
+        candidate.vehicle.year,
+        candidate.vehicle.make,
+        candidate.vehicle.model
+      );
+    }
+  }
+
   await resolveSignInActivity(client, generationCandidates);
 
   const generationPlan = vehiclesToGenerate(generationCandidates);
@@ -505,14 +578,50 @@ async function collectRecalls(
   client: Client,
   vehicle: VehicleRow,
   name: string,
-  into: Array<{ userId: string; vehicleId: string; name: string; campaignNumber: string; summary: string }>
+  into: Array<{ userId: string; vehicleId: string; name: string; campaignNumber: string; summary: string }>,
+  /**
+   * Cars whose NHTSA lookup is stale or was never resolved — FN-02.
+   *
+   * Collected here rather than in a separate pass because this function is
+   * already reading the row that answers the question. A second query per
+   * vehicle for a fact already in hand is the shape of thing that pushes this
+   * sweep past its function timeout.
+   */
+  refresh: Array<{ vehicle: VehicleRow; nextCheckDue: string | null; lookupStatus: string | null }>
 ) {
-  const [{ data: nhtsa }, { data: raised }] = await Promise.all([
-    client.from('nhtsa_data').select('recalls').eq('vehicle_id', vehicle.id).maybeSingle(),
+  const [nhtsa, { data: raised }] = await Promise.all([
+    /*
+      ⚠ `next_check_due` is read here for the first time since the table was
+      created. It has been **written by every research run and consulted by
+      nothing** — the "quarterly recheck" the schema header advertises did not
+      exist, which is how a car researched in February keeps a green tick after
+      NHTSA opens a campaign against it in April.
+    */
+    /*
+      Through `selectNhtsaRow`: the column is not applied in production, and a
+      select naming it is rejected whole. For this sweep that meant every row
+      read as "no nhtsa_data at all" — so every vehicle became a refresh
+      candidate and no recall was ever notified on.
+    */
+    selectNhtsaRow(client, vehicle.id, ['next_check_due']),
     client.from('recall_notifications').select('campaign_number').eq('vehicle_id', vehicle.id),
   ]);
 
-  const recalls = normaliseRecalls(nhtsa?.recalls);
+  const row = nhtsa;
+
+  /*
+    ⚠ **A car with no row at all is a refresh candidate too.** Its research may
+    have failed, or predated the recall fetch entirely, and either way it has
+    never been asked about — which is the state this sweep is least entitled to
+    read as quiet.
+  */
+  refresh.push({
+    vehicle,
+    nextCheckDue: row?.next_check_due ?? null,
+    lookupStatus: row?.lookup_status ?? null,
+  });
+
+  const recalls = normaliseRecalls(row?.recalls);
   if (recalls.length === 0) return;
 
   const alreadyRaised = (raised ?? []).map((row) => row.campaign_number as string);

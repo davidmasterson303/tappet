@@ -54,7 +54,7 @@ function SettingsSection({
       className="scroll-reveal rounded-lg border bg-card p-4 sm:p-6 edge-light"
       style={{
         ...revealDelay(index),
-        borderColor: isCritical ? 'var(--critical-red-border)' : undefined,
+        borderColor: isCritical ? 'var(--critical-border)' : undefined,
       }}
     >
       <div className="mb-5 flex items-start gap-3">
@@ -135,7 +135,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `crewchief-export-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `well-kept-export-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success('Export downloaded');
@@ -219,7 +219,16 @@ export default function SettingsPage() {
           </SettingsSection>
 
           <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving || Boolean(nameError)} className="bg-primary hover:bg-accent">
+            {/*
+              ⚠ **UI-01, the worst of them.** `hover:bg-accent` with the default
+              variant's `text-primary-foreground` renders "Save changes" at
+              **1.72:1 while the pointer is on it** — illegible at exactly the
+              moment somebody is about to press it.
+
+              `bg-primary` was already the default variant's fill, so the whole
+              override said nothing except "and make the hover unreadable".
+            */}
+            <Button onClick={handleSave} disabled={saving || Boolean(nameError)}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
@@ -233,7 +242,7 @@ export default function SettingsPage() {
 
           <SettingsSection
             title="Your data"
-            description="Download everything CrewChief holds about you."
+            description="Download everything Well Kept holds about you."
             icon={Download}
             index={2}
           >
