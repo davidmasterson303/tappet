@@ -234,6 +234,27 @@ export default function DiagnosticHero({
           stacked ? '' : ' order-2 sm:order-none sm:w-[300px] sm:shrink-0 sm:border-r sm:border-white/8'
         }`}
       >
+        {/*
+          ⚠ The plate's lower edge dissolves — dossier B3.
+
+          The dial used to sit in a band *under* the photograph, with a hard
+          seam between them, and a critique put the cost plainly: the reading
+          was "parked bottom-left of an empty dark band under the photograph"
+          while the plate ended in a line. Two objects where the brief asks for
+          one.
+
+          A gradient into `--card` gives the image somewhere to end, and the
+          band that follows is pulled up into it — so the arc sits on the
+          plate's lower third rather than beneath it, and the seam is gone
+          because there is nothing left to seam.
+
+          `aria-hidden` and `pointer-events-none`: it is a grade on a
+          photograph, not a layer anybody interacts with.
+        */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-[hsl(var(--card))] via-[hsl(var(--card))]/70 to-transparent"
+        />
         <VehicleIdentity
           variant="band"
           photo={photo ?? null}
@@ -324,8 +345,13 @@ export default function DiagnosticHero({
           moves with the rest of the system instead of staying where the
           palette used to be.
         */
-        className={`bg-[hsl(var(--card))] px-4 sm:px-6 sm:px-8 py-6${
-          stacked ? '' : ' order-1 sm:order-none sm:flex-1'
+        /* ⚠ Transparent when it overlaps a photograph — the gradient above
+             is what carries the ground there. Opaque in the no-photo case,
+             where there is no plate to show through. */
+        className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
+          stacked
+            ? ' -mt-24 pt-0'
+            : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >
         {/*
@@ -381,7 +407,12 @@ export default function DiagnosticHero({
               elsewhere on the screen said a fictional scan had finished. There
               is nothing to wait for, so it is live on mount.
             */}
-            <ClusterGauge score={score} active />
+            {/* ⚠ 240, not the default — dossier B3 asks for a numeral at the
+                cap height of the vehicle name, which sets at text-5xl to
+                text-7xl. The dial was "a small numeral in a small arc"; the
+                reading is the reason the page exists and was the fourth
+                largest thing on it. */}
+            <ClusterGauge score={score} active size={240} />
             {/*
               ── ⚠ Not `flex-1`, and the difference is 400px of nothing ──────
 

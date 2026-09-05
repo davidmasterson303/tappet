@@ -682,9 +682,16 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 2 + 2 with 32px gutters on a phone. A grid makes the two
                 columns deliberate rather than a consequence of how wide
                 "Reliability" happens to be. Unchanged from `sm` up. */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-8">
+            {/* ⚠ Hairline verticals — dossier B9. The stats read as a row of
+                unrelated facts because nothing separated them; a rule between
+                each is what makes a strip a strip. `divide-x` only from `sm`,
+                where the row exists — the phone lays them out as a 2x2 grid
+                and a vertical rule down the middle of that would be dividing
+                nothing. `[&>*]:` reaches the children the grid already has
+                rather than adding a wrapper per stat. */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-0 sm:divide-x sm:divide-white/10 sm:[&>*]:px-5 sm:[&>*:first-child]:pl-0">
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Mileage</span>
+                <span className="mono label-uppercase">Mileage</span>
                 {isEditingCurrentMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -738,7 +745,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Avg. Monthly Miles</span>
+                <span className="mono label-uppercase">Avg. Monthly Miles</span>
                 {isEditingAvgMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -787,7 +794,11 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 <div className="relative">
                   <button
                     onClick={() => !isDemo && setIsStatusOpen(o => !o)}
-                    className={`flex items-center gap-2 px-3 py-1.5 chamfer-sm border text-sm font-medium transition-all ${
+                    /* ⚠ Mono caps, no glyph — dossier B9 and §7. The tag icon was garnish: the
+   chip's own words say what it is, and a glyph-per-row was counted as
+   "default component-library texture" against a brief whose grammar is line
+   and mono. A status is a state label, so it sets like every other one. */
+                    className={`mono flex items-center gap-2 px-3 py-1.5 chamfer-sm border text-xs uppercase tracking-wider transition-all ${
                       isDemo ? 'opacity-60 cursor-not-allowed' : 'hover:border-white/25 hover:bg-white/5'
                     } ${
                       displayVehicle.vehicle_status
@@ -795,7 +806,6 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                         : 'bg-white/5 border-white/15 text-white/50'
                     }`}
                   >
-                    <Tag className="h-3.5 w-3.5" />
                     {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
                   </button>
                   {isStatusOpen && (
@@ -841,7 +851,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               */}
               {knowledge?.reliability_score && (
                 <div className="flex flex-col gap-1">
-                  <span className="label-uppercase">Model reliability</span>
+                  <span className="mono label-uppercase">Model reliability</span>
                   <span className="mono text-2xl font-medium text-white tabular-nums">
                     {knowledge.reliability_score}
                     <span className="text-sm text-white/50 ml-0.5">/10</span>

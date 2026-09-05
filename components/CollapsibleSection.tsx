@@ -171,7 +171,7 @@ export default function CollapsibleSection({
               {title}
             </span>
             {summary && !open && (
-              <span className="text-[13px] text-white/50 truncate sm:max-w-[45%]">{summary}</span>
+              <span className="mono text-xs text-white/50 truncate sm:max-w-[45%]">{summary}</span>
             )}
           </span>
         </button>

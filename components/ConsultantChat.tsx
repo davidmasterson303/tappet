@@ -854,11 +854,23 @@ export default function ConsultantChat({
                     which is which, so an 8x8 'CC' circle on every turn was
                     paying for information the layout already carried.
                   */}
+                  {/*
+                    ⚠ The sparkle is gone — dossier §7. The note above already
+                    argued the identity is a label row rather than an avatar and
+                    removed a 'CC' circle for "paying for information the layout
+                    already carried"; a four-point sparkle was the same purchase
+                    made again, and it is the single most generic "this is AI"
+                    mark there is. The word JAY says it.
+
+                    Mono throughout — B1 and B8 both put bylines and timestamps
+                    in the monospace register. `·` rather than a space so the
+                    name and the time read as one stamp.
+                  */}
                   {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                      <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{ADVISOR_NAME}</span>
-                      <span className="text-xs text-white/50">
+                    <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                      <span>{ADVISOR_NAME}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -878,7 +890,21 @@ export default function ConsultantChat({
                           accident; unboxed prose has no edges to stop it and
                           would run to ~120 characters on a wide panel.
                         */
-                        : 'measure text-white overflow-hidden'
+                        /*
+                          ⚠ A cyan hairline on the left — dossier B8.
+
+                          The paragraph above is the reason there is no box, and
+                          it stands: an answer is a diagnosis, not a chat line.
+                          A rule is not a box — it does not enclose, it marks a
+                          margin, which is what a ruled quotation has always
+                          done. It also gives an unboxed answer the one thing
+                          losing the bubble cost it: a visible left edge to
+                          scan down.
+
+                          Cyan because the brief reserves it for information,
+                          and this is the surface's only sustained block of it.
+                        */
+                        : 'measure overflow-hidden border-l-2 border-[color:var(--info)] pl-4 text-white'
                     }
                   >
                     {msg.documents && msg.documents.length > 0 && (
@@ -1164,7 +1190,7 @@ export default function ConsultantChat({
 
                   {/* The user bubble keeps its timestamp, below and right. */}
                   {msg.role === 'user' && (
-                    <div className="text-xs text-white/50 mt-1">
+                    <div className="mono text-xs text-white/50 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
@@ -1176,9 +1202,8 @@ export default function ConsultantChat({
                   a message that had arrived. */}
               {loading && (
                 <div className="animate-fade-in flex flex-col items-start">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                    <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{ADVISOR_NAME}</span>
+                  <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                    <span>{ADVISOR_NAME}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-info flex-shrink-0" />

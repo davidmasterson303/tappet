@@ -826,8 +826,12 @@ export default function HealthSummary({
         */}
         {healthSummary.recommendations && healthSummary.recommendations.length > 0 && (
           <div className="border-t border-white/8 pt-4">
+            {/* ⚠ The trend arrow is gone — dossier §7. It pointed at nothing:
+                these are actions to take, not a direction of travel, and a
+                glyph-per-heading was counted as "default component-library
+                texture" on a surface whose grammar is line and mono. The 01-04
+                indices below already say this is a list. */}
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="h-5 w-5 text-white/45" />
               <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
             </div>
             <ul className="space-y-2">
@@ -877,7 +881,7 @@ export default function HealthSummary({
           </div>
         )}
 
-        <p className="text-xs text-white/50 text-right">
+        <p className="mono text-xs text-white/50 text-right">
           Last updated:{' '}
           {healthSummary.last_generated
             ? new Date(healthSummary.last_generated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
