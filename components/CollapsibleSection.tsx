@@ -125,7 +125,7 @@ export default function CollapsibleSection({
         section's header underneath the bar and the reader lands on its second
         row, which reads as having missed.
       */
-      className="scroll-mt-28 rounded-2xl border border-white/8 bg-card/40 overflow-hidden"
+      className="scroll-mt-28 cut-panel border border-white/8 bg-card/40 overflow-hidden"
     >
       <h2>
         <button

@@ -194,6 +194,34 @@ export function VehicleIdentity({
   const photoReady = src !== null && loadedUrl === src;
 
   /*
+    ── ⚠ Cover when it is safe to, contain when it is not — B2, 5 Sep ────────
+
+    The brief asks for a hero that covers its panel edge-to-edge, and the
+    docblock at the top of this file explains why that was removed: a
+    centre-anchored `cover` enlarged a 3:4 phone photo ~3x and kept a
+    horizontal band through the vertical middle — "the car was frequently not
+    in the hero at all". That finding is intact and this does not undo it.
+
+    What it does is stop applying the portrait remedy to landscape photographs.
+    The band is roughly 2.9:1. A 3:2 frame cropped to that loses height from
+    top and bottom of a picture composed with the car across the middle, which
+    is what every one of the demo plates is. A 3:4 frame cropped to the same
+    band loses about three quarters of its height, which is the documented
+    disaster.
+
+    So the rule is the aspect itself: landscape enough to survive the crop gets
+    `cover`, anything else keeps `contain` and the plate beside it. 1.4 is
+    below 3:2 (1.5) and comfortably above square, so the common phone shapes —
+    3:4 at 0.75 and 1:1 — stay contained.
+
+    ⚠ `null` until the probe fires, and `contain` is the fallback. An unknown
+    aspect must never be assumed croppable; the failure mode of guessing wrong
+    is a photograph of a car with no car in it.
+  */
+  const [aspect, setAspect] = useState<number | null>(null);
+  const fit = aspect !== null && aspect >= 1.4 ? 'cover' : 'contain';
+
+  /*
     `onLoad` alone would leave the photograph invisible forever on the exact
     case that is meant to be fastest.
 
@@ -339,15 +367,10 @@ export function VehicleIdentity({
                 component already paints and already treats as the design for a
                 photo that has not arrived.
 
-                ⚠ The photograph is still CONTAINED, not cropped. B2 also asks
-                for edge-to-edge, and that half is not done here: the docblock
-                at the top of this file records that a centre-anchored `cover`
-                enlarged a 3:4 phone photo ~3x and kept a horizontal band
-                through the vertical middle — "the car was frequently not in
-                the hero at all". Cropping properly needs the `focalX`/`focalY`
-                columns, which are still collected by
-                `VehiclePhotoUploadDialog` and read by nothing. That is the way
-                to do it and it is a bigger change than a fill.
+                ⚠ Whether the sharp copy is contained or cropped is decided by
+                its aspect — see `fit` above. This layer shows beside a
+                *contained* photograph only, which is now the portrait case
+                rather than every case.
               */
               opacity: photoReady ? 0 : 1,
               transition: 'opacity 260ms ease-out',
@@ -383,7 +406,7 @@ export function VehicleIdentity({
             data-graded="true"
             style={{
               ...photoLayerVars(src, formats),
-              backgroundSize: 'contain',
+              backgroundSize: fit,
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               /* The grade. See the note above — one treatment for the set. */
@@ -444,7 +467,18 @@ export function VehicleIdentity({
               */
               {...({ fetchpriority: isBand ? 'high' : 'auto' } as Record<string, string>)}
               className="absolute w-0 h-0 opacity-0 pointer-events-none"
-              onLoad={() => setLoadedUrl(src)}
+              onLoad={(e) => {
+                /*
+                  The intrinsic aspect, captured here because this probe is the
+                  only element in the component that ever sees it — the two
+                  visible layers are CSS backgrounds, which report nothing.
+                */
+                const img = e.currentTarget;
+                if (img.naturalHeight > 0) {
+                  setAspect(img.naturalWidth / img.naturalHeight);
+                }
+                setLoadedUrl(src);
+              }}
               /*
                 Marks the *prop*, not the rendered URL. `src` may be a
                 card-scoped rewrite of it, and the guard above compares
@@ -496,7 +530,7 @@ export function VehicleIdentity({
           {!isBand && (
             <div
               aria-hidden="true"
-              className="absolute pointer-events-none rounded-lg border border-white/8"
+              className="absolute pointer-events-none chamfer-sm border border-white/8"
               style={{ inset: 12 }}
             />
           )}

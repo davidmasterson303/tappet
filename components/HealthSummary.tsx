@@ -221,7 +221,7 @@ function HealthFactorRows({
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] divide-y divide-white/8">
+    <div className="chamfer-sm border border-white/10 bg-white/[0.02] divide-y divide-white/8">
       {rows.map((row) => (
         <div key={row.key} className="p-4">
           <div className="flex items-baseline justify-between gap-3">
@@ -552,9 +552,21 @@ export default function HealthSummary({
           {healthSummary.red_flags && healthSummary.red_flags.length > 0 && (
             <div className="pt-3 border-t border-white/8 space-y-1.5">
               {healthSummary.red_flags.slice(0, 2).map((flag: string) => (
-                <div key={flag} className="flex items-start gap-2">
+                /*
+                  ── Line, not fill — dossier B4 ─────────────────────────────
+
+                  A sodium left rule and sodium ink on the page ground. The
+                  brief allows a large fill only for hover and critical, and
+                  these two rows are the page's only sodium: giving them a wash
+                  as well as a rule would spend the loudest treatment in the
+                  system on its most repeated element.
+                */
+                <div
+                  key={flag}
+                  className="flex items-start gap-2.5 border-l-2 border-[color:var(--attention)] pl-3 py-1"
+                >
                   <AlertTriangle className="h-3.5 w-3.5 text-[color:var(--attention)] shrink-0 mt-0.5" />
-                  <p className="text-xs text-white/65 leading-snug">{flag}</p>
+                  <p className="text-xs leading-snug text-[color:var(--text-primary)]">{flag}</p>
                 </div>
               ))}
             </div>
@@ -742,7 +754,7 @@ export default function HealthSummary({
               below it, which is the point: one panel treatment, not one per
               mood.
             */
-            className="rounded-xl border border-white/10 bg-white/[0.02] divide-y divide-white/8"
+            className="chamfer-sm border border-white/10 bg-white/[0.02] divide-y divide-white/8"
           >
             {healthSummary.red_flags.map((flag: string) => (
               <div
@@ -809,7 +821,7 @@ export default function HealthSummary({
           the report, and a panel is enough to say so.
         */}
         {healthSummary.recommendations && healthSummary.recommendations.length > 0 && (
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="chamfer-sm border border-white/10 bg-white/[0.02] p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-5 w-5 text-white/45" />
               <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">Recommendations</h4>

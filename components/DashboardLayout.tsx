@@ -761,7 +761,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 <div className="relative">
                   <button
                     onClick={() => !isDemo && setIsStatusOpen(o => !o)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 chamfer-sm border text-sm font-medium transition-all ${
                       isDemo ? 'opacity-60 cursor-not-allowed' : 'hover:border-white/25 hover:bg-white/5'
                     } ${
                       displayVehicle.vehicle_status
@@ -773,7 +773,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
                   </button>
                   {isStatusOpen && (
-                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 rounded-xl shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
+                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 chamfer-sm shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
                       {Object.entries(USAGE_PROFILES).map(([key, cfg]) => (
                         <button
                           key={key}
@@ -837,10 +837,10 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
         <div
           className={
             appShell
-              ? 'flex-1 min-h-0 flex flex-col md:block md:glass-panel md:rounded-2xl md:p-6'
+              ? 'flex-1 min-h-0 flex flex-col md:block md:glass-panel md:cut-panel md:p-6'
               : contentSurface === 'bare'
                 ? ''
-                : 'glass-panel rounded-2xl p-4 sm:p-6'
+                : 'glass-panel cut-panel p-4 sm:p-6'
           }
         >
           {children}

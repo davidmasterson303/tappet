@@ -212,7 +212,7 @@ export default function DiagnosticHero({
     <section
       ref={containerRef}
       aria-label={vehicleName}
-      className={`rounded-2xl overflow-hidden border border-white/8${
+      className={`cut-panel overflow-hidden border border-white/8${
         stacked ? '' : ' flex flex-col sm:flex-row sm:items-stretch'
       }`}
     >
@@ -262,7 +262,7 @@ export default function DiagnosticHero({
               <button
                 type="button"
                 onClick={onAddPhoto}
-                className="tap-target-44 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
+                className="tap-target-44 chamfer-sm border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
               >
                 Add a photograph
               </button>
@@ -404,7 +404,7 @@ export default function DiagnosticHero({
                     <button
                       type="button"
                       onClick={onAddRecord}
-                      className="tap-target-44 mt-3 inline-flex items-center rounded-xl border border-info-border bg-info-wash px-4 py-2 text-sm font-semibold text-info-strong transition-colors hover:bg-info-wash/70"
+                      className="tap-target-44 mt-3 inline-flex items-center chamfer-sm border border-info-border bg-info-wash px-4 py-2 text-sm font-semibold text-info-strong transition-colors hover:bg-info-wash/70"
                     >
                       {addRecordLabel}
                     </button>
