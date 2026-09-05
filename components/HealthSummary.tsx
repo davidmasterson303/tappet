@@ -167,7 +167,18 @@ function ClaimIcon({ claim }: { claim: HealthClaim }) {
     — and a claim saying "brake fluid overdue" is a finding, not a hazard. It
     takes ordinary ink and lets the sentence carry its own weight.
   */
-  return <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/60" aria-hidden="true" />;
+  /*
+    ⚠ Nothing. The glyph is cut — dossier §7, named twice: "info-glyph-prefixed
+    sentences in the factor rows — dark-mode SaaS convention", and "the copy
+    carries the meaning".
+
+    The note above is about which *colour* an icon here should take, and it
+    still explains why this was never red. What it did not ask is whether the
+    row needed an icon at all. It does not: every one of these lines is a
+    sentence, and a circled 'i' before a sentence says only that a sentence
+    follows.
+  */
+  return null;
 }
 
 function HealthFactorRows({

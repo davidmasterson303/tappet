@@ -356,7 +356,7 @@ export default function DiagnosticHero({
              where there is no plate to show through. */
         className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
           stacked
-            ? ' -mt-56 pt-0'
+            ? ' -mt-72 pt-0'
             : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >

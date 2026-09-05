@@ -102,10 +102,23 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
     moving the band out of the box; the desktop kept it, and the reports kept
     coming from the pages that never wanted it.
 
-    So it lights the room it was drawn for. The others take the plain ground,
+    So it lit the room it was drawn for. The others took the plain ground,
     which is what they were being read as anyway.
+
+    ── ⚠ And on 5 Sep it comes off the dashboard too ─────────────────────────
+
+    That scoping held for one reason: every report had come from a page the
+    band was never meant for. The dossier critique reported it from the
+    dashboard — "a faint blurred full-bleed band remains behind the plate", and
+    under Cut: "a blur doing an image's job; cut, do not replace."
+
+    That is the fifth independent reading of a rendered page calling this an
+    artefact, and the first from the room it was drawn for. The concept — the
+    signed-in dashboard stands in a car — was good, and the page now has an
+    actual photograph of one doing that job. A brushed gradient behind a night
+    plate is competing with the thing it was standing in for.
   */
-  const belt = currentPage === 'dashboard' ? ' cockpit-belt' : '';
+  const belt = '';
 
   useEffect(() => {
     setDisplayVehicle(vehicle);

@@ -766,7 +766,7 @@ export default function ConsultantChat({
                   }`}>
                     {session.title}
                   </p>
-                  <p className="text-xs text-white/50 mt-1">
+                  <p className="mono text-xs text-white/50 mt-1">
                     {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </button>
@@ -1163,8 +1163,20 @@ export default function ConsultantChat({
                     to the turn, which is what it is. Same words, same
                     frequency, less shout.
                   */}
+                  {/* ⚠ `mono` — dossier B1 puts every state label and piece of
+                      apparatus in the monospace register, and the note above
+                      already calls this apparatus rather than a second
+                      paragraph. Same words, same frequency; it now reads as the
+                      footnote it is rather than as more prose.
+
+                      ⚠ A comment cannot go between `&& (` and the element —
+                      that is a JS expression position, where a braced JSX
+                      comment is invalid. Third time this pass; tsc catches it,
+                      the suite does not, because the suite does not typecheck.
+                      And do not spell that comment form out here either: its
+                      closing sequence ends the comment you are writing. */}
                   {msg.role === 'assistant' && msg.content && (
-                    <p className="measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
+                    <p className="mono measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
                       {adviceDisclosure('consultant')}
                     </p>
                   )}
@@ -1316,7 +1328,7 @@ export default function ConsultantChat({
           <div className="composer-panel group rounded-xl">
             <Textarea
               ref={textareaRef}
-              placeholder="Ask me anything about your vehicle..."
+              placeholder="What do you want to know about this car?"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
