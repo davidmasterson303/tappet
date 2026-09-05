@@ -244,7 +244,11 @@ function HealthFactorRows({
             */}
             {row.driver && (
               <span
-                className="num text-xl font-bold leading-none"
+                /* ⚠ `mono` joins `num` — dossier B7. `num` gives tabular
+                   figures; the monospace face is what makes a right-aligned
+                   column of them read as a spec table rather than as bold
+                   sans that happens to line up. */
+                className="mono num text-xl font-medium leading-none"
                 style={{
                   /*
                     ── ⚠ One contract: colour is the verdict, and there is
@@ -834,8 +838,8 @@ export default function HealthSummary({
                 a directional glyph on a list that goes nowhere. A dot is a
                 bullet.
               */}
-              {healthSummary.recommendations.map((rec: string) => (
-                <li key={rec} className="text-sm text-white/75 flex items-start gap-2.5">
+              {healthSummary.recommendations.map((rec: string, i: number) => (
+                <li key={rec} className="text-sm text-white/75 flex items-start gap-3">
                   {/*
                     ⚠ Neutral. These were `bg-info` — a cool blue dot, counted
                     by a critique as a fourth hue doing accent work on a page
@@ -843,10 +847,29 @@ export default function HealthSummary({
                     the blue dots read as leftovers from another theme." A
                     bullet is punctuation, not a signal.
                   */}
+                  {/*
+                    ⚠ A mono index, not a dot — dossier B7.
+
+                    The note above is still the reason it is not a chevron, and
+                    the one below it is still the reason it is not a coloured
+                    dot. What changed is that a bullet says only "another one";
+                    an index says how many there are and which this is, which
+                    is what a spec sheet does and what the brief asks for. It
+                    costs no hue at all, which the dot was already careful
+                    about.
+                  */}
                   <span
                     aria-hidden="true"
-                    className="mt-[0.5em] h-1 w-1 shrink-0 rounded-full bg-white/35"
-                  />
+                    /* ⚠ 12px and `--text-muted`, not 11px at /35. The dot this
+                       replaced was a background, so neither floor applied to
+                       it; an index is text and both do. `viewport-floors` and
+                       `text-contrast-floor` both fired on the first version,
+                       which is exactly the trade a bullet-to-numeral change
+                       makes and exactly what those guards are for. */
+                    className="mono shrink-0 pt-[0.15em] text-xs tabular-nums text-[color:var(--text-muted)]"
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
                   <span className="leading-normal">{rec}</span>
                 </li>
               ))}
