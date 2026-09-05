@@ -587,17 +587,32 @@ nav {
      * so moving it off zero costs nothing and the guard against undefined
      * still holds.
      *
-     * 10px, not the sport register's 16: brief B4 makes the cut the default
-     * geometry of the product, and a cut that reads as an angle on a 700px
-     * panel reads as a broken corner on a 44px control. The registers still
-     * differ — sport is a deeper cut on harder radii — they simply no longer
-     * differ between "some geometry" and "none".
+     * ⚠ 10px -> 18px, and the control cut 6px -> 12px, on 5 Sep.
+     *
+     * The first pass at this reasoned that "a cut that reads as an angle on a
+     * 700px panel reads as a broken corner on a 44px control", and picked the
+     * timid end of that range. Three consecutive critiques then graded B4
+     * partial with the same objection — the cut was *present* and did not
+     * *register*: at 6px on a 44px control it is 14% of the height, which the
+     * eye files as a rounded corner rather than as a decision.
+     *
+     * 12px is 27% of a 44px control. That is past the point where it could be
+     * mistaken for a radius, which is the whole requirement — B4 asks for the
+     * chamfer to be the surface's geometry, and a geometry nobody notices is
+     * not one.
+     *
+     * The original caution was right about the *shape* of the risk and wrong
+     * about where the line sits. It is still not free: much past this the cut
+     * starts eating the cap-height of a small chip's label, which is why the
+     * two values stay separate rather than collapsing to one.
+     *
+     * The sport register moves with it — see the note in that block.
      */
-    --register-chamfer: 10px;
+    --register-chamfer: 18px;
     /* The control-sized cut. Buttons, fields and chips take this; panels take
        the one above. Two values because one value cannot serve both a masthead
        panel and a 24px chip without looking wrong on one of them. */
-    --register-chamfer-sm: 6px;
+    --register-chamfer-sm: 12px;
     --register-grain: transparent;
     /*
      * `--register-glow` (0.22 / 0.4) is deliberately NOT here. Its only reader
@@ -660,7 +675,11 @@ nav {
     --radius-xl: 3px;
     --radius-sm: 2px;
 
-    --register-chamfer: 16px;
+    /* ⚠ 16px -> 26px on 5 Sep. This is not decoration: the default register's
+       cut went to 18px, and a "harder" register whose chamfer is *shallower*
+       than the default's says the opposite of what it means. The two move
+       together or the register inverts. */
+    --register-chamfer: 26px;
     --register-accent: var(--build-far);
     --register-grain: rgb(255 255 255 / 0.03);
     --register-tracking: -0.03em;
@@ -2287,6 +2306,30 @@ nav {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/*
+ * The same shimmer, held still — for the design-system specimen only.
+ *
+ * A screenshot catches an infinite animation at whatever frame it happens to
+ * be on, and `shimmer`'s own extremes are its two dimmest: the highlight is at
+ * 50% of the sweep and the ends are near-flat. So the specimen was
+ * photographing three bars that all looked like plain grey blocks, and the
+ * critique's note was that a loading section which reads as an empty band is
+ * documenting nothing.
+ *
+ * A negative delay starts the animation partway in rather than delaying it, so
+ * pairing it with `paused` lands on a chosen frame instead of frame zero.
+ * -0.75s of a 1.5s cycle is the midpoint — the highlight at the centre of the
+ * bar, which is the frame worth showing.
+ *
+ * ⚠ Deliberately NOT inside `prefers-reduced-motion`. This is a still, not a
+ * motion effect, and a reader who has asked for less motion should see the
+ * same demonstration rather than a blank one.
+ */
+.skeleton-shimmer-frame {
+  animation-delay: -0.75s;
+  animation-play-state: paused;
 }
 
 /*

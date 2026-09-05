@@ -57,3 +57,44 @@ file is a layout shift that only appears on a slow connection.
 > Anamorphic, shallow depth of field, visible fine film grain, filmic
 > teal-and-orange grade held restrained rather than saturated. No text, no logos,
 > no people, no neon signage, no underglow, no light trails.
+
+---
+
+## `glass-plate-{480,960}.webp`
+
+| | |
+|---|---|
+| **Role** | Background plate beneath the `.glass-panel` specimen on `/dev/system`. Brief line B9. |
+| **Generated** | 5 Sep 2026, `~/Developer/design-loop/scripts/gen-image.mjs` |
+| **Model** | `gemini-3-pro-image-preview`, `--n 3`, `--aspect 4:3` |
+| **Styled to** | `design-loop/design-system/north-star.png` via `--ref` |
+| **Source** | `design-loop/design-system/img/glass-plate-2.png` — 2400×1792 |
+| **Chosen** | 2 of 3, for being the darkest of the three through the middle. That is the only criterion that mattered: off-white ink sits over this region, and the two brighter candidates put a sodium bloom directly behind it. |
+
+The panel is inset rather than full-bleed over this image, deliberately — the
+class being demonstrated is a 12px `backdrop-filter`, and what shows it is the
+*difference* between the blurred region and the sharp image beside it. A
+full-bleed backdrop hides exactly the thing the specimen exists to show.
+
+### The prompt, verbatim
+
+> Background plate for a translucent glass panel in a design-system specimen.
+> Role: background plate — a card with blurred translucency sits directly on top
+> of it, so this image exists to give that blur something to demonstrate.
+>
+> Subject: a tight, close crop of wet asphalt at night, filling the frame. No
+> car, no horizon, no sky, no recognisable objects.
+>
+> Composition: one warm sodium streetlamp flare in the upper left third, thrown
+> out of focus into a soft round bloom, and one cold cyan reflection stretching
+> diagonally across the wet surface at lower right. Between and around them,
+> deep unlit black asphalt with visible wet grain and scattered small specular
+> pinpoints where water catches the light.
+>
+> Critical: the frame must stay DARK overall — the two highlights are small and
+> contained, everything else falls to near-black, because off-white text will be
+> set over the middle of this image and must remain readable. No large bright
+> areas. No text, no logos, no people.
+>
+> Anamorphic, very shallow depth of field so the highlights are soft rounded
+> bokeh, fine film grain, restrained teal-and-orange grade.

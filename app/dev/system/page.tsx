@@ -117,7 +117,7 @@ function Swatch({ name, note }: { name: string; note?: string }) {
   return (
     <div className="flex items-center gap-3">
       <div
-        className="h-11 w-11 shrink-0 rounded-lg border border-white/12"
+        className="h-11 w-11 shrink-0 chamfer-sm border border-white/25"
         style={{ background: paint(name) }}
       />
       <div className="min-w-0">
@@ -333,10 +333,10 @@ export default function DesignSystemPage() {
             {SAMPLED.map((s) => (
               <div
                 key={s.token}
-                className="flex items-center gap-4 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-4"
+                className="flex items-center gap-4 cut-panel border border-white/8 bg-[hsl(var(--surface-1))] p-4"
               >
                 <span
-                  className="h-10 w-10 shrink-0 rounded-md border border-white/15"
+                  className="h-10 w-10 shrink-0 chamfer-sm border border-white/25"
                   style={{ background: s.hex }}
                 />
                 <span className="mono text-[11px] text-[color:var(--text-muted)]">
@@ -344,7 +344,7 @@ export default function DesignSystemPage() {
                 </span>
                 <span className="text-[color:var(--text-muted)]">→</span>
                 <span
-                  className="h-10 w-10 shrink-0 rounded-md border border-white/15"
+                  className="h-10 w-10 shrink-0 chamfer-sm border border-white/25"
                   style={{ background: paint(s.token.replace('--', '')) }}
                 />
                 <span className="mono truncate text-[11px] text-[color:var(--text-primary)]">
@@ -396,7 +396,7 @@ export default function DesignSystemPage() {
             <Swatch name="text-muted-40" />
             <Swatch name="text-disabled" note="3.31:1 — exempt, not passing" />
           </div>
-          <div className="space-y-2 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-5">
+          <div className="space-y-2 cut-panel border border-white/8 bg-[hsl(var(--surface-1))] p-5">
             <p className="text-base text-[color:var(--text-primary)]">
               Body copy at the default size, on surface-1.
             </p>
@@ -503,7 +503,7 @@ export default function DesignSystemPage() {
           title="Type"
           blurb="Archivo is the instrument voice and holds the display slot; Newsreader stays the editorial voice on --font-editorial. JetBrains Mono carries every token name, value and state label, so the system is typeset the same on every machine."
         >
-          <div className="space-y-5 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
+          <div className="space-y-5 cut-panel border border-white/8 bg-[hsl(var(--surface-1))] p-6">
             <p className="display-instrument display-instrument-tight text-[4.5rem] uppercase leading-[0.9] text-[color:var(--text-primary)]">
               A Live Garage
             </p>
@@ -583,7 +583,7 @@ export default function DesignSystemPage() {
           title="Fields"
           blurb="One field design, four states. Invalid is an attribute so a screen reader is told, never a conditional class."
         >
-          <div className="grid gap-5 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6 sm:grid-cols-2">
+          <div className="grid gap-5 cut-panel border border-white/8 bg-[hsl(var(--surface-1))] p-6 sm:grid-cols-2">
             <div className="field-group space-y-1.5">
               <label className="label-uppercase" htmlFor="f1">
                 Mileage
@@ -646,7 +646,7 @@ export default function DesignSystemPage() {
           title="Badges and chips"
           blurb="The primitive's four variants, then the provenance chips the product actually ships."
         >
-          <div className="rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] px-6 py-2">
+          <div className="cut-panel border border-white/8 bg-[hsl(var(--surface-1))] px-6 py-2">
             <Row label="primitive">
               <Badge>Default</Badge>
               <Badge variant="secondary">Secondary</Badge>
@@ -682,7 +682,7 @@ export default function DesignSystemPage() {
           blurb="The card, the glass panel, and the empty state that must never render a missing value as a reading."
         >
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="card-lift rounded-xl border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
+            <div className="card-lift cut-panel border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
               <p className="label-uppercase">2019 BMW</p>
               <p className="display-instrument mt-1 text-2xl text-[color:var(--text-primary)]">
                 M3
@@ -697,14 +697,87 @@ export default function DesignSystemPage() {
               </div>
             </div>
 
-            <div className="glass-panel rounded-xl p-6">
-              <p className="label-uppercase">glass-panel</p>
-              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-                Used where a panel sits over photography.
-              </p>
+            {/*
+              The glass panel, over an actual photograph — brief B9.
+
+              `.glass-panel` is a 3% white fill and `backdrop-filter: blur(12px)`.
+              On flat graphite both resolve to nothing visible, so the specimen
+              was documenting the class by describing it: a caption reading
+              "used where a panel sits over photography", with no photography.
+              A blur needs something behind it or it is not a blur.
+
+              The plate is inset rather than full-bleed so the unblurred image
+              stays visible around the panel's edge. The demonstration is the
+              *difference* between the two, and a full-bleed backdrop hides
+              exactly that.
+
+              ⚠ **Eager, and it was `lazy` first.** This sits ~11,000px down a
+              development-only page, so `lazy` is the correct default and was
+              what shipped for one round. It cost the demonstration: Playwright's
+              full-page capture does not fire the intersection that starts a
+              lazy fetch, so every screenshot of this page — including the ones
+              a design critique grades — showed an empty panel captioned
+              "invisible without something behind them", which was accurate and
+              useless.
+
+              The usual reason to prefer `lazy` is a real visitor's bandwidth.
+              This route is never shipped and carries no image budget (contrast
+              `demo-image-budget.test.ts`, which governs the demo grid), so
+              there was no visitor to save and a demonstration to lose.
+
+              width/height still carry the real 2400x1792 so the box is
+              reserved before the bytes arrive.
+            */}
+            <div className="cut-panel relative isolate overflow-hidden border border-white/8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/design/glass-plate-960.webp"
+                srcSet="/design/glass-plate-480.webp 480w, /design/glass-plate-960.webp 960w"
+                sizes="(min-width: 1024px) 33vw, 100vw"
+                width={2400}
+                height={1792}
+                loading="eager"
+                decoding="async"
+                alt="Wet asphalt at night in close crop, a sodium streetlamp blooming out of focus at upper left and a cold cyan reflection running diagonally at lower right."
+                className="block h-auto w-full"
+              />
+              {/*
+                ⚠ The panel is pinned to the BOTTOM, and that is a contrast
+                requirement rather than a composition preference.
+
+                Measured off the rendered page, the first attempt put the label
+                over the sodium bloom: the brightest non-glyph pixel behind it
+                was #F7B778, which is **1.58:1** against this ink. The plate is
+                not uniformly dark and treating it as a backdrop was wrong.
+
+                Profiled in 5-row bands, the image is bright only in its top
+                third (L 0.08-0.12) and genuinely dark below it (L 0.008-0.048,
+                or 9.8:1 to 16.5:1 for `--text-primary`). So the bloom stays
+                above the panel where it is the thing being looked at, and the
+                type sits on the dark two-thirds.
+
+                No scrim. Reaching for one here would have needed roughly 0.70
+                alpha of black to drag the bloom under the floor, which is a
+                photograph you can no longer see, in the one cell whose whole
+                job is proving there is a photograph behind the blur.
+              */}
+              <div className="absolute inset-x-4 bottom-4">
+                <div className="glass-panel chamfer-sm p-4">
+                  <p className="label-uppercase">glass-panel</p>
+                  {/*
+                    Two lines, not four. The panel's height decides where its
+                    top edge lands, and its top edge is the only part of it that
+                    can reach the bloom — measured at 1.89:1 when this copy ran
+                    to four lines and pushed the label up into the bright third.
+                  */}
+                  <p className="mt-2 text-sm text-[color:var(--text-primary)]">
+                    3% fill, 12px blur — both need something behind them.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-1))] p-6 text-center">
+            <div className="cut-panel border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-1))] p-6 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-3))]">
                 <Gauge className="h-5 w-5 text-[color:var(--text-muted)]" />
               </div>
@@ -721,12 +794,17 @@ export default function DesignSystemPage() {
         <Section
           id="skeleton"
           title="Loading"
-          blurb="The shimmer, at the shapes it actually stands in for."
+          blurb="One bar, held at the midpoint of its sweep. The shimmer runs on a 1.5s loop whose two extremes are its dimmest frames, so three live bars in a screenshot photograph as three plain grey blocks — a loading state that documents nothing."
         >
-          <div className="space-y-3 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
-            <div className="skeleton-shimmer h-6 w-1/3 rounded-md bg-white/6" />
-            <div className="skeleton-shimmer h-4 w-2/3 rounded-md bg-white/6" />
-            <div className="skeleton-shimmer h-4 w-1/2 rounded-md bg-white/6" />
+          <div className="cut-panel space-y-4 border border-white/8 bg-[hsl(var(--surface-1))] p-6">
+            <div className="skeleton-shimmer skeleton-shimmer-frame chamfer-sm h-8 w-2/3 bg-white/6" />
+            <p className="mono text-[11px] text-[color:var(--text-muted)]">
+              .skeleton-shimmer · held at 50% of the sweep
+            </p>
+            <div className="skeleton-shimmer chamfer-sm h-8 w-2/3 bg-white/6" />
+            <p className="mono text-[11px] text-[color:var(--text-muted)]">
+              the same class, running — whatever frame the camera caught
+            </p>
           </div>
         </Section>
 
