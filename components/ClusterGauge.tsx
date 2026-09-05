@@ -728,20 +728,24 @@ export function ClusterGauge({
               of its own.
             */
             /*
-              ⚠ The band moved here from the arc — dossier B3.
+              ⚠ Neutral on both faces, and this is the second answer to the
+              same question in two rounds.
 
-              The note below argued this word should be neutral so that "the
-              reading is the subject and keeps the colour". That was right
-              while the arc and numeral were coloured; with both off-white the
-              same argument inverts. Three neutral elements is not a hierarchy
-              either, and the verdict has to live somewhere a glance can find
-              it.
+              When the arc went off-white I moved the band colour onto this
+              word, reasoning that the verdict had to live somewhere a glance
+              could find it. The next critique called that what it was: "FAIR
+              is set in gold … a third hue the system does not own, on a state
+              that is not a warning", and noted B4 had been ✅ before I did it.
+              A regression, and mine.
 
-              `--ring-good` is off-white, so a healthy car still reads as
-              unremarkable — B4's "good news in off-white ink" holds by
-              construction rather than by exception.
+              The better answer is the one the dial was already making: **the
+              number is the verdict.** 74 says fair more precisely than the
+              word does, and the word is its caption. Nothing on this
+              instrument needs a hue to carry state — the factor figures and
+              the warnings below carry severity, and those are the two places
+              sodium is allowed.
             */
-            color: ink,
+            color: 'rgb(255 255 255 / 0.7)',
             ...(isCard ? {} : { fontSize: size * 0.07, marginTop: size * 0.02 }),
           }}
         >

@@ -125,7 +125,12 @@ export default function CollapsibleSection({
         section's header underneath the bar and the reader lands on its second
         row, which reads as having missed.
       */
-      className="scroll-mt-28 cut-panel border border-white/8 bg-card/40 overflow-hidden"
+      /* ⚠ No border, no fill — dossier B6. This was a bordered, filled card that
+     held three more bordered, filled boxes, and two critiques described the
+     result the same way: "cards inside cards", "boxes inside a box". A section
+     is a run of the page with a rule above it, not an object sitting on the
+     page. The rule is `border-t`; everything else went. */
+      className="scroll-mt-28 border-t border-white/8 overflow-hidden"
     >
       <h2>
         <button

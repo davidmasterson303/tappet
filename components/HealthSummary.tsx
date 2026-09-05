@@ -221,7 +221,7 @@ function HealthFactorRows({
   if (rows.length === 0) return null;
 
   return (
-    <div className="chamfer-sm border border-white/10 bg-white/[0.02] divide-y divide-white/8">
+    <div className="divide-y divide-white/8 border-y border-white/8">
       {rows.map((row) => (
         <div key={row.key} className="p-4">
           <div className="flex items-baseline justify-between gap-3">
@@ -758,7 +758,7 @@ export default function HealthSummary({
               below it, which is the point: one panel treatment, not one per
               mood.
             */
-            className="chamfer-sm border border-white/10 bg-white/[0.02] divide-y divide-white/8"
+            className="divide-y divide-white/8 border-y border-white/8"
           >
             {healthSummary.red_flags.map((flag: string) => (
               <div
@@ -825,7 +825,7 @@ export default function HealthSummary({
           the report, and a panel is enough to say so.
         */}
         {healthSummary.recommendations && healthSummary.recommendations.length > 0 && (
-          <div className="chamfer-sm border border-white/10 bg-white/[0.02] p-4">
+          <div className="border-t border-white/8 pt-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-5 w-5 text-white/45" />
               <h4 className="display-instrument text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
