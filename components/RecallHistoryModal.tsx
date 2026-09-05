@@ -117,7 +117,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                         {recall.NHTSACampaignNumber && (
                           <div>
                             <span className="font-semibold">Campaign Number:</span>
-                            <div className="text-slate-700 font-mono mt-1">{recall.NHTSACampaignNumber}</div>
+                            <div className="text-slate-700 mono mt-1">{recall.NHTSACampaignNumber}</div>
                           </div>
                         )}
                         {recall.ManufacturerName && (

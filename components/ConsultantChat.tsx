@@ -682,7 +682,7 @@ export default function ConsultantChat({
       `100vh` there too: same number on a desktop, correct on a tablet with a
       collapsing browser chrome.
     */
-    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 rounded-none md:rounded-2xl overflow-hidden flex bg-slate-950/90 md:shadow-xl md:shadow-black/40 animate-consultant-fade">
+    <div className="relative h-full md:h-[calc(100dvh-320px)] md:min-h-[520px] md:max-h-[760px] border-0 md:border md:border-white/10 overflow-hidden flex md:cut-panel bg-[hsl(var(--card))] md:shadow-xl md:shadow-black/40 animate-consultant-fade">
       {/*
         Below md the sidebar becomes a drawer. As a permanent flex child it
         took 256px of a 375px viewport, leaving ~119px for the thread — the
@@ -700,15 +700,21 @@ export default function ConsultantChat({
       <div
         className={`${
           sidebarOpen ? 'absolute inset-y-0 left-0 z-30 flex' : 'hidden'
-        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-black/40 md:flex-shrink-0`}
+        /* ⚠ No second surface from `md` up — dossier B6. `bg-black/40` inside a
+           card-coloured frame is what made this read as "a frame inside a
+           frame": the sidebar was a differently-lit panel rather than one side
+           of a divided one. The `border-r` is the division, and one hairline is
+           all a division needs. The drawer keeps its own opaque ground below
+           `md`, where it floats over the thread rather than sitting beside it. */
+        } w-64 border-r border-white/8 flex-col bg-black/90 md:static md:z-auto md:flex md:bg-transparent md:flex-shrink-0`}
       >
         <div className="p-4 border-b border-white/8">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm text-white">Conversations</h3>
+            <h3 className="mono text-xs uppercase tracking-widest text-white/70">Conversations</h3>
             <Button
               size="sm"
               onClick={handleNewChat}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-7 px-2.5 border-0 text-xs chamfer-sm"
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               New
@@ -755,18 +761,28 @@ export default function ConsultantChat({
                 <button
                   key={session.id}
                   onClick={() => handleSessionClick(session.id)}
-                  className={`w-full text-left p-3 rounded-xl transition-all ${
+                  /* ⚠ A left rule, not a filled card — dossier B6. The active
+                     row was a tinted box inside a bordered panel inside a
+                     bordered frame; the critique counted the nesting and asked
+                     for "the cyan hairline, not a grey card". A rule marks a
+                     position without adding a container. */
+                  /* ⚠ No fill on the active row. B10 of the system brief
+                     reserves large fills for hover and critical, and a resting
+                     selection is neither — the cyan hairline plus off-white
+                     title is the whole active state. Hover keeps its wash,
+                     which is exactly the case a fill is for. */
+                  className={`w-full text-left p-3 border-l-2 transition-colors ${
                     activeSessionId === session.id
-                      ? 'bg-cyan-400/10 border border-cyan-400/25'
-                      : 'hover:bg-white/5 border border-transparent'
+                      ? 'border-[color:var(--info)]'
+                      : 'border-transparent hover:bg-white/4'
                   }`}
                 >
                   <p className={`text-xs font-medium line-clamp-2 leading-snug ${
-                    activeSessionId === session.id ? 'text-cyan-300' : 'text-white/80'
+                    activeSessionId === session.id ? 'text-[color:var(--text-primary)]' : 'text-white/80'
                   }`}>
                     {session.title}
                   </p>
-                  <p className="text-xs text-white/50 mt-1">
+                  <p className="mono text-xs text-white/50 mt-1">
                     {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </button>
@@ -797,7 +813,7 @@ export default function ConsultantChat({
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md animate-fade-in">
-                <div className="w-14 h-14 rounded-2xl bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
+                <div className="w-14 h-14 chamfer-sm bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
                   <MessageSquare className="h-7 w-7 text-info" />
                 </div>
                 {/*
@@ -833,7 +849,7 @@ export default function ConsultantChat({
                     <button
                       key={i}
                       onClick={() => handleSend(suggestion)}
-                      className="text-left p-3 bg-white/5 hover:bg-cyan-400/8 border border-white/8 hover:border-cyan-400/25 rounded-xl text-sm text-white/65 hover:text-white transition-all"
+                      className="text-left p-3 bg-white/5 hover:bg-[color:var(--info)]/8 border border-white/8 hover:border-[color:var(--info-border)]/25 chamfer-sm text-sm text-white/65 hover:text-white transition-all"
                     >
                       {suggestion}
                     </button>
@@ -854,11 +870,23 @@ export default function ConsultantChat({
                     which is which, so an 8x8 'CC' circle on every turn was
                     paying for information the layout already carried.
                   */}
+                  {/*
+                    ⚠ The sparkle is gone — dossier §7. The note above already
+                    argued the identity is a label row rather than an avatar and
+                    removed a 'CC' circle for "paying for information the layout
+                    already carried"; a four-point sparkle was the same purchase
+                    made again, and it is the single most generic "this is AI"
+                    mark there is. The word JAY says it.
+
+                    Mono throughout — B1 and B8 both put bylines and timestamps
+                    in the monospace register. `·` rather than a space so the
+                    name and the time read as one stamp.
+                  */}
                   {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                      <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{ADVISOR_NAME}</span>
-                      <span className="text-xs text-white/50">
+                    <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                      <span>{ADVISOR_NAME}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -866,7 +894,7 @@ export default function ConsultantChat({
                   <div
                     className={
                       msg.role === 'user'
-                        ? 'max-w-[80%] bg-primary/90 text-primary-foreground rounded-2xl rounded-tr-sm p-4 overflow-hidden'
+                        ? 'max-w-[80%] chamfer-sm bg-primary text-primary-foreground p-4 overflow-hidden'
                         /*
                           Unboxed: no background, border, radius or padding. A
                           an answer from Jay is a diagnosis, not a chat line, and
@@ -878,7 +906,21 @@ export default function ConsultantChat({
                           accident; unboxed prose has no edges to stop it and
                           would run to ~120 characters on a wide panel.
                         */
-                        : 'measure text-white overflow-hidden'
+                        /*
+                          ⚠ A cyan hairline on the left — dossier B8.
+
+                          The paragraph above is the reason there is no box, and
+                          it stands: an answer is a diagnosis, not a chat line.
+                          A rule is not a box — it does not enclose, it marks a
+                          margin, which is what a ruled quotation has always
+                          done. It also gives an unboxed answer the one thing
+                          losing the bubble cost it: a visible left edge to
+                          scan down.
+
+                          Cyan because the brief reserves it for information,
+                          and this is the surface's only sustained block of it.
+                        */
+                        : 'measure overflow-hidden border-l-2 border-[color:var(--info)] pl-4 text-white'
                     }
                   >
                     {msg.documents && msg.documents.length > 0 && (
@@ -887,9 +929,9 @@ export default function ConsultantChat({
                           <AttachmentLink
                             key={docIdx}
                             doc={doc}
-                            className={`flex items-center gap-2 p-2 rounded-lg ${
+                            className={`flex items-center gap-2 p-2 chamfer-sm ${
                               msg.role === 'user'
-                                ? 'bg-cyan-700/60 hover:bg-cyan-700'
+                                ? 'bg-[color:var(--brand-accent-button)]/60 hover:bg-[color:var(--brand-accent-button)]'
                                 : 'bg-white/8 hover:bg-white/12'
                             } transition-colors`}
                           />
@@ -1001,16 +1043,16 @@ export default function ConsultantChat({
                               key={actionIdx}
                               onClick={() => handleAddToWishlist(action)}
                               disabled={isAdded || isAdding}
-                              className={`flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm transition-all ${
+                              className={`flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm transition-all ${
                                 isAdded
-                                  ? 'bg-green-500/15 border border-green-400/25 text-green-300 cursor-default'
-                                  : 'bg-info-wash border border-info-border text-info hover:bg-cyan-400/15 hover:border-cyan-400/40'
+                                  ? 'bg-white/6 border border-[color:var(--confirm)]/25 text-[color:var(--confirm)] cursor-default'
+                                  : 'bg-info-wash border border-info-border text-info hover:bg-[color:var(--info)]/15 hover:border-[color:var(--info-border)]/40'
                               }`}
                             >
                               {isAdding ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
                               ) : isAdded ? (
-                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-green-400" />
+                                <Check className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--confirm)]" />
                               ) : (
                                 <Heart className="h-3.5 w-3.5 flex-shrink-0" />
                               )}
@@ -1024,11 +1066,11 @@ export default function ConsultantChat({
                                 contrast, not size, makes a label recede.
                               */}
                               <span
-                                className={`text-xs capitalize ${isAdded ? 'text-green-300/60' : 'text-info/60'}`}
+                                className={`text-xs capitalize ${isAdded ? 'text-[color:var(--confirm)]/60' : 'text-info/60'}`}
                               >
                                 {action.type}
                               </span>
-                              {!isAdded && !isAdding && <span className="text-xs text-cyan-400 font-semibold">+ Add</span>}
+                              {!isAdded && !isAdding && <span className="text-xs text-[color:var(--info-strong)] font-semibold">+ Add</span>}
                             </button>
                           );
                         })}
@@ -1057,11 +1099,11 @@ export default function ConsultantChat({
                           return (
                             <button
                               onClick={() => handleQuotePull(pullable.map((e: any) => e.id))}
-                              className="flex items-center gap-2 w-full text-left p-2.5 rounded-xl text-sm min-h-[44px] bg-amber-400/10 border border-amber-400/25 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/40 transition-all"
+                              className="flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm min-h-[44px] bg-[color:var(--attention)]/10 border border-[color:var(--attention-border)]/25 text-[color:var(--attention)] hover:bg-[color:var(--attention)]/20 hover:border-[color:var(--attention-border)]/40 transition-all"
                             >
                               <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                               <span className="flex-1 font-medium text-xs">Get competing quotes</span>
-                              <span className="text-xs text-amber-300/60">
+                              <span className="text-xs text-[color:var(--attention)]/60">
                                 {pullable.length} item{pullable.length > 1 ? 's' : ''}
                               </span>
                             </button>
@@ -1137,8 +1179,20 @@ export default function ConsultantChat({
                     to the turn, which is what it is. Same words, same
                     frequency, less shout.
                   */}
+                  {/* ⚠ `mono` — dossier B1 puts every state label and piece of
+                      apparatus in the monospace register, and the note above
+                      already calls this apparatus rather than a second
+                      paragraph. Same words, same frequency; it now reads as the
+                      footnote it is rather than as more prose.
+
+                      ⚠ A comment cannot go between `&& (` and the element —
+                      that is a JS expression position, where a braced JSX
+                      comment is invalid. Third time this pass; tsc catches it,
+                      the suite does not, because the suite does not typecheck.
+                      And do not spell that comment form out here either: its
+                      closing sequence ends the comment you are writing. */}
                   {msg.role === 'assistant' && msg.content && (
-                    <p className="measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
+                    <p className="mono measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
                       {adviceDisclosure('consultant')}
                     </p>
                   )}
@@ -1164,7 +1218,7 @@ export default function ConsultantChat({
 
                   {/* The user bubble keeps its timestamp, below and right. */}
                   {msg.role === 'user' && (
-                    <div className="text-xs text-white/50 mt-1">
+                    <div className="mono text-xs text-white/50 mt-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
@@ -1176,9 +1230,8 @@ export default function ConsultantChat({
                   a message that had arrived. */}
               {loading && (
                 <div className="animate-fade-in flex flex-col items-start">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Sparkles className="h-[13px] w-[13px] flex-shrink-0" style={{ color: 'var(--info)' }} />
-                    <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{ADVISOR_NAME}</span>
+                  <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
+                    <span>{ADVISOR_NAME}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-info flex-shrink-0" />
@@ -1205,7 +1258,7 @@ export default function ConsultantChat({
                           control that answers the wrong tap is worse than one
                           that is slightly too small, so this grows for real.
                         */
-                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-cyan-400/10 border border-white/10 hover:border-cyan-400/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
+                        className="text-left px-3 py-2.5 min-h-[44px] bg-white/5 hover:bg-[color:var(--info)]/10 border border-white/10 hover:border-[color:var(--info-border)]/30 rounded-full text-xs text-white/60 hover:text-white transition-all"
                       >
                         {suggestion}
                       </button>
@@ -1221,17 +1274,17 @@ export default function ConsultantChat({
                 if (highPriorityWishlist.length === 0) return null;
                 return (
                   <div className="animate-slide-up">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/8 border border-amber-400/20">
-                      <TriangleAlert className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                    <div className="flex items-center gap-3 p-3 chamfer-sm bg-[color:var(--attention-wash)] border border-[color:var(--attention-border)]/20">
+                      <TriangleAlert className="h-4 w-4 text-[color:var(--attention)] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-amber-300">
+                        <p className="text-xs font-semibold text-[color:var(--attention)]">
                           {highPriorityWishlist.length} item{highPriorityWishlist.length > 1 ? 's' : ''} need attention
                         </p>
                         <p className="text-xs text-white/50 mt-0.5">Get quotes from local shops</p>
                       </div>
                       <a
                         href={`/dashboard/${vehicleId}?tab=wishlist`}
-                        className="flex-shrink-0 px-2.5 py-1 bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 rounded-lg text-xs font-semibold text-amber-300 transition-colors"
+                        className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
                         Get Quote
                       </a>
@@ -1255,7 +1308,7 @@ export default function ConsultantChat({
               {selectedFiles.map((file, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 rounded-xl"
+                  className="flex items-center justify-between bg-info-wash border border-info-border p-2.5 chamfer-sm"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <FileText className="h-4 w-4 text-info flex-shrink-0" />
@@ -1266,10 +1319,10 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
-                    className="ml-2 p-1 hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 chamfer-sm transition-colors"
                     disabled={uploadingFiles || loading}
                   >
-                    <X className="h-3.5 w-3.5 text-red-400" />
+                    <X className="h-3.5 w-3.5 text-[color:var(--critical)]" />
                   </button>
                 </div>
               ))}
@@ -1288,10 +1341,10 @@ export default function ConsultantChat({
             note — at rest the composer was three stacked rows for an idle
             input, and only one of them was the input.
           */}
-          <div className="composer-panel group rounded-xl">
+          <div className="composer-panel group chamfer-sm">
             <Textarea
               ref={textareaRef}
-              placeholder="Ask me anything about your vehicle..."
+              placeholder="What do you want to know about this car?"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -1311,7 +1364,7 @@ export default function ConsultantChat({
                 disabled={loading || uploadingFiles || selectedFiles.length >= 3}
                 aria-label="Attach a file"
                 title="Attach documents, invoices, or diagnostic reports"
-                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8"
+                className="tap-target-44 h-8 w-8 p-0 text-white/50 hover:text-[color:var(--info-strong)] hover:bg-[color:var(--info)]/8"
               >
                 <Paperclip className="h-[17px] w-[17px]" />
               </Button>
@@ -1322,7 +1375,7 @@ export default function ConsultantChat({
                 Truncates, never wraps — a second line here pushes the controls
                 around as mileage changes.
               */}
-              <span className="flex-1 min-w-0 truncate text-xs text-white/50">
+              <span className="mono flex-1 min-w-0 truncate text-xs text-white/50">
                 {vehicle.year} {vehicle.make} {vehicle.model}
                 {` · ${displayMileage.toLocaleString()} mi`}
                 {openItemCount > 0 && ` · ${openItemCount} open item${openItemCount === 1 ? '' : 's'}`}

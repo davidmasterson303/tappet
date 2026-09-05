@@ -102,10 +102,23 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
     moving the band out of the box; the desktop kept it, and the reports kept
     coming from the pages that never wanted it.
 
-    So it lights the room it was drawn for. The others take the plain ground,
+    So it lit the room it was drawn for. The others took the plain ground,
     which is what they were being read as anyway.
+
+    ── ⚠ And on 5 Sep it comes off the dashboard too ─────────────────────────
+
+    That scoping held for one reason: every report had come from a page the
+    band was never meant for. The dossier critique reported it from the
+    dashboard — "a faint blurred full-bleed band remains behind the plate", and
+    under Cut: "a blur doing an image's job; cut, do not replace."
+
+    That is the fifth independent reading of a rendered page calling this an
+    artefact, and the first from the room it was drawn for. The concept — the
+    signed-in dashboard stands in a car — was good, and the page now has an
+    actual photograph of one doing that job. A brushed gradient behind a night
+    plate is competing with the thing it was standing in for.
   */
-  const belt = currentPage === 'dashboard' ? ' cockpit-belt' : '';
+  const belt = '';
 
   useEffect(() => {
     setDisplayVehicle(vehicle);
@@ -505,8 +518,21 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       rather than 12, which is the R10 site this closes at the
                       same time. Visual weight is unchanged.
                     */
-                    className={`relative flex items-center gap-1.5 px-2.5 sm:px-4 py-3 min-h-[44px] text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ${
-                      isActive ? 'text-white bg-white/[0.08]' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                    /*
+                      ⚠ A cyan underline, not a filled pill — the brief's tab
+                      treatment. The fill was the only block of solid colour in
+                      the header and it read as a button rather than as a
+                      position; cyan is the system's focus-and-information hue
+                      and a 2px rule is the smallest thing that can carry
+                      "you are here".
+
+                      `mono` and caps because every other label on this surface
+                      is: a tab is a state label, not prose.
+                    */
+                    className={`mono relative flex items-center px-2.5 sm:px-4 py-3 min-h-[44px] text-[12px] uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border-b-2 ${
+                      isActive
+                        ? 'border-[color:var(--info)] text-[color:var(--text-primary)]'
+                        : 'border-transparent text-white/50 hover:text-white/80'
                     }`}
                   >
                     {/*
@@ -526,7 +552,20 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       overflowing at all. Unchanged from `sm` up, where there
                       was never a problem.
                     */}
-                    <Icon className={`hidden sm:block h-3.5 w-3.5 ${isActive ? 'text-cyan-400' : 'text-white/40'}`} />
+                    {/*
+                      ── ⚠ The glyphs are gone entirely — dossier §7 ───────────
+
+                      The note above already made the argument and stopped one
+                      step short: "the glyphs are decoration here: every tab is
+                      a word, and the word is what is read." It hid them below
+                      `sm` to fix an overflow. The brief cuts them outright, and
+                      the same sentence is the reason — a decoration that had to
+                      be hidden to make the navigation fit was never earning its
+                      place at any width.
+
+                      `Icon` stays in the tab table: it is the obvious thing to
+                      want back, and deleting it would take the mapping with it.
+                    */}
                     {label}
                     {/*
                       ── ⚠ One active indicator, and the fill is the one that
@@ -619,12 +658,16 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 the garage cards and the landing page already use, and this was
                 the last screen setting a vehicle's name a different way.
 
-                ⚠ `display-serif` is licensed for "exactly one element per
-                screen — a vehicle title or the single largest hero number",
-                and this is that element. It became available when the empty
-                hero band stopped printing the model in 36px serif directly
-                below — which was the duplicate, and was also the screen's one
-                serif slot spent on the second copy.
+                ⚠ The serif is gone from this screen — dossier brief B1, and
+                the "exactly one element per screen" licence with it. That rule
+                existed to ration a face that no longer appears here: the
+                display slot is the condensed grotesk, and it is not rationed
+                because it does not shout. `--font-editorial` and
+                `.display-serif` still exist for a marketing surface that wants
+                them; this is not one.
+
+                The note below still holds and is why the eyebrow carries the
+                year and make.
 
                 R11's finding still holds and is why the eyebrow carries the
                 year and make: 36px of "2018 Honda Accord" wrapped to three
@@ -643,7 +686,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               <p className="label-uppercase mb-2">
                 {[vehicle.year, vehicle.make].filter(Boolean).join(' ')}
               </p>
-              <h1 className="display-serif text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-none">
+              <h1 className="display-instrument display-instrument-tight text-5xl sm:text-6xl lg:text-7xl uppercase text-white leading-[0.92]">
                 {[vehicle.model, vehicle.trim].filter(Boolean).join(' ')}
               </h1>
             </div>
@@ -652,9 +695,22 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 2 + 2 with 32px gutters on a phone. A grid makes the two
                 columns deliberate rather than a consequence of how wide
                 "Reliability" happens to be. Unchanged from `sm` up. */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:flex sm:flex-wrap sm:items-end sm:gap-8">
+            {/* ⚠ Hairline verticals — dossier B9. The stats read as a row of
+                unrelated facts because nothing separated them; a rule between
+                each is what makes a strip a strip. `divide-x` only from `sm`,
+                where the row exists — the phone lays them out as a 2x2 grid
+                and a vertical rule down the middle of that would be dividing
+                nothing. `[&>*]:` reaches the children the grid already has
+                rather than adding a wrapper per stat. */}
+            {/* ⚠ The rules exist on mobile too. The grid gave a 2x2 of floating
+                label/value pairs with nothing holding them together — "keep it
+                a strip". `divide-x` on a two-column grid rules between the
+                columns, and `border-y` closes it top and bottom, so it reads as
+                one object at both sizes instead of a strip that becomes four
+                loose facts. */}
+            <div className="grid grid-cols-2 gap-y-5 divide-x divide-white/10 border-y border-white/8 py-4 [&>*]:px-4 [&>*:nth-child(odd)]:pl-0 sm:flex sm:flex-wrap sm:items-end sm:gap-y-0 sm:border-y-0 sm:py-0 sm:[&>*:first-child]:pl-0 sm:[&>*:nth-child(odd)]:px-4">
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Mileage</span>
+                <span className="mono label-uppercase">Mileage</span>
                 {isEditingCurrentMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -678,7 +734,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit mileage"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi</span>
                     {/*
                       ── ⚠ A word, after two conventions both failed ──────────
@@ -708,7 +764,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="label-uppercase">Avg. Monthly Miles</span>
+                <span className="mono label-uppercase">Avg</span>
                 {isEditingAvgMileage ? (
                   <div className="flex items-center gap-2">
                     <Input fieldSize="sm"
@@ -732,7 +788,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     className="meta-row flex items-center gap-1.5 group/edit"
                     aria-label="Edit average monthly miles"
                   >
-                    <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{displayVehicle.avg_miles_per_month || '—'}</span>
+                    <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month ? displayVehicle.avg_miles_per_month.toLocaleString() : '—'}</span>
                     <span className="text-sm text-white/50 font-normal">mi/mo</span>
                     <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
                       Edit
@@ -757,7 +813,11 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 <div className="relative">
                   <button
                     onClick={() => !isDemo && setIsStatusOpen(o => !o)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                    /* ⚠ Mono caps, no glyph — dossier B9 and §7. The tag icon was garnish: the
+   chip's own words say what it is, and a glyph-per-row was counted as
+   "default component-library texture" against a brief whose grammar is line
+   and mono. A status is a state label, so it sets like every other one. */
+                    className={`mono flex items-center gap-2 px-3 py-1.5 chamfer-sm border text-xs uppercase tracking-wider transition-all ${
                       isDemo ? 'opacity-60 cursor-not-allowed' : 'hover:border-white/25 hover:bg-white/5'
                     } ${
                       displayVehicle.vehicle_status
@@ -765,11 +825,10 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                         : 'bg-white/5 border-white/15 text-white/50'
                     }`}
                   >
-                    <Tag className="h-3.5 w-3.5" />
                     {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
                   </button>
                   {isStatusOpen && (
-                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 rounded-xl shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
+                    <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 chamfer-sm shadow-xl shadow-black/50 py-1.5 min-w-[160px]">
                       {Object.entries(USAGE_PROFILES).map(([key, cfg]) => (
                         <button
                           key={key}
@@ -811,8 +870,8 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               */}
               {knowledge?.reliability_score && (
                 <div className="flex flex-col gap-1">
-                  <span className="label-uppercase">Model reliability</span>
-                  <span className="text-2xl font-bold text-white tabular-nums tracking-tight">
+                  <span className="mono label-uppercase">Reliability</span>
+                  <span className="mono text-2xl font-medium text-white tabular-nums">
                     {knowledge.reliability_score}
                     <span className="text-sm text-white/50 ml-0.5">/10</span>
                   </span>
@@ -833,10 +892,17 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
         <div
           className={
             appShell
-              ? 'flex-1 min-h-0 flex flex-col md:block md:glass-panel md:rounded-2xl md:p-6'
+              /* ⚠ No frame in app-shell mode — dossier B6, 5 Sep.
+                 `appShell` is the advisor, and `ConsultantChat` draws its own
+                 cut-corner hairline frame. Wrapping it in a second one put a
+                 notch inside a notch about 24px apart, which three critiques
+                 read as "a card in a card" and "frame inside frame". The
+                 padding goes with the border: a frame's inset belongs to the
+                 frame that draws it. */
+              ? 'flex-1 min-h-0 flex flex-col md:block'
               : contentSurface === 'bare'
                 ? ''
-                : 'glass-panel rounded-2xl p-4 sm:p-6'
+                : 'glass-panel cut-panel p-4 sm:p-6'
           }
         >
           {children}

@@ -148,7 +148,7 @@ function ClaimIcon({ claim }: { claim: HealthClaim }) {
     rule is what breaks it.
   */
   if (mayReassure(claim)) {
-    return <CheckCircle className="h-4 w-4 shrink-0 mt-0.5 text-green-400" aria-hidden="true" />;
+    return <CheckCircle className="h-4 w-4 shrink-0 mt-0.5 text-[color:var(--confirm)]" aria-hidden="true" />;
   }
   if (claim.state === 'unknown') {
     return <HelpCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/45" aria-hidden="true" />;
@@ -167,7 +167,18 @@ function ClaimIcon({ claim }: { claim: HealthClaim }) {
     — and a claim saying "brake fluid overdue" is a finding, not a hazard. It
     takes ordinary ink and lets the sentence carry its own weight.
   */
-  return <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/60" aria-hidden="true" />;
+  /*
+    ⚠ Nothing. The glyph is cut — dossier §7, named twice: "info-glyph-prefixed
+    sentences in the factor rows — dark-mode SaaS convention", and "the copy
+    carries the meaning".
+
+    The note above is about which *colour* an icon here should take, and it
+    still explains why this was never red. What it did not ask is whether the
+    row needed an icon at all. It does not: every one of these lines is a
+    sentence, and a circled 'i' before a sentence says only that a sentence
+    follows.
+  */
+  return null;
 }
 
 function HealthFactorRows({
@@ -221,7 +232,7 @@ function HealthFactorRows({
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] divide-y divide-white/8">
+    <div className="divide-y divide-white/8 border-y border-white/8">
       {rows.map((row) => (
         <div key={row.key} className="p-4">
           <div className="flex items-baseline justify-between gap-3">
@@ -232,7 +243,7 @@ function HealthFactorRows({
               same bold sans any admin theme ships. The identity has to survive
               the scroll or it is a hat rather than a system.
             */}
-            <h4 className="display-serif text-[15px] text-white">{row.label}</h4>
+            <h4 className="display-instrument display-instrument-narrow text-[15px] uppercase tracking-wide text-white">{row.label}</h4>
             {/*
               ⚠ An unmeasured driver takes muted ink, never a band. Banding a
               `null` asserts a condition nobody checked — the same overclaim
@@ -244,7 +255,11 @@ function HealthFactorRows({
             */}
             {row.driver && (
               <span
-                className="num text-xl font-bold leading-none"
+                /* ⚠ `mono` joins `num` — dossier B7. `num` gives tabular
+                   figures; the monospace face is what makes a right-aligned
+                   column of them read as a spec table rather than as bold
+                   sans that happens to line up. */
+                className="mono num text-2xl font-medium leading-none"
                 style={{
                   /*
                     ── ⚠ One contract: colour is the verdict, and there is
@@ -470,7 +485,7 @@ export default function HealthSummary({
 
   if (!healthSummary) {
     return (
-      <Card className="bg-slate-900/60 border-white/10">
+      <Card className="cut-panel bg-[hsl(var(--card))] border-[color:var(--border)]">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Activity className="h-5 w-5 text-info" />
@@ -528,7 +543,7 @@ export default function HealthSummary({
   if (compact) {
     return (
       <Card className={`border ${
-        healthSummary.health_score >= 80 ? 'bg-green-500/8 border-green-400/20'
+        healthSummary.health_score >= 80 ? 'bg-white/4 border-[color:var(--border)]'
         : healthSummary.health_score >= 60 ? 'bg-info-wash border-info-border'
         : 'bg-orange-500/8 border-orange-400/20'
       }`}>
@@ -543,7 +558,7 @@ export default function HealthSummary({
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 rounded-lg text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              className="chamfer-sm p-1.5 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Refresh health summary"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -552,9 +567,25 @@ export default function HealthSummary({
           {healthSummary.red_flags && healthSummary.red_flags.length > 0 && (
             <div className="pt-3 border-t border-white/8 space-y-1.5">
               {healthSummary.red_flags.slice(0, 2).map((flag: string) => (
-                <div key={flag} className="flex items-start gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-white/65 leading-snug">{flag}</p>
+                /*
+                  ── Line, not fill — dossier B4 ─────────────────────────────
+
+                  A sodium left rule and sodium ink on the page ground. The
+                  brief allows a large fill only for hover and critical, and
+                  these two rows are the page's only sodium: giving them a wash
+                  as well as a rule would spend the loudest treatment in the
+                  system on its most repeated element.
+                */
+                <div
+                  key={flag}
+                  className="flex items-start gap-2.5 border-l-2 border-[color:var(--attention)] pl-3 py-1"
+                >
+                  {/* ⚠ The triangle is cut — dossier §7. "A 1px sodium left
+                      rule carries each row alone", and it does: the rule is the
+                      warning, and a glyph beside it is the same statement in a
+                      generic alert-list voice. The row is already sodium on
+                      three counts — rule, and nothing else needed one. */}
+                  <p className="text-xs leading-snug text-[color:var(--text-primary)]">{flag}</p>
                 </div>
               ))}
             </div>
@@ -669,7 +700,11 @@ export default function HealthSummary({
                 sentence, and the score's own honesty problem is a different one
                 (FN-01 — every generated score was a hardcoded 70).
               */}
-              <p className="text-xs text-white/50 mt-2 max-w-xl">{adviceDisclosure('health')}</p>
+              {/* ⚠ `mono`, matching the advisor's. The same sentence was set
+                  in the body sans here and in mono there, and a disclosure that
+                  changes voice between two surfaces of one product reads as two
+                  different notices. It is apparatus on both. */}
+              <p className="mono text-xs text-white/50 mt-2 max-w-xl">{adviceDisclosure('health')}</p>
             </div>
           </div>
           <Button
@@ -677,7 +712,7 @@ export default function HealthSummary({
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="text-white/50 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors"
+            className="text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors"
             aria-label="Refresh health summary"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -742,7 +777,7 @@ export default function HealthSummary({
               below it, which is the point: one panel treatment, not one per
               mood.
             */
-            className="rounded-xl border border-white/10 bg-white/[0.02] divide-y divide-white/8"
+            className="divide-y divide-white/8 border-y border-white/8"
           >
             {healthSummary.red_flags.map((flag: string) => (
               <div
@@ -751,7 +786,7 @@ export default function HealthSummary({
               >
                 <AlertTriangle
                   className="h-4 w-4 shrink-0 mt-0.5"
-                  style={{ color: 'var(--critical-red)' }}
+                  style={{ color: 'var(--critical)' }}
                   aria-hidden="true"
                 />
                 <p className="text-sm text-white/80 leading-snug">{flag}</p>
@@ -809,10 +844,14 @@ export default function HealthSummary({
           the report, and a panel is enough to say so.
         */}
         {healthSummary.recommendations && healthSummary.recommendations.length > 0 && (
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="border-t border-white/8 pt-4">
+            {/* ⚠ The trend arrow is gone — dossier §7. It pointed at nothing:
+                these are actions to take, not a direction of travel, and a
+                glyph-per-heading was counted as "default component-library
+                texture" on a surface whose grammar is line and mono. The 01-04
+                indices below already say this is a list. */}
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="h-5 w-5 text-white/45" />
-              <h4 className="display-serif text-[15px] text-white">Recommendations</h4>
+              <h4 className="display-instrument display-instrument-narrow text-[15px] uppercase tracking-wide text-white">Recommendations</h4>
             </div>
             <ul className="space-y-2">
               {/*
@@ -822,8 +861,8 @@ export default function HealthSummary({
                 a directional glyph on a list that goes nowhere. A dot is a
                 bullet.
               */}
-              {healthSummary.recommendations.map((rec: string) => (
-                <li key={rec} className="text-sm text-white/75 flex items-start gap-2.5">
+              {healthSummary.recommendations.map((rec: string, i: number) => (
+                <li key={rec} className="text-sm text-white/75 flex items-start gap-3">
                   {/*
                     ⚠ Neutral. These were `bg-info` — a cool blue dot, counted
                     by a critique as a fourth hue doing accent work on a page
@@ -831,10 +870,29 @@ export default function HealthSummary({
                     the blue dots read as leftovers from another theme." A
                     bullet is punctuation, not a signal.
                   */}
+                  {/*
+                    ⚠ A mono index, not a dot — dossier B7.
+
+                    The note above is still the reason it is not a chevron, and
+                    the one below it is still the reason it is not a coloured
+                    dot. What changed is that a bullet says only "another one";
+                    an index says how many there are and which this is, which
+                    is what a spec sheet does and what the brief asks for. It
+                    costs no hue at all, which the dot was already careful
+                    about.
+                  */}
                   <span
                     aria-hidden="true"
-                    className="mt-[0.5em] h-1 w-1 shrink-0 rounded-full bg-white/35"
-                  />
+                    /* ⚠ 12px and `--text-muted`, not 11px at /35. The dot this
+                       replaced was a background, so neither floor applied to
+                       it; an index is text and both do. `viewport-floors` and
+                       `text-contrast-floor` both fired on the first version,
+                       which is exactly the trade a bullet-to-numeral change
+                       makes and exactly what those guards are for. */
+                    className="mono shrink-0 pt-[0.15em] text-xs tabular-nums text-[color:var(--text-muted)]"
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
                   <span className="leading-normal">{rec}</span>
                 </li>
               ))}
@@ -842,7 +900,7 @@ export default function HealthSummary({
           </div>
         )}
 
-        <p className="text-xs text-white/50 text-right">
+        <p className="mono text-xs text-white/50 text-right">
           Last updated:{' '}
           {healthSummary.last_generated
             ? new Date(healthSummary.last_generated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })

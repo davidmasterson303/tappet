@@ -125,7 +125,12 @@ export default function CollapsibleSection({
         section's header underneath the bar and the reader lands on its second
         row, which reads as having missed.
       */
-      className="scroll-mt-28 rounded-2xl border border-white/8 bg-card/40 overflow-hidden"
+      /* ⚠ No border, no fill — dossier B6. This was a bordered, filled card that
+     held three more bordered, filled boxes, and two critiques described the
+     result the same way: "cards inside cards", "boxes inside a box". A section
+     is a run of the page with a rule above it, not an object sitting on the
+     page. The rule is `border-t`; everything else went. */
+      className="scroll-mt-28 border-t border-white/8 overflow-hidden"
     >
       <h2>
         <button
@@ -133,7 +138,7 @@ export default function CollapsibleSection({
           onClick={toggle}
           aria-expanded={open}
           aria-controls={panelId}
-          className="w-full flex items-start gap-3 px-5 py-4 text-left min-h-[56px] hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 focus-visible:ring-inset"
+          className="w-full flex items-start gap-3 px-5 py-4 text-left min-h-[56px] hover:bg-white/[0.03] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--info)] focus-visible:ring-inset"
         >
           <ChevronDown
             className={`h-4 w-4 mt-0.5 flex-shrink-0 text-white/40 transition-transform duration-200 ${
@@ -162,11 +167,11 @@ export default function CollapsibleSection({
               was a veneer rather than a voice — three critiques of the
               rendered page said so in a row.
             */}
-            <span className="display-serif text-[17px] text-white tracking-tight sm:flex-1 sm:min-w-0 truncate">
+            <span className="display-instrument display-instrument-narrow text-[17px] uppercase tracking-wide text-white sm:flex-1 sm:min-w-0 truncate">
               {title}
             </span>
             {summary && !open && (
-              <span className="text-[13px] text-white/50 truncate sm:max-w-[45%]">{summary}</span>
+              <span className="mono text-xs text-white/50 truncate sm:max-w-[45%]">{summary}</span>
             )}
           </span>
         </button>

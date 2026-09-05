@@ -144,17 +144,30 @@ describe('the web layer', () => {
 describe('healthBandHex', () => {
   it('converts each band to six-digit hex for React Native', () => {
     // RN's StyleSheet has no rgba() string form, so the Expo garage needs this.
-    expect(healthBandHex(getHealthBandJudgement(100))).toBe('#7fce9c');
     /*
-      ⚠ `#b9c77e`, moved off cyan on 3 Sep. The old value was a desaturated
-      cyan and cyan is the product's accent, so "Fair" wore the same hue as
-      every link and the active tab. See `--ring-ok` in `app/globals.css` for
-      the argument; this assertion exists so the web token and the value React
-      Native reads cannot drift apart.
+      ⚠ These four moved on 4 Sep. The ramp left green for the locked design
+      brief's two-hue rule and climbs sodium intensity instead:
+
+        off-white → warm stone → sodium → hot sodium
+
+      The 3 Sep note this replaces made the argument that mattered and it still
+      holds — cyan is the product's accent and must not also mean "Fair", which
+      is now true by a wider margin, because cyan is off the whole warning axis
+      rather than merely off one band of it. `--ring-good` in `app/globals.css`
+      carries the full reasoning.
+
+      **What this assertion is actually for has not changed at all.** It is not
+      protecting four particular colours; it is pinning the web token and the
+      value React Native reads to each other, because they are two files and
+      one decision. It failed on exactly the edit it was written to catch —
+      `app/globals.css` moved first and this pin refused the half-applied
+      state, which is the whole reason the numbers are spelled out here rather
+      than derived.
     */
-    expect(healthBandHex(getHealthBandJudgement(70))).toBe('#b9c77e');
-    expect(healthBandHex(getHealthBandJudgement(50))).toBe('#e0a468');
-    expect(healthBandHex(getHealthBandJudgement(10))).toBe('#e08882');
+    expect(healthBandHex(getHealthBandJudgement(100))).toBe('#ede7df');
+    expect(healthBandHex(getHealthBandJudgement(70))).toBe('#d6be9b');
+    expect(healthBandHex(getHealthBandJudgement(50))).toBe('#de8a3a');
+    expect(healthBandHex(getHealthBandJudgement(10))).toBe('#f4511e');
   });
 
   it('pads single-digit channels', () => {

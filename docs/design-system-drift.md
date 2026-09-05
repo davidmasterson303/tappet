@@ -539,6 +539,114 @@ photograph (R49) — in words that are true, which the review's suggested line w
 not: line items are written as soon as extraction succeeds, and only a vehicle
 mismatch is held back for confirmation.
 
+### 3.11 ⚠ The palette collapsed to two hues — David's F&F direction, 4 Sep
+
+**This is the largest single departure in this file and Design has not seen
+it.** It comes from a locked design brief, written by an independent critic
+against a north-star image David approved, under a stated aesthetic direction:
+the original *Fast and Furious* look revived for 2026 — sodium streetlight
+against cold cyan, carried by photography, with the interface flat and matte.
+Brief line **B3** allows those two hues and no others. David chose "move the
+default register" over "wire up the sport register", so this lands in `:root`
+rather than behind `[data-register='sport']`.
+
+`design-loop/design-system/brief.md` holds the locked brief in full.
+
+What moved, and what each one cost:
+
+| Token family | Was | Is | Note |
+|---|---|---|---|
+| `--info*` | `#8FB4C4` slate-blue | `#7EC8DC` cold cyan | Brief names blue-info directly. 10.20:1, up from 8.66:1 |
+| `--confirm-green*` | `#4ADE80` | `#EDE7DF` **ink, no hue** | "Good is carried by off-white." The chip still has a check and the word |
+| `--critical-red*` | `#F87171` salmon | `#FF7A5C` hot sodium | ⚠ see below |
+| `--destructive` | `#DC2626` | `#C2350B` | Same value as `--critical-red-solid`, on purpose. 5.28:1 vs the ink, up from 4.63:1 |
+| `--ring-*` | green → red | off-white → hot sodium | The 3 Sep note is preserved and strengthened |
+| `--build-*` | steel → amber | steel → bright cyan | ⚠ inverted, see below |
+
+**Three things Design should rule on rather than inherit:**
+
+1. **Attention and critical are now separated by intensity alone.** They used
+   to differ by hue — orange versus salmon — and by fill weight. Both are
+   sodium now, so only intensity and fill area remain. The brief asks for
+   exactly this ("severity carried by intensity and fill") and it is a
+   genuinely thinner distinction than the one it replaces. Neither is ever the
+   only signal: both chips carry an icon and a word. But §1.2 of this document
+   is about precisely this shape of collision, and this reintroduces a version
+   of it deliberately.
+
+2. **`--ring-warn` `#DE8A3A` sits close to `--attention-amber` `#FB923C`.**
+   Under a two-hue brief there is no third hue to separate the ramp from the
+   chip family with. They are held apart by ~1.3:1 of luminance and by never
+   appearing on the same element — the ramp draws arcs, the chip sets text.
+
+3. **The build ramp was inverted from warm to cool, and this is the change most
+   likely to be read as a mistake.** It ran steel → cyan → amber → orange.
+   Sodium is now the entire warning axis, so a build dial that warmed as it
+   climbed would draw "more modified" in the same language as "more wrong" — on
+   a dial whose own docblock says *nothing here is a failure state*. Heat is
+   surrendered to the warning axis and the ramp climbs into cold instead. A
+   consequence worth stating: `[data-register='sport']` sets
+   `--register-accent: var(--build-far)`, so the sport register's accent moved
+   from orange to cyan along with it.
+
+**Two files, one decision.** `packages/core/src/health-band.ts` carries the
+ramp as `r,g,b` channels for React Native and for the web glow; `app/globals.css`
+carries it as `--ring-*` for the stroke. They moved together, and
+`health-band.test.ts` pins them to each other — it failed on this edit, which
+is what it is for. **So this change reaches the iOS app too**, and the phone has
+not been looked at since.
+
+
+### 3.12 ⚠ The iOS app is running the pre-4-September system — audit, 5 Sep
+
+No build was made and nothing on the phone was changed. This is the comparison
+David asked for after the web palette moved, and it is worse than expected.
+
+**Exactly one thing crossed to mobile: the health ramp.** It crossed because
+`packages/core/src/health-band.ts` is a genuinely shared module and
+`health-band.test.ts` pins its channels to the web tokens — that pin failed on
+the edit, which is what forced the two to move together.
+
+Everything else in `apps/mobile/src/theme/index.ts` is a **separate copy of the
+whole system** with nothing pinning it to `app/globals.css`, so none of it
+moved. `mobile-color-literals.test.ts` proves the app names no colour outside
+its own token layer, and `status-ramps-distinct.test.ts` compares mobile's
+status family to mobile's health ramp. Both are good guards and neither asks
+the question that matters here: *does the phone agree with the web?*
+
+| | mobile (unchanged) | web (4–5 Sep) | consequence |
+|---|---|---|---|
+| `status.confirm` | `#4ADE80` green | `--confirm` `#EDE7DF` off-white | the brief's banned hue, still shipping |
+| `status.dangerText` | `#F87171` salmon | `--critical` `#FF8A3D` sodium | ditto |
+| `status.danger` | `#DC2626` red | `--destructive` `#B85410` | ditto |
+| `build.mild/warm/far` | `#9FC8D8` → `#E0C168` → `#F0A35E` | `#8FB6C6` → `#6FC9E4` → `#3ED0F0` | ⚠ **the dial climbs in opposite directions** |
+| `build.redline` | `#FF4436` hue 5 | `#FF5A0A` hue 20 | true red vs top-of-sodium |
+| `radius.well/button/card` | 8 / 12 / 14 | 0 / 5 / 8 + chamfer | rounded vs milled |
+
+⚠ **The build ramp is the serious one, because it is a semantic inversion
+rather than a colour difference.** On the web the ramp climbs into cold, and it
+does so *because* sodium now owns the entire warning axis — a dial that warmed
+as it climbed would draw "more modified" in the same language as "more wrong".
+On the phone it still climbs into heat. The same dial, on the same account,
+means opposite things depending on which client the owner opens.
+
+**Three ways to close it, for Design and David rather than for me:**
+
+1. **Port the values.** Cheapest, and it re-creates the problem the day the web
+   moves again.
+2. **Pin them.** A test in the shape of `health-band.test.ts` asserting the
+   mobile theme's status, build and radius scales against `globals.css`. That
+   is the mechanism that made the health ramp the one thing that crossed, and
+   it is the only option that keeps working without anyone remembering.
+3. **Decide they are allowed to differ**, and say so by name — the design brief
+   already calls for "one language, two dialects", and a dialect may legitimately
+   round its corners where the other mills them. What it may not do is invert a
+   ramp's direction silently.
+
+⚠ Whichever is chosen, **nothing here is on the phone yet.** JS-only changes are
+free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
+
+
 ## 4. The export's five adherence rules, against what this repo already runs
 
 `specs/adherence-rules.spec.html` proposes five oxlint rules and says *"ship them

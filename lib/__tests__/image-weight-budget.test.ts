@@ -112,6 +112,33 @@ describe('image weight budgets', () => {
     expect(match?.[0] ?? null).toBeNull();
   });
 
+  /*
+    ── /check is the one page that photographs its room — 5 Sep ─────────────
+
+    Every surface in `IMAGE_FREE_PAGES` above draws the room in CSS at zero
+    bytes, and that list is the guard. `/check` is deliberately not on it: a
+    design critique cut the drawn cyan wash on that page specifically — "a
+    centered card floating on a radial teal-green vignette", a gradient doing an
+    image's job — and it is the one surface a stranger arrives on cold.
+
+    **An exemption with no number attached is how the 480 KB this file exists
+    to prevent gets back in.** So the plate is capped rather than merely
+    permitted. 70 KB is roughly 1.5x what the 1920 derivative currently costs,
+    which leaves room to re-encode without leaving room to swap in a JPEG.
+  */
+  it('the /check room stays a plate, not a photograph budget', () => {
+    const src = readFileSync(join(ROOT, 'app/check/page.tsx'), 'utf8');
+    const refs = Array.from(src.matchAll(/\/design\/([a-z0-9-]+\.webp)/g)).map((m) => m[1]);
+
+    // Anti-vacuous: if the page stops referencing the plate this must fail
+    // rather than pass by finding nothing to weigh.
+    expect(refs.length).toBeGreaterThan(0);
+
+    const heaviest = Math.max(...refs.map((f) => bytes(`/design/${f}`)));
+    expect(heaviest).toBeGreaterThan(0);
+    expect(heaviest).toBeLessThan(70 * 1024);
+  });
+
   it('the garage grid stays under 250 KB as actually delivered', () => {
     const total = gridCardSources().reduce((sum, p) => sum + deliveredBytes(p), 0);
 

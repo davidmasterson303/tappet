@@ -3,6 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
+import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+
 /**
  * History arrives as a prop, fetched by the dashboard.
  *
@@ -41,7 +43,27 @@ function MiniSparkline({ data }: { data: HistoryEntry[] }) {
   const polylinePoints = computedPoints.map(p => `${p.x},${p.y}`).join(' ');
 
   const lastScore = scores[scores.length - 1];
-  const color = lastScore >= 80 ? '#4ade80' : lastScore >= 60 ? '#22d3ee' : lastScore >= 40 ? '#fb923c' : '#f87171';
+  /*
+   * ⚠ This was the whole ramp, inlined:
+   *
+   *   >= 80 '#4ade80'  >= 60 '#22d3ee'  >= 40 '#fb923c'  else '#f87171'
+   *
+   * A **seventh** copy of a value that already had a shared source, and the
+   * worst of them, because it was not merely stale — it was stale by two
+   * revisions. `#22d3ee` for the middle band is cyan-400, the exact pairing
+   * `--ring-ok` was moved off on 3 Sep for making "Fair" wear the brand
+   * accent. That change never reached here, and neither did the two-hue
+   * collapse, so this sparkline had been drawing a ramp the rest of the
+   * product stopped using before either edit.
+   *
+   * Nothing was wrong enough to notice: a green line on a healthy car looks
+   * exactly like a working chart.
+   *
+   * `getHealthBandJudgement` is the shared source `health-band.ts` exists to
+   * be, and `healthBandHex` is the accessor written for callers that need a
+   * flat string rather than a CSS variable — an SVG `stopColor` is one.
+   */
+  const color = healthBandHex(getHealthBandJudgement(lastScore));
 
   return (
     <svg width={width} height={height} className="overflow-visible">

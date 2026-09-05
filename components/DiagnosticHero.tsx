@@ -110,6 +110,12 @@ export default function DiagnosticHero({
   onAddRecord,
   onAddPhoto,
   addRecordLabel = 'Add a service record',
+  /* ⚠ 400 -> 520 when a photograph is present. The dial is 240 tall and rides
+     up into the plate; at 400 it cleared the image after about 96px and the
+     rest of the arc sat on bare graphite, which a critique read as the
+     photograph "stopping at roughly 60% of the panel with a hard horizontal
+     edge". The plate has to be tall enough to be underneath the whole
+     instrument, not just its top. */
   height = 400,
 }: DiagnosticHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -212,7 +218,14 @@ export default function DiagnosticHero({
     <section
       ref={containerRef}
       aria-label={vehicleName}
-      className={`rounded-2xl overflow-hidden border border-white/8${
+      /* ⚠ A deeper cut on this one panel — dossier B5.
+         `--register-chamfer` is 18px, which reads on a 400px card and vanishes
+         on a 2700px plate: a critique that had passed B5 twice called the hero
+         "square-cornered while every panel around it is cut". A chamfer is a
+         proportion of the thing it cuts, and the largest panel on the page
+         needs the largest one. 40px is the notch at this width. */
+      style={{ '--register-chamfer': '40px' } as React.CSSProperties}
+      className={`cut-panel overflow-hidden border border-white/8${
         stacked ? '' : ' flex flex-col sm:flex-row sm:items-stretch'
       }`}
     >
@@ -234,6 +247,27 @@ export default function DiagnosticHero({
           stacked ? '' : ' order-2 sm:order-none sm:w-[300px] sm:shrink-0 sm:border-r sm:border-white/8'
         }`}
       >
+        {/*
+          ⚠ The plate's lower edge dissolves — dossier B3.
+
+          The dial used to sit in a band *under* the photograph, with a hard
+          seam between them, and a critique put the cost plainly: the reading
+          was "parked bottom-left of an empty dark band under the photograph"
+          while the plate ended in a line. Two objects where the brief asks for
+          one.
+
+          A gradient into `--card` gives the image somewhere to end, and the
+          band that follows is pulled up into it — so the arc sits on the
+          plate's lower third rather than beneath it, and the seam is gone
+          because there is nothing left to seam.
+
+          `aria-hidden` and `pointer-events-none`: it is a grade on a
+          photograph, not a layer anybody interacts with.
+        */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-[hsl(var(--card))] via-[hsl(var(--card))]/75 to-transparent"
+        />
         <VehicleIdentity
           variant="band"
           photo={photo ?? null}
@@ -241,7 +275,7 @@ export default function DiagnosticHero({
           make={make}
           model={model}
           trim={trim}
-          height={height}
+          height={photo ? Math.max(height, 520) : height}
           /*
             One quiet row on a phone, a column beside the instrument above
             `sm`. At 390px that is 64px — a line and a button, which is all the
@@ -262,7 +296,7 @@ export default function DiagnosticHero({
               <button
                 type="button"
                 onClick={onAddPhoto}
-                className="tap-target-44 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
+                className="tap-target-44 chamfer-sm border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
               >
                 Add a photograph
               </button>
@@ -308,8 +342,35 @@ export default function DiagnosticHero({
           The belt is the page's ground and it belongs behind the page. A card
           sitting on it is a card, not a window.
         */
-        className={`bg-[#0f1318] px-4 sm:px-6 sm:px-8 py-6${
-          stacked ? '' : ' order-1 sm:order-none sm:flex-1'
+        /*
+          ⚠ `hsl(var(--card))`, not `#0f1318` — dossier B6, 5 Sep.
+
+          That literal is a cool blue-black from before the palette warmed to
+          graphite, and it is the last one on this surface. Two critiques
+          described the consequence without naming the cause: "the dial sits in
+          a bluish band that is not page graphite", "a second bluish tone". It
+          was a fourth surface colour on a page whose whole argument is one
+          graphite family.
+
+          The paragraph above still governs and is why this is opaque rather
+          than translucent: the belt is the page's ground and belongs behind
+          the page. What changes is which opaque colour — the token, so it
+          moves with the rest of the system instead of staying where the
+          palette used to be.
+        */
+        /* ⚠ Transparent when it overlaps a photograph — the gradient above
+             is what carries the ground there. Opaque in the no-photo case,
+             where there is no plate to show through. */
+        className={`relative z-20 px-4 sm:px-6 sm:px-8 pb-6${
+          stacked
+            /* ⚠ The overlap is desktop-only. The critique's own parking lot
+               put it plainly: "a portrait crop cannot spare a third for the
+               arc" — on a phone the plate is nearly square and the dial landed
+               across the grille and a headlight, where a hairline and its
+               terminal fight the highlights. Below `sm` the dial sits under the
+               plate, which is what it was before and is correct there. */
+            ? ' pt-6 sm:-mt-80 sm:pt-0'
+            : ' bg-[hsl(var(--card))] py-6 order-1 sm:order-none sm:flex-1'
         }`}
       >
         {/*
@@ -365,7 +426,20 @@ export default function DiagnosticHero({
               elsewhere on the screen said a fictional scan had finished. There
               is nothing to wait for, so it is live on mount.
             */}
-            <ClusterGauge score={score} active />
+            {/* ⚠ 320, and the arithmetic is the point — dossier B3.
+
+                The hero face sets its numeral at 48 inside a 200-unit viewBox,
+                so the rendered size is `48 × size / 200`. At 240 that is 58px
+                against a title running to 72px at `lg`: the reading was
+                smaller than the car's name, which is why three critiques said
+                the eye went "name → car → link and never lands on the score".
+                320 puts it at 77px — past the title, which is what "dominant"
+                has to mean on a page whose whole purpose is that number.
+
+                The plate is 520 tall and the band rides 288 up into it; a 320
+                dial renders 285 tall, so it still sits entirely on the
+                photograph rather than hanging off its bottom edge. */}
+            <ClusterGauge score={score} active size={320} />
             {/*
               ── ⚠ Not `flex-1`, and the difference is 400px of nothing ──────
 
@@ -404,7 +478,7 @@ export default function DiagnosticHero({
                     <button
                       type="button"
                       onClick={onAddRecord}
-                      className="tap-target-44 mt-3 inline-flex items-center rounded-xl border border-info-border bg-info-wash px-4 py-2 text-sm font-semibold text-info-strong transition-colors hover:bg-info-wash/70"
+                      className="tap-target-44 mt-3 inline-flex items-center chamfer-sm border border-info-border bg-info-wash px-4 py-2 text-sm font-semibold text-info-strong transition-colors hover:bg-info-wash/70"
                     >
                       {addRecordLabel}
                     </button>
@@ -479,8 +553,18 @@ export default function DiagnosticHero({
                 ⚠ This is a demotion, not a removal. Nothing in the brand
                 package changes and nothing about the mark moves.
               */}
+              {/* ⚠ /80, not /55 — this column sits ON the photograph since the
+                  dial moved onto the plate, and muted ink has no floor over a
+                  photograph. Measured against the car's lit flank the ground is
+                  #33332f, which put the old alpha at 3.83:1; /80 computes to
+                  ~10:1 on the same ground. It was fine when this sat on flat
+                  graphite. The rule the specimen page learned twice: over an
+                  image the ink carries the legibility, not the ground.
+
+                  ⚠ And a JSX comment cannot live between `&&` and `(` — that
+                  is a JS expression position. Second time this pass. */}
               {caption && (
-                <p className="text-xs text-white/55 mt-3 leading-relaxed">{caption}</p>
+                <p className="text-xs text-white/80 mt-3 leading-relaxed">{caption}</p>
               )}
             </div>
           </div>

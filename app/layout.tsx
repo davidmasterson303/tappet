@@ -113,8 +113,26 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/*
+          Three families on one request, because a second <link> is a second
+          round trip to the same origin for no benefit.
+
+          Archivo carries a real `wdth` axis, which is what makes it the
+          instrument voice rather than a narrow face pretending to be one: the
+          masthead sets it at 62 and the section headings at 88, from one file.
+          The range is clipped to 62..100 and 500..800 — the only widths and
+          weights anything asks for — because a variable font billed by its
+          axis ranges gets meaningfully smaller when you stop shipping the
+          parts nobody sets.
+
+          JetBrains Mono replaces Tailwind's `ui-monospace` stack for token
+          names, hex values and state labels. That stack resolves to SF Mono on
+          this machine and to something else on every other one, so the
+          specimen page was being typeset differently for each reader — which
+          is a strange property for the page whose job is to show the system.
+        */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Archivo:wdth,wght@62..100,500..800&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
         {/*

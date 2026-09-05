@@ -16,16 +16,16 @@ import { fleetSummary } from '@wellkept/core/fleet-summary';
 
 function VehicleCardSkeleton() {
   return (
-    <div className="border border-white/8 rounded-2xl overflow-hidden bg-slate-950/80">
+    <div className="cut-panel border border-white/8 overflow-hidden bg-[hsl(var(--card))]/90">
       <div className="aspect-[3/2] skeleton-shimmer" />
       <div className="p-5 space-y-4">
         <div className="space-y-2">
-          <div className="h-5 w-3/5 skeleton-shimmer rounded-lg" />
-          <div className="h-3 w-2/5 skeleton-shimmer rounded-lg" />
+          <div className="h-5 w-3/5 skeleton-shimmer chamfer-sm" />
+          <div className="h-3 w-2/5 skeleton-shimmer chamfer-sm" />
         </div>
-        <div className="h-16 skeleton-shimmer rounded-xl" />
-        <div className="h-12 skeleton-shimmer rounded-xl" />
-        <div className="h-11 skeleton-shimmer rounded-xl" />
+        <div className="h-16 skeleton-shimmer chamfer-sm" />
+        <div className="h-12 skeleton-shimmer chamfer-sm" />
+        <div className="h-11 skeleton-shimmer chamfer-sm" />
       </div>
     </div>
   );
@@ -67,7 +67,7 @@ function PublicNavActions() {
   if (!loading && user) {
     return (
       <Link href="/garage">
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all text-sm h-9 px-4">
+        <Button size="sm" className="font-semibold">
           My Garage
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
@@ -79,7 +79,7 @@ function PublicNavActions() {
     <div className="flex items-center gap-1 sm:gap-3">
       <Link
         href="/login"
-        className="px-2 sm:px-3 py-2 text-sm font-medium text-white/60 hover:text-white transition-colors rounded-xl whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+        className="chamfer-sm px-2 sm:px-3 py-2 text-sm font-medium text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         Sign in
       </Link>
@@ -172,13 +172,39 @@ function GarageContents() {
                 lockup is set in, which is what makes the page and the mark look
                 like the same object.
               */}
-              <p className="font-mono text-xs uppercase tracking-[0.22em] text-white/55 mb-3">
+              <p className="mono text-xs uppercase tracking-[0.22em] text-white/55 mb-3">
                 Three cars, researched end to end
               </p>
-              <h1
-                className="text-5xl lg:text-6xl text-white mb-3 tracking-tight"
-                style={{ fontFamily: 'var(--font-display), Newsreader, Georgia, serif', fontWeight: 500 }}
-              >
+              {/*
+                ── The hero speaks the instrument voice — David's call, 5 Sep ──
+
+                This was an inline `fontFamily` reading `var(--font-display),
+                Newsreader, Georgia, serif` — a fourth place the display face
+                was spelled, after the token, the Tailwind `display` stack and
+                `.display-serif`. It broke silently when B2 moved
+                `--font-display` to Archivo: the first name in that chain
+                stopped being a serif and this heading quietly changed
+                instrument.
+
+                It was restored to `.display-serif` on the reasoning that the
+                inline fallback named Newsreader, so the author had wanted the
+                editorial voice. Two successive critiques disagreed, and the
+                second put the objection in the terms that decide it: **the two
+                consuming pages disagreed with each other.** `/check` had moved
+                to the grotesk and this had not, so a visitor met one product
+                speaking in two voices — which is worse than either voice.
+
+                So the landing takes the instrument voice too. `--font-editorial`
+                and `.display-serif` stay exactly where they are: the serif is
+                not deleted, it is unused, and the day a genuinely editorial
+                surface exists it is one class away.
+
+                ⚠ The lockup beside this is NOT the same question. `BrandLockup`
+                draws Design's mark from constants asserted against their SVG
+                package by `brand.test.ts`; its wordmark is a drawing, not a
+                font choice, and it does not follow the display slot.
+              */}
+              <h1 className="display-instrument display-instrument-tight text-5xl lg:text-6xl uppercase text-white mb-3">
                 A Live Garage
               </h1>
               {/*
@@ -231,18 +257,18 @@ function GarageContents() {
               {!isLoading && !queryError && fleet.count > 0 && (
                 <dl className="mt-7 flex flex-wrap items-baseline gap-x-10 gap-y-3">
                   <div>
-                    <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                    <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                       In the garage
                     </dt>
-                    <dd className="num mt-1 text-2xl text-white tabular-nums">{fleet.count}</dd>
+                    <dd className="mono num mt-1 text-2xl text-white tabular-nums">{fleet.count}</dd>
                   </div>
 
                   {fleet.averageScore !== null && (
                     <div>
-                      <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                      <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Average health{fleet.scored < fleet.count ? ` · ${fleet.scored} of ${fleet.count}` : ''}
                       </dt>
-                      <dd className="num mt-1 text-2xl text-white tabular-nums">
+                      <dd className="mono num mt-1 text-2xl text-white tabular-nums">
                         {fleet.averageScore}
                       </dd>
                     </div>
@@ -250,12 +276,24 @@ function GarageContents() {
 
                   {fleet.openRecalls > 0 && (
                     <div>
-                      <dt className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+                      <dt className="mono text-xs uppercase tracking-[0.18em] text-white/55">
                         Open recalls
                       </dt>
+                      {/*
+                        ⚠ Was an inline `rgb(224 136 130)` — the fifth place
+                        the old health ramp's `bad` was spelled by hand, after
+                        the CSS token, the shared `health-band.ts` channels,
+                        the recall ribbon and the error text. Every one of them
+                        had to be found by looking at a rendered page, because
+                        an inlined literal cannot be migrated by moving a token
+                        and nothing warns that it was left behind.
+
+                        A recall is on the sodium axis like every other warning
+                        in the system now.
+                      */}
                       <dd
-                        className="num mt-1 text-2xl tabular-nums"
-                        style={{ color: 'rgb(224 136 130)' }}
+                        className="mono num mt-1 text-2xl tabular-nums"
+                        style={{ color: 'var(--critical)' }}
                       >
                         {fleet.openRecalls}
                       </dd>
@@ -267,13 +305,13 @@ function GarageContents() {
           </div>
 
           {queryError && (
-            <div className="mb-8 p-4 border border-red-500/30 rounded-xl bg-red-500/8 flex items-center justify-between gap-4">
-              <p className="text-red-400 text-sm">Failed to load vehicles. Please try refreshing.</p>
+            <div className="chamfer-sm mb-8 p-4 border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] flex items-center justify-between gap-4">
+              <p className="text-[color:var(--critical)] text-sm">Failed to load vehicles. Please try refreshing.</p>
               <Button
                 onClick={() => window.location.reload()}
                 size="sm"
                 variant="outline"
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0"
+                className="border-[color:var(--critical-border)] text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] shrink-0"
               >
                 Refresh
               </Button>
@@ -342,7 +380,7 @@ function GarageContents() {
                 </p>
                 <Button
                   onClick={() => window.location.reload()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all h-10 px-5"
+                  className="font-semibold"
                 >
                   Retry
                 </Button>

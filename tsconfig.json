@@ -36,7 +36,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next-verify/types/**/*.ts"
+    ".next-verify/types/**/*.ts",
+    ".next-design/types/**/*.ts"
   ],
   // `apps` is excluded because `include` above is a recursive glob — without
   // this the web app's typecheck compiles the Expo client too, against the

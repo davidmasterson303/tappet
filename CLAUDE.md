@@ -182,3 +182,8 @@ the code: ranges over verdicts, `unknown` over a guessed default, and no claim
 the data cannot support. Recalls match on **year/make/model, not VIN** — saying
 otherwise tells an owner their specific car is clear when only its model was
 checked. `advice-range.ts` carries the full argument.
+
+## 11. `.env.agents` is development-only
+
+`.env.agents` holds development-only keys for design tooling. Never commit,
+never ship, never read in production code.

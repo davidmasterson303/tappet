@@ -348,7 +348,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
                         <span className="text-sm font-medium text-white truncate max-w-xs">{record.display_description}</span>
                         {getCategoryBadge(record)}
                         {record.part_number && (
-                          <span className="text-xs text-white/50 font-mono hidden sm:inline">{record.part_number}</span>
+                          <span className="text-xs text-white/50 mono hidden sm:inline">{record.part_number}</span>
                         )}
                       </div>
                       {record.display_shop && (
@@ -408,7 +408,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#0f1318] border-white/10 max-w-md">
+        <AlertDialogContent className="bg-[hsl(var(--card))] border-[color:var(--border)] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Maintenance Record</AlertDialogTitle>
             <AlertDialogDescription asChild>

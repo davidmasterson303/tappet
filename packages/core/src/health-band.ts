@@ -61,18 +61,31 @@ export interface HealthBandJudgement {
  * Thresholds have not moved; the words moved down a step.
  */
 const BANDS: ReadonlyArray<HealthBandJudgement & { min: number }> = [
-  { min: 80, name: 'good', rgb: '127,206,156', label: 'Good', short: 'Good' },
   /*
-    ⚠ `185,199,126`, not the old `95,174,192`. That was a desaturated cyan, and
-    cyan is the product's accent — so "Fair" wore the same hue as every link
-    and the active tab, and a 48px cyan score sat under a cyan tab meaning
-    something else entirely. The ramp now reads green → yellow-green → orange →
-    red without a legend. `app/globals.css` carries the full note at
-    `--ring-ok`, and the two must move together.
+    ⚠ **These four move with `--ring-*` in `app/globals.css` or not at all.**
+
+    That instruction was already here, written when `ok` came off cyan on
+    3 Sep, and it is the reason this edit exists: the CSS tokens draw the ring
+    *stroke*, and these channels draw its glow and every React Native surface.
+    Moving one and not the other does not break — it half-applies, which is the
+    failure mode `CLAUDE.md` §6 is entirely about. A ring whose arc is sodium
+    and whose halo is still green reads as a rendering artefact, and on the
+    phone nothing would have moved at all.
+
+    The ramp left green on 4 Sep for the locked design brief's two-hue rule,
+    and climbs sodium intensity instead: off-white → warm stone → sodium → hot
+    sodium. Still four steps orderable without a legend, now ordered by heat
+    rather than by hue. `app/globals.css` at `--ring-good` carries the full
+    argument, including why a healthy car is better rendered as unremarkable
+    than as green.
+
+    The labels are untouched. They were tuned separately and this is a change
+    of colour, not of judgement.
   */
-  { min: 60, name: 'ok', rgb: '185,199,126', label: 'Fair', short: 'Fair' },
-  { min: 40, name: 'warn', rgb: '224,164,104', label: 'Needs attention', short: 'Attention' },
-  { min: -Infinity, name: 'bad', rgb: '224,136,130', label: 'Critical', short: 'Critical' },
+  { min: 80, name: 'good', rgb: '237,231,223', label: 'Good', short: 'Good' },
+  { min: 60, name: 'ok', rgb: '214,190,155', label: 'Fair', short: 'Fair' },
+  { min: 40, name: 'warn', rgb: '222,138,58', label: 'Needs attention', short: 'Attention' },
+  { min: -Infinity, name: 'bad', rgb: '244,81,30', label: 'Critical', short: 'Critical' },
 ];
 
 /**

@@ -45,6 +45,29 @@ const STATIC_ANALYSIS_SUITES = [
   // Tailwind's generated utilities nor `clip-path`, so the rendered check the
   // guard would otherwise want is not available under any runner here.
   'register-tokens.test.ts',
+  /*
+    Checks that every `<Swatch name="…">` on the design-system specimen names a
+    custom property `globals.css` actually declares.
+
+    Nothing to import: the subject is the correspondence between a JSX prop and
+    a CSS declaration, and neither side is a module. The failure it pins is as
+    silent as this list gets — an undefined custom property paints no colour
+    and `getComputedStyle` returns the empty string, so the page renders a blank
+    square captioned with a dead token name. It shipped exactly that way on
+    4 Sep, when a token rename matched `--attention-amber` and the specimen
+    asks for its tokens without the prefix.
+  */
+  'design-specimen-tokens.test.ts',
+  /*
+    Scans app/, components/ and hooks/ for palette values the system has
+    retired. Nothing to import: the subject is whether a colour was typed in by
+    hand somewhere, which importing the token layer tells you nothing about.
+
+    The failure it pins is the one that cost five separate findings across the
+    Sep palette migration — an inlined literal keeps rendering the old design
+    perfectly, and nothing reports that moving the token left it behind.
+  */
+  'retired-palette-literals.test.ts',
   'auth-posture.test.ts',
   'internal-fetch-posture.test.ts',
   // Reads app/, lib/ and packages/ off disk to prove that the one function in

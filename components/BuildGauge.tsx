@@ -103,7 +103,7 @@ export function BuildGauge({
           launch, very nearly unreachable.
 
           `--build-redline` is deliberately hotter and more orange-shifted than
-          `--critical-red`. A redline that matched the alert red would be read
+          `--critical`. A redline that matched the alert red would be read
           as an alert — do not harmonise them.
         */}
         <path

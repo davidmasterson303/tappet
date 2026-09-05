@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usageProfileChip } from '@wellkept/core/usage-profile';
-import { firstSentence } from '@wellkept/core/summary-text';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
@@ -316,7 +315,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
   ) : null;
 
   return (
-    <div className="group card-lift relative border rounded-2xl overflow-hidden bg-[#0f1318]/90 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-cyan-400/30">
+    <div className="group card-lift cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-[color:var(--border-field-hover)]">
       {/*
         The 3:2 identity plate, and it renders unconditionally — CC-142 §2.
 
@@ -403,21 +402,71 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
             like a scanline.
 
             Solid ink on a near-opaque ground now, at `uiStrong` weight rather
-            than 9px. Still the same red family, still on the plate's edge, but
-            it reads as a statement instead of a stain.
+            than 9px. Still on the plate's edge, but it reads as a statement
+            instead of a stain.
+
+            ── ⚠ It was a third copy of the health ramp — 5 Sep ─────────────
+
+            These two backgrounds were `rgb(224 136 130)` and
+            `rgb(224 164 104)`, typed as literals. Those are the **old**
+            `--ring-bad` and `--ring-warn`, so this ribbon was a third source of
+            truth for a ramp that already had two, and it is why the landing
+            page still rendered salmon after the tokens moved: an inline `rgb()`
+            cannot be migrated by changing a token, and nothing failed to warn
+            anybody.
+
+            ── The two states no longer differ by hue, so they differ by fill ──
+
+            Both are sodium under brief B3, which allows two hues and asks for
+            severity to be carried by intensity and area. B10 puts that plainly:
+            a large fill is for the critical case only. So:
+
+              critical  solid `--critical`, dark ink        8.44:1
+              attention sodium ink and a sodium rule on a
+                        near-opaque dark ground             8.74:1
+
+            The most urgent state is the only one that fills, which is a
+            stronger signal than two fills a shade apart.
+
+            ⚠ The ground stays near-opaque in both. This sits over a
+            photograph, and a translucent wash over one is the "murky smear"
+            the paragraph above is about — that argument is unchanged, and the
+            attention state honours it by darkening its ground rather than by
+            filling with colour.
           */
-          className="absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border-t"
+          className="mono absolute inset-x-0 bottom-0 flex items-center gap-2 px-4 py-2 text-xs font-medium uppercase tracking-wider border-l-4"
           style={
+            /*
+              ── ⚠ A left rule on a dark ground, not a colour fill — 5 Sep ────
+
+              Both states were solid sodium with dark ink. The dossier critique
+              cut it by name — "a sodium left-ruled mono row carries the same
+              fact" — and it is right that two full-width bars of the loudest
+              colour in the system, on the surface a visitor meets first, spend
+              more than the fact costs.
+
+              ⚠ The ground stays near-opaque in both, which is the part not to
+              undo. This sits over a photograph, and the note above records
+              what a translucent wash over one looked like: "a murky smear …
+              a rendering artifact". The rule and the ink carry the severity;
+              the ground exists only so they are legible over an image nobody
+              chose.
+
+              Severity is the rule's colour and the ink's, which is the same
+              intensity distinction the chips use — `--critical` for a recall,
+              `--attention` for anything else — and both measure above 8:1 on
+              this ground.
+            */
             ribbonCritical
               ? {
-                  color: '#0b0a09',
-                  background: 'rgb(224 136 130 / 0.92)',
-                  borderColor: 'rgb(224 136 130)',
+                  color: 'var(--critical)',
+                  background: 'rgb(11 10 9 / 0.88)',
+                  borderColor: 'var(--critical)',
                 }
               : {
-                  color: '#0b0a09',
-                  background: 'rgb(224 164 104 / 0.92)',
-                  borderColor: 'rgb(224 164 104)',
+                  color: 'var(--attention)',
+                  background: 'rgb(11 10 9 / 0.88)',
+                  borderColor: 'var(--attention)',
                 }
           }
         >
@@ -444,13 +493,23 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               wordmark and the page heading — one type system rather than a
               serif mark sitting on a sans page.
             */}
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+            <p className="mono text-xs uppercase tracking-[0.18em] text-white/55">
               {vehicle.year} {vehicle.make}
             </p>
-            <h3
-              className="text-[26px] text-white tracking-tight leading-none mt-1"
-              style={{ fontFamily: 'var(--font-display), Newsreader, Georgia, serif', fontWeight: 500 }}
-            >
+            {/*
+              ⚠ This was an inline `fontFamily` reading `var(--font-display),
+              Newsreader, Georgia, serif` — the sixth place in this codebase
+              where the display face was spelled by hand, and the same defect
+              the landing hero had: when B2 moved `--font-display` to Archivo
+              the first name in that chain stopped being a serif and this
+              heading silently changed instrument, still carrying a serif
+              fallback chain it could no longer reach.
+
+              `.display-instrument` with the heading width, uppercase, so a
+              garage card names its car the way the dossier header does. One
+              voice at three widths — see `globals.css`.
+            */}
+            <h3 className="display-instrument display-instrument-narrow text-[26px] uppercase text-white leading-none mt-1">
               {vehicle.model}
             </h3>
             {vehicle.trim ? (
@@ -484,12 +543,12 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   ⚠ "67,400 mi mileage" — the unit and the word, together, on
                   every card. It is "67,400 mi" or "Mileage 67,400", never both.
                 */}
-                <span className="num font-semibold">{displayVehicle.current_mileage.toLocaleString()}</span>
+                <span className="mono num font-medium">{displayVehicle.current_mileage.toLocaleString()}</span>
                 <span className="text-muted-foreground font-normal"> mi</span>
               </span>
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowMileageDialog(true); }}
-                className="meta-edit tap-target-44 text-white/50 hover:text-cyan-400 transition-colors"
+                className="meta-edit tap-target-44 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] transition-colors"
                 aria-label={`Update mileage for ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -523,25 +582,25 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-950 border-white/15 text-white min-w-[160px]">
+              <DropdownMenuContent align="end" className="bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)] min-w-[160px]">
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowPhotoDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Camera className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Camera className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Change Photo
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => { e.stopPropagation(); setShowMileageDialog(true); }}
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
-                  <Pencil className="h-4 w-4 mr-2 text-cyan-400" />
+                  <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
                   Update Mileage
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem
-                    className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer"
+                    className="text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)] cursor-pointer"
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -551,7 +610,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-slate-950 border-white/15">
+            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
                 <AlertDialogDescription className="text-white/60">
@@ -560,7 +619,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-500 text-white">
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -587,11 +646,43 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           away, on the screen that exists to carry it, and nothing here is ever
           cut off in the middle of a word.
         */}
-        {firstSentence(healthSummary?.summary) && (
-          <p className="measure text-xs text-white/60 leading-relaxed">
-            {firstSentence(healthSummary?.summary)}
-          </p>
-        )}
+        {/*
+          ── ⚠ CUT by the design critique, 5 Sep. Restoring it is one block ───
+
+          This rendered `firstSentence(healthSummary?.summary)` — the lead
+          sentence of the health summary, under the dial.
+
+          The critique's argument: "the dossier is one click away; cutting them
+          lets year/model/dial lead and tightens the card to instrument
+          height." Which is the same argument the note below already made for
+          taking only the *first* sentence, followed one step further.
+
+          **This is a content change, not a styling one, and it is the only one
+          in the whole design pass.** A garage card no longer says anything in
+          prose about the car's condition; the dial and the recall ribbon carry
+          it, and the sentence lives on the dossier. If that is the wrong trade,
+          the reversal is: render `firstSentence(healthSummary?.summary)` here
+          as a muted paragraph at the small step, capped to the measure — and
+          restore the `@wellkept/core/summary-text` import, which went with it
+          rather than being left dangling.
+
+          ⚠ Do not paste the removed JSX into this comment to preserve it.
+          `text-contrast-floor.test.ts` counts class tokens before and after
+          stripping comments and fails when stripping eats more than five,
+          which is how it proves it is reading markup rather than prose. Two
+          separate edits in this design pass turned it red exactly that way.
+
+          ── ⚠ A complete sentence, not a clamped paragraph ────────────────
+
+          Kept because it is the reason `firstSentence` exists, and whoever
+          restores the line needs it. That paragraph once ran
+          the whole summary under `line-clamp-2`, so the card ended mid-clause
+          with an ellipsis butted against the text's own punctuation —
+          "...separates a healthy car from a costly one...." On a product whose
+          pitch is "every invoice read", an unfinished sentence on the front
+          page is a self-own. `firstSentence` takes the lead sentence whole; do
+          not reach for a clamp again if this comes back.
+        */}
 
         <div className="above-stretch relative">
         <MileageUpdatePrompt
@@ -618,12 +709,12 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
         <Link
           href={`/dashboard/${vehicle.id}`}
           aria-label={`Open ${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-          className="stretch-link absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+          className="stretch-link chamfer-sm absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         />
       </div>
 
       <Dialog open={showMileageDialog} onOpenChange={setShowMileageDialog}>
-        <DialogContent className="bg-slate-950 border-white/15">
+        <DialogContent className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
           <DialogHeader>
             <DialogTitle className="text-white">Update Mileage</DialogTitle>
             <DialogDescription className="text-white/60">
