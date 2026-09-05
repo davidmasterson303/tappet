@@ -18,8 +18,8 @@ import type { BuildPosition } from '@wellkept/core/build-progress';
  * mark fails by rendering wrong, not by throwing. The same is true of the
  * system underneath it, and more so, because the system has a second voice.
  *
- * `[data-register='sport']` is defined in `globals.css` and **set by nothing in
- * the app** — `grep data-register` returns the stylesheet, this file and
+ * `[data-register='sport']` is defined in `globals.css` and **set by nothing**
+ * in the app — `grep data-register` returns the stylesheet, this file and
  * `register-tokens.test.ts`. So the register's whole perceptual claim (milled
  * radii, chamfered panels, hotter bay, a sans display face) has never been
  * looked at side by side with the voice it is supposed to contrast with. The
@@ -42,6 +42,20 @@ import type { BuildPosition } from '@wellkept/core/build-progress';
  * is only a colour inside `hsl()`. `TRIPLET` marks them so the swatch wraps
  * them and the printed value says which kind it is; painting a triplet
  * directly produces no colour at all and no error.
+ *
+ * ⚠ Ink on this page comes from tokens, never from a bare white alpha. That is
+ * not style preference — `text-contrast-floor.test.ts` scans `app/` for white
+ * alphas below the floor and cannot classify one that sits in a class string
+ * with no text-size beside it. The first draft of this page put a sub-floor
+ * alpha on `.label-uppercase`, which already sets the floor value itself, and
+ * turned the guard red for thirteen sites that were redundant rather than
+ * wrong.
+ *
+ * ⚠ And do not spell those class names in a comment, even to explain them.
+ * The same guard counts tokens before and after stripping comments and fails
+ * if stripping ate more than five, which is how it proves it is reading
+ * markup rather than prose. Six mentions in this header turned it red a
+ * second time — the anti-vacuous case doing exactly its job.
  */
 
 /** Tokens stored as bare `H S% L%` triplets, consumed via `hsl(var(--x))`. */
@@ -103,13 +117,17 @@ function Swatch({ name, note }: { name: string; note?: string }) {
         style={{ background: paint(name) }}
       />
       <div className="min-w-0">
-        <p className="truncate font-mono text-[11px] text-white/85">--{name}</p>
-        <p className="truncate font-mono text-[11px] text-white/40">
+        <p className="mono truncate text-[11px] text-[color:var(--text-primary)]">
+          --{name}
+        </p>
+        <p className="mono truncate text-[11px] text-[color:var(--text-muted)]">
           {resolved || '—'}
           {TRIPLET.has(name) ? ' · triplet' : ''}
         </p>
         {note ? (
-          <p className="truncate text-[11px] text-white/35">{note}</p>
+          <p className="truncate text-[11px] text-[color:var(--text-muted)]">
+            {note}
+          </p>
         ) : null}
       </div>
     </div>
@@ -128,11 +146,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="space-y-5 scroll-mt-24">
+    <section id={id} className="scroll-mt-24 space-y-5">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
+        <h2 className="display-instrument text-xl text-[color:var(--text-primary)]">
+          {title}
+        </h2>
         {blurb ? (
-          <p className="max-w-2xl text-sm text-white/50">{blurb}</p>
+          <p className="measure text-sm text-[color:var(--text-muted)]">
+            {blurb}
+          </p>
         ) : null}
       </div>
       {children}
@@ -143,7 +165,7 @@ function Section({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-3 border-t border-white/6 py-4">
-      <p className="w-32 shrink-0 font-mono text-[11px] uppercase tracking-widest text-white/40">
+      <p className="mono w-32 shrink-0 text-[11px] uppercase tracking-widest text-[color:var(--text-muted)]">
         {label}
       </p>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
@@ -160,6 +182,22 @@ const BUILD: BuildPosition = {
   needle: 62,
 };
 
+/*
+ * The four values the plate above actually carries, sampled from it.
+ *
+ * These are not the tokens — they are the photograph, read at four points, and
+ * they are printed beside the tokens so the claim "the palette comes from the
+ * plate" can be checked rather than believed. The tokens are brighter by
+ * design: #C27D54 is what sodium light does to wet asphalt, and it is 3.6:1 on
+ * this ground, which is a colour you can photograph but not set text in.
+ */
+const SAMPLED = [
+  { at: 'road pool', hex: '#C27D54', token: '--attention-amber' },
+  { at: 'flank', hex: '#004C56', token: '--info' },
+  { at: 'lamp core', hex: '#FEECDC', token: '--foreground' },
+  { at: 'shadow', hex: '#030D0F', token: '--background' },
+];
+
 export default function DesignSystemPage() {
   const [sport, setSport] = useState(false);
 
@@ -171,50 +209,143 @@ export default function DesignSystemPage() {
   }, [sport]);
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-5xl space-y-14">
-        <header className="space-y-4">
-          <p className="label-uppercase text-white/45">Development only</p>
-          <h1 className="display-serif text-4xl text-white">
-            Well Kept — the system
+    <main className="min-h-screen bg-background">
+      {/*
+        The masthead — brief B1.
+
+        Full-bleed, and the headline sits in the left third because that is the
+        third the plate was composed to leave empty. The scrim is a legibility
+        device over a real photograph, not a gradient standing in for one: at
+        the sample points behind the type the plate is #030D0F to #0C1B20, so
+        the scrim is doing very little except holding the middle of the frame
+        back off the descenders.
+
+        `loading` is eager and there is no `fetchPriority`. React 18.2 — which
+        is what Next 13.5.1 pins here — does not know the camelCase prop and
+        warns `Invalid DOM property`, which `VehicleIdentity` already emits once
+        per card on the landing page. One instance of a known warning is a bug
+        to fix; two is a pattern somebody copies.
+      */}
+      <section className="relative isolate overflow-hidden">
+        <img
+          src="/design/specimen-hero-1600.webp"
+          srcSet="/design/specimen-hero-960.webp 960w, /design/specimen-hero-1600.webp 1600w, /design/specimen-hero-2400.webp 2400w"
+          sizes="100vw"
+          width={2752}
+          height={1536}
+          loading="eager"
+          decoding="async"
+          alt="A matte black BMW M3 parked on wet asphalt at night, lit by sodium streetlight from behind and a cold cyan reflection along its flank."
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent"
+        />
+
+        <div className="relative mx-auto flex min-h-[64vh] max-w-5xl flex-col justify-end px-6 pb-0 pt-24">
+          <p className="mono text-[11px] uppercase tracking-[0.2em] text-[color:var(--attention-amber)]">
+            Development only
+          </p>
+          <h1 className="display-instrument display-instrument-tight mt-3 text-[clamp(2.75rem,9vw,6.5rem)] uppercase leading-[0.92] text-[color:var(--text-primary)]">
+            Well Kept
+            <br />
+            The System
           </h1>
-          <p className="measure text-sm text-white/55">
-            Every swatch reads its value from the live cascade. Nothing on this
-            page restates a number from <code>globals.css</code>.
+          <p className="measure mt-5 text-sm text-[color:var(--text-muted)]">
+            Every swatch below reads its value from the live cascade. Nothing on
+            this page restates a number from <span className="mono">globals.css</span>.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <div className="inline-flex rounded-xl border border-[color:var(--border-field)] p-1">
-              <button
-                type="button"
-                onClick={() => setSport(false)}
-                aria-pressed={!sport}
-                className={`min-h-[44px] rounded-lg px-4 text-sm transition-colors ${
-                  sport
-                    ? 'text-white/55 hover:text-white'
-                    : 'bg-white/10 text-white'
-                }`}
+          {/* The palette, hard against the plate's bottom edge — B1. */}
+          <div className="mt-10 grid grid-cols-2 border-t border-white/15 sm:grid-cols-4">
+            {SAMPLED.map((s) => (
+              <div
+                key={s.at}
+                className="flex items-center gap-3 border-b border-white/10 px-1 py-3 sm:border-b-0"
               >
-                Default register
-              </button>
-              <button
-                type="button"
-                onClick={() => setSport(true)}
-                aria-pressed={sport}
-                className={`min-h-[44px] rounded-lg px-4 text-sm transition-colors ${
-                  sport
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/55 hover:text-white'
-                }`}
-              >
-                Sport register
-              </button>
-            </div>
-            <p className="text-xs text-white/40">
-              Sets <code>data-register</code> on <code>&lt;html&gt;</code>.
-            </p>
+                <span
+                  className="h-8 w-8 shrink-0 border border-white/20"
+                  style={{ background: s.hex }}
+                />
+                <span className="min-w-0">
+                  <span className="mono block truncate text-[11px] text-[color:var(--text-primary)]">
+                    {s.hex}
+                  </span>
+                  <span className="mono block truncate text-[10px] uppercase tracking-widest text-[color:var(--text-muted)]">
+                    {s.at}
+                  </span>
+                </span>
+              </div>
+            ))}
           </div>
-        </header>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-5xl space-y-14 px-6 py-14">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-xl border border-[color:var(--border-field)] p-1">
+            <button
+              type="button"
+              onClick={() => setSport(false)}
+              aria-pressed={!sport}
+              className={`mono min-h-[44px] rounded-lg px-4 text-xs uppercase tracking-widest transition-colors ${
+                sport
+                  ? 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+                  : 'bg-white/10 text-[color:var(--text-primary)]'
+              }`}
+            >
+              Default register
+            </button>
+            <button
+              type="button"
+              onClick={() => setSport(true)}
+              aria-pressed={sport}
+              className={`mono min-h-[44px] rounded-lg px-4 text-xs uppercase tracking-widest transition-colors ${
+                sport
+                  ? 'bg-white/10 text-[color:var(--text-primary)]'
+                  : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+              }`}
+            >
+              Sport register
+            </button>
+          </div>
+          <p className="text-xs text-[color:var(--text-muted)]">
+            Sets <span className="mono">data-register</span> on{' '}
+            <span className="mono">&lt;html&gt;</span>.
+          </p>
+        </div>
+
+        <Section
+          id="palette"
+          title="Two hues, and what they mean"
+          blurb="Sodium is the warning axis and nothing else. Cyan is information, focus, and the build ramp. Everything else is neutral. The tokens are brighter than the plate they came from because ink needs contrast that photographed light does not."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            {SAMPLED.map((s) => (
+              <div
+                key={s.token}
+                className="flex items-center gap-4 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-4"
+              >
+                <span
+                  className="h-10 w-10 shrink-0 rounded-md border border-white/15"
+                  style={{ background: s.hex }}
+                />
+                <span className="mono text-[11px] text-[color:var(--text-muted)]">
+                  plate {s.hex}
+                </span>
+                <span className="text-[color:var(--text-muted)]">→</span>
+                <span
+                  className="h-10 w-10 shrink-0 rounded-md border border-white/15"
+                  style={{ background: paint(s.token.replace('--', '')) }}
+                />
+                <span className="mono truncate text-[11px] text-[color:var(--text-primary)]">
+                  {s.token}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
 
         <Section
           id="surfaces"
@@ -249,7 +380,7 @@ export default function DesignSystemPage() {
         <Section
           id="ink"
           title="Ink"
-          blurb="Body, muted, and the disabled pair that exists to be measurable rather than compliant."
+          blurb="Body, muted, and the disabled pair that exists to be measurable rather than compliant. Good news is carried here, not by a hue."
         >
           <div className={GRID}>
             <Swatch name="foreground" />
@@ -273,7 +404,7 @@ export default function DesignSystemPage() {
         <Section
           id="action"
           title="Brand and action"
-          blurb="The palette settled on white for actions, the health ramp for state, red for alarm. The cyan below is the mark's colour, not a call to action."
+          blurb="The palette settled on white for actions, the ramps for state, sodium for alarm. The cyan below is the mark's colour and the information colour — never a call to action."
         >
           <div className={GRID}>
             <Swatch name="brand-accent" note="the mark" />
@@ -288,15 +419,15 @@ export default function DesignSystemPage() {
         <Section
           id="status"
           title="Semantic status"
-          blurb="Attention is orange-400. The health ramp's warn is a different amber and deliberately so — the collision was in the word, not the hex."
+          blurb="Attention and critical are both sodium now. They separate by intensity and by how much area the fill covers — never by hue, and never by colour alone: each chip carries an icon and a word."
         >
           <div className={GRID}>
             <Swatch name="attention-amber" />
             <Swatch name="attention-amber-wash" />
-            <Swatch name="critical-red" />
-            <Swatch name="critical-red-solid" />
+            <Swatch name="critical-red" note="hot sodium, not salmon" />
+            <Swatch name="critical-red-solid" note="the filled case" />
             <Swatch name="critical-red-wash" />
-            <Swatch name="confirm-green" />
+            <Swatch name="confirm-green" note="ink, holding no green" />
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--attention-amber-border)] bg-[color:var(--attention-amber-wash)] px-3 py-1 text-xs font-semibold text-[color:var(--attention-amber)]">
@@ -317,10 +448,10 @@ export default function DesignSystemPage() {
         <Section
           id="ramps"
           title="The two ramps"
-          blurb="Health grades a car. Build describes one. They must never be read as the same axis, which is why nothing on the build ramp is red and the redline is a separate token."
+          blurb="Health grades a car and climbs into heat. Build describes one and climbs into cold — nothing on it is a failure state, so nothing on it is allowed to look like one."
         >
           <div className={GRID}>
-            <Swatch name="ring-good" note="health ≥ 80" />
+            <Swatch name="ring-good" note="≥ 80 — unremarkable" />
             <Swatch name="ring-ok" />
             <Swatch name="ring-warn" />
             <Swatch name="ring-bad" />
@@ -336,21 +467,27 @@ export default function DesignSystemPage() {
           <div className="flex flex-wrap items-end gap-8 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
             <div className="space-y-2 text-center">
               <ClusterGauge score={82} variant="card" size={104} />
-              <p className="font-mono text-[11px] text-white/40">health 82</p>
+              <p className="mono text-[11px] text-[color:var(--text-muted)]">
+                health 82
+              </p>
             </div>
             <div className="space-y-2 text-center">
               <ClusterGauge score={61} variant="card" size={104} />
-              <p className="font-mono text-[11px] text-white/40">health 61</p>
+              <p className="mono text-[11px] text-[color:var(--text-muted)]">
+                health 61
+              </p>
             </div>
             <div className="space-y-2 text-center">
               <ClusterGauge score={null} variant="card" size={104} />
-              <p className="font-mono text-[11px] text-white/40">
+              <p className="mono text-[11px] text-[color:var(--text-muted)]">
                 null — not zero
               </p>
             </div>
             <div className="space-y-2 text-center">
               <BuildGauge position={BUILD} size={104} />
-              <p className="font-mono text-[11px] text-white/40">build 14 pts</p>
+              <p className="mono text-[11px] text-[color:var(--text-muted)]">
+                build 14 pts
+              </p>
             </div>
           </div>
         </Section>
@@ -358,7 +495,7 @@ export default function DesignSystemPage() {
         <Section
           id="register"
           title="Register tokens"
-          blurb="The four values the sport register moves, plus the bay knobs it re-tunes. Toggle the switch at the top and watch these change."
+          blurb="The four values the sport register moves, plus the bay knobs it re-tunes. Toggle the switch above and watch these change."
         >
           <div className={GRID}>
             <Swatch name="register-accent" />
@@ -370,14 +507,14 @@ export default function DesignSystemPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="panel-cut border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
-              <p className="label-uppercase text-white/45">panel-cut</p>
-              <p className="mt-2 text-sm text-white/70">
+              <p className="label-uppercase">panel-cut</p>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
                 Square in the default register, chamfered in sport.
               </p>
             </div>
             <div className="machined rounded-xl border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
-              <p className="label-uppercase text-white/45">machined</p>
-              <p className="mt-2 text-sm text-white/70">
+              <p className="label-uppercase">machined</p>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
                 The milled edge treatment.
               </p>
             </div>
@@ -387,26 +524,32 @@ export default function DesignSystemPage() {
         <Section
           id="type"
           title="Type"
-          blurb="Newsreader for the display line, Inter for everything else. The sport register swaps the display face to the sans stack — the register changes instrument, it does not merely tighten."
+          blurb="Archivo is the instrument voice and holds the display slot; Newsreader stays the editorial voice on --font-editorial. JetBrains Mono carries every token name, value and state label, so the system is typeset the same on every machine."
         >
-          <div className="space-y-4 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
-            <p className="display-serif text-[4.5rem] leading-none tracking-tighter text-white">
+          <div className="space-y-5 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6">
+            <p className="display-instrument display-instrument-tight text-[4.5rem] uppercase leading-[0.9] text-[color:var(--text-primary)]">
               A Live Garage
             </p>
-            <p className="display-serif text-5xl text-white">Display large</p>
-            <p className="display-serif text-3xl text-white">Display medium</p>
-            <h3 className="text-xl font-semibold text-white">
+            <p className="display-instrument text-4xl text-[color:var(--text-primary)]">
+              Display, 88% width
+            </p>
+            <p className="display-serif text-3xl text-[color:var(--text-primary)]">
+              Newsreader, the editorial voice
+            </p>
+            <h3 className="text-xl font-semibold text-[color:var(--text-primary)]">
               Section heading, Inter semibold
             </h3>
-            <p className="measure text-base text-white/70">
+            <p className="measure text-base text-[color:var(--text-muted)]">
               Body copy sets at sixteen with a measure cap, because a line that
               runs the full width of a workbench layout is not readable at any
               size.
             </p>
-            <p className="label-uppercase text-white/45">Label, uppercase</p>
-            <p className="num text-3xl text-white">67,400 mi · 82 · $1,240</p>
-            <p className="font-mono text-xs text-white/40">
-              .num — tabular, register-tracked
+            <p className="label-uppercase">Label, uppercase</p>
+            <p className="mono text-3xl text-[color:var(--text-primary)]">
+              67,400 mi · 82 · $1,240
+            </p>
+            <p className="mono text-xs text-[color:var(--text-muted)]">
+              .mono — tabular, one face on every machine
             </p>
           </div>
         </Section>
@@ -451,10 +594,8 @@ export default function DesignSystemPage() {
               </Button>
             </Row>
             <Row label="focus">
-              <Button className="focus-visible:ring-2 focus-visible:ring-ring" autoFocus>
-                Focused
-              </Button>
-              <p className="text-xs text-white/40">
+              <Button id="focus-demo">Focused</Button>
+              <p className="text-xs text-[color:var(--text-muted)]">
                 Shot with --focus; the halo sits on the border, not off it.
               </p>
             </Row>
@@ -468,19 +609,19 @@ export default function DesignSystemPage() {
         >
           <div className="grid gap-5 rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] p-6 sm:grid-cols-2">
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f1">
+              <label className="label-uppercase" htmlFor="f1">
                 Mileage
               </label>
-              <input id="f1" className="field num" defaultValue="67,400" />
+              <input id="f1" className="field mono" defaultValue="67,400" />
             </div>
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f2">
+              <label className="label-uppercase" htmlFor="f2">
                 Placeholder
               </label>
               <input id="f2" className="field" placeholder="e.g. front brakes" />
             </div>
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f3">
+              <label className="label-uppercase" htmlFor="f3">
                 Invalid
               </label>
               <input
@@ -494,19 +635,24 @@ export default function DesignSystemPage() {
               </p>
             </div>
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f4">
+              <label className="label-uppercase" htmlFor="f4">
                 Disabled
               </label>
-              <input id="f4" className="field" disabled defaultValue="VIN locked" />
+              <input
+                id="f4"
+                className="field"
+                disabled
+                defaultValue="VIN locked"
+              />
             </div>
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f5">
+              <label className="label-uppercase" htmlFor="f5">
                 Small
               </label>
               <input id="f5" className="field field-sm" defaultValue="Small" />
             </div>
             <div className="field-group space-y-1.5">
-              <label className="label-uppercase text-white/45" htmlFor="f6">
+              <label className="label-uppercase" htmlFor="f6">
                 Textarea
               </label>
               <textarea
@@ -522,7 +668,7 @@ export default function DesignSystemPage() {
         <Section
           id="badges"
           title="Badges and chips"
-          blurb="The primitive's four variants, then the semantic chips the product actually ships."
+          blurb="The primitive's four variants, then the provenance chips the product actually ships."
         >
           <div className="rounded-xl border border-white/8 bg-[hsl(var(--surface-1))] px-6 py-2">
             <Row label="primitive">
@@ -532,13 +678,22 @@ export default function DesignSystemPage() {
               <Badge variant="outline">Outline</Badge>
             </Row>
             <Row label="provenance">
-              <Badge variant="outline" className="border-[color:var(--info-border)] text-[color:var(--info-strong)]">
+              <Badge
+                variant="outline"
+                className="border-[color:var(--info-border)] text-[color:var(--info-strong)]"
+              >
                 From your invoice
               </Badge>
-              <Badge variant="outline" className="border-white/12 text-white/55">
+              <Badge
+                variant="outline"
+                className="border-white/12 text-[color:var(--text-muted)]"
+              >
                 Estimated range
               </Badge>
-              <Badge variant="outline" className="border-white/12 text-white/55">
+              <Badge
+                variant="outline"
+                className="border-white/12 text-[color:var(--text-muted)]"
+              >
                 Unknown
               </Badge>
             </Row>
@@ -552,29 +707,35 @@ export default function DesignSystemPage() {
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="card-lift rounded-xl border border-[color:var(--border)] bg-[hsl(var(--card))] p-6">
-              <p className="label-uppercase text-white/45">2019 BMW</p>
-              <p className="display-serif mt-1 text-2xl text-white">M3</p>
-              <p className="mt-1 text-sm text-white/50">Competition</p>
-              <div className="mt-4 flex items-center gap-2 text-sm text-white/70">
-                <Gauge className="h-4 w-4 text-white/40" />
-                <span className="num">67,400</span>
-                <span className="text-white/40">mi</span>
+              <p className="label-uppercase">2019 BMW</p>
+              <p className="display-instrument mt-1 text-2xl text-[color:var(--text-primary)]">
+                M3
+              </p>
+              <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+                Competition
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm text-[color:var(--text-primary)]">
+                <Gauge className="h-4 w-4 text-[color:var(--text-muted)]" />
+                <span className="mono">67,400</span>
+                <span className="text-[color:var(--text-muted)]">mi</span>
               </div>
             </div>
 
             <div className="glass-panel rounded-xl p-6">
-              <p className="label-uppercase text-white/45">glass-panel</p>
-              <p className="mt-2 text-sm text-white/70">
+              <p className="label-uppercase">glass-panel</p>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
                 Used where a panel sits over photography.
               </p>
             </div>
 
             <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-1))] p-6 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-subtle)] bg-[hsl(var(--surface-3))]">
-                <Gauge className="h-5 w-5 text-white/35" />
+                <Gauge className="h-5 w-5 text-[color:var(--text-muted)]" />
               </div>
-              <p className="mt-3 text-sm text-white/70">No odometer yet</p>
-              <p className="mt-1 text-xs text-white/40">
+              <p className="mt-3 text-sm text-[color:var(--text-primary)]">
+                No odometer yet
+              </p>
+              <p className="mt-1 text-xs text-[color:var(--text-muted)]">
                 Not zero — we cannot say.
               </p>
             </div>

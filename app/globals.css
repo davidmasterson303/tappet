@@ -121,10 +121,30 @@ nav {
      * the redline above is a separate axis and deliberately not part of this
      * ramp.
      */
+    /*
+     * ⚠ **The ramp cooled on 4 Sep, and the direction is inverted on purpose.**
+     *
+     * It ran steel → cyan → amber → orange, warming as the build climbed. B3
+     * allows two hues, and sodium is now the warning axis in full — attention,
+     * critical, and all four health bands. A build dial that warmed as it
+     * climbed would therefore be drawing "more modified" in the same language
+     * as "more wrong", on a dial whose own header says **nothing here is a
+     * failure state**.
+     *
+     * So heat is surrendered and the ramp climbs into cold instead: steel to
+     * bright cyan, intensity carrying distance from stock. A reader can still
+     * order it without a legend, and the two dials in this product can no
+     * longer be confused for one another — which is what the header asked for
+     * and what four warm bands beside four warm bands would have destroyed.
+     *
+     * `--build-stock` is unchanged. It is neutral steel, it belongs to neither
+     * hue, and at 4.42:1 it is an arc rather than text — the 3:1 floor for
+     * large graphics applies, not 4.5.
+     */
     --build-stock: #7d8794;           /* under 12 — untouched */
-    --build-mild: #9fc8d8;            /* 12–39  — bolt-ons */
-    --build-warm: #e0c168;            /* 40–69  — committed */
-    --build-far: #f0a35e;             /* 70+    — far side of sensible */
+    --build-mild: #8FB6C6;            /* 12–39  — bolt-ons */
+    --build-warm: #6FC9E4;            /* 40–69  — committed */
+    --build-far: #3ED0F0;             /* 70+    — far side of sensible */
 
     /* ── design-system vocabulary, aliased onto the app's tokens (v7 C0) ──
      *
@@ -213,7 +233,25 @@ nav {
     --accent-foreground: 190 60% 6%;
     --ring: 188 86% 53%;              /* focus ring stays brand cyan */
 
-    --destructive: 0 72% 51%;         /* #DC2626  solid, for button fills */
+    /*
+     * ⚠ Moved off pure red on 4 Sep, and it is the same value as
+     * `--critical-red-solid` — deliberately, because they are the same thing.
+     *
+     * B3 permits sodium and cyan and nothing else, and a `#DC2626` fill is the
+     * one place on the specimen where a third hue survived the collapse: not a
+     * wash or a hairline, but the largest saturated area on the page, sitting
+     * in the button row where a reader calibrates every other colour.
+     *
+     * It is written as a triplet because shadcn's `--destructive` is consumed
+     * as `hsl(var(--destructive))` — `24 92% 40%` **is** `#C2350B`. Two
+     * spellings of one colour is the defect this file has fixed repeatedly, so
+     * if one moves the other has to; they are adjacent here for that reason.
+     *
+     * 5.28:1 against the near-white ink below, up from 4.63:1. A destructive
+     * button got *more* legible by leaving red, which is worth knowing before
+     * somebody reads this change as decoration.
+     */
+    --destructive: 24 92% 40%;        /* #C2350B  = --critical-red-solid */
     --destructive-foreground: 0 0% 98%;
 
     --chart-1: 188 86% 53%;
@@ -230,26 +268,86 @@ nav {
      * Anything merely informational — column headers, plain links,
      * non-CTA labels — uses this steel-blue so cyan reads unambiguously
      * as "brand / primary action". Never use brand cyan for a plain label. */
-    --info: #8FB4C4;
-    --info-strong: #ACC9D6;
-    --info-wash: rgb(143 180 196 / 0.14);
-    --info-border: rgb(143 180 196 / 0.32);
+    /*
+     * ── The two-hue collapse — brief B3, 4 Sep ────────────────────────────
+     *
+     * The locked brief allows sodium orange and cold cyan and nothing else.
+     * That is a hard constraint, and the interesting part is what it costs:
+     * with only two hues, a family can no longer be separated from another
+     * family *by hue*. Six palettes previously did exactly that — info was
+     * slate-blue, confirm was green, attention orange, critical salmon, the
+     * health ramp green-to-red, the build ramp steel-to-amber.
+     *
+     * So the separation moves onto two other axes, and both are stated here
+     * because a later reader will otherwise re-introduce a third hue to fix a
+     * collision this arrangement is deliberately absorbing:
+     *
+     *   1. **Heat means trouble, and only trouble.** Sodium is reserved for
+     *      the warning axis — attention, critical, and the health ramp. Nothing
+     *      that is merely *informational* is ever warm.
+     *
+     *   2. **Cold means capability.** Cyan carries information, focus, and the
+     *      build ramp. The build ramp was steel-to-amber and is now
+     *      steel-to-cyan, which is the largest single change here and the one
+     *      most likely to look like a mistake. It is not. Its own docblock
+     *      already said "nothing here is a failure state, so nothing is red";
+     *      under two hues, warm *is* the failure axis, so a build dial that
+     *      warms as it climbs would be saying the opposite of what it means.
+     *
+     * `--info` was `#8FB4C4`, a slate-blue that the brief names directly. It
+     * is a true cold cyan now, and measurably lighter: 10.20:1 on the page
+     * ground against the old 8.66:1.
+     */
+    --info: #7EC8DC;
+    --info-strong: #A5DCEC;
+    --info-wash: rgb(126 200 220 / 0.14);
+    --info-border: rgb(126 200 220 / 0.32);
 
     /* ── semantic families ────────────────────────────────────────────── */
-    --confirm-green: #4ADE80;
-    --confirm-green-wash: rgb(74 222 128 / 0.14);
-    --confirm-green-border: rgb(74 222 128 / 0.35);
+    /*
+     * Confirm is now **ink, not hue** — B3.
+     *
+     * "Good is carried by off-white" is the brief's phrasing and it is the
+     * better semantic anyway: a confirmation is the absence of a problem, and
+     * giving the absence of a problem its own colour is how a palette ends up
+     * with six of them. The chip still says "Logged" and still carries a check
+     * — the colour was never the thing doing the work.
+     *
+     * ⚠ The token keeps the name `--confirm-green` while holding no green.
+     * That is not an oversight and it is not laziness: the name is spelled at
+     * every call site, and a rename is the defect §6 warns about — the
+     * stylesheet keeps reading perfectly while applying to nothing. It is
+     * renamed when the call sites are, in one deliberate pass, not as a side
+     * effect of a palette change.
+     */
+    --confirm-green: #EDE7DF;
+    --confirm-green-wash: rgb(237 231 223 / 0.10);
+    --confirm-green-border: rgb(237 231 223 / 0.28);
 
+    /* Already sodium. The one family the brief did not have to move. */
     --attention-amber: #FB923C;
     --attention-amber-wash: rgb(251 146 60 / 0.14);
     --attention-amber-border: rgb(251 146 60 / 0.35);
 
-    /* critical is deliberately heavier than attention, so a scan lands on
-     * red first. Previously both sat at ~14% and read as equal weight. */
-    --critical-red: #F87171;
-    --critical-red-wash: rgb(248 113 113 / 0.22);
-    --critical-red-border: rgb(248 113 113 / 0.5);
-    --critical-red-solid: #DC2626;
+    /*
+     * Critical is deliberately heavier than attention, so a scan lands on it
+     * first. Previously both sat at ~14% and read as equal weight.
+     *
+     * ⚠ Under B3 that weight difference is now doing **all** of the work.
+     * Attention and critical used to differ by hue (orange versus salmon) and
+     * by fill; they are both sodium now, so the only thing separating them is
+     * intensity and how much area the fill covers. The brief asks for exactly
+     * this — "severity carried by intensity and fill" — and it is a genuinely
+     * thinner distinction than the one it replaces. Recorded in the drift
+     * register §3 for Design, because it is the kind of narrowing that is
+     * invisible until someone meets both chips in one column.
+     *
+     * Neither is ever the only signal: both chips carry an icon and a word.
+     */
+    --critical-red: #FF7A5C;
+    --critical-red-wash: rgb(255 122 92 / 0.22);
+    --critical-red-border: rgb(255 122 92 / 0.5);
+    --critical-red-solid: #C2350B;
 
     /* ── health-ring band ramp ────────────────────────────────────────── *
      * Dedicated and ~15% desaturated versus the chip semantics, so a
@@ -273,14 +371,77 @@ nav {
       `--background`, so it clears the contrast floor by the same margin the
       others do, and it frees cyan to mean one thing.
     */
-    --ring-good: #7FCE9C;             /* >= 80 */
-    --ring-ok: #B9C77E;               /* >= 60 */
-    --ring-warn: #E0A468;             /* >= 40 */
-    --ring-bad: #E08882;              /* <  40 */
+    /*
+      ── ⚠ The ramp left green on 4 Sep — brief B3 ─────────────────────────
+
+      The 3 Sep note above is still the governing argument and this change
+      keeps it: **the ramp must be orderable without a legend, and cyan must
+      not mean brand and state at once.** B3 removes green, so the ramp is
+      rebuilt on the only axis left to it — a single sodium intensity climb
+      from neutral to hot:
+
+        off-white → warm stone → sodium → hot sodium
+
+      Four steps a reader can still order, because they are ordered by heat
+      rather than by hue. It arguably states the semantic more plainly than
+      green→red did: a healthy car is not "green", it is *unremarkable*, and
+      off-white is what unremarkable looks like. Nothing to say is now
+      rendered as nothing being said.
+
+      It also strengthens 3 Sep rather than undoing it: cyan is not merely off
+      the ramp, it is off the entire warning axis and reserved for information
+      and focus.
+
+      Measured on `--background`: 15.60 / 10.67 / 7.12 / 5.51 — every band
+      clears the 4.5:1 body floor, and the old ramp's `good` was 10.23.
+
+      ⚠ `warn` is #DE8A3A and `--attention-amber` is #FB923C. They are close,
+      and §1.2 of the drift register is about exactly this shape of collision.
+      They are kept apart by ~1.3:1 of luminance and by never appearing on the
+      same element — the ramp draws arcs, the chip sets text. Under a two-hue
+      brief there is no third hue to separate them with; that trade is logged
+      for Design rather than quietly absorbed.
+    */
+    --ring-good: #EDE7DF;             /* >= 80 — unremarkable */
+    --ring-ok: #D6BE9B;               /* >= 60 */
+    --ring-warn: #DE8A3A;             /* >= 40 */
+    --ring-bad: #F4511E;              /* <  40 */
 
     /* Loaded via the stylesheet link in app/layout.tsx — see the note there
-     * on why this is not next/font. */
-    --font-display: 'Newsreader';
+     * on why this is not next/font.
+     *
+     * ── Two display voices, both first-class — 4 Sep ──────────────────────
+     *
+     * The locked brief (B2) puts a condensed grotesk in the display slot: the
+     * specimen page is an instrument, and a transitional serif reads as a
+     * magazine. That is a change of *instrument*, not of size, so it needs its
+     * own token rather than a weight override.
+     *
+     * `--font-display` is the slot, and the slot now holds Archivo. Newsreader
+     * does not go away — it moves to `--font-editorial`, because the serif is
+     * still the right voice for marketing surfaces and deleting it would throw
+     * away the one thing the 30 Aug rebrand actually established.
+     *
+     * ⚠ `.display-serif` deliberately follows `--font-editorial`, not the
+     * slot. It is spelled across ~20 call sites and its name is a promise
+     * about what it renders; pointing it at a sans would leave every one of
+     * those sites lying quietly, which is the failure mode §6 of CLAUDE.md
+     * describes — half-applied, and readable as a design choice. Surfaces take
+     * the instrument voice by asking for `.display-instrument`, one site at a
+     * time and visibly.
+     */
+    --font-display: 'Archivo';
+    --font-editorial: 'Newsreader';
+
+    /*
+     * Token names, hex values and state labels.
+     *
+     * Tailwind's `font-mono` resolves to `ui-monospace`, which is SF Mono on
+     * this machine and something else on every other one. That is a strange
+     * property for any surface and an actively bad one for the page whose job
+     * is to show the system: it was being typeset differently for each reader.
+     */
+    --font-mono: 'JetBrains Mono';
 
     /* ── motion ───────────────────────────────────────────────────────── */
     --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
@@ -1608,8 +1769,53 @@ nav {
    * tabular figures or the digits reflow while they animate, which is the one
    * place this must not go. Logged in `docs/design-system-drift.md` §10.1. */
   .display-serif {
-    font-family: var(--font-display), Georgia, serif;
+    font-family: var(--font-editorial), Georgia, serif;
     font-weight: 500;
+  }
+
+  /*
+   * The instrument voice — brief B2.
+   *
+   * Archivo carries a real `wdth` axis, which is the reason it is here rather
+   * than a face that merely ships narrow: one file sets the masthead at 62 and
+   * a section heading at 88, and the two read as the same voice at two widths
+   * instead of as two fonts.
+   *
+   * ⚠ `font-stretch` is the property that drives `wdth`, and it is inherited.
+   * A nested element that needs a different width has to say so — it will not
+   * get one by being smaller.
+   *
+   * The sport register does not need to override this the way it overrode
+   * `.display-serif`: the instrument voice is already the harder one, so the
+   * register changes width and tracking rather than instrument.
+   */
+  .display-instrument {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    font-stretch: 88%;
+    font-weight: 700;
+    letter-spacing: var(--register-tracking, -0.02em);
+  }
+
+  /* The masthead width. Separate from the class above because 62% is a poster
+     setting — it stops being legible somewhere around 32px, and a section
+     heading must not inherit it. */
+  .display-instrument-tight {
+    font-stretch: 62%;
+  }
+
+  /*
+   * Mono, as a class rather than as `font-mono`.
+   *
+   * Tailwind's utility points at the platform stack; this points at the token,
+   * so a token name and its value are set in the same face on every machine.
+   * `font-variant-numeric` is here and not at the call sites because every
+   * single use of this class is a value someone will compare against another
+   * value directly above or below it.
+   */
+  .mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
   }
 
   /* Tabular figures wherever digits line up in columns. */

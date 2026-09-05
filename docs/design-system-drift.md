@@ -539,6 +539,64 @@ photograph (R49) — in words that are true, which the review's suggested line w
 not: line items are written as soon as extraction succeeds, and only a vehicle
 mismatch is held back for confirmation.
 
+### 3.11 ⚠ The palette collapsed to two hues — David's F&F direction, 4 Sep
+
+**This is the largest single departure in this file and Design has not seen
+it.** It comes from a locked design brief, written by an independent critic
+against a north-star image David approved, under a stated aesthetic direction:
+the original *Fast and Furious* look revived for 2026 — sodium streetlight
+against cold cyan, carried by photography, with the interface flat and matte.
+Brief line **B3** allows those two hues and no others. David chose "move the
+default register" over "wire up the sport register", so this lands in `:root`
+rather than behind `[data-register='sport']`.
+
+`design-loop/design-system/brief.md` holds the locked brief in full.
+
+What moved, and what each one cost:
+
+| Token family | Was | Is | Note |
+|---|---|---|---|
+| `--info*` | `#8FB4C4` slate-blue | `#7EC8DC` cold cyan | Brief names blue-info directly. 10.20:1, up from 8.66:1 |
+| `--confirm-green*` | `#4ADE80` | `#EDE7DF` **ink, no hue** | "Good is carried by off-white." The chip still has a check and the word |
+| `--critical-red*` | `#F87171` salmon | `#FF7A5C` hot sodium | ⚠ see below |
+| `--destructive` | `#DC2626` | `#C2350B` | Same value as `--critical-red-solid`, on purpose. 5.28:1 vs the ink, up from 4.63:1 |
+| `--ring-*` | green → red | off-white → hot sodium | The 3 Sep note is preserved and strengthened |
+| `--build-*` | steel → amber | steel → bright cyan | ⚠ inverted, see below |
+
+**Three things Design should rule on rather than inherit:**
+
+1. **Attention and critical are now separated by intensity alone.** They used
+   to differ by hue — orange versus salmon — and by fill weight. Both are
+   sodium now, so only intensity and fill area remain. The brief asks for
+   exactly this ("severity carried by intensity and fill") and it is a
+   genuinely thinner distinction than the one it replaces. Neither is ever the
+   only signal: both chips carry an icon and a word. But §1.2 of this document
+   is about precisely this shape of collision, and this reintroduces a version
+   of it deliberately.
+
+2. **`--ring-warn` `#DE8A3A` sits close to `--attention-amber` `#FB923C`.**
+   Under a two-hue brief there is no third hue to separate the ramp from the
+   chip family with. They are held apart by ~1.3:1 of luminance and by never
+   appearing on the same element — the ramp draws arcs, the chip sets text.
+
+3. **The build ramp was inverted from warm to cool, and this is the change most
+   likely to be read as a mistake.** It ran steel → cyan → amber → orange.
+   Sodium is now the entire warning axis, so a build dial that warmed as it
+   climbed would draw "more modified" in the same language as "more wrong" — on
+   a dial whose own docblock says *nothing here is a failure state*. Heat is
+   surrendered to the warning axis and the ramp climbs into cold instead. A
+   consequence worth stating: `[data-register='sport']` sets
+   `--register-accent: var(--build-far)`, so the sport register's accent moved
+   from orange to cyan along with it.
+
+**Two files, one decision.** `packages/core/src/health-band.ts` carries the
+ramp as `r,g,b` channels for React Native and for the web glow; `app/globals.css`
+carries it as `--ring-*` for the stroke. They moved together, and
+`health-band.test.ts` pins them to each other — it failed on this edit, which
+is what it is for. **So this change reaches the iOS app too**, and the phone has
+not been looked at since.
+
+
 ## 4. The export's five adherence rules, against what this repo already runs
 
 `specs/adherence-rules.spec.html` proposes five oxlint rules and says *"ship them
