@@ -700,7 +700,11 @@ export default function HealthSummary({
                 sentence, and the score's own honesty problem is a different one
                 (FN-01 — every generated score was a hardcoded 70).
               */}
-              <p className="text-xs text-white/50 mt-2 max-w-xl">{adviceDisclosure('health')}</p>
+              {/* ⚠ `mono`, matching the advisor's. The same sentence was set
+                  in the body sans here and in mono there, and a disclosure that
+                  changes voice between two surfaces of one product reads as two
+                  different notices. It is apparatus on both. */}
+              <p className="mono text-xs text-white/50 mt-2 max-w-xl">{adviceDisclosure('health')}</p>
             </div>
           </div>
           <Button

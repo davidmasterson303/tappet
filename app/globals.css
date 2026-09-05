@@ -1903,9 +1903,19 @@ nav {
       border-color var(--duration-fast) var(--ease-standard),
       box-shadow var(--duration-fast) var(--ease-standard);
   }
+  /*
+   * ⚠ One ring — dossier B8, 5 Sep.
+   *
+   * This drew both a cyan border AND a 3px cyan halo, and once the resting
+   * border went transparent the two read as two concentric rings around a
+   * focused composer: "focus reads as a rendering fault rather than a state".
+   *
+   * The border alone is the ring. It is also the only one of the two that
+   * traces the panel's cut corner — a `box-shadow` is drawn on the border box
+   * and squares off a chamfer, which is its own reason not to use one here.
+   */
   .composer-panel:focus-within {
-    border-color: rgb(34 211 238 / 0.4);
-    box-shadow: 0 0 0 3px rgb(34 211 238 / 0.1);
+    border-color: var(--info);
   }
 
   /*

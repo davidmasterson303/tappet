@@ -886,7 +886,14 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
         <div
           className={
             appShell
-              ? 'flex-1 min-h-0 flex flex-col md:block md:glass-panel md:cut-panel md:p-6'
+              /* ⚠ No frame in app-shell mode — dossier B6, 5 Sep.
+                 `appShell` is the advisor, and `ConsultantChat` draws its own
+                 cut-corner hairline frame. Wrapping it in a second one put a
+                 notch inside a notch about 24px apart, which three critiques
+                 read as "a card in a card" and "frame inside frame". The
+                 padding goes with the border: a frame's inset belongs to the
+                 frame that draws it. */
+              ? 'flex-1 min-h-0 flex flex-col md:block'
               : contentSurface === 'bare'
                 ? ''
                 : 'glass-panel cut-panel p-4 sm:p-6'
