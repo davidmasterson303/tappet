@@ -326,10 +326,10 @@ describe('who operates the service, and who to write to about it', () => {
       line somebody had to write on purpose.
 
       ⚠ Moved to 30 August with the operator becoming Southmoor Digital LLC.
-      Unlike the 19 August bump, this one is ahead of its own promote: web-live
-      has been frozen since 23 Aug, so the published policy still names David
-      personally. If the promote slips past the 30th, this literal and the
-      constant both move to the day it runs.
+      Unlike the 19 August bump, this one was written ahead of its own promote —
+      and that promote then happened. Checked 6 Sep: the live policy serves
+      "Southmoor Digital LLC" and names David nowhere, so the literal below is a
+      date a reader can see, and it stays where it is.
     */
     expect(LAST_UPDATED).toBe('30 August 2026');
     expect(new Date(LAST_UPDATED).getTime()).not.toBeNaN();

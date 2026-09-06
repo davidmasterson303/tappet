@@ -10,10 +10,16 @@ wellkept.southmoordigital.com        the product   ← App Store URL + the app's
 wellkept-demo.davidmasterson.co      the demo      ← the link on David's portfolio
 ```
 
-**Status: blocking.** The code already names both. **Neither resolves yet.**
-Nothing is broken by that today, because nothing deploys from `main` — but the
-next promote to `web-live` would put the App Store listing's privacy-policy URL,
-and the origin every installed app calls, onto a host that does not exist.
+**Status: applied 6 Sep — one DNS item still open, see §6.** Both hostnames
+resolve and serve over valid certificates. Checks 1–6 pass; check 7, the email,
+is drafted and unsent and is still the one that matters.
+
+⚠ **What is left is the demo's CNAME target.** It points at the wrong Netlify
+project and works only by accident. §6 is the fix.
+
+The steps below are kept as written — they are the record of what was done. The
+status line originally read "neither resolves yet", which was true when this was
+written and is not now.
 
 **Why these two domains.** The product sits on the company domain that the
 bundle id (`com.southmoordigital.wellkept`) and the privacy policy's `OPERATOR`
@@ -56,15 +62,20 @@ The same rule that applied to `davidmasterson.co` applies to both domains here:
 
 ## ⚠ And a naming trap, because this repo has one
 
-`CLAUDE.md` names the demo's Netlify project `crewchief-demo-live`. The live
-demo hostname CNAMEs to `crewchief-demo.netlify.app`. Those are not necessarily
-the same string, and a third — `crewchief-demo-live.netlify.app` — also
-resolves, because Netlify answers every `*.netlify.app` name from shared
-addresses and routes on the `Host` header. Resolving proves nothing about which
-site is which.
+⚠ **Resolved 6 Sep, and the answer is the opposite of what this section
+implied.** `CLAUDE.md` is **correct**: `crewchief-demo-live` is the demo's
+project. The misleading string is the *DNS target*, not the doc — see §6.
 
-**Copy each CNAME target out of Netlify's own Add-a-domain dialog.** Do not type
-any of the names in this paragraph.
+The original warning stands as a method even though its guess was wrong: a third
+name, `crewchief-demo.netlify.app`, also resolves, because Netlify answers every
+`*.netlify.app` from shared addresses and routes on the `Host` header.
+**Resolving proves nothing about which site is which.**
+
+⚠ In practice the **Add domain alias** flow — which is the right one to use, as
+it never offers to take over the zone — presents **no CNAME target at all**. So
+"copy it out of the dialog" was not available, and the targets were read from
+live DNS instead. That is how the wrong target was inherited. If a dialog gives
+you no target, verify what you copy with the check in §6 before trusting it.
 
 ---
 
@@ -152,6 +163,39 @@ The same for every origin tried. The middleware runs and returns nothing,
 which means `allowedOrigins()` is empty and the variable is unset. Nothing
 browser-side depends on it, so moving the demo's hostname cannot break it. If
 it is ever set, it must name the new demo origin.
+
+### 6. ⚠ OPEN — repoint the demo's CNAME at the right project
+
+Both demo hostnames currently CNAME to `crewchief-demo.netlify.app`. That
+subdomain belongs to the **dead June Bolt project**, not to `crewchief-demo-live`.
+Confirmed 6 Sep by asking each host what it serves:
+
+```
+crewchief-demo.netlify.app        <title>CrewChief - Your Personal Auto Ownership Consultant</title>
+                                  /api/version returns HTML, not JSON
+crewchief-demo-live.netlify.app   <title>Well Kept: Know Your Car</title>
+                                  /api/version -> {"branch":"demo-live", ...}
+```
+
+The demo hostnames work anyway because Netlify routes on the `Host` header, and
+both are registered as aliases on the right project. The CNAME only gets the
+request to Netlify's edge.
+
+⚠ **Why this is worth fixing rather than leaving.** If that Bolt project is ever
+deleted, the `crewchief-demo.netlify.app` name is released — and then both
+`crewchief-demo.davidmasterson.co` and `wellkept-demo.davidmasterson.co` stop
+working. Worse, a released Netlify site name can be claimed by somebody else,
+who would then control what those two hostnames serve. It is a dangling CNAME,
+which is the standard subdomain-takeover shape.
+
+**The fix**, at Namecheap → `davidmasterson.co` → Advanced DNS, editing the
+value of two existing CNAME records and adding nothing:
+
+- Host `wellkept-demo` → `crewchief-demo-live.netlify.app`
+- Host `crewchief-demo` → `crewchief-demo-live.netlify.app`
+
+Then re-run checks 3 and 5. Both must still show **"Shared demo garage"**, and
+`/api/version` on each must return JSON naming `demo-live`.
 
 ---
 
