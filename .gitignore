@@ -37,6 +37,15 @@ yarn-error.log*
 .env*
 !.env.example
 
+# EAS non-interactive auth token (never commit)
+#
+# Its own line because no pattern already reaches it, and the reason is the
+# name rather than the depth: `.env*` above does apply at every level
+# (`apps/mobile/.env.backup` matches it), but `.easrc.local` does not begin
+# `.env`, and `apps/mobile/.gitignore`s `.env*.local` does not match it either.
+# The file is a bearer token for the Expo account that owns the build queue.
+apps/mobile/.easrc.local
+
 # vercel
 .vercel
 
