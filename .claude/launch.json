@@ -39,6 +39,16 @@
         "dev:design"
       ],
       "autoPort": true
+    },
+    {
+      "name": "expo-mobile",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start"
+      ],
+      "cwd": "apps/mobile",
+      "port": 8081
     }
   ]
 }
