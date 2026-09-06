@@ -380,6 +380,14 @@ const STATIC_ANALYSIS_SUITES = [
   // navigator will not parse, or push.ts discards the link and opens the garage
   // instead of the recall.
   'one-scheme-everywhere.test.ts',
+  // Reads docs/identifiers.md and the eleven artefacts that hold those values,
+  // and fails when the page disagrees with the code. There is nothing to import
+  // — the subject is a correspondence between prose on disk and literals in
+  // source and JSON, three of them in React Native or config files this runner
+  // cannot load. The failure it pins is a document that reads as authoritative
+  // while being wrong, consulted precisely when nobody has time to re-derive the
+  // facts.
+  'identifiers-match-the-register.test.ts',
 ];
 
 /**
