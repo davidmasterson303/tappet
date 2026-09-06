@@ -28,7 +28,16 @@ import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..', '..');
 
-const ROOTS = ['app', 'components', 'packages/core/src', 'apps/mobile/src'];
+/*
+  ⚠ `lib` was added 6 Sep and had been missing since this scan was written. It
+  is where the product's identity actually lives — `apple-root-ca.ts` holds
+  `APPLE_BUNDLE_ID`, `site-role.ts` holds both live origins, `legal.ts` holds
+  `CONTACT_EMAIL` and `OPERATOR` — so a rename could have been completed
+  everywhere this swept and still left the bundle id naming the old product,
+  with the suite green. It sweeps clean today; the point is that it is now
+  swept. `__tests__` is skipped by the walker, as before.
+*/
+const ROOTS = ['app', 'components', 'lib', 'packages/core/src', 'apps/mobile/src'];
 const EXTRA_FILES = ['apps/mobile/app.json', 'public/manifest.json'];
 
 const OLD_NAME = /crew[-_ ]?chief/i;
@@ -99,10 +108,29 @@ function sources(dir: string, acc: string[] = []): string[] {
    collapses every line below it, so the line numbers stop matching the file —
    the first draft reported a docblock's `*` as a finding on the wrong line,
    which is a report nobody can act on. */
+/**
+ * Blank out comments, keeping every newline so a finding's line number survives.
+ *
+ * ⚠ `//` does not start a comment when a `:` sits immediately before it. That
+ * one exception is what lets this scan see a url at all. Without it
+ * `.replace(/\/\/.*$/gm, '')` eats from the scheme separator to end of line, so
+ * `'https://crewchief.davidmasterson.co'` reached `OLD_NAME` as `'https:` and
+ * matched nothing — the scanner was structurally blind to every url in
+ * TypeScript, and the "live hostnames" exemption it carried until 6 Sep was
+ * therefore never doing anything. JSON was only ever covered because the
+ * stripper is not run on it.
+ *
+ * ⚠ The exception mis-fires in one direction only, and it is the loud one. A
+ * comment opened with no space after a colon — `case 'x'://note` — is not
+ * stripped, so a comment there would be read as code and *reported*. A false
+ * finding is answerable; the silence it replaces was not. Protocol-relative
+ * urls (`//host/path`, no scheme) stay invisible, which is the same trade at a
+ * far rarer shape.
+ */
 function stripComments(code: string): string {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/\/\/.*$/gm, '');
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 function findings(): { file: string; line: number; text: string }[] {
@@ -168,6 +196,27 @@ describe('the product is called Well Kept everywhere it is named', () => {
     expect(stripComments('const label = "CrewChief"; // note')).toMatch(OLD_NAME);
     // And line numbers survive, or a finding points at the wrong line.
     expect(stripComments('/* a\n b */\nconst x = 1;').split('\n')).toHaveLength(3);
+
+    /*
+      ⚠ The url cases, added 6 Sep with the fix they pin. Each one failed before
+      it: the stripper cut at the scheme separator, so a hostname in code was
+      not exempted, it was invisible.
+    */
+    // A url in code survives, so a hostname naming the old product is findable.
+    expect(stripComments("const u = 'https://crewchief.davidmasterson.co';")).toMatch(OLD_NAME);
+    /*
+      Both halves of the line survive, not just the part before the scheme. The
+      character before `//` is put back by the capture, so the trailing space is
+      expected — it is whitespace in stripped output, which nothing reads.
+    */
+    expect(stripComments("const u = 'https://example.com/x'; // note")).toBe(
+      "const u = 'https://example.com/x'; "
+    );
+    // …and a genuine line comment is still stripped, url inside it or not.
+    expect(stripComments('const a = 1; // https://crewchief.davidmasterson.co')).not.toMatch(
+      OLD_NAME
+    );
+    expect(stripComments('// CrewChief')).not.toMatch(OLD_NAME);
   });
 
   it('the archetype exemption covers the job and not the product', () => {
