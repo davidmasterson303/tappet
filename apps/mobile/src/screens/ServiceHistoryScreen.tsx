@@ -499,6 +499,27 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
 
                     {meta ? <Text style={styles.meta}>{meta}</Text> : null}
 
+                    {/*
+                      ── ⚠ 6 Sep: the critique asked twice for this to go, and it stays ──
+
+                      The note was *"the Remove line under every service row — it
+                      turns a 56pt spec row into a four-line form; **the row swipe
+                      carries deletion**."*
+
+                      The first half is fair — this row is taller and busier than
+                      the spec table B6 asks for. The second half is not true of
+                      this screen: **there is no swipe-to-delete here.** No
+                      `Swipeable`, no gesture handler, nothing. Removing this
+                      control would take away the only way to delete a service
+                      record, which is a data-loss defect dressed as a design fix.
+
+                      A critic reading screenshots cannot know which affordances
+                      exist, and this one inferred a standard iOS gesture from a
+                      list that looks like it should have one. If the row is to
+                      slim down, deletion needs somewhere to go first — the visit
+                      detail this row already opens is the obvious candidate —
+                      and that is a product change, not a restyle.
+                    */}
                     {record.id ? (
                       <Pressable
                         accessibilityRole="button"
