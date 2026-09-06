@@ -152,5 +152,11 @@ const styles = StyleSheet.create({
   /** The sodium mark, which replaced the sodium numeral. A line, not a fill. */
   warningMark: { ...type.monoLabel, color: status.attention },
   unknown: { color: text.muted },
-  detail: { ...type.mono, color: text.muted, paddingLeft: 22 + space.sm },
+  /*
+    ⚠ Sans, not mono. The critique caught this alongside the alert bodies as
+    "mono doing prose" — B1 gives mono the values, dates, indices and states, and
+    this line is a sentence explaining where a number came from. The *value* in
+    the row above it stays mono; the explanation is prose and reads as prose.
+  */
+  detail: { ...type.body, color: text.muted, paddingLeft: 22 + space.sm },
 });

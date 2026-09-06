@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { radius, space, status, text, type } from '../theme';
+import CutSurface from './CutSurface';
+
+import { cut, radius, space, status, text, type } from '../theme';
 
 export type AlertTone = 'critical' | 'attention' | 'confirm';
 
@@ -40,22 +42,47 @@ export default function AlertBanner({
   body?: string;
 }) {
   return (
-    <View
+    <CutSurface
       accessible
       accessibilityRole="alert"
       accessibilityLabel={body ? `${headline}. ${body}` : headline}
       style={[styles.banner, styles[tone]]}
+      cut={['bottomRight']}
+      size={cut.control}
+      fill={tone === 'critical' ? status.criticalFill : undefined}
+      stroke={STROKE[tone]}
     >
       <Text style={styles.headline}>{headline}</Text>
       {body ? <Text style={styles.body}>{body}</Text> : null}
-    </View>
+    </CutSurface>
   );
 }
 
+/** The hairline each tone draws, now that `CutSurface` strokes the shape. */
+const STROKE: Record<AlertTone, string> = {
+  critical: status.criticalBorder,
+  attention: status.attentionBorder,
+  confirm: status.confirmBorder,
+};
+
 const styles = StyleSheet.create({
   banner: {
-    /* B4: zero radius; the cut is carried by controls, not by a report. */
-    borderWidth: 1,
+    /*
+      ── ⚠ 6 Sep: the cut reaches the banners after all ────────────────────────
+
+      This read *"B4: zero radius; the cut is carried by controls, not by a
+      report."* That was a fair reading of B4's list — "buttons, fields, chips,
+      bubbles, composer" names controls and not banners — but the line opens
+      *"**Every** container corner is a 45° cut at zero radius"*, and the list
+      illustrates rather than limits.
+
+      What settled it was seeing them together on the specimen sheet: three
+      square boxes stacked directly beneath four buttons that all carry the cut,
+      which the critique called "a second system". A rule with one shape for
+      controls and another for reports is two rules.
+
+      Ground, border and corner are `CutSurface`'s now.
+    */
     padding: space.lg,
     gap: space.xs,
   },
@@ -82,9 +109,14 @@ const styles = StyleSheet.create({
     That is a stronger signal than it was when three tones were filled, which is
     the point.
   */
-  critical: { backgroundColor: status.criticalFill, borderColor: status.criticalBorder },
-  attention: { borderColor: status.attentionBorder },
-  confirm: { borderColor: status.confirmBorder },
+  /*
+    ⚠ The tone styles carry layout only — the fill and the hairline moved to
+    `CutSurface`'s props, because a `backgroundColor` here would paint a square
+    corner back over the one the SVG cut.
+  */
+  critical: {},
+  attention: {},
+  confirm: {},
 
   /*
     White on all three fills, measured. The tone lives in the fill rather than
@@ -92,5 +124,12 @@ const styles = StyleSheet.create({
     at 3:1 without anyone choosing it.
   */
   headline: { ...type.displaySection, color: text.primary },
-  body: { ...type.mono, color: text.secondary },
+  /*
+    ⚠ Sans, not mono. This was `type.mono` and the critique caught it as "mono
+    doing prose": B1 puts mono on values, dates, indices and states — an alert's
+    body is a *sentence*, and two lines of monospace prose reads as a log entry
+    rather than as something addressed to a person. The headline stays condensed
+    caps; only the sentence moved.
+  */
+  body: { ...type.body, color: text.secondary },
 });

@@ -117,7 +117,17 @@ export default function Field({
 const styles = StyleSheet.create({
   wrap: { gap: space.sm },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  label: { ...type.uiStrong, color: text.secondary },
+  /*
+    ── ⚠ 6 Sep · B1: a field is an editable stat cell ────────────────────────
+
+    The label was `type.uiStrong` — sentence-case bold sans — and the critique
+    put it beside `StatStrip` on the specimen sheet: the same word, "Mileage",
+    set two ways within 200pt of each other, one in the system's voice and one
+    in stock-iOS-form voice. A field holds a *value*, so it takes the same mono
+    caps eyebrow the strip's cells do.
+  */
+  label: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
+  /* The hint stays quiet and uncapped — it qualifies the label, it is not one. */
   hint: { ...type.label, letterSpacing: 0, color: text.muted },
 
   input: {
@@ -145,6 +155,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     minHeight: 48,
     color: text.primary,
+    /*
+      ⚠ Mono, to match the label above it and the strip it mirrors. B1 gives
+      mono every value, and what a person types into a field is a value —
+      a mileage in proportional sans beside `StatStrip`'s mono "66,000 mi" is
+      the same number in two voices.
+
+      ⚠ `fontFamily` only. The size is set by `fontFloor`, which pins 16px
+      because iOS zooms a smaller field on focus and never zooms back — putting
+      a `fontSize` here would let a caller's `style` land between the two and
+      re-open that.
+    */
+    fontFamily: type.mono.fontFamily,
   },
   /** Applied last in the array, so no caller style can lower it. */
   fontFloor: { fontSize: FIELD_FONT_MIN },
