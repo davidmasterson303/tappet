@@ -59,6 +59,12 @@ DIAGNOSTIC_REPORT.md
 IMPLEMENTATION_PLAN.md
 TECH_DEBT_ASSESSMENT.md
 
+# Cowork writes its outputs here, inside the repo. Untracked and unignored is
+# the pairing that swept a Supabase key into a commit once already — the .env
+# block above is that story — and this directory fills with prompts and reports
+# nobody means to publish. Trailing slash because it is only ever a directory.
+Claude outputs/
+
 # scratch screenshots
 public/image*.png
 
