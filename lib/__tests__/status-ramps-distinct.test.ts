@@ -1,7 +1,16 @@
 /**
- * The status family and the health ramp are never the same colour.
+ * The status family's warning axis and the health ramp are never the same colour.
  *
  * @jest-environment node
+ *
+ * ⚠ **5 Sep: this was "never the same colour", full stop, and it had to narrow.**
+ * The two-hue collapse made good news off-white ink on both clients, so
+ * `--confirm` and `--ring-good` are now deliberately one value and this guard
+ * fired on a correct change. It was narrowed to the warning axis rather than
+ * relaxed: every historic collision below is still caught, and the single
+ * permitted equality is argued and asserted at `CONFIRM_MAY_MATCH`. The reason
+ * the rule exists is a claim about severity, and severity is what it still
+ * protects.
  *
  * ── The rule, and Design's reason for it ────────────────────────────────────
  *
@@ -60,9 +69,14 @@ function healthRampHexes(): Map<string, string> {
   return byName;
 }
 
-/** The status tokens that are *ink or edge* — the ones that can collide. */
-const STATUS_INKS = [
-  'confirm',
+/**
+ * The status tokens that are *ink or edge* on the **warning axis**.
+ *
+ * ⚠ `confirm` used to be on this list and came off on 5 Sep. See
+ * `CONFIRM_MAY_MATCH` below — the carve-out is narrow and reasoned, and the
+ * historic collisions this file was written for are all still on this list.
+ */
+const WARNING_INKS = [
   'attention',
   'danger',
   'dangerText',
@@ -71,6 +85,36 @@ const STATUS_INKS = [
   'attentionBorder',
   'dangerBorder',
 ] as const;
+
+/**
+ * The one permitted equality, and why it is not the defect this file catches.
+ *
+ * ── What changed ────────────────────────────────────────────────────────────
+ *
+ * The two-hue collapse made **good news off-white ink rather than a hue**, and
+ * it applied that to both families at once: web ships `--confirm: #EDE7DF` and
+ * `--ring-good: #EDE7DF` as the same value, on purpose. When the mobile theme
+ * was ported on 5 Sep, `status.confirm` left green and this guard fired.
+ *
+ * ── Why the rule does not reach here ────────────────────────────────────────
+ *
+ * Design's reason for the rule is a claim about **severity**: *a gauge reading
+ * and a status chip are different claims, and sharing a colour makes a 61 look
+ * like something you can dismiss.* The damage is that a warning stops reading
+ * as a warning — a recall chip wearing the amber the dial spends on Critical.
+ *
+ * `confirm` and the `good` band make the **same** claim: nothing here needs
+ * you. There is no severity to blur, and giving "resolved" its own hue is what
+ * the collapse removed — it would put a third colour back on a two-hue system
+ * to distinguish two shades of *fine*.
+ *
+ * ── What is still forbidden ─────────────────────────────────────────────────
+ *
+ * Only `good`. `confirm` matching `warn` or `bad` is a genuine collision — a
+ * success chip in the colour of a fault — and is still caught below, with its
+ * own case proving it.
+ */
+const CONFIRM_MAY_MATCH = 'good' as const;
 
 describe('the status family and the health ramp', () => {
   const ramp = healthRampHexes();
@@ -82,14 +126,14 @@ describe('the status family and the health ramp', () => {
       an empty map and every assertion below would pass against nothing.
     */
     expect(ramp.size).toBeGreaterThanOrEqual(4);
-    expect(STATUS_INKS.length).toBeGreaterThan(4);
+    expect(WARNING_INKS.length).toBeGreaterThan(4);
     for (const hex of Array.from(ramp.values())) expect(hex).toMatch(/^#[0-9A-F]{6}$/);
   });
 
   it('shares no value between them', () => {
     const rampValues = new Set(Array.from(ramp.values(), (h) => h.toUpperCase()));
 
-    const collisions = STATUS_INKS.filter((token) => {
+    const collisions = WARNING_INKS.filter((token) => {
       const value = status[token];
       return typeof value === 'string' && rampValues.has(value.toUpperCase());
     }).map((token) => {
@@ -113,6 +157,38 @@ describe('the status family and the health ramp', () => {
     const planted = healthBandHex(getHealthBandJudgement(45)); // `warn` — the historic collision
 
     expect(rampValues.has(planted.toUpperCase())).toBe(true);
+  });
+
+  it('lets confirm share only the "good" band, never a fault', () => {
+    /*
+      The carve-out, asserted from both sides so it cannot quietly widen into
+      "confirm is exempt". See CONFIRM_MAY_MATCH for the reasoning.
+    */
+    const ramp2 = healthRampHexes();
+    const good = ramp2.get(CONFIRM_MAY_MATCH);
+    const faults = Array.from(ramp2.entries())
+      .filter(([name]) => name !== CONFIRM_MAY_MATCH)
+      .map(([, hex]) => hex.toUpperCase());
+
+    expect(good).toBeDefined();
+    // Permitted, and currently the case on both clients.
+    expect(status.confirm.toUpperCase()).toBe(good);
+    // Still forbidden: a success chip wearing a fault's colour.
+    expect(faults).not.toContain(status.confirm.toUpperCase());
+    expect(faults.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps the danger family on one hue', () => {
+    /*
+      The same shape as the attention case below, added 5 Sep when the danger
+      family left red for sodium. Its wash was `rgba(248,113,113,…)` following a
+      `#F87171` ink; both moved together, and this is what keeps them together.
+    */
+    const ink = status.dangerText.replace('#', '');
+    const channels = [0, 2, 4].map((i) => parseInt(ink.slice(i, i + 2), 16)).join(',');
+
+    expect(status.dangerWash).toContain(channels);
+    expect(status.dangerWashBorder).toContain(channels);
   });
 
   it('keeps the attention family on one hue', () => {

@@ -3,6 +3,24 @@ import { EDITORIAL_FACE, interFace } from './fonts';
 /**
  * The mobile token layer — Well Kept v8, native.
  *
+ * ── ⚠ 5 Sep: the two-hue collapse reached this file ────────────────────────
+ *
+ * Until today it had not. The 4–5 September design work moved web onto two
+ * hues — **sodium is the warning axis, cold cyan is information and the build
+ * ramp, and good news is off-white ink rather than a colour** — and touched
+ * `apps/mobile` in exactly zero commits. The health ramp crossed anyway,
+ * because it lives in `@wellkept/core/health-band` and the screens read it at
+ * runtime; nothing else did. So the phone spent a day rendering the previous
+ * system beside a ramp from the new one, which is the half-applied state
+ * `CLAUDE.md` §6 is about, and it was invisible because
+ * `retired-palette-literals.test.ts` scanned `app`, `components` and `hooks`
+ * and never looked here. That scan now covers this directory.
+ *
+ * What moved: `register.accent`, `status.confirm`, `status.dangerText` and its
+ * two washes, the whole `build` ramp, and the red fills below. What did not:
+ * the surface ladder, the type scale, the spacing — none of which the collapse
+ * touched on web either.
+ *
  * Source: `HANDOFF_mobile_baseline.md` (14 Aug) and the `Mobile Baseline`
  * board, cross-checked against `app/globals.css`. **Nothing here is invented
  * for mobile.** Where a value could be read off the repository it was, and
@@ -147,7 +165,7 @@ export const brand = {
  */
 export const register = {
   /** Web `--register-accent` in the default register — `--info`. */
-  accent: '#8FB4C4',
+  accent: '#7EC8DC',
 } as const;
 
 /**
@@ -171,30 +189,60 @@ export const register = {
  * recall chip beside it in the same amber the dial uses for Critical.
  *
  * `critical: '#E08882'` is **gone** rather than recoloured. It had no call
- * sites — the critical chip reads `dangerText` (`#F87171`, which is already the
- * system's value) and the banners read `criticalFill`/`criticalBorder`. A dead
- * token holding a colliding hex is how a collision comes back.
+ * sites — the critical chip reads `dangerText` and the banners read
+ * `criticalFill`/`criticalBorder`. A dead token holding a colliding hex is how
+ * a collision comes back.
+ *
+ * ⚠ **5 Sep: the reds left, and `attention` did not move.** `dangerText` was
+ * `#F87171` and `danger` was `#DC2626` — a red family sitting beside a sodium
+ * one, which is the second hue the collapse exists to remove. They are now
+ * `--critical` and a solid sodium, and `attention` keeps `#FB923C` because it
+ * was already on the surviving axis. The two families still rhyme without
+ * matching, which is the ruling above and is unaffected by the collapse.
+ *
+ * The delete button was the accidental beneficiary: `text.primary` on `#DC2626`
+ * measured **4.36:1**, under AA, and nothing was asserting it. On the sodium
+ * fill it is 5.68:1.
  *
  * A build reading must still never be coloured from either — a low build is
  * stock, not a fault.
  */
 export const status = {
-  confirm: '#4ADE80',
+  /**
+   * Good news is off-white ink, not a colour.
+   *
+   * This was `#4ADE80` — the green that made "resolved" a third hue in a
+   * two-hue system. Web's `--confirm` is the same off-white as `--ring-good`,
+   * and for the same reason: a car with nothing wrong should read as
+   * unremarkable rather than as a small celebration.
+   */
+  confirm: '#EDE7DF',
   /**
    * Fill behind a success banner, as opposed to `confirm` which is ink.
    *
-   * This app's own shipped value — web has no equivalent banner — kept because
-   * `contrast.test.tsx` already measures white on it. Folds into the
-   * `AlertBanner` primitive in step 2 and should not gain a second caller
-   * before then.
+   * ⚠ **5 Sep: this stopped being green, and stopped being the border too.**
+   *
+   * It was `rgba(22,163,74,0.95)`, and the claim above — that the rendered
+   * suite measured white on it — did not survive checking: `text.primary` on
+   * that green is **2.98:1**, and both callers set exactly that ink. The banner
+   * has been under AA since it shipped and no assertion covered the pair.
+   *
+   * Web's answer is `--confirm-wash` over `--confirm-border`: the identity
+   * lives in the **edge**, not in a fill hue. A wash is wrong here, though —
+   * `GarageScreen`'s deleted-notice is absolutely positioned over the garage,
+   * so its backdrop is unknown, and that is the exact shape of the 4.47:1
+   * defect this file's other notes keep returning to. So the fill is a solid
+   * neutral step (14.47:1) and `confirmBorder` carries the off-white edge.
    */
-  confirmFill: 'rgba(22,163,74,0.95)',
+  confirmFill: '#252119',
+  /** Web `--confirm-border`. The banner's identity is its edge, not a hue. */
+  confirmBorder: 'rgba(237,231,223,0.28)',
   /** Design's value, 23 Aug. Not the health ramp's `warn` — see the docblock. */
   attention: '#FB923C',
-  danger: '#DC2626',
-  dangerText: '#F87171',
+  danger: '#9E460D',
+  dangerText: '#FF8A3D',
   /** Pressed danger. Deepens, for the same reason the primary does. */
-  dangerPressed: '#B91C1C',
+  dangerPressed: '#7E370A',
 
   /**
    * ── Banner pairs ──────────────────────────────────────────────────────────
@@ -204,13 +252,16 @@ export const status = {
    * park-outside warning — and a wash over an unknown backdrop is exactly where
    * the 4.47:1 defect came from on the advisor CTA.
    *
-   * Both pairs are this app's own measured values, kept rather than re-derived
-   * because `mobile-text-contrast.test.ts` already measures white on them. They
-   * become the `AlertBanner` primitive's `critical` and `attention` tones in
-   * step 2 and should gain no other caller.
+   * ⚠ **The attention pair is this app's own measured value; the critical pair
+   * is no longer.** Both used to be, and the note here said so. On 5 Sep the
+   * critical pair was re-derived onto sodium — it was a dark *red*, the hue the
+   * collapse removes — and re-measured rather than assumed: `#431805` carries
+   * `text.primary` at 13.82:1 against the 13.88:1 it replaces, so the change is
+   * hue-only and costs no contrast. The attention pair did not move, because
+   * dark amber was already on the surviving axis.
    */
-  criticalFill: '#4A0F0F',
-  criticalBorder: '#7F1D1D',
+  criticalFill: '#431805',
+  criticalBorder: '#8A3D0E',
   attentionFill: '#4A3308',
   attentionBorder: '#854D0E',
   /** Danger edge on a field that failed validation. */
@@ -221,8 +272,8 @@ export const status = {
    * Distinct from the solid banner pairs above on purpose: a wash is fine when
    * the message can wait, and wrong when it cannot.
    */
-  dangerWash: 'rgba(248,113,113,0.06)',
-  dangerWashBorder: 'rgba(248,113,113,0.3)',
+  dangerWash: 'rgba(255,138,61,0.06)',
+  dangerWashBorder: 'rgba(255,138,61,0.3)',
   /*
     ⚠ The wash follows the ink. It was `rgba(251,191,36,…)` — amber-400, a
     **third** amber in a family that is supposed to have one — so a chip drew
@@ -327,13 +378,33 @@ export const plinth = {
   catchLight: 'rgba(255,255,255,0.16)',
 } as const;
 
-/** Build continuum paint. Zone selection lives in `@wellkept/core/build-progress`. */
+/**
+ * Build continuum paint. Zone selection lives in `@wellkept/core/build-progress`.
+ *
+ * ⚠ **The ramp runs cold, and `warm` and `far` are names rather than
+ * descriptions.** It used to climb amber into orange, which put a heavily
+ * modified car on the same axis as a failing one — a build reading is stock or
+ * not, never a fault, and the note in `status` above has always said so while
+ * the colours quietly disagreed.
+ *
+ * The collapse resolves it by giving the whole ramp to cyan: `#7d8794` →
+ * `#8FB6C6` → `#6FC9E4` → `#3ED0F0`, cooling and brightening as the build gets
+ * further from stock. Sodium is left to mean warning and nothing else.
+ * `redline` stays hot on purpose — it is the one reading on this ramp that *is*
+ * a warning.
+ *
+ * The key names are unchanged, deliberately: they are read by
+ * `@wellkept/core/build-progress` and by web's `--build-*`, and renaming them
+ * to match the new hues would be a breaking change to a shared contract in
+ * exchange for nothing. Web carries `--build-warm` as a cyan for the same
+ * reason.
+ */
 export const build = {
   stock: '#7D8794',
-  mild: '#9FC8D8',
-  warm: '#E0C168',
-  far: '#F0A35E',
-  redline: '#FF4436',
+  mild: '#8FB6C6',
+  warm: '#6FC9E4',
+  far: '#3ED0F0',
+  redline: '#FF5A0A',
 } as const;
 
 /**

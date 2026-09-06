@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   critical: { backgroundColor: status.criticalFill, borderColor: status.criticalBorder },
   attention: { backgroundColor: status.attentionFill, borderColor: status.attentionBorder },
-  confirm: { backgroundColor: status.confirmFill, borderColor: status.confirmFill },
+  confirm: { backgroundColor: status.confirmFill, borderColor: status.confirmBorder },
 
   /*
     White on all three fills, measured. The tone lives in the fill rather than

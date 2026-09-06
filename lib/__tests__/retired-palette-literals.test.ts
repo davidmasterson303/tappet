@@ -34,7 +34,24 @@ import { join } from 'node:path';
  */
 
 const ROOT = join(__dirname, '..', '..');
-const SURFACES = ['app', 'components', 'hooks'].map((d) => join(ROOT, d));
+/*
+  ⚠ `apps/mobile/src` is on this list as of 5 Sep, and its absence was the
+  whole reason the phone spent a day on the previous palette.
+
+  The scan was written during the web migration and scoped to the web surfaces,
+  which is the natural thing to do and is exactly the hole: `apps/mobile` holds
+  its own token layer in TypeScript, so every value the collapse retired had a
+  hand-typed twin here that nothing was looking at. The health ramp crossed on
+  its own because it lives in `@wellkept/core/health-band` and is read at
+  runtime; nothing else did, and the result was a phone rendering the old system
+  beside one band of the new one.
+
+  A guard scoped to the client that happened to be migrating first is a guard
+  that reports clean on the client that did not.
+*/
+const SURFACES = ['app', 'components', 'hooks', join('apps', 'mobile', 'src')].map(
+  (d) => join(ROOT, d)
+);
 
 /**
  * Values this system used to hold, and no longer does.
@@ -55,6 +72,23 @@ const RETIRED: ReadonlyArray<{ pattern: RegExp; was: string }> = [
   { pattern: /#F87171/i, was: '--critical-red, before the two-hue collapse' },
   { pattern: /#4ADE80/i, was: '--confirm-green, before the two-hue collapse' },
   { pattern: /#8FB4C4/i, was: '--info, before the two-hue collapse' },
+
+  /*
+    The mobile theme's own retirements, 5 Sep. These never had a web twin —
+    `apps/mobile/src/theme/index.ts` carried a red status family and a warm
+    build ramp that web had already left, and they are named here so a call site
+    reintroducing one fails rather than being found by looking at a phone.
+  */
+  { pattern: /#DC2626/i, was: 'mobile status.danger, before the collapse' },
+  { pattern: /#B91C1C/i, was: 'mobile status.dangerPressed, before the collapse' },
+  { pattern: /#4A0F0F/i, was: 'mobile status.criticalFill, before the collapse' },
+  { pattern: /#7F1D1D/i, was: 'mobile status.criticalBorder, before the collapse' },
+  { pattern: /22[,\s]+163[,\s]+74/, was: 'mobile status.confirmFill green, before the collapse' },
+  { pattern: /248[,\s]+113[,\s]+113/, was: 'mobile dangerWash, before the collapse' },
+  { pattern: /#9FC8D8/i, was: 'mobile build.mild, before the ramp went cold' },
+  { pattern: /#E0C168/i, was: 'mobile build.warm, before the ramp went cold' },
+  { pattern: /#F0A35E/i, was: 'mobile build.far, before the ramp went cold' },
+  { pattern: /#FF4436/i, was: 'mobile build.redline, before the ramp went cold' },
 ];
 
 /**
@@ -85,6 +119,17 @@ const files = SURFACES.flatMap((d) => tsxFiles(d));
 describe('retired palette values', () => {
   it('found sources to scan, so this cannot pass vacuously', () => {
     expect(files.length).toBeGreaterThan(50);
+  });
+
+  it('reaches every surface it names, mobile included', () => {
+    /*
+      The count above passes on the web surfaces alone, so it would have stayed
+      green through the entire year this scan could not see `apps/mobile`. This
+      asserts the directory is actually in the walk.
+    */
+    for (const dir of ['app/', 'components/', 'hooks/', 'apps/mobile/src/']) {
+      expect(files.some((f) => f.replace(ROOT + '/', '').startsWith(dir))).toBe(true);
+    }
   });
 
   it('can still detect a retired value', () => {

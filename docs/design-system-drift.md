@@ -597,7 +597,46 @@ is what it is for. **So this change reaches the iOS app too**, and the phone has
 not been looked at since.
 
 
-### 3.12 ⚠ The iOS app is running the pre-4-September system — audit, 5 Sep
+### 3.12 ✅ The iOS app has been ported — audit 5 Sep, closed 5 Sep
+
+**Resolved for colour; the radius row is deliberately still open.** The audit
+below is kept as written, because the table is the record of what diverged and
+the argument for the build ramp is the reason the port was worth doing.
+
+What was done, later the same day, on David's instruction to port before
+spending an EAS slot:
+
+- **Every colour row above is closed.** `status.confirm`, `status.dangerText`,
+  `status.danger` and its pressed state, the critical banner pair, and the whole
+  `build` ramp now hold the web values. The green success banner went with them:
+  `confirmFill` was a hue, and under the collapse good news is off-white ink, so
+  the fill is a neutral step and a new `confirmBorder` carries the identity.
+- **Two contrast defects fell out of it.** `text.primary` on the old
+  `status.danger` measured **4.36:1** — under AA — and on the green
+  `confirmFill` **2.98:1**. Nothing asserted either pair; `AlertBanner`'s
+  `confirm` tone is rendered by no test. Both are now comfortably over the
+  floor (5.68:1 and 14.47:1) as a side effect of the hue change.
+- **Option 2 was taken in part.** `retired-palette-literals.test.ts` now scans
+  `apps/mobile/src`, which is the hole that let this run for a day — it was
+  scoped to the web surfaces because that is where the migration started, so it
+  reported clean on the client that had not moved. It is proven against a
+  planted value in a mobile file.
+- **`status-ramps-distinct.test.ts` was narrowed rather than relaxed.** It
+  fired on a *correct* change: `--confirm` and `--ring-good` are one value on
+  web by design, so "the two families never share a colour" stopped being true
+  the moment mobile was right. The rule now covers the warning axis, where its
+  stated reason — severity blurring — actually lives, and the historic
+  `attention == warn` collision still fails it.
+
+⚠ **Still open: the radius row.** 8/12/14 on native against 0/5/8-plus-chamfer
+on web is the one row that is plausibly option 3 — a dialect may round its
+corners where the other mills them — and it is a visual call rather than a
+token sync, so it is Design's to make and is not being made here.
+
+⚠ **Still true: nothing here is on the phone.** The port is JS-only and so is
+free of a native rebuild, but it reaches a device only through an EAS build.
+
+The audit, as originally written:
 
 No build was made and nothing on the phone was changed. This is the comparison
 David asked for after the web palette moved, and it is worse than expected.
