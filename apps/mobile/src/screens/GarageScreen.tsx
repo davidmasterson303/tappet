@@ -749,7 +749,18 @@ const styles = StyleSheet.create({
     */
     paddingHorizontal: space.lg,
   },
-  heading: { ...type.editorial, color: text.primary, letterSpacing: -0.6 },
+  /*
+    ⚠ The serif came off this title on 6 Sep. Locked brief B1: *"No serif except
+    the WK mark; condensed-grotesk caps for titles, model names and section
+    heads."*
+
+    `type.editorial` is still the right token for the wordmark and wrong for
+    everything else — the lockup beside this string is the one serif the screen
+    is allowed. The `letterSpacing: -0.6` went with it: that was a serif's
+    negative tracking, and `type.display` sets its own positive figure because
+    caps need opening up rather than closing.
+  */
+  heading: { ...type.display, color: text.primary },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   /*

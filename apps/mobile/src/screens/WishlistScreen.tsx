@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { ...type.label, color: text.muted },
   summaryTotal: {
-    ...type.editorial,
+    ...type.display,
     fontSize: 26,
     lineHeight: 32,
     color: text.primary,

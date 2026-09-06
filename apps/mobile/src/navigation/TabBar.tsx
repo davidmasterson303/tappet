@@ -105,12 +105,19 @@ export default function TabBar({
             */
             accessibilityState={{ selected }}
             accessibilityLabel={tab.label}
-            style={styles.tab}
+            style={[styles.tab, selected && styles.tabOn]}
           >
             <Icon
               name={tab.icon}
               size={22}
-              color={selected ? brand.accent : text.muted}
+              /*
+                ⚠ B8: off-white when active, not cyan. The active tab used to be
+                drawn *in* the accent — icon and label both — which made cyan an
+                ink. In this system cyan is a rule and a focus ring; the moment
+                it becomes ink, "active" and "informational" are the same colour
+                and the overline below has nothing left to say.
+              */
+              color={selected ? text.primary : text.muted}
             />
             <Text style={[styles.label, selected && styles.labelOn]}>{tab.label}</Text>
           </Pressable>
@@ -134,7 +141,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minHeight: TARGET_MIN,
+    /*
+      The overline's gutter, transparent at rest. Reserved rather than added on
+      selection, so the icon does not step down two points as you move between
+      tabs.
+    */
+    borderTopWidth: 2,
+    borderTopColor: 'transparent',
+    marginTop: -space.sm,
+    paddingTop: space.sm,
   },
-  label: { ...type.label, letterSpacing: 0, color: text.muted },
-  labelOn: { color: brand.accent },
+  /* B8: "tab-bar active is a cyan overline with off-white ink". */
+  tabOn: { borderTopColor: brand.accent },
+  /* B1: a tab label is a label. */
+  label: { ...type.monoLabel, color: text.muted },
+  labelOn: { color: text.primary },
 });

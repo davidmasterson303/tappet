@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     only carries "Recalls", and there is no numeral on this screen competing
     for it.
   */
-  name: { ...type.editorial, color: text.primary, letterSpacing: -0.5 },
+  name: { ...type.display, color: text.primary },
   /** Quiet, and above the 12px floor. A caveat, not a warning. */
   matchCaveat: { ...type.value, color: text.muted },
   count: { color: text.muted, fontSize: 14, marginTop: -10 },

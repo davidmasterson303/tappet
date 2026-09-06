@@ -54,20 +54,43 @@ export default function AlertBanner({
 
 const styles = StyleSheet.create({
   banner: {
-    borderRadius: radius.card,
+    /* B4: zero radius; the cut is carried by controls, not by a report. */
     borderWidth: 1,
     padding: space.lg,
     gap: space.xs,
   },
+  /*
+    ── ⚠ 6 Sep · B7: the fills became lines, and one of them did not ─────────
+
+    B7: *"Sodium only on genuine warnings as line; cyan only as focus, active
+    rule and refresh ramp; no hue fills except the destructive confirm."*
+
+    ⚠ **The `critical` fill is deliberately kept.** The note on `criticalFill`
+    in `theme/index.ts` is load-bearing and predates this brief: these carry the
+    only time-critical instructions in the product — a do-not-drive recall, a
+    park-outside warning — and the pair is *measured*, `text.primary` at 13.82:1
+    on `#431805`. Trading a measured solid for a hairline on the one banner that
+    tells somebody not to drive their car is the wrong side of a safety trade,
+    and B7's own exception ("except the destructive confirm") shows the brief
+    already accepts that some instructions outrank the rule.
+
+    `attention` and `confirm` are not that. They report a state — a count, a
+    success — and a state is a line under this system. Both drop to a hairline
+    with their ink intact.
+
+    ⚠ So a filled banner in this app now *means* "act on this before driving".
+    That is a stronger signal than it was when three tones were filled, which is
+    the point.
+  */
   critical: { backgroundColor: status.criticalFill, borderColor: status.criticalBorder },
-  attention: { backgroundColor: status.attentionFill, borderColor: status.attentionBorder },
-  confirm: { backgroundColor: status.confirmFill, borderColor: status.confirmBorder },
+  attention: { borderColor: status.attentionBorder },
+  confirm: { borderColor: status.confirmBorder },
 
   /*
     White on all three fills, measured. The tone lives in the fill rather than
     in the ink: coloured text on a coloured banner is how one of these ends up
     at 3:1 without anyone choosing it.
   */
-  headline: { ...type.title, fontSize: 17, lineHeight: 23, color: text.primary },
-  body: { ...type.ui, color: text.secondary },
+  headline: { ...type.displaySection, color: text.primary },
+  body: { ...type.mono, color: text.secondary },
 });

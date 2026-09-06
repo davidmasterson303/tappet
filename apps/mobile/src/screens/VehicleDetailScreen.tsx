@@ -48,7 +48,7 @@ import {
   detailHeroHeight,
   heroBands,
 } from '../theme/hero-motion';
-import { TABULAR, border, brand, hero, plinth, radius, space, surface, text, type } from '../theme';
+import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
 
 /*
@@ -315,6 +315,18 @@ type State =
     }
   | { status: 'missing' }
   | { status: 'error'; message: string; unauthorized: boolean };
+
+/**
+ * The ink a reading takes: off-white unless the ramp calls it a warning.
+ *
+ * ⚠ Named against the band rather than a numeric threshold, so the boundary
+ * stays owned by `@wellkept/core/health-band`. A `score < 60` written here
+ * would be the phone holding a second opinion about where "Fair" ends — the
+ * drift that module exists to prevent.
+ */
+const WARNING_INK = (band: { name: string }) => ({
+  color: band.name === 'warn' || band.name === 'bad' ? status.attention : text.primary,
+});
 
 export function VehicleDetailScreen({
   vehicleId,
@@ -943,8 +955,21 @@ export function VehicleDetailScreen({
             paragraph under it.
           */}
           <View style={styles.scoreHead}>
-            <Text style={[styles.scoreValue, { color: healthBandHex(band) }]}>{score}</Text>
-            <Text style={[styles.scoreBand, { color: healthBandHex(band) }]}>{band.label}</Text>
+            {/*
+              ── ⚠ 6 Sep · B3 and B7: the score stopped wearing the band ──────
+
+              Both of these took `healthBandHex(band)` at every reading, so a 70
+              printed in the `ok` band's `#D6BE9B` — the gold B3 names and bans,
+              and a third hue on a two-hue system. The dial one screen away had
+              already moved to off-white ink; this was the same reading in a
+              different colour, on the same car.
+
+              The band table is untouched and still consulted — `WARNING_INK`
+              below spends sodium only where the ramp says there is a genuine
+              warning. What changed is that a sound reading is ink.
+            */}
+            <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
+            <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
           </View>
 
           {/*
@@ -977,7 +1002,20 @@ export function VehicleDetailScreen({
             read do not make one thing to press.
           */}
           <View style={styles.cardExit}>
-            <NavRow icon="gauge" label="What is driving this score" onPress={onOpenHealth} last />
+            {/*
+              ⚠ 6 Sep: `sliders`, not `gauge`. The critique put this on its Cut
+              list twice and the second time named why: *"the brief removed the
+              needle from the dial; it has returned as an icon."* B3 deletes the
+              needle, the scale and the gauge glyph from the instrument, and
+              reintroducing that exact drawing at 20pt beside a row label puts
+              the retired object back on screen with a caption.
+
+              The icon is **swapped rather than dropped**: its five sibling rows
+              in this hub all carry one, and a single row without would read as a
+              rendering fault rather than as restraint. `sliders` says the same
+              thing this row means — the inputs behind a reading.
+            */}
+            <NavRow icon="sliders" label="What is driving this score" onPress={onOpenHealth} last />
           </View>
         </Card>
       )}
@@ -1004,8 +1042,15 @@ export function VehicleDetailScreen({
           accessibilityRole="button"
           accessibilityLabel={`View ${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
         >
+          {/*
+            ⚠ 6 Sep · B7: `attention`, not `critical`. A *count* of open recalls
+            is a state — it says there is something to read, not that the car is
+            unsafe to drive tonight. `critical` is now the only filled tone in
+            the app (see `AlertBanner`), and spending it here would flatten the
+            difference between "two recalls exist" and "do not drive this".
+          */}
           <AlertBanner
-            tone="critical"
+            tone="attention"
             headline={`${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
             body={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
           />
@@ -1114,7 +1159,7 @@ export function VehicleDetailScreen({
           hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
           style={({ pressed }) => [styles.pill, styles.backPill, pressed && styles.pillPressed]}
         >
-          <Icon name="chevron-left" size={16} color={brand.accent} />
+          <Icon name="chevron-left" size={16} color={text.primary} />
           <Text style={styles.backLabel}>Garage</Text>
         </Pressable>
 
@@ -1237,8 +1282,15 @@ const styles = StyleSheet.create({
    * photograph — see that component for the argument. The size comes from
    * `heroBands`, because the compact branch drops it to 28.
    */
-  name: { ...type.editorial, color: text.primary, letterSpacing: -0.5 },
-  subtitle: { ...type.body, fontSize: 15, color: text.secondary, marginTop: 4 },
+  name: { ...type.display, color: text.primary },
+  /*
+    ⚠ 6 Sep · B1 and B2: the stat strip is mono. This read "66,000 mi · xDrive ·
+    Daily Driver" in the body sans, so a line made entirely of *values* — a
+    mileage, a drivetrain, a usage — was set in the one face the system reserves
+    for sentences. B2 asks for the strip beneath the plate to be mono; B1 asks
+    for every value to be.
+  */
+  subtitle: { ...type.mono, color: text.secondary, marginTop: 4, ...TABULAR },
 
   photoAction: { position: 'absolute', right: space.lg, bottom: space.lg },
   /**
@@ -1260,9 +1312,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillPressed: { backgroundColor: surface.raised },
-  pillLabel: { ...type.label, color: text.primary },
+  pillLabel: { ...type.monoLabel, color: text.primary },
   backPill: { paddingLeft: space.sm },
-  backLabel: { ...type.uiStrong, color: brand.accent },
+  /*
+    ⚠ B7: cyan is "focus, active rule and refresh ramp" — never ink. A back
+    label drawn in the accent made the most-pressed control on the screen the
+    same colour as the system's information signal.
+  */
+  backLabel: { ...type.monoNav, color: text.primary },
 
   /* ── z2 · the sheet ───────────────────────────────────────────────────── */
   scroller: { flex: 1 },
@@ -1283,7 +1340,13 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   /** The batten's lit hairline, on the leading edge. `environment.css`'s gradient. */
-  sheetEdge: { height: 1, backgroundColor: brand.accent, opacity: 0.55 },
+  /*
+    ⚠ B7 and the critique's Cut list: this was a cyan rule under the plate with
+    no state to report — decoration in the one hue the system reserves for
+    meaning. A hairline still separates the sheet from the photograph; it is
+    just not a signal any more.
+  */
+  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel },
 
   /* ── z6 · the nav ─────────────────────────────────────────────────────── */
   navPlate: {
@@ -1336,7 +1399,7 @@ const styles = StyleSheet.create({
     the numeral is the hero, and that is where role (b) is spent.
   */
   scoreValue: { ...type.title, fontSize: 30, lineHeight: 34, ...TABULAR },
-  scoreBand: { ...type.label, color: text.muted },
+  scoreBand: { ...type.monoLabel, color: text.muted },
 
   body: { padding: space.lg, gap: space.md },
 

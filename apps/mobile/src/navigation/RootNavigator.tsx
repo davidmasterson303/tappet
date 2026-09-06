@@ -31,7 +31,7 @@ import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
 import { VehicleProfileScreen } from '../screens/VehicleProfileScreen';
 import Icon from '../components/Icon';
-import { surface, text } from '../theme';
+import { surface, text, type } from '../theme';
 
 /**
  * The signed-in stack. Phase 3 task 3.5, pulled forward.
@@ -345,10 +345,97 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
+/*
+  ── ⚠ 6 Sep · B1 and B8: the nav bar stopped being Apple's ──────────────────
+
+  This was four lines that set colours and left every other decision to UIKit,
+  which meant six of the app's seven screens opened on a **centred, system-sans
+  title** — the single most repeated off-system element in the product, and the
+  thing that made every screen after the garage read as a stock iOS app.
+
+  B8: *"condensed large titles collapse to mono"*. B1: *"mono for every value,
+  date, index, state and tab label"* — a nav title is the collapsed form of a
+  screen's name, so it takes the mono the brief gives the collapsed state.
+
+  ⚠ **`headerTitleAlign: 'left'` is the load-bearing one.** The system's titles
+  are left-aligned everywhere — web sets them that way and the garage root
+  already does — and a centred nav title over a left-aligned screen is the seam
+  the critique kept finding between the two.
+
+  ⚠ **The caps are in the `title` strings, not here.** `headerTitleStyle` is
+  handed to a native `UILabel`, which honours `fontFamily`, `fontSize`,
+  `fontWeight` and `color` and silently ignores `textTransform` — so writing the
+  transform here would have produced sentence-case titles with no error and no
+  symptom, which is the §6 shape exactly. Each `title` below is written in caps
+  instead.
+*/
+/**
+ * ── ⚠ 6 Sep · B8: the root's own title, and why it is a *native* large title ─
+ *
+ * B8: *"condensed large titles collapse to mono"*. The brief wants a screen to
+ * open on a left-aligned 34pt condensed caps title that becomes the mono nav
+ * title as you scroll.
+ *
+ * ⚠ **`headerTitleAlign: 'left'` does not do this on iOS.** It is a JS-stack
+ * option; `native-stack` hands the header to UIKit, which centres a plain title
+ * and ignores the alignment. The property that actually produces a left-aligned
+ * title *and* the collapse-on-scroll behaviour is `headerLargeTitle`, which is
+ * UIKit's own — so the brief's two clauses are one platform feature, and trying
+ * to build them separately is how you end up with a centred title and a
+ * hand-rolled scroll listener.
+ *
+ * Applied per root rather than in `screenOptions`, because a *pushed* screen
+ * must not have one: a large title on the third screen of a stack is the phone
+ * announcing a new section where the user took one step.
+ */
+/**
+ * ── ⚠ 6 Sep · B8: a tab root's header, and why it is conditional ────────────
+ *
+ * B8 asks for *"a left-aligned 34pt condensed-grotesk caps title that collapses
+ * on scroll into a mono caps nav title"* and for roots to carry no back chevron.
+ *
+ * Two things had to be unpicked to get there:
+ *
+ * **`headerTitle` is blanked** because the condensed name is drawn in the screen
+ * by `ScreenTitle`. Leaving the nav title on as well put two names on one screen
+ * — and on Account, with a pre-existing in-body heading, three, which the
+ * critique called out as a regression by name.
+ *
+ * **`headerShown` follows `canGoBack()`** because blanking the title alone left
+ * an empty header band — ~120pt of graphite above a hairline. `Service` is both
+ * a root (the History tab resets to it) and a pushed screen (the car's hub
+ * pushes it), so this cannot be a static choice. `canGoBack()` asks exactly the
+ * right question: the pushed instance keeps its back button, the root instance
+ * gets the clean top edge `GarageScreen` always had.
+ *
+ * ⚠ **`title` stays set even when the header is hidden.** It is what the *next*
+ * screen's back button reads; hiding a header does not remove that, it only
+ * removes the value it would have used — which is how six screens once read
+ * "‹ VehicleDetail".
+ *
+ * ⚠ **This gives up the collapse-on-scroll half of B8 for now.** Showing both
+ * titles at rest is not a collapse, it is two titles. A scroll-driven swap needs
+ * a listener per root and is more than a styling change.
+ */
+const rootTitle =
+  (title: string) =>
+  ({ navigation }: { navigation: { canGoBack: () => boolean } }) => ({
+    title,
+    headerShown: navigation.canGoBack(),
+    headerTitle: '',
+  });
+
 const screenOptions = {
   headerStyle: { backgroundColor: surface.page },
   headerTintColor: text.primary,
-  headerTitleStyle: { color: text.primary },
+  headerTitleAlign: 'left' as const,
+  headerTitleStyle: {
+    color: text.primary,
+    fontFamily: type.monoNav.fontFamily,
+    fontSize: type.monoNav.fontSize,
+    letterSpacing: type.monoNav.letterSpacing,
+  },
+  headerShadowVisible: false,
   contentStyle: { backgroundColor: surface.page },
 } as const;
 
@@ -550,7 +637,7 @@ export function RootNavigator({
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="AddVehicle" options={{ title: 'Add a car' }}>
+        <Stack.Screen name="AddVehicle" options={{ title: 'ADD A CAR' }}>
           {({ navigation }) => (
             <AddVehicleScreen
               onSignOut={onSignOut}
@@ -698,7 +785,7 @@ export function RootNavigator({
             long as it is and where it says what the thread is *about*. See
             `AdvisorScreen`'s `vehicleTitle`.
           */
-          options={{ title: 'Advisor' }}
+          options={rootTitle('ADVISOR')}
         >
           {({ route }) => (
             <AdvisorScreen
@@ -727,7 +814,7 @@ export function RootNavigator({
           drive. The title is `Health` for the same reason: a back button
           reading "Recalls" would name a screen that no longer exists.
         */}
-        <Stack.Screen name="RecallDetail" options={{ title: 'Health' }}>
+        <Stack.Screen name="RecallDetail" options={{ title: 'HEALTH' }}>
           {({ route, navigation }) => (
             <HealthScreen
               vehicleId={route.params.vehicleId}
@@ -795,7 +882,7 @@ export function RootNavigator({
           shipped service-due notifications carry, and it lands on `Due` — which
           is what such a notification is about.
         */}
-        <Stack.Screen name="Service" options={{ title: 'Service' }}>
+        <Stack.Screen name="Service" options={rootTitle('SERVICE')}>
           {({ route, navigation }) => (
             <ServiceScreen
               vehicleId={route.params.vehicleId}
@@ -825,7 +912,7 @@ export function RootNavigator({
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="WishlistAdd" options={{ title: 'What this car needs' }}>
+        <Stack.Screen name="WishlistAdd" options={{ title: 'WHAT THIS CAR NEEDS' }}>
           {({ route, navigation }) => (
             <WishlistAddScreen
               vehicleId={route.params.vehicleId}
@@ -845,7 +932,7 @@ export function RootNavigator({
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="VehicleProfile" options={{ title: 'What you told us' }}>
+        <Stack.Screen name="VehicleProfile" options={{ title: 'WHAT YOU TOLD US' }}>
           {({ route, navigation }) => (
             <VehicleProfileScreen
               vehicleId={route.params.vehicleId}
@@ -868,7 +955,7 @@ export function RootNavigator({
           the screen case. `onClose` goes with it — the stack header is the way
           back, and a "Done" beside it would be a second answer to one question.
         */}
-        <Stack.Screen name="Account" options={{ title: 'Account' }}>
+        <Stack.Screen name="Account" options={rootTitle('ACCOUNT')}>
           {() => (
             <AccountScreen
               email={email}
@@ -884,7 +971,7 @@ export function RootNavigator({
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="Health" options={{ title: 'Health' }}>
+        <Stack.Screen name="Health" options={{ title: 'HEALTH' }}>
           {({ route, navigation }) => (
             <HealthScreen
               vehicleId={route.params.vehicleId}
@@ -898,7 +985,7 @@ export function RootNavigator({
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="InvoiceScan" options={{ title: 'Scan an invoice' }}>
+        <Stack.Screen name="InvoiceScan" options={{ title: 'SCAN AN INVOICE' }}>
           {({ route }) => (
             <InvoiceScanScreen
               vehicleId={route.params.vehicleId}
@@ -919,7 +1006,7 @@ export function RootNavigator({
           to `route.name` when there is none, which is how six screens came to
           read "‹ VehicleDetail" on 23 Aug.
         */}
-        <Stack.Screen name="InvoiceDetail" options={{ title: 'Invoice' }}>
+        <Stack.Screen name="InvoiceDetail" options={{ title: 'INVOICE' }}>
           {({ route }) => (
             <InvoiceDetailScreen visit={route.params.visit} vehicleId={route.params.vehicleId} />
           )}
@@ -961,14 +1048,14 @@ export function RootNavigator({
           if (tab === 'Garage' || tab === 'History') {
             const car = lastVehicle();
             if (!car) {
-              navigation.navigate('Garage');
+              resetTo(navigation, [{ name: 'Garage' }]);
               return;
             }
             if (tab === 'Garage') {
-              navigation.navigate('VehicleDetail', {
-                vehicleId: car.vehicleId,
-                title: car.title,
-              });
+              resetTo(navigation, [
+                { name: 'Garage' },
+                { name: 'VehicleDetail', params: { vehicleId: car.vehicleId, title: car.title } },
+              ]);
               return;
             }
 
@@ -984,11 +1071,12 @@ export function RootNavigator({
               shipped notifications carry, which is the other reason not to
               build a parallel one.
             */
-            navigation.navigate('Service', {
-              vehicleId: car.vehicleId,
-              title: car.title,
-              segment: 'history',
-            });
+            resetTo(navigation, [
+              {
+                name: 'Service',
+                params: { vehicleId: car.vehicleId, title: car.title, segment: 'history' },
+              },
+            ]);
             return;
           }
 
@@ -1005,19 +1093,71 @@ export function RootNavigator({
             */
             const car = lastVehicle();
             if (car) {
-              navigation.navigate('Advisor', { vehicleId: car.vehicleId, title: car.title });
+              resetTo(navigation, [
+                { name: 'Advisor', params: { vehicleId: car.vehicleId, title: car.title } },
+              ]);
             } else {
-              navigation.navigate('Garage');
+              resetTo(navigation, [{ name: 'Garage' }]);
             }
             return;
           }
 
-          navigation.navigate(tab);
+          /* Account, and anything else the bar grows: a root is a root. */
+          resetTo(navigation, [{ name: tab }]);
         }}
       />
       </View>
     </NavigationContainer>
   );
+}
+
+/**
+ * ── ⚠ 6 Sep · B8: a tab switch resets, it never pushes ──────────────────────
+ *
+ * Locked brief B8: *"Tab roots carry no back chevron."*
+ *
+ * Every branch below used `navigation.navigate`, which **pushes onto the single
+ * stack this app has** — there is no `createBottomTabNavigator` here, just one
+ * `createNativeStackNavigator` with `TabBar` drawn over it. So moving Garage →
+ * Advisor → Account left a trail, and the Account root opened reading
+ * "‹ Advisor": a back button pointing sideways across the tab bar, to a tab you
+ * could already see.
+ *
+ * `reset` gives each tab the root the brief asks for without building four
+ * navigators — the structural rebuild is still open (see
+ * `docs/design-system-drift.md` §6.6), and this is the observable half of it.
+ *
+ * ⚠ **The Garage tab keeps two routes on purpose.** Landing on `VehicleDetail`
+ * alone would strip the "‹ Garage" back button that screen's header depends on
+ * to return to the list — a *within-tab* back, which is the dossier stack the
+ * brief describes (Garage → Vehicle → Health/Service/Plan) rather than the
+ * cross-tab chevron it forbids. Resetting to a single route here would trade
+ * one navigation defect for a worse one.
+ */
+type Nav = ReturnType<typeof useNavigationContainerRef<RootStackParamList>>;
+
+/** One route in a reset stack: a screen name and, where it takes them, params. */
+type ResetRoute = {
+  [K in keyof RootStackParamList]: RootStackParamList[K] extends undefined
+    ? { name: K; params?: undefined }
+    : { name: K; params: RootStackParamList[K] };
+}[keyof RootStackParamList];
+
+function resetTo(navigation: Nav, routes: ResetRoute[]) {
+  /*
+    ⚠ The cast is here and nowhere else, and it is narrow on purpose.
+
+    React Navigation types `reset` against its own `PartialState`, whose `routes`
+    carry optional `key`, `state` and `path` fields this app never sets.
+    `ResetRoute` above is the *stricter* shape — it ties each screen name to the
+    params that screen actually declares, so a typo or a missing `vehicleId` is
+    still a compile error at every call site. What the cast waives is only the
+    fields we deliberately omit.
+  */
+  navigation.reset({
+    index: routes.length - 1,
+    routes,
+  } as Parameters<Nav['reset']>[0]);
 }
 
 const styles = StyleSheet.create({

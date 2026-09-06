@@ -95,15 +95,35 @@ const styles = StyleSheet.create({
     that would be there reads as a section with nothing in it yet, which is what
     this is.
   */
+  /*
+    ── ⚠ 6 Sep: empty states are left-aligned, and centring is now the opt-in ─
+
+    The locked brief's studio paragraph: *"Empty states left-aligned: mono
+    caption, sans body, one button."*
+
+    This centred by default with `alignStart` as an escape hatch, and the
+    critique named the result an AI tell in **every** round — "centered heading,
+    centered body, full-width filled button… the default template, where the
+    brief asks for left-aligned", and separately "the one place the app stops
+    being left-aligned". Every other screen in this product reads from a left
+    margin; an empty state that centres is the screen changing its mind about
+    where sentences start, at the moment the user has least to look at.
+
+    So the default flipped. `alignStart` survives as a no-op prop rather than
+    being deleted, because six call sites pass it and each removal is a separate
+    diff — a surviving `alignStart` now marks a call site not yet tidied, not a
+    behaviour.
+  */
   wrap: {
     paddingVertical: space.h1,
     paddingHorizontal: space.lg,
     gap: space.sm,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
-  wrapStart: { alignItems: 'stretch' },
-  headline: { ...type.title, color: text.primary, textAlign: 'center' },
-  body: { ...type.body, color: text.muted, textAlign: 'center' },
-  alignStart: { textAlign: 'left' },
+  wrapStart: {},
+  /* B1: the headline is a section head — condensed grotesk caps. */
+  headline: { ...type.displaySection, color: text.primary, textAlign: 'left' },
+  body: { ...type.body, color: text.muted, textAlign: 'left' },
+  alignStart: {},
   action: { marginTop: space.md, alignSelf: 'stretch' },
 });

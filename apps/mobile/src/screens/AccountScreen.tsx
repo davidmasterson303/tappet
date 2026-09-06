@@ -7,6 +7,7 @@ import Field from '../components/Field';
 
 import { deleteAccount, getSubscription } from '../api/account';
 import { ApiRequestError } from '../api/client';
+import ScreenTitle from '../components/ScreenTitle';
 import { PAGE_BODY, border, brand, radius, space, status, surface, text, type } from '../theme';
 import {
   DELETION_CONFIRM_PHRASE,
@@ -164,13 +165,31 @@ export function AccountScreen({
         it is a second answer to one question.
       */}
       <View style={styles.bar}>
-        <Text style={styles.title}>Account</Text>
+        {/*
+          ── ⚠ 6 Sep · B8: the screen's name is not printed twice ─────────────
+
+          This bar printed "Account" in title-case sans, and `ScreenTitle` below
+          prints it again in condensed caps — with the mono nav title above both,
+          the critique counted **three** of the same word stacked on one screen
+          and called it a regression by name.
+
+          The bar survives because it carries "Done" when this screen is
+          presented as a modal (`onClose`), which is a different question from
+          what the screen is called. `ScreenTitle` is the name now.
+        */}
         {onClose ? (
           <Pressable onPress={handleClose} hitSlop={12} disabled={deleting}>
             <Text style={[styles.close, deleting && styles.disabledText]}>Done</Text>
           </Pressable>
         ) : null}
       </View>
+
+      {/*
+        B8: the root's own name, in the condensed grotesk. **Outside** the
+        `ScrollView` — inside it the title inherited `styles.body`'s padding on
+        top of its own and sat indented off the margin every other screen uses.
+      */}
+      <ScreenTitle>Account</ScreenTitle>
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {email && (
@@ -399,15 +418,37 @@ const styles = StyleSheet.create({
   legalRow: { minHeight: 44, justifyContent: 'center' },
   legalText: { color: text.secondary, fontSize: 15 },
 
+  /*
+    ── ⚠ 6 Sep · B5 and B7: the danger zone became a band ────────────────────
+
+    This was a sodium-tinted, sodium-bordered, rounded card — the "danger zone"
+    panel every SaaS settings page ships, and the critique named it as such
+    twice in a row under AI tells. Three brief lines at once: B5 forbids the
+    nested card, B7 forbids the hue fill ("no hue fills except the destructive
+    confirm" — the *confirm* is the button, not the container), and B4 forbids
+    the radius.
+
+    ⚠ **The section is not made quieter than it was.** Its weight now comes from
+    where it sits — last on the screen, under its own rule — and from the ink on
+    the words, rather than from a coloured box drawn around them. The confirm
+    control keeps its sodium hairline, which is where the system puts a
+    destructive action.
+  */
   danger: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: status.dangerWashBorder,
-    backgroundColor: status.dangerWash,
-    padding: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+    paddingTop: space.lg,
     gap: 10,
   },
-  dangerTitle: { color: status.dangerText, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700' },
+  /* B1: a section head is condensed grotesk caps. */
+  /*
+    ⚠ 6 Sep · B7: off-white, not sodium. The heading was sodium ink and the
+    critique caught it two rounds running — *"sodium is used as ink"*, where the
+    rule is *"sodium only on genuine warnings as line"*. A section that has not
+    happened yet is not a warning; the destructive **button** carries the sodium
+    hairline, which is where the system puts the danger.
+  */
+  dangerTitle: { ...type.displaySection, color: text.primary },
 
   /*
     E5's subscription warning. An amber panel rather than the surrounding red:

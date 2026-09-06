@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import Button from '../components/Button';
+import ScreenTitle from '../components/ScreenTitle';
 import Segmented from '../components/Segmented';
 import { ServiceHistoryScreen } from './ServiceHistoryScreen';
 import type { ServiceVisit } from '@wellkept/core/service-record';
@@ -91,6 +93,8 @@ export function ServiceScreen({
 
   return (
     <View style={styles.screen}>
+      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
+      <ScreenTitle>Service</ScreenTitle>
       <View style={styles.switcher}>
         <Segmented
           accessibilityLabel="Service"
@@ -101,6 +105,27 @@ export function ServiceScreen({
             { value: 'history', label: 'History' },
           ]}
         />
+      </View>
+
+      {/*
+        ── ⚠ 6 Sep · B9: the phone's headline act, given a control ────────────
+
+        Locked brief B9: *"Invoice scan is a first-class primary."* The studio
+        paragraph puts it plainly — *"Invoice scan is the phone's headline act: a
+        SCAN INVOICE primary on Service."*
+
+        It had none. `onScan` existed and was threaded to the history segment
+        alone, so the one thing the phone can do that the web cannot was reachable
+        only after switching tabs — while this screen's own copy read *"Scanning
+        the invoice would fix that"* with nothing beside it to scan with.
+
+        ⚠ **Above the segment content, not inside it.** The scan is not a
+        property of "due" or of "history"; it is what this screen is *for*, and a
+        primary that appears and disappears as you move between two lists is a
+        primary you cannot rely on finding.
+      */}
+      <View style={styles.scan}>
+        <Button label="Scan invoice" onPress={onScan} />
       </View>
 
       {segment === 'due' ? (
@@ -119,6 +144,8 @@ export function ServiceScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: surface.page },
+  /* Full-bleed to the page gutter; the control's own cut is its only edge. */
+  scan: { paddingHorizontal: space.lg, paddingBottom: space.md },
   /*
     Pinned above the content, on the page's own surface. Same rule as the
     history screen's search field: a control whose job is to change what is

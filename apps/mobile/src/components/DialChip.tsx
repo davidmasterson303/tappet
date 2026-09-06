@@ -3,7 +3,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { R, TRACK, VIEW_H, VIEW_W } from '@wellkept/core/cluster-geometry';
 import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
-import { TABULAR, border, plinth, radius, space, surface } from '../theme';
+import { TABULAR, border, plinth, radius, space, surface, text } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -45,7 +45,27 @@ const ARC = 26;
 
 export default function DialChip({ score }: { score: number }) {
   const band = getHealthBandJudgement(score);
-  const colour = healthBandHex(band);
+  /*
+    ── ⚠ 6 Sep · B3 and B7: the chip stopped being gold ──────────────────────
+
+    This stroked its arc and set its numeral in `healthBandHex(band)` at every
+    reading, so a 70 drew in the `ok` band's `#D6BE9B` — the gold B3 names and
+    bans, on the one element that persists through the entire scroll.
+
+    The critique's Cut list asked for this chip to go entirely, on the reading
+    that the score is repeated further down the screen. **It is not chrome and
+    it is not being removed.** R10/R25 made it a control: it is the only
+    affordance that stays in reach for the whole scroll, it carries the spoken
+    name "Health score 70 out of 100 — Fair. Opens health detail", and the
+    alternative route into health is a row most of the way down the sheet.
+    Deleting a documented, screen-reader-labelled door because a still frame
+    looked redundant would be a regression the next critique could not see.
+
+    So the violation is fixed rather than the element removed: the same rule the
+    main dial follows — ink unless the band is a genuine warning.
+  */
+  const isWarning = band.name === 'warn' || band.name === 'bad';
+  const colour = isWarning ? healthBandHex(band) : text.primary;
   const rounded = Math.round(score);
 
   /*

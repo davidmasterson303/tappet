@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   /* A fill swap on press. Never a group opacity — see `Button`. */
   nextServicePressed: { backgroundColor: surface.raised },
   /** 12/600 at 0.6 tracking — the label role, and the floor. Never smaller. */
-  nextServiceLabel: { ...type.label, color: text.muted },
+  nextServiceLabel: { ...type.monoLabel, color: text.muted },
   /*
     Right-aligned and allowed to take the slack, so the label column stays put
     across a stack of bays. A value that started at a different x on every card
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   nextServiceValue: { flex: 1, alignItems: 'flex-end' },
   nextServiceJob: { ...type.ui, color: text.primary, textAlign: 'right' },
   /* R11. "in 4,000 mi" is a figure, and figures do not reflow between bays. */
-  nextServiceTiming: { ...type.value, color: text.muted, textAlign: 'right', ...TABULAR },
+  nextServiceTiming: { ...type.mono, color: text.muted, textAlign: 'right', ...TABULAR },
   /*
     The same size, one step quieter. Not italic and not a different face: this
     is a real answer to the question, not an apology for one.
@@ -488,11 +488,21 @@ const styles = StyleSheet.create({
    * short numeric label read as a fixture rather than as a heading.
    */
   bayNumber: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: interFace('700'), fontWeight: '700',
-    letterSpacing: 2.16,
-    color: bay.light,
+    /*
+      ⚠ This was a hand-rolled size/weight/tracking triple that existed nowhere
+      in the scale — 12/16 at Inter 700 with 2.16 tracking. It is a mono index
+      label under B1, and `type.monoLabel` is that token.
+    */
+    ...type.monoLabel,
+    /*
+      ⚠ 6 Sep · B7: off-white, not `bay.light`. `bay.light` aliases
+      `brand.accent`, so the bay's index was drawn in the accent cyan — which
+      makes cyan an *ink*. In this system cyan is a rule, a focus ring and the
+      refresh ramp; the moment it labels something, "active" and "informational"
+      stop being distinguishable and the tab bar's overline has nothing left to
+      say. The bay number is a mono index like any other.
+    */
+    color: text.muted,
     ...TABULAR,
   },
   position: { ...type.label, fontFamily: interFace('500'), fontWeight: '500', letterSpacing: 0, color: text.muted, ...TABULAR },
@@ -523,8 +533,14 @@ const styles = StyleSheet.create({
    * 15 Aug: the EAS budget was confirmed at 12 iOS builds left this month, so a
    * build for a font is affordable rather than a real trade.
    */
-  name: { ...type.editorial, color: text.primary },
-  subtitle: { ...type.value, color: text.muted },
+  /*
+    ⚠ B1, 6 Sep: the serif came off the model name. It is a *name* — the thing
+    the brief sets in condensed grotesk caps — and it was the most visible
+    serif in the app, repeated once per bay.
+  */
+  name: { ...type.display, color: text.primary },
+  /* B2: the stat strip under the name is mono, not a proportional sans. */
+  subtitle: { ...type.mono, color: text.muted, ...TABULAR },
 
   instrument: { alignItems: 'center' },
   noScore: { ...type.body, color: text.muted, paddingVertical: space.xl },

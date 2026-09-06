@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
-import { TARGET_MIN, border, brand, radius, space, status, surface, text, type } from '../theme';
+import { TARGET_MIN, cut, space, status, surface, text, type } from '../theme';
+import CutSurface from './CutSurface';
 
 export type ButtonVariant = 'primary' | 'quiet' | 'outline' | 'ghost' | 'delete';
 export type ButtonSize = 'small' | 'large';
@@ -107,35 +108,60 @@ export default function Button({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: inert, busy }}
-      style={({ pressed }) => [
-        styles.base,
-        styles[size],
-        styles[variant],
-        pressed && !inert && styles[`${variant}Pressed` as const],
-        inert && styles.inert,
-        inert && variant === 'ghost' && styles.inertGhost,
-        style,
-      ]}
+      style={[styles.base, style]}
     >
-      {busy ? (
+      {({ pressed }: { pressed: boolean }) => (
         /*
-          The spinner has to be legible on the fill it spins on. `SPINNER`
-          carries the exception per variant and `text.primary` is the default —
-          the case this was written for was the retired white control, where the
-          platform default and `text.primary` were both white on white, giving a
-          control that looks empty at exactly the moment it is working.
+          ── ⚠ 6 Sep · B4: the button's shape is drawn, and it *wraps* ────────
+
+          A `backgroundColor` cannot have a 45° corner, so the fill moved into a
+          `CutSurface`.
+
+          ⚠ **It has to be the label's parent, not an absolutely-filled
+          sibling.** The first version placed it behind the label with
+          `StyleSheet.absoluteFill`, which looks identical and is wrong for a
+          reason that only shows up in the audit: `test-support/contrast.ts`
+          composites surfaces **down the ancestor chain**, so a sibling — however
+          it is positioned — is not on the path between the screen and the text.
+          Every button label came back measured against the page at 1.00:1
+          against graphite ink. Wrapping puts the declared ground where the walk
+          actually looks.
+
+          ⚠ **`ghost` gets a surface too, and paints nothing with it.** Keeping
+          the tree shape identical across variants is what stops this class of
+          bug returning: one variant whose label has a different set of
+          ancestors is one variant the audit measures differently.
         */
-        <ActivityIndicator color={SPINNER[variant] ?? text.primary} />
-      ) : (
-        <Text
-          style={[
-            styles[`${size}Label` as const],
-            styles[`${variant}Label` as const],
-            inert && styles.inertLabel,
-          ]}
+        <CutSurface
+          style={[styles.surface, styles[size]]}
+          cut={['bottomRight']}
+          size={cut.control}
+          fill={inert ? surface.disabled : FILL[variant]?.[pressed ? 1 : 0]}
+          stroke={inert ? undefined : STROKE[variant]}
         >
-          {label}
-        </Text>
+          {busy ? (
+            /*
+              The spinner has to be legible on the fill it spins on. `SPINNER`
+              carries the exception per variant and `text.primary` is the
+              default — the case this was written for was the retired white
+              control, where the platform default and `text.primary` were both
+              white on white, giving a control that looks empty at exactly the
+              moment it is working. The off-white primary re-creates that
+              hazard, which is why `SPINNER.primary` is graphite.
+            */
+            <ActivityIndicator color={SPINNER[variant] ?? text.primary} />
+          ) : (
+            <Text
+              style={[
+                styles[`${size}Label` as const],
+                styles[`${variant}Label` as const],
+                inert && styles.inertLabel,
+              ]}
+            >
+              {label}
+            </Text>
+          )}
+        </CutSurface>
       )}
     </Pressable>
   );
@@ -148,27 +174,68 @@ export default function Button({
  * Everything else spins in `text.primary` against a dark or absent fill.
  */
 const SPINNER: Partial<Record<ButtonVariant, string>> = {
-  primary: text.onPrimary,
+  /*
+    ⚠ 6 Sep: the primary's ink is graphite now. The original note here was
+    written for the *retired* white control and warned its spinner went
+    white-on-white — the exact hazard the off-white fill re-creates, so the
+    exception is re-pointed rather than removed.
+  */
+  primary: surface.page,
+  delete: status.dangerText,
+};
+
+/**
+ * ── ⚠ 6 Sep · B7: the filled primary is off-white, not the brand cyan ───────
+ *
+ * *"Primary off-white fill with graphite mono caps, secondary off-white
+ * hairline, destructive sodium hairline."*
+ *
+ * ⚠ **This reverses the 23 Aug decision** that deleted `surface.inverse` on the
+ * reading that "a white button is a foreign colour here", leaving `brand.primary`
+ * as the app's only filled control. That was right for the system as it stood.
+ * The system moved: under the two-hue collapse a *hue* fill is what is reserved
+ * for hover and critical, and good news — including the primary action — is
+ * off-white ink. A teal block is now the foreign colour.
+ *
+ * ⚠ The fill is `text.primary` (`#F5F3F0`), **not** `#FFFFFF`. Pure white was
+ * the retired token and is not coming back through this door; this is the
+ * system's own ink used as a ground. Logged in `docs/design-system-drift.md`
+ * §6.7.
+ */
+const FILL: Partial<Record<ButtonVariant, [string, string]>> = {
+  primary: [text.primary, text.secondary],
+  quiet: [surface.raised, surface.well],
+  delete: [surface.page, surface.raised],
+};
+
+/** Hairline edges. Secondary is off-white; destructive is sodium. */
+const STROKE: Partial<Record<ButtonVariant, string>> = {
+  outline: text.primary,
+  delete: status.dangerText,
 };
 
 const styles = StyleSheet.create({
-  base: {
-    /**
-     * ⚠ `radius.pill`, not `radius.button`, as of 23 Aug.
-     *
-     * The native specs draw every full-width primary as a pill — the vehicle
-     * hub's "Ask the advisor", the recall screen's two actions, the wishlist's
-     * add. `radius.button` (12) is the web control step, and it reached mobile
-     * with the token layer rather than by anyone looking at a native screen.
-     *
-     * The five-step radius map in the design system assigns `full` to chips,
-     * filter pills, status badges and avatars, and `md` to buttons — so this is
-     * a **deliberate override of that map for native**, logged in
-     * `docs/design-system-drift.md` rather than made quietly. A 12pt corner on
-     * a 52pt-tall full-bleed control reads as a web form submit; the phone's
-     * own idiom is the pill, and every native spec draws it that way.
-     */
-    borderRadius: radius.pill,
+  /*
+    ── ⚠ 6 Sep · B4: the pill is gone and the corner is a cut ────────────────
+
+    This carried `borderRadius: radius.pill` under a long note arguing that "the
+    phone's own idiom is the pill" and that a 12pt corner "reads as a web form
+    submit" — a deliberate native override of the design system's radius map,
+    logged as such at the time. Both clients are on the 45° cut now, so the
+    override has nothing left to be an override *of*.
+
+    ⚠ There is no `borderRadius` here at all. The shape is drawn by
+    `CutSurface`; a radius on this view would round the *touch target* around a
+    cut fill and show as a hairline of page colour in the corners.
+  */
+  base: {},
+  /*
+    The padded, centred box. This is the `CutSurface`, so the padding and the
+    minimum height live here rather than on the `Pressable` — the fill has to
+    reach the control's edges, and a `Pressable` that carried the padding would
+    leave an unpainted gutter around the cut.
+  */
+  surface: {
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -180,61 +247,35 @@ const styles = StyleSheet.create({
     "Small" is narrower and lighter in type; it is **not** shorter. The floor is
     a coarse-pointer target rather than a style, and a 36pt button is the most
     common way a design system quietly stops meeting it.
+
+    ⚠ `large` stays 52 against the brief's 48. The brief names a height; this app
+    has a floor it has cleared since August, and lowering a shipped control to
+    match a number in a paragraph would be a regression dressed as compliance.
+    52 satisfies "at least 48" and every existing screen's measurements.
   */
   small: { minHeight: TARGET_MIN, paddingHorizontal: space.md },
   large: { minHeight: 52, paddingHorizontal: space.xl },
-  smallLabel: { ...type.ui },
-  largeLabel: { ...type.bodyStrong },
 
-  primary: { backgroundColor: brand.primary },
-  primaryPressed: { backgroundColor: brand.primaryPressed },
-  primaryLabel: { color: text.onPrimary },
-
-  quiet: { backgroundColor: surface.raised },
-  quietPressed: { backgroundColor: surface.well },
-  quietLabel: { color: text.primary },
-
-  outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: border.field },
-  outlinePressed: { backgroundColor: surface.raised, borderColor: border.fieldHover },
-  outlineLabel: { color: text.primary },
-
-  ghost: { backgroundColor: 'transparent' },
-  ghostPressed: { backgroundColor: surface.raised },
-  ghostLabel: { color: text.secondary },
-
-  delete: { backgroundColor: status.danger },
-  deletePressed: { backgroundColor: status.dangerPressed },
-  deleteLabel: { color: text.primary },
-
-  inert: { backgroundColor: surface.disabled, borderColor: 'transparent' },
   /*
-    A disabled ghost keeps no fill — it had none to begin with, and giving it
-    one on the way out makes an absent control appear.
+    B1: a button label is an action label, so it is mono caps — not the body
+    sans it was.
   */
-  inertGhost: { backgroundColor: 'transparent' },
-  /**
-   * ⚠ `text.muted`, not `text.disabled`, and the two are not interchangeable.
-   *
-   * `text.disabled` is `#6E6B67` — a dark grey that measures **3.31:1** on the
-   * dark `surface.disabled` fill. WCAG 1.4.3 genuinely exempts inactive
-   * controls, so that is not a compliance defect and this docblock used to say
-   * so and stop there.
-   *
-   * It stopped being good enough on 23 Aug, when the add-a-car screen started
-   * opening with a disabled outline button as its **first control**. This
-   * project has already made that call twice — `SignInScreen`'s submit and the
-   * advisor's "Ask" were both fixed as disabled states, on the grounds that a
-   * control nobody can read leaves you unable to tell what the control even is,
-   * and the state a screen *opens in* is the one that matters most.
-   *
-   * `text.muted` composites to 5.23:1 on `surface.disabled` and is still a
-   * clear step down from the `text.primary` these variants use when live, so it
-   * reads as inactive without going unreadable.
-   *
-   * ⚠ Every variant here is a dark fill, which is what makes one disabled ink
-   * sufficient. The retired white control needed its own — 50% white on
-   * `#B8B8B8` is the opposite mistake — and a light variant returning would
-   * need one again rather than inheriting this.
-   */
-  inertLabel: { color: text.muted },
+  smallLabel: { ...type.monoLabel },
+  largeLabel: { ...type.monoLabel, fontSize: 13, lineHeight: 18 },
+
+  /* B7: graphite ink on the off-white fill. */
+  primaryLabel: { color: surface.page },
+  quietLabel: { color: text.primary },
+  outlineLabel: { color: text.primary },
+  ghostLabel: { color: text.primary },
+  deleteLabel: { color: status.dangerText },
+
+  /*
+    ⚠ Disabled is a real fill and real ink, never a group opacity — the fill is
+    `surface.disabled` inside `CutSurface` and the ink is `text.disabled`, which
+    is exempt from the contrast floor under WCAG 1.4.3 and is measured for it.
+    An `opacity` here would fade label and surface together and read as the
+    button disabling itself under the finger.
+  */
+  inertLabel: { color: text.disabled },
 });

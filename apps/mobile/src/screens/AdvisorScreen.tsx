@@ -13,6 +13,7 @@ import {
 
 import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
+import ScreenTitle from '../components/ScreenTitle';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -371,6 +372,9 @@ export function AdvisorScreen({
         about and gets out of the way. It is above the transcript so it does not
         scroll off — the context is true for every turn, not just the first.
       */}
+      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
+      <ScreenTitle>Advisor</ScreenTitle>
+
       {vehicleTitle ? (
         <View style={styles.context}>
           <Text style={styles.contextLabel} numberOfLines={1}>

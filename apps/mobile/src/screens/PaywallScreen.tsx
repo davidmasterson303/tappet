@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   closeOff: { color: text.disabled },
 
   body: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  headline: { ...type.editorial, color: text.primary },
+  headline: { ...type.display, color: text.primary },
   lede: { ...type.body, color: text.secondary },
   /*
     The three paid features, as a list rather than a paragraph. A paywall's job

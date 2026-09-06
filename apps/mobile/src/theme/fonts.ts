@@ -47,6 +47,25 @@
 export type FontWeight = '400' | '500' | '600' | '700' | '800';
 
 /**
+ * The display weights. Two, and the reason is the same as the serif's one.
+ *
+ * The condensed slot carries titles, model names and section heads — three
+ * roles at three sizes, but only two weights: 700 for a screen's own name, 600
+ * for a section inside it. A third would be a third role arriving by size
+ * rather than by decision.
+ */
+export type DisplayWeight = '600' | '700';
+
+/**
+ * The mono weights, and they are web's exactly.
+ *
+ * `app/layout.tsx` requests `JetBrains+Mono:wght@400;500` and nothing else, so
+ * these two are the whole slot. Adding a third here would be the phone holding
+ * an opinion the system does not.
+ */
+export type MonoWeight = '400' | '500';
+
+/**
  * Every face the app ships, by name.
  *
  * Exactly one serif, because the editorial role is single-weight by definition:
@@ -72,6 +91,40 @@ export const FONT_FACES = [
     so no EAS build.
   */
   'Newsreader_500Medium',
+  /*
+    ── ⚠ 6 Sep: the condensed slot, and the substitution inside it ────────────
+
+    The design system's display voice is **Archivo at a `wdth` axis** — 62% for
+    the masthead, 72% for page heads, 88% for the standard instrument voice.
+    `app/layout.tsx` requests `Archivo:wdth,wght@62..100,500..800` and
+    `globals.css` drives the axis with `font-stretch`.
+
+    **React Native has no `font-stretch`.** A variable font loaded here renders
+    at its default instance and the width axis is unreachable — so bundling
+    Archivo itself would have produced *regular-width* heads while every
+    stylesheet in the app claimed to be setting a condensed one. That is the
+    §6 defect exactly: no error, no symptom, and it reads as a design decision.
+
+    So the slot is filled with **Archivo Narrow**, which is a different family
+    rather than the same family at a narrower stop — its metrics are its own and
+    it will not match web glyph for glyph. David ruled for it on 6 Sep over the
+    alternative of shipping no condensation at all, and it is logged as a
+    knowing deviation in `docs/design-system-drift.md` §3 for Design to bless or
+    overrule.
+
+    Free, in the sense that matters: `@expo-google-fonts/*` is JS loaded by
+    `useFonts` at runtime. No native module, so no EAS build.
+  */
+  'ArchivoNarrow_600SemiBold',
+  'ArchivoNarrow_700Bold',
+  /*
+    The mono slot, and this one *is* web's face. `JetBrains+Mono:wght@400;500`
+    in `app/layout.tsx`, the same two cuts here. Mono carries every value, date,
+    index and state label under the locked brief, and the app shipped with no
+    mono face at all — every one of those strings was Inter.
+  */
+  'JetBrainsMono_400Regular',
+  'JetBrainsMono_500Medium',
 ] as const;
 
 export type FontFace = (typeof FONT_FACES)[number];
@@ -96,5 +149,44 @@ export function interFace(weight: FontWeight): FontFace {
   return INTER_FACES[weight];
 }
 
-/** The serif, for the single editorial role. */
+const DISPLAY_FACES: Record<DisplayWeight, FontFace> = {
+  '600': 'ArchivoNarrow_600SemiBold',
+  '700': 'ArchivoNarrow_700Bold',
+};
+
+const MONO_FACES: Record<MonoWeight, FontFace> = {
+  '400': 'JetBrainsMono_400Regular',
+  '500': 'JetBrainsMono_500Medium',
+};
+
+/**
+ * The condensed display face for a weight — the only sanctioned way to name one.
+ *
+ * Same contract as `interFace`: a weight selects a file, it does not modify a
+ * family. `mobile-font-faces.test.ts` fails on a text style that names a weight
+ * without a face.
+ */
+export function displayFace(weight: DisplayWeight): FontFace {
+  return DISPLAY_FACES[weight];
+}
+
+/**
+ * The mono face for a weight.
+ *
+ * ⚠ Mono is not a decorative choice here — under the locked brief it is what
+ * every value, date, index and state label is set in. Reaching for
+ * `interFace('400')` for a number is the drift this function exists to stop.
+ */
+export function monoFace(weight: MonoWeight): FontFace {
+  return MONO_FACES[weight];
+}
+
+/**
+ * The serif, for the single editorial role.
+ *
+ * ⚠ **Under the locked iOS brief B1 the serif is the wordmark and nothing
+ * else.** This export stays because `BrandLockup` is exactly that use, but a
+ * screen title set in it is now a brief breach rather than a style preference.
+ * The condensed face took the titles — see `displayFace`.
+ */
 export const EDITORIAL_FACE: FontFace = 'Newsreader_700Bold';

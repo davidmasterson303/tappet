@@ -76,8 +76,21 @@ function stripComments(code: string): string {
  * prop on `react-native-svg`'s `Text`, which takes the same fallback and would
  * have been missed by a style-only scan.
  */
-const NAKED_STYLE = /(?<!interFace\('\d{3}'\), )fontWeight: '(\d{3})'/;
-const NAKED_PROP = /(?<!fontFamily=\{interFace\('\d{3}'\)\} )fontWeight="(\d{3})"/;
+/*
+  ⚠ **6 Sep: `interFace` is no longer the only way to name a face.** The locked
+  iOS brief put a condensed grotesk on titles and a mono on every value, so
+  `displayFace` and `monoFace` join it in `theme/fonts.ts`.
+
+  This pattern knew one function name. Left alone it would have flagged every
+  correct use of the two new ones — and a guard that cries wolf on an invisible
+  rule is worse than none, because the fix it invites is to make it pass. Both
+  alternations below are the same rule, widened to the faces that now exist.
+*/
+const FACE_FN = "(?:interFace|displayFace|monoFace)";
+const NAKED_STYLE = new RegExp(`(?<!${FACE_FN}\\('\\d{3}'\\), )fontWeight: '(\\d{3})'`);
+const NAKED_PROP = new RegExp(
+  `(?<!fontFamily=\\{${FACE_FN}\\('\\d{3}'\\)\\} )fontWeight="(\\d{3})"`,
+);
 
 describe('every named weight names the face that carries it', () => {
   const files = sourceFiles(MOBILE_SRC)

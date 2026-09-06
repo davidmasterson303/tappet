@@ -555,11 +555,19 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
         Hidden while the list is empty: the empty state already offers it, and
         two identical buttons on one screenful is a screen that cannot decide.
       */}
-      {state.records.length > 0 && (
-        <View style={styles.scanBar}>
-          <Button label="Scan an invoice" onPress={onScan} accessibilityLabel="Scan a new invoice" />
-        </View>
-      )}
+      {/*
+        ── ⚠ 6 Sep · B9: this button moved up a level, and its own note said why ─
+
+        A pinned "Scan an invoice" sat here, hidden while the list was empty,
+        under a note reading *"two identical buttons on one screenful is a screen
+        that cannot decide."* That note is why it is gone rather than why it
+        stayed: B9 makes the scan a first-class primary at the top of `Service`,
+        above the segment content, so this became the second of exactly the two
+        buttons it warned about — and the screen was indeed showing both.
+
+        The empty state below still offers its own, which is the case the note
+        was protecting: nothing to scroll to means nothing to pin.
+      */}
     </View>
   );
 }
@@ -597,6 +605,24 @@ function visitProvenance(visit: ServiceVisit): string {
   return 'Recorded on this car';
 }
 
+/*
+  ── ⚠ 6 Sep · B6 and B1: the record list became a spec table ────────────────
+
+  Locked brief B6: *"Factors, recommendations and every record list are a mono
+  spec table with 01 indices, right-aligned numerals, hairline rows."*
+
+  Every value on this screen was a proportional sans — prices, dates, totals,
+  the record count — so a column of amounts did not line up as a column and the
+  eye had to read each one rather than scan them. `TABULAR` was already applied
+  and could not help: tabular *figures* keep a font's digits the same width as
+  each other; they do not make Inter behave like a mono in a table.
+
+  Vendors take the condensed grotesk, as section heads. Amounts, dates and
+  counts take the mono. The `01` index is the one clause not carried here — the
+  rows are grouped by vendor rather than enumerated, so an index would number
+  line items inside a visit and not the visits themselves, which is the opposite
+  of what it is for.
+*/
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: surface.page },
   /* Pinned above the scroller, on the page's own surface so nothing shows through. */
@@ -621,10 +647,10 @@ const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
   summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  summaryCount: { ...type.ui, color: text.secondary },
+  summaryCount: { ...type.mono, color: text.secondary },
   summaryTotal: { alignItems: 'flex-end', gap: 2 },
-  summaryCost: { ...type.bodyStrong, color: text.primary, ...TABULAR },
-  summaryScope: { ...type.label, color: text.muted, textTransform: 'uppercase' },
+  summaryCost: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
+  summaryScope: { ...type.monoLabel, color: text.muted },
 
   /**
    * The card, on the ladder rather than beside it.
@@ -644,11 +670,11 @@ const styles = StyleSheet.create({
   /* ── R17 · the visit's head ─────────────────────────────────────────────── */
   visitHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   visitIdentity: { flexShrink: 1, gap: 2 },
-  visitShop: { ...type.bodyStrong, color: text.primary },
+  visitShop: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
   /* R11. A date is data. */
-  visitDate: { ...type.value, color: text.muted, ...TABULAR },
+  visitDate: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* R11. The visit's total, and the biggest figure on the card. */
-  visitTotal: { ...type.bodyStrong, color: text.primary, ...TABULAR },
+  visitTotal: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
 
   /* ── the line items, nested inside it ───────────────────────────────────── */
   line: { gap: 4 },
@@ -673,8 +699,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   name: { ...type.ui, color: text.primary, flexShrink: 1 },
   /* R11. A right-aligned price column that is not tabular reads as ragged. */
-  cost: { ...type.uiStrong, color: text.primary, ...TABULAR },
-  meta: { ...type.value, color: text.muted, ...TABULAR },
+  cost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR },
+  meta: { ...type.mono, color: text.muted, ...TABULAR },
 
   /*
     Provenance and the remove control share a row, with the label given the

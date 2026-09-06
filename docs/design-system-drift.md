@@ -1164,3 +1164,127 @@ moved into the well · dial numerals only at the ends and the three points where
 the verdict changes · NHTSA's recall text no longer clamped on a phone · all
 four tabs fitting a 390px screen · alert capsules becoming hairline rows behind
 one rule · chevrons no longer used as bullets.
+
+---
+
+## 6. The iOS design port — 6 Sep 2026
+
+Raised by the mobile design loop (`design-loop/mobile-ios/`), whose brief was
+written by the critic in BRIEF mode against the settled web system and locked by
+David on 6 Sep. Everything here is the phone joining the system, so most of it is
+drift being *closed*. Three items are new deviations Design should rule on.
+
+### 6.1 The condensed slot is Archivo **Narrow**, not Archivo ⚠ needs a ruling
+
+The system's display voice is Archivo driven along its `wdth` axis — 62% for the
+masthead, 72% for page heads, 88% for the standard instrument voice, requested in
+`app/layout.tsx` as `Archivo:wdth,wght@62..100,500..800` and applied with
+`font-stretch`.
+
+**React Native has no `font-stretch`.** A variable font loaded on the phone
+renders at its default instance and the width axis is unreachable — so bundling
+Archivo itself would have produced regular-width heads while every stylesheet
+claimed to set a condensed one: no error, no symptom, and it reads as a design
+decision. That is the defect class `CLAUDE.md` §6 exists for.
+
+David ruled on 6 Sep for `@expo-google-fonts/archivo-narrow`. **It is a different
+family, not the same family at a narrower stop** — its metrics are its own and it
+will not match web glyph for glyph. The three-widths-one-voice idea collapses to
+one width on the phone.
+
+The alternative considered and rejected was shipping no condensation at all,
+which would have put mobile titles in regular-width Archivo beside web's 72%.
+
+### 6.2 The mono slot is web's own face ✅ closed
+
+`@expo-google-fonts/jetbrains-mono` at 400 and 500 — the same family and the same
+two cuts `app/layout.tsx` requests. The app previously had **no mono face at
+all**; every value, date, index and state label was Inter.
+
+### 6.3 The radius scale is zeroed, and the cut is drawn in SVG ✅ closed, with a note
+
+Brief B4: *"Every container corner is a 45° cut at zero radius."* The five-step
+native radius scale (8 / 12 / 14 / 20 / 999) is now all zeroes, and a `cut` scale
+replaces it — 8 on the plate, 12 on a control.
+
+⚠ **The tokens survive as zeroes rather than being deleted**, because sixty-seven
+call sites reference them and the honest fix at each is a per-surface design
+question ("does this corner take a cut?"). A surviving `borderRadius: radius.card`
+is therefore a *marker for work not yet done*, not a bug.
+
+⚠ **This retires the 23 Aug native pill override** recorded earlier in this file,
+which argued that "a 12pt corner on a 52pt-tall full-bleed control reads as a web
+form submit; the phone's own idiom is the pill". The new system has no pills on
+either client, so the override's premise is gone.
+
+### 6.4 The health dial no longer spends the band colour at every score ⚠ needs a ruling
+
+Brief B3 forbids gold on the dial; B7 restricts sodium to genuine warnings. The
+dial previously stroked itself in the band colour at every reading, which put
+`#D6BE9B` — the `ok` band — on screen for every score between 60 and 79.
+
+**The band table is untouched**, and must stay untouched: thresholds, wording and
+colour are owned by `@wellkept/core/health-band` and shared with web, and the
+phone holding a second opinion about what "Fair" looks like is the defect that
+ownership prevents. What changed is only *when the dial spends a hue*: `good` and
+`ok` now draw in off-white ink, `warn` and `bad` keep their sodium.
+
+Design should confirm this matches web, where `ClusterGauge` strokes the settled
+arc `#EDE7DF` while `--ring-ok` remains a live token.
+
+### 6.5 The blurred letterbox is gone from the phone ✅ closed
+
+`BayRoom` carried CC-142's contain-over-blur — an over-scanned `blurRadius={32}`
+fill under a `contain`ed sharp layer. Web retired that treatment ("blurred
+letterbox fill gone"); the phone had kept it. Now a single `cover` layer,
+edge to edge.
+
+⚠ **The cost CC-142 named is real and now accepted:** `cover` on a tall phone
+photograph crops to a band through the middle. `focal_point_x` / `focal_point_y`
+still exist on the `vehicles` table and are the fix if owners start losing their
+cars to the crop — not a return of the blur.
+
+### 6.6 Outstanding, not yet built
+
+Brief B8 asks for four tab roots with their own stacks and no back chevron.
+`createBottomTabNavigator` appears **nowhere** in `apps/mobile`: there is one
+`createNativeStackNavigator` with a custom `TabBar` drawn over it. This is a
+navigation rebuild rather than a styling change and is the one checklist line
+that is not a design edit.
+
+### 6.7 Two brief lines collide with shipped guards — **blocked, needs a ruling**
+
+Attempted on 6 Sep, reverted the same session. Both are real conflicts between
+the locked iOS brief and decisions this codebase already enforces in tests, and
+neither is the implementer's to break.
+
+**a) B7's off-white primary vs. `Button — one filled treatment › wears the brand
+fill, not white`.** The studio paragraph asks for *"primary off-white fill with
+graphite mono caps"*. There is a guard asserting the opposite by name, backed by
+the 23 Aug removal of `surface.inverse` ("a white button is a foreign colour
+here") after the app reached six screens of white CTAs against one cyan fill.
+
+The brief's reasoning is sound for the new system — under the two-hue collapse a
+*hue* fill is reserved for hover and critical, so a teal block is now the foreign
+colour. But a guard that names its opposite is a decision with an argument, and
+overwriting it quietly is how the white button came back last time.
+
+**b) B4's cut on buttons vs. the rendered contrast suite.** Drawing the 45° cut
+requires the fill to move from `backgroundColor` into an SVG path (see
+`CutSurface` — RN has no `clip-path`). **The contrast suite walks style objects
+to find the surface each string is measured against**, so the moment the fill
+leaves `backgroundColor` it stops being able to see any button's ground: ~20
+cases across the app failed, and the ones that did not fail would have been
+measuring against the wrong surface silently.
+
+That suite is the one the theme docblock credits with catching the 4.47:1
+`onInverseMuted` defect that no source scan could see. Making it blind to every
+filled control in the app is not a cost worth a corner.
+
+**What would unblock it:** teaching the contrast helper to read a `CutSurface`
+fill as the surface beneath its siblings. That is a change to a load-bearing
+accessibility guard and should be made deliberately, not as a side effect of a
+design port.
+
+Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
+square, not capsule) and their existing ink.

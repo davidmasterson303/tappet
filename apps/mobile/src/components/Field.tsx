@@ -98,8 +98,23 @@ const styles = StyleSheet.create({
   hint: { ...type.label, letterSpacing: 0, color: text.muted },
 
   input: {
+    /*
+      ── ⚠ 6 Sep · B4: a field shares the control geometry ────────────────────
+
+      B4 names fields explicitly: *"Every container corner is a 45° cut at zero
+      radius — buttons, fields, chips, bubbles, composer."* The radius scale is
+      already zeroed, so this was a square box; the cut itself is drawn by
+      `CutSurface` in the component below.
+
+      ⚠ **The fill stays a `backgroundColor` here, unlike `Button`.** A field
+      contains a `TextInput` whose ink the contrast audit measures against this
+      surface, and the audit walks `backgroundColor` down the ancestor chain.
+      `CutSurface` declares its ground with `auditSurface` for exactly that
+      reason — but a field is the one control where the *typed text* is the
+      thing that must stay legible, so it keeps the property the audit reads
+      natively and the cut is drawn over it. Belt and braces, deliberately.
+    */
     backgroundColor: surface.well,
-    borderRadius: radius.well,
     borderWidth: 1,
     borderColor: border.field,
     paddingHorizontal: space.md,
