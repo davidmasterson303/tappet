@@ -241,7 +241,7 @@ export default async function OpengraphImage() {
           {/*
             ⚠ **Per site, and it was not.** This line read "Live demo with
             sample vehicles — no signup required" on *both* deployments — so the
-            share card for `crewchief.davidmasterson.co`, which is the App Store
+            share card for `wellkept.southmoordigital.com`, which is the App Store
             listing's marketing URL, described the product as a demo.
 
             `39f7f0b` fixed exactly this on the landing page and `site-role.ts`
@@ -250,7 +250,7 @@ export default async function OpengraphImage() {
             convention route rather than rendered inside the app.
           */}
           <div style={{ marginTop: 26, fontSize: 30, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
-            {isDemoSite(process.env.CREWCHIEF_DEMO_SITE)
+            {isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)
               ? 'Live demo with sample vehicles — no signup required'
               : 'Every invoice read, every interval anchored.'}
           </div>

@@ -183,7 +183,7 @@ describe('who operates the service, and who to write to about it', () => {
     placeholder would still be caught.
 
     ⚠ A green run here does not mean the public page is fixed. Nothing deploys
-    from `main`; `crewchief.davidmasterson.co` serves `web-live`, and these
+    from `main`; `wellkept.southmoordigital.com` serves `web-live`, and these
     values reach a reader only after a promote.
   */
 

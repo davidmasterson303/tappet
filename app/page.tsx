@@ -210,7 +210,7 @@ function GarageContents() {
               {/*
                 ⚠ "demo" removed from the transient states on 21 Aug, and the
                 reason is not tone. This page is served by **both** deployments,
-                and on `crewchief.davidmasterson.co` it is the hostname in the
+                and on `wellkept.southmoordigital.com` it is the hostname in the
                 App Store listing — where copy calling the product a demo is the
                 Guideline 4.2 argument made in our own words. Same class as the
                 og:description fixed on 20 Aug.

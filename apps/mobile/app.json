@@ -100,7 +100,7 @@
       "predictiveBackGestureEnabled": false
     },
     "extra": {
-      "apiBaseUrl": "https://crewchief.davidmasterson.co",
+      "apiBaseUrl": "https://wellkept.southmoordigital.com",
       "supabaseUrl": "https://hcldnnfwnrerznpruazf.supabase.co",
       "supabasePublishableKey": "sb_publishable_cojGPM6Cxjwg8G4VoybnEA_vq-qvIjN",
       "eas": {

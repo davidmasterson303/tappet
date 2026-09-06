@@ -5,8 +5,8 @@
  * moved.** Nothing deploys from `main` any more. Both Well Kept hostnames sit
  * behind their own release branch:
  *
- *     web-live   -> crewchief.davidmasterson.co   App Store URL + the app's API
- *     demo-live  -> crewchief-demo.davidmasterson.co   this script's target
+ *     web-live   -> wellkept.southmoordigital.com   App Store URL + the app's API
+ *     demo-live  -> wellkept-demo.davidmasterson.co   this script's target
  *
  * This script's whole method is to verify **the exact build that is about to
  * become the demo, before it becomes the demo** — which needs that commit
@@ -22,7 +22,7 @@
  *
  * ── The problem this solves ─────────────────────────────────────────────────
  *
- * crewchief-demo.davidmasterson.co is linked from David's portfolio and shown
+ * wellkept-demo.davidmasterson.co is linked from David's portfolio and shown
  * to recruiters during an active job search. Two bad options were available
  * before this script existed:
  *
@@ -74,8 +74,8 @@ const ALLOW_DEGRADED_AI = process.argv.includes('--allow-degraded-ai');
 let degradedWaiver = null;
 
 const CANDIDATE = process.env.CREWCHIEF_CI_URL
-  || 'https://crewchief.davidmasterson.co';
-const DEMO = 'https://crewchief-demo.davidmasterson.co';
+  || 'https://wellkept.southmoordigital.com';
+const DEMO = 'https://wellkept-demo.davidmasterson.co';
 
 /** Read from the environment, never argv — a secret in argv is in the process table. */
 const CONSULTANT_SECRET =

@@ -232,6 +232,35 @@ describe('declarations that only bite after the build', () => {
     // preview tooling reads, and ignoring `.claude/` wholesale would take it.
     expect(ignored('.claude/launch.json')).toBe(false);
   });
+
+  it('ships the same API origin in app.json and the code fallback', () => {
+    /*
+      `config.ts` hardcodes an origin as a last-resort fallback and says, in a
+      comment directly above it, that it "is kept in step with `app.json`
+      deliberately" — because a fallback pointing somewhere else "would send that
+      build to a different origin while looking like it worked". Nothing asserted
+      it until 6 Sep, when both moved from `crewchief.davidmasterson.co` to
+      `wellkept.southmoordigital.com` and the invariant became a thing that had
+      just been edited twice by hand.
+
+      It belongs in this file rather than a runtime suite: the fallback only
+      fires when `expo.extra` is missing entirely, so no test that mounts the
+      app will ever take that branch, and the cost of the two disagreeing is a
+      binary that talks to the wrong host — a build already spent.
+    */
+    const config = readFileSync(join(MOBILE, 'src', 'config.ts'), 'utf8');
+
+    // The last string literal in the API_BASE_URL expression is the fallback.
+    const fallback = config
+      .slice(config.indexOf('export const API_BASE_URL'))
+      .match(/'(https:\/\/[^']+)'/)?.[1];
+
+    // Anti-vacuous: two undefineds are equal, and that must not read as agreement.
+    expect(fallback).toMatch(/^https:\/\//);
+    expect(appJson.extra?.apiBaseUrl).toMatch(/^https:\/\//);
+
+    expect(fallback).toBe(appJson.extra.apiBaseUrl);
+  });
 });
 
 describe('the build profile still targets the simulator', () => {

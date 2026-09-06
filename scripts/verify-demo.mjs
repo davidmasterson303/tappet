@@ -41,7 +41,7 @@ const REQUIRED_ANON_TABLES = [
   'recall_actions',
 ];
 
-const DEFAULT_BASE = 'https://crewchief-demo.davidmasterson.co';
+const DEFAULT_BASE = 'https://wellkept-demo.davidmasterson.co';
 const base = (process.argv[2] || DEFAULT_BASE).replace(/\/$/, '');
 
 const PAGE_CHECKS = [

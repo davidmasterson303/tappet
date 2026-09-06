@@ -98,7 +98,7 @@ export const CONTACT_EMAIL = 'support@southmoordigital.com';
  * was correct because the promote happened that day.
  *
  * ⛔ **The operator change is NOT on a hostname yet.** `web-live` has been
- * frozen since 23 Aug and `crewchief.davidmasterson.co` still serves a policy
+ * frozen since 23 Aug and the product host still serves a policy
  * naming David personally. Until that promote runs, this date describes a
  * change no reader can see — which the paragraph above calls the same defect as
  * a date that precedes its own change.

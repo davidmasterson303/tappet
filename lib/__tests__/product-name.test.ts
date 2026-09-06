@@ -42,10 +42,6 @@ type Exemption = { reason: string; pattern: RegExp };
 */
 const EXEMPT: Exemption[] = [
   {
-    reason: 'live hostnames — the App Store URL and the demo',
-    pattern: /crewchief(-demo)?\.davidmasterson\.co/i,
-  },
-  {
     reason: 'per-site Netlify environment variables — renamed only with Netlify',
     pattern: /CREWCHIEF_[A-Z_]+/,
   },
@@ -126,16 +122,19 @@ function findings(): { file: string; line: number; text: string }[] {
       The stripped copy decides whether a hit is in code or in prose; the RAW
       line is what gets matched against the exemptions and reported.
 
-      ⚠ Not interchangeable, and URLs are why. `stripComments` deletes from
-      `//` to the end of the line, so **any** url literal in code loses its
-      separator and everything after it. Match the exemptions against the
-      stripped text and `'https://crewchief.davidmasterson.co'` arrives as
-      `'https:` — the hostname exemption cannot match what is no longer there,
-      and a live hostname reads as an unfinished rename.
+      ⚠ Not interchangeable for reporting: the RAW line is what a finding
+      shows, so a reader is given the text that is actually in the file rather
+      than a truncated copy of it.
 
-      This was written for `crewchief://`, whose exemption is gone: the scheme
-      became `wellkept://` on 6 Sep. The mechanism did not change with it, and
-      the hostnames are still urls.
+      ⚠ And a gap worth naming here, because it is the reason no hostname needs
+      an exemption any more — not that the hostnames stopped containing the old
+      name, though on 6 Sep they did, but that this scan could never see them.
+      `stripComments` deletes from `//` to end of line, so a url literal in a
+      `.ts` file loses its separator and everything after it:
+      `'https://crewchief.davidmasterson.co'` reaches `OLD_NAME` as `'https:`
+      and does not match at all. The scanner is blind to every url in
+      TypeScript. JSON is untouched by the stripper, which is the only reason
+      `app.json` was ever really covered.
     */
     code.split('\n').forEach((stripped, i) => {
       if (!OLD_NAME.test(stripped)) return;

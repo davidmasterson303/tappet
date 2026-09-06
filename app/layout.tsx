@@ -9,7 +9,7 @@ import DemoBanner from '@/components/DemoBanner';
 import { isDemoSite, shareDescription, siteOrigin } from '@/lib/site-role';
 
 /** Resolved once: this build is either the demo or the product, never both. */
-const IS_DEMO = isDemoSite(process.env.CREWCHIEF_DEMO_SITE);
+const IS_DEMO = isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE);
 import { AuthProvider } from '@/components/AuthProvider';
 import { SiteRoleProvider } from '@/components/SiteRoleProvider';
 import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@wellkept/core/intro-gate';
@@ -188,7 +188,7 @@ export default function RootLayout({
           {/*
             Resolved on the server, published to the client tree.
 
-            `IS_DEMO` is already computed above from `CREWCHIEF_DEMO_SITE`, and
+            `IS_DEMO` is already computed above from the demo flag, and
             `DemoBanner` below reads it directly because this file is a server
             component. The landing page cannot: `app/page.tsx` and
             `LandingHero` are both `'use client'`, and server env is not in the
@@ -210,7 +210,7 @@ export default function RootLayout({
               shell takes "the rest of the viewport", and there is simply more
               of it.
             */}
-            {isDemoSite(process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
+            {isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
             <ErrorBoundary context="ROOT_LAYOUT">
               {children}
             </ErrorBoundary>

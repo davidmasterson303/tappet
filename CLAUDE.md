@@ -115,9 +115,9 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
 ## 8. There are two Netlify projects, and the names invite the wrong guess
 
 ```
-effulgent-blancmange-6adfdf   deploys web-live    crewchief.davidmasterson.co
+effulgent-blancmange-6adfdf   deploys web-live    wellkept.southmoordigital.com
                                                   App Store URL + the app's API
-crewchief-demo-live           deploys demo-live   crewchief-demo.davidmasterson.co
+crewchief-demo-live           deploys demo-live   wellkept-demo.davidmasterson.co
 glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
 ```
 
@@ -147,7 +147,7 @@ becomes the demo — it can, because that commit is already live on `web-live`.
 That second half matters: Netlify can accept a push and fail the build, and this
 branch's failure mode is a hostname silently frozen on its last good deploy.
 
-⚠ **`crewchief.davidmasterson.co` is gated behind `web-live`** — it is the App
+⚠ **`wellkept.southmoordigital.com` is gated behind `web-live`** — it is the App
 Store listing's privacy-policy URL and the origin the mobile app talks to
 (`app.json` → `extra.apiBaseUrl`). Before that, anything pushed to `main` was
 instantly live at a URL App Review reads, and every push cost a build: 111

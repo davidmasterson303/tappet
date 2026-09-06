@@ -40,8 +40,9 @@ export const metadata: Metadata = {
  * ── What is still unsettled — the page is already published ─────────────────
  *
  * This heading used to read "before this is published", and that framing
- * expired on 17 Aug: the page went live on `crewchief.davidmasterson.co`, which
- * is the privacy-policy URL in the App Store listing. It is not a draft waiting
+ * expired on 17 Aug: the page went live on the product host — then
+ * `crewchief.davidmasterson.co`, `wellkept.southmoordigital.com` since the
+ * 6 Sep rename — which is the privacy-policy URL in the App Store listing. It is not a draft waiting
  * for a launch date; it is what App Review reads.
  *
  * ✅ Both are named — `CONTACT_EMAIL` on 19 Aug, and `OPERATOR` twice: David
