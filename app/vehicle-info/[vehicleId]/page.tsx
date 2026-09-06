@@ -26,6 +26,31 @@ function cleanPowertrain(value: string | null | undefined): string {
   return value;
 }
 
+/**
+ * One row of the spec table: label left, value right, hairline under.
+ *
+ * ⚠ **Powertrain and fluids are the same kind of data and now wear the same
+ * form.** They were two bands with two treatments — three floating equal-thirds
+ * columns for the powertrain, a ruled right-aligned table for the fluids — and
+ * a critique of the rendered page put the cost plainly: the same label-to-text
+ * pairs set two ways, with the first band four-fifths empty. One form, one
+ * head, one fewer heading to read past.
+ *
+ * ⚠ Stacked below `sm`, side by side above it. The row was label-left /
+ * value-right at every width once, and a long value ("0W-30 or 0W-40 Full
+ * Synthetic (BMW LL-01 spec)") wrapped to three lines of **right-aligned** body
+ * copy in a narrow column — ragged-left, the hardest alignment to read, four
+ * rows running.
+ */
+function SpecRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-3 first:pt-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8">
+      <span className="mono label-uppercase block sm:mb-0">{label}</span>
+      <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:text-right">{value}</span>
+    </div>
+  );
+}
+
 function EmptySpec({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -199,35 +224,41 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           card a header gives the button somewhere to be and gives the first
           block on the page a name.
         */}
+        {/*
+          ── ⚠ One band for one kind of data ─────────────────────────────────
+
+          This was two: SPECIFICATION as three equal-thirds columns with the
+          values at the same size as their labels, and FLUIDS as a ruled
+          right-aligned table below it. Same data shape, two forms, and the
+          first band left four-fifths of its row empty to hold three short
+          words.
+
+          The powertrain rows are the table's first three; FLUIDS survives as a
+          mono group label inside it rather than as a second heading. Fewer
+          heads, one form, and the eye reads one column of labels down the page
+          instead of re-learning the layout halfway.
+        */}
         <SpecBand title="Specification">
-            {/*
-              ── ⚠ Three rows, not three cards with circled glyphs ────────────
+          <div className="divide-y divide-white/8">
+            <SpecRow label="Engine" value={cleanPowertrain(knowledge?.engine_type)} />
+            <SpecRow label="Transmission" value={cleanPowertrain(knowledge?.transmission_type)} />
+            <SpecRow label="Drivetrain" value={cleanPowertrain(knowledge?.drivetrain)} />
+          </div>
 
-              This was page → panel → this card → three bordered tiles, each
-              with an icon in its own bordered circle: four levels of rounded
-              rectangle to show three key/value pairs. A design critique called
-              it the page's worst offence and "the classic AI tell", and it was
-              right about the glyphs too — a waveform meant Transmission, a
-              lightning bolt meant Drivetrain on a petrol car, and the same bolt
-              headed Performance Stats a few hundred pixels below. One glyph,
-              two meanings, one screen.
-
-              A studio sets this as table rows with a hairline. So it is rows,
-              stacked on a phone and three-up from `sm`, and the labels do the
-              work the circles were doing.
-            */}
-            <div className="divide-y divide-white/8 sm:grid sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
-              {[
-                { label: 'Engine', value: cleanPowertrain(knowledge?.engine_type) },
-                { label: 'Transmission', value: cleanPowertrain(knowledge?.transmission_type) },
-                { label: 'Drivetrain', value: cleanPowertrain(knowledge?.drivetrain) },
-              ].map(({ label, value }) => (
-                <div key={label} className="py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 sm:first:pl-0 sm:last:pr-0">
-                  <p className="mono label-uppercase mb-1">{label}</p>
-                  <p className="mono text-sm text-white leading-snug">{value}</p>
-                </div>
-              ))}
+          {Object.keys(fluidSpecs).length > 0 ? (
+            <>
+              <p className="mono label-uppercase mt-7 mb-1">Fluids</p>
+              <div className="divide-y divide-white/8">
+                {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
+                  <SpecRow key={key} label={key.replace(/_/g, ' ')} value={String(value)} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="mt-7">
+              <EmptySpec label="Fluid specifications" />
             </div>
+          )}
         </SpecBand>
 
         {/*
@@ -289,7 +320,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                   numeral starts where the label starts, so the eye reads down a
                   column rather than hunting three centres.
                 */}
-                <div className="grid grid-cols-3 divide-x divide-white/8">
+                <div className="grid grid-cols-3">
                   {[
                     {
                       /*
@@ -319,12 +350,12 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                         : null,
                     },
                   ].map(({ label, value, unit, delta }) => (
-                    <div key={label} className="pr-2 first:pl-0 sm:pr-4 sm:[&:not(:first-child)]:pl-4">
-                      <div className="mono num text-2xl sm:text-3xl font-bold text-white">
+                    <div key={label} className="pr-4 first:pl-0">
+                      <div className="mono num text-4xl sm:text-[56px] font-bold leading-none text-white">
                         {value || '\u2014'}
-                        {value && <span className="mono text-xs font-normal text-white/50 ml-0.5">{unit}</span>}
+                        {value && <span className="mono text-xs font-normal text-white/70 ml-1">{unit}</span>}
                       </div>
-                      <p className="mono label-uppercase mt-1.5">{label}</p>
+                      <p className="mono label-uppercase mt-2.5">{label}</p>
                       {/*
                         ⚠ Not green. "+52 from stock" is a fact about a
                         modification, not a good or a bad one, and the health
@@ -370,48 +401,6 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           </>
         )}
 
-        <SpecBand title="Fluids">
-            {/*
-              ⚠ Capped width on a desktop. Full-bleed in a 1130px card put
-              "Coolant" hard left and its value hard right with about 900px of
-              void between them — a critique called it the "classic
-              justified-table mistake at wide viewports", and the eye travel is
-              the whole cost. A measure the eye can cross keeps the pair
-              readable as a pair.
-            */}
-            {Object.keys(fluidSpecs).length > 0 ? (
-              <div className="divide-y divide-white/6">
-                {/*
-                  ── ⚠ Label above value on a phone, side by side above `sm` ──
-
-                  The row was label-left / value-right at every width, so
-                  "0W-30 or 0W-40 Full Synthetic (BMW LL-01 spec)" wrapped to
-                  three lines of **right-aligned** body copy in a 60% column —
-                  ragged-left, which is the hardest alignment to read, four rows
-                  running. A design critique named it, and at the other end the
-                  same pattern put 900px of empty table between "Coolant" and
-                  its value on a desktop.
-
-                  Stacked, the value gets the full column and reads left to
-                  right like everything else.
-                */}
-                {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
-                  <div
-                    key={key}
-                    className="py-3 first:pt-0 last:pb-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8"
-                  >
-                    <span className="mono label-uppercase block sm:mb-0">{key.replace(/_/g, ' ')}</span>
-                    <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:text-right">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptySpec label="Fluid specifications" />
-            )}
-        </SpecBand>
-
         <SpecBand title="Worth knowing">
           <>
               {/*
@@ -449,7 +438,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 */}
                 {interestingFacts.map((fact: string, index: number) => (
                   <div key={`fact-${index}`} className="flex gap-4 py-3 first:pt-0 last:pb-0">
-                    <span className="mono num shrink-0 text-xs leading-normal text-white/50">
+                    <span className="mono num shrink-0 text-xs leading-normal text-white/70">
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     <p className="text-sm leading-normal text-white/70">{fact}</p>

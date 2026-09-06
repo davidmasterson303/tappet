@@ -89,12 +89,23 @@ const HAS_BREAKPOINT = /\b(sm|md|lg|xl|2xl):/;
  * were removed, so the case for the exemption is stronger after the change
  * than before it.
  *
+ * ⚠ **Re-measured again the same day**, when the dividers came off and the
+ * figures went to 36px on a phone (56px above `sm`) to make them the page's
+ * numeral moment. That is the largest this grid has ever been asked to hold, so
+ * it is the measurement that matters: at 375px the cells are 114.3px, content
+ * boxes 114px, and `scrollWidth === clientWidth` on all three cells and every
+ * descendant — "192" at 36px mono measures about 65px into a 114px cell.
+ *
+ * Twice in one day is the point of pinning a **string** rather than a file: the
+ * exemption cannot survive a change to this element without someone looking at
+ * it again.
+ *
  * ⚠ The exemption is the class string, not the file. A different three-up grid
  * appearing in the same page is still a failure, which is the point — R3's own
  * page is exactly where this keeps happening.
  */
 const DELIBERATE_THREE_UP = [
-  'grid grid-cols-3 divide-x divide-white/8',
+  'grid grid-cols-3',
 ];
 
 const offenders = ROOTS.flatMap((root) => tsxFiles(join(ROOT, root))).flatMap((path) => {
