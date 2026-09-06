@@ -40,6 +40,37 @@ import {
  * letters and the plate reads as a button somebody should press. The filter is
  * on a copy of the plate path behind it and on nothing else.
  */
+/**
+ * The name's font stack, built from the family Design declared.
+ *
+ * ── ⚠ The wordmark had silently changed typeface ────────────────────────────
+ *
+ * Every one of these four `<text>` elements read
+ * `var(--font-display), Newsreader, Georgia, serif`, and that chain was correct
+ * when it was written — `--font-display` **was** Newsreader. Brief B2 moved the
+ * display slot to Archivo, a condensed grotesk, and from that moment the first
+ * name in the chain resolved to a face the plate was never drawn in. The
+ * lockup has been rendering in Archivo since; measured on the running page,
+ * `getComputedStyle` returns `Archivo, Newsreader, Georgia, serif`.
+ *
+ * It is the same defect `VehicleCard` and the landing hero each carried and
+ * fixed — a hand-spelled display chain outliving the token it was written
+ * against — except that this one is the brand mark, so it changed the logo on
+ * every page rather than one heading on one.
+ *
+ * ⚠ **`brand.test.ts` is named for the property it did not check.** Its case
+ * reads *"keeps the name at Newsreader 500"* and asserts size, tracking, weight
+ * and `font-variant` — never the family. `BRAND_TYPE.name.family` was declared
+ * in core and read by nothing at all. `CLAUDE.md` §5 is exactly this: check
+ * what a guard asserts, not that it is green. It asserts the family now.
+ *
+ * Built from `BRAND_TYPE` rather than spelled here, for the reason this file's
+ * header already gives about the plate path: geometry is imported, never
+ * copied. Georgia stays as the fallback because this face **is** a serif — the
+ * hazard the other fixes removed was a serif fallback under a *sans*.
+ */
+const NAME_FONT_STACK = `${BRAND_TYPE.name.family}, Georgia, serif`;
+
 export function BrandLockup({
   width = 280,
   variant,
@@ -95,7 +126,7 @@ export function BrandLockup({
           x={plate.width / 2}
           y={70}
           textAnchor="middle"
-          fontFamily="var(--font-display), Newsreader, Georgia, serif"
+          fontFamily={NAME_FONT_STACK}
           fontWeight={600}
           fontSize={56}
           fill={BRAND_COLOR.plate}
@@ -128,7 +159,7 @@ export function BrandLockup({
           x={plate.width / 2}
           y={70}
           textAnchor="middle"
-          fontFamily="var(--font-display), Newsreader, Georgia, serif"
+          fontFamily={NAME_FONT_STACK}
           fontWeight={600}
           fontSize={44}
           fill={ink}
@@ -189,7 +220,7 @@ export function BrandLockup({
         x={plate.width / 2}
         y={BRAND_TYPE.name.baseline[chosen]}
         textAnchor="middle"
-        fontFamily="var(--font-display), Newsreader, Georgia, serif"
+        fontFamily={NAME_FONT_STACK}
         fontWeight={BRAND_TYPE.name.weight}
         fontSize={BRAND_TYPE.name.size}
         letterSpacing={BRAND_TYPE.name.tracking}
@@ -250,7 +281,7 @@ export function BrandWordmark({
       </span>
       <span
         style={{
-          fontFamily: 'var(--font-display), Newsreader, Georgia, serif',
+          fontFamily: NAME_FONT_STACK,
           fontWeight: BRAND_TYPE.name.weight,
           fontSize: Math.round(size * 0.7),
           fontVariant: 'small-caps',
