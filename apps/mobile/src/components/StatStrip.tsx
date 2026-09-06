@@ -79,6 +79,18 @@ const styles = StyleSheet.create({
     right border would leave a rule hanging at the strip's edge.
   */
   celled: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: border.panel },
-  label: { ...type.label, color: text.muted, textTransform: 'uppercase' },
+  /*
+    ⚠ 6 Sep · B1 and B2: mono, not Inter. This shipped as `type.label` — the sans
+    eyebrow — and got graded as mono, which is the more useful half of the story:
+    at 12pt caps with tracking the two faces are close enough that a reader can
+    miss it, so the strip was passing B2's "mono stat strip" on a technicality.
+
+    ⚠ An eyebrow over a value is **mono**, while a section's eyebrow is
+    **condensed** (`SectionHeader`). They look alike and they are not the same
+    thing: this one is half of a value pair — MILEAGE belongs to 66,000 mi the
+    way an axis label belongs to its axis — and B1 gives values mono. A section
+    eyebrow names what follows and takes the grotesk with the other heads.
+  */
+  label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
   value: { ...type.mono, color: text.primary, ...TABULAR },
 });

@@ -551,6 +551,17 @@ export const type = {
     fontWeight: '600' as const,
   },
   /** 13 — a value. Tabular wherever it is data. */
+  /**
+   * ⚠ **Misnamed: this is small *prose*, not a value.** All but one of its ~30
+   * call sites are hints, footnotes, reasons, caveats and disclosures, and sans
+   * is right for every one of them.
+   *
+   * B1 gives values, dates, indices and states to `mono` — so reaching for this
+   * token because a thing is "a value" gets the wrong face, which is how an
+   * invoice total ended up in Inter with `TABULAR` bolted on. Left named as it
+   * is because renaming touches thirty files for no behaviour; this note is the
+   * cheaper half of the fix.
+   */
   value: { fontFamily: interFace('400'), fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
   /** 12 — the word that names a value. The type floor. */
   label: {
@@ -596,6 +607,33 @@ export const type = {
     lineHeight: 38,
     fontWeight: '700' as const,
     letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
+  },
+  /**
+   * A section's *eyebrow* — the small caps line naming what follows.
+   *
+   * ── ⚠ Why this exists rather than reusing `label` ───────────────────────────
+   *
+   * `SectionHeader` set these in `type.label`, which is Inter, and the critique
+   * caught it in three consecutive rounds: "WHAT IS DRIVING IT / SIGNED IN AS /
+   * LEGAL are tracked grey sans, neither condensed nor mono". B1 gives section
+   * heads the condensed grotesk, and an eyebrow is a section head that happens
+   * to be small.
+   *
+   * ⚠ **Not `displaySection` at a smaller size.** That token is 20pt and names a
+   * section you can see from across the room; this is 12pt and names one you are
+   * already reading. Same face, same case, different job — collapsing them would
+   * make every eyebrow a heading.
+   *
+   * ⚠ 12, not 11 — the type floor. `theme-backdrop.test.tsx` enforces it and has
+   * already caught one token trying to go under.
+   */
+  displayLabel: {
+    fontFamily: displayFace('600'),
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600' as const,
+    letterSpacing: 0.6,
     textTransform: 'uppercase' as const,
   },
   /** A section inside a screen. The step below `display`, one weight lighter. */

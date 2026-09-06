@@ -326,3 +326,46 @@ describe('removing a record', () => {
     expect(init.body!.itemId).toBe('m1');
   });
 });
+
+/**
+ * The maintenance history is searchable, and stays that way.
+ *
+ * ── ⚠ Why this is a test and not a roadmap line ─────────────────────────────
+ *
+ * David asked for "maintenance history needs to be searchable" as a
+ * requirement. It was already built — the filter field has been on this screen
+ * for a while — so filing it as planned work would have bought something that
+ * already exists, which is the exact failure `CLAUDE.md` opens with.
+ *
+ * What it did **not** have was a guard. A search field is a `useState`, a
+ * filter and a control, and any of the three can be dropped in a refactor
+ * without a single test going red; the screen keeps rendering every row and
+ * looks entirely correct. So the requirement is recorded here, where it is
+ * enforced, rather than on a board that can drift out of date.
+ */
+describe('finding something in the record', () => {
+  it('narrows the list to what was typed', async () => {
+    respondWith([INVOICE_ROW, RECOLLECTION_ROW]);
+    const view = await mount();
+    await view.findByText(/Front brake pads/);
+
+    await userEvent.type(view.getByLabelText('Search this service history'), 'timing');
+
+    await waitFor(() => expect(view.queryByText(/Front brake pads/)).toBeNull());
+    expect(view.getByText(/Timing belt/)).toBeTruthy();
+  });
+
+  /*
+    ⚠ The anti-vacuous half. The case above passes if the filter matched
+    nothing and the list happened to be empty for some other reason, so this
+    proves both rows are reachable to begin with — without it, a search that
+    hid *everything* would look like a search that worked.
+  */
+  it('shows both rows before anything is typed, so the case above is real', async () => {
+    respondWith([INVOICE_ROW, RECOLLECTION_ROW]);
+    const view = await mount();
+
+    expect(await view.findByText(/Front brake pads/)).toBeTruthy();
+    expect(view.getByText(/Timing belt/)).toBeTruthy();
+  });
+});
