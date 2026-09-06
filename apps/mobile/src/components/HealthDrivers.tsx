@@ -90,7 +90,14 @@ export default function HealthDrivers({ drivers }: { drivers: HealthDriver[] }) 
             {driver.score !== null &&
               WARNING_BANDS.has(getHealthBandJudgement(driver.score).name) && (
                 <Text style={styles.warningMark} accessibilityElementsHidden>
-                  ▲
+                  {/*
+                    ⚠ `△` (U+25B3), the *outlined* triangle — not `▲` (U+25B2).
+                    The brief says "a **hairline** triangle", and the filled
+                    glyph was the only hue fill left on the sheet outside the
+                    settled critical banner. One character apart, and the
+                    difference is the whole of B7's "sodium as line, not fill".
+                  */}
+                  △
                 </Text>
               )}
             <Text

@@ -157,14 +157,19 @@ export default function DesignSpecimen() {
         </Card>
       </Block>
 
-      <Block title="Empty state">
-        <EmptyState
+      {/*
+        ⚠ Outside `Block`'s gutter. `EmptyState` brings its own `space.lg`, and
+        nesting it in a padded block double-inset it — which read on the sheet as
+        "the only element not sitting on the margin" and was the specimen's fault,
+        not the component's.
+      */}
+      <Text style={[styles.eyebrow, styles.bareEyebrow]}>Empty state</Text>
+      <EmptyState
           headline="No services yet"
           body="Scan an invoice and it will appear here, with the parts and the price."
           actionLabel="Scan invoice"
-          onAction={() => {}}
-        />
-      </Block>
+        onAction={() => {}}
+      />
     </ScrollView>
   );
 }
@@ -178,5 +183,6 @@ const styles = StyleSheet.create({
   stack: { gap: space.sm },
   row: { flexDirection: 'row', gap: space.sm },
   centre: { alignItems: 'center' },
+  bareEyebrow: { paddingHorizontal: space.lg, paddingTop: space.lg },
   plain: { ...type.body, color: text.secondary },
 });

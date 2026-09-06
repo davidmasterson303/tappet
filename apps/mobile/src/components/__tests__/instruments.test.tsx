@@ -869,7 +869,15 @@ describe('HealthDrivers', () => {
       beside a number is noise, and the driver's own sentence underneath already
       says what is wrong. RNTL excludes accessibility-hidden nodes by default.
     */
-    expect(warning.queryByText('▲', { includeHiddenElements: true })).not.toBeNull();
+    expect(warning.queryByText('△', { includeHiddenElements: true })).not.toBeNull();
+
+    /*
+      ⚠ And specifically the *outlined* triangle. B7 asks for sodium as line
+      rather than fill, and `▲` (U+25B2) against `△` (U+25B3) is one character —
+      close enough that a well-meaning edit could swap it back and this guard
+      would still pass if it only asked whether *a* mark was present.
+    */
+    expect(warning.queryByText('▲', { includeHiddenElements: true })).toBeNull();
   });
 
   it('leaves a sound driver unmarked, so the mark means something', async () => {

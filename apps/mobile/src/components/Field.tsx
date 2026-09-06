@@ -127,8 +127,19 @@ const styles = StyleSheet.create({
     caps eyebrow the strip's cells do.
   */
   label: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
-  /* The hint stays quiet and uncapped — it qualifies the label, it is not one. */
-  hint: { ...type.label, letterSpacing: 0, color: text.muted },
+  /*
+    ⚠ 6 Sep · B1: mono caps, like the label it shares a baseline with.
+
+    The previous note here said the hint "stays quiet and uncapped — it qualifies
+    the label, it is not one", written while the label was still sentence-case
+    sans. Once the label became mono caps that left one row running two type
+    systems: OPTIONAL's job is to qualify a value's name, and it sits on the same
+    line as one.
+
+    Quiet is still the point — it stays `text.muted` against the label's
+    `secondary`, so the hierarchy is carried by ink rather than by face.
+  */
+  hint: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
 
   input: {
     /*

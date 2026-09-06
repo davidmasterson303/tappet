@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { space, text, type } from '../theme';
+import { border, space, text, type } from '../theme';
 import Button from './Button';
 
 /**
@@ -119,10 +119,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     gap: space.sm,
     alignItems: 'stretch',
+    /* B5: a top rule, so it is a band like everything else rather than a card. */
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
   },
   wrapStart: {},
   /* B1: the headline is a section head — condensed grotesk caps. */
-  headline: { ...type.displaySection, color: text.primary, textAlign: 'left' },
+  /*
+    ⚠ 6 Sep · B1: a mono caps caption, because the brief names one.
+
+    The prose is *"Empty states left-aligned: mono caption, sans body, one
+    button"* — three faces in a fixed order, and this was setting the caption in
+    the condensed grotesk used for section heads.
+
+    ⚠ **The critique thinks the brief is wrong here** — "the grotesk head reads
+    better than the brief's mono caption; if the brief is ever reopened, amend
+    that prose line rather than the sheet." That is David's call and the brief is
+    locked, so this follows the brief. If it is reopened, this is the line to
+    revisit and the argument is already made.
+  */
+  headline: {
+    ...type.monoLabel,
+    color: text.primary,
+    textTransform: 'uppercase',
+    /*
+      ⚠ Declared, not inherited. Dropping this left the headline reading left
+      anyway — RN defaults to it in LTR — and `AdvisorScreen`'s guard caught it,
+      correctly: the assertion is that the alignment is *stated*, because the
+      value this component shipped with was `center` and an undeclared default is
+      one stylesheet edit away from going back.
+    */
+    textAlign: 'left',
+  },
   body: { ...type.body, color: text.muted, textAlign: 'left' },
   alignStart: {},
   action: { marginTop: space.md, alignSelf: 'stretch' },
