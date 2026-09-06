@@ -29,21 +29,9 @@ import {
   type ServiceVisit,
 } from '@wellkept/core/service-record';
 import { formatCurrency } from '@wellkept/core/formatting-utils';
+import CutSurface from '../components/CutSurface';
 import Icon from '../components/Icon';
-import {
-  FIELD_FONT_MIN,
-  OPTICAL_CENTRE,
-  PAGE_BODY,
-  TABULAR,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  status,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -325,8 +313,20 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       a text input.
     */
     <View style={styles.screen}>
+      {/*
+        ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
+        a hand-rolled search box rather than the `Field` primitive — giving
+        `Field` the cut left this one square, which is how the critique kept
+        finding "the search field is square" after the fix had landed.
+      */}
       {state.records.length > 0 && (
-        <View style={[styles.search, styles.searchPinned]}>
+        <CutSurface
+          style={[styles.search, styles.searchPinned]}
+          cut={['bottomRight']}
+          size={cut.control}
+          fill={surface.well}
+          stroke={border.field}
+        >
           <Icon name="search" size={17} />
           <TextInput
             style={styles.searchInput}
@@ -348,7 +348,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
               <Icon name="x" size={16} />
             </Pressable>
           )}
-        </View>
+        </CutSurface>
       )}
 
       <ScrollView
@@ -634,10 +634,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     minHeight: TARGET_MIN,
     paddingHorizontal: space.md,
-    borderRadius: radius.well,
-    borderWidth: 1,
-    borderColor: border.field,
-    backgroundColor: surface.well,
+    /* ⚠ Ground and border are `CutSurface`'s now; a fill here squares the cut. */
     marginBottom: space.sm,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */

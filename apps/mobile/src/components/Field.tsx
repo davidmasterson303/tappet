@@ -1,6 +1,8 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { FIELD_FONT_MIN, border, radius, space, status, surface, text, type } from '../theme';
+import CutSurface from './CutSurface';
+
+import { FIELD_FONT_MIN, border, cut, space, status, surface, text, type } from '../theme';
 
 /**
  * A labelled text input.
@@ -54,6 +56,26 @@ export default function Field({
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
 
+      {/*
+        ── ⚠ 6 Sep · B4: a field carries the same cut as a button ──────────────
+
+        B4 names fields explicitly — *"buttons, fields, chips, bubbles,
+        composer"* — and the critique found the search field, the composer and
+        the delete-confirmation field square in three consecutive rounds.
+
+        `CutSurface` paints the ground and the 45° corner behind the input; the
+        `TextInput` above it goes transparent so the SVG shows through. That is
+        the same arrangement `Button` uses, and it has the same consequence for
+        the contrast audit: `CutSurface` declares its own ground with
+        `auditSurface`, without which every field's typed ink would be measured
+        against the page rather than against the well it actually sits on.
+      */}
+      <CutSurface
+        cut={['bottomRight']}
+        size={cut.control}
+        fill={surface.well}
+        stroke={invalid ? status.dangerBorder : border.field}
+      >
       <TextInput
         {...input}
         /*
@@ -81,6 +103,7 @@ export default function Field({
         */
         style={[styles.input, invalid && styles.inputBad, style, styles.fontFloor]}
       />
+      </CutSurface>
 
       {problem ? (
         <Text style={styles.problem} accessibilityLiveRegion="polite">
@@ -114,15 +137,24 @@ const styles = StyleSheet.create({
       thing that must stay legible, so it keeps the property the audit reads
       natively and the cut is drawn over it. Belt and braces, deliberately.
     */
-    backgroundColor: surface.well,
-    borderWidth: 1,
-    borderColor: border.field,
+    /*
+      ⚠ Transparent: `CutSurface` paints the well and the cut behind this input.
+      A `backgroundColor` here would square off the corner the SVG just cut.
+    */
+    backgroundColor: 'transparent',
     paddingHorizontal: space.md,
     minHeight: 48,
     color: text.primary,
   },
   /** Applied last in the array, so no caller style can lower it. */
   fontFloor: { fontSize: FIELD_FONT_MIN },
-  inputBad: { borderColor: status.dangerBorder },
+  /*
+    ⚠ The invalid state moved to `CutSurface`'s `stroke`; the border it used to
+    override no longer exists. Kept as a no-op rather than deleted so the call
+    sites keep compiling — and so this note is here when someone wonders why
+    an invalid field still turns sodium with nothing in this style saying so.
+  */
+  inputBad: {},
+
   problem: { ...type.value, color: status.dangerText },
 });
