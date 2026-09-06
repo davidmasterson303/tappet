@@ -1,14 +1,14 @@
 {
   "expo": {
     "name": "Well Kept",
-    "slug": "crewchief",
+    "slug": "wellkept",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "crewchief",
+    "scheme": "wellkept",
     "userInterfaceStyle": "dark",
     "ios": {
-      "bundleIdentifier": "co.davidmasterson.crewchief",
+      "bundleIdentifier": "com.southmoordigital.wellkept",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Well Kept uses the camera so you can photograph a service invoice and have its line items read for you.",
@@ -90,7 +90,7 @@
       "expo-notifications"
     ],
     "android": {
-      "package": "co.davidmasterson.crewchief",
+      "package": "com.southmoordigital.wellkept",
       "adaptiveIcon": {
         "backgroundColor": "#100F0D",
         "foregroundImage": "./assets/android-icon-foreground.png",

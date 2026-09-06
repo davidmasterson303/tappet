@@ -42,33 +42,12 @@ type Exemption = { reason: string; pattern: RegExp };
 */
 const EXEMPT: Exemption[] = [
   {
-    reason: 'deep-link scheme — shipped builds already emit crewchief:// links',
-    pattern: /crewchief:\/\//i,
-  },
-  {
-    reason: 'Apple bundle identifier and the product ids built on it — permanent',
-    pattern: /co\.davidmasterson\.crewchief/i,
-  },
-  {
     reason: 'live hostnames — the App Store URL and the demo',
     pattern: /crewchief(-demo)?\.davidmasterson\.co/i,
   },
   {
-    reason: 'Expo slug and scheme in app.json — changing them moves EAS URLs',
-    pattern: /"(slug|scheme)":\s*"crewchief"/i,
-  },
-  {
     reason: 'per-site Netlify environment variables — renamed only with Netlify',
     pattern: /CREWCHIEF_[A-Z_]+/,
-  },
-  {
-    reason: 'persisted keys and the demo cookie — renaming them drops stored state',
-    pattern: /['"`]crewchief[._-][A-Za-z-]|crewchief_demo|crewchief-failed-deletions/i,
-  },
-  {
-    reason:
-      'a window debug flag a developer types into a console — an internal identifier, not a name the product wears',
-    pattern: /__CREW_CHIEF_DEBUG_VERBOSE/,
   },
   {
     reason:
@@ -147,10 +126,16 @@ function findings(): { file: string; line: number; text: string }[] {
       The stripped copy decides whether a hit is in code or in prose; the RAW
       line is what gets matched against the exemptions and reported.
 
-      ⚠ Not interchangeable: `stripComments` cuts `//` out of `crewchief://`,
-      so a scheme line reaches the exemptions as `crewchief:` and matches none
-      of them. Reading the verdict off the stripped text would have reported
-      every deep link as an unfinished rename.
+      ⚠ Not interchangeable, and URLs are why. `stripComments` deletes from
+      `//` to the end of the line, so **any** url literal in code loses its
+      separator and everything after it. Match the exemptions against the
+      stripped text and `'https://crewchief.davidmasterson.co'` arrives as
+      `'https:` — the hostname exemption cannot match what is no longer there,
+      and a live hostname reads as an unfinished rename.
+
+      This was written for `crewchief://`, whose exemption is gone: the scheme
+      became `wellkept://` on 6 Sep. The mechanism did not change with it, and
+      the hostnames are still urls.
     */
     code.split('\n').forEach((stripped, i) => {
       if (!OLD_NAME.test(stripped)) return;

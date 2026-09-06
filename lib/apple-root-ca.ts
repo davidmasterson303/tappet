@@ -90,7 +90,7 @@ export function getAppleRootCertificates(
  * ── ⚠ Why it is a constant and not an environment variable ──────────────────
  *
  * It is a property of **the binary**, not of the deployment. `app.json` says
- * `co.davidmasterson.crewchief` and there is exactly one app; a variable would
+ * `com.southmoordigital.wellkept` and there is exactly one app; a variable would
  * introduce a way for the two to disagree, and the failure mode of them
  * disagreeing is that the check passes for the wrong app or fails for the right
  * one — neither of which is visible until somebody's subscription breaks.
@@ -99,4 +99,4 @@ export function getAppleRootCertificates(
  * `lib/__tests__/apple-notification.test.ts` reads it to keep this in step, so
  * renaming the bundle in one place fails the build rather than the purchase.
  */
-export const APPLE_BUNDLE_ID = 'co.davidmasterson.crewchief';
+export const APPLE_BUNDLE_ID = 'com.southmoordigital.wellkept';

@@ -39,7 +39,7 @@ import { requestPushPermission } from './push';
  * no notifications is an app that will not open without them.
  */
 
-const DEVICE_ID_KEY = 'crewchief.device-id';
+const DEVICE_ID_KEY = 'wellkept.device-id';
 
 /**
  * When the user last said "not now" to the primer. C5.
@@ -49,7 +49,7 @@ const DEVICE_ID_KEY = 'crewchief.device-id';
  * recently", and iOS permission is per-install too. A server-side flag would
  * suppress the primer on a new phone where the system ask is available again.
  */
-const PRIMER_DISMISSED_KEY = 'crewchief.push-primer-dismissed';
+const PRIMER_DISMISSED_KEY = 'wellkept.push-primer-dismissed';
 
 /** A v4-shaped random id. Opaque, local, and not a credential — see the header. */
 function newDeviceId(): string {

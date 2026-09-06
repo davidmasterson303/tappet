@@ -25,7 +25,7 @@ import * as Notifications from 'expo-notifications';
  *
  * `notificationUrl` is deliberately strict about what it accepts. A push
  * payload arrives from the network and is the one input here an attacker could
- * shape, so only `crewchief://` survives: an `https://` url in that field would
+ * shape, so only `wellkept://` survives: an `https://` url in that field would
  * otherwise send someone to an arbitrary website from a notification that looks
  * like it came from their garage.
  *
@@ -110,7 +110,7 @@ export async function requestPushPermission(): Promise<boolean> {
 /**
  * The in-app URL a notification wants opened, or `null`.
  *
- * Only `crewchief://` is accepted. See the header: this field arrives over the
+ * Only `wellkept://` is accepted. See the header: this field arrives over the
  * network, and honouring an arbitrary scheme here would turn a notification
  * into an open redirect.
  */
@@ -119,7 +119,7 @@ export function notificationUrl(notification: Notifications.Notification | null 
   const url = data?.url;
 
   if (typeof url !== 'string') return null;
-  if (!url.startsWith('crewchief://')) return null;
+  if (!url.startsWith('wellkept://')) return null;
 
   return url;
 }

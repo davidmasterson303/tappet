@@ -18,8 +18,8 @@ import PaywallScreen, { type SubscriptionOption } from '../PaywallScreen';
 import type { PurchaseResolution } from '@wellkept/core/purchase-flow';
 
 const OPTIONS: SubscriptionOption[] = [
-  { productId: 'co.davidmasterson.crewchief.paid.monthly', displayPrice: '£7.99', period: 'month' },
-  { productId: 'co.davidmasterson.crewchief.paid.annual', displayPrice: '£69.99', period: 'year' },
+  { productId: 'com.southmoordigital.wellkept.paid.monthly', displayPrice: '£7.99', period: 'month' },
+  { productId: 'com.southmoordigital.wellkept.paid.annual', displayPrice: '£69.99', period: 'year' },
 ];
 
 const ENTITLED: PurchaseResolution = {

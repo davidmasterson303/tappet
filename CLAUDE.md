@@ -122,7 +122,7 @@ glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
 ```
 
 **Nothing deploys from `main`.** Pushing to `main` costs nothing and publishes
-nothing; both CrewChief hostnames move only when someone merges into their
+nothing; both Well Kept hostnames move only when someone merges into their
 release branch. That is a **gate, not a filter**, and it was chosen over an
 ignore rule for a reason worth keeping: a filter fails silently toward stale
 deploys, an ignore rule needs an inverted exit code to be right, and one

@@ -142,7 +142,7 @@ export type RootStackParamList = {
   */
   /*
     ⚠ **R16: this route renders `HealthScreen`.** It is kept as a name because
-    shipped notifications carry `crewchief://vehicle/<id>/recalls`, and a link
+    shipped notifications carry `wellkept://vehicle/<id>/recalls`, and a link
     an installed build already sends has to keep resolving.
 
     What it no longer is, is a destination. Recalls drive the score, the garage
@@ -244,7 +244,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * stack you can only reach by tapping is a stack that only gets exercised when
  * someone is holding the phone.
  *
- * With this, `xcrun simctl openurl booted "crewchief://vehicle/<id>/advisor"`
+ * With this, `xcrun simctl openurl booted "wellkept://vehicle/<id>/advisor"`
  * opens the screen directly, so it can be looked at in the state that matters
  * without a session, a garage row and two taps standing in front of it.
  *
@@ -263,7 +263,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  *
  * ── The dev client owns one path and it is not one of these ─────────────────
  *
- * `expo-dev-client` answers `crewchief://expo-development-client/?url=…`, which
+ * `expo-dev-client` answers `wellkept://expo-development-client/?url=…`, which
  * is how the simulator build is pointed at Metro. Nothing here claims that
  * path, and the two coexist because the prefix is shared but the host is not.
  *
@@ -276,7 +276,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * log, and the server is going to send the real one back within the second.
  */
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['crewchief://'],
+  prefixes: ['wellkept://'],
   config: {
     /*
       ── ⚠ MOB-07 · a cold-start notification tap trapped the user ────────────
@@ -458,7 +458,7 @@ export function RootNavigator({
    *
    * ⚠ **Both, in one place.** `rememberVehicle` used to be called only from the
    * garage's row, which meant a **deep link** — a recall notification, a
-   * service-due alert, a `crewchief://vehicle/<id>` URL — put somebody on a car
+   * service-due alert, a `wellkept://vehicle/<id>` URL — put somebody on a car
    * without the Advisor tab learning which one, so the tab bounced them back to
    * the garage they had never been to.
    *
@@ -706,7 +706,7 @@ export function RootNavigator({
               vehicleTitle={route.params.title}
               /*
                 React Navigation maps a query string onto params, so
-                `crewchief://vehicle/<id>/advisor?ask=...` arrives here already
+                `wellkept://vehicle/<id>/advisor?ask=...` arrives here already
                 decoded.
               */
               initialQuestion={route.params.ask}
@@ -719,7 +719,7 @@ export function RootNavigator({
           ── ⚠ R16 · a deep-link alias, not a destination ────────────────────
 
           Nothing in the app navigates here. It exists because shipped builds
-          send `crewchief://vehicle/<id>/recalls` in recall notifications, and a
+          send `wellkept://vehicle/<id>/recalls` in recall notifications, and a
           link an installed app already emits has to keep resolving — so the
           path is kept and pointed at the screen the content moved to.
 

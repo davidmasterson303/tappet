@@ -6,10 +6,10 @@ import { INVOICE_AI_CONSENT } from '@wellkept/core/ai-consent-copy';
 /**
  * Where this browser's answer lives — LEG-02.
  *
- * Namespaced like the phone's `crewchief.aiConsent`, so the two are obviously
+ * Namespaced like the phone's `wellkept.aiConsent`, so the two are obviously
  * the same fact stored per client rather than two unrelated flags.
  */
-const AI_CONSENT_KEY = 'crewchief.aiConsent';
+const AI_CONSENT_KEY = 'wellkept.aiConsent';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';

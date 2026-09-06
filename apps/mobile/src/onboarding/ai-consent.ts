@@ -40,7 +40,7 @@ import { secureStorage } from '../auth/secure-storage';
 
 export type AiConsent = 'granted' | 'declined' | 'unknown';
 
-const KEY = 'crewchief.aiConsent';
+const KEY = 'wellkept.aiConsent';
 
 export async function readAiConsent(): Promise<AiConsent> {
   try {

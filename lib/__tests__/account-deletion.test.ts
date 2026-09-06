@@ -464,7 +464,7 @@ describe('both delete surfaces show the subscription notice', () => {
 describe('deleteAccount — a live subscription', () => {
   const LIVE = {
     original_transaction_id: '2000000000000001',
-    product_id: 'crewchief.pro.monthly',
+    product_id: 'wellkept.pro.monthly',
     tier: 'paid',
     expires_at: '2026-09-18T10:00:00.000Z',
     environment: 'Production',
