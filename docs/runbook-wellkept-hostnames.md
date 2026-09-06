@@ -129,7 +129,12 @@ automatically once the CNAME resolves — usually minutes, up to an hour.
 If one does not appear, use **Verify DNS configuration** / **Renew certificate**
 rather than removing and re-adding the domain.
 
-### 5. The demo's environment variable
+### 5. ✅ DONE — the demo's environment variable
+
+✅ **Set 6 Sep** on `crewchief-demo-live`, sitting beside `CREWCHIEF_DEMO_SITE`.
+Both names are now live, which is exactly the state the fallback was written for:
+the Netlify rename can happen whenever, or never, and the demo keeps its framing
+throughout. The steps below are the record of what was done.
 
 Netlify → the **demo** site → **Environment variables** → add:
 
@@ -181,12 +186,45 @@ The demo hostnames work anyway because Netlify routes on the `Host` header, and
 both are registered as aliases on the right project. The CNAME only gets the
 request to Netlify's edge.
 
-⚠ **Why this is worth fixing rather than leaving.** If that Bolt project is ever
-deleted, the `crewchief-demo.netlify.app` name is released — and then both
-`crewchief-demo.davidmasterson.co` and `wellkept-demo.davidmasterson.co` stop
-working. Worse, a released Netlify site name can be claimed by somebody else,
-who would then control what those two hostnames serve. It is a dangling CNAME,
-which is the standard subdomain-takeover shape.
+⚠ **Why this is worth fixing — corrected 6 Sep, twice, and both corrections
+were downward.**
+
+This section first said a deleted Bolt project would release the name and let
+somebody else serve these hostnames — the subdomain-takeover shape. Cowork
+rightly objected that takeover needs a *second* condition: `crewchief-demo-live`
+would also have to drop its claim on the custom domain, since that claim is what
+Host routing actually consults. It proposed the certain failure was availability
+instead — delete the stub and both demo hostnames die.
+
+Tested rather than argued, and **that is not right either**:
+
+```
+nonexistent-site-9f3a2b7c1d.netlify.app   A 13.52.188.95   HTTPS 404
+another-unclaimed-xyz-4821.netlify.app    A 52.52.192.191
+```
+
+`*.netlify.app` is a **wildcard**. Names that have never existed resolve to
+Netlify's edge and answer 404 over a valid certificate, so a *released* name
+behaves like a never-used one. Deleting the stub would leave
+`crewchief-demo.netlify.app` resolving to the same edge, and the Host header —
+which is what decides everything — is unchanged. Confirmed on the live edge:
+
+```
+52.52.192.191   Host: wellkept-demo.davidmasterson.co   → the demo   (masthead present)
+52.52.192.191   Host: crewchief-demo.netlify.app        → the stub   (masthead absent)
+```
+
+**So neither failure is established.** Not takeover, not availability. What is
+left is a target that names the wrong project, which has already cost one wrong
+diagnosis — it is why the wrong value was inherited in the first place. Fix it
+because it is two edits and it is false, not because something is about to
+break.
+
+⚠ **Still UNKNOWN, and the reason not to be smug about the above:** whether
+Netlify would let a different account claim a custom domain an existing site
+already holds. Nobody here has checked that, so the takeover path is unproven in
+both directions. Until someone does, **do not delete the Bolt project** — that
+is the cheap precaution, and it costs nothing.
 
 **The fix**, at Namecheap → `davidmasterson.co` → Advanced DNS, editing the
 value of two existing CNAME records and adding nothing:
