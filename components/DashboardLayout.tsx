@@ -751,7 +751,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 ) : (
                   <button
                     onClick={() => setIsEditingCurrentMileage(true)}
-                    className="meta-row flex items-center gap-1.5 group/edit"
+                    className="meta-row flex min-w-0 items-center gap-1 group/edit"
                     aria-label="Edit mileage"
                   >
                     <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
@@ -805,7 +805,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 ) : (
                   <button
                     onClick={() => setIsEditingAvgMileage(true)}
-                    className="meta-row flex items-center gap-1.5 group/edit"
+                    className="meta-row flex min-w-0 items-center gap-1 group/edit"
                     aria-label="Edit average monthly miles"
                   >
                     <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month ? displayVehicle.avg_miles_per_month.toLocaleString() : '—'}</span>
