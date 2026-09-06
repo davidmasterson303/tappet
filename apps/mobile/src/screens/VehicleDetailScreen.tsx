@@ -31,6 +31,7 @@ import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import { type HealthReading } from '../components/HealthHistory';
 import ProvenanceRow from '../components/ProvenanceRow';
 import Icon from '../components/Icon';
+import StatStrip, { type Stat } from '../components/StatStrip';
 import ListGroup from '../components/ListGroup';
 import NavRow from '../components/NavRow';
 import SectionHeader from '../components/SectionHeader';
@@ -627,15 +628,25 @@ export function VehicleDetailScreen({
     number an owner checks, and it spent this screen's whole life five rows down
     in a "Details" card under two instruments.
   */
-  const subtitle = [
+  /*
+    ⚠ 6 Sep · B2: cells, not a joined sentence. This was
+    `[mileage, trim, status].join(' · ')` — three values set as prose in the body
+    sans. `StatStrip` carries the reasoning; what matters here is that the
+    **order is shared with `GarageScreen`**, which built its own join in the
+    opposite order until the critique noticed the two screens disagreed.
+
+    Empty cells are dropped rather than dashed: a missing value is "we cannot
+    say", not a reading of nothing.
+  */
+  const stats: Stat[] = [
     typeof vehicle.current_mileage === 'number'
-      ? `${miles.format(vehicle.current_mileage)} mi`
+      ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi` }
       : null,
-    vehicle.trim,
-    vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
+    vehicle.vehicle_status
+      ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
+      : null,
+  ].filter((cell): cell is Stat => cell !== null);
 
   /*
     ── Open recalls, which is not the same number as recalls ─────────────────
@@ -857,7 +868,7 @@ export function VehicleDetailScreen({
           <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
             {name}
           </Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <StatStrip stats={stats} />
         </Animated.View>
 
         {/*

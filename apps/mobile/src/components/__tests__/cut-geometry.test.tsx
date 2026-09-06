@@ -168,3 +168,50 @@ describe('the surface a cut declares', () => {
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 });
+
+/**
+ * A cut surface still announces itself.
+ *
+ * ── Why this is worth a guard ───────────────────────────────────────────────
+ *
+ * `CutSurface` took an explicit prop list, so anything it did not name was
+ * dropped on the floor. `DialChip` moving onto the cut is what surfaced it: its
+ * `accessibilityRole` and `accessibilityLabel` stopped compiling, which was the
+ * lucky version of this bug.
+ *
+ * The unlucky version is a component that spreads props it does not forward and
+ * fails silently — a control that announces nothing looks, from the outside,
+ * exactly like one that announces correctly. Every control this brief moves onto
+ * the cut is a control whose label runs through here.
+ */
+describe('a cut surface still announces itself', () => {
+  it('forwards the accessibility label a control gives it', async () => {
+    const view = await render(
+      React.createElement(
+        CutSurface,
+        {
+          fill: '#201D19',
+          accessibilityRole: 'image',
+          accessibilityLabel: 'Health score 70 out of 100',
+        },
+        React.createElement(Text, null, '70'),
+      ),
+    );
+
+    expect(view.getByLabelText('Health score 70 out of 100')).toBeTruthy();
+  });
+
+  /*
+    ⚠ The anti-vacuous half. The assertion above passes if `getByLabelText` were
+    matching the child text, or if the query were resolving something else
+    entirely — so this proves the query can *fail*, and that it is the forwarded
+    prop it is reading rather than anything intrinsic to the component.
+  */
+  it('has nothing to announce when nothing is given — so the case above is real', async () => {
+    const view = await render(
+      React.createElement(CutSurface, { fill: '#201D19' }, React.createElement(Text, null, '70')),
+    );
+
+    expect(view.queryByLabelText('Health score 70 out of 100')).toBeNull();
+  });
+});

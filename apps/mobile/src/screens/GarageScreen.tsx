@@ -18,6 +18,7 @@ import Icon from '../components/Icon';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
 import GarageBay from '../components/GarageBay';
+import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
 import { SkeletonCard } from '../components/Skeleton';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
@@ -190,20 +191,24 @@ function VehicleBay({
   ).length;
 
   /*
-    `Premium · Daily driver · 48,210 mi` — the board's subtitle, assembled here
-    because only the screen knows which fields the payload actually carried.
-    Each part is optional and the separator earns its place only when there is
-    something on both sides of it.
+    ⚠ 6 Sep · B2: the strip's cells, assembled here because only the screen knows
+    which fields the payload actually carried.
+
+    This was `[trim, status, mileage].join(' · ')` — and `VehicleDetailScreen`
+    built the same line as `[mileage, trim, status]`. Two independent joins, the
+    same three facts, opposite orders, and nothing to make anyone compare them
+    until the critique read both screens side by side. The order now lives in one
+    place: this array and its twin, against `StatStrip`'s contract.
   */
-  const subtitle = [
-    vehicle.trim,
-    vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
+  const stats: Stat[] = [
     typeof vehicle.current_mileage === 'number'
-      ? `${miles.format(vehicle.current_mileage)} mi`
+      ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi` }
       : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
+    vehicle.vehicle_status
+      ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
+      : null,
+  ].filter((cell): cell is Stat => cell !== null);
 
   return (
     <GarageBay
@@ -218,7 +223,7 @@ function VehicleBay({
       score={score}
       index={index}
       total={total}
-      subtitle={subtitle}
+      stats={stats}
       active={active}
       onOpen={onOpen}
       onOpenService={onOpenService}

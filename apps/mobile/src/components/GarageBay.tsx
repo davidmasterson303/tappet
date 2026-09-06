@@ -8,6 +8,8 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+
+import StatStrip, { type Stat } from './StatStrip';
 import { getHealthBandJudgement } from '@wellkept/core/health-band';
 
 import BayRoom, { BayLightPool, bayHeroHeight } from './BayRoom';
@@ -91,7 +93,7 @@ export default function GarageBay({
   score,
   index,
   total,
-  subtitle,
+  stats,
   active = true,
   onOpen,
   uploading,
@@ -115,8 +117,15 @@ export default function GarageBay({
   /** Zero-based position, for the batten. */
   index: number;
   total: number;
-  /** "Premium · Daily driver · 48,210 mi" — assembled by the caller. */
-  subtitle?: string;
+  /**
+   * The stat strip's cells, assembled by the caller.
+   *
+   * ⚠ Was a pre-joined `subtitle` string. B2 asks for a mono eyebrow over each
+   * value in hairline-separated cells, which a joined string cannot express —
+   * by the time it arrived here the labels were gone and the separators were
+   * punctuation. See `StatStrip`.
+   */
+  stats?: Stat[];
   /**
    * Whether this is the bay on screen.
    *
@@ -309,11 +318,7 @@ export default function GarageBay({
           <Text style={styles.name} numberOfLines={1}>
             {name || 'Vehicle'}
           </Text>
-          {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
-            </Text>
-          ) : null}
+          {stats ? <StatStrip stats={stats} /> : null}
         </View>
       </Pressable>
 

@@ -470,6 +470,27 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                     ]}
                   >
                     <View style={styles.head}>
+                      {/*
+                        ⚠ 6 Sep · B6: the index. Every record list in this app is
+                        the mono spec table — *"01 index, grotesk label,
+                        right-aligned mono value, hairline per row"* — and this
+                        list had the label, the value and the rule but not the
+                        index, which the critique caught three rounds running.
+
+                        `index + 1` padded to two digits, scoped to the visit
+                        rather than to the screen: the numbers say "second line
+                        of this invoice", not "seventh service you have ever
+                        recorded". A running total across visits would read as a
+                        count of the car's whole history and be wrong the moment
+                        a filter hides a row.
+
+                        `accessibilityElementsHidden` because the row already
+                        announces itself by description; a screen reader does not
+                        need "zero one" before every line.
+                      */}
+                      <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+                        {String(index + 1).padStart(2, '0')}
+                      </Text>
                       <Text style={styles.name}>{record.item_description ?? 'Service'}</Text>
                       {typeof record.total_cost === 'number' && record.total_cost > 0 && (
                         <Text style={styles.cost}>{formatCurrency(record.total_cost)}</Text>
@@ -694,6 +715,8 @@ const styles = StyleSheet.create({
   },
 
   head: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
+  /** The spec table's index — mono, muted, fixed width so the labels line up. */
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22 },
   name: { ...type.ui, color: text.primary, flexShrink: 1 },
   /* R11. A right-aligned price column that is not tabular reads as ragged. */
   cost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR },

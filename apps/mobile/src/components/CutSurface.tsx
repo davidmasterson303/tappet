@@ -1,5 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 /**
@@ -86,6 +93,7 @@ export default function CutSurface({
   strokeWidth = 1,
   style,
   children,
+  ...rest
 }: {
   /** Which corners carry the cut. One is the system default; two is a decision. */
   cut?: CutCorner[];
@@ -98,7 +106,18 @@ export default function CutSurface({
   strokeWidth?: number;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
-}) {
+  /*
+    ⚠ Everything else a `View` takes, forwarded — accessibility above all.
+
+    Without this the props were swallowed: `DialChip` moved onto the cut and its
+    `accessibilityRole` / `accessibilityLabel` simply stopped compiling, and the
+    tempting fix is a wrapper `View` around every call site. That would work and
+    it would also mean the *next* control to take the cut silently loses its
+    label to the same gap, which is the failure mode this repo cares most about
+    — a screen reader announcing nothing looks identical to one announcing
+    correctly, from the outside.
+  */
+} & Omit<ViewProps, 'style' | 'children'>) {
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -109,6 +128,7 @@ export default function CutSurface({
 
   return (
     <View
+      {...rest}
       style={style}
       onLayout={onLayout}
       /*
