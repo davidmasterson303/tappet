@@ -239,22 +239,28 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           instead of re-learning the layout halfway.
         */}
         <SpecBand title="Specification">
+          {/*
+            ⚠ **No FLUIDS sub-label.** Folding the two bands left it sitting a
+            gap above COOLANT with no rule of its own and the *same* 12px mono
+            weight as every row label beside it — so it read as a row whose
+            value had failed to load, which is the worst thing a spec table can
+            imply. A critique of the rendered page called it exactly that.
+
+            It is cut rather than promoted because it was never carrying
+            information: COOLANT, ENGINE OIL, BRAKE FLUID and TRANSMISSION FLUID
+            each say "fluid" in their own first or last word. Seven rows, one
+            table, one left edge for the eye to run down.
+          */}
           <div className="divide-y divide-white/8">
             <SpecRow label="Engine" value={cleanPowertrain(knowledge?.engine_type)} />
             <SpecRow label="Transmission" value={cleanPowertrain(knowledge?.transmission_type)} />
             <SpecRow label="Drivetrain" value={cleanPowertrain(knowledge?.drivetrain)} />
+            {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
+              <SpecRow key={key} label={key.replace(/_/g, ' ')} value={String(value)} />
+            ))}
           </div>
 
-          {Object.keys(fluidSpecs).length > 0 ? (
-            <>
-              <p className="mono label-uppercase mt-7 mb-1">Fluids</p>
-              <div className="divide-y divide-white/8">
-                {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
-                  <SpecRow key={key} label={key.replace(/_/g, ' ')} value={String(value)} />
-                ))}
-              </div>
-            </>
-          ) : (
+          {Object.keys(fluidSpecs).length === 0 && (
             <div className="mt-7">
               <EmptySpec label="Fluid specifications" />
             </div>
@@ -437,8 +443,8 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                   is.
                 */}
                 {interestingFacts.map((fact: string, index: number) => (
-                  <div key={`fact-${index}`} className="flex gap-4 py-3 first:pt-0 last:pb-0">
-                    <span className="mono num shrink-0 text-xs leading-normal text-white/70">
+                  <div key={`fact-${index}`} className="flex py-3 first:pt-0 last:pb-0">
+                    <span className="mono num w-8 shrink-0 text-xs leading-normal text-white/70">
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     <p className="text-sm leading-normal text-white/70">{fact}</p>
