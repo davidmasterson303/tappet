@@ -13,6 +13,20 @@ import { onSessionChange, signOut, startSessionAutoRefresh } from './src/auth/se
 import { unregisterPush } from './src/notifications/register';
 import { supabase } from './src/auth/supabase';
 import { SignInScreen } from './src/screens/SignInScreen';
+import DesignSpecimen from './src/dev/DesignSpecimen';
+
+/**
+ * The design-system specimen, in place of the app.
+ *
+ * ⚠ Double-gated: `__DEV__` **and** an opt-in env flag. `__DEV__` alone would
+ * put a developer one typo away from shipping a sheet of swatches as the
+ * product, and the flag alone would leave the branch in a release bundle.
+ *
+ * Set `EXPO_PUBLIC_DESIGN_SPECIMEN=1` in `apps/mobile/.env` and restart Metro —
+ * `EXPO_PUBLIC_*` values are inlined at bundle time, so a running server will
+ * not pick it up. See `src/dev/DesignSpecimen.tsx` for what it is for.
+ */
+const SHOW_SPECIMEN = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_SPECIMEN === '1';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 /**
@@ -84,6 +98,14 @@ export default function App() {
           <View style={styles.loading}>
             <ActivityIndicator color={text.muted} />
           </View>
+        ) : SHOW_SPECIMEN ? (
+          /*
+            ⚠ Below `fontsReady` deliberately. The specimen's whole job is to
+            show the type, and a sheet captured before Archivo Narrow and
+            JetBrains Mono have loaded is a sheet of San Francisco that looks
+            like the fonts were never wired up.
+          */
+          <DesignSpecimen />
         ) : session ? (
           /*
             Phase 3.2 replaces the 3.1 proof screen. `SignedInScreen` existed to
