@@ -686,6 +686,31 @@ means opposite things depending on which client the owner opens.
 free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
 
 
+### 3.13 ⚠ The critique cut both refresh controls; the capability stayed — 5 Sep
+
+`/vehicle-info`'s Cut list asked for both refresh controls to go, and offered a
+replacement: *"If freshness must show, it is one mono line: `RESEARCHED
+2026-08-30`."* The reasoning is sound as design — the page had a labelled
+button on one section and a ghost icon on another, which reads as one action
+wearing two costumes, and a read-only owner page does not need two.
+
+**They are not one action.** `ResearchButton` re-runs vehicle research and
+writes `vehicle_knowledge_base`; the Performance glyph calls
+`fetchPerformanceStats(true)`, which refetches the figures alone. Deleting them
+removes two capabilities, and David's standing boundary on this design work is
+that nothing is off limits *except* functionality changes.
+
+So the **treatment** moved and the **capability** did not: both now sit on the
+band head's baseline through `SpecBand`'s `action` slot, so they are the same
+kind of thing in the same place instead of two different affordances competing
+down the page.
+
+⚠ **This is a real deviation and it is Design's to settle**, not mine. If the
+critique's position is that an owner should never trigger research from this
+page, that is a product call about what the button is for — and the honest
+version of that change deletes the endpoint call too, rather than hiding the
+control and leaving the capability stranded behind it.
+
 ## 4. The export's five adherence rules, against what this repo already runs
 
 `specs/adherence-rules.spec.html` proposes five oxlint rules and says *"ship them

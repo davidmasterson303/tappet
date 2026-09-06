@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Droplets, Lightbulb, Loader as Loader2, RefreshCw } from 'lucide-react';
+import SpecBand from '@/components/SpecBand';
+import { Loader as Loader2, RefreshCw } from 'lucide-react';
 import ResearchButton from '@/components/ResearchButton';
 import { getClientSupabase } from '@/lib/supabase';
 import { logger } from '@wellkept/core/logger';
@@ -198,20 +198,18 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           card a header gives the button somewhere to be and gives the first
           block on the page a name.
         */}
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle className="display-serif text-white text-lg">Specification</CardTitle>
-              <ResearchButton
-                vehicleId={vehicle.id}
-                year={vehicle.year}
-                make={vehicle.make}
-                model={vehicle.model}
-                hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-5">
+        <SpecBand
+          title="Specification"
+          action={
+            <ResearchButton
+              vehicleId={vehicle.id}
+              year={vehicle.year}
+              make={vehicle.make}
+              model={vehicle.model}
+              hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
+            />
+          }
+        >
             {/*
               ── ⚠ Three rows, not three cards with circled glyphs ────────────
 
@@ -236,28 +234,25 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
               ].map(({ label, value }) => (
                 <div key={label} className="py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 sm:first:pl-0 sm:last:pr-0">
                   <p className="label-uppercase mb-1">{label}</p>
-                  <p className="text-sm font-semibold text-white leading-snug">{value}</p>
+                  <p className="mono text-sm text-white leading-snug">{value}</p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+        </SpecBand>
 
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="display-serif text-white text-lg">Performance</CardTitle>
-              <button
+        <SpecBand
+          title="Performance"
+          action={
+            <button
                 onClick={() => fetchPerformanceStats(true)}
                 disabled={perfLoading}
                 className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/35 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors disabled:opacity-40"
-                aria-label="Refresh performance stats"
-              >
-                <RefreshCw className={`h-4 w-4 ${perfLoading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
+              aria-label="Refresh performance stats"
+            >
+              <RefreshCw className={`h-4 w-4 ${perfLoading ? 'animate-spin' : ''}`} />
+            </button>
+          }
+        >
             {perfLoading && !hasPerformanceData ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="w-8 h-8 border-2 border-info-border border-t-info rounded-full animate-spin mb-3" />
@@ -283,7 +278,25 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                   the header — an icon that means three things means none, and
                   these were chosen to fill circles rather than to say anything.
                 */}
-                <div className="grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/10 bg-white/[0.02]">
+                {/*
+                  ── ⚠ The frame around these three came off — brief B6 ───────
+
+                  It was a bordered, filled, rounded panel *inside* a card: two
+                  containers to show three numbers. The critique named the pair
+                  as this page's clearest generated tell — "three-up centred
+                  stat cells inside a nested bordered panel" — and B6 is
+                  explicit that a nested card becomes a hairline-ruled band.
+
+                  The dividers were already doing the work. Removing the frame
+                  leaves them doing it alone, and the figures land on the same
+                  graphite as the rest of the page.
+
+                  ⚠ Left-aligned, not centred. These are readings, and the
+                  header strip above sets the pattern the page should keep: the
+                  numeral starts where the label starts, so the eye reads down a
+                  column rather than hunting three centres.
+                */}
+                <div className="grid grid-cols-3 divide-x divide-white/8">
                   {[
                     {
                       /*
@@ -313,8 +326,8 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                         : null,
                     },
                   ].map(({ label, value, unit, delta }) => (
-                    <div key={label} className="px-2 py-4 text-center sm:px-4 sm:py-5">
-                      <div className="num text-2xl sm:text-3xl font-bold text-white">
+                    <div key={label} className="py-4 pr-2 first:pl-0 sm:py-5 sm:pr-4 sm:[&:not(:first-child)]:pl-4">
+                      <div className="mono num text-2xl sm:text-3xl font-bold text-white">
                         {value || '\u2014'}
                         {value && <span className="text-sm font-normal text-white/50 ml-0.5">{unit}</span>}
                       </div>
@@ -345,8 +358,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 */}
               </>
             )}
-          </CardContent>
-        </Card>
+        </SpecBand>
 
         {ENABLE_TCO && (
           <>
@@ -365,14 +377,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           </>
         )}
 
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <CardTitle className="display-serif flex items-center gap-2 text-white text-lg">
-              <Droplets className="h-5 w-5 text-white/45" />
-              Fluid specifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <SpecBand title="Fluids">
             {/*
               ⚠ Capped width on a desktop. Full-bleed in a 1130px card put
               "Coolant" hard left and its value hard right with about 900px of
@@ -403,7 +408,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                     className="py-3 first:pt-0 last:pb-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8"
                   >
                     <span className="label-uppercase block sm:mb-0">{key.replace(/_/g, ' ')}</span>
-                    <span className="mt-1 block text-sm font-medium text-white sm:mt-0 sm:max-w-[60%] sm:text-right">
+                    <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:max-w-[60%] sm:text-right">
                       {value}
                     </span>
                   </div>
@@ -412,12 +417,10 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             ) : (
               <EmptySpec label="Fluid specifications" />
             )}
-          </CardContent>
-        </Card>
+        </SpecBand>
 
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <CardTitle className="display-serif flex items-center gap-2 text-white text-lg">
+        <SpecBand title="Worth knowing">
+          <>
               {/*
                 ── ⚠ It said "Five" and rendered three ─────────────────────
 
@@ -432,11 +435,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 So the heading stops counting. "Worth knowing" is true at three
                 facts and at five, which is the only wording that can be.
               */}
-              <Lightbulb className="h-5 w-5 text-white/45" />
-              Worth knowing
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+
             {/*
               ⚠ A hairline-divided list, not one bordered tile per fact inside a
               bordered card inside a bordered page panel. Three levels of
@@ -458,8 +457,8 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             ) : (
               <EmptySpec label="Interesting facts" />
             )}
-          </CardContent>
-        </Card>
+          </>
+        </SpecBand>
       </div>
     </DashboardLayout>
   );

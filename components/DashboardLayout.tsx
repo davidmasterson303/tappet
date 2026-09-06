@@ -455,7 +455,27 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               screen edge reads as cut, which for a navigation item is the same
               failure. Six pixels of air costs nothing: the four tabs measured
               369px inside 390. */}
-          <div className="-mx-4 sm:mx-0 px-1.5 sm:px-0 flex border-t border-white/8 overflow-x-auto edge-fade-x">
+          {/*
+            ── ⚠ The active tab was the one being cut — measured, 5 Sep ───────
+
+            The note below records dropping the glyphs so all four tabs fit,
+            and at 390px they do. At **375px** — iPhone SE, 13 mini, and every
+            other 375pt device — they did not: the strip measured 394px against
+            a 375px viewport, 19px over, and the tab pushed past the edge was
+            whichever one was **active**. "Vehicle Info" sat with its right edge
+            at 388px while being the page you were on.
+
+            That is the worst tab to lose. The strip scrolls and `edge-fade-x`
+            softens the cut, but the note below already settled what that is
+            worth: *a scroll affordance is not discovery* — and it is less than
+            that here, because the thing hidden is not a destination but your
+            own location.
+
+            12px comes off the strip and 16px off the tabs, which brings the
+            row to ~366px and leaves 9px of air at 375. `min-h-[44px]` is
+            untouched, so the tap target is unchanged.
+          */}
+          <div className="-mx-4 sm:mx-0 px-0 sm:px-0 flex border-t border-white/8 overflow-x-auto edge-fade-x">
               {tabs.map(({ key, label, icon: Icon, href }) => {
                 const isActive = currentPage === key;
                 return (
@@ -529,7 +549,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       `mono` and caps because every other label on this surface
                       is: a tab is a state label, not prose.
                     */
-                    className={`mono relative flex items-center px-2.5 sm:px-4 py-3 min-h-[44px] text-[12px] uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border-b-2 ${
+                    className={`mono relative flex items-center px-2 sm:px-4 py-3 min-h-[44px] text-[12px] uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border-b-2 ${
                       isActive
                         ? 'border-[color:var(--info)] text-[color:var(--text-primary)]'
                         : 'border-transparent text-white/50 hover:text-white/80'
