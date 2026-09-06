@@ -41,10 +41,27 @@ function cleanPowertrain(value: string | null | undefined): string {
  * Synthetic (BMW LL-01 spec)") wrapped to three lines of **right-aligned** body
  * copy in a narrow column — ragged-left, the hardest alignment to read, four
  * rows running.
+ *
+ * ── ⚠ Two columns, not `justify-between` ───────────────────────────────────
+ *
+ * The row used to push its label and value to opposite margins, so the value's
+ * **left** edge landed wherever its own text happened to start: measured at
+ * 1440, ENGINE's value began at x=1077 and COOLANT's at x=1043, with roughly
+ * 950px of nothing between each label and its value. Seven rows of that read as
+ * a stretched definition list rather than a table — the pairing was carried
+ * entirely by the hairline.
+ *
+ * A half-and-half grid gives every value one left edge at x=720, which is
+ * within 3px of where the header stat strip's first column starts (x=723,
+ * measured), so the strip and the table below it share a vertical axis.
+ *
+ * ⚠ The values stay **right-aligned inside that column**, so the numerals still
+ * meet at a common right edge — B7 asks for right-aligned numerals and this
+ * does not walk that back, it just stops the column from being the full page.
  */
 function SpecRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="py-3 first:pt-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8">
+    <div className="py-3 first:pt-0 sm:grid sm:grid-cols-2 sm:items-baseline">
       <span className="mono label-uppercase block sm:mb-0">{label}</span>
       <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:text-right">{value}</span>
     </div>
