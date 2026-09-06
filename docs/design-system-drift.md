@@ -686,7 +686,24 @@ means opposite things depending on which client the owner opens.
 free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
 
 
-### 3.13 ⚠ The critique cut both refresh controls; the capability stayed — 5 Sep
+### 3.13 ✅ One of the two refresh controls went after all — 5 Sep, revised
+
+⚠ **The first version of this entry was wrong about one of the two, and the
+correction is the interesting part.** It argued both controls should keep their
+capability because they are two different actions. That is true, and it is not
+sufficient: `fetchPerformanceStats()` **already runs on mount**, so the
+Performance glyph re-triggered a fetch that happens anyway. Deleting it costs
+nothing, and the locked brief lists "the floating refresh icon" among the cuts
+it explicitly accepts — so it was never a deviation to begin with. It is gone.
+
+`ResearchButton` is the real case and it stands: it triggers work nothing else
+triggers, so it moved rather than went — unframed, mono, at the foot of the
+page beside the disclosure, where a critique's own suggestion put it. What
+follows is the original entry, which still holds for that control:
+
+---
+
+### 3.13a ⚠ The critique cut both refresh controls; one capability stayed
 
 `/vehicle-info`'s Cut list asked for both refresh controls to go, and offered a
 replacement: *"If freshness must show, it is one mono line: `RESEARCHED

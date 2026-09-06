@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import SpecBand from '@/components/SpecBand';
 import { Loader as Loader2, RefreshCw } from 'lucide-react';
 import ResearchButton from '@/components/ResearchButton';
+import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
 import { logger } from '@wellkept/core/logger';
 import TCOCard from '@/components/TCOCard';
@@ -198,18 +199,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           card a header gives the button somewhere to be and gives the first
           block on the page a name.
         */}
-        <SpecBand
-          title="Specification"
-          action={
-            <ResearchButton
-              vehicleId={vehicle.id}
-              year={vehicle.year}
-              make={vehicle.make}
-              model={vehicle.model}
-              hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
-            />
-          }
-        >
+        <SpecBand title="Specification">
             {/*
               ── ⚠ Three rows, not three cards with circled glyphs ────────────
 
@@ -233,26 +223,29 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 { label: 'Drivetrain', value: cleanPowertrain(knowledge?.drivetrain) },
               ].map(({ label, value }) => (
                 <div key={label} className="py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 sm:first:pl-0 sm:last:pr-0">
-                  <p className="label-uppercase mb-1">{label}</p>
+                  <p className="mono label-uppercase mb-1">{label}</p>
                   <p className="mono text-sm text-white leading-snug">{value}</p>
                 </div>
               ))}
             </div>
         </SpecBand>
 
-        <SpecBand
-          title="Performance"
-          action={
-            <button
-                onClick={() => fetchPerformanceStats(true)}
-                disabled={perfLoading}
-                className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/35 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors disabled:opacity-40"
-              aria-label="Refresh performance stats"
-            >
-              <RefreshCw className={`h-4 w-4 ${perfLoading ? 'animate-spin' : ''}`} />
-            </button>
-          }
-        >
+        {/*
+          ── ⚠ The floating refresh icon is gone — the brief cut it ───────────
+
+          It sat at this heading's right edge as a bare glyph while
+          `ResearchButton` sat at Specification's as a bordered, labelled
+          button: one page, two treatments, for two actions a reader had no way
+          to tell apart. The locked brief lists "the floating refresh icon"
+          among the cuts it accepts, and a critique of the rendered page called
+          this one an orphan.
+
+          ⚠ **No capability goes with it.** `fetchPerformanceStats()` already
+          runs on mount — this control only re-ran a fetch that happens anyway,
+          which is why it can be deleted outright while `ResearchButton`, which
+          triggers work nothing else triggers, moves to the foot instead.
+        */}
+        <SpecBand title="Performance">
             {perfLoading && !hasPerformanceData ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="w-8 h-8 border-2 border-info-border border-t-info rounded-full animate-spin mb-3" />
@@ -326,12 +319,12 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                         : null,
                     },
                   ].map(({ label, value, unit, delta }) => (
-                    <div key={label} className="py-4 pr-2 first:pl-0 sm:py-5 sm:pr-4 sm:[&:not(:first-child)]:pl-4">
+                    <div key={label} className="pr-2 first:pl-0 sm:pr-4 sm:[&:not(:first-child)]:pl-4">
                       <div className="mono num text-2xl sm:text-3xl font-bold text-white">
                         {value || '\u2014'}
-                        {value && <span className="text-sm font-normal text-white/50 ml-0.5">{unit}</span>}
+                        {value && <span className="mono text-xs font-normal text-white/50 ml-0.5">{unit}</span>}
                       </div>
-                      <p className="label-uppercase mt-1.5">{label}</p>
+                      <p className="mono label-uppercase mt-1.5">{label}</p>
                       {/*
                         ⚠ Not green. "+52 from stock" is a fact about a
                         modification, not a good or a bad one, and the health
@@ -387,7 +380,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
               readable as a pair.
             */}
             {Object.keys(fluidSpecs).length > 0 ? (
-              <div className="divide-y divide-white/6 sm:max-w-3xl">
+              <div className="divide-y divide-white/6">
                 {/*
                   ── ⚠ Label above value on a phone, side by side above `sm` ──
 
@@ -407,8 +400,8 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                     key={key}
                     className="py-3 first:pt-0 last:pb-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8"
                   >
-                    <span className="label-uppercase block sm:mb-0">{key.replace(/_/g, ' ')}</span>
-                    <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:max-w-[60%] sm:text-right">
+                    <span className="mono label-uppercase block sm:mb-0">{key.replace(/_/g, ' ')}</span>
+                    <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:text-right">
                       {value}
                     </span>
                   </div>
@@ -445,13 +438,22 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             */}
             {interestingFacts.length > 0 ? (
               <div className="divide-y divide-white/8">
+                {/*
+                  ⚠ 01/02/03, and the index is not a ranking. B7 sets this
+                  page's lists as a mono spec table with 01-style indices, and
+                  the earlier objection — that numerals in circles "implied a
+                  ranking that nothing computes" — was about the circles and the
+                  emphasis, not the counting. A flat mono index in the margin
+                  reads as an enumeration, which is what a list of three facts
+                  is.
+                */}
                 {interestingFacts.map((fact: string, index: number) => (
-                  <p
-                    key={`fact-${index}`}
-                    className="py-3 text-sm leading-normal text-white/70 first:pt-0 last:pb-0"
-                  >
-                    {fact}
-                  </p>
+                  <div key={`fact-${index}`} className="flex gap-4 py-3 first:pt-0 last:pb-0">
+                    <span className="mono num shrink-0 text-xs leading-normal text-white/50">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <p className="text-sm leading-normal text-white/70">{fact}</p>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -459,6 +461,39 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             )}
           </>
         </SpecBand>
+
+        {/*
+          ── ⚠ The page says a model wrote it — UX-16, on a surface nobody
+             counted ──────────────────────────────────────────────────────────
+
+          Every figure above this line came out of the research model: the
+          engine, the gearbox, the fluid specifications, all three facts. The
+          page carried a control labelled "Refresh research" and no disclosure
+          at all, which is the exact state UX-16 and LEG-05 were raised to end
+          — and `advice-says-it-is-generated.test.ts` says in its own note why
+          a surface missing from its table has to read as a defect rather than
+          as one nobody got to.
+
+          ⚠ It is `'research'`, not `'plan'`. The claim that matters here is
+          the *matching level*: this was researched for a 2018 Honda Accord
+          Sport, not for **this** one. See the note in `advice-disclosure.ts`.
+
+          The action sits with it because this is where the sentence about
+          generated content already is, and because a critique read it framed
+          at heading level as outranking the section head beside it.
+        */}
+        <div className="flex flex-col gap-3 border-t border-white/8 pt-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8">
+          <p className="mono max-w-2xl text-xs leading-relaxed text-white/50">
+            {adviceDisclosure('research')}
+          </p>
+          <ResearchButton
+            vehicleId={vehicle.id}
+            year={vehicle.year}
+            make={vehicle.make}
+            model={vehicle.model}
+            hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

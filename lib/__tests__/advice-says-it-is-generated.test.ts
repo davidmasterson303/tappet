@@ -46,6 +46,7 @@ const WEB_SCHEDULE = read('components', 'insights', 'MaintenanceTab.tsx');
 const MOBILE_SCHEDULE = read('apps', 'mobile', 'src', 'screens', 'ServiceMilestoneScreen.tsx');
 
 const WEB_ESTIMATE = read('components', 'CostBreakdownTable.tsx');
+const WEB_RESEARCH = read('app', 'vehicle-info', '[vehicleId]', 'page.tsx');
 const MOBILE_ESTIMATE = read('apps', 'mobile', 'src', 'components', 'EstimateWell.tsx');
 
 const WEB_RECALL_CARD = read('components', 'RecallAlerts.tsx');
@@ -76,7 +77,7 @@ describe('the disclosure itself', () => {
       ⚠ "May contain inaccuracies" is a hedge, not a disclosure — it does not
       tell anybody what the thing is. Every surface has to say a model wrote it.
     */
-    for (const surface of ['consultant', 'health', 'estimate', 'plan'] as const) {
+    for (const surface of ['consultant', 'health', 'estimate', 'plan', 'research'] as const) {
       expect([surface, /\bAI\b/.test(adviceDisclosure(surface))]).toEqual([surface, true]);
     }
   });
@@ -132,7 +133,7 @@ describe('the disclosure itself', () => {
     same sentence goes soft, and the third only became possible today.
   */
   it('ships no placeholder, no product name and no persona name', () => {
-    for (const surface of ['consultant', 'health', 'estimate', 'plan'] as const) {
+    for (const surface of ['consultant', 'health', 'estimate', 'plan', 'research'] as const) {
       const copy = adviceDisclosure(surface);
       expect([surface, /\[advisor name\]|\{advisor/i.test(copy)]).toEqual([surface, false]);
       expect([surface, /CrewChief|Well Kept/i.test(copy)]).toEqual([surface, false]);
@@ -228,6 +229,18 @@ describe('both clients render it', () => {
       rather than as a surface nobody got to.
     */
     ['web estimate', WEB_ESTIMATE, /adviceDisclosure\('estimate'\)/],
+    /*
+      ⚠ Added 5 Sep, and its absence is the finding again — the same shape as
+      the web-estimate row above, on a page nobody had counted as an advice
+      surface at all. `/vehicle-info` renders the research model's own output
+      end to end (engine, gearbox, fluid specs, the facts list) under a control
+      labelled "Refresh research", and showed no disclosure.
+
+      It is a *fifth* surface rather than a reuse of `plan`, because the claim
+      that matters here is the matching level: researched for a year, make and
+      model, not for this car.
+    */
+    ['web vehicle research', WEB_RESEARCH, /adviceDisclosure\('research'\)/],
   ];
 
   it.each(SURFACES)('%s renders its disclosure', (_name, source, pattern) => {

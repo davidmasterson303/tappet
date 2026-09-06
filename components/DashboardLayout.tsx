@@ -755,7 +755,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     aria-label="Edit mileage"
                   >
                     <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.current_mileage?.toLocaleString() || '—'}</span>
-                    <span className="text-sm text-white/50 font-normal">mi</span>
+                    <span className="mono text-xs text-white/50 font-normal">mi</span>
                     {/*
                       ── ⚠ A word, after two conventions both failed ──────────
 
@@ -809,7 +809,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                     aria-label="Edit average monthly miles"
                   >
                     <span className="mono text-2xl font-medium text-white tabular-nums">{displayVehicle.avg_miles_per_month ? displayVehicle.avg_miles_per_month.toLocaleString() : '—'}</span>
-                    <span className="text-sm text-white/50 font-normal">mi/mo</span>
+                    <span className="mono text-xs text-white/50 font-normal">mi/mo</span>
                     <span className="meta-edit text-xs font-semibold text-white/75 underline decoration-white/35 underline-offset-2 group-hover/edit:text-white">
                       Edit
                     </span>
@@ -817,6 +817,53 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                 )}
               </div>
 
+
+              {/*
+                ── ⚠ This is not the health score, and it read like it was ───
+
+                Two numbers with verdicts, on one screen, about one car: the
+                dial says **61 / Fair** and this said **6/10 · Good**. They are
+                different subjects — 61 is *this* car's condition from its own
+                records, 6/10 is how the 2019 M3 fares as a model — and nothing
+                on the screen said so. A design critique of the rendered page
+                read them as the same fact contradicting itself, which is the
+                only available reading when a label is one word long.
+
+                Two changes, and the second matters more than the first:
+
+                  - The label names the subject. "Reliability" beside a car's
+                    dashboard is naturally read as *this car's*.
+                  - The verdict chip is gone. "Good" next to "Fair" is the
+                    contradiction in its sharpest form, and the chip was the
+                    one element on the row asserting a judgement — the other
+                    three state readings and let the reader judge. The figure
+                    keeps its `/10`, which is what makes it a scale rather than
+                    a score out of a hundred read wrong.
+              */}
+              {knowledge?.reliability_score && (
+                <div className="flex flex-col gap-1">
+                  <span className="mono label-uppercase">Reliability</span>
+                  <span className="mono text-2xl font-medium text-white tabular-nums">
+                    {knowledge.reliability_score}
+                    <span className="mono text-xs text-white/50 ml-0.5">/10</span>
+                  </span>
+                </div>
+              )}
+
+              {/*
+                ── ⚠ The chip trails the numerals — 5 Sep ─────────────────
+
+                It used to sit between AVG and RELIABILITY, which split the
+                strip: three label-over-value readings with a word wedged
+                into the middle of them. A critique of the rendered page
+                called it "breaking the label-over-value rhythm", and the
+                cost is that the eye stops counting halfway along a row
+                whose whole job is to be counted.
+
+                Moving it to the end lets MILEAGE, AVG and RELIABILITY run
+                unbroken and leaves the one word at the end of the line,
+                where a word can sit without interrupting anything.
+              */}
               {/*
                 ── ⚠ The label is gone; the chip names itself ────────────────
 
@@ -865,38 +912,6 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                   )}
                 </div>
               </div>
-
-              {/*
-                ── ⚠ This is not the health score, and it read like it was ───
-
-                Two numbers with verdicts, on one screen, about one car: the
-                dial says **61 / Fair** and this said **6/10 · Good**. They are
-                different subjects — 61 is *this* car's condition from its own
-                records, 6/10 is how the 2019 M3 fares as a model — and nothing
-                on the screen said so. A design critique of the rendered page
-                read them as the same fact contradicting itself, which is the
-                only available reading when a label is one word long.
-
-                Two changes, and the second matters more than the first:
-
-                  - The label names the subject. "Reliability" beside a car's
-                    dashboard is naturally read as *this car's*.
-                  - The verdict chip is gone. "Good" next to "Fair" is the
-                    contradiction in its sharpest form, and the chip was the
-                    one element on the row asserting a judgement — the other
-                    three state readings and let the reader judge. The figure
-                    keeps its `/10`, which is what makes it a scale rather than
-                    a score out of a hundred read wrong.
-              */}
-              {knowledge?.reliability_score && (
-                <div className="flex flex-col gap-1">
-                  <span className="mono label-uppercase">Reliability</span>
-                  <span className="mono text-2xl font-medium text-white tabular-nums">
-                    {knowledge.reliability_score}
-                    <span className="text-sm text-white/50 ml-0.5">/10</span>
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>
