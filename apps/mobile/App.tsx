@@ -27,6 +27,27 @@ import DesignSpecimen from './src/dev/DesignSpecimen';
  * not pick it up. See `src/dev/DesignSpecimen.tsx` for what it is for.
  */
 const SHOW_SPECIMEN = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_SPECIMEN === '1';
+
+/**
+ * The product screens, driven by fixtures, with no session.
+ *
+ * ── ⚠ Why the session gate is bypassed rather than faked ────────────────────
+ *
+ * The design loop grades real screens, and twice it has been called blocked
+ * because the simulator could not sign in. Both times the reasoning was that the
+ * screens need a session; they do not — they need **data**, and the session is
+ * only the gate in front of it. `api/client.ts` serves that data from
+ * `dev/fixtures.ts` under the same flag.
+ *
+ * ⚠ The token handed down is a placeholder string and never reaches the network,
+ * because every request this mode makes is answered before the fetch. If a
+ * screen calls a path `fixtures.ts` does not cover, the request falls through,
+ * the placeholder is rejected, and the screen shows its error state — which is
+ * the correct outcome: an un-fixtured screen should look broken, not finished.
+ *
+ * Same double gate as the specimen, for the same reason.
+ */
+const SHOW_FIXTURES = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 /**
@@ -98,6 +119,12 @@ export default function App() {
           <View style={styles.loading}>
             <ActivityIndicator color={text.muted} />
           </View>
+        ) : SHOW_FIXTURES ? (
+          <RootNavigator
+            accessToken="design-fixtures"
+            email="design@fixtures.local"
+            onSignOut={() => {}}
+          />
         ) : SHOW_SPECIMEN ? (
           /*
             ⚠ Below `fontsReady` deliberately. The specimen's whole job is to
