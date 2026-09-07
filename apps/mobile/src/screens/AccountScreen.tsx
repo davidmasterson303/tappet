@@ -164,7 +164,20 @@ export function AccountScreen({
         As a route, the stack header is the way back and a second "Done" beside
         it is a second answer to one question.
       */}
-      <View style={styles.bar}>
+      {/*
+        ── ⚠ 6 Sep · B8: the bar renders only when it has something to carry ───
+
+        It rendered unconditionally, and after its title moved to `ScreenTitle`
+        the non-modal case was left drawing 64pt of padding and a full-width
+        hairline with **nothing above the rule**. The critique measured the
+        result: ACCOUNT sitting ~95pt below where SERVICE and ADVISOR sit, under
+        a stray rule.
+
+        Its only remaining job is "Done", which exists solely when this screen is
+        presented modally — so `onClose` is exactly the condition for drawing it.
+      */}
+      {onClose ? (
+        <View style={styles.bar}>
         {/*
           ── ⚠ 6 Sep · B8: the screen's name is not printed twice ─────────────
 
@@ -177,12 +190,11 @@ export function AccountScreen({
           presented as a modal (`onClose`), which is a different question from
           what the screen is called. `ScreenTitle` is the name now.
         */}
-        {onClose ? (
           <Pressable onPress={handleClose} hitSlop={12} disabled={deleting}>
             <Text style={[styles.close, deleting && styles.disabledText]}>Done</Text>
           </Pressable>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {/*
         B8: the root's own name, in the condensed grotesk. **Outside** the

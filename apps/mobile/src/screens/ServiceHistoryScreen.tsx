@@ -735,10 +735,27 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
   },
 
-  head: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
+  /*
+    ── ⚠ 6 Sep · B6: `space-between` cannot lay out a spec table ──────────────
+
+    This was `justifyContent: 'space-between'` and it was right for two children
+    — label left, price right. Adding the `01` index made it three, and
+    space-between spreads three: the index went left, the price right, and the
+    label was pushed to the *centre* of whatever was left over. Every row has a
+    different label length, so every label started at a different x.
+
+    The critique read it as "centered, not tabular", which is exactly what it
+    was. A spec table's whole claim is a shared left edge, and the change that
+    added the index is the change that broke it.
+
+    `flex: 1` on the label is the fix rather than a third `justifyContent`: the
+    index is a fixed column, the label takes what is left, the price is pushed
+    right by that rather than by a distribution rule.
+  */
+  head: { flexDirection: 'row', alignItems: 'baseline', gap: space.md },
   /** The spec table's index — mono, muted, fixed width so the labels line up. */
   index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22 },
-  name: { ...type.ui, color: text.primary, flexShrink: 1 },
+  name: { ...type.ui, color: text.primary, flex: 1 },
   /* R11. A right-aligned price column that is not tabular reads as ragged. */
   cost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR },
   meta: { ...type.mono, color: text.muted, ...TABULAR },
