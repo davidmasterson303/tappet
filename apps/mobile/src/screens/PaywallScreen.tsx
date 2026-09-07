@@ -6,13 +6,13 @@ import Button from '../components/Button';
 import Well from '../components/Well';
 import { API_BASE_URL } from '../config';
 import { border, radius, space, surface, text, type } from '../theme';
-import type { PurchaseResolution } from '@wellkept/core/purchase-flow';
+import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 import {
   FREE_FEATURES,
   FREE_FEATURE_COPY,
   PAID_FEATURES,
   PAID_FEATURE_COPY,
-} from '@wellkept/core/paid-features';
+} from '@tappet/core/paid-features';
 
 /**
  * One thing somebody can buy.
@@ -39,7 +39,7 @@ export interface SubscriptionOption {
  *
  * Phase 6, E8. Presentational and orchestrating only: it renders what it is
  * given and calls back. Every decision about what a purchase *means* is in
- * `@wellkept/core/purchase-flow`, which is why this screen can be tested
+ * `@tappet/core/purchase-flow`, which is why this screen can be tested
  * without StoreKit, a sandbox account or a network.
  *
  * ── ⚠ It never decides that somebody is entitled ────────────────────────────

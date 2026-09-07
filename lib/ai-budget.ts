@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from './supabase';
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import {
   dayStart,
   decideBudget,
@@ -10,8 +10,8 @@ import {
   type BudgetDecision,
   type DemoBudgetDecision,
   type FrontDoorDecision,
-} from '@wellkept/core/ai/budget';
-import { resolveEntitledTier } from '@wellkept/core/entitlement';
+} from '@tappet/core/ai/budget';
+import { resolveEntitledTier } from '@tappet/core/entitlement';
 
 /**
  * Read what an account has spent this month and decide whether it may spend

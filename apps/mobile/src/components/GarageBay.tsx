@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 
 import StatStrip, { type Stat } from './StatStrip';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
 
 import BayRoom, { BayLightPool, bayHeroHeight } from './BayRoom';
 import ClusterGauge from './ClusterGauge';
 import {
   UNKNOWN_TIMING,
   describeNextService,
-} from '@wellkept/core/garage-next-service';
+} from '@tappet/core/garage-next-service';
 import { TABULAR, TARGET_MIN, bay, space, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
 import { interFace } from '../theme/fonts';

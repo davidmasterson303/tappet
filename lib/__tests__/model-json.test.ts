@@ -14,7 +14,7 @@ import {
   firstString,
   firstStringArray,
   scoreInRange,
-} from '@wellkept/core/model-json';
+} from '@tappet/core/model-json';
 
 describe('firstNumber', () => {
   it('takes the first spelling that is actually there', () => {

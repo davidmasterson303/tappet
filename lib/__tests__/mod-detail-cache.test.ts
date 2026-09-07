@@ -20,7 +20,7 @@ import {
   isModDetailCacheFresh,
   modDetailCacheKey,
   type ModDetailFacts,
-} from '@wellkept/core/mod-detail-cache';
+} from '@tappet/core/mod-detail-cache';
 
 const BASE: ModDetailFacts = {
   year: 2018,

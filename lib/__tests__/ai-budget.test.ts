@@ -25,7 +25,7 @@ import {
   DEMO_BUDGET,
   TIERS,
   WARN_AT,
-} from '@wellkept/core/ai/budget';
+} from '@tappet/core/ai/budget';
 
 const tier = TIERS.free;
 const LIMIT = tier.monthlyOutputTokens;

@@ -21,7 +21,7 @@ import {
   emptyCompletion,
   parseCost,
   type CompletionDraft,
-} from '@wellkept/core/wishlist-completion';
+} from '@tappet/core/wishlist-completion';
 
 const TODAY = '2026-08-12';
 

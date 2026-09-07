@@ -30,12 +30,12 @@ import {
   maintenanceDriver,
   recallDriver,
   type HealthDriver,
-} from '@wellkept/core/health-drivers';
+} from '@tappet/core/health-drivers';
 import {
   describeReadWork,
   hasReadWorkToNarrate,
   readWorkCount,
-} from '@wellkept/core/work-narration';
+} from '@tappet/core/work-narration';
 
 const driver = (score: number | null): HealthDriver => ({
   key: 'maintenance',

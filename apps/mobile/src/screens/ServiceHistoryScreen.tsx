@@ -27,8 +27,8 @@ import {
   totalRecorded,
   type ServiceRecord,
   type ServiceVisit,
-} from '@wellkept/core/service-record';
-import { formatCurrency } from '@wellkept/core/formatting-utils';
+} from '@tappet/core/service-record';
+import { formatCurrency } from '@tappet/core/formatting-utils';
 import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';

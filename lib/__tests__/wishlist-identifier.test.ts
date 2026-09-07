@@ -16,7 +16,7 @@
  * the two must not drift.
  */
 
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
 describe('the same item always gets the same identifier', () => {
   // The exact failure David reported: added from the dossier, then from the

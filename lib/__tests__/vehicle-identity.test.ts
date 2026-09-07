@@ -24,7 +24,7 @@ import {
   isSemanticHue,
   HUE_MIN,
   HUE_MAX,
-} from '@wellkept/core/vehicle-identity';
+} from '@tappet/core/vehicle-identity';
 
 describe('the published anchors', () => {
   it.each([

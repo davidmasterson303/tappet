@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/AuthProvider';
-import { DEMO_GARAGE_ROUTE, SIGNED_IN_HOME } from '@wellkept/core/routes';
+import { DEMO_GARAGE_ROUTE, SIGNED_IN_HOME } from '@tappet/core/routes';
 
 /**
  * Where the Well Kept mark should take you.

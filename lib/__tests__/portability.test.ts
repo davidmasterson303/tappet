@@ -321,7 +321,7 @@ const NOT_PORTABLE: Record<string, string> = {
     Worth saying why it is not split the way `image-resize` was: there is no
     portable half to rescue. What it does *is* the IO — call the model, validate,
     write four tables — and the one genuinely portable piece, the schema that
-    validates the response, already lives in `@wellkept/core/vehicle-utils`
+    validates the response, already lives in `@tappet/core/vehicle-utils`
     where both this and the mobile client read it.
   */
   'lib/vehicle-research.ts': 'service-role client, the Gemini client, and a fetch to NHTSA',
@@ -333,7 +333,7 @@ const NOT_PORTABLE: Record<string, string> = {
     Canvas encoding is genuinely web-only, and the split is deliberate rather
     than reluctant: the arithmetic — scale factors, the quality ladder, whether
     a re-encode is even worth keeping — lives in
-    `@wellkept/core/image-resize` where it is portable and tested, and only
+    `@tappet/core/image-resize` where it is portable and tested, and only
     the `document.createElement('canvas')` glue stays here.
 
     A React Native client will need its own encoder anyway (expo-image-manipulator

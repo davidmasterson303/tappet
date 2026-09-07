@@ -60,7 +60,7 @@ const {
   pickInvoiceImage,
   ImagePickerUnavailable,
 } = require('../../apps/mobile/src/media/pick-image');
-const { ALLOWED_DOCUMENT_TYPES } = require('@wellkept/core/validation');
+const { ALLOWED_DOCUMENT_TYPES } = require('@tappet/core/validation');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 const GRANTED = { granted: true, canAskAgain: true };

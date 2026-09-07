@@ -1,4 +1,4 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getAppleRootCertificates, APPLE_BUNDLE_ID } from '@/lib/apple-root-ca';

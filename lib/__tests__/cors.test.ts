@@ -18,7 +18,7 @@
  *     happens when middleware reaches further than intended.
  */
 
-import { allowedOrigins, corsHeadersFor, isVersionedApiPath } from '@wellkept/core/cors';
+import { allowedOrigins, corsHeadersFor, isVersionedApiPath } from '@tappet/core/cors';
 
 const ORIGINS = ['https://wellkept-demo.davidmasterson.co', 'http://localhost:8081'];
 

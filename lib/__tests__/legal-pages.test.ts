@@ -21,7 +21,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SUBSCRIPTION_CANCEL_PATH } from '@wellkept/core/account-deletion';
+import { SUBSCRIPTION_CANCEL_PATH } from '@tappet/core/account-deletion';
 
 import { CONTACT_EMAIL, LAST_UPDATED, OPERATOR } from '@/lib/legal';
 

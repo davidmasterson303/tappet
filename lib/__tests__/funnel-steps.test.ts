@@ -34,7 +34,7 @@ import {
   visitorCookieOptions,
   VISITOR_COOKIE,
   VISITOR_TTL_SECONDS,
-} from '@wellkept/core/funnel';
+} from '@tappet/core/funnel';
 
 const ROOT = join(__dirname, '..', '..');
 const MIGRATION = readFileSync(

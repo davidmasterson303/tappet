@@ -35,8 +35,8 @@ import {
   decideFeatureAccess,
   isPaidFeature,
   type PaidFeature,
-} from '@wellkept/core/paid-features';
-import { entitlesFeature } from '@wellkept/core/entitlement';
+} from '@tappet/core/paid-features';
+import { entitlesFeature } from '@tappet/core/entitlement';
 
 const ROOT = join(__dirname, '..', '..');
 const PAYWALL = readFileSync(

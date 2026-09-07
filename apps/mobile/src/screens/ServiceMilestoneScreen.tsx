@@ -21,15 +21,15 @@ import {
   type Milestone,
   type ScheduleEntry,
   type ServiceDue,
-} from '@wellkept/core/service-due';
+} from '@tappet/core/service-due';
 import {
   SCHEDULE_BASIS_LABELS,
   SERVICE_BASIS_LABELS,
   milestoneBasis,
-} from '@wellkept/core/service-provenance';
-import { historyLookups, type ServiceHistoryRow } from '@wellkept/core/service-history';
-import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+} from '@tappet/core/service-provenance';
+import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   OPTICAL_CENTRE,
   PAGE_BODY,

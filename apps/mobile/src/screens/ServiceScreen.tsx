@@ -5,7 +5,7 @@ import Button from '../components/Button';
 import ScreenTitle from '../components/ScreenTitle';
 import Segmented from '../components/Segmented';
 import { ServiceHistoryScreen } from './ServiceHistoryScreen';
-import type { ServiceVisit } from '@wellkept/core/service-record';
+import type { ServiceVisit } from '@tappet/core/service-record';
 import { ServiceMilestoneScreen } from './ServiceMilestoneScreen';
 import { PAGE_BODY, space, surface } from '../theme';
 

@@ -12,7 +12,7 @@ import { isDemoSite, shareDescription, siteOrigin } from '@/lib/site-role';
 const IS_DEMO = isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE);
 import { AuthProvider } from '@/components/AuthProvider';
 import { SiteRoleProvider } from '@/components/SiteRoleProvider';
-import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@wellkept/core/intro-gate';
+import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@tappet/core/intro-gate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -147,7 +147,7 @@ export default function RootLayout({
         />
         {/*
           Decides the garage-door intro before the first paint. See
-          components/GarageDoor.tsx and @wellkept/core/intro-gate.
+          components/GarageDoor.tsx and @tappet/core/intro-gate.
 
           It has to be a blocking inline script, and the two alternatives are
           both visibly wrong. Deciding in an effect means the page paints

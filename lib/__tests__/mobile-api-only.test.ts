@@ -175,7 +175,7 @@ describe('the mobile client', () => {
 
         - the exempt module names none of ours, and
         - it mints **no URL of its own at all**. Every address it fetches comes
-          from `@wellkept/core/vehicle-catalog`, whose complete set of hosts is
+          from `@tappet/core/vehicle-catalog`, whose complete set of hosts is
           asserted below. Checking the module for a third-party hostname would
           not do it — the hostname legitimately lives in the shared module, and
           a check that looked for it locally would have to be satisfied by
@@ -191,7 +191,7 @@ describe('the mobile client', () => {
     for (const file of exempt) {
       expect(file.code).not.toMatch(/API_PREFIX|API_BASE_URL|\/api\/v1/);
       expect(file.code).not.toMatch(/https?:\/\//);
-      expect(file.code).toMatch(/@wellkept\/core\/vehicle-catalog/);
+      expect(file.code).toMatch(/@tappet\/core\/vehicle-catalog/);
     }
 
     /*

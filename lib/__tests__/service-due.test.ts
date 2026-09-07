@@ -26,7 +26,7 @@ import {
   nextDueMileage,
   nextMilestone,
   type ScheduleEntry,
-} from '@wellkept/core/service-due';
+} from '@tappet/core/service-due';
 
 const OIL: ScheduleEntry = {
   service: 'Engine oil and filter',

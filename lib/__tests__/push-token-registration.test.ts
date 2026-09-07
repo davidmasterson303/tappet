@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { isExpoPushToken } from '@wellkept/core/push-tokens';
+import { isExpoPushToken } from '@tappet/core/push-tokens';
 
 const ROOT = join(__dirname, '..', '..');
 

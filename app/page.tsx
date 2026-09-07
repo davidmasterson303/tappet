@@ -10,9 +10,9 @@ import LandingHero from '@/components/LandingHero';
 import { AppStoreCTA } from '@/components/AppStoreCTA';
 import { useAuth } from '@/components/AuthProvider';
 import { useDemoVehicles, type GarageVehicle } from '@/hooks/useVehicles';
-import { firstEmbed } from '@wellkept/core/vehicle-embed';
-import { byAttention } from '@wellkept/core/garage-order';
-import { fleetSummary } from '@wellkept/core/fleet-summary';
+import { firstEmbed } from '@tappet/core/vehicle-embed';
+import { byAttention } from '@tappet/core/garage-order';
+import { fleetSummary } from '@tappet/core/fleet-summary';
 
 function VehicleCardSkeleton() {
   return (

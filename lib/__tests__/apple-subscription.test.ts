@@ -14,8 +14,8 @@ import {
   PRODUCT_TIERS,
   type AppleSubscriptionEvent,
   type StoredEntitlement,
-} from '@wellkept/core/apple-subscription';
-import { resolveEntitledTier } from '@wellkept/core/entitlement';
+} from '@tappet/core/apple-subscription';
+import { resolveEntitledTier } from '@tappet/core/entitlement';
 
 const MONTHLY = 'com.southmoordigital.wellkept.paid.monthly';
 

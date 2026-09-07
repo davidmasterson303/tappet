@@ -11,14 +11,14 @@ import {
   PLATE_GRID,
   WORDMARK_PATH,
   lockupFor,
-} from '@wellkept/core/brand';
+} from '@tappet/core/brand';
 
 /**
  * The Well Kept lockup, native cut.
  *
  * ── The same numbers as the web, imported rather than copied ────────────────
  *
- * Every value comes from `@wellkept/core/brand`, which `brand.test.ts` pins
+ * Every value comes from `@tappet/core/brand`, which `brand.test.ts` pins
  * against the brand package's own SVGs. The mark this app draws and the mark
  * the web draws cannot differ, which is the failure the old dial had — its path
  * data lived in two `Logo.tsx` files kept in step by eye.

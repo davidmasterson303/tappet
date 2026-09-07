@@ -5,7 +5,7 @@ import {
   vpicDecodeUrl,
   vpicModelsUrl,
   type DecodedVin,
-} from '@wellkept/core/vehicle-catalog';
+} from '@tappet/core/vehicle-catalog';
 
 /**
  * NHTSA's vehicle catalogue, called from the phone.

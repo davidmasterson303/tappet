@@ -1,11 +1,11 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { deleteAccount } from '@/lib/account-data';
 import { requireSession } from '@/lib/api-auth';
 import { getServiceRoleClient } from '@/lib/supabase';
-import { hasLiveEntitlement, readFailureMeansNoSubscription } from '@wellkept/core/entitlement';
+import { hasLiveEntitlement, readFailureMeansNoSubscription } from '@tappet/core/entitlement';
 
 export const dynamic = 'force-dynamic';
 

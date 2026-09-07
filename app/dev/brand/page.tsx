@@ -1,5 +1,5 @@
 import BrandLockup from '@/components/brand/BrandLockup';
-import { CLEAR_SPACE, LOCKUP, MIN_WIDTH } from '@wellkept/core/brand';
+import { CLEAR_SPACE, LOCKUP, MIN_WIDTH } from '@tappet/core/brand';
 
 /*
  * The lockup at every size and on both grounds. Development only.
@@ -46,7 +46,7 @@ export default function BrandStatesPage() {
           <h1 className="text-2xl font-bold text-white">Well Kept lockup — states</h1>
           <p className="text-sm text-white/60">
             Development only. Every drawing below comes from{' '}
-            <code className="text-white/80">@wellkept/core/brand</code>, whose values are asserted
+            <code className="text-white/80">@tappet/core/brand</code>, whose values are asserted
             against <code className="text-white/80">docs/brand-package-v2</code>.
           </p>
         </header>

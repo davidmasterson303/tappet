@@ -282,7 +282,7 @@ export async function resendConfirmation(email: string): Promise<void> {
  * there is nothing here to clear.
  *
  * **When one is added, this function is where it must be cleared**, and the
- * shared rule belongs in `@wellkept/core` rather than being written a third
+ * shared rule belongs in `@tappet/core` rather than being written a third
  * time. Recorded here because the third implementation is exactly how the web
  * bug happened.
  */

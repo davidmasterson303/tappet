@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, AlertCircle, HelpCircle } from 'lucide-react';
-import { healthClaim } from '@wellkept/core/health-claims';
-import { RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
+import { healthClaim } from '@tappet/core/health-claims';
+import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
 
 interface RecallHistoryModalProps {
   recalls: any[];

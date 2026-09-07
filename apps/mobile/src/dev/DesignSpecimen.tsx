@@ -14,7 +14,7 @@ import Segmented from '../components/Segmented';
 import StatStrip from '../components/StatStrip';
 
 import { space, surface, text, type } from '../theme';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
+import type { HealthDriver } from '@tappet/core/health-drivers';
 
 /**
  * Every piece of the design system on one scrollable sheet, with no server.

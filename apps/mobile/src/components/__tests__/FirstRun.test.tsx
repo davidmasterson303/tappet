@@ -1,6 +1,6 @@
 import { render, userEvent } from '@testing-library/react-native';
 
-import { verdictTermsIn } from '@wellkept/core/advice-range';
+import { verdictTermsIn } from '@tappet/core/advice-range';
 
 import FirstRun from '../FirstRun';
 

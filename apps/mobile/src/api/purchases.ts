@@ -2,7 +2,7 @@ import { ApiRequestError, apiRequest } from './client';
 import {
   verifyOutcomeFromStatus,
   type VerifyOutcome,
-} from '@wellkept/core/purchase-flow';
+} from '@tappet/core/purchase-flow';
 
 /**
  * Turning a completed StoreKit purchase into an entitlement.
@@ -25,7 +25,7 @@ import {
  * recorded" is exactly the difference between a customer who buys again and one
  * who does not.
  *
- * The mapping itself lives in `@wellkept/core/purchase-flow` beside the route
+ * The mapping itself lives in `@tappet/core/purchase-flow` beside the route
  * contract it mirrors, so the two cannot drift in separate files.
  */
 export async function verifyPurchase(jwsRepresentation: string): Promise<VerifyOutcome> {

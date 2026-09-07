@@ -23,7 +23,7 @@ import {
   scannedVisits,
   totalRecorded,
   type ServiceRecord,
-} from '@wellkept/core/service-record';
+} from '@tappet/core/service-record';
 
 describe('recordSourceLabel', () => {
   it('names every source the schema permits', () => {

@@ -1,9 +1,9 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+import { isDemoVehicleId } from '@tappet/core/demo';
 import {
   sendConsultantMessage,
   createConsultantSession,

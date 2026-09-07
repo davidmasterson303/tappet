@@ -29,12 +29,12 @@ import {
   recordPrimerDismissed,
   registerForPush,
 } from '../notifications/register';
-import { shouldShowPushPrimer } from '@wellkept/core/push-priming';
-import { shouldShowFirstRun } from '@wellkept/core/first-run';
+import { shouldShowPushPrimer } from '@tappet/core/push-priming';
+import { shouldShowFirstRun } from '@tappet/core/first-run';
 import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-storage';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
-import { normaliseRecalls } from '@wellkept/core/recalls';
-import { localToday } from '@wellkept/core/garage-next-service';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { normaliseRecalls } from '@tappet/core/recalls';
+import { localToday } from '@tappet/core/garage-next-service';
 import { interFace } from '../theme/fonts';
 
 import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
@@ -50,7 +50,7 @@ import { rememberGarageSize } from '../navigation/last-vehicle';
  *
  * ── Why the health band is imported and not written here ────────────────────
  *
- * `@wellkept/core/health-band` holds the thresholds and the wording. The web
+ * `@tappet/core/health-band` holds the thresholds and the wording. The web
  * dashboard reads the same module. A local copy of "80 is good" would drift
  * from the web silently — the two-components bug that produced that module in
  * the first place, at two-clients scale, where nobody notices until a phone and
@@ -659,7 +659,7 @@ export function GarageScreen({
             before being asked for one. Somebody who has used it and sold the
             car needs no introduction — greeting them with "Start with one car"
             would be the product forgetting them. `shouldShowFirstRun` decides,
-            and `@wellkept/core/first-run` carries the argument for why the
+            and `@tappet/core/first-run` carries the argument for why the
             stored fact is "ever had a vehicle" rather than "seen onboarding".
 
             ⚠ `undefined` renders nothing rather than guessing. The answer is

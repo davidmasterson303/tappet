@@ -1,7 +1,7 @@
-import { parseAnswerLine, type AnswerToken } from '@wellkept/core/answer-markup';
+import { parseAnswerLine, type AnswerToken } from '@tappet/core/answer-markup';
 
 /**
- * Draws the runs `@wellkept/core/answer-markup` identifies.
+ * Draws the runs `@tappet/core/answer-markup` identifies.
  *
  * ── Why this is its own file ────────────────────────────────────────────────
  *

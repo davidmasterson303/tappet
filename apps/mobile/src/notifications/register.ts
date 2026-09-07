@@ -3,8 +3,8 @@ import Constants from 'expo-constants';
 
 import { apiRequest } from '../api/client';
 import { secureStorage } from '../auth/secure-storage';
-import type { PushPermission } from '@wellkept/core/push-priming';
-import { isExpoPushToken } from '@wellkept/core/push-tokens';
+import type { PushPermission } from '@tappet/core/push-priming';
+import { isExpoPushToken } from '@tappet/core/push-tokens';
 import { requestPushPermission } from './push';
 
 /**

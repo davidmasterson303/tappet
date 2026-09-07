@@ -12,9 +12,9 @@ import SectionHeader from '../components/SectionHeader';
 import { RecallDetailScreen } from './RecallDetailScreen';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { apiRequest, ApiRequestError } from '../api/client';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
+import type { HealthDriver } from '@tappet/core/health-drivers';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
 import { space, text, type } from '../theme';
 
 /**

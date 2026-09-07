@@ -1,7 +1,7 @@
 'use client';
 
-import type { VehicleBodyStyle } from '@wellkept/core/vehicle-body-style';
-import { BODY_STYLE_LABEL } from '@wellkept/core/vehicle-body-style';
+import type { VehicleBodyStyle } from '@tappet/core/vehicle-body-style';
+import { BODY_STYLE_LABEL } from '@tappet/core/vehicle-body-style';
 
 /**
  * The shared frame and the proportion grid every vehicle illustration draws

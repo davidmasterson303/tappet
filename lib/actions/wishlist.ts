@@ -1,8 +1,8 @@
 'use server';
 
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { logger } from '@wellkept/core/logger';
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+import { logger } from '@tappet/core/logger';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
 /*
  * These are 'use server' exports, which Next.js compiles into POST endpoints

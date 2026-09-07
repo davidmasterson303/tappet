@@ -16,7 +16,7 @@ import {
   vehicleStoragePrefixes,
   storedUrl,
   storagePathFromStoredUrl,
-} from '@wellkept/core/storage-paths';
+} from '@tappet/core/storage-paths';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

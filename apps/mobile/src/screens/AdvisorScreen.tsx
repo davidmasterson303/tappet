@@ -18,16 +18,16 @@ import ScreenTitle from '../components/ScreenTitle';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
-import { ADVISOR_AI_CONSENT } from '@wellkept/core/ai-consent-copy';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
 import { Skeleton } from '../components/Skeleton';
 import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
-import { CONTEXT_KIND_LABELS, type ContextKind } from '@wellkept/core/consultant-context-kinds';
-import type { ConsultantEstimate } from '@wellkept/core/consultant-estimate';
+import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
+import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
 import EstimateWell from '../components/EstimateWell';
-import { parseAnswer } from '@wellkept/core/answer-markup';
+import { parseAnswer } from '@tappet/core/answer-markup';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -517,7 +517,7 @@ export function AdvisorScreen({
  * `**$1,461**` and `* **Front Brakes & Rotors:**` on screen. The web had a bold
  * renderer and the phone had nothing — the same one-client capability gap as
  * the health band and the context-kind labels, which is why the parsing now
- * lives in `@wellkept/core/answer-markup` and only the drawing is here.
+ * lives in `@tappet/core/answer-markup` and only the drawing is here.
  *
  * Bullets get a real bullet glyph and a hanging indent rather than the
  * asterisk the model wrote, because a list on a phone should look like a list.
@@ -574,7 +574,7 @@ function AnswerText({ answer }: { answer: string }) {
  *
  * The provenance row renders only under an advisor turn that carried kinds, and
  * the prefix is **"Based on"** — what the server loaded and put in front of the
- * model, not what the model used. `@wellkept/core/consultant-context-kinds`
+ * model, not what the model used. `@tappet/core/consultant-context-kinds`
  * holds the full argument for that wording, and the web chat draws the same row
  * from the same labels.
  */
@@ -624,7 +624,7 @@ function TurnView({ turn }: { turn: Turn }) {
 
         Under every turn rather than once at the top: somebody scrolling a long
         conversation reads the answer, not the header. The wording comes from
-        `@wellkept/core/advice-disclosure` so it is identical on both clients —
+        `@tappet/core/advice-disclosure` so it is identical on both clients —
         a safety sentence that says one thing on the phone and another on the
         web is this codebase's most repeated defect applied to the sentence that
         limits liability.

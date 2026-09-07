@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
+import type { HealthDriver } from '@tappet/core/health-drivers';
 
 import { TABULAR, border, space, status, text, type } from '../theme';
 import { monoFace } from '../theme/fonts';
@@ -34,7 +34,7 @@ import { monoFace } from '../theme/fonts';
  * The bands that earn a sodium mark.
  *
  * ⚠ Named here rather than tested with `score < 60`, so the threshold stays
- * owned by `@wellkept/core/health-band`. A numeric comparison in this file
+ * owned by `@tappet/core/health-band`. A numeric comparison in this file
  * would be the phone holding a second opinion about where "Fair" ends.
  */
 const WARNING_BANDS = new Set(['warn', 'bad']);

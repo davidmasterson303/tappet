@@ -37,7 +37,7 @@ import {
   scanFilePosition,
   scanStageLabel,
   type ScanProgress,
-} from '@wellkept/core/scan-progress';
+} from '@tappet/core/scan-progress';
 
 const ROOT = join(__dirname, '..', '..');
 const LOADER = readFileSync(join(ROOT, 'components', 'InvoiceProcessingLoader.tsx'), 'utf8');

@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
-import { describeReadWork, readWorkCount, type ReadWork } from '@wellkept/core/work-narration';
+import { describeReadWork, readWorkCount, type ReadWork } from '@tappet/core/work-narration';
 import { useCountUp } from '@/hooks/use-count-up';
 
 interface DiagnosticHeroProps {

@@ -15,7 +15,7 @@ import {
   subscriptionNotice,
   describeDeletion,
   isDeletionConfirmed,
-} from '@wellkept/core/account-deletion';
+} from '@tappet/core/account-deletion';
 import { interFace } from '../theme/fonts';
 
 /**

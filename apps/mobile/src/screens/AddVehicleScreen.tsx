@@ -14,7 +14,7 @@ import Field from '../components/Field';
 import Suggest from '../components/Suggest';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { decodeVin, fetchModels } from '../api/vpic';
-import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import {
   PAGE_BODY,
   TARGET_MIN,
@@ -30,7 +30,7 @@ import {
 import {
   BASELINE_AGE_OPTIONS,
   type BaselineAge,
-} from '@wellkept/core/onboarding-baseline';
+} from '@tappet/core/onboarding-baseline';
 import {
   COMMON_MAKES,
   VIN_LENGTH,
@@ -41,7 +41,7 @@ import {
   suggestNames,
   vinCheckDigitMatches,
   vinProblem,
-} from '@wellkept/core/vehicle-catalog';
+} from '@tappet/core/vehicle-catalog';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -122,7 +122,7 @@ import { interFace } from '../theme/fonts';
  * produce an error — it produces a car whose recalls, dossier and service
  * schedule all come back empty, looking like a product that knows nothing.
  *
- * `@wellkept/core/vehicle-catalog` carries the lists and the judgements;
+ * `@tappet/core/vehicle-catalog` carries the lists and the judgements;
  * `api/vpic.ts` carries the two network calls. What is decided *here* is the
  * shape of the form:
  *

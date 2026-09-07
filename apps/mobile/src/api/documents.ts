@@ -1,5 +1,5 @@
 import { apiRequest, ApiRequestError } from './client';
-import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@wellkept/core/validation';
+import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
 
 /**
  * Invoice upload — Phase 3.3's half that needs no camera.
@@ -38,7 +38,7 @@ import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@wellkept/core/validation
  * connection: uploading eight megabytes in order to be told it is over the
  * limit spends someone's data and a minute of their time to learn something
  * knowable before the first byte leaves. The limits are imported from
- * `@wellkept/core/validation` rather than restated, so the two cannot drift.
+ * `@tappet/core/validation` rather than restated, so the two cannot drift.
  */
 
 /** What the caller hands over — the shape React Native's FormData accepts. */

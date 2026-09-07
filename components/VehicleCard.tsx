@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usageProfileChip } from '@wellkept/core/usage-profile';
+import { usageProfileChip } from '@tappet/core/usage-profile';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
@@ -47,13 +47,13 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { deleteVehicle, updateVehicleMileage } from '@/app/actions';
-import { logger } from '@wellkept/core/logger';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+import { logger } from '@tappet/core/logger';
+import { isDemoVehicleId } from '@tappet/core/demo';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
-import { queryClient } from '@wellkept/core/query-client';
+import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
+import { queryClient } from '@tappet/core/query-client';
 import { MileageUpdatePrompt } from './MileageUpdatePrompt';
 import { VehiclePhotoUploadDialog } from './VehiclePhotoUploadDialog';
 
@@ -663,7 +663,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           it, and the sentence lives on the dossier. If that is the wrong trade,
           the reversal is: render `firstSentence(healthSummary?.summary)` here
           as a muted paragraph at the small step, capped to the measure — and
-          restore the `@wellkept/core/summary-text` import, which went with it
+          restore the `@tappet/core/summary-text` import, which went with it
           rather than being left dangling.
 
           ⚠ Do not paste the removed JSX into this comment to preserve it.

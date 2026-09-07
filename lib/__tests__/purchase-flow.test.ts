@@ -14,7 +14,7 @@ import {
   verifyOutcomeFromStatus,
   type StoreOutcome,
   type VerifyOutcome,
-} from '@wellkept/core/purchase-flow';
+} from '@tappet/core/purchase-flow';
 
 const STORE_OUTCOMES: StoreOutcome[] = [
   { kind: 'purchased', jwsRepresentation: 'jws' },

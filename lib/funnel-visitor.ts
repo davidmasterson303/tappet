@@ -5,7 +5,7 @@ import {
   isPrefetchRequest,
   isRecordableVisitorId,
   visitorCookieOptions,
-} from '@wellkept/core/funnel';
+} from '@tappet/core/funnel';
 
 /**
  * Reading and issuing the anonymous visitor id.

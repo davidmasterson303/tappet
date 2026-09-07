@@ -7,7 +7,7 @@
  */
 import { ImageResponse } from 'next/server';
 
-import { BRAND_COLOR, LOCKUP, MARK_PATH, WORDMARK_PATH } from '@wellkept/core/brand';
+import { BRAND_COLOR, LOCKUP, MARK_PATH, WORDMARK_PATH } from '@tappet/core/brand';
 import { isDemoSite } from '@/lib/site-role';
 
 /*
@@ -151,7 +151,7 @@ export default async function OpengraphImage() {
           `BrandLockup` cannot be used here: this renders through Satori, which
           takes a JSX tree rather than a React component tree with our imports.
           What it *can* share is the geometry — the plate, the W and the
-          wordmark all come from `@wellkept/core/brand`, so the card cannot
+          wordmark all come from `@tappet/core/brand`, so the card cannot
           drift from the mark the app draws even though the drawing is restated.
 
           ── ⚠ Satori refuses SVG text, and refuses it dangerously ───────────

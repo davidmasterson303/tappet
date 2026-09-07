@@ -1,7 +1,7 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { requireSession } from '@/lib/api-auth';
 import { getAppleRootCertificates, APPLE_BUNDLE_ID } from '@/lib/apple-root-ca';

@@ -15,7 +15,7 @@
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 
 import PaywallScreen, { type SubscriptionOption } from '../PaywallScreen';
-import type { PurchaseResolution } from '@wellkept/core/purchase-flow';
+import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 
 const OPTIONS: SubscriptionOption[] = [
   { productId: 'com.southmoordigital.wellkept.paid.monthly', displayPrice: '£7.99', period: 'month' },

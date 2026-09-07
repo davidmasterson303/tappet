@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Loader as Loader2, Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy } from 'lucide-react';
-import { logger } from '@wellkept/core/logger';
-import { isDemoVehicleId } from '@wellkept/core/demo';
-import { ADVISOR_NAME } from '@wellkept/core/prompts';
-import { refusalCopy } from '@wellkept/core/access';
-import { demoQuestionsFor } from '@wellkept/core/demo-answers';
+import { logger } from '@tappet/core/logger';
+import { isDemoVehicleId } from '@tappet/core/demo';
+import { ADVISOR_NAME } from '@tappet/core/prompts';
+import { refusalCopy } from '@tappet/core/access';
+import { demoQuestionsFor } from '@tappet/core/demo-answers';
 import { isDemoMode } from '@/lib/demo-mode';
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   sendConsultantMessage,
   createConsultantSession,
@@ -24,12 +24,12 @@ import {
 } from '@/app/actions';
 import { QuoteRequestDialogV2 } from './QuoteRequestDialogV2';
 import { toast } from 'sonner';
-import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
+import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
-import { CONTEXT_KIND_LABELS, type ContextKind } from '@wellkept/core/consultant-context-kinds';
+import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
 import { AnswerRuns } from '@/components/AnswerLine';
-import { parseAnswer } from '@wellkept/core/answer-markup';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
+import { parseAnswer } from '@tappet/core/answer-markup';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 
 /*
  * These are the four collections this component *renders*, and no longer the
@@ -176,7 +176,7 @@ function getFollowUps(lastMessage: string): string[] {
  *
  * ── Where the words themselves live ────────────────────────────────────────
  *
- * `@wellkept/core/consultant-context-kinds`, since the Expo advisor screen
+ * `@tappet/core/consultant-context-kinds`, since the Expo advisor screen
  * renders this same row. The labels are a provenance claim, so a second copy on
  * the phone would let the two clients describe one answer differently. Only the
  * icons below are web — Lucide has no React Native build here.

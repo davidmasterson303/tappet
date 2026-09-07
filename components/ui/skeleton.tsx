@@ -1,4 +1,4 @@
-import { cn } from '@wellkept/core/utils';
+import { cn } from '@tappet/core/utils';
 
 function Skeleton({
   className,

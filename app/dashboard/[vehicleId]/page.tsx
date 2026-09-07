@@ -3,10 +3,10 @@
 import { useState } from 'react';
 
 import dynamic from 'next/dynamic';
-import { recallsAreKnown } from '@wellkept/core/nhtsa-lookup';
+import { recallsAreKnown } from '@tappet/core/nhtsa-lookup';
 import { selectNhtsaRow } from '@/lib/nhtsa-row';
-import { driversForVehicle, driversSupportAScore } from '@wellkept/core/health-drivers';
-import type { ServiceHistoryRow } from '@wellkept/core/service-history';
+import { driversForVehicle, driversSupportAScore } from '@tappet/core/health-drivers';
+import type { ServiceHistoryRow } from '@tappet/core/service-history';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import DashboardContent from '@/components/DashboardContent';

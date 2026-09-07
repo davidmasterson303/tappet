@@ -123,4 +123,4 @@ export const LAST_UPDATED = '30 August 2026';
  * is whichever they happened to open. Importing makes that impossible; a test
  * asserting two copies match only tells you afterwards.
  */
-export { SUBSCRIPTION_CANCEL_PATH } from '@wellkept/core/account-deletion';
+export { SUBSCRIPTION_CANCEL_PATH } from '@tappet/core/account-deletion';

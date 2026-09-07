@@ -37,7 +37,7 @@ were reversed between them, and both reversals are load-bearing:
   test that asserts it. See `design-system-drift.md` §7.4.
 
 ⚠ One line in §1 is already overtaken: it says `@crewchief/core` stays and
-`@wellkept/core` is "the intended name, not a required rename this pass". The
+`@tappet/core` is "the intended name, not a required rename this pass". The
 scope was renamed on 30 Aug in `9d2dc41` — 586 sites, typecheck and production
 build clean. Not required is not the same as unwelcome, and reverting it would
 be churn for its own sake.

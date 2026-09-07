@@ -1,4 +1,4 @@
-import { eventBus } from '@wellkept/core/event-bus';
+import { eventBus } from '@tappet/core/event-bus';
 
 export interface FailedDeletion {
   vehicleId: string;

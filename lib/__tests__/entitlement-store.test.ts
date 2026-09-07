@@ -9,7 +9,7 @@
  * been applied, and the shape of what actually gets written.
  */
 
-import type { AppleSubscriptionEvent } from '@wellkept/core/apple-subscription';
+import type { AppleSubscriptionEvent } from '@tappet/core/apple-subscription';
 
 const maybeSingle = jest.fn();
 const upsert = jest.fn();

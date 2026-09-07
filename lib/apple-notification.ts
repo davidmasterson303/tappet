@@ -31,7 +31,7 @@ import {
   verifyAppleSignedPayload,
   type JwsFailureReason,
 } from '@/lib/apple-jws';
-import type { AppleEnvironment, AppleSubscriptionEvent } from '@wellkept/core/apple-subscription';
+import type { AppleEnvironment, AppleSubscriptionEvent } from '@tappet/core/apple-subscription';
 
 export type ParseFailureReason =
   | `envelope:${JwsFailureReason}`

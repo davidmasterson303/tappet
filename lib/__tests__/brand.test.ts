@@ -41,7 +41,7 @@ import {
   WORDMARK_PATH,
   W_PATH,
   lockupFor,
-} from '@wellkept/core/brand';
+} from '@tappet/core/brand';
 
 const ROOT = join(__dirname, '..', '..');
 const PACKAGE = join(ROOT, 'docs', 'brand-package-v2');

@@ -8,7 +8,7 @@ import {
   PLATE_GRID,
   WORDMARK_PATH,
   lockupFor,
-} from '@wellkept/core/brand';
+} from '@tappet/core/brand';
 
 /**
  * The Well Kept lockup — the data plate.
@@ -18,7 +18,7 @@ import {
  * A solid chamfered plate with the W cut through it, and the wordmark beside
  * it. `full` adds the maker line, `short` drops it, `icon` and `mono` are the
  * plate alone. Every one of them is the *same* geometry from
- * `@wellkept/core/brand` — there is no reduction ladder and no second drawing,
+ * `@tappet/core/brand` — there is no reduction ladder and no second drawing,
  * which is the whole reason this file is a third of the length it was.
  *
  * `lockupFor` in core owns the width rule, so a caller passing 90px gets the

@@ -293,7 +293,7 @@ dial stops being a dial. Under ~88pt the ticks stop resolving and the instrument
 is decoration."* A 26pt `ClusterGauge` resolves to `row` and returns two lines
 of text at the wrong size for a nav bar.
 
-The build draws the arc in `DialChip` from `@wellkept/core/cluster-geometry` —
+The build draws the arc in `DialChip` from `@tappet/core/cluster-geometry` —
 the same `TRACK` path and viewBox the real dial uses, so it cannot drift — and
 does not touch `ClusterGauge`. `DIAL_MIN` is not being dodged: that floor
 governs a dial somebody reads a value *from*, and this arc has no needle, no
@@ -1224,7 +1224,7 @@ dial previously stroked itself in the band colour at every reading, which put
 `#D6BE9B` — the `ok` band — on screen for every score between 60 and 79.
 
 **The band table is untouched**, and must stay untouched: thresholds, wording and
-colour are owned by `@wellkept/core/health-band` and shared with web, and the
+colour are owned by `@tappet/core/health-band` and shared with web, and the
 phone holding a second opinion about what "Fair" looks like is the defect that
 ownership prevents. What changed is only *when the dial spends a hue*: `good` and
 `ok` now draw in off-white ink, `warn` and `bad` keep their sodium.

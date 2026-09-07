@@ -24,14 +24,14 @@ import {
 import { useWishlistData } from '@/hooks/useWishlistData';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
+import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import IssueFixDialog from './IssueFixDialog';
 import MaintenanceHistoryDialog from './MaintenanceHistoryDialog';
 import IssuesTab from './insights/IssuesTab';
 import MaintenanceTab from './insights/MaintenanceTab';
 import ModificationsTab from './insights/ModificationsTab';
 import RegisterSwitch from './RegisterSwitch';
-import { showsModifications } from '@wellkept/core/mod-progression';
+import { showsModifications } from '@tappet/core/mod-progression';
 
 interface VehicleInsightsProps {
   vehicle: any;

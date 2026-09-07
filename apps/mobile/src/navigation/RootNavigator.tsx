@@ -13,13 +13,13 @@ import {
   subscribeToNotificationTaps,
 } from '../notifications/push';
 import { currentPushPermission, registerForPush } from '../notifications/register';
-import { shouldRegisterSilently } from '@wellkept/core/push-priming';
+import { shouldRegisterSilently } from '@tappet/core/push-priming';
 
 import { AdvisorScreen } from '../screens/AdvisorScreen';
 import { HealthScreen } from '../screens/HealthScreen';
 import { InvoiceScanScreen } from '../screens/InvoiceScanScreen';
 import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
-import type { ServiceVisit } from '@wellkept/core/service-record';
+import type { ServiceVisit } from '@tappet/core/service-record';
 import { WishlistAddScreen } from '../screens/WishlistAddScreen';
 import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
 import { GarageScreen } from '../screens/GarageScreen';
