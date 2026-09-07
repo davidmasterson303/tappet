@@ -7,7 +7,7 @@
  */
 import { ImageResponse } from 'next/server';
 
-import { BRAND_COLOR, BRAND_NAME, PLATE, RIVETS } from '@wellkept/core/brand';
+import { BRAND_COLOR, LOCKUP, MARK_PATH, WORDMARK_PATH } from '@tappet/core/brand';
 import { isDemoSite } from '@/lib/site-role';
 
 /*
@@ -51,7 +51,7 @@ import { isDemoSite } from '@/lib/site-role';
  */
 
 export const runtime = 'nodejs';
-export const alt = 'Well Kept — an AI that keeps the record, so the care keeps itself';
+export const alt = 'Tappet — an AI that keeps the record, so the care keeps itself';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -146,21 +146,35 @@ export default async function OpengraphImage() {
         />
 
         {/*
-          ── The plate, restated because Satori renders JSX and not components ─
+          ── The lockup, restated because Satori renders JSX, not components ──
 
           `BrandLockup` cannot be used here: this renders through Satori, which
           takes a JSX tree rather than a React component tree with our imports.
-          What it *can* share is the numbers — the path, the rivets and the
-          colours come from `@wellkept/core/brand`, so the card cannot drift
-          from the mark the app draws even though the drawing is restated.
+          What it *can* share is the geometry — the plate, the W and the
+          wordmark all come from `@tappet/core/brand`, so the card cannot
+          drift from the mark the app draws even though the drawing is restated.
 
-          ⚠ The engraved name is set in Satori's default face, not Newsreader.
-          Loading a webfont here means a network fetch inside `next build`, and
-          this build is the promote gate for the hostname the App Store points
-          at — a font CDN having a bad minute would fail a deploy. Design's own
-          README makes the matching point about rasterisers substituting fonts;
-          the honest version at this size is the plate carrying capitals in the
-          face that is actually present.
+          ── ⚠ Satori refuses SVG text, and refuses it dangerously ───────────
+
+          *"<text> nodes are not currently supported, please convert them to
+          <path>"* — and the way it refuses is the dangerous part: the route
+          still answers **200 with `content-type: image/png` and a zero-byte
+          body**. A scraper sees a valid response and a broken picture, and
+          nothing in the app looks wrong. Caught by generating the card and
+          measuring it; it would not have shown up in any test that reads
+          source.
+
+          ⚠ **That constraint used to cost this card its typeface.** The name
+          was a positioned `div` set in Satori's default face, because loading
+          a webfont here means a network fetch inside `next build` — and this
+          build is the promote gate for the hostname the App Store points at,
+          so a font CDN having a bad minute would fail a deploy.
+
+          The identity redraw removes the trade entirely. The wordmark is an
+          **outlined path**, which is the one thing Satori does support, so the
+          card now carries the real drawing with no font, no fetch, and no
+          substitute face. Every element below is a `<path>` — the mark included,
+          because its letter is knocked out by fill rule rather than by a mask.
         */}
         <div
           style={{
@@ -168,61 +182,18 @@ export default async function OpengraphImage() {
             top: 132,
             left: 108,
             display: 'flex',
-            alignItems: 'center',
           }}
         >
-          {/*
-            ⚠ **The plate is paths and the name is a div**, and that split is
-            not stylistic.
-
-            Satori refuses SVG text outright — *"<text> nodes are not currently
-            supported, please convert them to <path>"* — and the way it refuses
-            is the dangerous part: the route still answers **200 with
-            `content-type: image/png` and a zero-byte body**. A scraper sees a
-            valid response and a broken picture, and nothing in the app looks
-            wrong. Caught by generating the card and measuring it; it would not
-            have shown up in any test that reads source.
-
-            So the plate is drawn as paths, which Satori does support, and the
-            engraved name is a positioned div, which is how the wordmark on
-            this card has always been set.
-          */}
-          <div style={{ position: 'relative', display: 'flex', width: 240, height: 82 }}>
-            <svg width="240" height="82" viewBox={`0 0 ${PLATE.short.width} ${PLATE.short.height}`}>
-              <path
-                d={PLATE.short.path}
-                fill={BRAND_COLOR.plate}
-                stroke={BRAND_COLOR.edge}
-                strokeWidth={2}
-              />
-              {RIVETS.short.map((rivet) => (
-                <circle
-                  key={`${rivet.x}-${rivet.y}`}
-                  cx={rivet.x}
-                  cy={rivet.y}
-                  r={RIVETS.radius}
-                  fill={BRAND_COLOR.rivet}
-                />
-              ))}
-            </svg>
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: 240,
-                height: 82,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 26,
-                letterSpacing: '0.1em',
-                color: BRAND_COLOR.name,
-              }}
-            >
-              {BRAND_NAME.toUpperCase()}
-            </div>
-          </div>
+          <svg
+            width={340}
+            height={Math.round((340 * LOCKUP.heightShort) / LOCKUP.width)}
+            viewBox={`0 0 ${LOCKUP.width} ${LOCKUP.heightShort}`}
+          >
+            <g transform={`scale(${LOCKUP.markScale})`}>
+              <path d={MARK_PATH} fillRule="evenodd" fill={BRAND_COLOR.ink} />
+            </g>
+            <path d={WORDMARK_PATH} fill={BRAND_COLOR.ink} />
+          </svg>
         </div>
 
         <div
@@ -241,16 +212,16 @@ export default async function OpengraphImage() {
           {/*
             ⚠ **Per site, and it was not.** This line read "Live demo with
             sample vehicles — no signup required" on *both* deployments — so the
-            share card for `wellkept.southmoordigital.com`, which is the App Store
+            share card for `tappet.southmoordigital.com`, which is the App Store
             listing's marketing URL, described the product as a demo.
 
             `39f7f0b` fixed exactly this on the landing page and `site-role.ts`
-            states the rule — *"the product copy must not describe Well Kept as
+            states the rule — *"the product copy must not describe Tappet as
             a demo"* — and the card was missed because it is generated by a
             convention route rather than rendered inside the app.
           */}
           <div style={{ marginTop: 26, fontSize: 30, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
-            {isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)
+            {isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)
               ? 'Live demo with sample vehicles — no signup required'
               : 'Every invoice read, every interval anchored.'}
           </div>

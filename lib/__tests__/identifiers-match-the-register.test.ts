@@ -82,6 +82,12 @@ function actual(): { what: string; value: string | undefined }[] {
     },
     { what: 'IAP product id, annual', value: grab(subscription, /'([a-z0-9.]+\.paid\.annual)'/i) },
     { what: 'Expo slug', value: expo?.slug },
+    /*
+      ⚠ Bound to the slug above for the life of the project, and unchangeable —
+      which is why renaming the slug on 7 Sep cost a replacement project rather
+      than an edit. The two must agree, so both are asserted.
+    */
+    { what: 'Expo project id', value: expo?.extra?.eas?.projectId },
     { what: 'URL scheme', value: expo?.scheme },
     { what: 'Mobile API base', value: expo?.extra?.apiBaseUrl },
     { what: 'PRODUCT_ORIGIN', value: grab(siteRole, /PRODUCT_ORIGIN = '([^']+)'/) },
@@ -108,7 +114,7 @@ describe('the identifiers page agrees with the code', () => {
       .map((f) => f.what);
 
     expect(missing).toEqual([]);
-    expect(actual()).toHaveLength(11);
+    expect(actual()).toHaveLength(12);
   });
 
   it('names every value the code actually holds', () => {
@@ -129,28 +135,84 @@ describe('the identifiers page agrees with the code', () => {
     expect(wrong).toEqual([]);
   });
 
-  it('does not still name the identifiers that were replaced', () => {
+  it('names the replaced identifiers only in the section that bans them', () => {
     /*
-      ⚠ Narrow on purpose. A blanket ban on the old product name would fire on
-      `CREWCHIEF_DEMO_SITE`, on both live `crewchief*.davidmasterson.co`
-      hostnames and on the `crewchief-demo.netlify.app` stub the demo CNAMEs
-      still point at — all four correct, all four still in the page. A guard
-      that fails on correct content is one somebody switches off, which is the
-      `.tap-target-44` lesson in CLAUDE.md §5.
+      ⚠ Two renames now, so two dead identifier sets — and a list that knows
+      only the older one is worse than none: it reads green while the *newer*
+      dead name sits in the page. That is the same failure A4 re-armed
+      `product-name.test.ts` for.
 
-      These two have no such excuse: nothing legitimate names them any more.
+      ── Why this is section-scoped rather than an occurrence count ───────────
+
+      The first version counted: a banned string could appear once (quoted in
+      the ban list) and no more. That cannot survive this list.
+      `com.southmoordigital.wellkept` is a **prefix** of both product ids listed
+      directly beneath it, so a substring count reads three where a reader sees
+      one, and the guard fails on a page that is entirely correct. A guard that
+      fails on correct content is one somebody switches off — CLAUDE.md §5, and
+      the reason the blanket ban was rejected in the first place.
+
+      Scoping says what is actually meant: a dead identifier belongs in the
+      section that records it as dead, and nowhere else on the page. It also
+      stops caring how many times the ban list quotes one.
     */
     const page = read(PAGE);
-    const gone = ['co.davidmasterson.crewchief', 'crewchief://'];
+    const HEADING = '## Names that must not come back';
 
-    const stillNamed = gone.filter((s) => {
-      // The "must not come back" list quotes them once each, by design.
-      const quotedInTheBanList = page.includes(`\`${s}\``);
-      const occurrences = page.split(s).length - 1;
-      return quotedInTheBanList ? occurrences > 1 : occurrences > 0;
-    });
+    // The section must exist, or "nothing before it" is trivially true.
+    expect(page).toContain(HEADING);
 
-    expect(stillNamed).toEqual([]);
+    const [statedAsCurrent, banned] = [
+      page.slice(0, page.indexOf(HEADING)),
+      page.slice(page.indexOf(HEADING)),
+    ];
+
+    const gone = [
+      'co.davidmasterson.crewchief',
+      'crewchief://',
+      'com.southmoordigital.crewchief.paid.monthly',
+      'com.southmoordigital.crewchief.paid.annual',
+      'com.southmoordigital.wellkept',
+      'wellkept://',
+      'com.southmoordigital.wellkept.paid.monthly',
+      'com.southmoordigital.wellkept.paid.annual',
+      // The retired Expo project: inert, kept for reversibility, and fatal if
+      // it ever finds its way back into `app.json`.
+      '55451053-dc1a-481a-8257-76b476799f57',
+    ];
+
+    // Nothing dead may be stated as a current fact.
+    expect(gone.filter((s) => statedAsCurrent.includes(s))).toEqual([]);
+
+    /*
+      And every one of them must actually be recorded as dead. Without this the
+      test passes hardest when the ban list is deleted — the vacuous pass
+      CLAUDE.md §5 is about, and the realistic way this rots: a third rename
+      rewrites the section and quietly drops the oldest set.
+    */
+    expect(gone.filter((s) => !banned.includes(s))).toEqual([]);
+  });
+
+  it('the ban is scoped, not blanket — the live names survive it', () => {
+    /*
+      The other half of §5's warning. Four names contain a dead product name and
+      are all still correct: the two Netlify variables, the still-serving demo
+      hostnames, the Bolt stub, and the Git remote until David renames the repo.
+      A guard that fired on these would be switched off within a day.
+    */
+    const page = read(PAGE);
+    const stillLive = [
+      'CREWCHIEF_DEMO_SITE',
+      'WELLKEPT_DEMO_SITE',
+      'crewchief-demo.davidmasterson.co',
+      'crewchief-demo.netlify.app',
+      // Added as aliases 7 Sep; the old hostnames were not retired, and the
+      // recruiter-facing one must keep serving while David is job hunting.
+      'wellkept.southmoordigital.com',
+      'wellkept-demo.davidmasterson.co',
+    ];
+
+    expect(stillLive.filter((s) => !page.includes(s))).toEqual([]);
   });
 
   it('can still detect a page that has drifted', () => {

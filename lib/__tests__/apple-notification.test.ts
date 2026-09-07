@@ -25,7 +25,7 @@ const ROGUE_KEY = read('rogueleaf.key');
 
 const ROOTS = [ROOT];
 const NOW = new Date('2027-01-01T00:00:00Z');
-const MONTHLY = 'com.southmoordigital.wellkept.paid.monthly';
+const MONTHLY = 'com.southmoordigital.tappet.paid.monthly';
 const SIGNED = Date.parse('2026-08-18T10:00:00Z');
 const EXPIRES = Date.parse('2026-09-18T10:00:00Z');
 
@@ -307,7 +307,7 @@ describe('a bare StoreKit transaction, as the purchase path sends it', () => {
  * never compared — a repo-wide search returned exactly one hit, `app.json:11`,
  * the Expo config. Apple's WWDR chain signs transactions for **every app in the
  * store**, so a verified chain proved *"Apple signed this"*, not *"Apple signed
- * this for Well Kept"*. The only product gate was a name lookup in
+ * this for Tappet"*. The only product gate was a name lookup in
  * `PRODUCT_TIERS` — an accident of naming, not a control.
  */
 describe('a transaction has to be for this app', () => {
@@ -354,6 +354,6 @@ describe('a transaction has to be for this app', () => {
   });
 
   it('reads the bundle id from the binary, so the two cannot drift', () => {
-    expect(BUNDLE_ID).toBe('com.southmoordigital.wellkept');
+    expect(BUNDLE_ID).toBe('com.southmoordigital.tappet');
   });
 });

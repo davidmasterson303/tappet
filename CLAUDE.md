@@ -115,14 +115,56 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
 ## 8. There are two Netlify projects, and the names invite the wrong guess
 
 ```
-effulgent-blancmange-6adfdf   deploys web-live    wellkept.southmoordigital.com
-                                                  App Store URL + the app's API
-crewchief-demo-live           deploys demo-live   wellkept-demo.davidmasterson.co
-glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
+tappet-web       deploys web-live   tappet.southmoordigital.com
+                 (was effulgent-    + wellkept.southmoordigital.com
+                 blancmange-6adfdf)  + crewchief.davidmasterson.co  [primary]
+                                    App Store URL + the app's API
+
+tappet-demo      deploys demo-live  tappet-demo.davidmasterson.co
+                 (was crewchief-    + wellkept-demo.davidmasterson.co
+                 demo-live)         + crewchief-demo.davidmasterson.co  [primary]
+
+glowing-hotteok-d2e57e             davidmasterson.co (personal portfolio)
+crewchief-demo                     dead Bolt stub — ⚠ do not delete
+luxuryphotoenhancer-demo           unrelated
 ```
 
+⚠ **Both projects were renamed on 7 Sep and the old names are gone from the
+dashboard.** Three hostnames per site, all serving; the `crewchief*` pair are
+still the **primary** domains, which is why nothing 301s yet.
+
+⚠ **Five hostnames now serve the same two sites, and that is deliberate.**
+The 7 Sep rename to Tappet added `tappet.southmoordigital.com` and
+`tappet-demo.davidmasterson.co` as **aliases**. Nothing was retired: both
+`wellkept*` hostnames and `crewchief-demo.davidmasterson.co` still serve, which
+costs nothing and means no window where a link is dead — the recruiter-facing
+one especially, while David is job hunting.
+
+Verified 7 Sep, and a `200` alone would not have shown it:
+
+```
+/api/version   application/json on all five   (HTML would mean the Bolt stub)
+POST           401, redirect_url empty        (a 301 downgrades POST to GET)
+GET            200, no redirect anywhere      (no primary has been flipped)
+```
+
+⚠ **No primary domain has been flipped, and that ordering is load-bearing.**
+Netlify redirects non-primary domains to the primary, and a 301 downgrades a
+POST to a GET — so a primary flip before the app is repointed breaks API writes
+**silently**. Flip only after a build carrying the new `apiBaseUrl` is live and
+the installed apps have moved.
+
+⚠ **The canary hardcodes a hostname this rename will eventually retire.**
+`.github/workflows/consultant-canary.yml` passes
+`https://crewchief-demo.davidmasterson.co` explicitly, so it overrides the
+script's default. It is running (rows every 5–8h in `ai_usage_events`, surface
+`canary`) and it fails **loudly** — exit 3, and the interpret step turns any
+non-success into `::error::` and `exit 1`. So retiring that hostname turns CI
+red rather than turning the monitor into good news; move the line in the same
+change that retires the host.
+
 **Nothing deploys from `main`.** Pushing to `main` costs nothing and publishes
-nothing; both Well Kept hostnames move only when someone merges into their
+nothing; both product hostnames move only when someone merges into their
 release branch. That is a **gate, not a filter**, and it was chosen over an
 ignore rule for a reason worth keeping: a filter fails silently toward stale
 deploys, an ignore rule needs an inverted exit code to be right, and one
@@ -147,7 +189,9 @@ becomes the demo — it can, because that commit is already live on `web-live`.
 That second half matters: Netlify can accept a push and fail the build, and this
 branch's failure mode is a hostname silently frozen on its last good deploy.
 
-⚠ **`wellkept.southmoordigital.com` is gated behind `web-live`** — it is the App
+⚠ **The product hostname is gated behind `web-live`** — today that is
+`wellkept.southmoordigital.com`, and `tappet.southmoordigital.com` once Track B
+claims it. It is the App
 Store listing's privacy-policy URL and the origin the mobile app talks to
 (`app.json` → `extra.apiBaseUrl`). Before that, anything pushed to `main` was
 instantly live at a URL App Review reads, and every push cost a build: 111

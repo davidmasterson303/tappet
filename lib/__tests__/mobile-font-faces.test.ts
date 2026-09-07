@@ -173,16 +173,22 @@ describe('the faces the roles are built from', () => {
 
       ⚠ Narrowed 30 Aug, and the narrowing is the interesting part. It used to
       assert `FONT_FACES` held exactly one Newsreader, which is a different
-      claim and was only accidentally the same one. The brand lockup needs
-      Newsreader **500** — Design sets the engraved name at that weight — and it
-      is not a text role at all: it is a mark, drawn in SVG, that no screen sets
-      body copy in.
+      claim and was only accidentally the same one. The brand lockup then needed
+      Newsreader **500** — the engraved name on the coachbuilder plate was set
+      at that weight — and it was not a text role at all: it was a mark, drawn
+      in SVG, that no screen set body copy in.
 
       So the rule is enforced where it actually lives: **the type scale** may
       contain one serif cut. A second face may exist in the bundle only if
       nothing in the scale uses it. That is stricter than the old assertion in
       the direction that matters — it would still fail if somebody wired the
       brand face into a text role.
+
+      ⚠ 7 Sep: the exemption is now unused and the bundle is back to one cut.
+      The identity redraw made the lockup's type an outlined path, so the mark
+      carries no font. Kept as a *rule* rather than deleted, because "one serif
+      in the scale" is the standing constraint and the next second cut should
+      still have to justify itself here.
     */
     const serifs = FONT_FACES.filter((face) => face.startsWith('Newsreader'));
     const inScale = Object.values(typeScale)
@@ -191,16 +197,55 @@ describe('the faces the roles are built from', () => {
 
     expect(Array.from(new Set(inScale))).toEqual([EDITORIAL_FACE]);
     expect(typeScale.editorial.fontFamily).toBe(EDITORIAL_FACE);
+    expect(serifs).toEqual([EDITORIAL_FACE]);
+  });
 
-    // Any extra serif cut is the brand's, and it is used by the mark alone.
-    const extras = serifs.filter((face) => face !== EDITORIAL_FACE);
-    expect(extras).toEqual(['Newsreader_500Medium']);
+  it('draws the brand mark as geometry, so no font can substitute inside it', () => {
+    /*
+      The invariant the Newsreader exemption above used to stand in for, stated
+      directly.
 
-    const lockup = readFileSync(
-      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'BrandLockup.tsx'),
-      'utf8'
+      ⚠ This is worth a guard rather than a comment because reintroducing
+      `<SvgText>` here fails *silently and twice over*. React Native cannot
+      drive Archivo's `wdth` axis, so the condensed slot on this platform is
+      Archivo Narrow — a different family with its own metrics (see
+      `design-system-drift.md` §6.1). A `<Text>` in the mark would therefore
+      render the brand in a face it was never drawn in, on a phone, next to a
+      web build drawing it correctly. That exact defect has already happened
+      once on the web, where the lockup's hand-spelled display chain outlived
+      the token it was written against.
+    */
+    const path = join(
+      __dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'BrandLockup.tsx'
     );
-    expect(lockup).toContain('Newsreader_500Medium');
+    /*
+      ⚠ Comments are stripped first. This component's docblock explains that its
+      type used to be `<SvgText>` and no longer is, so a scan that reads prose
+      fires on the explanation — and the cheapest way to make that green is to
+      delete the paragraph that says why the rule exists.
+
+      Line comments go whole-line rather than by regex, so a `//` inside a URL
+      cannot truncate a line of real code.
+    */
+    const lockup = readFileSync(path, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+
+    // Anti-vacuous: the file was found, the strip left the code, and it is the
+    // component rather than a stub.
+    expect(lockup.length).toBeGreaterThan(500);
+    expect(lockup).toContain('WORDMARK_PATH');
+    expect(lockup).toContain('export default function BrandLockup');
+
+    for (const tell of ['SvgText', 'fontFamily', 'fontWeight', '<Text']) {
+      expect(`${tell}: ${lockup.includes(tell)}`).toBe(`${tell}: false`);
+    }
+
+    // ...and the scan can still see one, so a green result means something.
+    const withFont = lockup.replace('<Path d={WORDMARK_PATH}', '<SvgText fontFamily="x"');
+    expect(withFont.includes('SvgText')).toBe(true);
   });
 
   it('spends a bundled file on each weight it offers, and no more', () => {

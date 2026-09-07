@@ -1,75 +1,58 @@
 import {
   BRAND_COLOR,
   BRAND_NAME,
-  BRAND_TYPE,
-  PLATE,
-  RIVETS,
+  LOCKUP,
+  MAKER_NAME,
+  MAKER_PATH,
+  MARK_PATH,
+  PLATE_GRID,
+  WORDMARK_PATH,
   lockupFor,
-} from '@wellkept/core/brand';
+} from '@tappet/core/brand';
 
 /**
- * The Well Kept lockup — the backlit coachbuilder plate.
+ * The Tappet lockup — the data plate.
  *
- * ── One component, three drawings, and the caller picks by width ────────────
+ * ── One drawing, and the caller picks how much of it ────────────────────────
  *
- * Design's reduction rules are not "scale it down": under 240px the maker line
- * breaks the 12px type floor and has to go, and under 160px there is no lockup
- * left and the icon takes over. `lockupFor` in core owns that, so a caller
- * passing 90px gets the icon rather than a full lockup with 4px maker type.
+ * A solid chamfered plate with the letter cut through it, and the wordmark beside
+ * it. `full` adds the maker line, `short` drops it, `icon` and `mono` are the
+ * plate alone. Every one of them is the *same* geometry from
+ * `@tappet/core/brand` — there is no reduction ladder and no second drawing,
+ * which is the whole reason this file is a third of the length it was.
  *
- * ⚠ **Geometry is imported, never copied.** The plate path, the rivets and the
- * type metrics live in `@wellkept/core/brand` and are asserted against Design's
- * own SVG files by `brand.test.ts`. This project's `Icon.tsx` carries the same
- * rule for Lucide — *"do not redraw or approximate"* — because the old dial
- * mark's path lived in two files and had to be kept in step by eye.
+ * `lockupFor` in core owns the width rule, so a caller passing 90px gets the
+ * mark rather than a full lockup with 4px maker type. Both of its thresholds
+ * are derived — see its docblock.
  *
- * ── ⚠ The name is `<text>`, not an outlined path ───────────────────────────
+ * ── ⚠ The W is a hole, not a letter ────────────────────────────────────────
  *
- * Design's package README says to outline the type **for the PNG export**,
- * because a rasteriser without Newsreader silently substitutes Georgia and
- * changes the W. That is an export instruction, not a rendering one: in a
- * browser the webfont is loaded (`app/layout.tsx` links Newsreader 400/500/600),
- * and real text scales, gets selected, and reaches a screen reader.
+ * `MARK_PATH` is the plate and the letter in one path, and `fillRule="evenodd"`
+ * is what makes the second contour a hole rather than a shape. That is what
+ * lets one drawing serve every case: on ivory the same path takes the graphite
+ * fill and the ivory shows in the letter, so there is no light-ground *variant*
+ * to keep in step.
  *
- * The `aria-label` carries the name regardless, so the accessible name does not
- * depend on the font arriving.
+ * ⚠ Removing the fill rule does not break anything visibly. It fills the W in
+ * the plate's own colour, and the result reads as a slightly heavier logo —
+ * exactly the class of defect `CLAUDE.md` §6 is about. `brand.test.ts` asserts
+ * every drawing carries it.
  *
- * ── ⚠ The name never glows; the plate does ─────────────────────────────────
+ * A filled letter would need a second colour, and a second colour is what made
+ * the old `favicon-mono.svg` render a featureless blob on a light ground: its
+ * plate took `currentColor` while its W was pinned to `#16140F`, so on anything
+ * pale both were dark.
  *
- * Design's rule, and the reason is legibility rather than taste: light the
- * letters and the plate reads as a button somebody should press. The filter is
- * on a copy of the plate path behind it and on nothing else.
+ * ── ⚠ No `<text>`, so no font ──────────────────────────────────────────────
+ *
+ * The wordmark is an outlined path. See `core/brand.ts` for the three separate
+ * defects that buys out; the short version is that a `<text>` element in a
+ * brand asset has silently changed typeface once already in this repo.
  */
-/**
- * The name's font stack, built from the family Design declared.
- *
- * ── ⚠ The wordmark had silently changed typeface ────────────────────────────
- *
- * Every one of these four `<text>` elements read
- * `var(--font-display), Newsreader, Georgia, serif`, and that chain was correct
- * when it was written — `--font-display` **was** Newsreader. Brief B2 moved the
- * display slot to Archivo, a condensed grotesk, and from that moment the first
- * name in the chain resolved to a face the plate was never drawn in. The
- * lockup has been rendering in Archivo since; measured on the running page,
- * `getComputedStyle` returns `Archivo, Newsreader, Georgia, serif`.
- *
- * It is the same defect `VehicleCard` and the landing hero each carried and
- * fixed — a hand-spelled display chain outliving the token it was written
- * against — except that this one is the brand mark, so it changed the logo on
- * every page rather than one heading on one.
- *
- * ⚠ **`brand.test.ts` is named for the property it did not check.** Its case
- * reads *"keeps the name at Newsreader 500"* and asserts size, tracking, weight
- * and `font-variant` — never the family. `BRAND_TYPE.name.family` was declared
- * in core and read by nothing at all. `CLAUDE.md` §5 is exactly this: check
- * what a guard asserts, not that it is green. It asserts the family now.
- *
- * Built from `BRAND_TYPE` rather than spelled here, for the reason this file's
- * header already gives about the plate path: geometry is imported, never
- * copied. Georgia stays as the fallback because this face **is** a serif — the
- * hazard the other fixes removed was a serif fallback under a *sans*.
- */
-const NAME_FONT_STACK = `${BRAND_TYPE.name.family}, Georgia, serif`;
+
+function PlateCut({ fill }: { fill: string }) {
+  return <path d={MARK_PATH} fillRule="evenodd" fill={fill} />;
+}
 
 export function BrandLockup({
   width = 280,
@@ -79,189 +62,98 @@ export function BrandLockup({
 }: {
   /** The space available. The drawing is chosen from it unless `variant` says otherwise. */
   width?: number;
-  /** Force a drawing. Omit and the width decides — which is the safer default. */
+  /**
+   * Force a drawing. Omit and the width decides — which is the safer default.
+   *
+   * `icon` is the mark in the ground's ink; `mono` is the same mark in
+   * `currentColor`, for places where it is furniture rather than the subject
+   * and the caller sets the colour with a text class.
+   */
   variant?: 'full' | 'short' | 'icon' | 'mono';
   /**
-   * ⚠ `light` is the only sanctioned substitution: the glow cannot exist on a
-   * light ground, so the plate goes hollow and the edge takes cyan-700. Never a
-   * cyan fill, never a semantic recolour.
+   * The ground it sits on, which picks the plate's fill. There is no third
+   * option: the mark has two non-colours and takes no hue, because cyan is the
+   * focus ring and a logo that owned it would be competing with a state.
    */
   ground?: 'dark' | 'light';
   className?: string;
 }) {
   const chosen = variant ?? lockupFor(width);
-  const light = ground === 'light';
+  const ink = ground === 'light' ? BRAND_COLOR.tile : BRAND_COLOR.ink;
 
-  const edge = light ? BRAND_COLOR.light.edge : BRAND_COLOR.edge;
-  const ink = light ? BRAND_COLOR.light.name : BRAND_COLOR.name;
-  const quiet = light ? BRAND_COLOR.light.quiet : BRAND_COLOR.quiet;
-
-  if (chosen === 'mono') {
-    /*
-      ── The quiet mark ────────────────────────────────────────────────────
-
-      Design ships this as `favicon-mono.svg`: a solid plate in `currentColor`
-      with the W knocked out of it. It is the drawing for places where the mark
-      is furniture rather than the subject — a loading state, an empty panel,
-      a tab bar — and the caller sets the colour by setting `color`.
-
-      ⚠ Its plate is **not** the icon's. At this size the icon's proportions
-      close up and the cut corners stop reading as cuts, so the package carries
-      a second path with a wider bevel. `brand.test.ts` asserts the two differ,
-      which is what stops a later tidy collapsing them into one.
-    */
-    const plate = PLATE.favicon;
+  if (chosen === 'icon' || chosen === 'mono') {
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        viewBox={`0 0 ${plate.width} ${plate.height}`}
+        viewBox={`0 0 ${PLATE_GRID} ${PLATE_GRID}`}
         width={width}
         height={width}
         role="img"
         aria-label={BRAND_NAME}
         className={className}
       >
-        <path d={plate.path} fill="currentColor" />
-        <text
-          x={plate.width / 2}
-          y={70}
-          textAnchor="middle"
-          fontFamily={NAME_FONT_STACK}
-          fontWeight={600}
-          fontSize={56}
-          fill={BRAND_COLOR.plate}
-        >
-          W
-        </text>
+        <PlateCut fill={chosen === 'mono' ? 'currentColor' : ink} />
       </svg>
     );
   }
 
-  if (chosen === 'icon') {
-    const plate = PLATE.icon;
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox={`0 0 ${plate.width} ${plate.height}`}
-        width={width}
-        height={width}
-        role="img"
-        aria-label={BRAND_NAME}
-        className={className}
-      >
-        <path
-          d={plate.path}
-          fill={light ? 'none' : BRAND_COLOR.plate}
-          stroke={edge}
-          strokeWidth={light ? 3 : 2}
-        />
-        <text
-          x={plate.width / 2}
-          y={70}
-          textAnchor="middle"
-          fontFamily={NAME_FONT_STACK}
-          fontWeight={600}
-          fontSize={44}
-          fill={ink}
-        >
-          WK
-        </text>
-      </svg>
-    );
-  }
-
-  const plate = chosen === 'full' ? PLATE.full : PLATE.short;
-  const rivets = chosen === 'full' ? RIVETS.full : RIVETS.short;
-  const height = Math.round((width * plate.height) / plate.width);
-  const glowId = `wk-glow-${chosen}-${ground}`;
+  const full = chosen === 'full';
+  /*
+    ⚠ Both measures are per-variant. The full lockup is the wider drawing
+    whenever the maker line outruns the wordmark, which is what a one-word
+    wordmark did on 7 Sep — using `LOCKUP.width` for it crops `SOUTHMOOR
+    DIGITAL` mid-word, and an SVG drawn outside its viewBox is cropped in
+    silence rather than reported.
+  */
+  const boxWidth = full ? LOCKUP.widthFull : LOCKUP.width;
+  const boxHeight = full ? LOCKUP.heightFull : LOCKUP.heightShort;
+  const height = Math.round((width * boxHeight) / boxWidth);
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox={`0 0 ${plate.width} ${plate.height}`}
+      viewBox={`0 0 ${boxWidth} ${boxHeight}`}
       width={width}
       height={height}
       role="img"
-      aria-label={chosen === 'full' ? `${BRAND_NAME} by Southmoor Digital` : BRAND_NAME}
+      aria-label={full ? `${BRAND_NAME} by ${MAKER_NAME}` : BRAND_NAME}
       className={className}
     >
       {/*
-        The backlight. Absent on light grounds because a glow needs something
-        darker than itself to read against — the substitution Design sanctions
-        is a hollow plate with a cyan-700 edge, not a dimmer glow.
+        The mark is centred on the wordmark's **cap band**, never on the block.
+        Centring on the block moved the plate a quarter of a cap height whenever
+        the maker line was present, so the same mark sat at two heights
+        depending on which lockup you picked. Here the transform is identical in
+        both, and the maker line hangs off the wordmark alone.
       */}
-      {!light && (
-        <>
-          <defs>
-            <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="10" />
-            </filter>
-          </defs>
-          <g filter={`url(#${glowId})`} opacity={0.55}>
-            <path d={plate.path} fill={BRAND_COLOR.glow} />
-          </g>
-        </>
-      )}
-
-      <path
-        d={plate.path}
-        fill={light ? 'none' : BRAND_COLOR.plate}
-        stroke={edge}
-        strokeWidth={light ? 3 : 2}
-      />
-
-      <g fill={light ? BRAND_COLOR.light.quiet : BRAND_COLOR.rivet}>
-        {rivets.map((rivet) => (
-          <circle key={`${rivet.x}-${rivet.y}`} cx={rivet.x} cy={rivet.y} r={RIVETS.radius} />
-        ))}
+      <g transform={`scale(${LOCKUP.markScale})`}>
+        <PlateCut fill={ink} />
       </g>
-
-      <text
-        x={plate.width / 2}
-        y={BRAND_TYPE.name.baseline[chosen]}
-        textAnchor="middle"
-        fontFamily={NAME_FONT_STACK}
-        fontWeight={BRAND_TYPE.name.weight}
-        fontSize={BRAND_TYPE.name.size}
-        letterSpacing={BRAND_TYPE.name.tracking}
-        fontVariant="small-caps"
-        fill={ink}
-      >
-        {BRAND_NAME}
-      </text>
-
-      {chosen === 'full' && (
-        <text
-          x={plate.width / 2}
-          y={BRAND_TYPE.maker.baseline}
-          textAnchor="middle"
-          fontFamily="Inter, sans-serif"
-          fontWeight={BRAND_TYPE.maker.weight}
-          fontSize={BRAND_TYPE.maker.size}
-          letterSpacing={BRAND_TYPE.maker.tracking}
-          fill={quiet}
-        >
-          {BRAND_TYPE.maker.text}
-        </text>
-      )}
+      <path d={WORDMARK_PATH} fill={ink} />
+      {full && <path d={MAKER_PATH} fill={ink} opacity={0.6} />}
     </svg>
   );
 }
 
 /**
- * The nav treatment: the plate at 28px with the name set beside it.
+ * The nav treatment: the short lockup at nav scale.
  *
- * ⚠ Not the plate lockup shrunk. `REBRAND_PROMPT.md` §4.1 specifies a nav as
- * *"the 28px plate mark + Newsreader small caps 19–20px"* — a mark and a
- * wordmark, not one drawing — because a bar is wide and short and the plate's
- * own proportions fight that. Shrinking the lockup to fit a 44px bar would put
- * the name at about 9px inside it.
+ * ⚠ This used to be a hand-assembled mark-plus-HTML-name, because the mark it
+ * replaced was a wide plate with the name engraved *inside* it and shrinking
+ * that to fit a 44px bar put the name at about 9px. That argument is spent: the
+ * lockup is now a mark beside a free wordmark by construction, so the nav
+ * treatment and the short lockup are the same drawing and there is no reason
+ * for them to be two.
  *
- * The name is HTML text rather than SVG here, so it inherits the page's font
- * loading and can be selected and read. `BrandLockup` draws the plate.
+ * It stays as a named export so four call sites do not each pick a width, and
+ * so the nav keeps one obvious thing to import.
+ *
+ * `size` is the **mark's height** — the same meaning it had when it sized the
+ * plate. The rest of the lockup follows from it, because the ratio between the
+ * mark and the wordmark is fixed by the brief and is not a caller's to set.
  */
 export function BrandWordmark({
-  size = 28,
+  size = 20,
   ground = 'dark',
   className,
 }: {
@@ -270,29 +162,12 @@ export function BrandWordmark({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-2.5${className ? ` ${className}` : ''}`}>
-      {/*
-        `aria-hidden` on the mark, because the name beside it is real text. Both
-        labelled would make a screen reader say "Well Kept Well Kept" — the
-        failure the old lockup's docblock names.
-      */}
-      <span aria-hidden="true" className="inline-flex">
-        <BrandLockup width={size} variant="icon" ground={ground} />
-      </span>
-      <span
-        style={{
-          fontFamily: NAME_FONT_STACK,
-          fontWeight: BRAND_TYPE.name.weight,
-          fontSize: Math.round(size * 0.7),
-          fontVariant: 'small-caps',
-          letterSpacing: '0.1em',
-          lineHeight: 1,
-          color: ground === 'light' ? BRAND_COLOR.light.name : BRAND_COLOR.name,
-        }}
-      >
-        {BRAND_NAME}
-      </span>
-    </span>
+    <BrandLockup
+      width={Math.round((size * LOCKUP.width) / LOCKUP.mark)}
+      variant="short"
+      ground={ground}
+      className={className}
+    />
   );
 }
 

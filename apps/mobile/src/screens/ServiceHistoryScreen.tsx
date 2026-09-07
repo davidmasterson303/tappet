@@ -27,9 +27,10 @@ import {
   totalRecorded,
   type ServiceRecord,
   type ServiceVisit,
-} from '@wellkept/core/service-record';
-import { formatCurrency } from '@wellkept/core/formatting-utils';
+} from '@tappet/core/service-record';
+import { formatCurrency } from '@tappet/core/formatting-utils';
 import CutSurface from '../components/CutSurface';
+import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
 import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
@@ -498,8 +499,12 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                     Done and that is exactly what happened. Remove stops
                     propagation.
                   */
-                  <Pressable
+                  <SwipeToRemove
                     key={record.id ?? `${record.item_description}-${index}`}
+                    accessibilityLabel={`Remove ${record.item_description ?? 'this record'}`}
+                    onRemove={() => remove(record)}
+                  >
+                  <Pressable
                     onPress={() => onOpenVisit(visit)}
                     accessibilityRole="button"
                     accessibilityLabel={`${record.item_description ?? 'Service'}, open the full record`}
@@ -555,45 +560,36 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
 
                       A critic reading screenshots cannot know which affordances
                       exist, and this one inferred a standard iOS gesture from a
-                      list that looks like it should have one. If the row is to
-                      slim down, deletion needs somewhere to go first — the visit
-                      detail this row already opens is the obvious candidate —
-                      and that is a product change, not a restyle.
-                    */}
-                    {record.id ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remove ${record.item_description ?? 'this record'}`}
-                        style={styles.removeCta}
-                        /*
-                          ⚠ The row opens the visit and this deletes a record,
-                          so the inner press must not reach the outer one. A
-                          tap that both opened a screen and destroyed a row is
-                          the UI-01 shape with a worse ending.
-                        */
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          remove(record);
-                        }}
-                      >
-                        {/*
-                          ── R9 · quiet, because destruction is not attention ─
+                      list that looks like it should have one.
 
-                          It was `status.attention` — amber — which made the one
-                          destructive control the loudest thing in every row, and
-                          amber is the *attention* family rather than the
-                          critical one. It reads at `text.muted` now, and the
-                          only red in this flow is the confirm inside the alert
-                          `remove` raises. Swipe-to-delete is the platform idiom
-                          and is what this should become; it needs
-                          `react-native-gesture-handler`, which is a native
-                          module and therefore an EAS build (§9), so it waits for
-                          one that is being spent anyway.
-                        */}
-                        <Text style={styles.removeText}>Remove</Text>
-                      </Pressable>
-                    ) : null}
+                      ⚠ **7 Sep: it exists now.** David ruled — *"ok w/ swipe to
+                      delete as long as there's a confirm after"* — and
+                      `SwipeToRemove` builds the gesture the critique assumed was
+                      already there. The refusal above was right for as long as
+                      it was true, and it is kept because the *reason* outlives
+                      it: a control is not redundant until the thing replacing it
+                      is actually built.
+                    */}
+                    {/*
+                      ── ⚠ 7 Sep: the inline Remove became a swipe ─────────────
+
+                      The critique asked four times to cut this row, and the
+                      note that used to sit here refused four times for a real
+                      reason: there was no swipe-to-delete, so removing the
+                      control would have deleted the only way to delete a
+                      record. Both halves have now happened at once —
+                      `SwipeToRemove` wraps this row, so the control exists and
+                      the row is one line again.
+
+                      ⚠ The confirm is unchanged and load-bearing. David: *"ok
+                      w/ swipe to delete as long as there's a confirm after."*
+                      The swipe *reveals*; `remove(record)` still raises the
+                      alert naming what the removal costs. A gesture that
+                      deleted on release would have no undo behind it, on rows
+                      holding somebody's service history.
+                    */}
                   </Pressable>
+                  </SwipeToRemove>
                 );
               })}
 
@@ -816,11 +812,26 @@ const styles = StyleSheet.create({
   /* R9. Quiet. The destructive colour appears only in the confirm `remove` raises. */
   removeText: { ...type.label, letterSpacing: 0, color: text.muted },
   /*
-    A recollection is tinted rather than merely worded differently. The label
-    already says "what you told us at sign-up"; the colour is what survives
-    someone skimming, and skimming is what a list invites.
+    ── ⚠ 7 Sep · B7: the sodium moves from the ink to a rule ─────────────────
+
+    The note here argued the tint carries meaning rather than decoration, and it
+    is right: *"the label already says 'what you told us at sign-up'; the colour
+    is what survives someone skimming, and skimming is what a list invites."*
+    A recollection is not a scanned document and §10 does not let the list
+    pretend otherwise.
+
+    B7 spends sodium as a **line**, though, not as ink. The critique proposed the
+    resolution rather than the removal — "a sodium hairline on the band's left
+    edge with the text staying grey" — which keeps exactly what the note was
+    protecting. A rule down the edge of a row survives skimming better than a
+    tint on a caption does, because it reads at the width of the row rather than
+    the width of a word.
   */
-  recollection: { color: status.attention },
+  recollection: {
+    borderLeftWidth: 2,
+    borderLeftColor: status.attention,
+    paddingLeft: space.sm,
+  },
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },

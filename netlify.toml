@@ -40,7 +40,7 @@ package = "@netlify/plugin-nextjs"
 # No CSP, no X-Frame-Options, no Referrer-Policy, no Permissions-Policy.
 # `x-powered-by` was present. On static assets even `nosniff` was absent.
 #
-# `wellkept.southmoordigital.com` is the App Store listing's marketing URL and the
+# `tappet.southmoordigital.com` is the App Store listing's marketing URL and the
 # origin the mobile app talks to, so this is the header set a reviewer's
 # tooling — and anybody else's — looks at.
 #

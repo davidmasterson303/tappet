@@ -12,11 +12,11 @@ The rebrand is a **name and a mark**. No token moves, no palette change, no type
 | Store name · subtitle | CrewChief | Well Kept: Know Your Car · AI-kept service records |
 | Maker / seller | David Masterson | Southmoor Digital LLC |
 | Bundle id | `co.davidmasterson.crewchief` | `co.southmoordigital.wellkept` |
-| Shared package | `@crewchief/core` | `@wellkept/core` |
+| Shared package | `@crewchief/core` | `@tappet/core` |
 | Design system | CrewChief Design System v8 | Well Kept Design System v9 |
 | Repo | `davidmasterson303/crewchief` | rename, or keep and note it |
 
-**Ruling: keep `co.davidmasterson.crewchief`.** A bundle-id change is a new App Store record, not an update to a live one, and no user ever sees the id. Change the display name only. The id, the repo name and `@crewchief/core` are cosmetic and stay until there is an unrelated reason to touch them — a rebrand is not worth losing a listing's history over. `@wellkept/core` in the design system's citations is the *intended* name, not a required rename this pass.
+**Ruling: keep `co.davidmasterson.crewchief`.** A bundle-id change is a new App Store record, not an update to a live one, and no user ever sees the id. Change the display name only. The id, the repo name and `@crewchief/core` are cosmetic and stay until there is an unrelated reason to touch them — a rebrand is not worth losing a listing's history over. `@tappet/core` in the design system's citations is the *intended* name, not a required rename this pass.
 
 ## 2. The mark
 

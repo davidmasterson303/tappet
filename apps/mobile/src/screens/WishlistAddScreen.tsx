@@ -14,8 +14,8 @@ import {
   learnMoreQuestion,
   suggestionsFor,
   type WishlistSuggestion,
-} from '@wellkept/core/wishlist-suggestions';
-import { wishlistItemIdentifier, type WishlistItemType } from '@wellkept/core/wishlist-identifier';
+} from '@tappet/core/wishlist-suggestions';
+import { wishlistItemIdentifier, type WishlistItemType } from '@tappet/core/wishlist-identifier';
 import {
   FIELD_FONT_MIN,
   TABULAR,

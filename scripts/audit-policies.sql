@@ -1,4 +1,4 @@
--- Well Kept — grants and RLS policy audit (task 0.2)
+-- Tappet — grants and RLS policy audit (task 0.2)
 --
 -- Run in the Supabase dashboard SQL Editor. Read-only: it only selects from
 -- catalog views and changes nothing.

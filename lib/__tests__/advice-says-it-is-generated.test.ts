@@ -25,9 +25,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ADVISOR_NAME } from '@wellkept/core/prompts';
-import { adviceDisclosure, RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
-import { ADVISOR_AI_CONSENT, INVOICE_AI_CONSENT } from '@wellkept/core/ai-consent-copy';
+import { ADVISOR_NAME } from '@tappet/core/prompts';
+import { adviceDisclosure, RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { ADVISOR_AI_CONSENT, INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 
 const ROOT = join(__dirname, '..', '..');
 
@@ -136,7 +136,7 @@ describe('the disclosure itself', () => {
     for (const surface of ['consultant', 'health', 'estimate', 'plan', 'research'] as const) {
       const copy = adviceDisclosure(surface);
       expect([surface, /\[advisor name\]|\{advisor/i.test(copy)]).toEqual([surface, false]);
-      expect([surface, /CrewChief|Well Kept/i.test(copy)]).toEqual([surface, false]);
+      expect([surface, /CrewChief|Tappet/i.test(copy)]).toEqual([surface, false]);
       expect([surface, new RegExp(`\\b${ADVISOR_NAME}\\b`, 'i').test(copy)]).toEqual([
         surface,
         false,

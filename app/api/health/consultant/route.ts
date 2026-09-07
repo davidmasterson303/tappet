@@ -1,16 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { genAI, flashConfig, withThinking } from '@/lib/gemini';
-import { CONSULTANT_HEALTH_MODEL } from '@wellkept/core/ai/models';
+import { CONSULTANT_HEALTH_MODEL } from '@tappet/core/ai/models';
 import { recordAiUsageInBackground } from '@/lib/ai-usage';
 import { getServerClient } from '@/lib/supabase';
-import { logger } from '@wellkept/core/logger';
-import { withTimeout, TimeoutError } from '@wellkept/core/retry';
-import { CONSULTANT_ROUND_TRIP } from '@wellkept/core/demo-contract';
+import { logger } from '@tappet/core/logger';
+import { withTimeout, TimeoutError } from '@tappet/core/retry';
+import { CONSULTANT_ROUND_TRIP } from '@tappet/core/demo-contract';
 import {
   classifyRoundTrip,
   isRetryable,
   type ConsultantHealth,
-} from '@wellkept/core/consultant-health';
+} from '@tappet/core/consultant-health';
 
 export const dynamic = 'force-dynamic';
 

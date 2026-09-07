@@ -22,8 +22,8 @@ import {
   nextCheckDue,
   readRecallResponse,
   recallsWereChecked,
-  recallsAreKnown,} from '@wellkept/core/nhtsa-lookup';
-import { recallsToRefresh, SWEEP_RECALL_REFRESH_CAP } from '@wellkept/core/notification-sweep';
+  recallsAreKnown,} from '@tappet/core/nhtsa-lookup';
+import { recallsToRefresh, SWEEP_RECALL_REFRESH_CAP } from '@tappet/core/notification-sweep';
 
 describe('readRecallResponse', () => {
   it('trusts a zero only when the make was independently confirmed', () => {

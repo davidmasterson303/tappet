@@ -356,7 +356,7 @@ export default function DesignSystemPage() {
             Development only
           </p>
           <h1 className="display-instrument display-instrument-tight mt-3 text-[clamp(2.75rem,9vw,6.5rem)] uppercase leading-[0.92] text-[color:var(--text-primary)]">
-            Well Kept
+            Tappet
             <br />
             The System
           </h1>

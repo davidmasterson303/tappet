@@ -7,7 +7,7 @@ import {
   truncateString,
   capitalizeWords,
   slugify
-} from '@wellkept/core/formatting-utils';
+} from '@tappet/core/formatting-utils';
 
 describe('Formatting Utils', () => {
   describe('formatCurrency', () => {

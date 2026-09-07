@@ -16,7 +16,7 @@ import {
   nextRungs,
   progressionSummary,
   showsModifications,
-} from '@wellkept/core/mod-progression';
+} from '@tappet/core/mod-progression';
 
 /** 2018 Honda Accord Sport 1.5T — `mild`. */
 const ACCORD = [

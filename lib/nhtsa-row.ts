@@ -1,4 +1,4 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 
 /**
  * Read a vehicle's `nhtsa_data` row, tolerating a database that has not had the

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 /**
  * History arrives as a prop, fetched by the dashboard.

@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from './supabase';
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import {
   FUNNEL_STEPS,
   type FunnelStep,
@@ -8,7 +8,7 @@ import {
   funnelCounts,
   funnelRates,
   groupByVisitor,
-} from '@wellkept/core/funnel';
+} from '@tappet/core/funnel';
 
 /**
  * Record that an anonymous visitor reached a step on the front door.

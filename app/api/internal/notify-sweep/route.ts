@@ -1,21 +1,21 @@
 import { timingSafeEqual } from 'node:crypto';
 import { selectNhtsaRow } from '@/lib/nhtsa-row';
 
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getServiceRoleClient } from '@/lib/supabase';
 import { sendToAccount } from '@/lib/push-send';
-import { normaliseRecalls } from '@wellkept/core/recalls';
-import { recallNotification, serviceDueNotification } from '@wellkept/core/notifications';
+import { normaliseRecalls } from '@tappet/core/recalls';
+import { recallNotification, serviceDueNotification } from '@tappet/core/notifications';
 import {
   evaluateSchedule,
   isWorthNotifying,
   milestoneReason,
   nextMilestone,
   nextService,
-} from '@wellkept/core/service-due';
-import { historyLookups } from '@wellkept/core/service-history';
+} from '@tappet/core/service-due';
+import { historyLookups } from '@tappet/core/service-history';
 import {
   applySendCap,
   digestRecalls,
@@ -25,7 +25,7 @@ import {
   vehiclesToGenerate,
   type GenerationCandidate,
   recallsToRefresh,
-} from '@wellkept/core/notification-sweep';
+} from '@tappet/core/notification-sweep';
 import {
   fetchNHTSARecalls,
   researchVehicleDossier,
@@ -36,7 +36,7 @@ import {
  * The nightly sweep. Phase 5, C1–C3.
  *
  * Reads every vehicle, decides who needs telling, sends the pushes. All of the
- * *deciding* is in `@wellkept/core/notification-sweep` — this file is the IO
+ * *deciding* is in `@tappet/core/notification-sweep` — this file is the IO
  * around it, deliberately, because the decisions are the part that has to be
  * right and they should be testable without a database.
  *
@@ -51,7 +51,7 @@ import {
  *
  * This endpoint sends push notifications to every account in the product. An
  * unauthenticated one would be the most abusable surface in the app by a wide
- * margin — not a data leak, but a way to make Well Kept spam its own users
+ * margin — not a data leak, but a way to make Tappet spam its own users
  * until they uninstall it.
  *
  * So: a shared secret, compared in constant time, and **it fails closed**. If

@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from './supabase';
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import {
   AI_USAGE_PURPOSES,
   AI_USAGE_SURFACES,
@@ -7,8 +7,8 @@ import {
   type AiUsageSurface,
   readUsageMetadata,
   isWorthRecording,
-} from '@wellkept/core/ai/usage';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+} from '@tappet/core/ai/usage';
+import { isDemoVehicleId } from '@tappet/core/demo';
 
 /**
  * Record what a Gemini call cost, per account.

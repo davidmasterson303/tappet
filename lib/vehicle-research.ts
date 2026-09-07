@@ -1,19 +1,19 @@
 import { getServiceRoleClient } from '@/lib/supabase';
 import { checkMonthlyBudget } from '@/lib/ai-budget';
 import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
-import { budgetMessage } from '@wellkept/core/ai/budget';
+import { budgetMessage } from '@tappet/core/ai/budget';
 import {
   nextCheckDue,
   readRecallResponse,
   type NhtsaLookup,
-} from '@wellkept/core/nhtsa-lookup';
+} from '@tappet/core/nhtsa-lookup';
 import { genAI, proStructuredConfig } from '@/lib/gemini';
 import { recordAiUsageInBackground } from '@/lib/ai-usage';
-import { VEHICLE_RESEARCH_PROMPT } from '@wellkept/core/prompts';
-import { VehicleDataSchema, extractJSON } from '@wellkept/core/vehicle-utils';
-import { withTimeout, TimeoutError } from '@wellkept/core/retry';
-import { PRO_MODEL } from '@wellkept/core/ai/models';
-import { logger } from '@wellkept/core/logger';
+import { VEHICLE_RESEARCH_PROMPT } from '@tappet/core/prompts';
+import { VehicleDataSchema, extractJSON } from '@tappet/core/vehicle-utils';
+import { withTimeout, TimeoutError } from '@tappet/core/retry';
+import { PRO_MODEL } from '@tappet/core/ai/models';
+import { logger } from '@tappet/core/logger';
 import { z } from 'zod';
 
 /**

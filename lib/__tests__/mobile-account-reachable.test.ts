@@ -52,6 +52,19 @@ const NAVIGATION = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'navigat
 const NAVIGATOR = join(NAVIGATION, 'RootNavigator.tsx');
 const TAB_BAR = join(NAVIGATION, 'TabBar.tsx');
 
+/**
+ * The `<AccountControl …/>` element's own text, or `''` when there is none.
+ *
+ * Sliced from the opening tag to its self-closing `/>` so a question asked of it
+ * cannot accidentally be answered by something else in the file.
+ */
+function accountControlElement(source: string): string {
+  const at = source.indexOf('<AccountControl');
+  if (at === -1) return '';
+  const end = source.indexOf('/>', at);
+  return end === -1 ? '' : source.slice(at, end + 2);
+}
+
 const navigator = readFileSync(NAVIGATOR, 'utf8');
 const tabBar = readFileSync(TAB_BAR, 'utf8');
 
@@ -76,9 +89,78 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
     expect(barAt).toBeGreaterThan(navigatorClose);
   });
 
-  it('offers Account on the bar', () => {
-    // The route existing is not the same as there being a way to reach it.
-    expect(tabBar).toMatch(/name: 'Account'/);
+  it('offers a way into Account from outside every screen', () => {
+    /*
+      ── ⚠ Re-pointed 7 Sep, and the claim is deliberately unchanged ──────────
+
+      This asserted `name: 'Account'` inside `TabBar`, because the account was a
+      tab. It is not any more: David moved it off the bar so `Plan` could take
+      the slot, and the control went to `AccountControl` — drawn top-right on
+      the roots.
+
+      ⚠ What matters for 5.1.1(v) is **not that it is a tab.** It is that the
+      way in is rendered *outside every screen*, so no early return can remove
+      it — the failure this file exists for, where the account was a modal owned
+      by `GarageScreen` and its loading and error branches returned before the
+      header. The ordering case above already proves `AccountControl` sits
+      outside `Stack.Navigator`; this proves it is wired to the account rather
+      than merely present.
+
+      Accepting either anchor, because either satisfies the rule and pinning the
+      test to one of them is what made this need rewriting.
+    */
+    const onTheBar = /name: 'Account'/.test(tabBar);
+
+    /*
+      ⚠ Scoped to the element by slicing it, not by pattern-matching around it.
+
+      Two wrong versions of this, both instructive. `[\s\S]*?` across the whole
+      navigator matches `<AccountControl …/>` against the `Stack.Screen
+      name="Account"` hundreds of lines below and reports a control wired to
+      nothing. `[^>]*?` then cannot leave the tag — but it also cannot get
+      *through* the tag, because `onPress={() => …}` contains a `>`.
+
+      So: take the text from the opening tag to its self-closing `/>` and ask
+      the question of that.
+    */
+    /*
+      ⚠ Matches the *route name* anywhere in the element, not one call shape.
+      This first read `name: 'Account'` and broke within the hour, when the
+      control moved from `resetTo(…, [{ name: 'Account' }])` to
+      `navigation.navigate('Account')` — both wire it to the same screen, and a
+      guard that only knows one of them tests the spelling rather than the fact.
+    */
+    const asAControl = /'Account'/.test(accountControlElement(navigator));
+
+    expect(onTheBar || asAControl).toBe(true);
+  });
+
+  it('renders that control outside the navigator too', () => {
+    /*
+      The ordering case above covers `TabBar`. Now that the account's way in is
+      a *different* element, it needs the same proof: a control inside
+      `Stack.Navigator` is a control a screen can swallow, which is the whole
+      failure this file was written for.
+    */
+    const navigatorClose = navigator.indexOf('</Stack.Navigator>');
+    const controlAt = navigator.indexOf('<AccountControl');
+
+    if (controlAt === -1) return; // still on the bar; the case above covers it.
+
+    expect(navigatorClose).toBeGreaterThan(-1);
+    expect(controlAt).toBeGreaterThan(navigatorClose);
+  });
+
+  it('can still detect a control wired to nothing', () => {
+    /*
+      Rule 5's other half for the case above. Without it, `asAControl` passes on
+      any navigator whose `<AccountControl` happens to be followed by the route
+      registration — which is exactly what the loose version of this regex did.
+    */
+    const unwired = `<AccountControl visible={true} onPress={() => {}} />
+      <Stack.Screen name="Account" />`;
+
+    expect(/'Account'/.test(accountControlElement(unwired))).toBe(false);
   });
 
   it('can still detect the bar being moved inside', () => {

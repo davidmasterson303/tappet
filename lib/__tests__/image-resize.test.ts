@@ -21,7 +21,7 @@ import {
   QUALITY_LADDER,
   DOC_MAX_EDGE,
   DOC_TARGET_BYTES,
-} from '@wellkept/core/image-resize';
+} from '@tappet/core/image-resize';
 
 describe('fitWithin', () => {
   it('scales a landscape phone photo down to the long edge', () => {

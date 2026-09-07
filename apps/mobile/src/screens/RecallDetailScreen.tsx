@@ -30,9 +30,9 @@ import {
   normaliseRecalls,
   type NormalisedRecall,
   type RecallSeverity,
-} from '@wellkept/core/recalls';
-import { RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
-import { healthClaim } from '@wellkept/core/health-claims';
+} from '@tappet/core/recalls';
+import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { healthClaim } from '@tappet/core/health-claims';
 import { interFace } from '../theme/fonts';
 
 /**

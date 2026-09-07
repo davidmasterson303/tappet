@@ -21,7 +21,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SUBSCRIPTION_CANCEL_PATH } from '@wellkept/core/account-deletion';
+import { SUBSCRIPTION_CANCEL_PATH } from '@tappet/core/account-deletion';
 
 import { CONTACT_EMAIL, LAST_UPDATED, OPERATOR } from '@/lib/legal';
 
@@ -116,7 +116,7 @@ describe('the two documents cannot contradict the app', () => {
   it('agrees with the app that deleting an account does not cancel billing', () => {
     // `subscriptionNotice` says this in the app. Both documents say it too,
     // because it is the one thing here that costs money to get wrong.
-    expect(termsText).toMatch(/deleting your well kept account does not stop the/i);
+    expect(termsText).toMatch(/deleting your tappet account does not stop the/i);
     expect(privacyText).toMatch(/does not cancel an App Store subscription/i);
   });
 });
@@ -183,7 +183,7 @@ describe('who operates the service, and who to write to about it', () => {
     placeholder would still be caught.
 
     ⚠ A green run here does not mean the public page is fixed. Nothing deploys
-    from `main`; `wellkept.southmoordigital.com` serves `web-live`, and these
+    from `main`; `tappet.southmoordigital.com` serves `web-live`, and these
     values reach a reader only after a promote.
   */
 
@@ -212,7 +212,7 @@ describe('who operates the service, and who to write to about it', () => {
       which is the worst shape a support channel can have: it looks answered.
 
       It also survived the rename, because a find-and-replace on the product
-      name would have produced `feedback@wellkept.app` — the same dead address
+      name would have produced `feedback@tappet.app` — the same dead address
       wearing the new name. An address is not copy.
 
       So the rule is one address, from one constant. This walks the tree rather

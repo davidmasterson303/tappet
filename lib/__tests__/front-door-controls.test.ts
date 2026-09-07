@@ -21,12 +21,12 @@ import {
   decideFrontDoor,
   frontDoorClosedMessage,
   WARN_AT,
-} from '@wellkept/core/ai/budget';
+} from '@tappet/core/ai/budget';
 import {
   PLATFORM_IP_HEADERS,
   SPOOFABLE_IP_HEADERS,
   platformClientIp,
-} from '@wellkept/core/client-ip';
+} from '@tappet/core/client-ip';
 import { getClientIdentifier } from '@/lib/rate-limit';
 
 const LIMIT = FRONT_DOOR_BUDGET.dailyOutputTokens;

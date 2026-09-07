@@ -32,7 +32,7 @@ import {
   vinProblem,
   vpicDecodeUrl,
   vpicModelsUrl,
-} from '@wellkept/core/vehicle-catalog';
+} from '@tappet/core/vehicle-catalog';
 
 const AUGUST = new Date('2026-08-23T12:00:00Z');
 

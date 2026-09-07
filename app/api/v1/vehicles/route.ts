@@ -1,11 +1,11 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
-import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
-import { validateProfileUpdate } from '@wellkept/core/vehicle-profile';
-import { buildBaselineRow, isBaselineAge } from '@wellkept/core/onboarding-baseline';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
+import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { resolveVehiclePhotos } from '@/lib/vehicle-photo';
 

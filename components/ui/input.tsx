@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@wellkept/core/utils';
+import { cn } from '@tappet/core/utils';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /**

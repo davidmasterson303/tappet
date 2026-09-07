@@ -8,8 +8,8 @@ import {
   describeRecord,
   formatRecordDate,
   type ServiceVisit,
-} from '@wellkept/core/service-record';
-import { formatCurrency } from '@wellkept/core/formatting-utils';
+} from '@tappet/core/service-record';
+import { formatCurrency } from '@tappet/core/formatting-utils';
 import { TABULAR, border, space, surface, text, type } from '../theme';
 
 /**

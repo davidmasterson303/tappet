@@ -39,7 +39,7 @@ function readoutSizes(nodes: Array<{ props: Record<string, unknown> }>): number[
   });
 }
 import { apiRequest, ApiRequestError } from '../../api/client';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
 
 /**
  * The dossier.
@@ -50,7 +50,7 @@ import { getHealthBandJudgement } from '@wellkept/core/health-band';
  *
  * ── Two things worth pinning beyond "it renders" ────────────────────────────
  *
- * **The health band comes from `@wellkept/core/health-band`**, which both
+ * **The health band comes from `@tappet/core/health-band`**, which both
  * clients read. A band spelled locally would let the phone call a car "Fair"
  * while the web calls the same score "Needs attention" — the exact divergence
  * the shared package exists to prevent. The test asserts against the real

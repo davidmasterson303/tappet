@@ -16,7 +16,7 @@ import Constants from 'expo-constants';
  * installed copy of the app talks to: a store app must not have its backend
  * change on every push to `main`.
  *
- * So `wellkept.southmoordigital.com` is served by the project building
+ * So `tappet.southmoordigital.com` is served by the project building
  * **`web-live`**, which only moves when someone merges `main` into it.
  *
  * ⚠ **`web-live`, not `demo-live`** — an earlier version of this note said
@@ -37,8 +37,8 @@ import Constants from 'expo-constants';
  * `effulgent-blancmange-6adfdf.netlify.app`, because the App Store listing and
  * every in-app legal link are built from this value and a generated preview
  * name is not what belongs in either. It moved to
- * `wellkept.southmoordigital.com` with the 6 Sep rename; the reasoning did not
- * change, only the label.
+ * `wellkept.southmoordigital.com` on 6 Sep and `tappet.southmoordigital.com`
+ * on 7 Sep; the reasoning did not change either time, only the label.
  *
  * That swap also promoted a throwaway CI target into a user-facing surface, and
  * everything decided on the premise "nobody visits it" — build suppression,
@@ -56,7 +56,7 @@ export const API_BASE_URL: string =
     somewhere else would send that build to a different origin while looking
     like it worked.
   */
-  'https://wellkept.southmoordigital.com';
+  'https://tappet.southmoordigital.com';
 
 /**
  * Every request the app makes goes through the versioned API.

@@ -1,11 +1,11 @@
 /**
- * Does `@wellkept/core` actually work inside Metro?
+ * Does `@tappet/core` actually work inside Metro?
  *
  * The monorepo decision rests on shared logic being genuinely shared. Four
  * separate things have to hold for that, and only the first is obvious:
  *
  *   1. Metro resolves the workspace symlink at all.
- *   2. The modules it resolves are Next-free and Node-free. `@wellkept/core`
+ *   2. The modules it resolves are Next-free and Node-free. `@tappet/core`
  *      promises this in its own package.json — "No Next, no Supabase, no Node
  *      built-ins" — and React Native is where that promise gets tested, since
  *      an accidental `node:crypto` import throws at runtime rather than
@@ -38,10 +38,10 @@
  * here, and this proves it *works* here. Deleting either leaves a real gap.
  */
 
-import { isDemoVehicleId } from '@wellkept/core/demo';
-import { storedUrl, storagePathFromStoredUrl } from '@wellkept/core/storage-paths';
-import { vehicleIdSchema } from '@wellkept/core/validation';
-import { formatMileage } from '@wellkept/core/formatting-utils';
+import { isDemoVehicleId } from '@tappet/core/demo';
+import { storedUrl, storagePathFromStoredUrl } from '@tappet/core/storage-paths';
+import { vehicleIdSchema } from '@tappet/core/validation';
+import { formatMileage } from '@tappet/core/formatting-utils';
 
 export interface CoreCheck {
   label: string;

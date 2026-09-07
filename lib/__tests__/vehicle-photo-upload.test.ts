@@ -21,7 +21,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { MAX_STORED_PHOTO_BYTES } from '@wellkept/core/image-resize';
+import { MAX_STORED_PHOTO_BYTES } from '@tappet/core/image-resize';
 
 const ROOT = join(__dirname, '..', '..');
 
@@ -169,7 +169,7 @@ describe('the action carries the same allowlist as the route — SEC-16', () => 
       first time either is edited.
     */
     expect(body).not.toMatch(/\['image\/jpeg'/);
-    expect(action).toMatch(/import \{[^}]*ALLOWED_IMAGE_TYPES[^}]*\} from '@wellkept\/core\/validation'/);
+    expect(action).toMatch(/import \{[^}]*ALLOWED_IMAGE_TYPES[^}]*\} from '@tappet\/core\/validation'/);
   });
 
   it('checks it after authorization, not before', () => {

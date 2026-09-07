@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from '@wellkept/core/utils';
+import { cn } from '@tappet/core/utils';
 
 /*
  * ⚠ `rounded-full` -> `chamfer-sm rounded-none` on 4 Sep, brief B4.

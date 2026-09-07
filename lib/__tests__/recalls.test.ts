@@ -31,7 +31,7 @@ import {
   parseRecallDate,
   severityOf,
   worstSeverity,
-} from '@wellkept/core/recalls';
+} from '@tappet/core/recalls';
 
 /** The shape the API actually returns, verified against NHTSA on 7 Aug 2026. */
 const FROM_API = {

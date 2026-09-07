@@ -402,13 +402,13 @@ const DECLARED_SIMULATIONS = ['rls-ownership.test.ts'];
 /*
   App code is `@/…`, a relative path, or the shared workspace package.
 
-  The `@wellkept/` arm was added when Phase 2.4 moved the first module into
+  The `@tappet/` arm was added when Phase 2.4 moved the first module into
   packages/core — and this suite failed the moment it did, which is the
   behaviour to keep. A suite whose subject moves out from under it should stop
   the build, not quietly start passing for the wrong reason.
 */
 const IMPORTS_APP_CODE =
-  /(?:from\s+|require\()\s*['"](?:@wellkept\/|@\/|\.\.?\/)(?!.*__tests__)/;
+  /(?:from\s+|require\()\s*['"](?:@tappet\/|@\/|\.\.?\/)(?!.*__tests__)/;
 
 /*
   `.tsx` as well as `.ts`.

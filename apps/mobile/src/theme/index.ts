@@ -1,7 +1,7 @@
 import { EDITORIAL_FACE, displayFace, interFace, monoFace } from './fonts';
 
 /**
- * The mobile token layer — Well Kept v8, native.
+ * The mobile token layer — Tappet v8, native.
  *
  * ── ⚠ 5 Sep: the two-hue collapse reached this file ────────────────────────
  *
@@ -9,7 +9,7 @@ import { EDITORIAL_FACE, displayFace, interFace, monoFace } from './fonts';
  * hues — **sodium is the warning axis, cold cyan is information and the build
  * ramp, and good news is off-white ink rather than a colour** — and touched
  * `apps/mobile` in exactly zero commits. The health ramp crossed anyway,
- * because it lives in `@wellkept/core/health-band` and the screens read it at
+ * because it lives in `@tappet/core/health-band` and the screens read it at
  * runtime; nothing else did. So the phone spent a day rendering the previous
  * system beside a ramp from the new one, which is the half-applied state
  * `CLAUDE.md` §6 is about, and it was invisible because
@@ -36,7 +36,7 @@ import { EDITORIAL_FACE, displayFace, interFace, monoFace } from './fonts';
  * cannot be judged when every screen is a different product.
  *
  * The one legitimate exception is a colour the *data* chooses: a health band is
- * owned by `@wellkept/core/health-band` and read at runtime, not stored here.
+ * owned by `@tappet/core/health-band` and read at runtime, not stored here.
  * The phone must not hold a second opinion about what "Fair" looks like.
  */
 
@@ -193,7 +193,7 @@ export const register = {
  * Status colours.
  *
  * ⚠ **The health band is not here.** Thresholds, wording and colour are owned
- * by `@wellkept/core/health-band` and read at runtime.
+ * by `@tappet/core/health-band` and read at runtime.
  *
  * ── ⚠ 23 Aug: "happen to share hues" was doing a lot of work ────────────────
  *
@@ -400,7 +400,7 @@ export const plinth = {
 } as const;
 
 /**
- * Build continuum paint. Zone selection lives in `@wellkept/core/build-progress`.
+ * Build continuum paint. Zone selection lives in `@tappet/core/build-progress`.
  *
  * ⚠ **The ramp runs cold, and `warm` and `far` are names rather than
  * descriptions.** It used to climb amber into orange, which put a heavily
@@ -415,7 +415,7 @@ export const plinth = {
  * a warning.
  *
  * The key names are unchanged, deliberately: they are read by
- * `@wellkept/core/build-progress` and by web's `--build-*`, and renaming them
+ * `@tappet/core/build-progress` and by web's `--build-*`, and renaming them
  * to match the new hues would be a breaking change to a shared contract in
  * exchange for nothing. Web carries `--build-warm` as a cyan for the same
  * reason.

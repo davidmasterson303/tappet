@@ -29,15 +29,16 @@ import {
   recordPrimerDismissed,
   registerForPush,
 } from '../notifications/register';
-import { shouldShowPushPrimer } from '@wellkept/core/push-priming';
-import { shouldShowFirstRun } from '@wellkept/core/first-run';
+import { shouldShowPushPrimer } from '@tappet/core/push-priming';
+import { shouldShowFirstRun } from '@tappet/core/first-run';
 import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-storage';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
-import { normaliseRecalls } from '@wellkept/core/recalls';
-import { localToday } from '@wellkept/core/garage-next-service';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { normaliseRecalls } from '@tappet/core/recalls';
+import { localToday } from '@tappet/core/garage-next-service';
 import { interFace } from '../theme/fonts';
 
-import { rememberGarageSize } from '../navigation/RootNavigator';
+import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
+import { rememberGarageSize } from '../navigation/last-vehicle';
 
 /**
  * Phase 3.2 — the garage, read only.
@@ -49,7 +50,7 @@ import { rememberGarageSize } from '../navigation/RootNavigator';
  *
  * ── Why the health band is imported and not written here ────────────────────
  *
- * `@wellkept/core/health-band` holds the thresholds and the wording. The web
+ * `@tappet/core/health-band` holds the thresholds and the wording. The web
  * dashboard reads the same module. A local copy of "80 is good" would drift
  * from the web silently — the two-components bug that produced that module in
  * the first place, at two-clients scale, where nobody notices until a phone and
@@ -658,7 +659,7 @@ export function GarageScreen({
             before being asked for one. Somebody who has used it and sold the
             car needs no introduction — greeting them with "Start with one car"
             would be the product forgetting them. `shouldShowFirstRun` decides,
-            and `@wellkept/core/first-run` carries the argument for why the
+            and `@tappet/core/first-run` carries the argument for why the
             stored fact is "ever had a vehicle" rather than "seen onboarding".
 
             ⚠ `undefined` renders nothing rather than guessing. The answer is
@@ -693,7 +694,7 @@ export function GarageScreen({
             */
             <EmptyState
               headline="No vehicles yet"
-              body="Add your first car and Well Kept gets to work on it."
+              body="Add your first car and Tappet gets to work on it."
               actionLabel="Add a car"
               actionAccessibilityLabel="Add your first car"
               onAction={onAddVehicle}
@@ -784,7 +785,18 @@ const styles = StyleSheet.create({
   */
   heading: { ...type.display, color: text.primary },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+    /*
+      ⚠ Room for the floating account control, which is a sibling of the
+      navigator and draws over this corner. Without it the account icon sat on
+      top of "add a car" — and that `+` is the only way to add a second vehicle,
+      so the collision silently removed a feature rather than looking untidy.
+    */
+    paddingRight: ACCOUNT_CONTROL_SLOT,
+  },
   /*
     Brighter than `signOut`, because these two are not equals: adding a car is
     the thing this screen exists to lead to, and Account is somewhere you go

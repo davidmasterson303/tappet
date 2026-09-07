@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadVehiclePhoto } from '@/app/actions';
-import { logger } from '@wellkept/core/logger';
-import { ALLOWED_IMAGE_TYPES } from '@wellkept/core/validation';
-import { checkStoredPhotoSize } from '@wellkept/core/image-resize';
-import type { ApiResponse } from '@wellkept/core/types';
+import { logger } from '@tappet/core/logger';
+import { ALLOWED_IMAGE_TYPES } from '@tappet/core/validation';
+import { checkStoredPhotoSize } from '@tappet/core/image-resize';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 

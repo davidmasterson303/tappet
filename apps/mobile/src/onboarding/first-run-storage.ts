@@ -5,7 +5,7 @@ import { secureStorage } from '../auth/secure-storage';
  *
  * ── ⚠ Why a fact about cars and not a "seen onboarding" flag ────────────────
  *
- * `@wellkept/core/first-run` carries the full argument. In short: a flag set
+ * `@tappet/core/first-run` carries the full argument. In short: a flag set
  * when the screen is displayed records that pixels appeared, and someone who
  * taps into the add-a-car form and backs out has "seen" it — losing the
  * explanation they were still reading. What is worth storing is whether they
@@ -25,7 +25,7 @@ import { secureStorage } from '../auth/secure-storage';
  * this" — hides the explanation from exactly the person who needs it.
  */
 
-const EVER_HAD_VEHICLE_KEY = 'wellkept.everHadVehicle';
+const EVER_HAD_VEHICLE_KEY = 'tappet.everHadVehicle';
 
 export async function everHadVehicle(): Promise<boolean> {
   try {

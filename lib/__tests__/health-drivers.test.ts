@@ -14,8 +14,8 @@ import {
   maintenanceDriver,
   mileageLoadDriver,
   recallDriver,
-} from '@wellkept/core/health-drivers';
-import type { ServiceDue } from '@wellkept/core/service-due';
+} from '@tappet/core/health-drivers';
+import type { ServiceDue } from '@tappet/core/service-due';
 
 /** A `ServiceDue` with only the fields the drivers read. */
 const due = (

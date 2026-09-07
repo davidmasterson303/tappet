@@ -9,7 +9,7 @@
  * dots — on a product whose pitch is "every invoice read".
  */
 
-import { firstSentence } from '@wellkept/core/summary-text';
+import { firstSentence } from '@tappet/core/summary-text';
 
 describe('firstSentence', () => {
   it('takes the lead sentence whole', () => {

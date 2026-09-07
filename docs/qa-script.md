@@ -1,5 +1,18 @@
 # Well Kept — QA script and report format
 
+> ### 📛 Renamed 7 Sep 2026 — this document keeps the old name on purpose
+>
+> The product is now **Tappet**. This page is a historical record and is
+> **not** rewritten: its dates, decisions and `cc-*` ids are cited from
+> elsewhere, and renaming them would break every citation while making the
+> record claim things were decided under a name that did not exist yet.
+>
+> Read every "Well Kept" and "CrewChief" below as the product's name *at the
+> time of writing*. For what is true now, `docs/identifiers.md` is asserted
+> against the code by `identifiers-match-the-register.test.ts` — prefer it over
+> anything here, and over this page's own status claims (CLAUDE.md §1).
+
+
 For an agent or a person testing the live demo. Written 2 Aug 2026 against
 `demo-live @ e729ee96` (promoted from `main @ d3aae46`).
 

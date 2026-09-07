@@ -9,7 +9,7 @@
  * been applied, and the shape of what actually gets written.
  */
 
-import type { AppleSubscriptionEvent } from '@wellkept/core/apple-subscription';
+import type { AppleSubscriptionEvent } from '@tappet/core/apple-subscription';
 
 const maybeSingle = jest.fn();
 const upsert = jest.fn();
@@ -30,7 +30,7 @@ jest.mock('@/lib/supabase', () => ({
 const { applyVerifiedAppleEvent } = require('@/lib/entitlement-store');
 
 const USER = '11111111-2222-3333-4444-555555555555';
-const MONTHLY = 'com.southmoordigital.wellkept.paid.monthly';
+const MONTHLY = 'com.southmoordigital.tappet.paid.monthly';
 
 function event(over: Partial<AppleSubscriptionEvent> = {}): AppleSubscriptionEvent {
   return {

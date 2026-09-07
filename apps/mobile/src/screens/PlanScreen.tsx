@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import ScreenTitle from '../components/ScreenTitle';
 import Segmented from '../components/Segmented';
 import { BuildScreen } from './BuildScreen';
 import { WishlistScreen } from './WishlistScreen';
@@ -56,6 +57,14 @@ export function PlanScreen({
 
   return (
     <View style={styles.screen}>
+      {/*
+        ⚠ 7 Sep · B8: the root's own name, in the condensed grotesk, like every
+        other root. `Plan` was reached only by a push until it became a tab, so
+        it had been living with a pushed screen's header — the nav bar's
+        sentence-case label and no title of its own.
+      */}
+      <ScreenTitle>Plan</ScreenTitle>
+
       {showsMods ? (
         <View style={styles.switcher}>
           <Segmented

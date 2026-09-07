@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { formatRange } from '@wellkept/core/advice-range';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
-import type { ConsultantEstimate } from '@wellkept/core/consultant-estimate';
+import { formatRange } from '@tappet/core/advice-range';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
 
 import Well from './Well';
 import { border, space, text, type } from '../theme';

@@ -17,7 +17,7 @@
  *      server that only checks the direction of travel.
  */
 
-import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 
 describe('validateMileageUpdate', () => {
   it('accepts a reading that moved forward', () => {

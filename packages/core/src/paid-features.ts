@@ -11,7 +11,7 @@
  * Three things go wrong with selling an allowance, and they compound:
  *
  *   1. **Nobody can tell what they are buying.** "A monthly allowance for
- *      Well Kept's AI features" is a unit the customer has never seen, cannot
+ *      Tappet's AI features" is a unit the customer has never seen, cannot
  *      observe while using the app, and has no way to relate to their own use.
  *   2. **The number invites a claim, and the claim was wrong.** The screen said
  *      the paid tier *"raises that allowance five times over"*; 400k → 1M is
@@ -91,7 +91,7 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
  * There is no free tier as of 30 Aug. What this list is now is what a **lapsed**
  * account keeps: a garage that stops working when a subscription ends is a
  * hostage, and the records in it are the owner's own. Everything here is
- * something Well Kept stored rather than generated, so none of it costs
+ * something Tappet stored rather than generated, so none of it costs
  * anything to keep showing somebody.
  *
  * ── ⚠ Recalls moved to paid on 30 Aug, and the argument against is kept ─────
@@ -214,5 +214,5 @@ export function decideFeatureAccess(params: {
  * put the old model back in the one place the customer actually reads.
  */
 export function featureUpsellMessage(feature: PaidFeature): string {
-  return `${PAID_FEATURE_COPY[feature].label} is part of Well Kept Plus. Your garage, service log, mileage and recall alerts stay free.`;
+  return `${PAID_FEATURE_COPY[feature].label} is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.`;
 }

@@ -11,7 +11,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
-import { vehicleField } from '@wellkept/core/vehicle-identity';
+import { vehicleField } from '@tappet/core/vehicle-identity';
 
 const M235i = { year: 2015, make: 'BMW', model: 'M235i', trim: 'Base' };
 

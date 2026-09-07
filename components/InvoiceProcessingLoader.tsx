@@ -7,7 +7,7 @@ import {
   scanFilePosition,
   scanStageLabel,
   type ScanProgress,
-} from '@wellkept/core/scan-progress';
+} from '@tappet/core/scan-progress';
 
 /**
  * What the invoice scanner is doing, while it does it.

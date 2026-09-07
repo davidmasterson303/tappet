@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { firstEmbed } from '@wellkept/core/vehicle-embed';
-import { byAttention } from '@wellkept/core/garage-order';
+import { firstEmbed } from '@tappet/core/vehicle-embed';
+import { byAttention } from '@tappet/core/garage-order';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';

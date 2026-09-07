@@ -1,6 +1,6 @@
 'use client';
 
-import type { VehicleBodyStyle } from '@wellkept/core/vehicle-body-style';
+import type { VehicleBodyStyle } from '@tappet/core/vehicle-body-style';
 import {
   IllustrationFrame,
   Glass,

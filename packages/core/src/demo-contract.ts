@@ -1,7 +1,7 @@
 /**
  * What the public demo requires in order to work.
  *
- * The demo at wellkept-demo.davidmasterson.co is linked from David's
+ * The demo at tappet-demo.davidmasterson.co is linked from David's
  * portfolio and is being shown to recruiters. It must keep working while the
  * authenticated product is built around it. Treat any change that breaks this
  * contract as a release blocker, not a regression to fix later.

@@ -21,8 +21,8 @@ import {
   isServiceBasis,
   milestoneBasis,
   serviceBasis,
-} from '@wellkept/core/service-provenance';
-import { evaluateSchedule, type ScheduleEntry } from '@wellkept/core/service-due';
+} from '@tappet/core/service-provenance';
+import { evaluateSchedule, type ScheduleEntry } from '@tappet/core/service-due';
 
 const OIL: ScheduleEntry = {
   service: 'Engine oil and filter',

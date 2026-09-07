@@ -9,29 +9,29 @@ import {
   withThinking,
 } from '@/lib/gemini';
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
-import { DEMO_UNANSWERED, demoAnswerFor } from '@wellkept/core/demo-answers';
+import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
 import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
-import { checkStoredPhotoSize } from '@wellkept/core/image-resize';
-import { budgetMessage, demoBudgetMessage } from '@wellkept/core/ai/budget';
-import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@wellkept/core/prompts';
+import { checkStoredPhotoSize } from '@tappet/core/image-resize';
+import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
+import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@tappet/core/prompts';
 import { researchVehicleDossier } from '@/lib/vehicle-research';
-import { showsModifications } from '@wellkept/core/mod-progression';
-import { logger } from '@wellkept/core/logger';
-import { healthClaim, recallEvidenceForPrompt } from '@wellkept/core/health-claims';
+import { showsModifications } from '@tappet/core/mod-progression';
+import { logger } from '@tappet/core/logger';
+import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
 import {
   firstNumber,
   firstString,
   firstStringArray,
   scoreInRange,
-} from '@wellkept/core/model-json';
-import { recallsWereChecked } from '@wellkept/core/nhtsa-lookup';
+} from '@tappet/core/model-json';
+import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
 import { CONTACT_EMAIL } from '@/lib/legal';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
   isModDetailCacheFresh,
   modDetailCacheKey,
-} from '@wellkept/core/mod-detail-cache';
-import { platformClientIp } from '@wellkept/core/client-ip';
+} from '@tappet/core/mod-detail-cache';
+import { platformClientIp } from '@tappet/core/client-ip';
 import { recomputePerformanceStats } from '@/lib/performance-stats';
 import { recordAiUsageInBackground } from '@/lib/ai-usage';
 import { downloadStoredFile } from '@/lib/storage-objects';
@@ -42,20 +42,20 @@ import {
   NOT_FOUND_MESSAGE,
   requireSession,
 } from '@/lib/api-auth';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+import { isDemoVehicleId } from '@tappet/core/demo';
 import {
   vehicleStoragePath,
   vehicleIdFromStoragePath,
   storedUrl,
   storagePathFromStoredUrl,
-} from '@wellkept/core/storage-paths';
-import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@wellkept/core/consultant-commands';
-import { parseEstimate } from '@wellkept/core/consultant-estimate';
-import { ALLOWED_IMAGE_TYPES, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@wellkept/core/validation';
-import { withRetry } from '@wellkept/core/retry';
-import type { Vehicle, ServiceItem, MaintenanceLineItem, KnowledgeBase, ApiResponse, ConsultantContext } from '@wellkept/core/types';
+} from '@tappet/core/storage-paths';
+import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@tappet/core/consultant-commands';
+import { parseEstimate } from '@tappet/core/consultant-estimate';
+import { ALLOWED_IMAGE_TYPES, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
+import { withRetry } from '@tappet/core/retry';
+import type { Vehicle, ServiceItem, MaintenanceLineItem, KnowledgeBase, ApiResponse, ConsultantContext } from '@tappet/core/types';
 import { z } from 'zod';
-import { FLASH_MODEL, LITE_MODEL, FLASH_VISION_MODEL } from '@wellkept/core/ai/models';
+import { FLASH_MODEL, LITE_MODEL, FLASH_VISION_MODEL } from '@tappet/core/ai/models';
 
 import {
   addItemToWishlist as _addItemToWishlist,
@@ -87,7 +87,7 @@ export async function getWishlistItems(vehicleId: string) {
 
 /*
   The schema this file validates the research response against lives in
-  `@wellkept/core/vehicle-utils`, and used to be **defined twice** — here and
+  `@tappet/core/vehicle-utils`, and used to be **defined twice** — here and
   there, identically, both parsing the output of one prompt.
 
   Two copies of one contract is a drift hazard rather than a tidiness
@@ -200,7 +200,7 @@ export async function decodeVIN(vin: string) {
 
       ⚠ The message says a VIN is registered and nothing else. No owner, no id,
       no "belongs to <someone>". It is a real if small disclosure — you can
-      learn a given VIN is in Well Kept — and the alternative is a dead end
+      learn a given VIN is in Tappet — and the alternative is a dead end
       with no explanation, which is worse for the one person who has a genuine
       reason to be here: somebody who has just bought the car.
 
@@ -225,7 +225,7 @@ export async function decodeVIN(vin: string) {
       });
       return {
         success: false,
-        error: `This VIN is already registered to another Well Kept account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
+        error: `This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
       };
     }
 
@@ -2193,7 +2193,7 @@ Format as valid JSON only, no markdown.`;
     /*
       ── ⚠ FN-01 · the prompt asks camelCase and this read snake_case ─────────
 
-      **Every health score Well Kept has ever generated was 70.** The prompt
+      **Every health score Tappet has ever generated was 70.** The prompt
       above asks for `healthScore`, `redFlags`, `maintenanceStatus`,
       `recallStatus` and `issuesOverview`; this block read `health_score`,
       `red_flags` and the rest in snake_case. `healthData.health_score` was
@@ -2983,7 +2983,7 @@ export async function updateVehicleAvgMileage(vehicleId: string, avgMilesPerMont
  * A truer word for "interested" would need `ALTER TYPE` and a hand-applied
  * migration, which is not worth spending on a label. `mild` means interested;
  * `aggressive` is legacy and read-only. Nothing branches on the difference —
- * `showsModifications` in `@wellkept/core/mod-progression` is the whole rule,
+ * `showsModifications` in `@tappet/core/mod-progression` is the whole rule,
  * and this writes the values that rule reads.
  */
 export async function setModificationsVisible(vehicleId: string, visible: boolean) {
@@ -6593,7 +6593,7 @@ export async function generateQuoteRequestV2(
       A quote is the most convincing thing this product does — it turns a
       wishlist into priced work with an email a shop can answer — and until
       17 Aug the public demo refused it outright with "Demo vehicles are
-      read-only". Someone evaluating Well Kept saw the setup and not the payoff.
+      read-only". Someone evaluating Tappet saw the setup and not the payoff.
 
       The block was right about the database and wrong about the feature.
       Generating costs nothing but an AI call; **storing** is what would let an

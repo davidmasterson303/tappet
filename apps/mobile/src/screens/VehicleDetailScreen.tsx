@@ -17,12 +17,12 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
-import { buildPosition } from '@wellkept/core/build-progress';
-import { showsModifications } from '@wellkept/core/mod-progression';
-import { UNKNOWN_TIMING, describeNextService, localToday } from '@wellkept/core/garage-next-service';
-import { componentPlainName, normaliseRecalls } from '@wellkept/core/recalls';
-import { healthVerdict } from '@wellkept/core/health-claims';
+import type { HealthDriver } from '@tappet/core/health-drivers';
+import { buildPosition } from '@tappet/core/build-progress';
+import { showsModifications } from '@tappet/core/mod-progression';
+import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/garage-next-service';
+import { componentPlainName, normaliseRecalls } from '@tappet/core/recalls';
+import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -50,7 +50,7 @@ import {
   heroBands,
 } from '../theme/hero-motion';
 import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 /*
   ⚠ `PHOTO_HERO = 196` is gone. The hero is no longer a band with a number on
@@ -94,7 +94,7 @@ import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-ban
  *
  * ── Why the shared health band, again ───────────────────────────────────────
  *
- * Same reasoning as the garage: `@wellkept/core/health-band` holds the
+ * Same reasoning as the garage: `@tappet/core/health-band` holds the
  * thresholds and the wording, the web dashboard reads it, and a local copy of
  * "80 is good" drifts silently. This screen and the row it came from must
  * agree, and the only way to guarantee that is to not have a second opinion.
@@ -321,7 +321,7 @@ type State =
  * The ink a reading takes: off-white unless the ramp calls it a warning.
  *
  * ⚠ Named against the band rather than a numeric threshold, so the boundary
- * stays owned by `@wellkept/core/health-band`. A `score < 60` written here
+ * stays owned by `@tappet/core/health-band`. A `score < 60` written here
  * would be the phone holding a second opinion about where "Fair" ends — the
  * drift that module exists to prevent.
  */
@@ -681,7 +681,7 @@ export function VehicleDetailScreen({
   /*
     ── The verdict, and why it is not `health.summary` ───────────────────────
 
-    See `healthVerdict` in `@wellkept/core/health-claims` for the defect: this
+    See `healthVerdict` in `@tappet/core/health-claims` for the defect: this
     screen read "a complete lack of documented maintenance" over a car with five
     filed services, because the stored sentence was written before they arrived
     and nothing on this path recomputes it.

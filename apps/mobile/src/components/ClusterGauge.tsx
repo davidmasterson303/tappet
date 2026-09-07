@@ -10,8 +10,8 @@ import {
   VIEW_W,
   angleFor,
   pointAt,
-} from '@wellkept/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+} from '@tappet/core/cluster-geometry';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 import { DIAL_MIN, TABULAR, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -30,7 +30,7 @@ import { displayFace, interFace } from '../theme/fonts';
  *
  * ── 1. The geometry is imported, not re-typed ───────────────────────────────
  *
- * `@wellkept/core/cluster-geometry` already exists for exactly this reason —
+ * `@tappet/core/cluster-geometry` already exists for exactly this reason —
  * `BuildGauge` needed the same dial and a second copy of
  * `M 50.5 149.5 A 70 70 0 1 1 149.5 149.5` is a second copy. A third client
  * hand-copying it is the same mistake at worse odds, because the drift would be
@@ -187,7 +187,7 @@ export default function ClusterGauge({
     third hue on a two-hue system.
 
     The band is **not** recoloured to fix that, and must not be: thresholds,
-    wording and colour are owned by `@wellkept/core/health-band` and shared with
+    wording and colour are owned by `@tappet/core/health-band` and shared with
     web, and the phone holding a second opinion about what "Fair" looks like is
     the defect that ownership exists to prevent. What changes is only *when the
     dial spends a hue at all*.

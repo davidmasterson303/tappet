@@ -2,7 +2,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { WishlistAddScreen } from '../WishlistAddScreen';
 import { apiRequest, ApiRequestError } from '../../api/client';
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
 /**
  * The wishlist's catalogue.

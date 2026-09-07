@@ -47,7 +47,7 @@ function env(name) {
   }
 }
 
-const base = (process.argv[2] || 'https://wellkept-demo.davidmasterson.co').replace(/\/$/, '');
+const base = (process.argv[2] || 'https://tappet-demo.davidmasterson.co').replace(/\/$/, '');
 const secret = env('CONSULTANT_HEALTH_SECRET');
 
 const stamp = new Date().toISOString();

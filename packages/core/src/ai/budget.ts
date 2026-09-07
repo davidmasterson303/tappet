@@ -21,7 +21,7 @@
  *
  * `TIERS` is where a new plan gets its ceiling. **Which tier an account is
  * actually on is no longer decided here** — that moved to
- * `@wellkept/core/entitlement`, which reads a stored record against the clock,
+ * `@tappet/core/entitlement`, which reads a stored record against the clock,
  * because a subscription expires and a constant cannot.
  */
 

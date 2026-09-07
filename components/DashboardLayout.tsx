@@ -6,13 +6,13 @@ import { useRouter } from 'next/navigation';
 import { Clock, MessageSquare, Wrench, CreditCard as Edit2, Check, X, Info, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
 import { CONTACT_EMAIL } from '@/lib/legal';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+import { isDemoVehicleId } from '@tappet/core/demo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
-import { USAGE_PROFILES, usageProfileChip } from '@wellkept/core/usage-profile';
-import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
+import { USAGE_PROFILES, usageProfileChip } from '@tappet/core/usage-profile';
+import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { AccountMenu } from '@/components/AccountMenu';
 import { useHomeHref } from '@/hooks/use-home-href';
 import { getHealthBand } from '@/hooks/use-health-band';
@@ -961,7 +961,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               nobody here owns, so every piece of feedback anyone sent from this
               footer went nowhere, silently, for as long as the link existed.
               It survived the rename because an address is not copy: a
-              find-and-replace would have invented `feedback@wellkept.app`,
+              find-and-replace would have invented `feedback@tappet.app`,
               which is the same defect with a newer name on it.
 
               It points at the address the legal pages publish instead — the one
@@ -969,7 +969,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               address, named in one place, so a second one cannot drift.
             */}
             <a
-              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Well Kept feedback')}`}
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Tappet feedback')}`}
               className="hover:text-white/50 transition-colors"
             >
               Feedback

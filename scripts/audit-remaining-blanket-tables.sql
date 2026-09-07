@@ -1,4 +1,4 @@
--- Well Kept — live state of the eight tables still on the blanket baseline
+-- Tappet — live state of the eight tables still on the blanket baseline
 --
 -- Run in the Supabase dashboard SQL Editor. READ-ONLY: selects from catalog
 -- views and counts rows. Changes nothing, and contains no DROP, so it will not

@@ -2,14 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getSignedStorageUrl } from '@/app/actions';
-import { storagePathFromStoredUrl } from '@wellkept/core/storage-paths';
-import { isUnphotographedDemoVehicle } from '@wellkept/core/demo';
+import { storagePathFromStoredUrl } from '@tappet/core/storage-paths';
+import { isUnphotographedDemoVehicle } from '@tappet/core/demo';
 
 /**
  * The client half of the private-bucket convention.
  *
  * Columns that used to hold a URL now hold a storage path (`storedUrl` in
- * `@wellkept/core/storage-paths`). Nothing renderable can be persisted: a
+ * `@tappet/core/storage-paths`). Nothing renderable can be persisted: a
  * public URL never resolves against a private bucket, and a signed one
  * expires. So the exchange happens per read, here.
  *

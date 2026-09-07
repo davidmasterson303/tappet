@@ -21,7 +21,7 @@ jest.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => ({ from }),
 }));
 
-jest.mock('@wellkept/core/logger', () => ({
+jest.mock('@tappet/core/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -40,7 +40,7 @@ import {
 const CONTENT = {
   title: 'Recall notice — Accord',
   body: 'Something about brakes. Tap to ask the advisor what it means.',
-  url: 'wellkept://vehicle/abc/advisor?ask=What%20does%20this%20mean',
+  url: 'tappet://vehicle/abc/advisor?ask=What%20does%20this%20mean',
 };
 
 function token(n: number): string {

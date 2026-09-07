@@ -21,8 +21,8 @@ import {
   PRIMER_MIN_VEHICLES,
   PUSH_PRIMER_COPY,
   type PrimingInput,
-} from '@wellkept/core/push-priming';
-import { SERVICE_COOLDOWN_DAYS } from '@wellkept/core/notification-sweep';
+} from '@tappet/core/push-priming';
+import { SERVICE_COOLDOWN_DAYS } from '@tappet/core/notification-sweep';
 
 const TODAY = '2026-08-12';
 

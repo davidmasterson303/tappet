@@ -32,7 +32,7 @@
  * decides deliberately.
  */
 
-import { TIERS } from '@wellkept/core/ai/budget';
+import { TIERS } from '@tappet/core/ai/budget';
 import {
   APPLE_COMMISSION,
   OUTPUT_USD_PER_TOKEN,
@@ -44,7 +44,7 @@ import {
   netMonthlyUsd,
   paidMonthlyOutputTokens,
   worstCaseMonthlyCostUsd,
-} from '@wellkept/core/ai/pricing';
+} from '@tappet/core/ai/pricing';
 
 /** Two figures compared in dollars are compared to the cent, not the float. */
 const cents = (usd: number) => Math.round(usd * 100);

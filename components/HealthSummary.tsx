@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
-import { healthClaim, mayReassure, type HealthClaim } from '@wellkept/core/health-claims';
-import type { HealthDriver, HealthDriverKey } from '@wellkept/core/health-drivers';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { healthClaim, mayReassure, type HealthClaim } from '@tappet/core/health-claims';
+import type { HealthDriver, HealthDriverKey } from '@tappet/core/health-drivers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,11 +20,11 @@ import {
 import { generateVehicleHealthSummary } from '@/app/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { invalidateDashboardCache } from '@wellkept/core/query-invalidation';
+import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import RecallHistoryModal from './RecallHistoryModal';
 import { useCountUp } from '@/hooks/use-count-up';
 import { useHealthBand, getHealthBand } from '@/hooks/use-health-band';
-import { isDemoVehicleId } from '@wellkept/core/demo';
+import { isDemoVehicleId } from '@tappet/core/demo';
 
 interface HealthSummaryProps {
   vehicleId: string;
@@ -33,7 +33,7 @@ interface HealthSummaryProps {
   /**
    * Whether an NHTSA record exists for this vehicle at all — not whether it
    * listed any recalls. Absent means the check never ran, which must never
-   * render as an all-clear. See `@wellkept/core/health-claims`.
+   * render as an all-clear. See `@tappet/core/health-claims`.
    */
   recallsChecked?: boolean;
   /** Whether vehicle research reached `completed`. */

@@ -13,19 +13,21 @@ import {
   subscribeToNotificationTaps,
 } from '../notifications/push';
 import { currentPushPermission, registerForPush } from '../notifications/register';
-import { shouldRegisterSilently } from '@wellkept/core/push-priming';
+import { shouldRegisterSilently } from '@tappet/core/push-priming';
 
 import { AdvisorScreen } from '../screens/AdvisorScreen';
 import { HealthScreen } from '../screens/HealthScreen';
 import { InvoiceScanScreen } from '../screens/InvoiceScanScreen';
 import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
-import type { ServiceVisit } from '@wellkept/core/service-record';
+import type { ServiceVisit } from '@tappet/core/service-record';
 import { WishlistAddScreen } from '../screens/WishlistAddScreen';
 import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
 import { GarageScreen } from '../screens/GarageScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
+import AccountControl from './AccountControl';
+import { lastVehicle, rememberGarageSize, rememberVehicle } from './last-vehicle';
 import TabBar, { type TabName } from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
@@ -142,7 +144,7 @@ export type RootStackParamList = {
   */
   /*
     ⚠ **R16: this route renders `HealthScreen`.** It is kept as a name because
-    shipped notifications carry `wellkept://vehicle/<id>/recalls`, and a link
+    shipped notifications carry `tappet://vehicle/<id>/recalls`, and a link
     an installed build already sends has to keep resolving.
 
     What it no longer is, is a destination. Recalls drive the score, the garage
@@ -244,7 +246,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * stack you can only reach by tapping is a stack that only gets exercised when
  * someone is holding the phone.
  *
- * With this, `xcrun simctl openurl booted "wellkept://vehicle/<id>/advisor"`
+ * With this, `xcrun simctl openurl booted "tappet://vehicle/<id>/advisor"`
  * opens the screen directly, so it can be looked at in the state that matters
  * without a session, a garage row and two taps standing in front of it.
  *
@@ -263,7 +265,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  *
  * ── The dev client owns one path and it is not one of these ─────────────────
  *
- * `expo-dev-client` answers `wellkept://expo-development-client/?url=…`, which
+ * `expo-dev-client` answers `tappet://expo-development-client/?url=…`, which
  * is how the simulator build is pointed at Metro. Nothing here claims that
  * path, and the two coexist because the prefix is shared but the host is not.
  *
@@ -276,7 +278,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * log, and the server is going to send the real one back within the second.
  */
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['wellkept://'],
+  prefixes: ['tappet://'],
   config: {
     /*
       ── ⚠ MOB-07 · a cold-start notification tap trapped the user ────────────
@@ -490,60 +492,18 @@ export function carBackTitle(title: string | undefined): string {
   return named.replace(/^\d{4}\s+/, '') || named;
 }
 
-/**
- * The most recently opened car, for the Advisor tab — R13.
- *
- * ⚠ **Module state, deliberately, and it does not persist.** The advisor needs
- * a `vehicleId`; the tab bar has none, and threading one through the navigation
- * tree would make every screen carry a value only the bar reads.
- *
- * A cold start has no last car and falls back to the garage, which is correct
- * rather than a limitation: choosing a car is a real step and guessing at one —
- * the first in the list, the last one persisted, whatever — would open the
- * advisor about somebody else's vehicle in a two-car garage. §10.
- */
-let lastOpenedVehicle: { vehicleId: string; title?: string } | null = null;
+/*
+  ── ⚠ 7 Sep · the memo lives in its own module ──────────────────────────────
 
-/**
- * The garage's only car, when it has exactly one.
- *
- * ── ⚠ 7 Sep · why this is not the guessing the note above forbids ───────────
- *
- * That note is right that picking "the first in the list, the last one
- * persisted, whatever" would open the advisor about somebody else's vehicle.
- * Its case is a **two-car garage**, where choosing is a real step.
- *
- * With exactly one car there is nothing to choose and no one else's vehicle to
- * open, and the cost of pretending otherwise was reported from a real phone:
- * *"I can only access first tab."* On a cold start `lastOpenedVehicle` is null,
- * so History and Advisor both reset to the garage — two of four tabs silently
- * bouncing, which reads as a broken tab bar rather than as a considered
- * fallback. Nothing tells the person why, because nothing happened.
- *
- * ⚠ Set to `null` the moment the garage holds anything other than one car, so a
- * second vehicle restores the original behaviour without anyone remembering to.
- */
-let soleVehicle: { vehicleId: string; title?: string } | null = null;
+  `GarageScreen` has to call `rememberGarageSize`, and importing it from here
+  made a cycle: `RootNavigator -> GarageScreen -> RootNavigator`. React Native
+  allows cycles and then warns what they cost — "can result in uninitialized
+  values" — which for *module state read at tab-press time* is the failure that
+  looks like the tab bar being broken again.
 
-export function rememberVehicle(vehicleId: string, title?: string) {
-  lastOpenedVehicle = { vehicleId, title };
-}
+  A leaf module both sides import has no cycle to have.
+*/
 
-/** Called by the garage each time it loads: the whole list, not a pick from it. */
-export function rememberGarageSize(
-  vehicles: { id: string; title?: string }[]
-) {
-  soleVehicle =
-    vehicles.length === 1 ? { vehicleId: vehicles[0].id, title: vehicles[0].title } : null;
-}
-
-/**
- * Whichever car the bar should act on, or `null` when that is genuinely a
- * question for the person rather than for this function.
- */
-function lastVehicle() {
-  return lastOpenedVehicle ?? soleVehicle;
-}
 
 /**
  * Which tab a route belongs to.
@@ -553,9 +513,29 @@ function lastVehicle() {
  * blank three screens in would read as having lost its place, which is the
  * failure mode of every hand-rolled tab bar.
  */
+/**
+ * The four screens that are a tab's own root.
+ *
+ * ⚠ Used to decide where the account control may float. A pushed screen owns
+ * its top-right through its header; a root has none, which is the gap this
+ * fills.
+ *
+ * ⚠ `Account` is deliberately **not** in this set. It is reached *from* these
+ * four and pushed on top of one of them, so it has a header and a back control
+ * of its own — and a control that opens the screen you are already looking at
+ * is a control that does nothing.
+ */
+const ROOT_ROUTES = new Set(['Garage', 'Service', 'Advisor', 'Plan']);
+
 function tabFor(route: string | undefined): TabName {
   if (route === 'Advisor') return 'Advisor';
-  if (route === 'Account') return 'Account';
+  /*
+    ⚠ 7 Sep: `Plan` is its own tab, and `Account` is no longer one. Account is
+    reached from a root's trailing control, so while it is open the bar keeps
+    showing where in the car you were — which is where the back gesture returns
+    you. A bar that blanked would read as having lost its place.
+  */
+  if (route === 'Plan') return 'Plan';
   /*
     ⚠ `Service` is the History tab, and it is also reachable from the car's hub.
     The bar follows the screen rather than how somebody arrived at it — opening
@@ -596,7 +576,7 @@ export function RootNavigator({
    *
    * ⚠ **Both, in one place.** `rememberVehicle` used to be called only from the
    * garage's row, which meant a **deep link** — a recall notification, a
-   * service-due alert, a `wellkept://vehicle/<id>` URL — put somebody on a car
+   * service-due alert, a `tappet://vehicle/<id>` URL — put somebody on a car
    * without the Advisor tab learning which one, so the tab bounced them back to
    * the garage they had never been to.
    *
@@ -844,7 +824,7 @@ export function RootNavigator({
               vehicleTitle={route.params.title}
               /*
                 React Navigation maps a query string onto params, so
-                `wellkept://vehicle/<id>/advisor?ask=...` arrives here already
+                `tappet://vehicle/<id>/advisor?ask=...` arrives here already
                 decoded.
               */
               initialQuestion={route.params.ask}
@@ -857,7 +837,7 @@ export function RootNavigator({
           ── ⚠ R16 · a deep-link alias, not a destination ────────────────────
 
           Nothing in the app navigates here. It exists because shipped builds
-          send `wellkept://vehicle/<id>/recalls` in recall notifications, and a
+          send `tappet://vehicle/<id>/recalls` in recall notifications, and a
           link an installed app already emits has to keep resolving — so the
           path is kept and pointed at the screen the content moved to.
 
@@ -898,7 +878,13 @@ export function RootNavigator({
             and error states too. A person whose list failed to load can still
             add to it.
           */
-          options={{ title: 'Plan' }}
+          /*
+            ⚠ 7 Sep: `rootTitle`, like the other roots. `Plan` became a tab in
+            this change, and it was still carrying a pushed screen's options — a
+            sentence-case "Plan" in the nav bar and no condensed title of its
+            own, which is the header treatment B8 replaced everywhere else.
+          */
+          options={rootTitle('PLAN')}
         >
           {({ route, navigation }) => (
             <PlanScreen
@@ -1075,6 +1061,30 @@ export function RootNavigator({
         returns to the garage already on the stack instead of stacking a second
         copy of it behind the first.
       */}
+      {/*
+        ⚠ A sibling of the navigator, exactly like `TabBar`, and for the same
+        reason — see `AccountControl`. It left the bar so `Plan` could take the
+        slot; it did not leave this *level*, because App Store 5.1.1(v) and
+        `mobile-account-reachable.test.ts` both depend on no screen being able to
+        swallow it.
+
+        Shown on roots only: a pushed screen has a header with its own back
+        control, and a floating glyph would sit on top of it. The same route
+        check that lights the bar decides.
+      */}
+      <AccountControl
+        visible={ROOT_ROUTES.has(route ?? '')}
+        /*
+          ⚠ `navigate`, not `resetTo`. A tab press resets because a tab *is* a
+          root and the bar is how you leave it. The account is not a root any
+          more — it is somewhere you go and come back from — and resetting to it
+          cleared the stack, leaving no way back while the bar still lit CAR.
+          Pushed, it gets a header and a back control from `rootTitle`'s
+          `canGoBack` branch, and the gesture works.
+        */
+        onPress={() => navigation.navigate('Account')}
+      />
+
       <TabBar
         current={tabFor(route)}
         onSelect={(tab) => {
@@ -1128,6 +1138,24 @@ export function RootNavigator({
                 params: { vehicleId: car.vehicleId, title: car.title, segment: 'history' },
               },
             ]);
+            return;
+          }
+
+          if (tab === 'Plan') {
+            /*
+              ⚠ Same shape as History and Advisor: `Plan` is about *a car*, so it
+              needs a vehicleId and the bar has none. `lastVehicle()` covers the
+              cold start when the garage holds exactly one — see its note — and
+              falls back to the garage when choosing is a real question.
+            */
+            const car = lastVehicle();
+            if (car) {
+              resetTo(navigation, [
+                { name: 'Plan', params: { vehicleId: car.vehicleId, title: car.title } },
+              ]);
+            } else {
+              resetTo(navigation, [{ name: 'Garage' }]);
+            }
             return;
           }
 

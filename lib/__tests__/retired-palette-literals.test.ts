@@ -42,7 +42,7 @@ const ROOT = join(__dirname, '..', '..');
   which is the natural thing to do and is exactly the hole: `apps/mobile` holds
   its own token layer in TypeScript, so every value the collapse retired had a
   hand-typed twin here that nothing was looking at. The health ramp crossed on
-  its own because it lives in `@wellkept/core/health-band` and is read at
+  its own because it lives in `@tappet/core/health-band` and is read at
   runtime; nothing else did, and the result was a phone rendering the old system
   beside one band of the new one.
 

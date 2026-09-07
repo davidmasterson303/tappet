@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/select';
 import { Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { logger } from '@wellkept/core/logger';
-import { wishlistItemIdentifier } from '@wellkept/core/wishlist-identifier';
+import { logger } from '@tappet/core/logger';
+import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
 interface AddWishlistItemDialogProps {
   open: boolean;

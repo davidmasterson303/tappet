@@ -23,9 +23,9 @@ import {
   notAQuoteMessage,
   parseQuoteCheck,
   unreadableMessage,
-} from '@wellkept/core/quote-check';
-import { verdictTermsIn } from '@wellkept/core/advice-range';
-import { VISITOR_TTL_SECONDS } from '@wellkept/core/funnel';
+} from '@tappet/core/quote-check';
+import { verdictTermsIn } from '@tappet/core/advice-range';
+import { VISITOR_TTL_SECONDS } from '@tappet/core/funnel';
 import { UNCLAIMED_SCAN_TTL_DAYS } from '@/lib/quote-check';
 
 const GOOD = {

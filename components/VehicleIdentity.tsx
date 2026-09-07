@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { vehicleField } from '@wellkept/core/vehicle-identity';
-import { vehicleBlurData } from '@wellkept/core/vehicle-blur';
-import { cardSlotSource } from '@wellkept/core/photo-slots';
+import { vehicleField } from '@tappet/core/vehicle-identity';
+import { vehicleBlurData } from '@tappet/core/vehicle-blur';
+import { cardSlotSource } from '@tappet/core/photo-slots';
 
 /**
  * What a vehicle looks like — one component, two variants.

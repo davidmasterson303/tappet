@@ -276,7 +276,7 @@ describe('which empty garage you get', () => {
       A year-old account that sold its last car is not a new user. Greeting it
       with "Start with one car" is the product forgetting them, which is why the
       stored fact is "ever had a vehicle" rather than "seen onboarding" —
-      `@wellkept/core/first-run` carries the argument.
+      `@tappet/core/first-run` carries the argument.
     */
     (everHadVehicle as jest.Mock).mockResolvedValue(true);
     request.mockResolvedValue({ vehicles: [] });

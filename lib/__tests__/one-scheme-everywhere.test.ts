@@ -5,7 +5,7 @@
  *
  * ── ⚠ Why this exists, and why it did not before ────────────────────────────
  *
- * `crewchief://` became `wellkept://` on 6 Sep. Until that rename the scheme
+ * `crewchief://` became `tappet://` on 6 Sep. Until that rename the scheme
  * had never moved, so nothing needed to hold the four declarations together:
  *
  *   apps/mobile/app.json                       `expo.scheme` — what iOS
@@ -115,10 +115,10 @@ describe('one deep-link scheme, declared four times', () => {
     // Pins the value itself, so a coordinated rename is a deliberate edit here
     // rather than something four files can drift into together.
     expect(declaredSchemes().map((d) => d.scheme)).toEqual([
-      'wellkept',
-      'wellkept',
-      'wellkept',
-      'wellkept',
+      'tappet',
+      'tappet',
+      'tappet',
+      'tappet',
     ]);
   });
 
@@ -128,10 +128,10 @@ describe('one deep-link scheme, declared four times', () => {
       the real regression — a rename applied everywhere but the one file another
       session happened to be holding open.
     */
-    const drifted = ['wellkept', 'wellkept', 'crewchief', 'wellkept'];
+    const drifted = ['tappet', 'tappet', 'crewchief', 'tappet'];
     expect(Array.from(new Set(drifted)).length).toBe(2);
 
-    const agreed = ['wellkept', 'wellkept', 'wellkept', 'wellkept'];
+    const agreed = ['tappet', 'tappet', 'tappet', 'tappet'];
     expect(Array.from(new Set(agreed)).length).toBe(1);
   });
 
@@ -141,11 +141,11 @@ describe('one deep-link scheme, declared four times', () => {
       files explain the scheme in a docblock, so a pattern that matched prose
       would survive the deletion of the line it is meant to guard.
     */
-    const prose = ' * Only `wellkept://` is accepted. See the header: this field arrives';
+    const prose = ' * Only `tappet://` is accepted. See the header: this field arrives';
     for (const { pattern } of DECLARATIONS) expect(pattern.test(prose)).toBe(false);
 
     // …and still matches the real thing.
-    expect(DECLARATIONS[2].pattern.test("if (!url.startsWith('wellkept://')) return null;")).toBe(
+    expect(DECLARATIONS[2].pattern.test("if (!url.startsWith('tappet://')) return null;")).toBe(
       true
     );
   });

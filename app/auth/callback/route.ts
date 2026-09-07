@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { readVisitorId } from '@/lib/funnel-visitor';
 import { recordFunnelStepInBackground } from '@/lib/funnel';
 import { claimScansForVisitor } from '@/lib/quote-check';
@@ -19,7 +19,7 @@ import { claimScansForVisitor } from '@/lib/quote-check';
  * is absent from the middleware matcher, so nothing upstream saw it either.
  *
  * It matters more here than the shape usually does: this is the domain Apple's
- * reviewer opens, and a phishing page reached from a `wellkept.southmoordigital.com`
+ * reviewer opens, and a phishing page reached from a `tappet.southmoordigital.com`
  * link inherits whatever trust that name carries.
  *
  * ⚠ **`//` is rejected too.** `//evil.example` is protocol-relative — it starts

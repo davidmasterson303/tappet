@@ -40,7 +40,7 @@ import {
   isWorthKeeping,
   shouldAcceptEncoding,
   downscaledFileName,
-} from '@wellkept/core/image-resize';
+} from '@tappet/core/image-resize';
 
 /** WebP where available, JPEG otherwise. Decided once, by asking the canvas. */
 function pickEncoding(canvas: HTMLCanvasElement): string {
