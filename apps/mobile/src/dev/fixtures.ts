@@ -38,6 +38,20 @@ const M235I = {
   trim: 'xDrive',
   current_mileage: 66_000,
   vehicle_status: 'daily_driver',
+  /**
+   * ⚠ Read from the environment, not hard-coded.
+   *
+   * A vehicle photo lives in a **private** bucket, so the only URL that renders
+   * one is a signed URL — and a signed URL is a bearer token with an expiry.
+   * Committing one would put a read credential for a real owner's photograph in
+   * the repository, which is not a thing a fixture file should carry however
+   * short-lived it is.
+   *
+   * `EXPO_PUBLIC_DESIGN_PHOTO_URL` in `apps/mobile/.env` (gitignored). Absent,
+   * the plate renders its placeholder, which is the honest empty state anyway.
+   * Refresh it by signing the object again — it expires.
+   */
+  photo_url: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null,
   vehicle_health_summary: {
     health_score: 70,
     summary:
