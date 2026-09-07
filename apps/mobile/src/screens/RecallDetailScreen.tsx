@@ -946,12 +946,23 @@ const styles = StyleSheet.create({
    * `mobile-radius-scale.test.ts` on why that rule was scoped to radius.
    */
   cardGap: { gap: 10 },
-  component: {
-    color: status.attention,
-    fontSize: 12,
-    fontFamily: interFace('700'), fontWeight: '700',
-    letterSpacing: 0.6,
-  },
+  /*
+    ── ⚠ 6 Sep · B7 and B1: off-white condensed, not sodium sans ──────────────
+
+    This printed the recalled component — "Fuel system", "Airbags" — in sodium,
+    and the critique named it directly: *"'Fuel system' / 'Airbags' are sodium
+    ink, not the hairline triangle beside off-white."*
+
+    B7 spends sodium as a *line* beside a warning. The warning here is the recall
+    itself, which the banner and the chip already carry as line; the component's
+    name is a **label**, and a label printed in the warning colour makes the
+    colour mean "recall-related" rather than "act on this" — at which point it
+    means nothing, because everything on the screen is recall-related.
+
+    B1 takes the face too: this is a section head over the summary beneath it, so
+    it joins the other heads in the condensed grotesk at eyebrow size.
+  */
+  component: { ...type.displayLabel, color: text.primary },
   summary: { color: text.primary, fontSize: 15, lineHeight: 21 },
 
   section: { gap: 4 },
