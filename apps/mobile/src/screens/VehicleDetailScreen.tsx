@@ -886,12 +886,25 @@ export function VehicleDetailScreen({
               happening — `mobile-busy-controls-named` holds the app at zero of
               them, and it caught this one.
 
-              It wears the hero's pill fill because it floats over a photograph;
-              the busy behaviour is the primitive's.
+              ⚠ 6 Sep · B4: it no longer wears a pill. This carried
+              `borderRadius: radius.pill` and its own `backgroundColor`, for the
+              good reason that it floats over an unknown photograph and needed to
+              stay legible. Two things changed underneath it: the radius scale
+              was zeroed, so the "pill" had been rendering as a plain rectangle
+              for a while, and a `backgroundColor` on a `Button` paints a square
+              corner back over the one `CutSurface` cuts.
+
+              The critique saw the result on three separate rounds as "a stray
+              lighter rectangle at the plate's bottom-right edge" — it could not
+              tell this was a control at all.
+
+              `outline` instead: the brief's secondary, an off-white hairline
+              with the cut, legible over the hero's dim layer without inventing a
+              fill the system does not have.
             */}
             <Button
               label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
-              variant="ghost"
+              variant="outline"
               size="small"
               busy={uploading}
               onPress={() => void onAddPhoto()}
@@ -1235,14 +1248,28 @@ export function VehicleDetailScreen({
             drawn at the size that reads over a photograph, and the target is
             grown around it rather than the drawing being inflated.
           */}
-          <Pressable
-            onPress={onOpenHealth}
-            accessibilityRole="button"
-            accessibilityLabel={`Health score ${score}, ${band.label}. Opens health detail.`}
-            hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
-          >
-            <DialChip score={score} />
-          </Pressable>
+          {/*
+            ── ⚠ 6 Sep: cut, after the critique asked three times ──────────────
+
+            The note above is the case *for* it and it is a real one: this
+            persisted through the scroll, so it was the one door to health always
+            in reach, against a hub row "most of the way down the sheet".
+
+            What the note could not see is the screen beside it. The critique
+            measured the duplication three rounds running — "the '70' chip
+            sitting 300px above the 70 FAIR band it duplicates", "it shows the
+            numeral twice and the arc never" — and a reading printed twice on one
+            screen at two sizes asks which one is the reading.
+
+            The route survives: `What is driving this score` is a `NavRow` in the
+            hub with its own spoken name. What is gone is a second copy of the
+            number, not the way in.
+
+            ⚠ If reach turns out to matter more than duplication, the fix is a
+            chip that does **not** carry the numeral — a labelled door rather
+            than a second instrument. That keeps the note's argument and drops
+            the critique's objection; it is a product call, not a styling one.
+          */}
         </View>
       )}
     </View>
@@ -1312,14 +1339,17 @@ const styles = StyleSheet.create({
    * defect it produced. A solid fill at 0.78 is measurable; a blur over an
    * unknown photograph is not.
    */
+  /*
+    ⚠ Geometry only. The ground and the corner belong to `Button`'s own
+    `CutSurface`; a `backgroundColor` here would square off the cut, and a
+    `borderRadius` would round it.
+  */
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
     minHeight: 36,
     paddingHorizontal: space.md,
-    borderRadius: radius.pill,
-    backgroundColor: hero.pill,
     justifyContent: 'center',
   },
   pillPressed: { backgroundColor: surface.raised },

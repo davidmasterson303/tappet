@@ -829,9 +829,23 @@ export function RecallDetailScreen({
             It carries this specific recall as the question rather than opening
             an empty thread.
           */}
-          <Pressable
-            style={styles.askCta}
-            accessibilityRole="button"
+          {/*
+            ⚠ 6 Sep · B4 and B5: the primitive, not a hand-rolled `Pressable`.
+
+            This was a filled graphite block with a centred sans label — a third
+            button style the brief does not have, which the critique listed for
+            cutting as "a third button style… Advisor is a tab away". It is the
+            same defect as the `quiet` variant removed in the same round: a
+            filled rectangle that is neither the primary nor the secondary.
+
+            `outline` is the brief's secondary, and going through `Button` also
+            buys the 45° cut, the mono caps label, the 44pt floor and the busy
+            naming rule that `mobile-busy-controls-named` enforces — none of
+            which a bespoke `Pressable` gets for free.
+          */}
+          <Button
+            label="Ask the advisor about this"
+            variant="outline"
             accessibilityLabel={`Ask the advisor about the ${plainComponent(recall) ?? 'recall'} recall`}
             onPress={() =>
               onAskAdvisor(
@@ -839,9 +853,7 @@ export function RecallDetailScreen({
                 `What does this recall mean for my ${state.name}? ${recall.summary ?? recall.component ?? ''}`
               )
             }
-          >
-            <Text style={styles.askCtaText}>Ask the advisor about this</Text>
-          </Pressable>
+          />
         </Card>
         );
       })}
@@ -966,15 +978,6 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   meta: { color: text.muted, fontSize: 12 },
 
-  askCta: {
-    backgroundColor: surface.raised,
-    borderRadius: radius.button,
-    paddingVertical: 12,
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  askCtaText: { color: text.primary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
 
   footnote: { color: text.muted, fontSize: 12, lineHeight: 18 },
 

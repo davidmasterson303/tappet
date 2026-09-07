@@ -47,15 +47,32 @@ const styles = StyleSheet.create({
   */
   label: { ...type.label, fontSize: TYPE_MIN, letterSpacing: 0.4 },
 
-  neutral: { backgroundColor: surface.raised, borderColor: border.panel },
+  /*
+    ── ⚠ 6 Sep · B7: the hue is the border, the ink is off-white ──────────────
+
+    Every tone carried a wash **and** a coloured label — so a recall chip printed
+    "Fuel system" in sodium on a sodium tint, and the critique read it as the
+    line's plain violation: *"'Fuel system' / 'Airbags' are sodium ink, not the
+    hairline triangle beside off-white."*
+
+    B7 is precise about this. Sodium is a *line* beside a warning, not the
+    warning's ink and not a fill behind it; the one fill in the system is the
+    do-not-drive banner, which is a named exception rather than a pattern to
+    copy.
+
+    So the wash goes, the border keeps the hue, and the label goes off-white —
+    which also fixes a contrast problem nobody had measured: sodium ink on a
+    sodium wash was the lowest-contrast text in the component.
+  */
+  neutral: { borderColor: border.panel },
   neutralLabel: { color: text.muted },
 
-  attention: { backgroundColor: status.attentionWash, borderColor: status.attentionWashBorder },
-  attentionLabel: { color: status.attention },
+  attention: { borderColor: status.attentionBorder },
+  attentionLabel: { color: text.primary },
 
-  critical: { backgroundColor: status.dangerWash, borderColor: status.dangerWashBorder },
-  criticalLabel: { color: status.dangerText },
+  critical: { borderColor: status.criticalBorder },
+  criticalLabel: { color: text.primary },
 
-  confirm: { backgroundColor: surface.raised, borderColor: border.panel },
-  confirmLabel: { color: status.confirm },
+  confirm: { borderColor: border.panel },
+  confirmLabel: { color: text.secondary },
 });

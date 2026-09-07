@@ -278,7 +278,7 @@ export default function GarageBay({
         accessibilityLabel={onOpen ? `${name || 'Vehicle'}, open details` : undefined}
         style={styles.target}
       >
-        <View>
+        <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
             make={vehicle.make}
@@ -312,13 +312,25 @@ export default function GarageBay({
               ]}
             />
           )}
-        </View>
 
-        <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name || 'Vehicle'}
-          </Text>
-          {stats ? <StatStrip stats={stats} /> : null}
+          {/*
+            ── ⚠ 6 Sep · B2: the identity sits *on* the plate, not under it ────
+
+            B2 puts "the model name in condensed caps over its lower third", and
+            `VehicleDetailScreen` already did — the critique called that one
+            correct and this one wrong in the same sentence: "Garage drops the
+            name onto graphite beneath the plate."
+
+            Two screens showing the same car with the same facts in two
+            arrangements is the defect; whichever is right, they cannot disagree.
+            Vehicle is the one the brief describes, so Garage moves to it.
+          */}
+          <View style={styles.identity}>
+            <Text style={styles.name} numberOfLines={1}>
+              {name || 'Vehicle'}
+            </Text>
+            {stats ? <StatStrip stats={stats} /> : null}
+          </View>
         </View>
       </Pressable>
 
@@ -529,7 +541,20 @@ const styles = StyleSheet.create({
    * hero while every pixel behind it is the page. That is the difference
    * between this and a scrim, and `HERO_FADE` carries why it matters.
    */
-  identity: { gap: 3, paddingHorizontal: space.lg, marginTop: -space.md },
+  /*
+    Absolute over the plate's lower third, so the name reads against the
+    photograph rather than against the graphite below it. `bottom` rather than a
+    fixed offset: the plate's height is derived from the window.
+  */
+  plate: { position: 'relative' },
+  identity: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: space.md,
+    gap: 3,
+    paddingHorizontal: space.lg,
+  },
   /**
    * The one editorial role on this screen.
    *
