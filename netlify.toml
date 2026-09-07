@@ -2,59 +2,52 @@
 command = "npx next build"
 publish = ".next"
 
-# Skip the web build when a commit touched only the Expo client.
+# ⛔ **The ignore rule is gone, 7 Sep, after it silently cancelled three promotes
+# in one afternoon.** Keeping the argument, because the argument is the value.
 #
-# ⚠ KEPT DELIBERATELY, and narrower than a doc elsewhere claims. Checked
-# 17 Aug against the question "why did the Aug 7 ignore rule never take effect":
+# It read:
 #
-#   The Aug 7 rule — which also excluded `*.md` and `docs` — was NEVER MERGED.
-#   The rule below is older (from `e7c906f`, the Expo scaffold) and excludes
-#   `apps` alone. It is not an exit-code trap and not a bad pathspec: it does
-#   exactly what its comment says, and doc-only commits build *correctly* under
-#   it. Verified by running the command against real commits.
+#   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)apps'"
 #
-# That is Learning 1 of the cost write-up, stated plainly: a written fix is not a
-# shipped fix. The expected-result table was read as an outcome for ten days.
+# and its job was to skip the web build when a commit touched only `apps/`.
+# Netlify cancels the build when the command exits 0.
 #
-# Kept rather than deleted now that `web-live` gates the site, because this file
-# is shared by more than one project and a release-branch merge carrying only
-# mobile changes should still skip. It is defence in depth, no longer the
-# primary control — the gate is.
+# ── What it cost ────────────────────────────────────────────────────────────
 #
-# Netlify cancels the build when this command exits 0. `git diff --quiet`
-# exits 0 when there is no difference, so this reads: "nothing changed outside
-# apps/ — don't rebuild the web app."
+# Three deploys on 7 Sep — two promotes to `web-live` and one to `demo-live` —
+# were each cancelled in ~3 seconds with `Canceled build due to no content
+# change`, while both hostnames sat on builds from 5 Sep. Every local check was
+# green and `main` was correct throughout. The only reason anyone noticed is
+# that `promote-web` waits for the hostname to serve the merge commit.
 #
-# ⛔ **That paragraph used to say the opposite, and it was wrong.** It read:
-# "On the first build of a branch CACHED_COMMIT_REF is unset, the command fails,
-# and the build proceeds. That is the safe direction." Disproved in production on
-# 7 Sep, twice, by reading the deploy log:
+# Both hostnames only moved when a human clicked **Retry** in the dashboard,
+# which skips the ignore command entirely.
 #
-#   Failed to fetch cache, continuing with build
-#   No cached dependencies found. Cloning fresh repo
-#   Custom ignore command detected: 'git diff --quiet $CACHED_COMMIT_REF …'
-#   Canceled build due to no content change
-#   User-specified ignore command returned exit code 0. Returning early from build.
+# ── Why it is deleted rather than fixed again ───────────────────────────────
 #
-# With `CACHED_COMMIT_REF` empty the command degrades to
-# `git diff --quiet <commit> -- . ':(exclude)apps'`, which is a **working-tree vs
-# that commit** comparison. The checkout *is* that commit, so there is no
-# difference, so it exits **0** — and 0 is precisely the value that cancels. It
-# does not fail. It fails toward the stale deploy, which is the direction the
-# comment promised it never would.
+# It was fixed once, that afternoon, for a diagnosis that turned out to be
+# wrong: an empty `CACHED_COMMIT_REF` degrading the command to a working-tree
+# comparison. The guarded version — `if [ -z "$CACHED_COMMIT_REF" ]; then exit
+# 1; fi; …` — shipped, ran on the demo build, and **still returned 0**, with the
+# new command printed verbatim in the log. So `CACHED_COMMIT_REF` was not empty,
+# and the same `git diff` that exits 1 against 404 changed files locally exits 0
+# inside Netlify's blobless clone. That is a discrepancy this repo cannot
+# observe: the ignore command's stdout is not in the deploy log, so there is no
+# way to see what it evaluated.
 #
-# The renames on 7 Sep invalidated the build cache, so both promotes that day were
-# silently cancelled in ~3 seconds while `web-live` sat on a build from 5 Sep. It
-# is also a deadlock: the successful build that would repopulate the cache is the
-# one being cancelled. Only a manual retry from the dashboard broke it.
+# A control that cannot be tested where it runs, whose failure direction is a
+# silently stale deployment, is not defence in depth. It is an unlit trapdoor.
 #
-# ⚠ This is CLAUDE.md §8's own argument arriving as a bill. That section says an
-# ignore rule "needs an inverted exit code to be right" and "fails silently toward
-# stale deploys", and chose the release-branch gate over one for exactly that
-# reason. The rule was kept as defence in depth and was never re-examined against
-# an empty cache.
-# No cached ref means nothing to compare against, so build. Exit 1 = proceed.
-ignore = "if [ -z \"$CACHED_COMMIT_REF\" ]; then exit 1; fi; git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- . ':(exclude)apps'"
+# ⚠ CLAUDE.md §8 already had this argument and reached this answer: an ignore
+# rule "needs an inverted exit code to be right" and "fails silently toward
+# stale deploys", which is why the **release-branch gate** was chosen over one.
+# The gate is the control. It works, it is a dropdown with no silent failure
+# mode, and it already cut 111 builds to 9. This rule survived as a second
+# opinion nobody had re-tested, and the second opinion was wrong three times.
+#
+# The cost of deleting it is that a promote carrying only mobile changes now
+# rebuilds the web app. That is minutes, against a stale production deploy that
+# reports success — precisely the trade §8 says to take.
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"
