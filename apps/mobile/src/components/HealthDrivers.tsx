@@ -150,8 +150,8 @@ const styles = StyleSheet.create({
   reading: {
     fontSize: 20,
     lineHeight: 24,
-    fontFamily: monoFace('500'),
-    fontWeight: '500',
+    /* ⚠ One line — the face carries the weight; see `mobile-font-faces`. */
+    fontFamily: monoFace('500'), fontWeight: '500',
     color: text.primary,
     textAlign: 'right',
     ...TABULAR,

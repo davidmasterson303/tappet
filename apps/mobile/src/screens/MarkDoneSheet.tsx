@@ -276,7 +276,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   barTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700' },
-  barAction: { color: text.secondary, fontSize: 16, minWidth: 64 },
+  barAction: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 16, minWidth: 64 },
   barSpacer: { minWidth: 64 },
   dim: { color: text.muted },
 
@@ -286,8 +287,10 @@ const styles = StyleSheet.create({
   field: { gap: 8 },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   label: { color: text.secondary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
-  hint: { color: text.muted, fontSize: 12 },
-  problem: { color: status.dangerText, fontSize: 13, lineHeight: 18 },
+  hint: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12 },
+  problem: { color: status.dangerText, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 18 },
 
   input: {
     backgroundColor: surface.raised,
@@ -297,6 +300,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     // 16px is the system floor for a focusable input, adopted as a rule rather
     // than as a browser workaround — see RB0.
+    fontFamily: interFace('400'),
     fontSize: 16,
     color: text.primary,
     minHeight: 48,
@@ -323,7 +327,8 @@ const styles = StyleSheet.create({
   costRow: { flexDirection: 'row', gap: 12 },
   costCell: { flex: 1 },
 
-  consequence: { color: text.muted, fontSize: 13, lineHeight: 19 },
+  consequence: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 19 },
 
   footer: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 },
   cta: {

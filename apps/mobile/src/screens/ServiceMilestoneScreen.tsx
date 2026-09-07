@@ -528,7 +528,8 @@ const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
-  mileageLine: { color: text.muted, fontSize: 14, marginTop: -10 },
+  mileageLine: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, marginTop: -10 },
 
   /* ── R14 · the confirm banner ──────────────────────────────────────────── */
   confirm: {
@@ -550,6 +551,7 @@ const styles = StyleSheet.create({
     backgroundColor: surface.raised,
     borderRadius: radius.button,
     paddingHorizontal: 14,
+    fontFamily: interFace('400'),
     fontSize: 16,
     color: text.primary,
     minHeight: 48,
@@ -571,8 +573,10 @@ const styles = StyleSheet.create({
    */
   cardGap: { gap: 10 },
   cardTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.2 },
-  reason: { color: text.secondary, fontSize: 14, lineHeight: 20 },
-  basis: { color: text.muted, fontSize: 12 },
+  reason: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
+  basis: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12 },
 
   service: {
     gap: 8,
@@ -583,7 +587,8 @@ const styles = StyleSheet.create({
   serviceHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   serviceName: { color: text.primary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600', flexShrink: 1 },
   overdue: { color: status.attention, fontSize: 12, fontFamily: interFace('700'), fontWeight: '700' },
-  body14: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  body14: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
 
   addCta: {
     backgroundColor: surface.raised,
@@ -598,11 +603,14 @@ const styles = StyleSheet.create({
   addCtaText: { color: text.primary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
   addCtaDoneText: { color: text.secondary },
 
-  unknownItem: { color: text.secondary, fontSize: 14, lineHeight: 20 },
-  footnote: { color: text.muted, fontSize: 12, lineHeight: 18 },
+  unknownItem: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
+  footnote: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12, lineHeight: 18 },
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   button: {
     marginTop: 6,
     paddingHorizontal: 18,
@@ -611,5 +619,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  buttonText: { color: text.primary, fontSize: 14 },
+  buttonText: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 14 },
 });

@@ -230,3 +230,73 @@ describe('the faces the roles are built from', () => {
     );
   });
 });
+
+/**
+ * A text style that names a size and a colour also names its face.
+ *
+ * ── ⚠ Why the existing scans did not catch this ─────────────────────────────
+ *
+ * The guards above catch a `fontWeight` with no face beside it, and every role
+ * in the type scale having a `fontFamily`. Neither catches the case that had 54
+ * live instances across 12 files on 6 Sep: a screen-level style with a
+ * `fontSize` and a `color` and **no face at all** — no family, no weight,
+ * nothing to catch.
+ *
+ * React Native renders that as San Francisco. It does not warn, it does not
+ * fall back to the app's face, and next to correctly-set Inter at the same size
+ * the difference reads as a deliberate choice rather than as a bug. The design
+ * critique called two of them "tracked sans caps" for three rounds without
+ * either of us noticing they were not Inter at all.
+ *
+ * ⚠ **Scoped to styles that set both a size and a colour**, which is what a
+ * *complete* text style looks like. Partial styles that exist to be merged —
+ * `fontFloor: { fontSize: FIELD_FONT_MIN }` is the load-bearing one — set a size
+ * and nothing else, and flagging them would be the spurious failure `CLAUDE.md`
+ * warns is worse than no guard: someone would "fix" it by inlining a face that
+ * then overrides the caller's.
+ */
+describe('every complete text style names its face', () => {
+  const styleBlock = /\n  ([a-zA-Z]\w*): \{([^{}]*)\},/g;
+
+  function facelessIn(source: string): string[] {
+    const found: string[] = [];
+    for (const [, name, body] of source.matchAll(styleBlock)) {
+      if (!body.includes('fontSize') || !body.includes('color')) continue;
+      if (body.includes('fontFamily') || body.includes('...type.')) continue;
+      // A naked weight is the scan above's job, not this one's.
+      if (body.includes('fontWeight')) continue;
+      found.push(name);
+    }
+    return found;
+  }
+
+  const files = sourceFiles(MOBILE_SRC);
+
+  it('has sources to scan', () => {
+    expect(files.length).toBeGreaterThan(20);
+  });
+
+  it('finds no style rendering in the system face', () => {
+    const offenders = files.flatMap(({ rel, code }) =>
+      facelessIn(stripComments(code)).map((name) => `${rel}:${name}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  /*
+    ⚠ The anti-vacuous case. The assertion above passes if `facelessIn` returned
+    nothing for any reason — a regex that stopped matching, a `sources` list that
+    silently emptied — which is precisely how a scanner in this repo once
+    reported a clean app forever. This proves it can still see one.
+  */
+  it('can still detect one', () => {
+    const planted = `
+const styles = StyleSheet.create({
+  headline: {
+    color: text.primary,
+    fontSize: 18,
+  },
+});`;
+    expect(facelessIn(planted)).toEqual(['headline']);
+  });
+});

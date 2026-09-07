@@ -756,7 +756,8 @@ const styles = StyleSheet.create({
 
   /* #f87171 — the same red SignInScreen uses, and above the AA floor on `surface.page`. */
   error: { ...type.value, color: status.dangerText, paddingHorizontal: space.lg, paddingTop: space.sm },
-  counter: { fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
+  counter: { fontFamily: interFace('400'),
+    fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
   /*
     LEG-02's declined state. `text.muted`, not the counter's red: declining is a
     choice somebody made, not an error they hit, and dressing it as a failure
@@ -855,6 +856,7 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.sm,
     color: text.primary,
+    fontFamily: interFace('400'),
     fontSize: 16,
     // Four lines before it scrolls, so a long question stays visible while it
     // is written without the composer eating the transcript.

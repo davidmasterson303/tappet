@@ -536,7 +536,8 @@ const styles = StyleSheet.create({
   block: { gap: 12 },
   title: { color: text.primary, fontSize: 22, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.3 },
   /* `body_` because `body` is the container above. */
-  body_: { color: text.muted, fontSize: 15, lineHeight: 22 },
+  body_: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 15, lineHeight: 22 },
   /* The one line that says what this screen is for. A step above the rest. */
   lead: { ...type.body, fontSize: 15, lineHeight: 22, color: text.secondary },
   /*
@@ -546,7 +547,8 @@ const styles = StyleSheet.create({
   expectation: { ...type.value, color: text.muted, marginTop: space.xs },
 
   centred: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  note: { color: text.muted, fontSize: 14 },
+  note: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14 },
 
 
 

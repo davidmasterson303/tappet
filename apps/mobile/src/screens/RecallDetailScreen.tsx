@@ -918,7 +918,8 @@ const styles = StyleSheet.create({
   name: { ...type.display, color: text.primary },
   /** Quiet, and above the 12px floor. A caveat, not a warning. */
   matchCaveat: { ...type.value, color: text.muted },
-  count: { color: text.muted, fontSize: 14, marginTop: -10 },
+  count: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, marginTop: -10 },
 
   banner: { borderRadius: radius.card, padding: 16, gap: 6, borderWidth: 1 },
   /*
@@ -930,7 +931,8 @@ const styles = StyleSheet.create({
   bannerSevere: { backgroundColor: status.criticalFill, borderColor: status.criticalBorder },
   bannerWarn: { backgroundColor: status.attentionFill, borderColor: status.attentionBorder },
   bannerTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.2 },
-  bannerBody: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  bannerBody: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
 
   /**
    * The card, on the ladder rather than beside it.
@@ -963,7 +965,8 @@ const styles = StyleSheet.create({
     it joins the other heads in the condensed grotesk at eyebrow size.
   */
   component: { ...type.displayLabel, color: text.primary },
-  summary: { color: text.primary, fontSize: 15, lineHeight: 21 },
+  summary: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 15, lineHeight: 21 },
 
   section: { gap: 4 },
   sectionLabel: {
@@ -972,7 +975,8 @@ const styles = StyleSheet.create({
     fontFamily: interFace('600'), fontWeight: '600',
     letterSpacing: 0.4,
   },
-  body14: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  body14: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
 
   countRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   /*
@@ -987,13 +991,16 @@ const styles = StyleSheet.create({
   disclosureText: { ...type.uiStrong, color: text.secondary },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  meta: { color: text.muted, fontSize: 12 },
+  meta: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12 },
 
 
-  footnote: { color: text.muted, fontSize: 12, lineHeight: 18 },
+  footnote: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12, lineHeight: 18 },
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   button: {
     marginTop: 6,
     paddingHorizontal: 18,
@@ -1003,5 +1010,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  buttonText: { color: text.primary, fontSize: 14 },
+  buttonText: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 14 },
 });

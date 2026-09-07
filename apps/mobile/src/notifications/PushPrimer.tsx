@@ -98,10 +98,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: surface.page, justifyContent: 'space-between' },
   body: { paddingHorizontal: 28, paddingTop: 96, gap: 18 },
   title: { color: text.primary, fontSize: 26, fontFamily: interFace('700'), fontWeight: '700', lineHeight: 32 },
-  paragraph: { color: text.secondary, fontSize: 16, lineHeight: 24 },
-  detail: { color: text.muted, fontSize: 14, lineHeight: 21 },
+  paragraph: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 16, lineHeight: 24 },
+  detail: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 21 },
 
   actions: { paddingHorizontal: 28, paddingBottom: 56, gap: 12 },
 
-  reassurance: { color: text.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
+  reassurance: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 13, textAlign: 'center', marginTop: 4 },
 });

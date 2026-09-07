@@ -680,7 +680,8 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  searchInput: { flex: 1, color: text.primary, fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
+  searchInput: { flex: 1, color: text.primary, fontFamily: interFace('400'),
+    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
   searchClear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
@@ -783,7 +784,8 @@ const styles = StyleSheet.create({
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   retry: {
     marginTop: 6,
     paddingHorizontal: 18,

@@ -1,3 +1,4 @@
+import { interFace } from '../theme/fonts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -554,7 +555,8 @@ const styles = StyleSheet.create({
     backgroundColor: surface.well,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  input: { flex: 1, color: text.primary, fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
+  input: { flex: 1, color: text.primary, fontFamily: interFace('400'),
+    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
   clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
 
   row: { padding: space.md, gap: space.xs },

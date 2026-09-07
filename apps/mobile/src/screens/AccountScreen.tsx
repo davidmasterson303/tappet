@@ -407,18 +407,27 @@ const styles = StyleSheet.create({
     borderBottomColor: border.field,
   },
   title: { color: text.primary, fontSize: 22, fontFamily: interFace('700'), fontWeight: '700' },
-  close: { color: brand.accent, fontSize: 16, minHeight: 44, lineHeight: 44 },
+  close: { color: brand.accent, fontFamily: interFace('400'),
+    fontSize: 16, minHeight: 44, lineHeight: 44 },
   disabledText: { color: text.disabled },
 
   body: { ...PAGE_BODY, gap: space.xxl },
   section: { gap: 4 },
-  label: {
-    color: text.muted,
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  value: { color: text.primary, fontSize: 16 },
+  /*
+    ── ⚠ 6 Sep · B1: these had **no `fontFamily` at all** ─────────────────────
+
+    Not Inter, not the condensed grotesk — *nothing*, which in React Native means
+    San Francisco. `CLAUDE.md` opens its silent-defects section with exactly
+    this: a face that is never declared does not error, it just renders as the
+    system's, and half-applied it reads as a design choice. SIGNED IN AS and
+    LEGAL were the last two heads in the app still doing it, and the critique
+    caught them as "tracked sans caps" three rounds running without either of us
+    knowing they were not even Inter.
+
+    `displayLabel` for the heads, mono for the address — an email is a value.
+  */
+  label: { ...type.displayLabel, color: text.muted },
+  value: { ...type.mono, color: text.primary },
 
 
   legal: { gap: 4 },
@@ -428,7 +437,8 @@ const styles = StyleSheet.create({
     to trust the thing with a photograph of their driveway.
   */
   legalRow: { minHeight: 44, justifyContent: 'center' },
-  legalText: { color: text.secondary, fontSize: 15 },
+  legalText: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 15 },
 
   /*
     ── ⚠ 6 Sep · B5 and B7: the danger zone became a band ────────────────────
@@ -482,11 +492,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   noticeHeadline: { color: status.attention, fontSize: 14, fontFamily: interFace('700'), fontWeight: '700', lineHeight: 20 },
-  noticeBody: { color: status.attention, fontSize: 13, lineHeight: 19 },
-  dangerBody: { color: text.secondary, fontSize: 14, lineHeight: 20 },
-  inventoryItem: { color: text.muted, fontSize: 13, lineHeight: 19 },
+  noticeBody: { color: status.attention, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 19 },
+  dangerBody: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
+  inventoryItem: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 19 },
 
-  error: { color: status.dangerText, fontSize: 13 },
+  error: { color: status.dangerText, fontFamily: interFace('400'),
+    fontSize: 13 },
 
   /** Keeps the 4pt lift the hand-rolled control had above the error line. */
   deleteAction: { marginTop: space.xs },
