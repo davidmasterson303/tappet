@@ -34,6 +34,25 @@
 -- CLAUDE.md §6, the defects that matter here are silent. The block below says
 -- which of the three cases it landed in, and warns on the one that means the
 -- seed user is missing rather than merely already renamed.
+--
+-- ── ✅ Applied 7 Sep, and the admin API was the thing that was wrong ─────────
+--
+-- It hit the first case. Before, `auth.users` id …0001 held `demo@crewchief.app`;
+-- after, it holds `demo@southmoordigital.com`, with zero rows left on the old
+-- address, three demo vehicles still owned, and the foreign key on
+-- `vehicles.user_id` present. Established by SELECT either side, because the
+-- Supabase SQL editor swallows `NOTICE`.
+--
+-- ⚠ **So the GoTrue admin API's "User not found" above was simply wrong.** The
+-- row existed the whole time. The paragraph is kept rather than deleted because
+-- the reasoning it produced was right for the wrong reason: writing this to
+-- report which case it hit is what made the outcome knowable at all, and it
+-- would have been the correct shape even if the row really had been missing.
+--
+-- Recorded as the third negative on this project from an instrument whose
+-- coverage nobody had confirmed — after a stale Colorado dataset and a scanner
+-- with two blind spots. The rule that keeps being relearned: a negative from an
+-- unverified instrument is UNKNOWN, not VERIFIED.
 
 DO $$
 DECLARE
