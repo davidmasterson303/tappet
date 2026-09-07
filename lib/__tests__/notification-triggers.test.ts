@@ -21,12 +21,12 @@ const sendToAccount = jest.fn();
 
 jest.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from }) }));
 jest.mock('@/lib/push-send', () => ({ sendToAccount: (...args: unknown[]) => sendToAccount(...args) }));
-jest.mock('@wellkept/core/logger', () => ({
+jest.mock('@tappet/core/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 import { recallsWorthRaising } from '@/lib/notification-triggers';
-import { normaliseRecalls } from '@wellkept/core/recalls';
+import { normaliseRecalls } from '@tappet/core/recalls';
 
 const RAW = [
   {
@@ -135,7 +135,7 @@ describe('recallsWorthRaising', () => {
   it('carries a deep link the mobile client will accept', () => {
     const [notice] = raise([], [RAW[0]]);
 
-    expect(notice.content.url.startsWith('crewchief://')).toBe(true);
+    expect(notice.content.url.startsWith('tappet://')).toBe(true);
     expect(notice.content.title).toContain('M235i');
   });
 

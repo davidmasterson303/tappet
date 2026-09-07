@@ -12,7 +12,7 @@
  * asserting they match only reports the drift after it ships.
  *
  * ⚠ **Chosen 30 Aug 2026: Jay.** It was the last thing blocking the rename's
- * second half. The product is Well Kept and the advisor is Jay, deliberately
+ * second half. The product is Tappet and the advisor is Jay, deliberately
  * different words: a product is not a person, and an app that answers in the
  * first person under its own brand name is making a claim about who is
  * talking.

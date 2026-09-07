@@ -1,10 +1,10 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { resolveVehiclePhoto } from '@/lib/vehicle-photo';
-import { driversForVehicle } from '@wellkept/core/health-drivers';
+import { driversForVehicle } from '@tappet/core/health-drivers';
 
 export const dynamic = 'force-dynamic';
 

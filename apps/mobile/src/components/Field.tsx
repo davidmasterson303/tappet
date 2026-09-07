@@ -1,6 +1,8 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { FIELD_FONT_MIN, border, radius, space, status, surface, text, type } from '../theme';
+import CutSurface from './CutSurface';
+
+import { FIELD_FONT_MIN, border, cut, space, status, surface, text, type } from '../theme';
 
 /**
  * A labelled text input.
@@ -54,6 +56,26 @@ export default function Field({
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
 
+      {/*
+        ── ⚠ 6 Sep · B4: a field carries the same cut as a button ──────────────
+
+        B4 names fields explicitly — *"buttons, fields, chips, bubbles,
+        composer"* — and the critique found the search field, the composer and
+        the delete-confirmation field square in three consecutive rounds.
+
+        `CutSurface` paints the ground and the 45° corner behind the input; the
+        `TextInput` above it goes transparent so the SVG shows through. That is
+        the same arrangement `Button` uses, and it has the same consequence for
+        the contrast audit: `CutSurface` declares its own ground with
+        `auditSurface`, without which every field's typed ink would be measured
+        against the page rather than against the well it actually sits on.
+      */}
+      <CutSurface
+        cut={['bottomRight']}
+        size={cut.control}
+        fill={surface.well}
+        stroke={invalid ? status.dangerBorder : border.field}
+      >
       <TextInput
         {...input}
         /*
@@ -81,6 +103,7 @@ export default function Field({
         */
         style={[styles.input, invalid && styles.inputBad, style, styles.fontFloor]}
       />
+      </CutSurface>
 
       {problem ? (
         <Text style={styles.problem} accessibilityLiveRegion="polite">
@@ -94,20 +117,77 @@ export default function Field({
 const styles = StyleSheet.create({
   wrap: { gap: space.sm },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  label: { ...type.uiStrong, color: text.secondary },
-  hint: { ...type.label, letterSpacing: 0, color: text.muted },
+  /*
+    ── ⚠ 6 Sep · B1: a field is an editable stat cell ────────────────────────
+
+    The label was `type.uiStrong` — sentence-case bold sans — and the critique
+    put it beside `StatStrip` on the specimen sheet: the same word, "Mileage",
+    set two ways within 200pt of each other, one in the system's voice and one
+    in stock-iOS-form voice. A field holds a *value*, so it takes the same mono
+    caps eyebrow the strip's cells do.
+  */
+  label: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
+  /*
+    ⚠ 6 Sep · B1: mono caps, like the label it shares a baseline with.
+
+    The previous note here said the hint "stays quiet and uncapped — it qualifies
+    the label, it is not one", written while the label was still sentence-case
+    sans. Once the label became mono caps that left one row running two type
+    systems: OPTIONAL's job is to qualify a value's name, and it sits on the same
+    line as one.
+
+    Quiet is still the point — it stays `text.muted` against the label's
+    `secondary`, so the hierarchy is carried by ink rather than by face.
+  */
+  hint: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
 
   input: {
-    backgroundColor: surface.well,
-    borderRadius: radius.well,
-    borderWidth: 1,
-    borderColor: border.field,
+    /*
+      ── ⚠ 6 Sep · B4: a field shares the control geometry ────────────────────
+
+      B4 names fields explicitly: *"Every container corner is a 45° cut at zero
+      radius — buttons, fields, chips, bubbles, composer."* The radius scale is
+      already zeroed, so this was a square box; the cut itself is drawn by
+      `CutSurface` in the component below.
+
+      ⚠ **The fill stays a `backgroundColor` here, unlike `Button`.** A field
+      contains a `TextInput` whose ink the contrast audit measures against this
+      surface, and the audit walks `backgroundColor` down the ancestor chain.
+      `CutSurface` declares its ground with `auditSurface` for exactly that
+      reason — but a field is the one control where the *typed text* is the
+      thing that must stay legible, so it keeps the property the audit reads
+      natively and the cut is drawn over it. Belt and braces, deliberately.
+    */
+    /*
+      ⚠ Transparent: `CutSurface` paints the well and the cut behind this input.
+      A `backgroundColor` here would square off the corner the SVG just cut.
+    */
+    backgroundColor: 'transparent',
     paddingHorizontal: space.md,
     minHeight: 48,
     color: text.primary,
+    /*
+      ⚠ Mono, to match the label above it and the strip it mirrors. B1 gives
+      mono every value, and what a person types into a field is a value —
+      a mileage in proportional sans beside `StatStrip`'s mono "66,000 mi" is
+      the same number in two voices.
+
+      ⚠ `fontFamily` only. The size is set by `fontFloor`, which pins 16px
+      because iOS zooms a smaller field on focus and never zooms back — putting
+      a `fontSize` here would let a caller's `style` land between the two and
+      re-open that.
+    */
+    fontFamily: type.mono.fontFamily,
   },
   /** Applied last in the array, so no caller style can lower it. */
   fontFloor: { fontSize: FIELD_FONT_MIN },
-  inputBad: { borderColor: status.dangerBorder },
+  /*
+    ⚠ The invalid state moved to `CutSurface`'s `stroke`; the border it used to
+    override no longer exists. Kept as a no-op rather than deleted so the call
+    sites keep compiling — and so this note is here when someone wonders why
+    an invalid field still turns sodium with nothing in this style saying so.
+  */
+  inputBad: {},
+
   problem: { ...type.value, color: status.dangerText },
 });

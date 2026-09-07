@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
-import { logger } from '@wellkept/core/logger';
-import type { ApiResponse } from '@wellkept/core/types';
+import { logger } from '@tappet/core/logger';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { requireCaller } from '@/lib/api-auth';
 import { getServiceRoleClient } from '@/lib/supabase';
-import { isExpoPushToken } from '@wellkept/core/push-tokens';
+import { isExpoPushToken } from '@tappet/core/push-tokens';
 
 export const dynamic = 'force-dynamic';
 

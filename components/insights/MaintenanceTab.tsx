@@ -1,6 +1,6 @@
 'use client';
 
-import { SCHEDULE_BASIS_LABELS } from '@wellkept/core/service-provenance';
+import { SCHEDULE_BASIS_LABELS } from '@tappet/core/service-provenance';
 import MaintenanceItemCard from '@/components/MaintenanceItemCard';
 
 interface MaintenanceItem {

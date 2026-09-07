@@ -1,5 +1,5 @@
 /**
- * Well Kept - Retry Utility
+ * Tappet - Retry Utility
  *
  * Provides robust retry logic with exponential backoff for handling
  * transient failures in API calls, database operations, and other async tasks.

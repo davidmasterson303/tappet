@@ -4,7 +4,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon, { type IconName } from '../components/Icon';
 import { TARGET_MIN, border, brand, space, surface, text, type } from '../theme';
 
-export type TabName = 'Garage' | 'History' | 'Advisor' | 'Account';
+/*
+  ── ⚠ 7 Sep · Account left the bar, Plan took its place ─────────────────────
+
+  David: *"it feels like maybe wishlist should be added to bottom nav and
+  account should be moved to some other global nav element… this will convey
+  more functionality."*
+
+  The reasoning holds up against what each destination *is*. Three of these tabs
+  are things you do to a car — read it, record work on it, ask about it — and
+  `Plan` is the fourth of exactly that kind: R15 merged Wishlist and Build into
+  one answer to "what should I do to this car next". It had no way in from the
+  bar at all, so the app's most forward-looking screen was the hardest to reach.
+
+  `Account` is not that kind of thing. It is the app's own settings, visited
+  rarely and never as part of looking after a car, and it was spending a quarter
+  of the most valuable chrome in the product. It moves to a control on the
+  roots — see `ScreenTitle`'s trailing slot.
+*/
+export type TabName = 'Garage' | 'History' | 'Advisor' | 'Plan';
 
 /**
  * ── ⚠ Four, and the first one is a car rather than the garage ──────────────
@@ -30,9 +48,30 @@ export type TabName = 'Garage' | 'History' | 'Advisor' | 'Account';
  */
 const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
   { name: 'Garage', label: 'Car', icon: 'car' },
-  { name: 'History', label: 'History', icon: 'file-text' },
+  /*
+    ⚠ 7 Sep: labelled "Service", not "History".
+
+    The tab said HISTORY while its root said SERVICE and DUE was half of that
+    screen — so the tab named one *segment* of the thing it opened. The critique
+    put it plainly: "the tab names a segment". `Service` is the route, the title
+    and the deep-link target that shipped notifications carry; the bar now agrees
+    with all three.
+  */
+  { name: 'History', label: 'Service', icon: 'wrench' },
   { name: 'Advisor', label: 'Advisor', icon: 'message-square' },
-  { name: 'Account', label: 'Account', icon: 'sliders' },
+  /*
+    ⚠ `clock`, and the wrench went to Service.
+
+    The critique: "the wrench — the one glyph that means *service* — sits on
+    PLAN instead". Fair. The two screens split on *tense*: Service is work that
+    has been done and recorded, Plan is work that has not. A wrench for the
+    first, a clock for the second.
+
+    ⚠ `sliders` is gone from the bar entirely — it was doing three jobs at once
+    (this tab, the Account tab, and the "What is driving this score" row) and is
+    now on none of them.
+  */
+  { name: 'Plan', label: 'Plan', icon: 'clock' },
 ];
 
 /**
@@ -105,12 +144,19 @@ export default function TabBar({
             */
             accessibilityState={{ selected }}
             accessibilityLabel={tab.label}
-            style={styles.tab}
+            style={[styles.tab, selected && styles.tabOn]}
           >
             <Icon
               name={tab.icon}
               size={22}
-              color={selected ? brand.accent : text.muted}
+              /*
+                ⚠ B8: off-white when active, not cyan. The active tab used to be
+                drawn *in* the accent — icon and label both — which made cyan an
+                ink. In this system cyan is a rule and a focus ring; the moment
+                it becomes ink, "active" and "informational" are the same colour
+                and the overline below has nothing left to say.
+              */
+              color={selected ? text.primary : text.muted}
             />
             <Text style={[styles.label, selected && styles.labelOn]}>{tab.label}</Text>
           </Pressable>
@@ -134,7 +180,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minHeight: TARGET_MIN,
+    /*
+      The overline's gutter, transparent at rest. Reserved rather than added on
+      selection, so the icon does not step down two points as you move between
+      tabs.
+    */
+    borderTopWidth: 2,
+    borderTopColor: 'transparent',
+    marginTop: -space.sm,
+    paddingTop: space.sm,
   },
-  label: { ...type.label, letterSpacing: 0, color: text.muted },
-  labelOn: { color: brand.accent },
+  /* B8: "tab-bar active is a cyan overline with off-white ink". */
+  tabOn: { borderTopColor: brand.accent },
+  /* B1: a tab label is a label. */
+  label: { ...type.monoLabel, color: text.muted },
+  labelOn: { color: text.primary },
 });

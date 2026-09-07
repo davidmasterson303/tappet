@@ -71,17 +71,41 @@ const HAS_BREAKPOINT = /\b(sm|md|lg|xl|2xl):/;
  * 12px gap and 32px of padding into a 66px cell and left the text column at
  * roughly zero, so "8-speed automatic" wrapped one character per line.
  *
- * Measured at 390px on the rendered page: cells are **96px**, content boxes
- * **80px**, and every child fits inside without overflow —
+ * Measured at 390px on the rendered page: cells were **96px**, content boxes
+ * **80px**, and every child fitted inside without overflow —
  * `scrollWidth === clientWidth` on all six elements. That check is what caught
  * "Horsepower" at 97px, which is why the label reads "Power".
+ *
+ * ⚠ **5 Sep: the string moved because the frame came off, and it was
+ * re-measured rather than re-pointed.** Brief B6 took the border, fill and
+ * radius off this grid — it was a bordered panel nested inside a card — so the
+ * sanctioned class string changed and this exemption stopped matching. The
+ * guard was right to fire: it pins a *measured* element, not a location.
+ *
+ * Re-measured at **375px**, which is narrower than the original note's 390px
+ * and so a stricter test: cells are **114.3px**, content boxes 113–114px, and
+ * `scrollWidth === clientWidth` on all three cells and on every descendant.
+ * The cells grew by 18px precisely *because* the frame's border and padding
+ * were removed, so the case for the exemption is stronger after the change
+ * than before it.
+ *
+ * ⚠ **Re-measured again the same day**, when the dividers came off and the
+ * figures went to 36px on a phone (56px above `sm`) to make them the page's
+ * numeral moment. That is the largest this grid has ever been asked to hold, so
+ * it is the measurement that matters: at 375px the cells are 114.3px, content
+ * boxes 114px, and `scrollWidth === clientWidth` on all three cells and every
+ * descendant — "192" at 36px mono measures about 65px into a 114px cell.
+ *
+ * Twice in one day is the point of pinning a **string** rather than a file: the
+ * exemption cannot survive a change to this element without someone looking at
+ * it again.
  *
  * ⚠ The exemption is the class string, not the file. A different three-up grid
  * appearing in the same page is still a failure, which is the point — R3's own
  * page is exactly where this keeps happening.
  */
 const DELIBERATE_THREE_UP = [
-  'grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/10 bg-white/[0.02]',
+  'grid grid-cols-3',
 ];
 
 const offenders = ROOTS.flatMap((root) => tsxFiles(join(ROOT, root))).flatMap((path) => {

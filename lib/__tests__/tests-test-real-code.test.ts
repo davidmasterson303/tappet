@@ -368,10 +368,26 @@ const STATIC_ANALYSIS_SUITES = [
   'button-primitive.test.ts',
   // Sweeps app/, components/, core and the mobile source for the product's old
   // name after the 30 Aug rename. There is nothing to import: the subject is
-  // the *absence* of a string across ~400 files, and the exemptions — the
-  // scheme, the bundle id, the persisted keys, the advisor's own name — are
-  // about what a literal means, which no runtime can answer.
+  // the *absence* of a string across ~400 files, and the exemptions — what is
+  // left of them after the 6 Sep identifier pass took the scheme, the bundle
+  // id, the slug, the persisted keys and the debug flag — are about what a
+  // literal means, which no runtime can answer.
   'product-name.test.ts',
+  // Reads the four files that declare the deep-link scheme and proves they
+  // agree. Three are React Native source this runner cannot load and the fourth
+  // is JSON; the subject is a correspondence between four literals on disk.
+  // Every way they can disagree is silent — iOS hands the app a url the
+  // navigator will not parse, or push.ts discards the link and opens the garage
+  // instead of the recall.
+  'one-scheme-everywhere.test.ts',
+  // Reads docs/identifiers.md and the eleven artefacts that hold those values,
+  // and fails when the page disagrees with the code. There is nothing to import
+  // — the subject is a correspondence between prose on disk and literals in
+  // source and JSON, three of them in React Native or config files this runner
+  // cannot load. The failure it pins is a document that reads as authoritative
+  // while being wrong, consulted precisely when nobody has time to re-derive the
+  // facts.
+  'identifiers-match-the-register.test.ts',
 ];
 
 /**
@@ -386,13 +402,13 @@ const DECLARED_SIMULATIONS = ['rls-ownership.test.ts'];
 /*
   App code is `@/…`, a relative path, or the shared workspace package.
 
-  The `@wellkept/` arm was added when Phase 2.4 moved the first module into
+  The `@tappet/` arm was added when Phase 2.4 moved the first module into
   packages/core — and this suite failed the moment it did, which is the
   behaviour to keep. A suite whose subject moves out from under it should stop
   the build, not quietly start passing for the wrong reason.
 */
 const IMPORTS_APP_CODE =
-  /(?:from\s+|require\()\s*['"](?:@wellkept\/|@\/|\.\.?\/)(?!.*__tests__)/;
+  /(?:from\s+|require\()\s*['"](?:@tappet\/|@\/|\.\.?\/)(?!.*__tests__)/;
 
 /*
   `.tsx` as well as `.ts`.

@@ -7,7 +7,7 @@
  * because React Native genuinely does need some mocking.
  *
  * The rule: mock what the **host platform** provides and Node does not. Never
- * mock Well Kept's own modules here — a test that needs `apiRequest` stubbed
+ * mock Tappet's own modules here — a test that needs `apiRequest` stubbed
  * should say so itself, where the reader can see it.
  */
 

@@ -173,7 +173,7 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.45, ease: 'easeOut' }}
         >
-          Well Kept researches your exact year, make and trim — what fails, when it fails, and what
+          Tappet researches your exact year, make and trim — what fails, when it fails, and what
           to bundle so one shop visit does the work of three.
         </motion.p>
 
@@ -348,7 +348,7 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
             onClick={() => setDrawerOpen(true)}
             className="tap-target-44 group inline-flex items-center gap-1.5 text-[15px] font-medium text-white/80 hover:text-white underline decoration-white/35 hover:decoration-white decoration-1 underline-offset-[5px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded"
           >
-            What Well Kept does
+            What Tappet does
             <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:translate-y-0.5" />
           </button>
         </motion.div>

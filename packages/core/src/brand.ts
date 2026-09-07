@@ -1,138 +1,189 @@
 /**
- * The Well Kept mark, as data — so the two clients cannot draw different plates.
- *
- * ── Why the geometry lives in core ──────────────────────────────────────────
- *
- * Design's brand package ships the mark as SVG, and the obvious move is to copy
- * the path into each client. This project has been here: `Icon.tsx` carries the
- * rule *"do not redraw or approximate"* because a hand-copied Lucide glyph
- * drifts, and the old dial mark's path data was duplicated in two `Logo.tsx`
- * files that then had to be kept in step by hand.
- *
- * One set of numbers, imported twice. A change to the plate is a change to both
- * clients by construction, and `brand.test.ts` pins every value against the
- * package's own SVG.
+ * The Tappet mark, as data — so the two clients cannot draw different plates.
  *
  * ── The mark ────────────────────────────────────────────────────────────────
  *
- * A backlit coachbuilder's plate: a bevelled rectangle with the corners cut,
- * four rivets, and the name engraved across it. Drawn on a 280 × 116 grid; the
- * square icon form uses 100 × 100.
+ * A **data plate**: every car carries one stamped plate that *is* its record,
+ * on the door jamb. This is that plate in the house chamfer geometry, with a
+ * single **T cut clean through it**, so whatever sits behind the plate shows in
+ * the letter.
  *
- * ⚠ **The name never glows. The plate does.** Design's rule, and the reason is
- * legibility rather than taste: light the letters and the plate reads as a
- * button somebody should press.
+ * ⚠ **That T is drawn, not typeset, and it is also a tappet.** A flat-faced
+ * mushroom tappet in profile — wide flat crown where the cam lobe strikes, on a
+ * narrower cylindrical body — is already a T, so the letter and the part the
+ * product is named after are one silhouette. The machined fillet between crown
+ * and body is what separates it from a letterform.
+ *
+ * It is drawn because the plate was designed around a **W**, and a T cannot
+ * fill it: Archivo's T advances 29.38 units against the W's 45.09 on a 66-unit
+ * plate, and matching that by scaling would need a cap height larger than the
+ * plate. The drawn tappet fills 68.3% — the W's optical box exactly. Full
+ * derivation on `LETTER_PATH` in `./brand-geometry.ts`; the trade against the
+ * brief's B1 is recorded in `docs/brand-package-v2/BRIEF.md`.
+ *
+ * ⚠ **`MARK_PATH` must be drawn with `fill-rule="evenodd"`, and only that.**
+ * The plate and the letter are one path; the fill rule is what turns the second
+ * contour into a hole. Drop it — or split the path back into two elements — and
+ * the letter fills solid in the plate's own colour, which does not look like a bug.
+ * It looks like a slightly heavier logo.
+ *
+ * A `<mask>` was the obvious way to write this and it is the wrong one: masks
+ * need document-global ids that collide when two copies are inlined, and Satori
+ * (which renders `app/opengraph-image.tsx`) supports `<path>` and little else —
+ * failing, when it does not, with a 200 and a zero-byte body.
+ *
+ * That one rule does the work of five, and it is why this module is a third the
+ * size of the one it replaced:
+ *
+ * - **Both polarities are one drawing.** Off-white plate on graphite, graphite
+ *   plate on ivory. Nothing is redrawn, so nothing can drift out of step.
+ * - **There is no reduction ladder.** The mark it replaced needed four drawings
+ *   — full, single-W, flat, and an inverted 29 — and which one you got depended
+ *   on the size floor it cleared. This is one drawing at every size, including
+ *   a 16px favicon.
+ * - **It survives a photograph.** On a launch card the wet asphalt shows
+ *   through the W, so the mark sits *in* the image rather than covering it.
+ *
+ * The mark carries **no hue**. Cyan and sodium are light in this system, and
+ * light belongs to photography and to UI state — `--ring` is cyan, and a logo
+ * that owned cyan would be competing with the focus ring. A glowing badge
+ * promises; a stamped plate reports, which is `advice-range.ts`'s argument
+ * carried into the identity.
+ *
+ * Provenance: `docs/brand-package-v2/`, produced by the design-critic loop in
+ * `design-loop/logo/` (gitignored). The frozen brief is that package's
+ * `BRIEF.md`; the deviations Design has to absorb are `design-system-drift.md`
+ * §12.
+ *
+ * ── Why the geometry lives in core ──────────────────────────────────────────
+ *
+ * One set of numbers, imported twice. A change to the plate is a change to both
+ * clients by construction. `Icon.tsx` carries the rule *"do not redraw or
+ * approximate"* because a hand-copied Lucide glyph drifts, and the old dial
+ * mark's path lived in two `Logo.tsx` files that had to be kept in step by eye.
+ *
+ * ⚠ **The paths are generated, not transcribed.** They live in
+ * `./brand-geometry.ts`, emitted by `docs/brand-package-v2/build.py` from the
+ * variable font instanced at an exact axis position and shaped through
+ * HarfBuzz. `lib/__tests__/brand.test.ts` reads the package's own SVGs and
+ * fails on a disagreement in either direction.
+ *
+ * ── ⚠ There is no font dependency, and that is load-bearing ────────────────
+ *
+ * The wordmark and the W are **outlined paths**, not `<text>`. Three things
+ * follow, and each of them was a live defect before:
+ *
+ * 1. A rasteriser without the webfont silently substitutes and the W changes
+ *    shape. Design's first package shipped every SVG declaring
+ *    `font-family="Newsreader, Georgia, serif"` and asked, in its README, for
+ *    the type to be outlined at export. It never was, which is why
+ *    `app/favicon.ico` and `app/apple-icon.png` sat on the *previous* logo for
+ *    a fortnight — regenerating them needed a rasteriser with Newsreader.
+ * 2. The lockup's font stack silently changed typeface. Each `<text>` read
+ *    `var(--font-display), Newsreader, Georgia, serif`, which was correct until
+ *    brief B2 moved the display slot to Archivo — from that moment the brand
+ *    mark rendered in a face it was never drawn in, on every page.
+ * 3. React Native cannot drive a `wdth` axis, so `design-system-drift.md` §6.1
+ *    rules that the phone gets Archivo **Narrow** — a different family whose
+ *    metrics will not match web's. An outlined path sidesteps that entirely:
+ *    both clients draw the identical geometry with no font loaded at all.
  */
 
-/** The plate, on the 280-wide lockup grid. Height differs by variant. */
-export const PLATE = {
-  /** With the maker line under the name. */
-  full: { width: 280, height: 116, path: 'M16 8 H264 L272 24 V92 L264 108 H16 L8 92 V24 Z' },
-  /** Name only. */
-  short: { width: 280, height: 96, path: 'M16 8 H264 L272 24 V72 L264 88 H16 L8 72 V24 Z' },
-  /** The square icon form — the plate alone, carrying one or two letters. */
-  icon: { width: 100, height: 100, path: 'M22 12 H78 L88 26 V74 L78 88 H22 L12 74 V26 Z' },
-  /**
-   * The favicon's plate, which is **not** the icon's.
-   *
-   * ⚠ Wider bevel and a taller body: at 24px the icon's proportions close up
-   * and the cut corners stop reading as cuts. Design ships it as a separate
-   * path rather than a scaled one, and copying the icon path here would lose
-   * exactly the thing the second drawing exists for.
-   */
-  favicon: { width: 100, height: 100, path: 'M22 10 H78 L90 26 V74 L78 90 H22 L10 74 V26 Z' },
-} as const;
+export {
+  BRAND_COLOR,
+  ICON,
+  LOCKUP,
+  MAKER_PATH,
+  MARK_PATH,
+  PLATE_CHAMFER,
+  PLATE_GRID,
+  PLATE_PATH,
+  TYPE_SOURCE,
+  LETTER_PATH,
+  WORDMARK_PATH,
+} from './brand-geometry';
 
-/** Rivet centres, by plate variant. Radius is shared. */
-export const RIVETS = {
-  radius: 2.5,
-  full: [
-    { x: 30, y: 22 },
-    { x: 250, y: 22 },
-    { x: 30, y: 94 },
-    { x: 250, y: 94 },
-  ],
-  short: [
-    { x: 30, y: 22 },
-    { x: 250, y: 22 },
-    { x: 30, y: 74 },
-    { x: 250, y: 74 },
-  ],
-} as const;
+import { LOCKUP, TYPE_SOURCE } from './brand-geometry';
+
+/** The word on the plate. Set in capitals — the wordmark has no lowercase. */
+export const BRAND_NAME = 'Tappet';
+
+/** The maker, and the only string in the lockup that is not the name. */
+export const MAKER_NAME = 'Southmoor Digital';
 
 /**
- * The colours, and ⚠ they are the mark's own rather than the app's tokens.
+ * Clear space: **one mark height on all sides**, so 20 grid units.
  *
- * `REBRAND_PROMPT.md` is explicit that the rebrand is *"a name and a mark. No
- * token moves, no palette change"* — so these are stated here instead of
- * reaching into `tokens/colors.css` or the mobile theme. A lockup that changed
- * colour when a surface token moved would be a brand asset with a dependency
- * nobody intended.
+ * Stated against the mark rather than as a fixed number, because a fixed number
+ * has to be re-derived every time the lockup's grid changes and this does not.
+ * Nothing enters it, including the score dial.
  */
-export const BRAND_COLOR = {
-  /** The plate's face. Near-black, warmer than the app's page. */
-  plate: '#16140F',
-  /** The backlight behind it. */
-  glow: '#22D3EE',
-  /** The plate's edge, on dark grounds. */
-  edge: 'rgba(160, 240, 252, 0.55)',
-  /** The engraved name. */
-  name: '#F5F3F0',
-  /** The maker line, and the rivets. */
-  quiet: 'rgba(245, 243, 240, 0.5)',
-  rivet: 'rgba(245, 243, 240, 0.3)',
-  /** Light-ground substitutions — the only sanctioned ones. */
-  light: {
-    edge: '#0E7490',
-    name: '#100F0D',
-    quiet: 'rgba(16, 15, 13, 0.42)',
-  },
-} as const;
-
-/** Type, as Design set it. Sizes are in grid units, not pixels. */
-export const BRAND_TYPE = {
-  name: {
-    family: 'Newsreader',
-    weight: 500,
-    size: 38,
-    /**
-     * ⚠ 0.1em, expressed in grid units at the 38 size. Design's ruling of
-     * 30 Aug: *"a plate carries engraved type — the letterspacing is the
-     * engraving, and it does not get tuned per word. If a longer string ever
-     * has to fit, the plate widens; the tracking does not close."*
-     */
-    tracking: 3.8,
-    baseline: { full: 63, short: 61 },
-  },
-  maker: {
-    family: 'Inter',
-    weight: 600,
-    size: 13,
-    tracking: 2.34,
-    baseline: 92,
-    text: 'SOUTHMOOR DIGITAL',
-  },
-} as const;
-
-/** The word on the plate. Two words, both capitalised, set in small caps. */
-export const BRAND_NAME = 'Well Kept';
+export const CLEAR_SPACE = LOCKUP.mark;
 
 /**
  * ⚠ Below these widths a lockup stops being legible, and the fallback is not
- * "shrink it".
+ * "shrink it". Both numbers are derived, not chosen:
  *
- * Design's rule: under 240 the maker line breaks the 12px text floor and must
- * be dropped, which is what `short` is for; under 160 there is no lockup left
- * and the icon takes over. A component that scaled past these would be
- * rendering type nobody can read and calling it a logo.
+ * - **`short` is derived from the cap floor**, not from the nav budget, and the
+ *   two used to be the same number by accident. Under `WELL KEPT` the lockup
+ *   measured 139.51 units, so 140px was simultaneously the brief's nav budget
+ *   *and* the width at which the cap reached its 20px floor — 20.07px. The
+ *   constant `140` was therefore right for two reasons and testable by one.
+ *
+ *   ⚠ `TAPPET` is one short word: 104.775 units. At 140px its cap now renders
+ *   at **26.72px**, so the stated derivation stopped being true on 7 Sep while
+ *   `MIN_WIDTH.short` still read 140 and the guard still passed — it asserts
+ *   `capAt(140) >= 20`, and 26.72 clears that comfortably. A number that has
+ *   quietly stopped being derived, behind an assertion too loose to notice,
+ *   is CLAUDE.md §5 exactly.
+ *
+ *   Derived now: the 20px cap is reached at `CAP_FLOOR_PX × width / cap` =
+ *   105px. The shorter wordmark genuinely does survive a narrower slot, and
+ *   the brief's 140px budget is a **ceiling** this must fit under, asserted
+ *   separately rather than conflated with the floor.
+ *   Narrower and the name goes under the floor, so the mark takes over alone.
+ * - **`full` is 204** because that is where the maker line reaches this
+ *   project's 12px text floor. The maker sets at `makerCap / capPerEm` =
+ *   {@link LOCKUP.makerCap} / {@link TYPE_SOURCE.mono.capPerEm} = 8.22 grid
+ *   units, which renders at `8.22 × W / LOCKUP.width` px; solving for 12 gives
+ *   203.7. Below it the maker line is dropped, which is what `short` is for.
+ *
+ * `MAKER_FLOOR_PX` is exported so the test can re-derive the 204 rather than
+ * restate it — a guard that repeats a number cannot catch the number being
+ * wrong.
  */
-export const MIN_WIDTH = { full: 240, short: 160 } as const;
+export const MAKER_FLOOR_PX = 12;
 
-/** 48 grid units on all sides. Nothing enters it, including the score mark. */
-export const CLEAR_SPACE = 48;
+/** The brief's cap-height floor for the wordmark, in px. */
+export const CAP_FLOOR_PX = 20;
+
+/** The brief's nav budget — a ceiling the short lockup must fit under. */
+export const NAV_BUDGET_PX = 140;
+
+export const MIN_WIDTH = {
+  /*
+    ⚠ Derived from `widthFull`, not `width`, and the difference is not cosmetic.
+
+    The maker line's rendered cap is `makerGridSize × W / viewBoxWidth`, so the
+    viewBox in the denominator has to be **the one this variant actually
+    draws**. The full lockup's is `widthFull`. Using `width` divides by a
+    smaller number, which makes the maker line look larger than it is and puts
+    the floor ~21px too low — the drawing would be permitted at a width where
+    its smallest text sits under the 12px floor this project sets.
+
+    It could not have been wrong before 7 Sep, because one width served both
+    variants. It became wrong the moment TAPPET made the maker line the wider
+    line. A derivation that was right by coincidence is the thing to re-check
+    when the coincidence ends.
+  */
+  full: Math.ceil(
+    (MAKER_FLOOR_PX * LOCKUP.widthFull) / (LOCKUP.makerCap / TYPE_SOURCE.mono.capPerEm)
+  ),
+  short: Math.ceil((CAP_FLOOR_PX * LOCKUP.width) / LOCKUP.cap),
+} as const;
 
 /**
- * Which lockup a given width can carry.
+ * Which drawing a given width can carry.
  *
  * Exported so a caller picks by the space it has rather than by guessing, and
  * so the rule is enforced in one place instead of remembered at each call site.

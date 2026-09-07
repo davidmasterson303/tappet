@@ -32,7 +32,7 @@ import { StyleSheet, Text } from 'react-native';
  */
 
 /**
- * Every Well Kept screen renders on this.
+ * Every Tappet screen renders on this.
  *
  * ⚠ **Moved from `#080808` to `#100F0D` on 14 Aug** with the v8 token layer.
  * The old value was a flat neutral black this app invented; `surface.page` is
@@ -194,6 +194,36 @@ function walk(
     | undefined;
 
   /*
+    ── ⚠ 6 Sep: a surface a `backgroundColor` cannot express ─────────────────
+
+    This walk finds the ground under a string by reading `backgroundColor` off
+    each `View` it descends through. That covers every surface the app had until
+    the 45° panel cut arrived — and the cut **cannot be a `backgroundColor`**,
+    because React Native has no `clip-path`. `CutSurface` paints its fill as an
+    SVG path instead.
+
+    The consequence, found by trying it: the moment a filled control's ground
+    moved into SVG, this walk stopped seeing it. Roughly twenty cases failed
+    outright, and the more dangerous half is the ones that would **not** have
+    failed — a string on a cut surface would have been measured against
+    whatever was behind the button, silently, and passed. That is precisely the
+    class of defect this file exists to catch, arriving inside the file that
+    catches it.
+
+    So a node may now **declare** the surface its children sit on. `auditSurface`
+    is read exactly like `backgroundColor`, composites the same way, and is the
+    honest answer to "what is actually behind this text" for any component that
+    paints its own ground.
+
+    ⚠ **It is a declaration, not a measurement.** A component that sets
+    `auditSurface` to something it does not paint would lie to this audit as
+    surely as a missing `backgroundColor` blinds it. `cut-geometry.test.ts`
+    pins the shape `CutSurface` draws; this pins the colour it claims. The two
+    together are what make the claim checkable.
+  */
+  const declared = node.props?.auditSurface;
+
+  /*
     ── Opacity, which this walk was blind to until 7 Aug 2026 ────────────────
 
     `opacity` on a `View` fades its whole subtree toward whatever is behind it,
@@ -216,8 +246,10 @@ function walk(
   */
   const effective = typeof style?.opacity === 'number' ? opacity * style.opacity : opacity;
 
-  if (typeof style?.backgroundColor === 'string') {
-    const parsed = parseColor(style.backgroundColor);
+  const ground = typeof declared === 'string' ? declared : style?.backgroundColor;
+
+  if (typeof ground === 'string') {
+    const parsed = parseColor(ground);
     // A translucent panel over its own parent, not over the screen — which is
     // how a card on a card ends up lighter than either.
     if (parsed) surface = composite({ ...parsed, alpha: parsed.alpha * effective }, backdrop);

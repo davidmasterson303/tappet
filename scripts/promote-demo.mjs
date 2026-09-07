@@ -2,11 +2,11 @@
  * Promote the current `main` to the public demo — and to the app's backend.
  *
  * ⚠ **Read this first if you have not run it since 17 Aug — the candidate
- * moved.** Nothing deploys from `main` any more. Both Well Kept hostnames sit
+ * moved.** Nothing deploys from `main` any more. Both Tappet hostnames sit
  * behind their own release branch:
  *
- *     web-live   -> crewchief.davidmasterson.co   App Store URL + the app's API
- *     demo-live  -> crewchief-demo.davidmasterson.co   this script's target
+ *     web-live   -> tappet.southmoordigital.com   App Store URL + the app's API
+ *     demo-live  -> tappet-demo.davidmasterson.co   this script's target
  *
  * This script's whole method is to verify **the exact build that is about to
  * become the demo, before it becomes the demo** — which needs that commit
@@ -22,7 +22,7 @@
  *
  * ── The problem this solves ─────────────────────────────────────────────────
  *
- * crewchief-demo.davidmasterson.co is linked from David's portfolio and shown
+ * tappet-demo.davidmasterson.co is linked from David's portfolio and shown
  * to recruiters during an active job search. Two bad options were available
  * before this script existed:
  *
@@ -74,8 +74,8 @@ const ALLOW_DEGRADED_AI = process.argv.includes('--allow-degraded-ai');
 let degradedWaiver = null;
 
 const CANDIDATE = process.env.CREWCHIEF_CI_URL
-  || 'https://crewchief.davidmasterson.co';
-const DEMO = 'https://crewchief-demo.davidmasterson.co';
+  || 'https://tappet.southmoordigital.com';
+const DEMO = 'https://tappet-demo.davidmasterson.co';
 
 /** Read from the environment, never argv — a secret in argv is in the process table. */
 const CONSULTANT_SECRET =
@@ -452,7 +452,7 @@ Netlify accepted the push and the build did not finish, or it failed. The
 hostname is still on its previous deploy — which for the demo means a
 recruiter sees the old build, not an error.
 
-  Netlify dashboard → crewchief-demo-live → Deploys, for the build log.
+  Netlify dashboard → tappet-demo → Deploys, for the build log.
 
 To undo: revert the merge commit on ${RELEASE_BRANCH} and push. The demo
 returns to its previous build without touching main.

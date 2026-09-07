@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { vehicleFieldStops } from '@wellkept/core/vehicle-identity';
+import { vehicleFieldStops } from '@tappet/core/vehicle-identity';
 
 import { TARGET_MIN, border, radius, space, surface, text, type } from '../theme';
 
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
    * costs an EAS build. Sport register already specifies tight heavy Inter, so
    * this is correct there and waiting on the font in standard.
    */
-  model: { ...type.editorial, color: text.primary },
+  model: { ...type.display, color: text.primary },
   subtitle: { ...type.value, color: text.secondary },
 
   /**

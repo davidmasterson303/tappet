@@ -23,12 +23,12 @@ import {
   PUBLIC_DEMO_ROUTES,
   ANON_READ_TABLES,
   isDemoVehicleId as contractIsDemoVehicleId,
-} from '@wellkept/core/demo-contract';
+} from '@tappet/core/demo-contract';
 import {
   DEMO_VEHICLE_IDS as APP_DEMO_IDS,
   DEMO_UNPHOTOGRAPHED_VEHICLE_IDS,
   isDemoVehicleId,
-} from '@wellkept/core/demo';
+} from '@tappet/core/demo';
 import { isProtectedRoute, resolveRoute, PROTECTED_ROUTES } from '@/middleware';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

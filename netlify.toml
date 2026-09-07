@@ -25,10 +25,36 @@ publish = ".next"
 # exits 0 when there is no difference, so this reads: "nothing changed outside
 # apps/ — don't rebuild the web app."
 #
-# On the first build of a branch CACHED_COMMIT_REF is unset, the command fails,
-# and the build proceeds. That is the safe direction: an unnecessary build
-# costs minutes, a skipped one that should have run costs a stale deployment.
-ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)apps'"
+# ⛔ **That paragraph used to say the opposite, and it was wrong.** It read:
+# "On the first build of a branch CACHED_COMMIT_REF is unset, the command fails,
+# and the build proceeds. That is the safe direction." Disproved in production on
+# 7 Sep, twice, by reading the deploy log:
+#
+#   Failed to fetch cache, continuing with build
+#   No cached dependencies found. Cloning fresh repo
+#   Custom ignore command detected: 'git diff --quiet $CACHED_COMMIT_REF …'
+#   Canceled build due to no content change
+#   User-specified ignore command returned exit code 0. Returning early from build.
+#
+# With `CACHED_COMMIT_REF` empty the command degrades to
+# `git diff --quiet <commit> -- . ':(exclude)apps'`, which is a **working-tree vs
+# that commit** comparison. The checkout *is* that commit, so there is no
+# difference, so it exits **0** — and 0 is precisely the value that cancels. It
+# does not fail. It fails toward the stale deploy, which is the direction the
+# comment promised it never would.
+#
+# The renames on 7 Sep invalidated the build cache, so both promotes that day were
+# silently cancelled in ~3 seconds while `web-live` sat on a build from 5 Sep. It
+# is also a deadlock: the successful build that would repopulate the cache is the
+# one being cancelled. Only a manual retry from the dashboard broke it.
+#
+# ⚠ This is CLAUDE.md §8's own argument arriving as a bill. That section says an
+# ignore rule "needs an inverted exit code to be right" and "fails silently toward
+# stale deploys", and chose the release-branch gate over one for exactly that
+# reason. The rule was kept as defence in depth and was never re-examined against
+# an empty cache.
+# No cached ref means nothing to compare against, so build. Exit 1 = proceed.
+ignore = "if [ -z \"$CACHED_COMMIT_REF\" ]; then exit 1; fi; git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- . ':(exclude)apps'"
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"
@@ -40,7 +66,7 @@ package = "@netlify/plugin-nextjs"
 # No CSP, no X-Frame-Options, no Referrer-Policy, no Permissions-Policy.
 # `x-powered-by` was present. On static assets even `nosniff` was absent.
 #
-# `crewchief.davidmasterson.co` is the App Store listing's marketing URL and the
+# `tappet.southmoordigital.com` is the App Store listing's marketing URL and the
 # origin the mobile app talks to, so this is the header set a reviewer's
 # tooling — and anybody else's — looks at.
 #

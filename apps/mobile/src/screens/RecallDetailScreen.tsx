@@ -23,26 +23,16 @@ import {
   type AddressedRecall,
 } from '../api/recalls';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import {
-  PAGE_BODY,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  status,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import {
   componentPlainName,
   hasRemedy,
   normaliseRecalls,
   type NormalisedRecall,
   type RecallSeverity,
-} from '@wellkept/core/recalls';
-import { RECALL_MATCH_CAVEAT } from '@wellkept/core/advice-disclosure';
-import { healthClaim } from '@wellkept/core/health-claims';
+} from '@tappet/core/recalls';
+import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { healthClaim } from '@tappet/core/health-claims';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -815,6 +805,24 @@ export function RecallDetailScreen({
               /* "Issued 14 Mar 2024", per the spec — not the raw ISO string. */
               <Text style={styles.meta}>Issued {calendarDate(recall.reportedOn)}</Text>
             )}
+            {/*
+              ⚠ 6 Sep: this was cut as a duplicate and **restored**, because it
+              is not one.
+
+              The head above prints `componentPlainName(recall)` — the mapped,
+              readable form. This prints `recall.component`, the raw NHTSA
+              taxonomy string, and the docblock on the head says why: it "is what
+              a service desk recognises". `AIR BAGS:SIDE/WINDOW:HEAD` at the head
+              is unreadable; the same string at the foot is what you quote on the
+              phone.
+
+              The critique reported "FUEL SYSTEM printed twice per recall" and it
+              was looking at exactly that on screen — because the *fixture* used
+              `Component: 'FUEL SYSTEM'`, a value where the raw and mapped forms
+              coincide. The screenshot was honest and the conclusion drawn from it
+              was wrong, which is a fixture defect rather than a design one.
+              `dev/fixtures.ts` now carries real taxonomy strings.
+            */}
             {recall.component && <Text style={styles.meta}>{recall.component}</Text>}
           </View>
 
@@ -829,9 +837,41 @@ export function RecallDetailScreen({
             It carries this specific recall as the question rather than opening
             an empty thread.
           */}
-          <Pressable
-            style={styles.askCta}
-            accessibilityRole="button"
+          {/*
+            ⚠ 6 Sep · B4 and B5: the primitive, not a hand-rolled `Pressable`.
+
+            This was a filled graphite block with a centred sans label — a third
+            button style the brief does not have, which the critique listed for
+            cutting as "a third button style… Advisor is a tab away". It is the
+            same defect as the `quiet` variant removed in the same round: a
+            filled rectangle that is neither the primary nor the secondary.
+
+            `outline` is the brief's secondary, and going through `Button` also
+            buys the 45° cut, the mono caps label, the 44pt floor and the busy
+            naming rule that `mobile-busy-controls-named` enforces — none of
+            which a bespoke `Pressable` gets for free.
+          */}
+          {/*
+            ── ⚠ 6 Sep: `ghost`, so two recalls stop making six 48pt buttons ───
+
+            R32's argument above is about *placement* and it still holds — this
+            is the differentiator, it belongs at the card's foot on a rule, and
+            it carries this recall as the question rather than opening an empty
+            thread.
+
+            What changed is weight. These cards repeat per recall, so an
+            `outline` here meant three equal-weight controls per card and, at two
+            open recalls, six 48pt buttons on one screen — the critique called it
+            a button farm and it was right: nothing was ranked.
+
+            `ghost` ranks them. FIND A DEALER and MARK AS REPAIRED act on the
+            recall; this one leaves for a conversation about it. Advisor is also
+            a tab away, which is the critique's other point and the reason this
+            is the one to demote rather than cut.
+          */}
+          <Button
+            label="Ask the advisor about this"
+            variant="ghost"
             accessibilityLabel={`Ask the advisor about the ${plainComponent(recall) ?? 'recall'} recall`}
             onPress={() =>
               onAskAdvisor(
@@ -839,9 +879,7 @@ export function RecallDetailScreen({
                 `What does this recall mean for my ${state.name}? ${recall.summary ?? recall.component ?? ''}`
               )
             }
-          >
-            <Text style={styles.askCtaText}>Ask the advisor about this</Text>
-          </Pressable>
+          />
         </Card>
         );
       })}
@@ -903,10 +941,11 @@ const styles = StyleSheet.create({
     only carries "Recalls", and there is no numeral on this screen competing
     for it.
   */
-  name: { ...type.editorial, color: text.primary, letterSpacing: -0.5 },
+  name: { ...type.display, color: text.primary },
   /** Quiet, and above the 12px floor. A caveat, not a warning. */
   matchCaveat: { ...type.value, color: text.muted },
-  count: { color: text.muted, fontSize: 14, marginTop: -10 },
+  count: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, marginTop: -10 },
 
   banner: { borderRadius: radius.card, padding: 16, gap: 6, borderWidth: 1 },
   /*
@@ -918,7 +957,8 @@ const styles = StyleSheet.create({
   bannerSevere: { backgroundColor: status.criticalFill, borderColor: status.criticalBorder },
   bannerWarn: { backgroundColor: status.attentionFill, borderColor: status.attentionBorder },
   bannerTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.2 },
-  bannerBody: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  bannerBody: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
 
   /**
    * The card, on the ladder rather than beside it.
@@ -934,13 +974,25 @@ const styles = StyleSheet.create({
    * `mobile-radius-scale.test.ts` on why that rule was scoped to radius.
    */
   cardGap: { gap: 10 },
-  component: {
-    color: status.attention,
-    fontSize: 12,
-    fontFamily: interFace('700'), fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  summary: { color: text.primary, fontSize: 15, lineHeight: 21 },
+  /*
+    ── ⚠ 6 Sep · B7 and B1: off-white condensed, not sodium sans ──────────────
+
+    This printed the recalled component — "Fuel system", "Airbags" — in sodium,
+    and the critique named it directly: *"'Fuel system' / 'Airbags' are sodium
+    ink, not the hairline triangle beside off-white."*
+
+    B7 spends sodium as a *line* beside a warning. The warning here is the recall
+    itself, which the banner and the chip already carry as line; the component's
+    name is a **label**, and a label printed in the warning colour makes the
+    colour mean "recall-related" rather than "act on this" — at which point it
+    means nothing, because everything on the screen is recall-related.
+
+    B1 takes the face too: this is a section head over the summary beneath it, so
+    it joins the other heads in the condensed grotesk at eyebrow size.
+  */
+  component: { ...type.displayLabel, color: text.primary },
+  summary: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 15, lineHeight: 21 },
 
   section: { gap: 4 },
   sectionLabel: {
@@ -949,7 +1001,8 @@ const styles = StyleSheet.create({
     fontFamily: interFace('600'), fontWeight: '600',
     letterSpacing: 0.4,
   },
-  body14: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  body14: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
 
   countRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   /*
@@ -964,22 +1017,21 @@ const styles = StyleSheet.create({
   disclosureText: { ...type.uiStrong, color: text.secondary },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  meta: { color: text.muted, fontSize: 12 },
+  /*
+    ⚠ 6 Sep · B1: mono. This carries "Campaign 23V-441" — an identifier issued
+    by NHTSA, which is a value in exactly the sense B1 means: something to read
+    off and quote, not a sentence. It was Inter, which the critique caught beside
+    the mono values around it.
+  */
+  meta: { ...type.mono, color: text.muted, fontSize: 12, ...TABULAR },
 
-  askCta: {
-    backgroundColor: surface.raised,
-    borderRadius: radius.button,
-    paddingVertical: 12,
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  askCtaText: { color: text.primary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
 
-  footnote: { color: text.muted, fontSize: 12, lineHeight: 18 },
+  footnote: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12, lineHeight: 18 },
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   button: {
     marginTop: 6,
     paddingHorizontal: 18,
@@ -989,5 +1041,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  buttonText: { color: text.primary, fontSize: 14 },
+  buttonText: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 14 },
 });

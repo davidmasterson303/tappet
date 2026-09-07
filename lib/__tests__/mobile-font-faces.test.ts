@@ -76,8 +76,21 @@ function stripComments(code: string): string {
  * prop on `react-native-svg`'s `Text`, which takes the same fallback and would
  * have been missed by a style-only scan.
  */
-const NAKED_STYLE = /(?<!interFace\('\d{3}'\), )fontWeight: '(\d{3})'/;
-const NAKED_PROP = /(?<!fontFamily=\{interFace\('\d{3}'\)\} )fontWeight="(\d{3})"/;
+/*
+  ⚠ **6 Sep: `interFace` is no longer the only way to name a face.** The locked
+  iOS brief put a condensed grotesk on titles and a mono on every value, so
+  `displayFace` and `monoFace` join it in `theme/fonts.ts`.
+
+  This pattern knew one function name. Left alone it would have flagged every
+  correct use of the two new ones — and a guard that cries wolf on an invisible
+  rule is worse than none, because the fix it invites is to make it pass. Both
+  alternations below are the same rule, widened to the faces that now exist.
+*/
+const FACE_FN = "(?:interFace|displayFace|monoFace)";
+const NAKED_STYLE = new RegExp(`(?<!${FACE_FN}\\('\\d{3}'\\), )fontWeight: '(\\d{3})'`);
+const NAKED_PROP = new RegExp(
+  `(?<!fontFamily=\\{${FACE_FN}\\('\\d{3}'\\)\\} )fontWeight="(\\d{3})"`,
+);
 
 describe('every named weight names the face that carries it', () => {
   const files = sourceFiles(MOBILE_SRC)
@@ -160,16 +173,22 @@ describe('the faces the roles are built from', () => {
 
       ⚠ Narrowed 30 Aug, and the narrowing is the interesting part. It used to
       assert `FONT_FACES` held exactly one Newsreader, which is a different
-      claim and was only accidentally the same one. The brand lockup needs
-      Newsreader **500** — Design sets the engraved name at that weight — and it
-      is not a text role at all: it is a mark, drawn in SVG, that no screen sets
-      body copy in.
+      claim and was only accidentally the same one. The brand lockup then needed
+      Newsreader **500** — the engraved name on the coachbuilder plate was set
+      at that weight — and it was not a text role at all: it was a mark, drawn
+      in SVG, that no screen set body copy in.
 
       So the rule is enforced where it actually lives: **the type scale** may
       contain one serif cut. A second face may exist in the bundle only if
       nothing in the scale uses it. That is stricter than the old assertion in
       the direction that matters — it would still fail if somebody wired the
       brand face into a text role.
+
+      ⚠ 7 Sep: the exemption is now unused and the bundle is back to one cut.
+      The identity redraw made the lockup's type an outlined path, so the mark
+      carries no font. Kept as a *rule* rather than deleted, because "one serif
+      in the scale" is the standing constraint and the next second cut should
+      still have to justify itself here.
     */
     const serifs = FONT_FACES.filter((face) => face.startsWith('Newsreader'));
     const inScale = Object.values(typeScale)
@@ -178,16 +197,55 @@ describe('the faces the roles are built from', () => {
 
     expect(Array.from(new Set(inScale))).toEqual([EDITORIAL_FACE]);
     expect(typeScale.editorial.fontFamily).toBe(EDITORIAL_FACE);
+    expect(serifs).toEqual([EDITORIAL_FACE]);
+  });
 
-    // Any extra serif cut is the brand's, and it is used by the mark alone.
-    const extras = serifs.filter((face) => face !== EDITORIAL_FACE);
-    expect(extras).toEqual(['Newsreader_500Medium']);
+  it('draws the brand mark as geometry, so no font can substitute inside it', () => {
+    /*
+      The invariant the Newsreader exemption above used to stand in for, stated
+      directly.
 
-    const lockup = readFileSync(
-      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'BrandLockup.tsx'),
-      'utf8'
+      ⚠ This is worth a guard rather than a comment because reintroducing
+      `<SvgText>` here fails *silently and twice over*. React Native cannot
+      drive Archivo's `wdth` axis, so the condensed slot on this platform is
+      Archivo Narrow — a different family with its own metrics (see
+      `design-system-drift.md` §6.1). A `<Text>` in the mark would therefore
+      render the brand in a face it was never drawn in, on a phone, next to a
+      web build drawing it correctly. That exact defect has already happened
+      once on the web, where the lockup's hand-spelled display chain outlived
+      the token it was written against.
+    */
+    const path = join(
+      __dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'BrandLockup.tsx'
     );
-    expect(lockup).toContain('Newsreader_500Medium');
+    /*
+      ⚠ Comments are stripped first. This component's docblock explains that its
+      type used to be `<SvgText>` and no longer is, so a scan that reads prose
+      fires on the explanation — and the cheapest way to make that green is to
+      delete the paragraph that says why the rule exists.
+
+      Line comments go whole-line rather than by regex, so a `//` inside a URL
+      cannot truncate a line of real code.
+    */
+    const lockup = readFileSync(path, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+
+    // Anti-vacuous: the file was found, the strip left the code, and it is the
+    // component rather than a stub.
+    expect(lockup.length).toBeGreaterThan(500);
+    expect(lockup).toContain('WORDMARK_PATH');
+    expect(lockup).toContain('export default function BrandLockup');
+
+    for (const tell of ['SvgText', 'fontFamily', 'fontWeight', '<Text']) {
+      expect(`${tell}: ${lockup.includes(tell)}`).toBe(`${tell}: false`);
+    }
+
+    // ...and the scan can still see one, so a green result means something.
+    const withFont = lockup.replace('<Path d={WORDMARK_PATH}', '<SvgText fontFamily="x"');
+    expect(withFont.includes('SvgText')).toBe(true);
   });
 
   it('spends a bundled file on each weight it offers, and no more', () => {
@@ -215,5 +273,82 @@ describe('the faces the roles are built from', () => {
     expect(NAKED_PROP.test("<SvgText fontFamily={interFace('500')} fontWeight=\"500\" />")).toBe(
       false
     );
+  });
+});
+
+/**
+ * A text style that names a size and a colour also names its face.
+ *
+ * ── ⚠ Why the existing scans did not catch this ─────────────────────────────
+ *
+ * The guards above catch a `fontWeight` with no face beside it, and every role
+ * in the type scale having a `fontFamily`. Neither catches the case that had 54
+ * live instances across 12 files on 6 Sep: a screen-level style with a
+ * `fontSize` and a `color` and **no face at all** — no family, no weight,
+ * nothing to catch.
+ *
+ * React Native renders that as San Francisco. It does not warn, it does not
+ * fall back to the app's face, and next to correctly-set Inter at the same size
+ * the difference reads as a deliberate choice rather than as a bug. The design
+ * critique called two of them "tracked sans caps" for three rounds without
+ * either of us noticing they were not Inter at all.
+ *
+ * ⚠ **Scoped to styles that set both a size and a colour**, which is what a
+ * *complete* text style looks like. Partial styles that exist to be merged —
+ * `fontFloor: { fontSize: FIELD_FONT_MIN }` is the load-bearing one — set a size
+ * and nothing else, and flagging them would be the spurious failure `CLAUDE.md`
+ * warns is worse than no guard: someone would "fix" it by inlining a face that
+ * then overrides the caller's.
+ */
+describe('every complete text style names its face', () => {
+  const styleBlock = /\n  ([a-zA-Z]\w*): \{([^{}]*)\},/g;
+
+  function facelessIn(source: string): string[] {
+    const found: string[] = [];
+    /*
+      ⚠ `Array.from`, not a bare `for…of` over the iterator. This project's root
+      `tsconfig` targets below ES2015, so iterating a `matchAll` result directly
+      is a TS2802 — and the root typecheck is the one the promote script runs,
+      which is where it surfaced rather than in the mobile-scoped check I had
+      been using.
+    */
+    for (const [, name, body] of Array.from(source.matchAll(styleBlock))) {
+      if (!body.includes('fontSize') || !body.includes('color')) continue;
+      if (body.includes('fontFamily') || body.includes('...type.')) continue;
+      // A naked weight is the scan above's job, not this one's.
+      if (body.includes('fontWeight')) continue;
+      found.push(name);
+    }
+    return found;
+  }
+
+  const files = sourceFiles(MOBILE_SRC);
+
+  it('has sources to scan', () => {
+    expect(files.length).toBeGreaterThan(20);
+  });
+
+  it('finds no style rendering in the system face', () => {
+    const offenders = files.flatMap(({ rel, code }) =>
+      facelessIn(stripComments(code)).map((name) => `${rel}:${name}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  /*
+    ⚠ The anti-vacuous case. The assertion above passes if `facelessIn` returned
+    nothing for any reason — a regex that stopped matching, a `sources` list that
+    silently emptied — which is precisely how a scanner in this repo once
+    reported a clean app forever. This proves it can still see one.
+  */
+  it('can still detect one', () => {
+    const planted = `
+const styles = StyleSheet.create({
+  headline: {
+    color: text.primary,
+    fontSize: 18,
+  },
+});`;
+    expect(facelessIn(planted)).toEqual(['headline']);
   });
 });

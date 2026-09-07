@@ -29,7 +29,7 @@ import { AppStoreCTA, APP_STORE_URL, appIsListed } from '@/components/AppStoreCT
 /*
   ── ⚠ LEG-10 · the pre-launch state is the demo's, not the product's ─────────
 
-  `iPhone app coming soon` renders on `crewchief.davidmasterson.co`, which is
+  `iPhone app coming soon` renders on `tappet.southmoordigital.com`, which is
   the **marketing URL on the App Store listing** — the page an App Review
   reviewer opens while reviewing the binary. Being told the iPhone app is coming
   while holding it reads as a premature submission.

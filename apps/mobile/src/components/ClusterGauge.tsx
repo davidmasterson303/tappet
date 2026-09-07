@@ -10,12 +10,12 @@ import {
   VIEW_W,
   angleFor,
   pointAt,
-} from '@wellkept/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+} from '@tappet/core/cluster-geometry';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 import { DIAL_MIN, TABULAR, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
-import { interFace } from '../theme/fonts';
+import { displayFace, interFace } from '../theme/fonts';
 
 /**
  * The health score as an instrument cluster, on the phone.
@@ -30,7 +30,7 @@ import { interFace } from '../theme/fonts';
  *
  * ── 1. The geometry is imported, not re-typed ───────────────────────────────
  *
- * `@wellkept/core/cluster-geometry` already exists for exactly this reason —
+ * `@tappet/core/cluster-geometry` already exists for exactly this reason —
  * `BuildGauge` needed the same dial and a second copy of
  * `M 50.5 149.5 A 70 70 0 1 1 149.5 149.5` is a second copy. A third client
  * hand-copying it is the same mistake at worse odds, because the drift would be
@@ -65,21 +65,25 @@ import { interFace } from '../theme/fonts';
  */
 const ARC_LENGTH = 1.5 * Math.PI * R;
 
-/** Majors carry the numbers; minors are every 5 and carry nothing. */
-const MAJORS = [0, 20, 40, 60, 80, 100];
-const BOUNDARIES = new Set([40, 60, 80]);
-const MINORS = Array.from({ length: 21 }, (_, index) => index * 5).filter(
-  (tick) => !MAJORS.includes(tick),
-);
+/**
+ * The arc's weight, in viewBox units.
+ *
+ * ⚠ **This is 2 where the tachometer's was 6, and "hairline" is the brief's
+ * word, not a preference.** B3 asks for a hairline arc; a 6-unit stroke on a
+ * 70-unit radius is a ring, and a ring reads as a progress bar bent into a
+ * circle — which is what makes a filled gauge feel like a game meter rather
+ * than an instrument.
+ */
+const HAIRLINE = 2;
 
-/** Tick radii. Minors are hairlines just off the arc; majors run out to the numbers. */
-const TICK = {
-  minorFrom: 76,
-  minorTo: 79.5,
-  majorFrom: 76,
-  majorTo: 84,
-  cardMajorTo: 80,
-};
+/**
+ * The two dots that terminate the arc: its extents, 0 and 100.
+ *
+ * These replace twenty-seven tick marks. They are not a scale — they say where
+ * the instrument begins and ends, which is the only part of a scale a reading
+ * this large actually needs.
+ */
+const TERMINALS = [0, 100];
 
 /** The ignition sweep: 0 → 100 → settle, ~900ms. Split as the web dial splits it. */
 const SWEEP_UP = 420;
@@ -174,6 +178,27 @@ export default function ClusterGauge({
 }) {
   const band = getHealthBandJudgement(score);
   const colour = healthBandHex(band);
+  /*
+    ── ⚠ 6 Sep · B3 and B7: the arc is off-white unless something is wrong ────
+
+    The dial used to stroke itself in the band colour at every score, which put
+    `#D6BE9B` — the `ok` band — on screen for every reading between 60 and 79.
+    That is the gold the locked brief names in B3 ("no gold"), and it was a
+    third hue on a two-hue system.
+
+    The band is **not** recoloured to fix that, and must not be: thresholds,
+    wording and colour are owned by `@tappet/core/health-band` and shared with
+    web, and the phone holding a second opinion about what "Fair" looks like is
+    the defect that ownership exists to prevent. What changes is only *when the
+    dial spends a hue at all*.
+
+    B7: "Sodium only on genuine warnings as line." Good and Fair are readings
+    that need no colour — they are off-white ink, which is what the system means
+    by good news. `warn` and `bad` are already sodium (`#DE8A3A`, `#F4511E`), so
+    a warning keeps its band colour and nothing else does.
+  */
+  const isWarning = band.name === 'warn' || band.name === 'bad';
+  const arcInk = isWarning ? colour : text.primary;
   const rounded = Math.round(score);
 
   const width = size ?? (variant === 'hero' ? HERO_SIZE : CARD_SIZE);
@@ -241,9 +266,26 @@ export default function ClusterGauge({
     box drawn at `width`, and the card's number sits on the pivot, which its
     square window puts at dead centre.
   */
-  const readoutSize = Math.round(width * (isCard ? 60 / 172 : 30 / 200));
-  const readoutLine = Math.round(readoutSize * 1.1);
-  const readoutTop = (isCard ? 0.5 : 0.75) * width - readoutLine / 2;
+  /*
+    ── ⚠ 6 Sep · B3: the reading moved to the middle and got much bigger ──────
+
+    Both changes are consequences of deleting the hub, and neither was available
+    before it.
+
+    **Size.** The hero readout was `30/200` of the width — about 28pt on a 184pt
+    dial, which is smaller than the screen's own title. B3 asks for a *dominant*
+    grotesk numeral, and dominant is the whole point: the reading is what the
+    screen is for, and it was previously the fourth-largest thing on it.
+
+    **Position.** It sat at `0.75` of the width — low, where a tachometer puts
+    its digital readout, because *"centring it in the well is not available once
+    there is a hub: the needle would cross the digits."* There is no hub and no
+    needle now, so the constraint that pushed it down is gone and the reading
+    sits in the middle of its own arc.
+  */
+  const readoutSize = Math.round(width * (isCard ? 60 / 172 : 0.34));
+  const readoutLine = Math.round(readoutSize * 1.02);
+  const readoutTop = 0.5 * width - readoutLine / 2;
 
   return (
     <View
@@ -261,9 +303,9 @@ export default function ClusterGauge({
           <Path
             d={TRACK}
             fill="none"
-            stroke={isCard ? colour : text.nonText}
-            strokeOpacity={isCard ? 0.1 : 0.2}
-            strokeWidth={6}
+            stroke={text.nonText}
+            strokeOpacity={0.25}
+            strokeWidth={HAIRLINE}
             strokeLinecap="butt"
           />
 
@@ -278,104 +320,68 @@ export default function ClusterGauge({
           <Path
             d={TRACK}
             fill="none"
-            stroke={colour}
-            strokeWidth={6}
+            stroke={arcInk}
+            strokeWidth={HAIRLINE}
             strokeLinecap="butt"
             strokeDasharray={[lit, ARC_LENGTH]}
           />
 
-          {/* Minors — hairlines, every 5, hero only. */}
-          {!isCard &&
-            MINORS.map((tick) => (
-              <Line
-                key={`minor-${tick}`}
-                x1={CX}
-                y1={CY - TICK.minorTo}
-                x2={CX}
-                y2={CY - TICK.minorFrom}
-                stroke={text.nonText}
-                strokeOpacity={0.35}
-                strokeWidth={1}
-                origin={`${CX}, ${CY}`}
-                rotation={angleFor(tick)}
+          {/*
+            ── ⚠ 6 Sep · B3: the ticks, the numbers, the needle and the hub all
+            went, and this is the largest single deletion in the design port ───
+
+            What stood here was a 270° tachometer face: twenty-one minor
+            hairlines, six numbered majors, a swept needle and a hub cap. Every
+            piece of it was carefully built and the whole thing was the wrong
+            object — the locked brief's word for it is "gaming-HUD
+            skeuomorphism", and the critique's word was "a picture of a dial".
+
+            B3: *"Dial is a hairline off-white arc with dot terminals, dominant
+            grotesk numeral, mono state word; no needle, scale, gold or icon."*
+
+            The scale is not lost information. Both ends of the arc are where
+            they always were, the reading is the largest thing on the screen,
+            and the full "N out of 100" is on the container's accessibility
+            label — which is where it was doing the real work anyway, because
+            the tick numbers sat at the type floor and a scale nobody reads is
+            decoration with a legibility cost.
+          */}
+
+          {/*
+            The terminals. Two dots, at the ends of the track rather than at the
+            reading — they are the instrument's extents, so they do not move.
+
+            Drawn at `text.nonText` like the track: a dot brighter than the arc
+            it terminates reads as a value marker, which is the one thing it
+            must not be mistaken for.
+          */}
+          {TERMINALS.map((tick) => {
+            const at = pointAt(tick, R);
+            return (
+              <Circle
+                key={`terminal-${tick}`}
+                cx={at.x}
+                cy={at.y}
+                r={HAIRLINE * 1.5}
+                fill={text.nonText}
+                fillOpacity={0.5}
               />
-            ))}
+            );
+          })}
 
           {/*
-          Majors. On the card only the three band boundaries survive.
+            The reading's own dot, riding the end of the sweep.
 
-          A boundary tick lands at 0.4 here against web's 0.5, because
-          `text.nonText` is the hairline token and 40% is where it caps. The
-          step is one notch on a 1px rule and the weight difference — 2 against
-          1.5 — is doing the work either way.
-        */}
-          {(isCard ? [40, 60, 80] : MAJORS).map((tick) => (
-            <Line
-              key={`major-${tick}`}
-              x1={CX}
-              y1={CY - (isCard ? TICK.cardMajorTo : TICK.majorTo)}
-              x2={CX}
-              y2={CY - TICK.majorFrom}
-              stroke={text.nonText}
-              strokeOpacity={BOUNDARIES.has(tick) ? 1 : 0.65}
-              strokeWidth={BOUNDARIES.has(tick) ? 2 : 1.5}
-              origin={`${CX}, ${CY}`}
-              rotation={angleFor(tick)}
-            />
-          ))}
-
-          {/*
-          The numbers, on the majors. Upright — never rotated with their tick.
-
-          ⚠ **These sit at the 50% floor, and the web dial's do not.** Web
-          grades them 0.42 for a boundary against 0.24 for the rest; both are
-          under this app's text floor, and the floor does not have a decorative
-          exemption — the moment one is granted, "it's only a label" is
-          available to every string on the phone.
-
-          Nothing is lost. The emphasis that grading carried is already in the
-          tick beneath each number, which is drawn at twice the width on a band
-          boundary. The hierarchy moved from the ink to the hairline, where it
-          costs no legibility.
-        */}
-          {!isCard &&
-            MAJORS.map((tick) => {
-              const at = pointAt(tick, 90);
-              return (
-                <SvgText
-                  key={`label-${tick}`}
-                  x={at.x}
-                  y={at.y}
-                  fill={text.muted}
-                  fontSize={10}
-                  fontFamily={interFace('500')} fontWeight="500"
-                  textAnchor="middle"
-                  alignmentBaseline="central"
-                >
-                  {tick}
-                </SvgText>
-              );
-            })}
-
-          {/*
-          Needle. The hero runs it to the pivot and caps it with a hub; the card
-          stops it short, because a hub and a centred numeral collide at any
-          size — the needle would cross the digits.
-        */}
-          <G origin={`${CX}, ${CY}`} rotation={angleFor(clamped)}>
-            <Line
-              x1={CX}
-              y1={42}
-              x2={CX}
-              y2={isCard ? 62 : CY}
-              stroke={colour}
-              strokeWidth={isCard ? 3 : 2.5}
-              strokeLinecap={isCard ? 'round' : 'butt'}
-            />
-          </G>
-          {!isCard && (
-            <Circle cx={CX} cy={CY} r={5} fill={surface.page} stroke={colour} strokeWidth={1.5} />
-          )}
+            This is the one place the dial spends a hue, and only when the band
+            is a genuine warning — see `arcInk` above. At rest it is off-white,
+            which is what makes a sodium dot mean something when it appears.
+          */}
+          <Circle
+            cx={pointAt(clamped, R).x}
+            cy={pointAt(clamped, R).y}
+            r={HAIRLINE * 2}
+            fill={arcInk}
+          />
         </Svg>
 
         {/*
@@ -400,7 +406,7 @@ export default function ClusterGauge({
               top: readoutTop,
               fontSize: readoutSize,
               lineHeight: readoutLine,
-              color: isCard ? text.primary : colour,
+              color: isCard ? text.primary : arcInk,
             },
           ]}
         >
@@ -420,7 +426,8 @@ export default function ClusterGauge({
         style={[
           styles.verdict,
           {
-            color: colour,
+            /* B7: the state word is ink, not a hue, unless it is a warning. */
+            color: arcInk,
             fontSize: isCard ? type.label.fontSize : Math.round(width * 0.07),
           },
         ]}
@@ -447,10 +454,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontFamily: interFace('700'), fontWeight: '700',
+    /*
+      ⚠ B3: the reading is set in the condensed grotesk, not in Inter. It is the
+      "dominant grotesk numeral" the brief names, and the display face is what
+      makes it read as an instrument's own numerals rather than as large UI
+      text. `TABULAR` stays — a score that reflows mid-count-up reads as a
+      glitch, and that is what the 900ms sweep spends its time doing.
+    */
+    /*
+      Spread rather than picked apart, because `mobile-font-faces.test.ts`
+      scans line by line: a `fontWeight` whose `fontFamily` is on the line above
+      reads to it as a naked weight, and it is right to — that is exactly the
+      shape that renders San Francisco in silence. The size and line height are
+      overridden inline from the dial's width.
+    */
+    ...type.numeral,
     ...TABULAR,
   },
-  verdict: { fontFamily: interFace('600'), fontWeight: '600', letterSpacing: 0.2 },
+  /* B1: a state word is a state label, and state labels are mono caps. */
+  verdict: { ...type.monoLabel },
   row: { alignItems: 'flex-end' },
   /**
    * 30, off the type scale on purpose. The scale names roles for language —
@@ -458,6 +480,6 @@ const styles = StyleSheet.create({
    * instrument reading is none of those. It is the dial, at the size the dial
    * is not available.
    */
-  rowReading: { fontSize: 30, lineHeight: 34, fontFamily: interFace('700'), fontWeight: '700', ...TABULAR },
-  rowVerdict: { ...type.label },
+  rowReading: { fontSize: 30, lineHeight: 34, fontFamily: displayFace('700'), fontWeight: '700', ...TABULAR },
+  rowVerdict: { ...type.monoLabel },
 });

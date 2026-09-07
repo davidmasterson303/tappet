@@ -24,9 +24,9 @@ import {
   historyLookups,
   MATCHABLE_CATEGORIES,
   type ServiceHistoryRow,
-} from '@wellkept/core/service-history';
-import { getKeywordsForCategory } from '@wellkept/core/maintenance-sync';
-import { evaluateSchedule, type ScheduleEntry } from '@wellkept/core/service-due';
+} from '@tappet/core/service-history';
+import { getKeywordsForCategory } from '@tappet/core/maintenance-sync';
+import { evaluateSchedule, type ScheduleEntry } from '@tappet/core/service-due';
 
 describe('categoryFor', () => {
   it('matches a model-written schedule entry', () => {

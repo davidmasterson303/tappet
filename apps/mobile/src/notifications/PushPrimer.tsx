@@ -1,7 +1,7 @@
 import { Modal, StyleSheet, Text, View } from 'react-native';
 
 import Button from '../components/Button';
-import { PUSH_PRIMER_COPY } from '@wellkept/core/push-priming';
+import { PUSH_PRIMER_COPY } from '@tappet/core/push-priming';
 import { surface, text } from '../theme';
 import { interFace } from '../theme/fonts';
 
@@ -22,7 +22,7 @@ import { interFace } from '../theme/fonts';
  *
  * ── The copy is not mine ────────────────────────────────────────────────────
  *
- * Every string comes from `PUSH_PRIMER_COPY` in `@wellkept/core/push-priming`,
+ * Every string comes from `PUSH_PRIMER_COPY` in `@tappet/core/push-priming`,
  * marked as a placeholder for David in Phase 5.5. Nothing is written inline
  * here, so replacing the wording is one edit in one file, needs no build, and
  * cannot leave this component saying something the shared copy does not.
@@ -98,10 +98,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: surface.page, justifyContent: 'space-between' },
   body: { paddingHorizontal: 28, paddingTop: 96, gap: 18 },
   title: { color: text.primary, fontSize: 26, fontFamily: interFace('700'), fontWeight: '700', lineHeight: 32 },
-  paragraph: { color: text.secondary, fontSize: 16, lineHeight: 24 },
-  detail: { color: text.muted, fontSize: 14, lineHeight: 21 },
+  paragraph: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 16, lineHeight: 24 },
+  detail: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 21 },
 
   actions: { paddingHorizontal: 28, paddingBottom: 56, gap: 12 },
 
-  reassurance: { color: text.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
+  reassurance: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 13, textAlign: 'center', marginTop: 4 },
 });

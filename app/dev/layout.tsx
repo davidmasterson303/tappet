@@ -38,7 +38,7 @@ import { notFound } from 'next/navigation';
  * ── What was actually exposed ───────────────────────────────────────────────
  *
  * `/dev/rls-check` renders the result of eight live RLS probes — which tables
- * an anonymous browser can read — on `crewchief.davidmasterson.co`, the
+ * an anonymous browser can read — on `tappet.southmoordigital.com`, the
  * hostname **Apple's reviewer opens**. There was also no `robots.txt`, so it
  * was crawlable. `app/robots.ts` now excludes it, and this is what makes the
  * exclusion true rather than a request.

@@ -115,14 +115,40 @@ export function describeRecord(
    * row and up to six times per invoice. The caller that has a heading turns it
    * off; the caller that does not, does not.
    */
-  { withShop = true }: { withShop?: boolean } = {}
+  {
+    withShop = true,
+    /**
+     * ⚠ `withDate: false` when the date is already above the row — the same
+     * argument `withShop` makes, for the same reason, one field over.
+     *
+     * Grouped into visits, the date is the visit's own heading, so every line
+     * item was reprinting "2 Aug 2026" under a header that already said it. The
+     * design critique measured the cost rather than the redundancy: the repeated
+     * line is what made a spec-table row run ~110pt against the brief's 56.
+     *
+     * Defaulted to `true` so every existing caller is unchanged; the caller with
+     * a heading turns it off.
+     */
+    withDate = true,
+    /**
+     * ⚠ `withMileage: false` when the odometer is already above the row — the
+     * third and last field this applies to.
+     *
+     * Dropping the repeated date shortened the rows and left the mileage doing
+     * exactly the same thing: "61,400 miles" under every line item of a visit
+     * that happened at one odometer reading. A visit is a moment; its date, its
+     * shop and its mileage all belong to the heading, and only the description
+     * and the price belong to the line.
+     */
+    withMileage = true,
+  }: { withShop?: boolean; withDate?: boolean; withMileage?: boolean } = {}
 ): string {
   const parts: string[] = [];
 
-  const date = formatRecordDate(record.service_date);
+  const date = withDate ? formatRecordDate(record.service_date) : null;
   if (date) parts.push(date);
 
-  const mileage = record.mileage_at_service;
+  const mileage = withMileage ? record.mileage_at_service : null;
   if (typeof mileage === 'number' && Number.isFinite(mileage) && mileage > 0) {
     parts.push(`${mileage.toLocaleString('en-US')} miles`);
   }

@@ -23,8 +23,8 @@ import {
   classifyRoundTrip,
   isRetryable,
   CLIENT_ERROR_FALLBACK,
-} from '@wellkept/core/consultant-health';
-import { CONSULTANT_ROUND_TRIP } from '@wellkept/core/demo-contract';
+} from '@tappet/core/consultant-health';
+import { CONSULTANT_ROUND_TRIP } from '@tappet/core/demo-contract';
 
 const TOKENS = CONSULTANT_ROUND_TRIP.expectedTokens;
 const good = (answer: string) => classifyRoundTrip({ httpStatus: 200, answer }, TOKENS);

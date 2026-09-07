@@ -8,7 +8,9 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { TARGET_MIN, bay, border, radius, space, surface, text, type } from '../theme';
+import CutSurface from './CutSurface';
+
+import { bay, border, cut, radius, space, surface, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -157,7 +159,26 @@ export default function BayRoom({
   const wordmark = (make ?? '').trim().toUpperCase();
 
   return (
-    <View style={[styles.room, { height }]}>
+    /*
+      ── ⚠ 7 Sep · B2: the cut belongs to the plate, not to the photograph ────
+
+      B2 asks for the plate "full-bleed edge to edge with one 8pt 45° cut
+      top-right". That cut had no owner: nothing drew it, and the critique found
+      the plate ending "in a straight edge at the graphite step" in three
+      consecutive rounds.
+
+      ⚠ It goes on the *container* rather than on the image deliberately. The
+      owner's photograph is missing far more often than not — no upload yet, a
+      format iOS cannot decode, a signed URL expired — and a cut that lived on
+      the image would vanish exactly when the plate most needs to still look
+      like a plate. The geometry is the plate's; the photograph is its contents.
+    */
+    <CutSurface
+      style={[styles.room, { height }]}
+      cut={['topRight']}
+      size={cut.plate}
+      fill={bay.roomFar}
+    >
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
           <RadialGradient
@@ -191,29 +212,33 @@ export default function BayRoom({
             the cost; at a 32px blur radius nobody can tell which copy is which,
             and the alternative is a hero with dead gradient down both sides.
           */}
-          <Image
-            source={{ uri: photo }}
-            style={[StyleSheet.absoluteFill, styles.fill]}
-            resizeMode="cover"
-            blurRadius={32}
-            /*
-              Decorative: it is the same photograph as the layer above, and a
-              screen reader announcing the car twice is worse than not
-              announcing the blur at all.
-            */
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
+          {/*
+            ── ⚠ 6 Sep · B2 and B9: the blurred letterbox is gone ─────────────
+
+            Two `Image` layers stood here: an over-scanned copy at
+            `blurRadius={32}` filling the room, and a `contain`ed sharp copy
+            over it. That is web's CC-142 treatment, ported deliberately rather
+            than invented — the note that was here argued it at length, and the
+            argument was good for the system that existed when it was written.
+
+            **Web retired it.** The locked web brief's hero line reads *"Hero is
+            a night, wet-asphalt, sodium/cyan plate covering its panel edge-to-
+            edge; blurred letterbox fill gone"*, and the iOS brief inherits it as
+            B2 ("no blurred letterbox") and B9 ("never letterboxed"). So this was
+            not mobile drifting from web; it was mobile still holding a position
+            web had moved off, which is the same half-applied state either way.
+
+            ⚠ **The cost the old note named is real and is now accepted.** A
+            `cover` crop can push a vertical or wide photograph off-frame, and
+            that is why the focal-point anchor was deleted rather than tuned.
+            `focal_point_x` / `focal_point_y` still exist on the vehicles table;
+            if owners start losing their cars to the crop, that is the fix to
+            reach for — not the blur.
+          */}
           <Image
             source={{ uri: photo }}
             style={[StyleSheet.absoluteFill, styles.sharp]}
-            /*
-              `contain`. The room holds the car; it does not crop it. This is
-              the decision CC-142 made on web and the reason the focal-point
-              anchor could be deleted rather than tuned — a crop the owner
-              cannot see the edges of is a crop that puts their car off-frame.
-            */
-            resizeMode="contain"
+            resizeMode="cover"
             accessibilityRole="image"
             accessibilityLabel={make ? `${make} photo` : 'Vehicle photo'}
           />
@@ -246,7 +271,7 @@ export default function BayRoom({
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#bayFade)" />
       </Svg>
 
-    </View>
+    </CutSurface>
   );
 }
 

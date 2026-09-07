@@ -25,7 +25,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { firstEmbed } from '@wellkept/core/vehicle-embed';
+import { firstEmbed } from '@tappet/core/vehicle-embed';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (...parts: string[]) => readFileSync(join(ROOT, ...parts), 'utf8');

@@ -94,8 +94,12 @@ describe('the banner is not rendered unconditionally', () => {
       browser bundle. A `NEXT_PUBLIC_` prefix would ship a deployment detail to
       every visitor for no benefit.
     */
+    expect(layout).toContain('process.env.TAPPET_DEMO_SITE');
+    expect(layout).toContain('process.env.WELLKEPT_DEMO_SITE');
     expect(layout).toContain('process.env.CREWCHIEF_DEMO_SITE');
     expect(layout).not.toContain('NEXT_PUBLIC_CREWCHIEF_DEMO_SITE');
+    expect(layout).not.toContain('NEXT_PUBLIC_WELLKEPT_DEMO_SITE');
+    expect(layout).not.toContain('NEXT_PUBLIC_TAPPET_DEMO_SITE');
   });
 });
 
@@ -136,7 +140,7 @@ describe('the share card describes the site it is actually on', () => {
       `app/opengraph-image.tsx` is the share **image**, and its sub-line read
       *"Live demo with sample vehicles — no signup required"* on **both**
       deployments. So the picture attached to every share of
-      `crewchief.davidmasterson.co` — the App Store listing's own marketing URL
+      `tappet.southmoordigital.com` — the App Store listing's own marketing URL
       — called the product a demo, in 30px type, while the description tag
       beside it correctly did not.
 
@@ -150,7 +154,7 @@ describe('the share card describes the site it is actually on', () => {
     );
 
     // It has to ask which site it is on at all.
-    expect(card).toContain('isDemoSite(process.env.CREWCHIEF_DEMO_SITE)');
+    expect(card).toContain('isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)');
 
     /*
       ⚠ And it must sit on the **demo** arm. A substring check alone would pass
@@ -165,7 +169,7 @@ describe('the share card describes the site it is actually on', () => {
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ');
 
-    const branch = rendered.slice(rendered.indexOf('isDemoSite(process.env.CREWCHIEF_DEMO_SITE)'));
+    const branch = rendered.slice(rendered.indexOf('isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)'));
     const demoArm = branch.slice(0, branch.indexOf(':'));
     const productArm = branch.slice(branch.indexOf(':'));
 

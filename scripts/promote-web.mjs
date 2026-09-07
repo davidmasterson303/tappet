@@ -3,8 +3,9 @@
  *
  * ── What this publishes, which is more than it sounds ───────────────────────
  *
- * `web-live` is served by `effulgent-blancmange-6adfdf`, which holds
- * **crewchief.davidmasterson.co** — the App Store listing's privacy-policy URL
+ * `web-live` is served by `tappet-web` (renamed 7 Sep from
+ * `effulgent-blancmange-6adfdf`), which holds
+ * **tappet.southmoordigital.com** — the App Store listing's privacy-policy URL
  * and the origin every installed copy of the mobile app talks to. Merging here
  * is the act that moves both.
  *
@@ -48,7 +49,7 @@ import { awaitDeploy } from './lib/await-deploy.mjs';
 const APPLY = process.argv.includes('--apply');
 
 const RELEASE_BRANCH = 'web-live';
-const SITE = 'https://crewchief.davidmasterson.co';
+const SITE = 'https://tappet.southmoordigital.com';
 
 /** How long to wait for Netlify. A cold Next build here runs about a minute. */
 /* The poll's timing lives in `scripts/lib/await-deploy.mjs`, shared with the demo. */

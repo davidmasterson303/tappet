@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Loader as Loader2 } from 'lucide-react';
+import { Loader as Loader2 } from 'lucide-react';
 import { generateVehicleDossier } from '@/app/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 
 interface ResearchButtonProps {
   vehicleId: string;
@@ -49,16 +49,25 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
     <Button
       onClick={handleResearch}
       disabled={isResearching}
-      variant="outline"
+      variant="ghost"
       size="sm"
       /*
-        ⚠ Quiet. This was `border-accent/50 text-accent` — a fully saturated
-        cyan outline on a secondary action, which made refreshing the research
-        the loudest control on a page whose subject is the car's specification.
-        Cyan is the mark now, not the accent for ordinary controls; see the
-        note on links in `DiagnosticHero`.
+        ⚠ Quiet, and now unframed. This was `border-accent/50 text-accent` — a
+        fully saturated cyan outline on a secondary action, which made
+        refreshing the research the loudest control on a page whose subject is
+        the car's specification. Cyan is the mark now, not the accent for
+        ordinary controls; see the note on links in `DiagnosticHero`.
+
+        ⚠ **5 Sep: the box came off too.** Quieting the colour left the only
+        framed element on `/vehicle-info` sitting at heading level, and a
+        critique of the rendered page read it as outranking the section head
+        beside it. Brief B5 removes radii and frames; a secondary action does
+        not get to be the one thing on the page still wearing a border.
+
+        Mono, because B1 gives every label and state word on this page one
+        voice, and this is a state word — it says what will happen.
       */
-      className="border-white/20 text-white/80 hover:border-white/35 hover:bg-white/5 hover:text-white"
+      className="mono h-auto px-0 text-xs uppercase tracking-widest text-white/55 hover:bg-transparent hover:text-white"
     >
       {isResearching ? (
         <>
@@ -67,8 +76,7 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
         </>
       ) : (
         <>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {hasData ? 'Refresh Research' : 'Generate Research'}
+          {hasData ? 'Refresh research' : 'Generate research'}
         </>
       )}
     </Button>

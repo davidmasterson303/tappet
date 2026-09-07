@@ -101,7 +101,7 @@ describe('iOS usage descriptions exist before the build is spent', () => {
       camera access"). Each has to name the thing the person gets.
 
       ⚠ The app's name is read from `app.json` rather than written here. It was
-      the literal `crewchief` until 30 Aug, and the rename to Well Kept would
+      the literal `crewchief` until 30 Aug, and the rename to Tappet would
       have left this line matching a string that no longer exists anywhere —
       green forever, checking nothing, on the exact assertion that exists to
       stop a rejection. Deriving it means the next rename cannot do that.
@@ -189,7 +189,7 @@ describe('declarations that only bite after the build', () => {
 
       `false` is the correct answer and not a shortcut: the app's encryption is
       HTTPS/TLS to Supabase and Netlify, plus Keychain via `expo-secure-store`,
-      and both are exempt. It would have to become `true` only if Well Kept
+      and both are exempt. It would have to become `true` only if Tappet
       shipped its own cryptography.
     */
     const infoPlist = appJson.ios?.infoPlist ?? {};
@@ -231,6 +231,35 @@ describe('declarations that only bite after the build', () => {
     // The tracked file in the same directory must survive — it is what the
     // preview tooling reads, and ignoring `.claude/` wholesale would take it.
     expect(ignored('.claude/launch.json')).toBe(false);
+  });
+
+  it('ships the same API origin in app.json and the code fallback', () => {
+    /*
+      `config.ts` hardcodes an origin as a last-resort fallback and says, in a
+      comment directly above it, that it "is kept in step with `app.json`
+      deliberately" — because a fallback pointing somewhere else "would send that
+      build to a different origin while looking like it worked". Nothing asserted
+      it until 6 Sep, when both moved from `crewchief.davidmasterson.co` to
+      `tappet.southmoordigital.com` and the invariant became a thing that had
+      just been edited twice by hand.
+
+      It belongs in this file rather than a runtime suite: the fallback only
+      fires when `expo.extra` is missing entirely, so no test that mounts the
+      app will ever take that branch, and the cost of the two disagreeing is a
+      binary that talks to the wrong host — a build already spent.
+    */
+    const config = readFileSync(join(MOBILE, 'src', 'config.ts'), 'utf8');
+
+    // The last string literal in the API_BASE_URL expression is the fallback.
+    const fallback = config
+      .slice(config.indexOf('export const API_BASE_URL'))
+      .match(/'(https:\/\/[^']+)'/)?.[1];
+
+    // Anti-vacuous: two undefineds are equal, and that must not read as agreement.
+    expect(fallback).toMatch(/^https:\/\//);
+    expect(appJson.extra?.apiBaseUrl).toMatch(/^https:\/\//);
+
+    expect(fallback).toBe(appJson.extra.apiBaseUrl);
   });
 });
 

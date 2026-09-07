@@ -1,3 +1,4 @@
+import { interFace } from '../theme/fonts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -13,8 +14,8 @@ import {
   learnMoreQuestion,
   suggestionsFor,
   type WishlistSuggestion,
-} from '@wellkept/core/wishlist-suggestions';
-import { wishlistItemIdentifier, type WishlistItemType } from '@wellkept/core/wishlist-identifier';
+} from '@tappet/core/wishlist-suggestions';
+import { wishlistItemIdentifier, type WishlistItemType } from '@tappet/core/wishlist-identifier';
 import {
   FIELD_FONT_MIN,
   TABULAR,
@@ -461,7 +462,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                         call. A whole-card tap target that costs money on a
                         mis-scroll is the wrong trade.
                       */
-                      variant="quiet"
+                      variant="outline"
                       size="small"
                       busy={working}
                       accessibilityLabel={`Add ${suggestion.name} to the wishlist`}
@@ -554,7 +555,8 @@ const styles = StyleSheet.create({
     backgroundColor: surface.well,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  input: { flex: 1, color: text.primary, fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
+  input: { flex: 1, color: text.primary, fontFamily: interFace('400'),
+    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
   clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
 
   row: { padding: space.md, gap: space.xs },

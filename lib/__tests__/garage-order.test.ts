@@ -9,7 +9,7 @@
  * with the one asking for something.
  */
 
-import { byAttention } from '@wellkept/core/garage-order';
+import { byAttention } from '@tappet/core/garage-order';
 
 const car = (id: string, recalls: number, score: number | null) => ({
   id,

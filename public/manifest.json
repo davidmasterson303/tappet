@@ -1,6 +1,6 @@
 {
-  "name": "Well Kept",
-  "short_name": "Well Kept",
+  "name": "Tappet",
+  "short_name": "Tappet",
   "description": "An AI consultant that knows your car.",
   "start_url": "/",
   "display": "standalone",

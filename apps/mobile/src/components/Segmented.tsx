@@ -79,29 +79,55 @@ export default function Segmented<T extends string>({
 
 const styles = StyleSheet.create({
   /*
-    A well, not a card: this is a control surface. `radius.pill` on the track
-    with the same on each segment is the platform's own segmented shape.
+    ── ⚠ 6 Sep · B4 and B7: the segmented control became the tab rail ─────────
+
+    This was a filled capsule track — `surface.well` behind a `radius.pill`
+    outline, each segment also a pill, and the selected one taking a solid
+    `brand.primary` fill. Three separate things the locked brief forbids in one
+    control:
+
+      B4  "no capsules or pills"
+      B7  "no hue fills except the destructive confirm"
+      the studio paragraph, verbatim: *"Segmented pills become the web tab rail:
+      mono caps, 2px cyan underline, no fill."*
+
+    It was also the loudest thing on two screens: a teal block, at a size the
+    brief reserves for a primary action, marking which of two lists you are
+    reading. Selection is not an action and should not outrank one.
+
+    ⚠ **The underline is the state, and it is 2px because it has to survive
+    being the *only* state.** The label also brightens to `text.primary`, which
+    is what keeps this legible under forced colours and for anyone who cannot
+    separate the cyan from the graphite — the chip family's "never colour alone"
+    rule, applied to a rail instead of a chip.
   */
   track: {
     flexDirection: 'row',
-    backgroundColor: surface.well,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: border.panel,
-    padding: 2,
-    gap: 2,
+    /* A rail sits on the page. There is no track surface any more. */
+    borderBottomWidth: 1,
+    borderBottomColor: border.panel,
+    gap: space.lg,
   },
   segment: {
-    flex: 1,
     minHeight: TARGET_MIN - 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.sm,
-    borderRadius: radius.pill,
+    paddingHorizontal: space.xs,
+    /*
+      The rule the selected segment lights. Transparent at rest rather than
+      absent, so the label does not shift by two points when it is chosen.
+    */
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
   },
-  /* A fill swap, never a group opacity — see `Button`. */
-  segmentPressed: { backgroundColor: surface.raised },
-  segmentOn: { backgroundColor: brand.primary },
-  label: { ...type.uiStrong, color: text.secondary },
-  labelOn: { color: text.onPrimary },
+  /*
+    ⚠ No fill on press either. The pressed state is the label going to full ink;
+    a fill here would be the capsule coming back under another name.
+  */
+  segmentPressed: { borderBottomColor: border.field },
+  segmentOn: { borderBottomColor: brand.accent },
+  /* B1: a tab label is a label, and labels are mono caps. */
+  label: { ...type.monoLabel, color: text.muted },
+  labelOn: { color: text.primary },
 });

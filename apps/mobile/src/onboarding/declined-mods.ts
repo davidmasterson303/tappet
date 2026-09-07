@@ -42,7 +42,7 @@ import { secureStorage } from '../auth/secure-storage';
 
 /** Keyed per vehicle: a decline is about one car's build, not about the owner. */
 function keyFor(vehicleId: string): string {
-  return `crewchief.declinedMods.${vehicleId}`;
+  return `tappet.declinedMods.${vehicleId}`;
 }
 
 /**

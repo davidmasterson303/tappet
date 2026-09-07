@@ -151,8 +151,8 @@ export type EntitlementDecision =
  * to entitlement, nothing else.
  */
 export const PRODUCT_TIERS: Readonly<Record<string, TierName>> = Object.freeze({
-  'co.davidmasterson.crewchief.paid.monthly': 'paid',
-  'co.davidmasterson.crewchief.paid.annual': 'paid',
+  'com.southmoordigital.tappet.paid.monthly': 'paid',
+  'com.southmoordigital.tappet.paid.annual': 'paid',
 });
 
 /**

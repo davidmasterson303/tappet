@@ -9,10 +9,10 @@ import DemoBanner from '@/components/DemoBanner';
 import { isDemoSite, shareDescription, siteOrigin } from '@/lib/site-role';
 
 /** Resolved once: this build is either the demo or the product, never both. */
-const IS_DEMO = isDemoSite(process.env.CREWCHIEF_DEMO_SITE);
+const IS_DEMO = isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE);
 import { AuthProvider } from '@/components/AuthProvider';
 import { SiteRoleProvider } from '@/components/SiteRoleProvider';
-import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@wellkept/core/intro-gate';
+import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@tappet/core/intro-gate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -49,27 +49,37 @@ export const metadata: Metadata = {
   /*
     ── ⚠ Design's string table, 30 Aug — this is the App Store name ──────────
 
-    `Well Kept: Know Your Car` is the App Store name, and the page title is the
+    `Tappet: Know Your Car` is the App Store name, and the page title is the
     same string on purpose: a listing and its own marketing URL disagreeing
     about what the product is called is the first thing a reviewer sees.
 
-    It replaces "Well Kept — Your Personal Auto Ownership Consultant", which was
+    It replaces "Tappet — Your Personal Auto Ownership Consultant", which was
     the CrewChief title with the name swapped — a description standing where a
     name belongs, and forty characters of it.
   */
-  title: 'Well Kept: Know Your Car',
+  title: 'Tappet: Know Your Car',
   /*
      The favicon, apple-touch-icon and SVG icon are NOT declared here — they
      are app/favicon.ico, app/icon.svg and app/apple-icon.png, served by the
      same filename convention as opengraph-image.tsx below.
 
-     ⚠ **They are no longer generated together, and that is a known gap.**
-     `app/icon.svg` carries the Well Kept plate as of 1 Sep; `favicon.ico`,
-     `apple-icon.png` and the manifest's two PNGs are still the Sweep dial,
-     because regenerating them needs a rasteriser with Newsreader loaded — the
-     outlining step Design's package README describes, which is an export task
-     rather than a code one. A browser showing the plate in its tab and the dial
-     on a pinned shortcut is the visible symptom until that runs.
+     ✅ **They are generated together again as of 7 Sep.** This block used to
+     record a gap: `icon.svg` carried the Tappet plate while `favicon.ico`,
+     `apple-icon.png` and the manifest's two PNGs were still the *Sweep dial* —
+     two logos ago — because regenerating them needed a rasteriser with
+     Newsreader loaded, and nothing on this machine had one.
+
+     The identity redraw removes the dependency rather than satisfying it: the
+     package's type is outlined to paths, so `docs/brand-package-v2/build.py`
+     rasterises every size from geometry with no font involved. All four come
+     out of one run.
+
+     ⚠ `icon.svg` is the one a modern browser takes, and it swaps polarity
+     itself through a `prefers-color-scheme` media query inside the file — which
+     no raster can do. `favicon.ico` is the fallback and carries its own tile,
+     because a transparent raster favicon has to pick a polarity and one
+     polarity is always wrong: the tab simply looks empty, and nothing reports
+     it.
   */
   manifest: '/manifest.json',
   /*
@@ -86,12 +96,12 @@ export const metadata: Metadata = {
   */
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Well Kept: Know Your Car',
+    title: 'Tappet: Know Your Car',
     // Per-deployment. The product must never describe itself as a demo — see
     // `lib/site-role.ts` for why that sentence is expensive on this hostname.
     description: shareDescription(IS_DEMO),
     url: siteOrigin(IS_DEMO),
-    siteName: 'Well Kept',
+    siteName: 'Tappet',
     /*
        No `images` key. `app/opengraph-image.tsx` is the card now, and Next
        emits its tags — absolute URL, real dimensions, correct content-type —
@@ -137,7 +147,7 @@ export default function RootLayout({
         />
         {/*
           Decides the garage-door intro before the first paint. See
-          components/GarageDoor.tsx and @wellkept/core/intro-gate.
+          components/GarageDoor.tsx and @tappet/core/intro-gate.
 
           It has to be a blocking inline script, and the two alternatives are
           both visibly wrong. Deciding in an effect means the page paints
@@ -188,7 +198,7 @@ export default function RootLayout({
           {/*
             Resolved on the server, published to the client tree.
 
-            `IS_DEMO` is already computed above from `CREWCHIEF_DEMO_SITE`, and
+            `IS_DEMO` is already computed above from the demo flag, and
             `DemoBanner` below reads it directly because this file is a server
             component. The landing page cannot: `app/page.tsx` and
             `LandingHero` are both `'use client'`, and server env is not in the
@@ -210,7 +220,7 @@ export default function RootLayout({
               shell takes "the rest of the viewport", and there is simply more
               of it.
             */}
-            {isDemoSite(process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
+            {isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
             <ErrorBoundary context="ROOT_LAYOUT">
               {children}
             </ErrorBoundary>

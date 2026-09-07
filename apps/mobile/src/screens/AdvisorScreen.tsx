@@ -13,19 +13,21 @@ import {
 
 import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
+import CutSurface from '../components/CutSurface';
+import ScreenTitle from '../components/ScreenTitle';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
-import { ADVISOR_AI_CONSENT } from '@wellkept/core/ai-consent-copy';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
 import { Skeleton } from '../components/Skeleton';
-import { TARGET_MIN, border, brand, radius, space, status, surface, text, type } from '../theme';
-import { CONTEXT_KIND_LABELS, type ContextKind } from '@wellkept/core/consultant-context-kinds';
-import type { ConsultantEstimate } from '@wellkept/core/consultant-estimate';
+import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
+import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
+import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
 import EstimateWell from '../components/EstimateWell';
-import { parseAnswer } from '@wellkept/core/answer-markup';
+import { parseAnswer } from '@tappet/core/answer-markup';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -371,6 +373,9 @@ export function AdvisorScreen({
         about and gets out of the way. It is above the transcript so it does not
         scroll off — the context is true for every turn, not just the first.
       */}
+      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
+      <ScreenTitle>Advisor</ScreenTitle>
+
       {vehicleTitle ? (
         <View style={styles.context}>
           <Text style={styles.contextLabel} numberOfLines={1}>
@@ -428,7 +433,18 @@ export function AdvisorScreen({
         panel carries the border and the ring, and the send control lives inside
         it: one object, which is what it is.
       */}
-      <View style={[styles.composer, focused && styles.composerFocused]}>
+      {/*
+        ⚠ 7 Sep · B4: the composer takes the cut, and its focus ring becomes a
+        stroke rather than a border — `CutSurface` draws the shape, so a
+        `borderColor` on the view underneath would square the corner it just cut.
+      */}
+      <CutSurface
+        style={styles.composer}
+        cut={['bottomRight']}
+        size={cut.control}
+        fill={surface.raised}
+        stroke={focused ? brand.accent : border.field}
+      >
         <TextInput
           style={styles.input}
           onFocus={() => setFocused(true)}
@@ -473,7 +489,7 @@ export function AdvisorScreen({
           disabled={!canSend}
           accessibilityLabel="Send question to the advisor"
         />
-      </View>
+      </CutSurface>
 
       {consent === 'declined' ? (
         <Text style={styles.declineNote}>
@@ -501,7 +517,7 @@ export function AdvisorScreen({
  * `**$1,461**` and `* **Front Brakes & Rotors:**` on screen. The web had a bold
  * renderer and the phone had nothing — the same one-client capability gap as
  * the health band and the context-kind labels, which is why the parsing now
- * lives in `@wellkept/core/answer-markup` and only the drawing is here.
+ * lives in `@tappet/core/answer-markup` and only the drawing is here.
  *
  * Bullets get a real bullet glyph and a hanging indent rather than the
  * asterisk the model wrote, because a list on a phone should look like a list.
@@ -558,7 +574,7 @@ function AnswerText({ answer }: { answer: string }) {
  *
  * The provenance row renders only under an advisor turn that carried kinds, and
  * the prefix is **"Based on"** — what the server loaded and put in front of the
- * model, not what the model used. `@wellkept/core/consultant-context-kinds`
+ * model, not what the model used. `@tappet/core/consultant-context-kinds`
  * holds the full argument for that wording, and the web chat draws the same row
  * from the same labels.
  */
@@ -608,7 +624,7 @@ function TurnView({ turn }: { turn: Turn }) {
 
         Under every turn rather than once at the top: somebody scrolling a long
         conversation reads the answer, not the header. The wording comes from
-        `@wellkept/core/advice-disclosure` so it is identical on both clients —
+        `@tappet/core/advice-disclosure` so it is identical on both clients —
         a safety sentence that says one thing on the phone and another on the
         web is this codebase's most repeated defect applied to the sentence that
         limits liability.
@@ -626,10 +642,16 @@ function TurnView({ turn }: { turn: Turn }) {
  * The empty state names what the advisor can see, because the alternative is a
  * blank screen that invites "what do I even ask".
  *
- * ⚠ The three examples are **not** canned prompts to tap. Making them buttons
- * would turn a conversation into a menu on the first screen a new user meets,
- * which is why they go through `EmptyState`'s `children` — a slot the primitive
- * documents as taking quiet content and never controls.
+ * ⚠ **This paragraph described the opposite of the code, and the code won.** It
+ * read: *"The three examples are not canned prompts to tap. Making them buttons
+ * would turn a conversation into a menu on the first screen a new user meets."*
+ * Every one of them is a `Pressable` with `onPick` and `accessibilityRole
+ *="button"` — they were made tappable afterwards and this was never updated.
+ *
+ * Left as a warning rather than deleted: a docblock asserting a design position
+ * the file no longer holds is worse than none, because the position sounds
+ * considered and nothing on screen contradicts it. If the menu argument is right
+ * the *code* should change; it is not settled here.
  *
  * ── Why this used the primitive late ────────────────────────────────────────
  *
@@ -746,7 +768,8 @@ const styles = StyleSheet.create({
 
   /* #f87171 — the same red SignInScreen uses, and above the AA floor on `surface.page`. */
   error: { ...type.value, color: status.dangerText, paddingHorizontal: space.lg, paddingTop: space.sm },
-  counter: { fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
+  counter: { fontFamily: interFace('400'),
+    fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
   /*
     LEG-02's declined state. `text.muted`, not the counter's red: declining is a
     choice somebody made, not an error they hit, and dressing it as a failure
@@ -767,7 +790,15 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.xs,
   },
-  contextLabel: { ...type.value, color: text.muted },
+  /*
+    ⚠ 7 Sep · B1: mono caps. This was mixed-case Inter — "About 2015 BMW M235i"
+    — and the critique found it as "the one model name outside the type system",
+    which it was: every other appearance of this car is condensed caps or mono.
+
+    A context line is a *label naming the subject*, not a sentence about it, so
+    it takes the mono the tab labels and stat-strip eyebrows use.
+  */
+  contextLabel: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
 
   /* ── R50 · the starter block ──────────────────────────────────────────── */
   emptyWrap: {
@@ -783,15 +814,24 @@ const styles = StyleSheet.create({
   starters: { gap: space.sm },
   starterRow: {
     /*
-      Full width, left-aligned, `surface.raised`, hairline border, `radius.well`
-      — the system's starter-row treatment. The container is what makes three
-      questions of three different lengths read as a set rather than as ragged
-      text.
+      ── ⚠ 6 Sep · B4 and B5: the box comes off, the grouping stays ───────────
+
+      This was `surface.raised` + a 1px border + `radius.well`, and the note here
+      argued for it: *"The container is what makes three questions of three
+      different lengths read as a set rather than as ragged text."*
+
+      The grouping problem was real; the box was one answer to it. The critique
+      named the result an AI tell in **six consecutive rounds** — "three
+      identical stacked suggestion cards", the stock chatbot-onboarding template
+      — and B5 rules out the filled, bordered card outright.
+
+      A hairline rule per row does the same grouping job the note wanted: three
+      ragged questions still read as one set because they share a left margin and
+      a repeating rule, which is exactly how the spec table makes eight ragged
+      factor labels read as a table. What is gone is the *panel*, not the set.
     */
-    backgroundColor: surface.raised,
-    borderWidth: 1,
-    borderColor: border.panel,
-    borderRadius: radius.well,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
     paddingHorizontal: space.md,
     /* Comfortably over the 44pt floor at one line, and grows with two. */
     paddingVertical: space.md,
@@ -807,9 +847,11 @@ const styles = StyleSheet.create({
     gap: space.sm,
     padding: space.sm,
     margin: space.md,
-    backgroundColor: surface.raised,
-    borderWidth: 1,
-    borderColor: border.field,
+    /*
+      ⚠ 7 Sep · B4: ground, border and corner belong to `CutSurface` now — a
+      `backgroundColor` here would paint a square corner back over the cut. The
+      composer was the last square container on a root; B4 names it explicitly.
+    */
     /*
       ⚠ `radius.well`, not `radius.card`. The composer is a bar on
       `surface.raised`, and `mobile-surface-ladder.test.ts` fails a container
@@ -836,6 +878,7 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.sm,
     color: text.primary,
+    fontFamily: interFace('400'),
     fontSize: 16,
     // Four lines before it scrolls, so a long question stays visible while it
     // is written without the composer eating the transcript.

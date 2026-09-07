@@ -51,18 +51,51 @@ export default function Card({
 }
 
 const styles = StyleSheet.create({
+  /*
+    ── ⚠ 6 Sep · B5: a card is a band now ────────────────────────────────────
+
+    This drew a container: `surface.card` behind a 1px `border.panel` at
+    `radius.card`, padded on all four sides. Locked brief B5: *"One graphite
+    surface; cards become hairline-ruled bands; no nested cards or shadows."*
+
+    The argument is the same one `SpecBand` makes on web, and it is worth
+    restating because it is not obvious: **a card cannot satisfy B5 by being
+    restyled.** Its fill *is* the second surface and its border and radius are
+    what B4 removes — so the fix is to stop drawing a container at all. What
+    separates two sections is one hairline, and what names them is type.
+
+    ⚠ **The rule is on the top edge, and there is no bottom rule.** Two adjacent
+    bands would otherwise draw two hairlines a pixel apart, which reads as a
+    seam rather than a division — the "four nested outlines" failure the
+    original `elevated` note warned about, arriving from the other direction.
+
+    ⚠ **No horizontal padding.** A band spans its container; insetting it
+    re-creates the card's margin without its fill, which is the shape that made
+    the nested-card screens read as nested in the first place. Callers that need
+    a gutter set it on the page, once.
+  */
   card: {
-    backgroundColor: surface.card,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: border.panel,
-    padding: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+    paddingTop: space.lg,
+    paddingBottom: space.lg,
     gap: space.md,
   },
-  elevated: {
-    backgroundColor: surface.well,
-    borderColor: border.field,
-  },
-  title: { ...type.title, color: text.primary },
-  footnote: { ...type.value, color: text.muted },
+  /*
+    ⚠ `elevated` is now a no-op, and is kept rather than deleted for one
+    release.
+
+    It meant "this card is inside another card, take the next surface step". B5
+    removes the nesting it existed to survive, so there is no step to take. It
+    stays as an accepted prop so the twelve call sites that pass it keep
+    compiling and can be cleaned up as each screen is ported — deleting it now
+    would turn a design port into a twelve-file rename.
+
+    A surviving `elevated` is therefore a marker for a screen not yet ported,
+    the same way a surviving `radius.card` is.
+  */
+  elevated: {},
+  /* B1: a section head is condensed grotesk caps, not the body sans. */
+  title: { ...type.displaySection, color: text.primary },
+  footnote: { ...type.mono, color: text.muted },
 });

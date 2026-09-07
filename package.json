@@ -1,5 +1,5 @@
 {
-  "name": "wellkept",
+  "name": "tappet",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
@@ -26,7 +26,7 @@
     "verify:mobile": "node scripts/verify-mobile-contract.mjs",
     "verify:mobile:strict": "node scripts/verify-mobile-contract.mjs --strict",
     "build:images": "node scripts/build-image-derivatives.mjs",
-    "test:mobile": "npm test --workspace=@wellkept/mobile"
+    "test:mobile": "npm test --workspace=@tappet/mobile"
   },
   "dependencies": {
     "@google/genai": "^1.34.0",

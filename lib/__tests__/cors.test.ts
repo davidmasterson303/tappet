@@ -18,9 +18,9 @@
  *     happens when middleware reaches further than intended.
  */
 
-import { allowedOrigins, corsHeadersFor, isVersionedApiPath } from '@wellkept/core/cors';
+import { allowedOrigins, corsHeadersFor, isVersionedApiPath } from '@tappet/core/cors';
 
-const ORIGINS = ['https://crewchief-demo.davidmasterson.co', 'http://localhost:8081'];
+const ORIGINS = ['https://tappet-demo.davidmasterson.co', 'http://localhost:8081'];
 
 describe('the allowlist comes from the environment', () => {
   it('parses a comma-separated list', () => {
@@ -117,8 +117,8 @@ describe('everything else gets no headers, which is the refusal', () => {
 
   it('refuses a lookalike origin', () => {
     // Substring matching would admit these; exact matching does not.
-    expect(corsHeadersFor('https://crewchief-demo.davidmasterson.co.evil.example', ORIGINS)).toBeNull();
-    expect(corsHeadersFor('http://crewchief-demo.davidmasterson.co', ORIGINS)).toBeNull();
+    expect(corsHeadersFor('https://tappet-demo.davidmasterson.co.evil.example', ORIGINS)).toBeNull();
+    expect(corsHeadersFor('http://tappet-demo.davidmasterson.co', ORIGINS)).toBeNull();
   });
 
   it('sends nothing for a request with no Origin', () => {
@@ -129,7 +129,7 @@ describe('everything else gets no headers, which is the refusal', () => {
   });
 
   it('allows nothing when the allowlist is empty', () => {
-    expect(corsHeadersFor('https://crewchief-demo.davidmasterson.co', [])).toBeNull();
+    expect(corsHeadersFor('https://tappet-demo.davidmasterson.co', [])).toBeNull();
   });
 
   it('never emits a wildcard for any input', () => {

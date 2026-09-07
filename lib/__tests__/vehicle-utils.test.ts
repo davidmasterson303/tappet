@@ -1,4 +1,4 @@
-import { extractJSON, VehicleDataSchema } from '@wellkept/core/vehicle-utils';
+import { extractJSON, VehicleDataSchema } from '@tappet/core/vehicle-utils';
 
 describe('Vehicle Utils', () => {
   describe('extractJSON', () => {

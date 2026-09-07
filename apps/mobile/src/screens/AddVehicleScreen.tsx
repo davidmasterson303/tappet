@@ -14,7 +14,7 @@ import Field from '../components/Field';
 import Suggest from '../components/Suggest';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { decodeVin, fetchModels } from '../api/vpic';
-import { validateMileageUpdate } from '@wellkept/core/mileage-tracking';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import {
   PAGE_BODY,
   TARGET_MIN,
@@ -30,7 +30,7 @@ import {
 import {
   BASELINE_AGE_OPTIONS,
   type BaselineAge,
-} from '@wellkept/core/onboarding-baseline';
+} from '@tappet/core/onboarding-baseline';
 import {
   COMMON_MAKES,
   VIN_LENGTH,
@@ -41,7 +41,7 @@ import {
   suggestNames,
   vinCheckDigitMatches,
   vinProblem,
-} from '@wellkept/core/vehicle-catalog';
+} from '@tappet/core/vehicle-catalog';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -51,7 +51,7 @@ import { interFace } from '../theme/fonts';
  * ── Why this is the launch blocker ──────────────────────────────────────────
  *
  * `SignInScreen` could only sign in and there was no add-vehicle anywhere in
- * `apps/mobile`, so becoming a Well Kept user meant opening the web app,
+ * `apps/mobile`, so becoming a Tappet user meant opening the web app,
  * creating an account, onboarding a car, and *then* installing this. Fine while
  * mobile was a companion. Fatal once it is the product: an App Store reviewer
  * downloads the app and cannot reach anything.
@@ -122,7 +122,7 @@ import { interFace } from '../theme/fonts';
  * produce an error — it produces a car whose recalls, dossier and service
  * schedule all come back empty, looking like a product that knows nothing.
  *
- * `@wellkept/core/vehicle-catalog` carries the lists and the judgements;
+ * `@tappet/core/vehicle-catalog` carries the lists and the judgements;
  * `api/vpic.ts` carries the two network calls. What is decided *here* is the
  * shape of the form:
  *
@@ -727,7 +727,8 @@ const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
 
   title: { color: text.primary, fontSize: 26, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.5 },
-  subtitle: { color: text.secondary, fontSize: 14, marginBottom: 6 },
+  subtitle: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, marginBottom: 6 },
 
   row: { flexDirection: 'row', gap: 10 },
 
@@ -769,7 +770,8 @@ const styles = StyleSheet.create({
 
   modsBlock: { gap: 8, marginTop: 8 },
   modsQuestion: { color: text.primary, fontSize: 16, fontFamily: interFace('600'), fontWeight: '600' },
-  modsHint: { color: text.secondary, fontSize: 13, lineHeight: 18 },
+  modsHint: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 18 },
 
   choice: {
     flex: 1,
@@ -799,10 +801,12 @@ const styles = StyleSheet.create({
   choiceText: { color: text.secondary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600' },
   choiceTextOn: { color: text.onPrimary },
 
-  error: { color: status.dangerText, fontSize: 13, lineHeight: 18 },
+  error: { color: status.dangerText, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 18 },
 
   /* An explicit fill, never `opacity` — the contrast audit cannot composite a
      parent alpha, so a faded control is an unmeasured one. See WishlistScreen. */
 
-  footnote: { color: text.secondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  footnote: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 12, lineHeight: 18, marginTop: 4 },
 });

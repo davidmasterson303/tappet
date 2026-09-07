@@ -10,9 +10,9 @@ import LandingHero from '@/components/LandingHero';
 import { AppStoreCTA } from '@/components/AppStoreCTA';
 import { useAuth } from '@/components/AuthProvider';
 import { useDemoVehicles, type GarageVehicle } from '@/hooks/useVehicles';
-import { firstEmbed } from '@wellkept/core/vehicle-embed';
-import { byAttention } from '@wellkept/core/garage-order';
-import { fleetSummary } from '@wellkept/core/fleet-summary';
+import { firstEmbed } from '@tappet/core/vehicle-embed';
+import { byAttention } from '@tappet/core/garage-order';
+import { fleetSummary } from '@tappet/core/fleet-summary';
 
 function VehicleCardSkeleton() {
   return (
@@ -210,7 +210,7 @@ function GarageContents() {
               {/*
                 ⚠ "demo" removed from the transient states on 21 Aug, and the
                 reason is not tone. This page is served by **both** deployments,
-                and on `crewchief.davidmasterson.co` it is the hostname in the
+                and on `tappet.southmoordigital.com` it is the hostname in the
                 App Store listing — where copy calling the product a demo is the
                 Guideline 4.2 argument made in our own words. Same class as the
                 og:description fixed on 20 Aug.
@@ -427,7 +427,7 @@ function GarageContents() {
               colophon can simply be a sentence.
             */}
             <p className="text-xs text-white/55">
-              Well Kept — Southmoor Digital
+              Tappet — Southmoor Digital
             </p>
           </footer>
         </main>

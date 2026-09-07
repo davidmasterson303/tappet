@@ -4,8 +4,8 @@ import LegalDocument, { LegalSection } from '@/components/legal/LegalDocument';
 import { CONTACT_EMAIL, OPERATOR } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · Well Kept',
-  description: 'What Well Kept collects, why, who else sees it, and how to delete it.',
+  title: 'Privacy Policy · Tappet',
+  description: 'What Tappet collects, why, who else sees it, and how to delete it.',
 };
 
 /**
@@ -40,8 +40,9 @@ export const metadata: Metadata = {
  * ── What is still unsettled — the page is already published ─────────────────
  *
  * This heading used to read "before this is published", and that framing
- * expired on 17 Aug: the page went live on `crewchief.davidmasterson.co`, which
- * is the privacy-policy URL in the App Store listing. It is not a draft waiting
+ * expired on 17 Aug: the page went live on the product host — then
+ * `crewchief.davidmasterson.co`, `tappet.southmoordigital.com` since the
+ * 6 Sep rename — which is the privacy-policy URL in the App Store listing. It is not a draft waiting
  * for a launch date; it is what App Review reads.
  *
  * ✅ Both are named — `CONTACT_EMAIL` on 19 Aug, and `OPERATOR` twice: David
@@ -51,19 +52,21 @@ export const metadata: Metadata = {
  * substance of the document rather than its trim. See `lib/legal.ts` for why
  * the contact is deliberately not a domain address.
  *
- * ⛔ **The operator on the live page is still the person, not the company.**
- * This file changed on 30 Aug; `web-live` has been frozen since 23 Aug, so the
- * document App Review reads names David until a promote runs. The date in
- * `lib/legal.ts` is written for the day it ships, not the day it was edited.
+ * ✅ **The live page names the company — checked 6 Sep.** `/privacy` on the
+ * product host serves "Southmoor Digital LLC" and no occurrence of "David
+ * Masterson", so the document App Review reads is the current one. The 23 Aug
+ * freeze this paragraph was written under has ended. The date in `lib/legal.ts`
+ * is still written for the day it ships rather than the day it was edited, which
+ * is exactly why it needed no moving.
  */
 export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Privacy Policy"
-      summary="Well Kept keeps records about your car so it can give you useful answers about it. It does not track you, does not show advertising, and does not sell anything about you to anybody."
+      summary="Tappet keeps records about your car so it can give you useful answers about it. It does not track you, does not show advertising, and does not sell anything about you to anybody."
     >
       <p>
-        This policy describes what {OPERATOR} collects through the Well Kept app and website, why,
+        This policy describes what {OPERATOR} collects through the Tappet app and website, why,
         who else is involved, and how to get rid of it.
       </p>
 
@@ -72,7 +75,7 @@ export default function PrivacyPolicyPage() {
       <p>
         <strong className="text-white/90">Your account.</strong> An email address and a password.
         The password is held by our authentication provider and is never visible to us. A display
-        name is optional, free text, and never required — Well Kept does not ask for your legal
+        name is optional, free text, and never required — Tappet does not ask for your legal
         name.
       </p>
 
@@ -128,7 +131,7 @@ export default function PrivacyPolicyPage() {
       <LegalSection>Who else sees it</LegalSection>
 
       <p>
-        Well Kept is built on services that necessarily process your data to work:
+        Tappet is built on services that necessarily process your data to work:
       </p>
 
       {/*
@@ -186,7 +189,7 @@ export default function PrivacyPolicyPage() {
       <LegalSection>Children</LegalSection>
 
       <p>
-        Well Kept is not directed at children under 13 and we do not knowingly collect information
+        Tappet is not directed at children under 13 and we do not knowingly collect information
         from them.
       </p>
 

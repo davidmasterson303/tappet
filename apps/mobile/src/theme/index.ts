@@ -1,7 +1,25 @@
-import { EDITORIAL_FACE, interFace } from './fonts';
+import { EDITORIAL_FACE, displayFace, interFace, monoFace } from './fonts';
 
 /**
- * The mobile token layer — Well Kept v8, native.
+ * The mobile token layer — Tappet v8, native.
+ *
+ * ── ⚠ 5 Sep: the two-hue collapse reached this file ────────────────────────
+ *
+ * Until today it had not. The 4–5 September design work moved web onto two
+ * hues — **sodium is the warning axis, cold cyan is information and the build
+ * ramp, and good news is off-white ink rather than a colour** — and touched
+ * `apps/mobile` in exactly zero commits. The health ramp crossed anyway,
+ * because it lives in `@tappet/core/health-band` and the screens read it at
+ * runtime; nothing else did. So the phone spent a day rendering the previous
+ * system beside a ramp from the new one, which is the half-applied state
+ * `CLAUDE.md` §6 is about, and it was invisible because
+ * `retired-palette-literals.test.ts` scanned `app`, `components` and `hooks`
+ * and never looked here. That scan now covers this directory.
+ *
+ * What moved: `register.accent`, `status.confirm`, `status.dangerText` and its
+ * two washes, the whole `build` ramp, and the red fills below. What did not:
+ * the surface ladder, the type scale, the spacing — none of which the collapse
+ * touched on web either.
  *
  * Source: `HANDOFF_mobile_baseline.md` (14 Aug) and the `Mobile Baseline`
  * board, cross-checked against `app/globals.css`. **Nothing here is invented
@@ -18,7 +36,7 @@ import { EDITORIAL_FACE, interFace } from './fonts';
  * cannot be judged when every screen is a different product.
  *
  * The one legitimate exception is a colour the *data* chooses: a health band is
- * owned by `@wellkept/core/health-band` and read at runtime, not stored here.
+ * owned by `@tappet/core/health-band` and read at runtime, not stored here.
  * The phone must not hold a second opinion about what "Fair" looks like.
  */
 
@@ -93,8 +111,29 @@ export const text = {
   muted: 'rgba(255,255,255,0.5)',
   /** Hairlines and rules only. 3.78:1 — not for text. */
   nonText: 'rgba(255,255,255,0.4)',
-  /** Disabled ink. Exempt from the floor under WCAG 1.4.3. */
-  disabled: '#6E6B67',
+  /**
+   * Disabled ink.
+   *
+   * ── ⚠ 6 Sep: raised from `#6E6B67`, and the reason is worth keeping ────────
+   *
+   * This was `#6E6B67` under a comment saying it is "exempt from the floor
+   * under WCAG 1.4.3" — which is true of the *specification* and was never true
+   * of this repo's audit: `contrast.test.tsx` measures disabled labels like
+   * every other string and simply never failed, because button labels were
+   * 16pt bold and therefore *large text*, which needs only 3.0:1. `#6E6B67`
+   * clears that at 3.31:1 on `surface.disabled` and nothing else.
+   *
+   * B1 set button labels in mono caps at 13pt. That is not large text, the
+   * requirement became 4.5:1, and four screens failed at once — the disabled
+   * sign-in, sign-up and both add-a-car states.
+   *
+   * The exemption was available and is deliberately not taken. A disabled
+   * primary is the first thing three of those screens render, so it is the
+   * state a new user reads *before* anything else; "the spec permits it to be
+   * unreadable" is a poor answer to that. `#8A857F` measures **4.62:1** on
+   * `surface.disabled` and stays visibly inert beside `text.primary`.
+   */
+  disabled: '#8A857F',
   /** Ink on the filled primary — the only filled control. 5.10:1 on `brand.primary`. */
   onPrimary: '#F2FBFD',
   /*
@@ -147,14 +186,14 @@ export const brand = {
  */
 export const register = {
   /** Web `--register-accent` in the default register — `--info`. */
-  accent: '#8FB4C4',
+  accent: '#7EC8DC',
 } as const;
 
 /**
  * Status colours.
  *
  * ⚠ **The health band is not here.** Thresholds, wording and colour are owned
- * by `@wellkept/core/health-band` and read at runtime.
+ * by `@tappet/core/health-band` and read at runtime.
  *
  * ── ⚠ 23 Aug: "happen to share hues" was doing a lot of work ────────────────
  *
@@ -171,30 +210,60 @@ export const register = {
  * recall chip beside it in the same amber the dial uses for Critical.
  *
  * `critical: '#E08882'` is **gone** rather than recoloured. It had no call
- * sites — the critical chip reads `dangerText` (`#F87171`, which is already the
- * system's value) and the banners read `criticalFill`/`criticalBorder`. A dead
- * token holding a colliding hex is how a collision comes back.
+ * sites — the critical chip reads `dangerText` and the banners read
+ * `criticalFill`/`criticalBorder`. A dead token holding a colliding hex is how
+ * a collision comes back.
+ *
+ * ⚠ **5 Sep: the reds left, and `attention` did not move.** `dangerText` was
+ * `#F87171` and `danger` was `#DC2626` — a red family sitting beside a sodium
+ * one, which is the second hue the collapse exists to remove. They are now
+ * `--critical` and a solid sodium, and `attention` keeps `#FB923C` because it
+ * was already on the surviving axis. The two families still rhyme without
+ * matching, which is the ruling above and is unaffected by the collapse.
+ *
+ * The delete button was the accidental beneficiary: `text.primary` on `#DC2626`
+ * measured **4.36:1**, under AA, and nothing was asserting it. On the sodium
+ * fill it is 5.68:1.
  *
  * A build reading must still never be coloured from either — a low build is
  * stock, not a fault.
  */
 export const status = {
-  confirm: '#4ADE80',
+  /**
+   * Good news is off-white ink, not a colour.
+   *
+   * This was `#4ADE80` — the green that made "resolved" a third hue in a
+   * two-hue system. Web's `--confirm` is the same off-white as `--ring-good`,
+   * and for the same reason: a car with nothing wrong should read as
+   * unremarkable rather than as a small celebration.
+   */
+  confirm: '#EDE7DF',
   /**
    * Fill behind a success banner, as opposed to `confirm` which is ink.
    *
-   * This app's own shipped value — web has no equivalent banner — kept because
-   * `contrast.test.tsx` already measures white on it. Folds into the
-   * `AlertBanner` primitive in step 2 and should not gain a second caller
-   * before then.
+   * ⚠ **5 Sep: this stopped being green, and stopped being the border too.**
+   *
+   * It was `rgba(22,163,74,0.95)`, and the claim above — that the rendered
+   * suite measured white on it — did not survive checking: `text.primary` on
+   * that green is **2.98:1**, and both callers set exactly that ink. The banner
+   * has been under AA since it shipped and no assertion covered the pair.
+   *
+   * Web's answer is `--confirm-wash` over `--confirm-border`: the identity
+   * lives in the **edge**, not in a fill hue. A wash is wrong here, though —
+   * `GarageScreen`'s deleted-notice is absolutely positioned over the garage,
+   * so its backdrop is unknown, and that is the exact shape of the 4.47:1
+   * defect this file's other notes keep returning to. So the fill is a solid
+   * neutral step (14.47:1) and `confirmBorder` carries the off-white edge.
    */
-  confirmFill: 'rgba(22,163,74,0.95)',
+  confirmFill: '#252119',
+  /** Web `--confirm-border`. The banner's identity is its edge, not a hue. */
+  confirmBorder: 'rgba(237,231,223,0.28)',
   /** Design's value, 23 Aug. Not the health ramp's `warn` — see the docblock. */
   attention: '#FB923C',
-  danger: '#DC2626',
-  dangerText: '#F87171',
+  danger: '#9E460D',
+  dangerText: '#FF8A3D',
   /** Pressed danger. Deepens, for the same reason the primary does. */
-  dangerPressed: '#B91C1C',
+  dangerPressed: '#7E370A',
 
   /**
    * ── Banner pairs ──────────────────────────────────────────────────────────
@@ -204,13 +273,16 @@ export const status = {
    * park-outside warning — and a wash over an unknown backdrop is exactly where
    * the 4.47:1 defect came from on the advisor CTA.
    *
-   * Both pairs are this app's own measured values, kept rather than re-derived
-   * because `mobile-text-contrast.test.ts` already measures white on them. They
-   * become the `AlertBanner` primitive's `critical` and `attention` tones in
-   * step 2 and should gain no other caller.
+   * ⚠ **The attention pair is this app's own measured value; the critical pair
+   * is no longer.** Both used to be, and the note here said so. On 5 Sep the
+   * critical pair was re-derived onto sodium — it was a dark *red*, the hue the
+   * collapse removes — and re-measured rather than assumed: `#431805` carries
+   * `text.primary` at 13.82:1 against the 13.88:1 it replaces, so the change is
+   * hue-only and costs no contrast. The attention pair did not move, because
+   * dark amber was already on the surviving axis.
    */
-  criticalFill: '#4A0F0F',
-  criticalBorder: '#7F1D1D',
+  criticalFill: '#431805',
+  criticalBorder: '#8A3D0E',
   attentionFill: '#4A3308',
   attentionBorder: '#854D0E',
   /** Danger edge on a field that failed validation. */
@@ -221,8 +293,8 @@ export const status = {
    * Distinct from the solid banner pairs above on purpose: a wash is fine when
    * the message can wait, and wrong when it cannot.
    */
-  dangerWash: 'rgba(248,113,113,0.06)',
-  dangerWashBorder: 'rgba(248,113,113,0.3)',
+  dangerWash: 'rgba(255,138,61,0.06)',
+  dangerWashBorder: 'rgba(255,138,61,0.3)',
   /*
     ⚠ The wash follows the ink. It was `rgba(251,191,36,…)` — amber-400, a
     **third** amber in a family that is supposed to have one — so a chip drew
@@ -327,13 +399,33 @@ export const plinth = {
   catchLight: 'rgba(255,255,255,0.16)',
 } as const;
 
-/** Build continuum paint. Zone selection lives in `@wellkept/core/build-progress`. */
+/**
+ * Build continuum paint. Zone selection lives in `@tappet/core/build-progress`.
+ *
+ * ⚠ **The ramp runs cold, and `warm` and `far` are names rather than
+ * descriptions.** It used to climb amber into orange, which put a heavily
+ * modified car on the same axis as a failing one — a build reading is stock or
+ * not, never a fault, and the note in `status` above has always said so while
+ * the colours quietly disagreed.
+ *
+ * The collapse resolves it by giving the whole ramp to cyan: `#7d8794` →
+ * `#8FB6C6` → `#6FC9E4` → `#3ED0F0`, cooling and brightening as the build gets
+ * further from stock. Sodium is left to mean warning and nothing else.
+ * `redline` stays hot on purpose — it is the one reading on this ramp that *is*
+ * a warning.
+ *
+ * The key names are unchanged, deliberately: they are read by
+ * `@tappet/core/build-progress` and by web's `--build-*`, and renaming them
+ * to match the new hues would be a breaking change to a shared contract in
+ * exchange for nothing. Web carries `--build-warm` as a cyan for the same
+ * reason.
+ */
 export const build = {
   stock: '#7D8794',
-  mild: '#9FC8D8',
-  warm: '#E0C168',
-  far: '#F0A35E',
-  redline: '#FF4436',
+  mild: '#8FB6C6',
+  warm: '#6FC9E4',
+  far: '#3ED0F0',
+  redline: '#FF5A0A',
 } as const;
 
 /**
@@ -355,17 +447,57 @@ export const space = {
   h4: 64,
 } as const;
 
-/** **9, 10 and 16 do not exist.** */
+/**
+ * ── ⚠ 6 Sep: every radius is 0, and the names are kept on purpose ───────────
+ *
+ * Locked brief B4: *"Every container corner is a 45° cut at zero radius —
+ * buttons, fields, chips, bubbles, composer; no capsules or pills."*
+ *
+ * This was a five-step scale (8 / 12 / 14 / 20 / 999) and the docblock above it
+ * used to read "9, 10 and 16 do not exist" — a rule about which *radii* were
+ * sanctioned, from a system that had radii. The web client stopped having them
+ * on 4–5 September; the phone kept them for a day and a half, which is most of
+ * why the two clients read as two products.
+ *
+ * **Why the tokens survive as zeroes rather than being deleted.** Sixty-seven
+ * call sites reference this object. Deleting it turns every one of them into a
+ * compile error at once, and the honest fix at each is not "remove the line" —
+ * it is "does this surface take a cut, and on which corner?", which is a design
+ * question per call site. Zeroing the scale makes the whole app obey B4's
+ * *"zero radius"* half immediately and leaves the *"45° cut"* half to be added
+ * deliberately, surface by surface, with `CutSurface`.
+ *
+ * ⚠ **So a surviving `borderRadius: radius.card` is not a bug and not done.**
+ * It renders correctly today and it is a marker for a corner that has not been
+ * given its cut yet. `radius.pill` is the one to watch: a control that wanted a
+ * capsule now renders a rectangle, which is right, but it is the shape most
+ * likely to want a cut rather than a plain corner.
+ */
 export const radius = {
   /** Wells and fields. */
-  well: 8,
+  well: 0,
   /** Buttons. */
-  button: 12,
+  button: 0,
   /** Cards, panels, modals. */
-  card: 14,
+  card: 0,
   /** Hero photo and the identity plate. */
-  hero: 20,
-  pill: 999,
+  hero: 0,
+  /** Was 999. A capsule is a shape this system does not have. */
+  pill: 0,
+} as const;
+
+/**
+ * The cut's leg, by surface. The counterpart to the zeroed scale above.
+ *
+ * Two values, because the brief names two: 8 on the plate — *"full-bleed with
+ * one 45° cut"* — and 12 on a control. A third would be a radius scale growing
+ * back under a different name.
+ */
+export const cut = {
+  /** The photo plate, and anything at that scale. */
+  plate: 8,
+  /** Buttons, fields, chips, the composer. */
+  control: 12,
 } as const;
 
 /**
@@ -419,6 +551,17 @@ export const type = {
     fontWeight: '600' as const,
   },
   /** 13 — a value. Tabular wherever it is data. */
+  /**
+   * ⚠ **Misnamed: this is small *prose*, not a value.** All but one of its ~30
+   * call sites are hints, footnotes, reasons, caveats and disclosures, and sans
+   * is right for every one of them.
+   *
+   * B1 gives values, dates, indices and states to `mono` — so reaching for this
+   * token because a thing is "a value" gets the wrong face, which is how an
+   * invoice total ended up in Inter with `TABULAR` bolted on. Left named as it
+   * is because renaming touches thirty files for no behaviour; this note is the
+   * cheaper half of the fix.
+   */
   value: { fontFamily: interFace('400'), fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
   /** 12 — the word that names a value. The type floor. */
   label: {
@@ -427,6 +570,147 @@ export const type = {
     lineHeight: 16,
     fontWeight: '600' as const,
     letterSpacing: 0.6,
+  },
+
+  /*
+    ── ⚠ 6 Sep: the display and mono slots, under the locked iOS brief ────────
+
+    Everything above this comment is the scale the app shipped with, and it is
+    **one family doing every job** — Inter for titles, for values, for state
+    words, for indices, with the serif on top for a screen's name. The locked
+    brief (`design-loop/mobile-ios/brief.md`, B1) replaces that with the
+    system's three voices: condensed grotesk for names and heads, mono for
+    every value/date/index/state/tab label, Inter for body, serif for the
+    wordmark alone.
+
+    The Inter tokens are **kept rather than deleted**, because body copy is
+    still Inter and roughly half the app's strings are body. What must not
+    happen is `type.title` continuing to set a screen's name — that is what
+    `display` is for now, and `type.editorial` is for the wordmark only.
+
+    ⚠ Every token below names a **face**, never a bare weight. See `fonts.ts`:
+    React Native resolves a family by filename and will render San Francisco in
+    silence if the face is missing. That is the whole reason these are functions
+    rather than strings.
+  */
+
+  /**
+   * A screen's own name. Left-aligned, caps, one line.
+   *
+   * 34 is the brief's figure and it is deliberately large — this is the title
+   * that *replaces* a centred iOS nav title, so it has to carry the weight the
+   * nav bar used to.
+   */
+  display: {
+    fontFamily: displayFace('700'),
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: '700' as const,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
+  },
+  /**
+   * A section's *eyebrow* — the small caps line naming what follows.
+   *
+   * ── ⚠ Why this exists rather than reusing `label` ───────────────────────────
+   *
+   * `SectionHeader` set these in `type.label`, which is Inter, and the critique
+   * caught it in three consecutive rounds: "WHAT IS DRIVING IT / SIGNED IN AS /
+   * LEGAL are tracked grey sans, neither condensed nor mono". B1 gives section
+   * heads the condensed grotesk, and an eyebrow is a section head that happens
+   * to be small.
+   *
+   * ⚠ **Not `displaySection` at a smaller size.** That token is 20pt and names a
+   * section you can see from across the room; this is 12pt and names one you are
+   * already reading. Same face, same case, different job — collapsing them would
+   * make every eyebrow a heading.
+   *
+   * ⚠ 12, not 11 — the type floor. `theme-backdrop.test.tsx` enforces it and has
+   * already caught one token trying to go under.
+   */
+  displayLabel: {
+    fontFamily: displayFace('600'),
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600' as const,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
+  },
+  /** A section inside a screen. The step below `display`, one weight lighter. */
+  displaySection: {
+    fontFamily: displayFace('600'),
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '600' as const,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
+  },
+  /**
+   * The dial's reading, and the largest thing on any screen that carries one.
+   *
+   * ⚠ Not a `fontSize` picked to look right — B3 makes the numeral *dominant*,
+   * which is the line that stops the reading being a caption under a picture of
+   * a gauge. Pair with `TABULAR`: a score that reflows while it counts up reads
+   * as a glitch.
+   */
+  numeral: {
+    fontFamily: displayFace('700'),
+    fontSize: 88,
+    lineHeight: 92,
+    fontWeight: '700' as const,
+    letterSpacing: -1,
+  },
+  /** The same reading where it sits inside the plate rather than owning a screen. */
+  numeralPlate: {
+    fontFamily: displayFace('700'),
+    fontSize: 44,
+    lineHeight: 48,
+    fontWeight: '700' as const,
+    letterSpacing: -0.5,
+  },
+  /**
+   * A value: mileage, a date, a price, a score contributor.
+   *
+   * ⚠ This is the token that replaces `type.value`. Under B6 a record list is a
+   * spec table with right-aligned numerals, and a proportional face cannot hold
+   * a column.
+   */
+  mono: {
+    fontFamily: monoFace('400'),
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400' as const,
+  },
+  /**
+   * The word that names a value, a state word, a row index, a tab label.
+   *
+   * Caps and tracked. This is `label`'s replacement everywhere the string is a
+   * label rather than a sentence — and it is the single most common breach to
+   * watch for, because `type.label` still exists and still looks fine.
+   */
+  monoLabel: {
+    fontFamily: monoFace('500'),
+    /*
+      ⚠ 12, not the 11 this was first written at. `theme-backdrop.test.tsx`
+      caught it, and the guard is right: the floor is 12 and the docblock on the
+      tick numbers already says it "does not have a decorative exemption — the
+      moment one is granted, 'it's only a label' is available to every string on
+      the phone". A mono caps label is a string.
+    */
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500' as const,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
+  },
+  /** The collapsed nav title, and the breadcrumb above a `display`. */
+  monoNav: {
+    fontFamily: monoFace('500'),
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '500' as const,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
   },
 } as const;
 

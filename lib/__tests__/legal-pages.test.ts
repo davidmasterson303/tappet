@@ -21,7 +21,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { SUBSCRIPTION_CANCEL_PATH } from '@wellkept/core/account-deletion';
+import { SUBSCRIPTION_CANCEL_PATH } from '@tappet/core/account-deletion';
 
 import { CONTACT_EMAIL, LAST_UPDATED, OPERATOR } from '@/lib/legal';
 
@@ -116,7 +116,7 @@ describe('the two documents cannot contradict the app', () => {
   it('agrees with the app that deleting an account does not cancel billing', () => {
     // `subscriptionNotice` says this in the app. Both documents say it too,
     // because it is the one thing here that costs money to get wrong.
-    expect(termsText).toMatch(/deleting your well kept account does not stop the/i);
+    expect(termsText).toMatch(/deleting your tappet account does not stop the/i);
     expect(privacyText).toMatch(/does not cancel an App Store subscription/i);
   });
 });
@@ -183,7 +183,7 @@ describe('who operates the service, and who to write to about it', () => {
     placeholder would still be caught.
 
     ⚠ A green run here does not mean the public page is fixed. Nothing deploys
-    from `main`; `crewchief.davidmasterson.co` serves `web-live`, and these
+    from `main`; `tappet.southmoordigital.com` serves `web-live`, and these
     values reach a reader only after a promote.
   */
 
@@ -212,7 +212,7 @@ describe('who operates the service, and who to write to about it', () => {
       which is the worst shape a support channel can have: it looks answered.
 
       It also survived the rename, because a find-and-replace on the product
-      name would have produced `feedback@wellkept.app` — the same dead address
+      name would have produced `feedback@tappet.app` — the same dead address
       wearing the new name. An address is not copy.
 
       So the rule is one address, from one constant. This walks the tree rather
@@ -326,10 +326,10 @@ describe('who operates the service, and who to write to about it', () => {
       line somebody had to write on purpose.
 
       ⚠ Moved to 30 August with the operator becoming Southmoor Digital LLC.
-      Unlike the 19 August bump, this one is ahead of its own promote: web-live
-      has been frozen since 23 Aug, so the published policy still names David
-      personally. If the promote slips past the 30th, this literal and the
-      constant both move to the day it runs.
+      Unlike the 19 August bump, this one was written ahead of its own promote —
+      and that promote then happened. Checked 6 Sep: the live policy serves
+      "Southmoor Digital LLC" and names David nowhere, so the literal below is a
+      date a reader can see, and it stays where it is.
     */
     expect(LAST_UPDATED).toBe('30 August 2026');
     expect(new Date(LAST_UPDATED).getTime()).not.toBeNaN();

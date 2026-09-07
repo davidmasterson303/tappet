@@ -8,14 +8,16 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
+
+import StatStrip, { type Stat } from './StatStrip';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
 
 import BayRoom, { BayLightPool, bayHeroHeight } from './BayRoom';
 import ClusterGauge from './ClusterGauge';
 import {
   UNKNOWN_TIMING,
   describeNextService,
-} from '@wellkept/core/garage-next-service';
+} from '@tappet/core/garage-next-service';
 import { TABULAR, TARGET_MIN, bay, space, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
 import { interFace } from '../theme/fonts';
@@ -91,7 +93,7 @@ export default function GarageBay({
   score,
   index,
   total,
-  subtitle,
+  stats,
   active = true,
   onOpen,
   uploading,
@@ -115,8 +117,15 @@ export default function GarageBay({
   /** Zero-based position, for the batten. */
   index: number;
   total: number;
-  /** "Premium · Daily driver · 48,210 mi" — assembled by the caller. */
-  subtitle?: string;
+  /**
+   * The stat strip's cells, assembled by the caller.
+   *
+   * ⚠ Was a pre-joined `subtitle` string. B2 asks for a mono eyebrow over each
+   * value in hairline-separated cells, which a joined string cannot express —
+   * by the time it arrived here the labels were gone and the separators were
+   * punctuation. See `StatStrip`.
+   */
+  stats?: Stat[];
   /**
    * Whether this is the bay on screen.
    *
@@ -269,7 +278,7 @@ export default function GarageBay({
         accessibilityLabel={onOpen ? `${name || 'Vehicle'}, open details` : undefined}
         style={styles.target}
       >
-        <View>
+        <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
             make={vehicle.make}
@@ -303,17 +312,25 @@ export default function GarageBay({
               ]}
             />
           )}
-        </View>
 
-        <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name || 'Vehicle'}
-          </Text>
-          {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
+          {/*
+            ── ⚠ 6 Sep · B2: the identity sits *on* the plate, not under it ────
+
+            B2 puts "the model name in condensed caps over its lower third", and
+            `VehicleDetailScreen` already did — the critique called that one
+            correct and this one wrong in the same sentence: "Garage drops the
+            name onto graphite beneath the plate."
+
+            Two screens showing the same car with the same facts in two
+            arrangements is the defect; whichever is right, they cannot disagree.
+            Vehicle is the one the brief describes, so Garage moves to it.
+          */}
+          <View style={styles.identity}>
+            <Text style={styles.name} numberOfLines={1}>
+              {name || 'Vehicle'}
             </Text>
-          ) : null}
+            {stats ? <StatStrip stats={stats} /> : null}
+          </View>
         </View>
       </Pressable>
 
@@ -444,7 +461,7 @@ const styles = StyleSheet.create({
   /* A fill swap on press. Never a group opacity — see `Button`. */
   nextServicePressed: { backgroundColor: surface.raised },
   /** 12/600 at 0.6 tracking — the label role, and the floor. Never smaller. */
-  nextServiceLabel: { ...type.label, color: text.muted },
+  nextServiceLabel: { ...type.monoLabel, color: text.muted },
   /*
     Right-aligned and allowed to take the slack, so the label column stays put
     across a stack of bays. A value that started at a different x on every card
@@ -453,12 +470,19 @@ const styles = StyleSheet.create({
   nextServiceValue: { flex: 1, alignItems: 'flex-end' },
   nextServiceJob: { ...type.ui, color: text.primary, textAlign: 'right' },
   /* R11. "in 4,000 mi" is a figure, and figures do not reflow between bays. */
-  nextServiceTiming: { ...type.value, color: text.muted, textAlign: 'right', ...TABULAR },
+  nextServiceTiming: { ...type.mono, color: text.muted, textAlign: 'right', ...TABULAR },
   /*
     The same size, one step quieter. Not italic and not a different face: this
     is a real answer to the question, not an apology for one.
   */
-  nextServiceUnknown: { ...type.ui, color: text.muted, flex: 1, textAlign: 'right' },
+  /*
+    ⚠ 6 Sep · B1: mono. "No schedule yet" is a **state**, and B1 gives states
+    mono along with values and dates — the job name above it is a name and keeps
+    the sans. The critique saw this one sitting in a slot whose every other
+    occupant is mono and read it as a leak, which it was: the slot is right, and
+    what belongs in it changes with the string.
+  */
+  nextServiceUnknown: { ...type.mono, color: text.muted, flex: 1, textAlign: 'right' },
   /**
    * ⚠ **No horizontal padding, as of 23 Aug.**
    *
@@ -488,11 +512,21 @@ const styles = StyleSheet.create({
    * short numeric label read as a fixture rather than as a heading.
    */
   bayNumber: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: interFace('700'), fontWeight: '700',
-    letterSpacing: 2.16,
-    color: bay.light,
+    /*
+      ⚠ This was a hand-rolled size/weight/tracking triple that existed nowhere
+      in the scale — 12/16 at Inter 700 with 2.16 tracking. It is a mono index
+      label under B1, and `type.monoLabel` is that token.
+    */
+    ...type.monoLabel,
+    /*
+      ⚠ 6 Sep · B7: off-white, not `bay.light`. `bay.light` aliases
+      `brand.accent`, so the bay's index was drawn in the accent cyan — which
+      makes cyan an *ink*. In this system cyan is a rule, a focus ring and the
+      refresh ramp; the moment it labels something, "active" and "informational"
+      stop being distinguishable and the tab bar's overline has nothing left to
+      say. The bay number is a mono index like any other.
+    */
+    color: text.muted,
     ...TABULAR,
   },
   position: { ...type.label, fontFamily: interFace('500'), fontWeight: '500', letterSpacing: 0, color: text.muted, ...TABULAR },
@@ -514,7 +548,20 @@ const styles = StyleSheet.create({
    * hero while every pixel behind it is the page. That is the difference
    * between this and a scrim, and `HERO_FADE` carries why it matters.
    */
-  identity: { gap: 3, paddingHorizontal: space.lg, marginTop: -space.md },
+  /*
+    Absolute over the plate's lower third, so the name reads against the
+    photograph rather than against the graphite below it. `bottom` rather than a
+    fixed offset: the plate's height is derived from the window.
+  */
+  plate: { position: 'relative' },
+  identity: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: space.md,
+    gap: 3,
+    paddingHorizontal: space.lg,
+  },
   /**
    * The one editorial role on this screen.
    *
@@ -523,8 +570,14 @@ const styles = StyleSheet.create({
    * 15 Aug: the EAS budget was confirmed at 12 iOS builds left this month, so a
    * build for a font is affordable rather than a real trade.
    */
-  name: { ...type.editorial, color: text.primary },
-  subtitle: { ...type.value, color: text.muted },
+  /*
+    ⚠ B1, 6 Sep: the serif came off the model name. It is a *name* — the thing
+    the brief sets in condensed grotesk caps — and it was the most visible
+    serif in the app, repeated once per bay.
+  */
+  name: { ...type.display, color: text.primary },
+  /* B2: the stat strip under the name is mono, not a proportional sans. */
+  subtitle: { ...type.mono, color: text.muted, ...TABULAR },
 
   instrument: { alignItems: 'center' },
   noScore: { ...type.body, color: text.muted, paddingVertical: space.xl },

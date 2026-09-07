@@ -39,7 +39,7 @@ function readoutSizes(nodes: Array<{ props: Record<string, unknown> }>): number[
   });
 }
 import { apiRequest, ApiRequestError } from '../../api/client';
-import { getHealthBandJudgement } from '@wellkept/core/health-band';
+import { getHealthBandJudgement } from '@tappet/core/health-band';
 
 /**
  * The dossier.
@@ -50,7 +50,7 @@ import { getHealthBandJudgement } from '@wellkept/core/health-band';
  *
  * ── Two things worth pinning beyond "it renders" ────────────────────────────
  *
- * **The health band comes from `@wellkept/core/health-band`**, which both
+ * **The health band comes from `@tappet/core/health-band`**, which both
  * clients read. A band spelled locally would let the phone call a car "Fair"
  * while the web calls the same score "Needs attention" — the exact divergence
  * the shared package exists to prevent. The test asserts against the real
@@ -416,7 +416,7 @@ describe('what this screen leads to stays reachable', () => {
     expect(at('Ask the advisor')).toBeLessThan(at('What you told us'));
   });
 
-  it('shows the score twice, and never over the car', async () => {
+  it('shows the score once, and never over the car', async () => {
     /*
       ⚠ Rewritten 23 Aug when the hero dial was removed. It used to assert the
       dial's readout size — 20 at hero/132, 36 at card/104 — which is now a
@@ -427,6 +427,16 @@ describe('what this screen leads to stays reachable', () => {
       reading is the subject of the paragraph under it. Three copies existed for
       part of a day and the dial was the one that went, because it covered the
       car.
+
+      ⚠ Rewritten again 6 Sep, and the same sentence explains why: the count has
+      now gone from two to **one**. The design critique measured the remaining
+      duplication three rounds running — the chip's 16pt reading sitting ~300pt
+      above the card's 30pt one — and a score printed twice at two sizes asks
+      which is the reading.
+
+      The durable half of this guard is "**never over the car**", which is the
+      invariant the dial's removal established. The count was a snapshot of the
+      day it was written, and it is the half that keeps changing.
     */
     respond();
     const { view } = await mount(REFERENCE);
@@ -434,9 +444,9 @@ describe('what this screen leads to stays reachable', () => {
     await view.findAllByText(/2018 Honda Accord/);
 
     const readouts = await view.findAllByText('61');
-    expect(readouts).toHaveLength(2);
-    // The chip's fixed 16, and the card's own 30. No instrument readout.
-    expect(readoutSizes(readouts).sort((a, b) => a - b)).toEqual([16, 30]);
+    expect(readouts).toHaveLength(1);
+    // The card's own 30. No chip, and no instrument readout over the photograph.
+    expect(readoutSizes(readouts)).toEqual([30]);
   });
 
   it('sizes the hero title down on the shortest display', async () => {
@@ -692,30 +702,34 @@ describe('the health verdict, against what the screen is holding', () => {
  * missing hit area or a missing name costs the most.
  */
 describe('the hero’s nav, as controls', () => {
-  it('gives the score chip a name that says where it goes', async () => {
+  it('keeps a named door to the health detail', async () => {
     respond();
     const { view } = await mount();
 
     /*
-      R10. It was `pointerEvents="none"` chrome announcing "Health score 61 out
-      of 100 — Fair" and offering nothing to do about it. A reading and a door
-      to a reading are different things, and the arc cannot distinguish them.
+      R10's claim, re-pointed 6 Sep. It was written for the nav chip — which was
+      `pointerEvents="none"` chrome announcing "Health score 61 out of 100 —
+      Fair" and offering nothing to do about it — and the claim was that a
+      reading and a *door* to a reading are different things.
+
+      The chip is gone (it printed the score a second time), so the claim now
+      rests on the hub row, which is the remaining route. What must not happen is
+      that health becomes unreachable from this screen, which is exactly what
+      deleting the chip could have caused without this.
     */
-    const chip = await view.findByLabelText('Health score 61, Fair. Opens health detail.');
-    expect(chip.props.accessibilityRole).toBe('button');
+    const row = await view.findByText('What is driving this score');
+    expect(row).toBeTruthy();
   });
 
-  it('opens the health detail from the chip', async () => {
+  it('opens the health detail from that door', async () => {
     respond();
     const { props, view } = await mount();
 
-    await userEvent.press(
-      await view.findByLabelText('Health score 61, Fair. Opens health detail.')
-    );
+    await userEvent.press(await view.findByText('What is driving this score'));
     expect(props.onOpenHealth).toHaveBeenCalled();
   });
 
-  it('grows both nav targets to 44pt without redrawing them', async () => {
+  it('grows the nav target to 44pt without redrawing it', async () => {
     /*
       R25. The pills are drawn at 36 because that is what reads as a pill over a
       photograph rather than as a bar. `hitSlop` is React Native's
@@ -729,7 +743,13 @@ describe('the hero’s nav, as controls', () => {
     respond();
     const { view } = await mount();
 
-    for (const label of ['Back to the garage', 'Health score 61, Fair. Opens health detail.']) {
+    /*
+      ⚠ One target, not two, since 6 Sep — the score chip was cut. The claim is
+      unchanged and still worth holding: the control is drawn at the size that
+      reads over a photograph, and the target is grown around it rather than the
+      drawing being inflated.
+    */
+    for (const label of ['Back to the garage']) {
       const slop = (await view.findByLabelText(label)).props.hitSlop as Record<string, number>;
 
       expect(slop).toBeDefined();

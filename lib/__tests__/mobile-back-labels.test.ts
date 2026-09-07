@@ -124,6 +124,28 @@ function computesTitle(attributes: string): boolean {
   return /title:\s*[^'\s]/.test(attributes);
 }
 
+/**
+ * Supplied by `rootTitle('SERVICE')` — a factory, not a literal `title:`.
+ *
+ * ── ⚠ Why this detector had to be added ─────────────────────────────────────
+ *
+ * B8 made a tab root's header conditional (`headerShown: navigation.canGoBack()`
+ * — a root has no chevron, the same screen pushed from the hub does), which
+ * needs `options` to be a *function* of the navigation prop. The title moved
+ * inside that factory, and this scan stopped being able to see it: three routes
+ * reported as untitled while all three were titled.
+ *
+ * ⚠ The guard was right to fire and wrong about the cause, which is the shape
+ * `CLAUDE.md` warns is worse than no guard — a spurious failure on an invisible
+ * rule gets *made to pass*, and the tempting way to make this one pass was to
+ * delete the routes from the scan. Teaching it the new shape keeps the claim: a
+ * route with no title anywhere publishes its own name as the next screen's back
+ * label, which is how six screens once read "‹ VehicleDetail".
+ */
+function titledByHelper(attributes: string): boolean {
+  return /options=\{rootTitle\('[^']+'\)\}/.test(attributes);
+}
+
 const navigator = readFileSync(NAVIGATOR, 'utf8');
 
 describe('RootNavigator — back labels are the product\'s words', () => {
@@ -158,7 +180,12 @@ describe('RootNavigator — back labels are the product\'s words', () => {
       route that would leak instead of stopping at the first.
     */
     const untitled = screensIn(navigator)
-      .filter(({ attributes }) => declaredTitle(attributes) === null && !computesTitle(attributes))
+      .filter(
+        ({ attributes }) =>
+          declaredTitle(attributes) === null &&
+          !computesTitle(attributes) &&
+          !titledByHelper(attributes)
+      )
       .map(({ name }) => `${name} → back button would read "‹ ${name}"`);
 
     expect(untitled).toEqual([]);

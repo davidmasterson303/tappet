@@ -1,9 +1,9 @@
-import { logger } from '@wellkept/core/logger';
+import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
-import type { ApiResponse } from '@wellkept/core/types';
+import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { vehicleIdFromStoragePath } from '@wellkept/core/storage-paths';
+import { vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,13 +47,18 @@ const SIGNED_URL_TTL_SECONDS = 3600;
  * `demo-placeholder.local` paths pointing at no file. `load-maintenance-data`
  * makes the same call and reports them **omitted rather than empty**.
  *
- * ── ⛔ This is a new route, so it needs a promote to exist ──────────────────
+ * ── ✅ Promoted — the route exists on the hostname, checked 6 Sep ───────────
  *
- * `web-live` has been frozen since 23 Aug. Until it moves, the phone calls this
- * path and gets a 404 from a deployment that has never heard of it — §8's "a
- * 404 on a path that works perfectly on `main`". The client says so in as many
- * words rather than showing a generic failure; see `invoiceUrl` in
- * `apps/mobile/src/api/documents.ts`.
+ * It needed a promote to exist and it has had one. `GET /api/v1/document-url`
+ * on the product host answers **400** to a malformed request, while an unrouted
+ * path under `/api/v1/` answers **404** — that pair is the discriminator, and it
+ * says the deployment has heard of this path.
+ *
+ * The rule that put the warning here is unchanged: §8, a mobile build needing a
+ * new `/api/v1/*` route must be promoted first, or it ships calling something
+ * that is not there — "a 404 on a path that works perfectly on `main`". The
+ * client still says so in as many words rather than showing a generic failure;
+ * see `invoiceUrl` in `apps/mobile/src/api/documents.ts`.
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const identifier = getClientIdentifier(request);

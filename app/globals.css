@@ -243,7 +243,7 @@ nav {
         #0E7490 + #06181C             = 3.39:1  — FAILS. Never ship this pair.
         #0E7490 + #F2FBFD (light ink) = 5.10:1  — what this is now
       The old pairing already passed, so this is a design change rather than an
-      AA fix: every other surface in Well Kept is light-on-dark, and dark ink on
+      AA fix: every other surface in Tappet is light-on-dark, and dark ink on
       the one filled CTA reads as a highlighter — the v4 failure where three
       competing CTAs on a screen meant no primary at all. It also keeps real
       distance between the fill and the reserved cyan-400 accent.
@@ -2233,8 +2233,27 @@ nav {
       );
     }
   }
+  /*
+   * ── ⚠ The label tier lifted off the floor — 5 Sep ─────────────────────────
+   *
+   * This was `text-white/50`, which is the *floor* — the value
+   * `text-contrast-floor.test.ts` refuses to let any string go below. Sitting a
+   * whole tier exactly on its own minimum is how the third ink ends up reading
+   * as **disabled** rather than as quiet, and a critique of the rendered
+   * `/vehicle-info` said precisely that.
+   *
+   * The north-star's secondary ink is `#CCCCCC` — around 80% — so 50% was not a
+   * quieter version of the reference, it was a different intention. 70% is a
+   * step toward it that keeps a clear three-tier ladder: off-white value,
+   * lifted grey label, and the floor left free for the genuinely subordinate
+   * (the AI disclosure, which stays at 50% because it *is* the quietest thing
+   * on a page and has no reason to compete with a spec).
+   *
+   * ⚠ A floor is not a design token. If a label ever needs to be quieter than
+   * this, that is a question about the label, not licence to spend the floor.
+   */
   .label-uppercase {
-    @apply text-xs font-semibold uppercase tracking-widest text-white/50;
+    @apply text-xs font-semibold uppercase tracking-widest text-white/70;
   }
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out forwards;

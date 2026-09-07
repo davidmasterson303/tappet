@@ -1,8 +1,8 @@
 import { getServiceRoleClient } from '@/lib/supabase';
 import { requireSession } from '@/lib/api-auth';
-import { vehicleStoragePrefixes } from '@wellkept/core/storage-paths';
-import { logger } from '@wellkept/core/logger';
-import { hasLiveEntitlement, readFailureMeansNoSubscription } from '@wellkept/core/entitlement';
+import { vehicleStoragePrefixes } from '@tappet/core/storage-paths';
+import { logger } from '@tappet/core/logger';
+import { hasLiveEntitlement, readFailureMeansNoSubscription } from '@tappet/core/entitlement';
 
 const DOCUMENTS_BUCKET = 'vehicle-documents';
 

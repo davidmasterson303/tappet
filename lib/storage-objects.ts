@@ -9,7 +9,7 @@
  * It never should have: the bucket is private (migration 20260726180000), so
  * an HTTP fetch of one of its objects cannot succeed regardless of what is
  * stored. The column now holds a storage path (see `storedUrl` in
- * `@wellkept/core/storage-paths`), and the bytes come out of the Storage API
+ * `@tappet/core/storage-paths`), and the bytes come out of the Storage API
  * directly — no URL, no signing, no round trip through the public internet to
  * reach a file this process can already read.
  */
@@ -18,8 +18,8 @@ import { getServiceRoleClient } from '@/lib/supabase';
 import {
   storagePathFromStoredUrl,
   vehicleIdFromStoragePath,
-} from '@wellkept/core/storage-paths';
-import { logger } from '@wellkept/core/logger';
+} from '@tappet/core/storage-paths';
+import { logger } from '@tappet/core/logger';
 
 export const DOCUMENTS_BUCKET = 'vehicle-documents';
 

@@ -26,7 +26,7 @@
       "@/*": [
         "./*"
       ],
-      "@wellkept/core/*": [
+      "@tappet/core/*": [
         "./packages/core/src/*"
       ]
     }

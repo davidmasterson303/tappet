@@ -17,7 +17,7 @@ import {
   MINDEDNESS,
   OBJECTIVE_MAX,
   validateProfileUpdate,
-} from '@wellkept/core/vehicle-profile';
+} from '@tappet/core/vehicle-profile';
 
 describe('what may be written', () => {
   it('takes only the fields that were supplied', () => {

@@ -17,12 +17,12 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
-import { buildPosition } from '@wellkept/core/build-progress';
-import { showsModifications } from '@wellkept/core/mod-progression';
-import { UNKNOWN_TIMING, describeNextService, localToday } from '@wellkept/core/garage-next-service';
-import { componentPlainName, normaliseRecalls } from '@wellkept/core/recalls';
-import { healthVerdict } from '@wellkept/core/health-claims';
+import type { HealthDriver } from '@tappet/core/health-drivers';
+import { buildPosition } from '@tappet/core/build-progress';
+import { showsModifications } from '@tappet/core/mod-progression';
+import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/garage-next-service';
+import { componentPlainName, normaliseRecalls } from '@tappet/core/recalls';
+import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -31,6 +31,7 @@ import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import { type HealthReading } from '../components/HealthHistory';
 import ProvenanceRow from '../components/ProvenanceRow';
 import Icon from '../components/Icon';
+import StatStrip, { type Stat } from '../components/StatStrip';
 import ListGroup from '../components/ListGroup';
 import NavRow from '../components/NavRow';
 import SectionHeader from '../components/SectionHeader';
@@ -48,8 +49,8 @@ import {
   detailHeroHeight,
   heroBands,
 } from '../theme/hero-motion';
-import { TABULAR, border, brand, hero, plinth, radius, space, surface, text, type } from '../theme';
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
+import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 /*
   ⚠ `PHOTO_HERO = 196` is gone. The hero is no longer a band with a number on
@@ -93,7 +94,7 @@ import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-ban
  *
  * ── Why the shared health band, again ───────────────────────────────────────
  *
- * Same reasoning as the garage: `@wellkept/core/health-band` holds the
+ * Same reasoning as the garage: `@tappet/core/health-band` holds the
  * thresholds and the wording, the web dashboard reads it, and a local copy of
  * "80 is good" drifts silently. This screen and the row it came from must
  * agree, and the only way to guarantee that is to not have a second opinion.
@@ -315,6 +316,18 @@ type State =
     }
   | { status: 'missing' }
   | { status: 'error'; message: string; unauthorized: boolean };
+
+/**
+ * The ink a reading takes: off-white unless the ramp calls it a warning.
+ *
+ * ⚠ Named against the band rather than a numeric threshold, so the boundary
+ * stays owned by `@tappet/core/health-band`. A `score < 60` written here
+ * would be the phone holding a second opinion about where "Fair" ends — the
+ * drift that module exists to prevent.
+ */
+const WARNING_INK = (band: { name: string }) => ({
+  color: band.name === 'warn' || band.name === 'bad' ? status.attention : text.primary,
+});
 
 export function VehicleDetailScreen({
   vehicleId,
@@ -615,15 +628,25 @@ export function VehicleDetailScreen({
     number an owner checks, and it spent this screen's whole life five rows down
     in a "Details" card under two instruments.
   */
-  const subtitle = [
+  /*
+    ⚠ 6 Sep · B2: cells, not a joined sentence. This was
+    `[mileage, trim, status].join(' · ')` — three values set as prose in the body
+    sans. `StatStrip` carries the reasoning; what matters here is that the
+    **order is shared with `GarageScreen`**, which built its own join in the
+    opposite order until the critique noticed the two screens disagreed.
+
+    Empty cells are dropped rather than dashed: a missing value is "we cannot
+    say", not a reading of nothing.
+  */
+  const stats: Stat[] = [
     typeof vehicle.current_mileage === 'number'
-      ? `${miles.format(vehicle.current_mileage)} mi`
+      ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi` }
       : null,
-    vehicle.trim,
-    vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
+    vehicle.vehicle_status
+      ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
+      : null,
+  ].filter((cell): cell is Stat => cell !== null);
 
   /*
     ── Open recalls, which is not the same number as recalls ─────────────────
@@ -658,7 +681,7 @@ export function VehicleDetailScreen({
   /*
     ── The verdict, and why it is not `health.summary` ───────────────────────
 
-    See `healthVerdict` in `@wellkept/core/health-claims` for the defect: this
+    See `healthVerdict` in `@tappet/core/health-claims` for the defect: this
     screen read "a complete lack of documented maintenance" over a car with five
     filed services, because the stored sentence was written before they arrived
     and nothing on this path recomputes it.
@@ -845,37 +868,23 @@ export function VehicleDetailScreen({
           <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
             {name}
           </Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <StatStrip stats={stats} />
         </Animated.View>
 
         {/*
-          The photo control, kept. It was on `VehiclePlate`, which this hero
-          replaces — and it is the only way to give a car a picture from this
-          screen. It rides the identity's fade so it is gone by the time the
-          sheet reaches it.
-        */}
-        {pickPhoto && (
-          <Animated.View style={[styles.photoAction, { opacity: identityFade }]}>
-            {/*
-              ⚠ `Button`, not a hand-rolled `Pressable` that swaps its label for
-              a spinner. RN derives a control's name from its `<Text>` children,
-              so that pattern goes anonymous at exactly the moment something is
-              happening — `mobile-busy-controls-named` holds the app at zero of
-              them, and it caught this one.
+          ── ⚠ 6 Sep · the photo control moved to the nav row ─────────────────
 
-              It wears the hero's pill fill because it floats over a photograph;
-              the busy behaviour is the primitive's.
-            */}
-            <Button
-              label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
-              variant="ghost"
-              size="small"
-              busy={uploading}
-              onPress={() => void onAddPhoto()}
-              style={styles.pill}
-            />
-          </Animated.View>
-        )}
+          It sat absolutely at this plate's bottom-right, where the content
+          surface covered all but its top ~12pt. The critique reported a clipped
+          rectangle there on two consecutive rounds — first as a fill, then as an
+          outline — and never as a control, because there was not enough of it
+          visible to read as one.
+
+          The nav row is where it belongs anyway: it acts on the *photograph*,
+          which is chrome over the hero rather than content in the sheet, and the
+          slot beside "‹ GARAGE" came free when the score chip was cut.
+        */}
+
       </View>
 
       {/* ── z2 · SHEET — the only thing that travels. ───────────────────────── */}
@@ -943,8 +952,21 @@ export function VehicleDetailScreen({
             paragraph under it.
           */}
           <View style={styles.scoreHead}>
-            <Text style={[styles.scoreValue, { color: healthBandHex(band) }]}>{score}</Text>
-            <Text style={[styles.scoreBand, { color: healthBandHex(band) }]}>{band.label}</Text>
+            {/*
+              ── ⚠ 6 Sep · B3 and B7: the score stopped wearing the band ──────
+
+              Both of these took `healthBandHex(band)` at every reading, so a 70
+              printed in the `ok` band's `#D6BE9B` — the gold B3 names and bans,
+              and a third hue on a two-hue system. The dial one screen away had
+              already moved to off-white ink; this was the same reading in a
+              different colour, on the same car.
+
+              The band table is untouched and still consulted — `WARNING_INK`
+              below spends sodium only where the ramp says there is a genuine
+              warning. What changed is that a sound reading is ink.
+            */}
+            <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
+            <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
           </View>
 
           {/*
@@ -977,7 +999,20 @@ export function VehicleDetailScreen({
             read do not make one thing to press.
           */}
           <View style={styles.cardExit}>
-            <NavRow icon="gauge" label="What is driving this score" onPress={onOpenHealth} last />
+            {/*
+              ⚠ 6 Sep: `sliders`, not `gauge`. The critique put this on its Cut
+              list twice and the second time named why: *"the brief removed the
+              needle from the dial; it has returned as an icon."* B3 deletes the
+              needle, the scale and the gauge glyph from the instrument, and
+              reintroducing that exact drawing at 20pt beside a row label puts
+              the retired object back on screen with a caption.
+
+              The icon is **swapped rather than dropped**: its five sibling rows
+              in this hub all carry one, and a single row without would read as a
+              rendering fault rather than as restraint. `sliders` says the same
+              thing this row means — the inputs behind a reading.
+            */}
+            <NavRow icon="sliders" label="What is driving this score" onPress={onOpenHealth} last />
           </View>
         </Card>
       )}
@@ -1004,8 +1039,15 @@ export function VehicleDetailScreen({
           accessibilityRole="button"
           accessibilityLabel={`View ${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
         >
+          {/*
+            ⚠ 6 Sep · B7: `attention`, not `critical`. A *count* of open recalls
+            is a state — it says there is something to read, not that the car is
+            unsafe to drive tonight. `critical` is now the only filled tone in
+            the app (see `AlertBanner`), and spending it here would flatten the
+            difference between "two recalls exist" and "do not drive this".
+          */}
           <AlertBanner
-            tone="critical"
+            tone="attention"
             headline={`${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
             body={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
           />
@@ -1114,7 +1156,7 @@ export function VehicleDetailScreen({
           hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
           style={({ pressed }) => [styles.pill, styles.backPill, pressed && styles.pillPressed]}
         >
-          <Icon name="chevron-left" size={16} color={brand.accent} />
+          <Icon name="chevron-left" size={16} color={text.primary} />
           <Text style={styles.backLabel}>Garage</Text>
         </Pressable>
 
@@ -1160,35 +1202,24 @@ export function VehicleDetailScreen({
         governed it has nothing to govern. That is a real simplification rather
         than a deletion — logged for Design in `docs/design-system-drift.md`.
       */}
-      {score !== null && band && (
-        <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
-          {/*
-            ── R10 / R25 · it is a control now, and it says so ────────────────
+      <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
+        <Animated.View style={{ opacity: identityFade }}>
+          <Button
+            label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
+            variant="outline"
+            size="small"
+            busy={uploading}
+            onPress={() => void onAddPhoto()}
+            style={styles.pill}
+          />
+        </Animated.View>
+      </View>
 
-            The chip was `pointerEvents="none"` chrome: an arc and the numeral
-            70, which a screen reader announced as "Health score 70 out of 100 —
-            Fair" and then offered nothing to do with. Meanwhile the only way
-            into the health detail was a row most of the way down the sheet.
-
-            It persists through the whole scroll, so it is the one affordance
-            that is always in reach. The spoken name says where it goes, because
-            a reading and a door to a reading are different things and the arc
-            cannot distinguish them.
-
-            ⚠ `hitSlop`, for the same reason as the back pill — the chip is
-            drawn at the size that reads over a photograph, and the target is
-            grown around it rather than the drawing being inflated.
-          */}
-          <Pressable
-            onPress={onOpenHealth}
-            accessibilityRole="button"
-            accessibilityLabel={`Health score ${score}, ${band.label}. Opens health detail.`}
-            hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
-          >
-            <DialChip score={score} />
-          </Pressable>
-        </View>
-      )}
+      {/*
+        ⚠ The score chip stood here and is cut — see the note at `DialChip`'s
+        call site above. Its slot now carries the photo control, which needed a
+        home that the content surface does not cover.
+      */}
     </View>
   );
 }
@@ -1237,8 +1268,15 @@ const styles = StyleSheet.create({
    * photograph — see that component for the argument. The size comes from
    * `heroBands`, because the compact branch drops it to 28.
    */
-  name: { ...type.editorial, color: text.primary, letterSpacing: -0.5 },
-  subtitle: { ...type.body, fontSize: 15, color: text.secondary, marginTop: 4 },
+  name: { ...type.display, color: text.primary },
+  /*
+    ⚠ 6 Sep · B1 and B2: the stat strip is mono. This read "66,000 mi · xDrive ·
+    Daily Driver" in the body sans, so a line made entirely of *values* — a
+    mileage, a drivetrain, a usage — was set in the one face the system reserves
+    for sentences. B2 asks for the strip beneath the plate to be mono; B1 asks
+    for every value to be.
+  */
+  subtitle: { ...type.mono, color: text.secondary, marginTop: 4, ...TABULAR },
 
   photoAction: { position: 'absolute', right: space.lg, bottom: space.lg },
   /**
@@ -1249,20 +1287,28 @@ const styles = StyleSheet.create({
    * defect it produced. A solid fill at 0.78 is measurable; a blur over an
    * unknown photograph is not.
    */
+  /*
+    ⚠ Geometry only. The ground and the corner belong to `Button`'s own
+    `CutSurface`; a `backgroundColor` here would square off the cut, and a
+    `borderRadius` would round it.
+  */
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
     minHeight: 36,
     paddingHorizontal: space.md,
-    borderRadius: radius.pill,
-    backgroundColor: hero.pill,
     justifyContent: 'center',
   },
   pillPressed: { backgroundColor: surface.raised },
-  pillLabel: { ...type.label, color: text.primary },
+  pillLabel: { ...type.monoLabel, color: text.primary },
   backPill: { paddingLeft: space.sm },
-  backLabel: { ...type.uiStrong, color: brand.accent },
+  /*
+    ⚠ B7: cyan is "focus, active rule and refresh ramp" — never ink. A back
+    label drawn in the accent made the most-pressed control on the screen the
+    same colour as the system's information signal.
+  */
+  backLabel: { ...type.monoNav, color: text.primary },
 
   /* ── z2 · the sheet ───────────────────────────────────────────────────── */
   scroller: { flex: 1 },
@@ -1283,7 +1329,13 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   /** The batten's lit hairline, on the leading edge. `environment.css`'s gradient. */
-  sheetEdge: { height: 1, backgroundColor: brand.accent, opacity: 0.55 },
+  /*
+    ⚠ B7 and the critique's Cut list: this was a cyan rule under the plate with
+    no state to report — decoration in the one hue the system reserves for
+    meaning. A hairline still separates the sheet from the photograph; it is
+    just not a signal any more.
+  */
+  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel },
 
   /* ── z6 · the nav ─────────────────────────────────────────────────────── */
   navPlate: {
@@ -1336,7 +1388,7 @@ const styles = StyleSheet.create({
     the numeral is the hero, and that is where role (b) is spent.
   */
   scoreValue: { ...type.title, fontSize: 30, lineHeight: 34, ...TABULAR },
-  scoreBand: { ...type.label, color: text.muted },
+  scoreBand: { ...type.monoLabel, color: text.muted },
 
   body: { padding: space.lg, gap: space.md },
 

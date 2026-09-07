@@ -19,7 +19,7 @@ import {
   statesVerdict,
   verdictTermsIn,
   widenToHonestSpread,
-} from '@wellkept/core/advice-range';
+} from '@tappet/core/advice-range';
 
 describe('statesVerdict', () => {
   it.each([...VERDICT_TERMS.shop])('catches the verdict term %s', (term) => {

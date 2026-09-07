@@ -24,7 +24,7 @@ import {
   refusalCopy,
   type AccessState,
   type Capability,
-} from '@wellkept/core/access';
+} from '@tappet/core/access';
 
 const STATES: AccessState[] = ['demo', 'subscribed', 'lapsed', 'unsubscribed'];
 

@@ -103,7 +103,19 @@ describe('a screen’s first load stands in for its content', () => {
       prevent.
     */
     expect(surface.card).toMatch(/^#[0-9A-F]{6}$/i);
-    expect(radius.card).toBe(14);
+    /*
+      ⚠ 6 Sep: these were `8 / 12 / 14 / 20` — the radius scale as it stood
+      before the mobile design brief. B4 zeroed every step ("every container
+      corner is a 45° cut at zero radius"), so the numbers changed and the
+      *claim* did not: there is still a token layer, it is still imported here,
+      and this suite still exercises shipped code rather than only reading it.
+
+      ⚠ Asserted as `0` rather than deleted. An app with no radius literals and
+      no token layer is broken rather than compliant, which is the whole point
+      of this case — and a scale that has quietly lost its keys would pass a
+      test that merely stopped looking.
+    */
+    expect(radius.card).toBe(0);
   });
 
   it('can still detect one, so this is not vacuous', () => {

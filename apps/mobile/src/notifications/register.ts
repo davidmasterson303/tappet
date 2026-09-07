@@ -3,8 +3,8 @@ import Constants from 'expo-constants';
 
 import { apiRequest } from '../api/client';
 import { secureStorage } from '../auth/secure-storage';
-import type { PushPermission } from '@wellkept/core/push-priming';
-import { isExpoPushToken } from '@wellkept/core/push-tokens';
+import type { PushPermission } from '@tappet/core/push-priming';
+import { isExpoPushToken } from '@tappet/core/push-tokens';
 import { requestPushPermission } from './push';
 
 /**
@@ -39,7 +39,7 @@ import { requestPushPermission } from './push';
  * no notifications is an app that will not open without them.
  */
 
-const DEVICE_ID_KEY = 'crewchief.device-id';
+const DEVICE_ID_KEY = 'tappet.device-id';
 
 /**
  * When the user last said "not now" to the primer. C5.
@@ -49,7 +49,7 @@ const DEVICE_ID_KEY = 'crewchief.device-id';
  * recently", and iOS permission is per-install too. A server-side flag would
  * suppress the primer on a new phone where the system ask is available again.
  */
-const PRIMER_DISMISSED_KEY = 'crewchief.push-primer-dismissed';
+const PRIMER_DISMISSED_KEY = 'tappet.push-primer-dismissed';
 
 /** A v4-shaped random id. Opaque, local, and not a credential — see the header. */
 function newDeviceId(): string {
@@ -128,7 +128,7 @@ export async function registerForPush(): Promise<RegistrationResult> {
   } catch (error) {
     // Swallowed deliberately — see the header. Push is an enhancement.
     console.warn('[Push] Could not register this device:', error);
-    return { status: 'unavailable', reason: 'Could not reach Well Kept.' };
+    return { status: 'unavailable', reason: 'Could not reach Tappet.' };
   }
 }
 

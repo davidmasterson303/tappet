@@ -1,4 +1,4 @@
-import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

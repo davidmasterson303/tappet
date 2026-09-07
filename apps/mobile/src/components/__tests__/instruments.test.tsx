@@ -1,9 +1,9 @@
 import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo, Dimensions, StyleSheet, processColor } from 'react-native';
-import { R } from '@wellkept/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
-import { REDLINE_FROM, buildPosition } from '@wellkept/core/build-progress';
-import { vehicleFieldStops } from '@wellkept/core/vehicle-identity';
+import { R } from '@tappet/core/cluster-geometry';
+import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { REDLINE_FROM, buildPosition } from '@tappet/core/build-progress';
+import { vehicleFieldStops } from '@tappet/core/vehicle-identity';
 
 import BuildGauge from '../BuildGauge';
 import ClusterGauge from '../ClusterGauge';
@@ -14,7 +14,7 @@ import GarageBay from '../GarageBay';
 import { BAY_HERO_MAX, BAY_HERO_MIN, bayHeroHeight } from '../BayRoom';
 import HealthDrivers from '../HealthDrivers';
 import Plinth from '../Plinth';
-import type { HealthDriver } from '@wellkept/core/health-drivers';
+import type { HealthDriver } from '@tappet/core/health-drivers';
 import { DIAL_MIN, build, plinth, text } from '../../theme';
 
 /**
@@ -205,11 +205,67 @@ describe('ClusterGauge', () => {
       Colour is read from the score, never from the swept value. A dial that
       banded the animation would run critical → attention → good on every
       appearance, and announce a healthy car as a fault for the first frames.
-    */
-    const view = await render(<ClusterGauge score={95} />);
 
-    const needle = hostNodes(view.root, 'RNSVGLine').at(-1);
-    expect(strokeOf(needle)).toBe(paintOf(healthBandHex(getHealthBandJudgement(95))));
+      ⚠ **This used to assert the needle's stroke, and there is no needle any
+      more** — B3 retired it along with the tick scale and the hub. The claim it
+      was making is still the one that matters, so it now reads the swept arc,
+      which is where the reading's colour lives.
+    */
+    const view = await render(<ClusterGauge score={15} />);
+
+    // The swept arc is the dashed path; the track beneath it carries no dashes.
+    const swept = hostNodes(view.root, 'RNSVGPath').find((props) => props.strokeDasharray);
+    expect(swept).toBeDefined();
+    expect(strokeOf(swept)).toBe(paintOf(healthBandHex(getHealthBandJudgement(15))));
+  });
+
+  /*
+    ── B3, 6 Sep: the three deletions, asserted as deletions ──────────────────
+
+    A dial that quietly grew a needle back would look like a design decision,
+    which is the failure mode `CLAUDE.md` §6 collects. These cases fail if any
+    of the retired parts return.
+  */
+
+  it('draws no needle and no tick scale', async () => {
+    const view = await render(<ClusterGauge score={61} />);
+
+    /*
+      ⚠ The anti-vacuous half is the `Path` assertion, and it is in this same
+      test on purpose. `hostNodes` returning `[]` because the walker broke would
+      satisfy both deletion claims below and report a clean dial forever — the
+      failure `CLAUDE.md` §5 names outright. The dial still draws two paths (the
+      track and the sweep) and two terminals, so if the walker works at all it
+      finds them.
+    */
+    expect(hostNodes(view.root, 'RNSVGPath').length).toBeGreaterThan(0);
+    expect(hostNodes(view.root, 'RNSVGCircle').length).toBeGreaterThan(0);
+
+    // The tachometer face was twenty-seven `Line`s plus a swept needle.
+    expect(hostNodes(view.root, 'RNSVGLine')).toHaveLength(0);
+    // And six numbered majors, drawn as SVG text.
+    expect(hostNodes(view.root, 'RNSVGText')).toHaveLength(0);
+  });
+
+  it('spends no hue on a reading that is not a warning', async () => {
+    /*
+      B3 "no gold" and B7 "sodium only on genuine warnings". Fair is `#D6BE9B`
+      in the shared ramp — the phone must not recolour the band, only decline to
+      paint the arc with it.
+    */
+    const view = await render(<ClusterGauge score={70} />);
+
+    const swept = hostNodes(view.root, 'RNSVGPath').find((props) => props.strokeDasharray);
+    expect(strokeOf(swept)).not.toBe(paintOf(healthBandHex(getHealthBandJudgement(70))));
+    expect(strokeOf(swept)).toBe(paintOf(text.primary));
+  });
+
+  it('still spends sodium when the reading is a genuine warning', async () => {
+    const view = await render(<ClusterGauge score={30} />);
+
+    const swept = hostNodes(view.root, 'RNSVGPath').find((props) => props.strokeDasharray);
+    expect(strokeOf(swept)).toBe(paintOf(healthBandHex(getHealthBandJudgement(30))));
+    expect(strokeOf(swept)).not.toBe(paintOf(text.primary));
   });
 });
 
@@ -650,13 +706,23 @@ describe('GarageBay', () => {
     expect(between).toBeLessThan(BAY_HERO_MAX);
   });
 
-  it('paints the car contained over a blurred copy of itself, never cropped', async () => {
+  it('paints the car edge to edge, with no blurred copy behind it', async () => {
     /*
-      CC-142's decision, carried onto the phone. `cover` on a 3:4 phone
-      photograph — the overwhelmingly common upload — enlarges it ~3× and keeps
-      a horizontal band through the vertical middle, which is sky or ceiling.
-      The sharp layer must therefore stay `contain`; only the fill behind it may
-      crop, because nothing in it is meant to be legible.
+      ── ⚠ 6 Sep: this test asserted the opposite until today ──────────────────
+
+      It read "paints the car contained over a blurred copy of itself, never
+      cropped", and it was correct for CC-142's treatment: an over-scanned
+      `blurRadius={32}` fill under a `contain`ed sharp layer, so a 3:4 phone
+      photograph was never cropped.
+
+      **Web retired that treatment**, and the locked iOS brief inherits the
+      retirement — B2 "no blurred letterbox", B9 "never letterboxed". So the
+      claim flipped rather than the test being wrong at the time.
+
+      The cost is real and is the reason the old note existed: `cover` on a tall
+      photograph keeps a band through the middle and crops the rest. That is now
+      a known, accepted consequence with `focal_point_x/y` on the vehicles table
+      as the fix if owners lose their cars to it — not a return of the blur.
     */
     const view = await render(
       <GarageBay
@@ -670,18 +736,16 @@ describe('GarageBay', () => {
     );
 
     const layers = photoLayers(view.root, PHOTO);
-    expect(layers).toHaveLength(2);
 
-    const blurred = layers.filter((l) => typeof l.props.blurRadius === 'number');
-    expect(blurred).toHaveLength(1);
-    expect(blurred[0].props.resizeMode).toBe('cover');
+    // Anti-vacuous: a broken query returning [] would satisfy every claim below.
+    expect(layers).toHaveLength(1);
+    expect(layers[0].props.resizeMode).toBe('cover');
 
-    const sharp = layers.filter((l) => l.props.blurRadius === undefined);
-    expect(sharp).toHaveLength(1);
-    expect(sharp[0].props.resizeMode).toBe('contain');
+    // The blur is gone, not merely unused — a layer at radius 0 is the same
+    // treatment waiting to be turned back up.
+    expect(layers.filter((l) => l.props.blurRadius !== undefined)).toHaveLength(0);
 
-    // One car, announced once. Two layers of the same photograph read out
-    // twice is worse than the blur going unmentioned.
+    // One car, announced once.
     expect(view.getAllByLabelText('Subaru photo')).toHaveLength(1);
   });
 
@@ -765,20 +829,73 @@ describe('HealthDrivers', () => {
     expect(rendered).not.toMatch(/total|sum|out of/i);
   });
 
-  it('bands a driver on the same ramp as the score', async () => {
-    // 40 means the same thing here as it does on the dial, so it wears the
-    // same colour. A second opinion about what 40 looks like is the drift
-    // `health-band.ts` exists to prevent.
-    const view = await render(
+  it('marks a driver from the ramp without painting the numeral with it', async () => {
+    /*
+      ── ⚠ 6 Sep: this test asserted the numeral wore the band colour ─────────
+
+      It read "bands a driver on the same ramp as the score", and the reasoning
+      under it — *"a second opinion about what 40 looks like is the drift
+      `health-band.ts` exists to prevent"* — is still exactly right and is what
+      this version checks.
+
+      What changed is where the ramp's answer goes. B6 makes the factor column a
+      spec table with one ink, and B7 moves the warning out of the numeral and
+      into a mark beside it: *"Sodium is a hairline triangle beside a genuine
+      warning; 100s are off-white ink."* Three inks in a column meant the eye
+      read colour before number.
+
+      So the phone still **asks** the shared ramp and no longer **paints** with
+      it. The two cases below are a pair: the threshold that decides the mark has
+      to come from `health-band`, not from a `< 60` written in this app.
+    */
+    const warning = await render(
       <HealthDrivers drivers={[driver({ key: 'recalls', label: 'Recalls', score: 40 })]} />
+    );
+
+    const warnStyle = Object.assign(
+      {},
+      ...[warning.getByText('40').props.style].flat(Infinity).filter(Boolean)
+    ) as { color?: string };
+
+    // The numeral is ink, not a band colour.
+    expect(warnStyle.color).toBe(text.primary);
+    expect(warnStyle.color).not.toBe(healthBandHex(getHealthBandJudgement(40)));
+
+    /*
+      But the ramp was consulted: 40 is `warn`, so the mark is present.
+
+      ⚠ `includeHiddenElements` because the mark is deliberately hidden from
+      assistive tech — a screen reader announcing "black up-pointing triangle"
+      beside a number is noise, and the driver's own sentence underneath already
+      says what is wrong. RNTL excludes accessibility-hidden nodes by default.
+    */
+    expect(warning.queryByText('△', { includeHiddenElements: true })).not.toBeNull();
+
+    /*
+      ⚠ And specifically the *outlined* triangle. B7 asks for sodium as line
+      rather than fill, and `▲` (U+25B2) against `△` (U+25B3) is one character —
+      close enough that a well-meaning edit could swap it back and this guard
+      would still pass if it only asked whether *a* mark was present.
+    */
+    expect(warning.queryByText('▲', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('leaves a sound driver unmarked, so the mark means something', async () => {
+    /*
+      The anti-vacuous half of the pair above. A component that never rendered a
+      mark, or always rendered one, would satisfy one of these two and not both.
+    */
+    const sound = await render(
+      <HealthDrivers drivers={[driver({ key: 'maintenance', label: 'Maintenance', score: 100 })]} />
     );
 
     const style = Object.assign(
       {},
-      ...[view.getByText('40').props.style].flat(Infinity).filter(Boolean)
+      ...[sound.getByText('100').props.style].flat(Infinity).filter(Boolean)
     ) as { color?: string };
 
-    expect(style.color).toBe(healthBandHex(getHealthBandJudgement(40)));
+    expect(style.color).toBe(text.primary);
+    expect(sound.queryByText('▲', { includeHiddenElements: true })).toBeNull();
   });
 
   it('shows a dash in muted ink for an unmeasured driver, never a band', async () => {

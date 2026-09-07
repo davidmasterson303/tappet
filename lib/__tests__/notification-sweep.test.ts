@@ -27,14 +27,14 @@ import {
   signedInRecently,
   vehiclesToGenerate,
   type GenerationCandidate,
-} from '@wellkept/core/notification-sweep';
-import { normaliseRecall } from '@wellkept/core/recalls';
+} from '@tappet/core/notification-sweep';
+import { normaliseRecall } from '@tappet/core/recalls';
 import {
   evaluateSchedule,
   isWorthNotifying,
   nextMilestone,
   type Milestone,
-} from '@wellkept/core/service-due';
+} from '@tappet/core/service-due';
 
 /** A raw NHTSA-shaped row, through the real normaliser rather than a hand-built object. */
 function recall(campaign: string | null, extra: Record<string, unknown> = {}) {

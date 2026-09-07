@@ -15,13 +15,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { refusalCopy } from '@wellkept/core/access';
-import { DEMO_VEHICLE_IDS } from '@wellkept/core/demo';
+import { refusalCopy } from '@tappet/core/access';
+import { DEMO_VEHICLE_IDS } from '@tappet/core/demo';
 import {
   DEMO_ANSWERS,
   demoAnswerFor,
   demoQuestionsFor,
-} from '@wellkept/core/demo-answers';
+} from '@tappet/core/demo-answers';
 
 const SOURCE = readFileSync(
   join(__dirname, '..', '..', 'packages', 'core', 'src', 'demo-answers.ts'),

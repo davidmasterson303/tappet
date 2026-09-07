@@ -1,7 +1,7 @@
 import { apiRequest } from './client';
 import type { InvoiceFile } from './documents';
-import { ALLOWED_IMAGE_TYPES } from '@wellkept/core/validation';
-import { MAX_STORED_PHOTO_BYTES } from '@wellkept/core/image-resize';
+import { ALLOWED_IMAGE_TYPES } from '@tappet/core/validation';
+import { MAX_STORED_PHOTO_BYTES } from '@tappet/core/image-resize';
 
 /**
  * Adding a photograph of the car, from the phone.

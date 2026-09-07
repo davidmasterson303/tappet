@@ -293,7 +293,7 @@ dial stops being a dial. Under ~88pt the ticks stop resolving and the instrument
 is decoration."* A 26pt `ClusterGauge` resolves to `row` and returns two lines
 of text at the wrong size for a nav bar.
 
-The build draws the arc in `DialChip` from `@wellkept/core/cluster-geometry` —
+The build draws the arc in `DialChip` from `@tappet/core/cluster-geometry` —
 the same `TRACK` path and viewBox the real dial uses, so it cannot drift — and
 does not touch `ClusterGauge`. `DIAL_MIN` is not being dodged: that floor
 governs a dial somebody reads a value *from*, and this arc has no needle, no
@@ -597,7 +597,46 @@ is what it is for. **So this change reaches the iOS app too**, and the phone has
 not been looked at since.
 
 
-### 3.12 ⚠ The iOS app is running the pre-4-September system — audit, 5 Sep
+### 3.12 ✅ The iOS app has been ported — audit 5 Sep, closed 5 Sep
+
+**Resolved for colour; the radius row is deliberately still open.** The audit
+below is kept as written, because the table is the record of what diverged and
+the argument for the build ramp is the reason the port was worth doing.
+
+What was done, later the same day, on David's instruction to port before
+spending an EAS slot:
+
+- **Every colour row above is closed.** `status.confirm`, `status.dangerText`,
+  `status.danger` and its pressed state, the critical banner pair, and the whole
+  `build` ramp now hold the web values. The green success banner went with them:
+  `confirmFill` was a hue, and under the collapse good news is off-white ink, so
+  the fill is a neutral step and a new `confirmBorder` carries the identity.
+- **Two contrast defects fell out of it.** `text.primary` on the old
+  `status.danger` measured **4.36:1** — under AA — and on the green
+  `confirmFill` **2.98:1**. Nothing asserted either pair; `AlertBanner`'s
+  `confirm` tone is rendered by no test. Both are now comfortably over the
+  floor (5.68:1 and 14.47:1) as a side effect of the hue change.
+- **Option 2 was taken in part.** `retired-palette-literals.test.ts` now scans
+  `apps/mobile/src`, which is the hole that let this run for a day — it was
+  scoped to the web surfaces because that is where the migration started, so it
+  reported clean on the client that had not moved. It is proven against a
+  planted value in a mobile file.
+- **`status-ramps-distinct.test.ts` was narrowed rather than relaxed.** It
+  fired on a *correct* change: `--confirm` and `--ring-good` are one value on
+  web by design, so "the two families never share a colour" stopped being true
+  the moment mobile was right. The rule now covers the warning axis, where its
+  stated reason — severity blurring — actually lives, and the historic
+  `attention == warn` collision still fails it.
+
+⚠ **Still open: the radius row.** 8/12/14 on native against 0/5/8-plus-chamfer
+on web is the one row that is plausibly option 3 — a dialect may round its
+corners where the other mills them — and it is a visual call rather than a
+token sync, so it is Design's to make and is not being made here.
+
+⚠ **Still true: nothing here is on the phone.** The port is JS-only and so is
+free of a native rebuild, but it reaches a device only through an EAS build.
+
+The audit, as originally written:
 
 No build was made and nothing on the phone was changed. This is the comparison
 David asked for after the web palette moved, and it is worse than expected.
@@ -646,6 +685,48 @@ means opposite things depending on which client the owner opens.
 ⚠ Whichever is chosen, **nothing here is on the phone yet.** JS-only changes are
 free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
 
+
+### 3.13 ✅ One of the two refresh controls went after all — 5 Sep, revised
+
+⚠ **The first version of this entry was wrong about one of the two, and the
+correction is the interesting part.** It argued both controls should keep their
+capability because they are two different actions. That is true, and it is not
+sufficient: `fetchPerformanceStats()` **already runs on mount**, so the
+Performance glyph re-triggered a fetch that happens anyway. Deleting it costs
+nothing, and the locked brief lists "the floating refresh icon" among the cuts
+it explicitly accepts — so it was never a deviation to begin with. It is gone.
+
+`ResearchButton` is the real case and it stands: it triggers work nothing else
+triggers, so it moved rather than went — unframed, mono, at the foot of the
+page beside the disclosure, where a critique's own suggestion put it. What
+follows is the original entry, which still holds for that control:
+
+---
+
+### 3.13a ⚠ The critique cut both refresh controls; one capability stayed
+
+`/vehicle-info`'s Cut list asked for both refresh controls to go, and offered a
+replacement: *"If freshness must show, it is one mono line: `RESEARCHED
+2026-08-30`."* The reasoning is sound as design — the page had a labelled
+button on one section and a ghost icon on another, which reads as one action
+wearing two costumes, and a read-only owner page does not need two.
+
+**They are not one action.** `ResearchButton` re-runs vehicle research and
+writes `vehicle_knowledge_base`; the Performance glyph calls
+`fetchPerformanceStats(true)`, which refetches the figures alone. Deleting them
+removes two capabilities, and David's standing boundary on this design work is
+that nothing is off limits *except* functionality changes.
+
+So the **treatment** moved and the **capability** did not: both now sit on the
+band head's baseline through `SpecBand`'s `action` slot, so they are the same
+kind of thing in the same place instead of two different affordances competing
+down the page.
+
+⚠ **This is a real deviation and it is Design's to settle**, not mine. If the
+critique's position is that an owner should never trigger research from this
+page, that is a product call about what the button is for — and the honest
+version of that change deletes the endpoint call too, rather than hiding the
+control and leaving the capability stranded behind it.
 
 ## 4. The export's five adherence rules, against what this repo already runs
 
@@ -725,12 +806,12 @@ Not implemented on a review line. It is a cost decision, not a design one.
 
 ## 7. The rename — two things Design owns, added 30 Aug
 
-The product became **Well Kept** on 30 Aug. The name is drawn in two places and
+The product became **Tappet** on 30 Aug. The name is drawn in two places and
 only one of them was safe to change without Design.
 
 **7.1 · The wordmark is now two words in a slot cut for one.** `Logo.tsx` on
 both clients renders the name as real text beside the mark, so it now reads
-"Well Kept". The tracking beside it does not follow: `-0.035em` horizontal and
+"Tappet". The tracking beside it does not follow: `-0.035em` horizontal and
 `-0.03em` stacked were cut for *CrewChief* — one nine-letter word with two
 capital humps and no space to hold open. They are untouched rather than
 re-guessed, because tightening a two-word mark is the decision that closes the
@@ -745,7 +826,7 @@ render, which is the one failure this project keeps paying for.
 
 The five mark-only assets (`mark`, `mark-small`, `mark-mono`, `favicon`,
 `icon-1024`) draw the dial and no letterforms, so their labels moved to
-"Well Kept" and nothing about them is stale.
+"Tappet" and nothing about them is stale.
 
 **What Design owns:** a new lockup in the new name, and the tracking that goes
 with it. Until then the app's own `Logo` is correct and the two lockup files in
@@ -761,7 +842,7 @@ from the other side: *"outlined type is also why the rename cannot be a
 find-and-replace: grep will report those files clean."*
 
 **The tracking goes back to 0.1em and is not optical.** It was cut to fit one
-nine-letter word; "Well Kept" is nine characters including the space and sets at
+nine-letter word; "Tappet" is nine characters including the space and sets at
 0.1em small caps without touching the plate's inner step. Design's rule, worth
 keeping because it settles the question rather than answering it once: *"a plate
 carries engraved type — the letterspacing is the engraving, and it does not get
@@ -1049,7 +1130,7 @@ palette is three jobs and three hues:
 
 plus the mark, which is cyan and appears once per screen.
 
-### 11.3 · ⚠ The mark keeps its glow, and Design owns that
+### 11.3 · ⚠ The mark keeps its glow, and Design owns that — **superseded, see §12**
 
 `BRAND_COLOR.glow` is `#22D3EE`, pinned to Design's own SVG files by
 `brand.test.ts`. A critique called the plate's backlight "the AI tell". Whether
@@ -1083,3 +1164,283 @@ moved into the well · dial numerals only at the ends and the three points where
 the verdict changes · NHTSA's recall text no longer clamped on a phone · all
 four tabs fitting a 390px screen · alert capsules becoming hairline rows behind
 one rule · chevrons no longer used as bullets.
+
+---
+
+## 6. The iOS design port — 6 Sep 2026
+
+Raised by the mobile design loop (`design-loop/mobile-ios/`), whose brief was
+written by the critic in BRIEF mode against the settled web system and locked by
+David on 6 Sep. Everything here is the phone joining the system, so most of it is
+drift being *closed*. Three items are new deviations Design should rule on.
+
+### 6.1 The condensed slot is Archivo **Narrow**, not Archivo ⚠ needs a ruling
+
+The system's display voice is Archivo driven along its `wdth` axis — 62% for the
+masthead, 72% for page heads, 88% for the standard instrument voice, requested in
+`app/layout.tsx` as `Archivo:wdth,wght@62..100,500..800` and applied with
+`font-stretch`.
+
+**React Native has no `font-stretch`.** A variable font loaded on the phone
+renders at its default instance and the width axis is unreachable — so bundling
+Archivo itself would have produced regular-width heads while every stylesheet
+claimed to set a condensed one: no error, no symptom, and it reads as a design
+decision. That is the defect class `CLAUDE.md` §6 exists for.
+
+David ruled on 6 Sep for `@expo-google-fonts/archivo-narrow`. **It is a different
+family, not the same family at a narrower stop** — its metrics are its own and it
+will not match web glyph for glyph. The three-widths-one-voice idea collapses to
+one width on the phone.
+
+The alternative considered and rejected was shipping no condensation at all,
+which would have put mobile titles in regular-width Archivo beside web's 72%.
+
+### 6.2 The mono slot is web's own face ✅ closed
+
+`@expo-google-fonts/jetbrains-mono` at 400 and 500 — the same family and the same
+two cuts `app/layout.tsx` requests. The app previously had **no mono face at
+all**; every value, date, index and state label was Inter.
+
+### 6.3 The radius scale is zeroed, and the cut is drawn in SVG ✅ closed, with a note
+
+Brief B4: *"Every container corner is a 45° cut at zero radius."* The five-step
+native radius scale (8 / 12 / 14 / 20 / 999) is now all zeroes, and a `cut` scale
+replaces it — 8 on the plate, 12 on a control.
+
+⚠ **The tokens survive as zeroes rather than being deleted**, because sixty-seven
+call sites reference them and the honest fix at each is a per-surface design
+question ("does this corner take a cut?"). A surviving `borderRadius: radius.card`
+is therefore a *marker for work not yet done*, not a bug.
+
+⚠ **This retires the 23 Aug native pill override** recorded earlier in this file,
+which argued that "a 12pt corner on a 52pt-tall full-bleed control reads as a web
+form submit; the phone's own idiom is the pill". The new system has no pills on
+either client, so the override's premise is gone.
+
+### 6.4 The health dial no longer spends the band colour at every score ⚠ needs a ruling
+
+Brief B3 forbids gold on the dial; B7 restricts sodium to genuine warnings. The
+dial previously stroked itself in the band colour at every reading, which put
+`#D6BE9B` — the `ok` band — on screen for every score between 60 and 79.
+
+**The band table is untouched**, and must stay untouched: thresholds, wording and
+colour are owned by `@tappet/core/health-band` and shared with web, and the
+phone holding a second opinion about what "Fair" looks like is the defect that
+ownership prevents. What changed is only *when the dial spends a hue*: `good` and
+`ok` now draw in off-white ink, `warn` and `bad` keep their sodium.
+
+Design should confirm this matches web, where `ClusterGauge` strokes the settled
+arc `#EDE7DF` while `--ring-ok` remains a live token.
+
+### 6.5 The blurred letterbox is gone from the phone ✅ closed
+
+`BayRoom` carried CC-142's contain-over-blur — an over-scanned `blurRadius={32}`
+fill under a `contain`ed sharp layer. Web retired that treatment ("blurred
+letterbox fill gone"); the phone had kept it. Now a single `cover` layer,
+edge to edge.
+
+⚠ **The cost CC-142 named is real and now accepted:** `cover` on a tall phone
+photograph crops to a band through the middle. `focal_point_x` / `focal_point_y`
+still exist on the `vehicles` table and are the fix if owners start losing their
+cars to the crop — not a return of the blur.
+
+### 6.6 Outstanding, not yet built
+
+Brief B8 asks for four tab roots with their own stacks and no back chevron.
+`createBottomTabNavigator` appears **nowhere** in `apps/mobile`: there is one
+`createNativeStackNavigator` with a custom `TabBar` drawn over it. This is a
+navigation rebuild rather than a styling change and is the one checklist line
+that is not a design edit.
+
+### 6.7 Two brief lines collide with shipped guards — **blocked, needs a ruling**
+
+Attempted on 6 Sep, reverted the same session. Both are real conflicts between
+the locked iOS brief and decisions this codebase already enforces in tests, and
+neither is the implementer's to break.
+
+**a) B7's off-white primary vs. `Button — one filled treatment › wears the brand
+fill, not white`.** The studio paragraph asks for *"primary off-white fill with
+graphite mono caps"*. There is a guard asserting the opposite by name, backed by
+the 23 Aug removal of `surface.inverse` ("a white button is a foreign colour
+here") after the app reached six screens of white CTAs against one cyan fill.
+
+The brief's reasoning is sound for the new system — under the two-hue collapse a
+*hue* fill is reserved for hover and critical, so a teal block is now the foreign
+colour. But a guard that names its opposite is a decision with an argument, and
+overwriting it quietly is how the white button came back last time.
+
+**b) B4's cut on buttons vs. the rendered contrast suite.** Drawing the 45° cut
+requires the fill to move from `backgroundColor` into an SVG path (see
+`CutSurface` — RN has no `clip-path`). **The contrast suite walks style objects
+to find the surface each string is measured against**, so the moment the fill
+leaves `backgroundColor` it stops being able to see any button's ground: ~20
+cases across the app failed, and the ones that did not fail would have been
+measuring against the wrong surface silently.
+
+That suite is the one the theme docblock credits with catching the 4.47:1
+`onInverseMuted` defect that no source scan could see. Making it blind to every
+filled control in the app is not a cost worth a corner.
+
+**What would unblock it:** teaching the contrast helper to read a `CutSurface`
+fill as the surface beneath its siblings. That is a change to a load-bearing
+accessibility guard and should be made deliberately, not as a side effect of a
+design port.
+
+Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
+square, not capsule) and their existing ink.
+
+---
+
+## 12. The identity, redrawn against a design critic — 7 Sep 2026
+
+Raised by `design-loop/logo/` (gitignored). An independent critic wrote the brief
+in BRIEF mode from screenshots of the **shipped** mark and graded three
+iterations against it, never seeing code: 4/10 → 7 → 8, all nine brief lines met,
+critic called it settled. Package in `docs/brand-package-v2/`, frozen brief in
+its `BRIEF.md`.
+
+✅ **Shipped 7 Sep on David's instruction.** This section was written as a
+proposal — §11.3 of this register says the mark and its glow are Design's to own
+— and David ruled to adopt it. It is recorded here in full because Design still
+has to absorb it into the system: the entries below are what changed and why,
+not a request.
+
+Every icon slot on web and mobile now renders from `docs/brand-package-v2/`.
+`packages/core/src/brand-geometry.ts` is **generated** by that package's
+`build.py`; `brand.ts` carries the API and the reasoning; both `BrandLockup`
+components kept their props, so no call site changed. 189 web suites and 27
+mobile suites pass, both typechecks clean.
+
+⚠ **§11.3 is superseded.** "The mark keeps its glow" was the right call against
+the mark that had one. This mark has no glow to keep, and no hue at all — see
+12.1.
+
+### 12.1 ⚠ The mark becomes a stamped plate, not a backlit one ✅ shipped
+
+A solid chamfered plate with the **W cut clean through it**, so the ground
+behind shows in the letter (by fill rule rather than by a mask — see 12.6). The critic's reading of the current mark was
+that serif small caps, four rivets and a cyan bloom make a heritage plaque, and
+that the north star is an instrument photographed at night — the sheet's own
+chrome was closer to the brief than the mark it presented.
+
+What the mask buys, and the reason it is one rule rather than five:
+
+- **Both polarities are one file** — off-white on graphite, graphite on ivory,
+  nothing redrawn.
+- **The reduction ladder disappears.** The shipped package needs four drawings
+  (full / single-W / flat / inverted-29) and picks by size floor. This is one
+  drawing from 1024 to 16. The `lockupFor` reduction rule in core has nothing
+  left to choose between.
+- **It survives a photograph** — the asphalt shows through the W.
+
+### 12.2 The wordmark lands on the masthead width, and is not a new value ✅
+
+`Newsreader` 500 small caps → **Archivo `wdth` 62 / `wght` 800**, caps, −1%
+tracking. 62% is already the system's masthead stop (`app/globals.css`, the
+`font-stretch: 62%` rule and its docblock) — this is the identity joining a token
+that exists, not asking for one.
+
+It also closes the defect `BrandLockup.tsx` documents at length: the lockup's
+hand-spelled `var(--font-display), Newsreader, …` chain had been silently
+rendering the brand mark in Archivo ever since brief B2 moved the display slot.
+The mark was already in this face. It was just not supposed to be.
+
+### 12.3 ⚠ Archivo's cap height is **0.686 em**, not 0.73 — a system-wide fact
+
+Read from the font's own OS/2 `sCapHeight`. Any spec written in cap heights is
+6% out if it assumes 0.73. It cost two rounds of this loop: a nav lockup was
+being reported at a 20px cap while measuring **18.8px**, under the brief's floor,
+green on paper. `CLAUDE.md` §5 is exactly this — the guard asserted a number it
+had computed from the wrong constant.
+
+Consequence carried into the package: correcting it left 25.6px for the mark and
+the gap inside a 140px nav budget, so the mark is exactly one cap high and the
+gap is one word space. The brief prose's "gap of half the mark's width" cannot
+hold alongside the 140px budget at this wordmark width; the critic flagged the
+sentence as David's to amend.
+
+### 12.4 §6.1's `font-stretch` problem does not reach the lockup ✅ closed
+
+§6.1 rules that the phone gets Archivo **Narrow** because React Native cannot
+drive a `wdth` axis, and that its metrics are its own and will not match web.
+That constraint does not apply here: **the package's type is outlined to paths**,
+so the lockup is geometry rather than text and `react-native-svg` (15.15.4, already
+a mobile dependency) renders the identical drawing on both platforms with no font
+loaded at all. The mark and the wordmark stay glyph-for-glyph identical across
+web and phone even while body and display type diverge.
+
+Outlining is also the previous package's own unmet instruction — its README asks
+for it at export time, and every SVG it shipped still declares
+`font-family="Newsreader, Georgia, serif"`.
+
+### 12.5 Two silent-failure fixes Design should carry into the system ✅
+
+- **The mono favicon was invisible on light.** `favicon-mono.svg` draws the plate
+  in `currentColor` and the W in a hardcoded `#16140F`; on a light ground both are
+  dark and the tab shows a featureless blob. Reproduced in the loop's baseline
+  capture. The new mark has no second colour to get wrong, and both PNG polarities
+  ship because a raster favicon cannot follow `currentColor`.
+- **An Android adaptive foreground cannot use the icon's 66% plate.** The outer
+  third is maskable and the mask may be a circle, so a square plate must fit the
+  inscribed square: 0.667 / √2 = **47%** of the canvas. At 66% the corners clip
+  under a round launcher, silently. Verified against circular and squircle masks.
+
+### 12.6 ⚠ The letter is cut by fill rule, not by a mask — and that is silent
+
+`MARK_PATH` is the plate and the W in **one path**; `fill-rule="evenodd"` turns
+the second contour into a hole. A `<mask>` was the obvious way to write it and
+is the wrong one three times over: masks need document-global ids that collide
+when two copies are inlined; Satori (which renders `app/opengraph-image.tsx`)
+supports `<path>` and little else, and **fails by answering 200 with a zero-byte
+body**; and one element means web and `react-native-svg` draw identical markup.
+
+The trade is the reason this is in the drift register rather than only in a
+docblock: **drop the fill rule and nothing breaks visibly.** The W fills in the
+plate's own colour and the mark reads as a slightly heavier logo. `CLAUDE.md`
+§6's defect class exactly, so `brand.test.ts` asserts it on all eight package
+drawings and all three components.
+
+### 12.7 What the redraw closed, and what it removed
+
+Not deviations — drift being *closed*, listed so Design can see the whole pass:
+
+- **`app/favicon.ico` and `app/apple-icon.png` were two logos out of date.**
+  `app/layout.tsx` documented the gap: they were still the **Sweep dial**,
+  because regenerating them needed a rasteriser with Newsreader loaded and
+  nothing on this machine had one. Outlining removes the dependency rather than
+  satisfying it — every size now rasterises from geometry.
+- **The share card had lost its typeface.** `opengraph-image.tsx` set the name
+  in Satori's default face, because loading a webfont means a network fetch
+  inside `next build` and that build is the promote gate for the App Store's
+  hostname. An outlined path is the one thing Satori does support, so the card
+  now carries the real wordmark with no font and no fetch.
+- **`Newsreader_500Medium` left the mobile bundle.** It was added 30 Aug for the
+  engraved plate name and nothing else ever used it.
+- **`BrandWordmark` stopped being a second assembly.** It existed because the
+  old mark was a wide plate with the name inside it, which could not shrink into
+  a bar. The lockup is a mark beside a free wordmark now, so the nav treatment
+  *is* the short lockup.
+- **`RIVETS`, `BRAND_TYPE` and the four-drawing reduction ladder are gone** from
+  core, along with `PLATE.favicon` — the second plate path that existed because
+  the icon's proportions closed up at 24px.
+
+### 12.8 Recorded deviations from the critic's brief
+
+- The brief names `#1A1A1A` and `#F2F1EC`, sampled off the north-star board. The
+  package uses the shipped tokens `#1A1815` (`--surface-1`) and `#F5F3F0`
+  (`--foreground`) — the same colours to within a rounding error, and
+  `CLAUDE.md` says a rebrand moves no palette values.
+- The critic's score fell 9 → 8 between the last two rounds while the checklist
+  stayed nine-of-nine met and it stated plainly that nothing had regressed. Its
+  own rule forbids that. Noted rather than smoothed over: the 9 was awarded on
+  the wrong cap constant, so the 8 is the one measured against a lockup that
+  actually meets B6.
+- The brief prose says the lockup's gap is "half the mark's width". It is one
+  word space, and it cannot be half the mark: the 140px nav budget and the 20px
+  cap floor are both checklist lines and the gap is not, so the gap gave way.
+  The critic flagged the sentence as **David's to amend** — the brief is locked
+  and the implementer does not edit it. `docs/brand-package-v2/BRIEF.md` is the
+  frozen copy.
+- **`CLEAR_SPACE` changed meaning.** It was 48 grid units on a 280-unit lockup;
+  it is now one mark height, stated against `LOCKUP.mark` so it survives a grid
+  change instead of needing re-derivation.

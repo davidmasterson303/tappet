@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Tappet">
+  <title>Tappet — app icon</title>
+  <rect width="100" height="100" fill="#1A1815"/>
+  <g transform="translate(17.0000 17.0000) scale(1.00000)">
+  <path fill-rule="evenodd" fill="#F5F3F0"
+    d="M10 0 H56 L66 10 V56 L56 66 H10 L0 56 V10 Z M10.455 11 H55.545 V22.5 H46.5 A6 6 0 0 0 40.5 28.5 V55 H25.5 V28.5 A6 6 0 0 0 19.5 22.5 H10.455 Z"/>
+  </g>
+</svg>

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
-import { formatDate } from '@wellkept/core/formatting-utils';
+import { formatDate } from '@tappet/core/formatting-utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';

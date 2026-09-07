@@ -21,7 +21,7 @@ import {
   FLASH_MODEL,
   LITE_MODEL,
   FLASH_VISION_MODEL,
-} from '@wellkept/core/ai/models';
+} from '@tappet/core/ai/models';
 
 const ROOT = join(__dirname, '..', '..');
 const ACTIONS = readFileSync(join(ROOT, 'app/actions.ts'), 'utf8');

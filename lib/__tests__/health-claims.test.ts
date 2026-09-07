@@ -16,7 +16,7 @@ import {
   mayReassure,
   recallEvidenceForPrompt,
   type ClaimKind,
-} from '@wellkept/core/health-claims';
+} from '@tappet/core/health-claims';
 
 const KINDS: ClaimKind[] = ['recall', 'maintenance', 'issues'];
 

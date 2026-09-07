@@ -4,9 +4,9 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { User, Session } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient, hasSupabaseConfig } from '@/lib/supabase';
-import { queryClient } from '@wellkept/core/query-client';
-import { resolveAuthEvent } from '@wellkept/core/auth-session';
-import { resolveRoute } from '@wellkept/core/routes';
+import { queryClient } from '@tappet/core/query-client';
+import { resolveAuthEvent } from '@tappet/core/auth-session';
+import { resolveRoute } from '@tappet/core/routes';
 
 /**
  * The app's one auth-state listener.

@@ -9,12 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader as Loader2, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { BrandWordmark } from '@/components/brand/BrandLockup';
-import { logger } from '@wellkept/core/logger';
-import { queryClient } from '@wellkept/core/query-client';
+import { logger } from '@tappet/core/logger';
+import { queryClient } from '@tappet/core/query-client';
 import { createVehicle, updateVehiclePowertrain, fetchPowertrainOptions, uploadVehiclePhoto } from '@/app/actions';
-import { detectUncertainPowertrainFields } from '@wellkept/core/vehicle-utils';
+import { detectUncertainPowertrainFields } from '@tappet/core/vehicle-utils';
 import PowertrainSelector from '@/components/PowertrainSelector';
-import type { PowertrainUncertainty } from '@wellkept/core/types';
+import type { PowertrainUncertainty } from '@tappet/core/types';
 
 interface OnboardingWizardProps {
   vehicleData: {

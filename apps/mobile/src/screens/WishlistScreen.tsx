@@ -18,8 +18,8 @@ import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import { formatCurrency } from '@wellkept/core/formatting-utils';
-import { completionPayload, type CompletionDraft } from '@wellkept/core/wishlist-completion';
+import { formatCurrency } from '@tappet/core/formatting-utils';
+import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
 import {
   OPTICAL_CENTRE,
@@ -79,7 +79,7 @@ import { interFace } from '../theme/fonts';
  * you can do to a row. Adding moved off it entirely — the composer used to sit
  * above the first item and made this a data-entry form with a list underneath.
  *
- * The identifier still comes from `@wellkept/core/wishlist-identifier`, which
+ * The identifier still comes from `@tappet/core/wishlist-identifier`, which
  * exists because three call sites once built it three different ways and
  * produced duplicates, a lying "already added" state, and deletes that silently
  * matched nothing. A fourth spelling anywhere reintroduces all three.
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { ...type.label, color: text.muted },
   summaryTotal: {
-    ...type.editorial,
+    ...type.display,
     fontSize: 26,
     lineHeight: 32,
     color: text.primary,
@@ -552,6 +552,7 @@ const styles = StyleSheet.create({
       adopted as a system rule rather than a browser workaround, and a smaller
       field here would be the one place in the product that disagrees.
     */
+    fontFamily: interFace('400'),
     fontSize: 16,
     color: text.primary,
     minHeight: 48,
@@ -614,9 +615,11 @@ const styles = StyleSheet.create({
   itemHead: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   itemName: { color: text.primary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600', flexShrink: 1 },
   itemCost: { color: text.primary, fontSize: 15, fontFamily: interFace('700'), fontWeight: '700' },
-  itemBody: { color: text.secondary, fontSize: 14, lineHeight: 20 },
+  itemBody: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14, lineHeight: 20 },
   itemFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  itemMeta: { color: text.muted, fontSize: 12 },
+  itemMeta: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12 },
   itemActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   /*
     Done is the primary action on a row and Remove is not, so they do not look
@@ -637,7 +640,8 @@ const styles = StyleSheet.create({
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   button: {
     marginTop: 6,
     paddingHorizontal: 18,
@@ -646,5 +650,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  buttonText: { color: text.primary, fontSize: 14 },
+  buttonText: { color: text.primary, fontFamily: interFace('400'),
+    fontSize: 14 },
 });

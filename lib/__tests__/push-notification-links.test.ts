@@ -14,7 +14,7 @@
  * *routes* across the boundary.
  *
  * The other half of the contract is the scheme itself. `push.ts` accepts only
- * `crewchief://` — an `https://` url in that field would turn a notification
+ * `tappet://` — an `https://` url in that field would turn a notification
  * from someone's garage into an open redirect — so a url built with anything
  * else is silently dropped rather than followed.
  */
@@ -29,7 +29,7 @@ import {
   serviceDueNotification,
   serviceUrl,
   vehicleUrl,
-} from '@wellkept/core/notifications';
+} from '@tappet/core/notifications';
 
 const ROOT = join(__dirname, '..', '..');
 
@@ -59,7 +59,7 @@ function asPattern(route: string): RegExp {
 
 /** The path a built url resolves to, with the scheme and query removed. */
 function pathOf(url: string): string {
-  return url.replace(/^crewchief:\/\//, '').split('?')[0];
+  return url.replace(/^tappet:\/\//, '').split('?')[0];
 }
 
 const routes = registeredRoutes();

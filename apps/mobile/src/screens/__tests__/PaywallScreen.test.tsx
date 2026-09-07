@@ -15,11 +15,11 @@
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 
 import PaywallScreen, { type SubscriptionOption } from '../PaywallScreen';
-import type { PurchaseResolution } from '@wellkept/core/purchase-flow';
+import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 
 const OPTIONS: SubscriptionOption[] = [
-  { productId: 'co.davidmasterson.crewchief.paid.monthly', displayPrice: '£7.99', period: 'month' },
-  { productId: 'co.davidmasterson.crewchief.paid.annual', displayPrice: '£69.99', period: 'year' },
+  { productId: 'com.southmoordigital.tappet.paid.monthly', displayPrice: '£7.99', period: 'month' },
+  { productId: 'com.southmoordigital.tappet.paid.annual', displayPrice: '£69.99', period: 'year' },
 ];
 
 const ENTITLED: PurchaseResolution = {
@@ -159,7 +159,7 @@ describe('what App Review looks for', () => {
     expect(screen.getByText(/renews automatically/i)).toBeTruthy();
     expect(screen.getByText(/at least 24 hours before it ends/i)).toBeTruthy();
     // The one that costs money to omit, and the same claim the terms page makes.
-    expect(screen.getByText(/deleting your Well Kept account does not stop the billing/i)).toBeTruthy();
+    expect(screen.getByText(/deleting your Tappet account does not stop the billing/i)).toBeTruthy();
   });
 
   it('carries both legal links in the binary', async () => {

@@ -6,7 +6,7 @@
  * them apart is what lets this module, `routes.ts` and
  * `auth-session.ts` into the shared package.
  */
-export const DEMO_COOKIE = 'crewchief_demo';
+export const DEMO_COOKIE = 'tappet_demo';
 export const DEMO_VEHICLE_IDS = [
   'a1000000-0000-0000-0000-000000000001',
   'a2000000-0000-0000-0000-000000000002',
