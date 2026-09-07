@@ -37,6 +37,7 @@ import { normaliseRecalls } from '@wellkept/core/recalls';
 import { localToday } from '@wellkept/core/garage-next-service';
 import { interFace } from '../theme/fonts';
 
+import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
 import { rememberGarageSize } from '../navigation/RootNavigator';
 
 /**
@@ -784,7 +785,18 @@ const styles = StyleSheet.create({
   */
   heading: { ...type.display, color: text.primary },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+    /*
+      ⚠ Room for the floating account control, which is a sibling of the
+      navigator and draws over this corner. Without it the account icon sat on
+      top of "add a car" — and that `+` is the only way to add a second vehicle,
+      so the collision silently removed a feature rather than looking untidy.
+    */
+    paddingRight: ACCOUNT_CONTROL_SLOT,
+  },
   /*
     Brighter than `signOut`, because these two are not equals: adding a car is
     the thing this screen exists to lead to, and Account is somewhere you go

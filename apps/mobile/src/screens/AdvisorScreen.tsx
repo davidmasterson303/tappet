@@ -13,6 +13,7 @@ import {
 
 import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
+import CutSurface from '../components/CutSurface';
 import ScreenTitle from '../components/ScreenTitle';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -22,7 +23,7 @@ import { ADVISOR_AI_CONSENT } from '@wellkept/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
 import { Skeleton } from '../components/Skeleton';
-import { TARGET_MIN, border, brand, radius, space, status, surface, text, type } from '../theme';
+import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
 import { CONTEXT_KIND_LABELS, type ContextKind } from '@wellkept/core/consultant-context-kinds';
 import type { ConsultantEstimate } from '@wellkept/core/consultant-estimate';
 import EstimateWell from '../components/EstimateWell';
@@ -432,7 +433,18 @@ export function AdvisorScreen({
         panel carries the border and the ring, and the send control lives inside
         it: one object, which is what it is.
       */}
-      <View style={[styles.composer, focused && styles.composerFocused]}>
+      {/*
+        ⚠ 7 Sep · B4: the composer takes the cut, and its focus ring becomes a
+        stroke rather than a border — `CutSurface` draws the shape, so a
+        `borderColor` on the view underneath would square the corner it just cut.
+      */}
+      <CutSurface
+        style={styles.composer}
+        cut={['bottomRight']}
+        size={cut.control}
+        fill={surface.raised}
+        stroke={focused ? brand.accent : border.field}
+      >
         <TextInput
           style={styles.input}
           onFocus={() => setFocused(true)}
@@ -477,7 +489,7 @@ export function AdvisorScreen({
           disabled={!canSend}
           accessibilityLabel="Send question to the advisor"
         />
-      </View>
+      </CutSurface>
 
       {consent === 'declined' ? (
         <Text style={styles.declineNote}>
@@ -778,7 +790,15 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.xs,
   },
-  contextLabel: { ...type.value, color: text.muted },
+  /*
+    ⚠ 7 Sep · B1: mono caps. This was mixed-case Inter — "About 2015 BMW M235i"
+    — and the critique found it as "the one model name outside the type system",
+    which it was: every other appearance of this car is condensed caps or mono.
+
+    A context line is a *label naming the subject*, not a sentence about it, so
+    it takes the mono the tab labels and stat-strip eyebrows use.
+  */
+  contextLabel: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
 
   /* ── R50 · the starter block ──────────────────────────────────────────── */
   emptyWrap: {
@@ -827,9 +847,11 @@ const styles = StyleSheet.create({
     gap: space.sm,
     padding: space.sm,
     margin: space.md,
-    backgroundColor: surface.raised,
-    borderWidth: 1,
-    borderColor: border.field,
+    /*
+      ⚠ 7 Sep · B4: ground, border and corner belong to `CutSurface` now — a
+      `backgroundColor` here would paint a square corner back over the cut. The
+      composer was the last square container on a root; B4 names it explicitly.
+    */
     /*
       ⚠ `radius.well`, not `radius.card`. The composer is a bar on
       `surface.raised`, and `mobile-surface-ladder.test.ts` fails a container

@@ -560,8 +560,13 @@ function lastVehicle() {
  * ⚠ Used to decide where the account control may float. A pushed screen owns
  * its top-right through its header; a root has none, which is the gap this
  * fills.
+ *
+ * ⚠ `Account` is deliberately **not** in this set. It is reached *from* these
+ * four and pushed on top of one of them, so it has a header and a back control
+ * of its own — and a control that opens the screen you are already looking at
+ * is a control that does nothing.
  */
-const ROOT_ROUTES = new Set(['Garage', 'Service', 'Advisor', 'Plan', 'Account']);
+const ROOT_ROUTES = new Set(['Garage', 'Service', 'Advisor', 'Plan']);
 
 function tabFor(route: string | undefined): TabName {
   if (route === 'Advisor') return 'Advisor';
@@ -914,7 +919,13 @@ export function RootNavigator({
             and error states too. A person whose list failed to load can still
             add to it.
           */
-          options={{ title: 'Plan' }}
+          /*
+            ⚠ 7 Sep: `rootTitle`, like the other roots. `Plan` became a tab in
+            this change, and it was still carrying a pushed screen's options — a
+            sentence-case "Plan" in the nav bar and no condensed title of its
+            own, which is the header treatment B8 replaced everywhere else.
+          */
+          options={rootTitle('PLAN')}
         >
           {({ route, navigation }) => (
             <PlanScreen
@@ -1104,7 +1115,15 @@ export function RootNavigator({
       */}
       <AccountControl
         visible={ROOT_ROUTES.has(route ?? '')}
-        onPress={() => resetTo(navigation, [{ name: 'Account' }])}
+        /*
+          ⚠ `navigate`, not `resetTo`. A tab press resets because a tab *is* a
+          root and the bar is how you leave it. The account is not a root any
+          more — it is somewhere you go and come back from — and resetting to it
+          cleared the stack, leaving no way back while the bar still lit CAR.
+          Pushed, it gets a header and a back control from `rootTitle`'s
+          `canGoBack` branch, and the gesture works.
+        */
+        onPress={() => navigation.navigate('Account')}
       />
 
       <TabBar

@@ -48,15 +48,30 @@ export type TabName = 'Garage' | 'History' | 'Advisor' | 'Plan';
  */
 const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
   { name: 'Garage', label: 'Car', icon: 'car' },
-  { name: 'History', label: 'History', icon: 'file-text' },
+  /*
+    ⚠ 7 Sep: labelled "Service", not "History".
+
+    The tab said HISTORY while its root said SERVICE and DUE was half of that
+    screen — so the tab named one *segment* of the thing it opened. The critique
+    put it plainly: "the tab names a segment". `Service` is the route, the title
+    and the deep-link target that shipped notifications carry; the bar now agrees
+    with all three.
+  */
+  { name: 'History', label: 'Service', icon: 'wrench' },
   { name: 'Advisor', label: 'Advisor', icon: 'message-square' },
   /*
-    ⚠ `wrench`, not `sliders`. `sliders` went with Account, and it was already
-    doing two jobs — the critique caught it as "one glyph for both the Account
-    tab and the 'What is driving this score' row". A wrench is what this screen
-    is about: the work a car still needs.
+    ⚠ `clock`, and the wrench went to Service.
+
+    The critique: "the wrench — the one glyph that means *service* — sits on
+    PLAN instead". Fair. The two screens split on *tense*: Service is work that
+    has been done and recorded, Plan is work that has not. A wrench for the
+    first, a clock for the second.
+
+    ⚠ `sliders` is gone from the bar entirely — it was doing three jobs at once
+    (this tab, the Account tab, and the "What is driving this score" row) and is
+    now on none of them.
   */
-  { name: 'Plan', label: 'Plan', icon: 'wrench' },
+  { name: 'Plan', label: 'Plan', icon: 'clock' },
 ];
 
 /**

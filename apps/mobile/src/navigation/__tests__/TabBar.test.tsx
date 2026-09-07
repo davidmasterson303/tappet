@@ -31,7 +31,7 @@ describe('the tab bar', () => {
       `AccountControl`, still a sibling of the navigator so App Store 5.1.1(v)
       keeps its structural guarantee rather than going back to vigilance.
     */
-    for (const label of ['Car', 'History', 'Advisor', 'Plan']) {
+    for (const label of ['Car', 'Service', 'Advisor', 'Plan']) {
       expect(view.getByLabelText(label)).toBeTruthy();
     }
   });
@@ -53,13 +53,20 @@ describe('the tab bar', () => {
     expect(view.getByLabelText('Car')).toBeTruthy();
   });
 
-  it('reports History by its route name, not its label', async () => {
-    // The bar hands back a `TabName`; the navigator switches on it. A label
-    // leaking into that contract would route nowhere.
+  it('reports the second tab by its route name, not its label', async () => {
+    /*
+      The bar hands back a `TabName`; the navigator switches on it. A label
+      leaking into that contract would route nowhere.
+
+      ⚠ 7 Sep: this tab's label became "Service" while its route stayed
+      `History`, which makes the case *stronger* than when it was written — the
+      two now differ, so a label leaking into the contract would actually fail
+      rather than coincidentally pass. The same is true of `Garage`/"Car" above.
+    */
     const onSelect = jest.fn();
     const view = await render(withSafeArea(<TabBar current="Garage" onSelect={onSelect} />));
 
-    await userEvent.press(view.getByLabelText('History'));
+    await userEvent.press(view.getByLabelText('Service'));
     expect(onSelect).toHaveBeenCalledWith('History');
   });
 

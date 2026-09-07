@@ -1,8 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Icon from '../components/Icon';
-import { space, text } from '../theme';
+import { space, text, type } from '../theme';
 
 /**
  * The way into the account, from every root, as a sibling of the navigator.
@@ -62,12 +61,44 @@ export default function AccountControl({
         /* R25: drawn small enough to sit beside a title, tappable at 44. */
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <Icon name="sliders" size={22} color={text.secondary} />
+        {/*
+          ── ⚠ 7 Sep: a word, not a glyph, and the reason is a real misfire ────
+
+          This was `sliders`, which is the universal **filter** icon. The
+          critique found where that lands: it sits directly above a search field
+          on Service and above a segmented list on Plan, so "a user tapping to
+          filter lands on Sign Out."
+
+          There is no icon in the set that says *account* without saying
+          something else first — `sliders` says filter, a gear says system
+          settings, a person says profile-you-can-edit. The system already has a
+          face for short, quiet, unambiguous labels, and B1 hands every one of
+          them to the mono: so this says ACCOUNT.
+
+          It also removes the last of `sliders`' three simultaneous jobs — this
+          control, the old Account tab, and the "What is driving this score" row.
+        */}
+        <Text style={styles.label}>Account</Text>
       </Pressable>
     </View>
   );
 }
 
+/**
+ * The width a root must keep clear on its right, for the floating control.
+ *
+ * ⚠ Exported because the control floats *over* the roots rather than in their
+ * layout, so nothing stops a screen drawing its own action underneath it — and
+ * on the first build, something did: `GarageScreen`'s "add a car" `+` sits at
+ * exactly this corner and the account icon covered it. That `+` is the only way
+ * to add a second vehicle, so covering it silently removes a feature.
+ *
+ * A screen with its own top-right action pads by this instead of guessing.
+ */
+export const ACCOUNT_CONTROL_SLOT = 62 + space.lg;
+
 const styles = StyleSheet.create({
   slot: { position: 'absolute', right: space.lg, zIndex: 10 },
+  /* Mono caps, the same voice the tab labels use — this is chrome, like them. */
+  label: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
 });
