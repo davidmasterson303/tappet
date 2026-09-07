@@ -9,7 +9,7 @@ import DemoBanner from '@/components/DemoBanner';
 import { isDemoSite, shareDescription, siteOrigin } from '@/lib/site-role';
 
 /** Resolved once: this build is either the demo or the product, never both. */
-const IS_DEMO = isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE);
+const IS_DEMO = isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE);
 import { AuthProvider } from '@/components/AuthProvider';
 import { SiteRoleProvider } from '@/components/SiteRoleProvider';
 import { INTRO_PLAYED_KEY, INTRO_PLAYED_VALUE } from '@tappet/core/intro-gate';
@@ -49,22 +49,22 @@ export const metadata: Metadata = {
   /*
     ── ⚠ Design's string table, 30 Aug — this is the App Store name ──────────
 
-    `Well Kept: Know Your Car` is the App Store name, and the page title is the
+    `Tappet: Know Your Car` is the App Store name, and the page title is the
     same string on purpose: a listing and its own marketing URL disagreeing
     about what the product is called is the first thing a reviewer sees.
 
-    It replaces "Well Kept — Your Personal Auto Ownership Consultant", which was
+    It replaces "Tappet — Your Personal Auto Ownership Consultant", which was
     the CrewChief title with the name swapped — a description standing where a
     name belongs, and forty characters of it.
   */
-  title: 'Well Kept: Know Your Car',
+  title: 'Tappet: Know Your Car',
   /*
      The favicon, apple-touch-icon and SVG icon are NOT declared here — they
      are app/favicon.ico, app/icon.svg and app/apple-icon.png, served by the
      same filename convention as opengraph-image.tsx below.
 
      ✅ **They are generated together again as of 7 Sep.** This block used to
-     record a gap: `icon.svg` carried the Well Kept plate while `favicon.ico`,
+     record a gap: `icon.svg` carried the Tappet plate while `favicon.ico`,
      `apple-icon.png` and the manifest's two PNGs were still the *Sweep dial* —
      two logos ago — because regenerating them needed a rasteriser with
      Newsreader loaded, and nothing on this machine had one.
@@ -96,12 +96,12 @@ export const metadata: Metadata = {
   */
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Well Kept: Know Your Car',
+    title: 'Tappet: Know Your Car',
     // Per-deployment. The product must never describe itself as a demo — see
     // `lib/site-role.ts` for why that sentence is expensive on this hostname.
     description: shareDescription(IS_DEMO),
     url: siteOrigin(IS_DEMO),
-    siteName: 'Well Kept',
+    siteName: 'Tappet',
     /*
        No `images` key. `app/opengraph-image.tsx` is the card now, and Next
        emits its tags — absolute URL, real dimensions, correct content-type —
@@ -220,7 +220,7 @@ export default function RootLayout({
               shell takes "the rest of the viewport", and there is simply more
               of it.
             */}
-            {isDemoSite(process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
+            {isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE) && <DemoBanner />}
             <ErrorBoundary context="ROOT_LAYOUT">
               {children}
             </ErrorBoundary>

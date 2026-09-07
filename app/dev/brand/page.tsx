@@ -43,7 +43,7 @@ export default function BrandStatesPage() {
     <main className="min-h-screen bg-[#100F0D] px-6 py-10">
       <div className="mx-auto max-w-4xl space-y-12">
         <header className="space-y-2">
-          <h1 className="text-2xl font-bold text-white">Well Kept lockup — states</h1>
+          <h1 className="text-2xl font-bold text-white">Tappet lockup — states</h1>
           <p className="text-sm text-white/60">
             Development only. Every drawing below comes from{' '}
             <code className="text-white/80">@tappet/core/brand</code>, whose values are asserted

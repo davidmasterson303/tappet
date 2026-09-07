@@ -42,18 +42,18 @@ const SUPABASE_CLIENT_OWNERS = ['src/auth/supabase.ts'];
  * The only two modules that may call `fetch`.
  *
  * `src/api/client.ts` is the API client itself — the rule's whole point is that
- * every Well Kept request goes through it and therefore carries a bearer token.
+ * every Tappet request goes through it and therefore carries a bearer token.
  *
  * ⚠ `src/api/vpic.ts` was added on 23 Aug and is a **genuine exception, not a
  * loosening**. NHTSA's vPIC is a public, unauthenticated US government API that
  * the add-a-car screen asks for model lists and VIN decodes. `apiRequest` is
  * structurally unusable for it: it prefixes `API_PREFIX`, resolves against
  * `API_BASE_URL`, and attaches a Supabase bearer token — none of which vPIC has
- * any use for, and the last of which would send a Well Kept credential to a
+ * any use for, and the last of which would send a Tappet credential to a
  * third party.
  *
  * The exception is kept safe by the case below it rather than by good
- * intentions: an exempt module that named a Well Kept path or host would be
+ * intentions: an exempt module that named a Tappet path or host would be
  * exactly the hole this rule exists to close, and that is asserted separately.
  *
  * Going direct is also what keeps the feature a JS-only change. A proxy route
@@ -166,7 +166,7 @@ describe('the mobile client', () => {
       ⚠ The case that makes `FETCH_OWNERS` safe to have more than one entry in.
 
       An exempt module is exempt because it talks to somebody who is not
-      Well Kept. The moment one of them names `API_PREFIX`, an `/api/v1` path or
+      Tappet. The moment one of them names `API_PREFIX`, an `/api/v1` path or
       the app's own base URL, it has become an unauthenticated second route into
       this product's data — which is the `VehicleCard` defect at the top of this
       file, arriving through the door the exception opened.

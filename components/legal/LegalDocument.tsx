@@ -37,7 +37,7 @@ export default function LegalDocument({
   return (
     <div className="min-h-screen service-bay service-bay-dim">
       <div className="mx-auto w-full max-w-2xl px-5 py-14">
-        <Link href="/" className="inline-flex mb-10" aria-label="Well Kept home">
+        <Link href="/" className="inline-flex mb-10" aria-label="Tappet home">
           {/*
             The full lockup, maker line and all — this is the page Apple reads,
             and it is the one place the operator's name belongs beside the mark.
@@ -78,7 +78,7 @@ export default function LegalDocument({
             className="inline-flex items-center text-white/50 hover:text-white/80 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true" />
-            Back to Well Kept
+            Back to Tappet
           </Link>
         </div>
       </div>

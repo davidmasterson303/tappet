@@ -84,7 +84,7 @@ export function AppStoreCTA({ variant = 'hero', className = '' }: Props) {
     /*
       ── ⚠ LEG-10 · a reviewer must not be told the app is unavailable ────────
 
-      This renders *"iPhone app coming soon"* on `wellkept.southmoordigital.com`,
+      This renders *"iPhone app coming soon"* on `tappet.southmoordigital.com`,
       which is the **marketing URL on the App Store listing** — the page an App
       Review reviewer opens while reviewing the binary. Reading that the iPhone
       app is *coming* while holding it is at best confusing and at worst reads

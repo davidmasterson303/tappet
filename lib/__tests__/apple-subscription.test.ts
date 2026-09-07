@@ -17,7 +17,7 @@ import {
 } from '@tappet/core/apple-subscription';
 import { resolveEntitledTier } from '@tappet/core/entitlement';
 
-const MONTHLY = 'com.southmoordigital.wellkept.paid.monthly';
+const MONTHLY = 'com.southmoordigital.tappet.paid.monthly';
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -65,7 +65,7 @@ describe('the product map is a closed list', () => {
     */
     const ids = Object.keys(PRODUCT_TIERS);
     expect(ids.length).toBeGreaterThan(0);
-    expect(ids.every((id) => id.startsWith('com.southmoordigital.wellkept.'))).toBe(true);
+    expect(ids.every((id) => id.startsWith('com.southmoordigital.tappet.'))).toBe(true);
     expect(Object.values(PRODUCT_TIERS).every((t) => t === 'paid')).toBe(true);
   });
 
@@ -335,7 +335,7 @@ describe('a product we do not recognise never grants a paid tier', () => {
     */
     const decision = applyAppleNotification(
       null,
-      event({ productId: 'com.southmoordigital.wellkept.paid.weekly' })
+      event({ productId: 'com.southmoordigital.tappet.paid.weekly' })
     );
 
     const record = writeOf(decision);

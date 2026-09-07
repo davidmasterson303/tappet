@@ -25,7 +25,7 @@ import { secureStorage } from '../auth/secure-storage';
  * this" — hides the explanation from exactly the person who needs it.
  */
 
-const EVER_HAD_VEHICLE_KEY = 'wellkept.everHadVehicle';
+const EVER_HAD_VEHICLE_KEY = 'tappet.everHadVehicle';
 
 export async function everHadVehicle(): Promise<boolean> {
   try {

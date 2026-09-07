@@ -149,7 +149,7 @@ describe('never tell someone a completed payment failed', () => {
       { kind: 'belongs-to-another-account' }
     );
     expect(result.message).toMatch(
-      /That purchase belongs to a different Well Kept account\. Sign in as that account to use it\./i
+      /That purchase belongs to a different Tappet account\. Sign in as that account to use it\./i
     );
     expect(result.grantsAccess).toBe(false);
   });

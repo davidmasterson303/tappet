@@ -82,7 +82,7 @@ interface TransactionInfo {
    * compared** (IAP-03). A repo-wide search for `bundleId` returned exactly one
    * hit — `app.json:11`, the Expo config. Apple's WWDR chain signs transactions
    * for **every app in the store**, so a verified chain proves *"Apple signed
-   * this"*, not *"Apple signed this for Well Kept"*.
+   * this"*, not *"Apple signed this for Tappet"*.
    *
    * The only thing standing between a signed transaction from an unrelated app
    * and a paid entitlement here was a product-id lookup in `PRODUCT_TIERS` — an

@@ -1,7 +1,7 @@
 /**
  * Reading a model's JSON, in whichever spelling it arrived in.
  *
- * The module exists because **every health score Well Kept ever generated was
+ * The module exists because **every health score Tappet ever generated was
  * 70**: the prompt asked for `healthScore`, the parser read `health_score`, and
  * the difference was absorbed by a fallback that was defensible in isolation.
  * These cases pin the two properties that stop that recurring — absence is

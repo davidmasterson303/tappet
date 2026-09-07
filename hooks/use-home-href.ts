@@ -4,7 +4,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { DEMO_GARAGE_ROUTE, SIGNED_IN_HOME } from '@tappet/core/routes';
 
 /**
- * Where the Well Kept mark should take you.
+ * Where the Tappet mark should take you.
  *
  * Every nav in the app pointed its logo at `/`, which is the demo garage. For a
  * signed-in user that meant the most obvious control on the screen led out of

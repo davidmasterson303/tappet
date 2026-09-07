@@ -19,7 +19,7 @@ import { claimScansForVisitor } from '@/lib/quote-check';
  * is absent from the middleware matcher, so nothing upstream saw it either.
  *
  * It matters more here than the shape usually does: this is the domain Apple's
- * reviewer opens, and a phishing page reached from a `wellkept.southmoordigital.com`
+ * reviewer opens, and a phishing page reached from a `tappet.southmoordigital.com`
  * link inherits whatever trust that name carries.
  *
  * ⚠ **`//` is rejected too.** `//evil.example` is protocol-relative — it starts

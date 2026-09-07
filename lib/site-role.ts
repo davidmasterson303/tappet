@@ -1,12 +1,12 @@
 /**
- * Which of the two Well Kept sites this build is.
+ * Which of the two Tappet sites this build is.
  *
  * One codebase, two Netlify projects, two hostnames:
  *
- *   wellkept.southmoordigital.com     web-live    the product. App Store
+ *   tappet.southmoordigital.com     web-live    the product. App Store
  *                                                 listing URL, and the origin
  *                                                 every installed app calls
- *   wellkept-demo.davidmasterson.co   demo-live   the portfolio piece
+ *   tappet-demo.davidmasterson.co   demo-live   the portfolio piece
  *
  * Until 20 Aug nothing in the application knew the difference, and that was
  * fine while there was only one site — which there was, and it was the demo.
@@ -62,10 +62,11 @@ const ENABLED = 'true';
  * a non-empty string looked truthy.
  */
 /*
-  ── ⚠ 6 Sep · the variable is being renamed, and both names are read ─────────
+  ── ⚠ Renamed twice, so three names are read ────────────────────────────────
 
-  Call sites read `WELLKEPT_DEMO_SITE ?? CREWCHIEF_DEMO_SITE`. This is a
-  transition, and it is deliberate rather than untidy.
+  Call sites read `TAPPET_DEMO_SITE ?? WELLKEPT_DEMO_SITE ?? CREWCHIEF_DEMO_SITE`
+  — 6 Sep added the second rung, 7 Sep the third. This is a transition, and it is
+  deliberate rather than untidy.
 
   The variable is **not** in `netlify.toml` — it is set per-site in each Netlify
   project's own dashboard, so code and configuration move on different clocks and
@@ -76,16 +77,22 @@ const ENABLED = 'true';
   quietly serves recruiters the product's signup call to action. That exact
   failure is what `promote-demo.mjs` checks the live demo host for.
 
-  Reading both names removes the ordering requirement entirely: the dashboard can
+  Reading every name removes the ordering requirement entirely: the dashboard can
   be renamed before this ships, after it ships, or never, and the demo keeps its
   framing throughout.
 
-  ⚠ **The fallback is the thing to delete, not to keep.** It is only correct
-  while both names might be live. Once `WELLKEPT_DEMO_SITE` is set on
-  `demo-live` and confirmed by `verify-demo.mjs` against the running host,
-  drop the `?? process.env.CREWCHIEF_DEMO_SITE` half at every call site — an
+  ⚠ **The chain grew rather than moved, and that was the choice.** Replacing the
+  name outright is what a find-and-replace does, and it would have pointed the
+  code at a variable no Netlify dashboard sets — silently, because unset is a
+  valid state here. The rung stays until something has proved it unreachable.
+
+  ⚠ **These are the thing to delete, not to keep.** Each is only correct while
+  that name might still be live. Once `TAPPET_DEMO_SITE` is set on `demo-live`
+  and confirmed by `verify-demo.mjs` against the running host, drop the rungs
+  beneath it at every call site — oldest first, one at a time — because an
   alternative that has stopped being reachable is the same rot as an exemption
-  that has stopped being true.
+  that has stopped being true. Three deep is the most this should ever get: a
+  fourth would mean nobody is deleting them.
 */
 export function isDemoSite(value: string | undefined | null): boolean {
   return value?.trim().toLowerCase() === ENABLED;
@@ -117,8 +124,8 @@ export function isDemoSite(value: string | undefined | null): boolean {
  * set correctly on both sites.
  */
 
-export const DEMO_ORIGIN = 'https://wellkept-demo.davidmasterson.co';
-export const PRODUCT_ORIGIN = 'https://wellkept.southmoordigital.com';
+export const DEMO_ORIGIN = 'https://tappet-demo.davidmasterson.co';
+export const PRODUCT_ORIGIN = 'https://tappet.southmoordigital.com';
 
 /** The origin a build should claim as its own in canonical and share tags. */
 export function siteOrigin(demo: boolean): string {
@@ -128,7 +135,7 @@ export function siteOrigin(demo: boolean): string {
 /**
  * The share-card description.
  *
- * ⚠ The product copy must not describe Well Kept as a demo, and
+ * ⚠ The product copy must not describe Tappet as a demo, and
  * `site-role.test.ts` asserts the word is absent. That is not stylistic: it is
  * the sentence Apple would quote back.
  *

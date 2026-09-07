@@ -1,5 +1,5 @@
 /**
- * Well Kept - Error Boundary Component
+ * Tappet - Error Boundary Component
  *
  * React error boundary that catches component errors and displays
  * a user-friendly fallback UI. Logs all errors for debugging.

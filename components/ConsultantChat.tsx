@@ -817,7 +817,7 @@ export default function ConsultantChat({
                   <MessageSquare className="h-7 w-7 text-info" />
                 </div>
                 {/*
-                  The advisor is Jay; the product is Well Kept. Both names come
+                  The advisor is Jay; the product is Tappet. Both names come
                   from one constant in core, so this greeting, the turn bylines
                   below and the name the model is given cannot drift apart.
                 */}

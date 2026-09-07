@@ -10,11 +10,11 @@ import {
 /**
  * NHTSA's vehicle catalogue, called from the phone.
  *
- * ── ⚠ This is the one place the app talks to something that is not Well Kept ─
+ * ── ⚠ This is the one place the app talks to something that is not Tappet ─
  *
  * `api/client.ts` opens by saying it is "the only way this app talks to
- * Well Kept", and it still is. This is a different sentence: vPIC is a public,
- * unauthenticated, read-only US government API, and nothing about a Well Kept
+ * Tappet", and it still is. This is a different sentence: vPIC is a public,
+ * unauthenticated, read-only US government API, and nothing about a Tappet
  * account is sent to it. The request carries a make and a model year, or a VIN
  * the owner has just typed and has not yet saved anywhere.
  *

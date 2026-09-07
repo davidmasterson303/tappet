@@ -1,7 +1,7 @@
 import { EDITORIAL_FACE, displayFace, interFace, monoFace } from './fonts';
 
 /**
- * The mobile token layer — Well Kept v8, native.
+ * The mobile token layer — Tappet v8, native.
  *
  * ── ⚠ 5 Sep: the two-hue collapse reached this file ────────────────────────
  *

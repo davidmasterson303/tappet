@@ -34,7 +34,7 @@ import { acceptsThinkingLevel, type ThinkingLevelName } from '@tappet/core/ai/mo
 const apiKey = process.env.GEMINI_API_KEY || '';
 
 if (!apiKey) {
-  const msg = '[Well Kept] GEMINI_API_KEY is not set. Set it in your .env file (see .env.example). AI features will not work.';
+  const msg = '[Tappet] GEMINI_API_KEY is not set. Set it in your .env file (see .env.example). AI features will not work.';
   if (process.env.NODE_ENV === 'development') {
     throw new Error(msg);
   } else {

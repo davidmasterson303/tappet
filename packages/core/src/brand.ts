@@ -1,5 +1,12 @@
 /**
- * The Well Kept mark, as data — so the two clients cannot draw different plates.
+ * The Tappet mark, as data — so the two clients cannot draw different plates.
+ *
+ * ⛔ **The artwork still draws the old name.** The 7 Sep rename moved every
+ * string; the outlines in `./brand-geometry.ts` were deliberately left alone,
+ * so the plate is cut with a **W** and the wordmark spells **WELL KEPT**. The
+ * letter becomes a T and the wordmark one word when the package is regenerated
+ * — David's design-critic round, after the rename. Read that file's header
+ * before reasoning about anything below.
  *
  * ── The mark ────────────────────────────────────────────────────────────────
  *
@@ -93,7 +100,7 @@ export {
 import { LOCKUP, TYPE_SOURCE } from './brand-geometry';
 
 /** The word on the plate. Set in capitals — the wordmark has no lowercase. */
-export const BRAND_NAME = 'Well Kept';
+export const BRAND_NAME = 'Tappet';
 
 /** The maker, and the only string in the lockup that is not the name. */
 export const MAKER_NAME = 'Southmoor Digital';

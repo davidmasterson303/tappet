@@ -11,7 +11,7 @@ export interface PerformanceMetrics {
 class CacheDebugManager {
   private metrics: PerformanceMetrics[] = [];
   private sessionStart = Date.now();
-  private verbose = typeof window !== 'undefined' && (window as any).__WELL_KEPT_DEBUG_VERBOSE;
+  private verbose = typeof window !== 'undefined' && (window as any).__TAPPET_DEBUG_VERBOSE;
 
   logStage(stage: string, vehicleId: string, performanceGoal: string, details?: Record<string, any>) {
     const metric: PerformanceMetrics = {
@@ -87,7 +87,7 @@ export const cacheDebugManager = new CacheDebugManager();
 
 export function enableCacheDebugVerbose() {
   if (typeof window !== 'undefined') {
-    (window as any).__WELL_KEPT_DEBUG_VERBOSE = true;
+    (window as any).__TAPPET_DEBUG_VERBOSE = true;
   }
 }
 

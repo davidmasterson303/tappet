@@ -9,7 +9,7 @@
  *
  * A push token is not a credential — it addresses a device and authenticates
  * nobody — but it is enough to *send* to that device, so a leaked or
- * mis-scoped row is a spam channel wearing Well Kept's name. That is what most
+ * mis-scoped row is a spam channel wearing Tappet's name. That is what most
  * of this file is about.
  */
 

@@ -694,7 +694,7 @@ export function GarageScreen({
             */
             <EmptyState
               headline="No vehicles yet"
-              body="Add your first car and Well Kept gets to work on it."
+              body="Add your first car and Tappet gets to work on it."
               actionLabel="Add a car"
               actionAccessibilityLabel="Add your first car"
               onAction={onAddVehicle}

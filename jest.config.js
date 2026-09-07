@@ -43,7 +43,7 @@ const customJestConfig = {
         * <rootDir>/package.json
         * <rootDir>/.claude/worktrees/…/package.json
 
-    (it read `crewchief`, then `wellkept`, before the 30 Aug and 7 Sep renames,
+    (it read `crewchief`, then `tappet`, before the 30 Aug and 7 Sep renames,
     and the worktrees still hold checkouts from before both — so the names
     collide differently now, and the reason to ignore the path has not changed.)
 

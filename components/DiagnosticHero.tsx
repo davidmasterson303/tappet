@@ -471,7 +471,7 @@ export default function DiagnosticHero({
               {unknownScore ? (
                 <>
                   <p className="text-sm text-white/70 leading-relaxed">
-                    Not enough history yet. Well Kept works out a score from this car&apos;s
+                    Not enough history yet. Tappet works out a score from this car&apos;s
                     service records, and there are not enough on file to say anything useful.
                   </p>
                   {onAddRecord && (

@@ -136,7 +136,7 @@ describe('the disclosure itself', () => {
     for (const surface of ['consultant', 'health', 'estimate', 'plan', 'research'] as const) {
       const copy = adviceDisclosure(surface);
       expect([surface, /\[advisor name\]|\{advisor/i.test(copy)]).toEqual([surface, false]);
-      expect([surface, /CrewChief|Well Kept/i.test(copy)]).toEqual([surface, false]);
+      expect([surface, /CrewChief|Tappet/i.test(copy)]).toEqual([surface, false]);
       expect([surface, new RegExp(`\\b${ADVISOR_NAME}\\b`, 'i').test(copy)]).toEqual([
         surface,
         false,

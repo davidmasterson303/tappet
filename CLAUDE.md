@@ -121,8 +121,31 @@ crewchief-demo-live           deploys demo-live   wellkept-demo.davidmasterson.c
 glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
 ```
 
+⚠ **Those two hostnames still say `wellkept`, and the repo no longer does.**
+The 7 Sep rename to Tappet moved every identifier in the source — including
+`PRODUCT_ORIGIN`, `DEMO_ORIGIN` and `app.json` → `extra.apiBaseUrl`, which now
+name `tappet.southmoordigital.com` and `tappet-demo.davidmasterson.co`. **Those
+hostnames do not exist yet.** DNS and the Netlify aliases are Track B, outside
+this repo.
+
+**So `main` is correct and unshippable at the same time, and that is the
+intended state.** It is safe because nothing deploys from `main` (below) — but
+it means:
+
+- ⛔ **Do not promote until the new hostnames resolve and serve.** A promote
+  publishes the API installed apps call. Promoting now points the product at a
+  hostname with no DNS record.
+- ⛔ **Do not cut a mobile build until then either.** `extra.apiBaseUrl` is
+  baked into the binary, and EAS builds are ~15/month (§9). A build shipped
+  against a hostname that does not resolve is a wasted build and an app that
+  cannot reach its own API.
+- The order is fixed by the 301/POST trap: add the new hostnames as **aliases**,
+  verify them serving, repoint the app, and only then flip a primary domain.
+  Netlify redirects non-primary domains to the primary, and a 301 downgrades a
+  POST to a GET — so flipping first breaks API writes silently.
+
 **Nothing deploys from `main`.** Pushing to `main` costs nothing and publishes
-nothing; both Well Kept hostnames move only when someone merges into their
+nothing; both product hostnames move only when someone merges into their
 release branch. That is a **gate, not a filter**, and it was chosen over an
 ignore rule for a reason worth keeping: a filter fails silently toward stale
 deploys, an ignore rule needs an inverted exit code to be right, and one
@@ -147,7 +170,9 @@ becomes the demo — it can, because that commit is already live on `web-live`.
 That second half matters: Netlify can accept a push and fail the build, and this
 branch's failure mode is a hostname silently frozen on its last good deploy.
 
-⚠ **`wellkept.southmoordigital.com` is gated behind `web-live`** — it is the App
+⚠ **The product hostname is gated behind `web-live`** — today that is
+`wellkept.southmoordigital.com`, and `tappet.southmoordigital.com` once Track B
+claims it. It is the App
 Store listing's privacy-policy URL and the origin the mobile app talks to
 (`app.json` → `extra.apiBaseUrl`). Before that, anything pushed to `main` was
 instantly live at a URL App Review reads, and every push cost a build: 111

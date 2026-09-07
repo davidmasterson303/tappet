@@ -357,6 +357,6 @@ describe('the app icon and the Android foreground are not the same share', () =>
 
 describe('the name', () => {
   it('is two words, both capitalised', () => {
-    expect(BRAND_NAME).toBe('Well Kept');
+    expect(BRAND_NAME).toBe('Tappet');
   });
 });

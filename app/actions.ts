@@ -200,7 +200,7 @@ export async function decodeVIN(vin: string) {
 
       ⚠ The message says a VIN is registered and nothing else. No owner, no id,
       no "belongs to <someone>". It is a real if small disclosure — you can
-      learn a given VIN is in Well Kept — and the alternative is a dead end
+      learn a given VIN is in Tappet — and the alternative is a dead end
       with no explanation, which is worse for the one person who has a genuine
       reason to be here: somebody who has just bought the car.
 
@@ -225,7 +225,7 @@ export async function decodeVIN(vin: string) {
       });
       return {
         success: false,
-        error: `This VIN is already registered to another Well Kept account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
+        error: `This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
       };
     }
 
@@ -2193,7 +2193,7 @@ Format as valid JSON only, no markdown.`;
     /*
       ── ⚠ FN-01 · the prompt asks camelCase and this read snake_case ─────────
 
-      **Every health score Well Kept has ever generated was 70.** The prompt
+      **Every health score Tappet has ever generated was 70.** The prompt
       above asks for `healthScore`, `redFlags`, `maintenanceStatus`,
       `recallStatus` and `issuesOverview`; this block read `health_score`,
       `red_flags` and the rest in snake_case. `healthData.health_score` was
@@ -6593,7 +6593,7 @@ export async function generateQuoteRequestV2(
       A quote is the most convincing thing this product does — it turns a
       wishlist into priced work with an email a shop can answer — and until
       17 Aug the public demo refused it outright with "Demo vehicles are
-      read-only". Someone evaluating Well Kept saw the setup and not the payoff.
+      read-only". Someone evaluating Tappet saw the setup and not the payoff.
 
       The block was right about the database and wrong about the feature.
       Generating costs nothing but an AI call; **storing** is what would let an

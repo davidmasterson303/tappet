@@ -465,7 +465,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
           <CardHeader>
             <CardTitle>Limited Data Available</CardTitle>
             <CardDescription>
-              We couldn&apos;t find enough information about your specific vehicle, but you can still use Well Kept
+              We couldn&apos;t find enough information about your specific vehicle, but you can still use Tappet
               to track maintenance and get general advice.
             </CardDescription>
           </CardHeader>

@@ -1,5 +1,5 @@
 /**
- * Well Kept - API route authorization
+ * Tappet - API route authorization
  *
  * Every API route that touches vehicle-scoped data must run through
  * `authorizeVehicleAccess` before it reaches for a privileged client.

@@ -961,7 +961,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               nobody here owns, so every piece of feedback anyone sent from this
               footer went nowhere, silently, for as long as the link existed.
               It survived the rename because an address is not copy: a
-              find-and-replace would have invented `feedback@wellkept.app`,
+              find-and-replace would have invented `feedback@tappet.app`,
               which is the same defect with a newer name on it.
 
               It points at the address the legal pages publish instead — the one
@@ -969,7 +969,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               address, named in one place, so a second one cannot drift.
             */}
             <a
-              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Well Kept feedback')}`}
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Tappet feedback')}`}
               className="hover:text-white/50 transition-colors"
             >
               Feedback

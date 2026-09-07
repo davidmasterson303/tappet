@@ -1,5 +1,5 @@
 /**
- * Well Kept - Comprehensive Logging System
+ * Tappet - Comprehensive Logging System
  *
  * Provides structured logging with different levels, context tracking,
  * and metadata support. Designed for easy debugging during development

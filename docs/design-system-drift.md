@@ -806,12 +806,12 @@ Not implemented on a review line. It is a cost decision, not a design one.
 
 ## 7. The rename — two things Design owns, added 30 Aug
 
-The product became **Well Kept** on 30 Aug. The name is drawn in two places and
+The product became **Tappet** on 30 Aug. The name is drawn in two places and
 only one of them was safe to change without Design.
 
 **7.1 · The wordmark is now two words in a slot cut for one.** `Logo.tsx` on
 both clients renders the name as real text beside the mark, so it now reads
-"Well Kept". The tracking beside it does not follow: `-0.035em` horizontal and
+"Tappet". The tracking beside it does not follow: `-0.035em` horizontal and
 `-0.03em` stacked were cut for *CrewChief* — one nine-letter word with two
 capital humps and no space to hold open. They are untouched rather than
 re-guessed, because tightening a two-word mark is the decision that closes the
@@ -826,7 +826,7 @@ render, which is the one failure this project keeps paying for.
 
 The five mark-only assets (`mark`, `mark-small`, `mark-mono`, `favicon`,
 `icon-1024`) draw the dial and no letterforms, so their labels moved to
-"Well Kept" and nothing about them is stale.
+"Tappet" and nothing about them is stale.
 
 **What Design owns:** a new lockup in the new name, and the tracking that goes
 with it. Until then the app's own `Logo` is correct and the two lockup files in
@@ -842,7 +842,7 @@ from the other side: *"outlined type is also why the rename cannot be a
 find-and-replace: grep will report those files clean."*
 
 **The tracking goes back to 0.1em and is not optical.** It was cut to fit one
-nine-letter word; "Well Kept" is nine characters including the space and sets at
+nine-letter word; "Tappet" is nine characters including the space and sets at
 0.1em small caps without touching the plate's inner step. Design's rule, worth
 keeping because it settles the question rather than answering it once: *"a plate
 carries engraved type — the letterspacing is the engraving, and it does not get

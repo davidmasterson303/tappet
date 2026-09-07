@@ -1,5 +1,5 @@
 /**
- * The Well Kept mark, as geometry. **Generated — do not edit.**
+ * The Tappet mark, as geometry. **Generated — do not edit.**
  *
  * Regenerate with `docs/brand-package-v2/build.py --core <this file>`; the
  * README beside that script has the two curl lines that fetch the fonts.
@@ -16,6 +16,21 @@
  *
  * `lib/__tests__/brand.test.ts` reads `docs/brand-package-v2/svg/*.svg` and
  * fails if these strings and those files ever disagree, in either direction.
+ *
+ * ── ⛔ The artwork still spells the OLD product name ────────────────────────
+ *
+ * The 7 Sep rename to Tappet moved every string in the repo. It did **not**
+ * move this file's geometry, on purpose: `WORDMARK_PATH` still outlines
+ * **WELL KEPT** and `W_PATH` is still a **W**. Changing them is a regeneration
+ * from `docs/brand-package-v2/` (`geometry.json` + `build.py`), and the brief
+ * that governs it is David's to edit — he is taking the glyph to **T** and the
+ * wordmark to one word in a design-critic round after the rename lands.
+ *
+ * ⚠ So the product currently renders its old identity under its new name,
+ * everywhere the lockup appears. That is a known, temporary, and *visible*
+ * state rather than a silent one — which is why it is stated here, at the top
+ * of the module that holds the outlines, instead of only in a plan document.
+ * Nothing deploys from `main` (CLAUDE.md §8), so it ships to nobody meanwhile.
  */
 
 /** The chamfered plate, on its own 66-unit grid. */
@@ -23,7 +38,12 @@ export const PLATE_GRID = 66;
 export const PLATE_CHAMFER = 10;
 export const PLATE_PATH = 'M10 0 H56 L66 10 V56 L56 66 H10 L0 56 V10 Z';
 
-/** The W, outlined and already positioned on the plate grid. */
+/**
+ * The **W**, outlined and already positioned on the plate grid.
+ *
+ * ⚠ Still a W, deliberately — see the file header. The letter follows the
+ * product name only when the package is regenerated.
+ */
 export const W_PATH =
   'M17.973 55 10.876 10.901H20.884L22.846 31.627Q23.145 33.838 23.297 35.508Q23.449 37.178 23.545 38.369Q23.641 39.561 23.676 40.369H24.195Q24.23 39.764 24.355 38.65Q24.481 37.536 24.65 36.205Q24.819 34.874 24.986 33.648Q25.153 32.421 25.24 31.627L28.141 10.901H38.679L41.037 31.627Q41.189 32.795 41.344 34.292Q41.498 35.789 41.653 37.358Q41.808 38.927 41.931 40.369H42.42Q42.42 39.834 42.528 38.752Q42.636 37.67 42.771 36.386Q42.905 35.101 43.057 33.843Q43.209 32.585 43.332 31.627L45.836 10.901H55.123L47.762 55H36.892L34.173 34.245Q33.933 32.322 33.734 30.618Q33.535 28.913 33.425 27.601Q33.314 26.289 33.279 25.561H32.789Q32.725 26.388 32.509 28.03Q32.293 29.673 32.062 31.389Q31.831 33.106 31.65 34.274L28.814 55Z';
 
@@ -33,7 +53,15 @@ export const W_PATH =
  */
 export const MARK_PATH = `${PLATE_PATH} ${W_PATH}`;
 
-/** "WELL KEPT", outlined, positioned on the lockup grid at x = mark + gap. */
+/**
+ * ⚠ **"WELL KEPT"**, outlined, positioned on the lockup grid at x = mark + gap.
+ *
+ * The name in this comment is the one the outlines actually spell, and it is
+ * not the product's name. See the file header: the artwork has not been
+ * regenerated yet. A comment here claiming "TAPPET" would be unfalsifiable by
+ * eye — nobody reads a glyph out of path data — which is the whole reason it is
+ * spelled out rather than left implied.
+ */
 export const WORDMARK_PATH =
   'M29.017 20 25.791 -0.045H30.341L31.233 9.376Q31.368 10.381 31.437 11.14Q31.506 11.899 31.55 12.44Q31.594 12.982 31.61 13.35H31.845Q31.861 13.075 31.918 12.568Q31.975 12.062 32.052 11.457Q32.129 10.852 32.205 10.294Q32.281 9.737 32.321 9.376L33.639 -0.045H38.429L39.501 9.376Q39.57 9.907 39.64 10.587Q39.711 11.268 39.781 11.981Q39.851 12.694 39.907 13.35H40.13Q40.13 13.106 40.179 12.614Q40.228 12.123 40.289 11.539Q40.35 10.955 40.419 10.383Q40.488 9.811 40.544 9.376L41.683 -0.045H45.904L42.558 20H37.617L36.381 10.566Q36.272 9.692 36.181 8.917Q36.091 8.142 36.041 7.546Q35.99 6.949 35.975 6.619H35.752Q35.723 6.994 35.625 7.741Q35.526 8.488 35.422 9.268Q35.317 10.048 35.234 10.579L33.945 20Z M47.222 20V-0.045H58.285V3.789H51.665V7.895H57.275V11.742H51.665V16.166H58.417V20Z M60.199 20V-0.045H64.643V16.152H70.538V20Z M71.982 20V-0.045H76.425V16.152H82.32V20Z M86.975 20V-0.045H91.419V8.763L95.487 -0.045H100.079L95.952 8.469L100.252 20H95.406L93.016 12.63L91.419 14.899V20Z M101.382 20V-0.045H112.445V3.789H105.825V7.895H111.436V11.742H105.825V16.166H112.578V20Z M114.36 20V-0.045H121.277Q123.239 -0.045 124.39 0.766Q125.542 1.577 126.045 3.04Q126.549 4.502 126.549 6.45Q126.549 8.469 125.988 10.005Q125.428 11.541 124.268 12.418Q123.109 13.295 121.283 13.295H118.803V20ZM118.803 9.603H120.361Q121.309 9.603 121.686 8.767Q122.063 7.93 122.063 6.612Q122.063 5.63 121.903 4.975Q121.744 4.32 121.351 3.999Q120.958 3.679 120.255 3.679H118.803Z M130.629 20V3.803H126.568V-0.045H139.089V3.803H135.073V20Z';
 

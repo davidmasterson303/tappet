@@ -14,7 +14,7 @@ import {
 } from '@tappet/core/brand';
 
 /**
- * The Well Kept lockup, native cut.
+ * The Tappet lockup, native cut.
  *
  * ── The same numbers as the web, imported rather than copied ────────────────
  *

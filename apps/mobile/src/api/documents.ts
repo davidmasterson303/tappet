@@ -282,11 +282,11 @@ export function describeUploadError(error: unknown): string {
       different fix: nothing was sent, or nothing came back.
     */
     if (error.kind === 'timeout') {
-      return 'Well Kept took too long to read that invoice. Your photo was not lost — try again.';
+      return 'Tappet took too long to read that invoice. Your photo was not lost — try again.';
     }
 
     if (error.kind === 'offline') {
-      return 'Could not reach Well Kept. Check your connection.';
+      return 'Could not reach Tappet. Check your connection.';
     }
 
     /*
@@ -295,7 +295,7 @@ export function describeUploadError(error: unknown): string {
       blamed. The `__DEV__` diagnostic beside this carries the detail.
     */
     if (error.kind === 'request') {
-      return 'Well Kept could not send that invoice. This is a bug on our side, not a problem with your photo.';
+      return 'Tappet could not send that invoice. This is a bug on our side, not a problem with your photo.';
     }
 
     if (error.status === 401) {
@@ -312,7 +312,7 @@ export function describeUploadError(error: unknown): string {
       */
       return error.isLocallySignedOut
         ? 'This device is signed out. Sign in again to upload this.'
-        : 'Well Kept would not accept this upload on your current session.';
+        : 'Tappet would not accept this upload on your current session.';
     }
     if (error.status === 404) return 'That vehicle is no longer in your garage.';
     if (error.status === 413) return 'That file is too large to upload.';
@@ -374,7 +374,7 @@ export async function invoiceUrl(
     if (apiError.status === 404) {
       return {
         error:
-          'Opening the original invoice needs a newer version of the Well Kept API than this app is talking to.',
+          'Opening the original invoice needs a newer version of the Tappet API than this app is talking to.',
       };
     }
 
@@ -386,7 +386,7 @@ export async function invoiceUrl(
       uploaded here and nothing is being read; a stored file is being fetched.
     */
     if (apiError.kind === 'offline') {
-      return { error: 'Could not reach Well Kept. Check your connection.' };
+      return { error: 'Could not reach Tappet. Check your connection.' };
     }
 
     if (apiError.kind === 'timeout') {

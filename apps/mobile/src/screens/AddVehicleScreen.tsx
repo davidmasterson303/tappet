@@ -51,7 +51,7 @@ import { interFace } from '../theme/fonts';
  * ── Why this is the launch blocker ──────────────────────────────────────────
  *
  * `SignInScreen` could only sign in and there was no add-vehicle anywhere in
- * `apps/mobile`, so becoming a Well Kept user meant opening the web app,
+ * `apps/mobile`, so becoming a Tappet user meant opening the web app,
  * creating an account, onboarding a car, and *then* installing this. Fine while
  * mobile was a companion. Fatal once it is the product: an App Store reviewer
  * downloads the app and cannot reach anything.

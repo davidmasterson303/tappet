@@ -4,7 +4,7 @@
  * ── What this publishes, which is more than it sounds ───────────────────────
  *
  * `web-live` is served by `effulgent-blancmange-6adfdf`, which holds
- * **wellkept.southmoordigital.com** — the App Store listing's privacy-policy URL
+ * **tappet.southmoordigital.com** — the App Store listing's privacy-policy URL
  * and the origin every installed copy of the mobile app talks to. Merging here
  * is the act that moves both.
  *
@@ -48,7 +48,7 @@ import { awaitDeploy } from './lib/await-deploy.mjs';
 const APPLY = process.argv.includes('--apply');
 
 const RELEASE_BRANCH = 'web-live';
-const SITE = 'https://wellkept.southmoordigital.com';
+const SITE = 'https://tappet.southmoordigital.com';
 
 /** How long to wait for Netlify. A cold Next build here runs about a minute. */
 /* The poll's timing lives in `scripts/lib/await-deploy.mjs`, shared with the demo. */

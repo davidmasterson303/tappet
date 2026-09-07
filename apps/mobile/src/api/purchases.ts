@@ -9,7 +9,7 @@ import {
  *
  * Phase 6, E8. StoreKit hands the app a signed transaction; this sends it to
  * `POST /api/v1/iap/verify`, which is the only place the association between a
- * subscription and a Well Kept account is ever made.
+ * subscription and a Tappet account is ever made.
  *
  * ── Why this returns an outcome instead of throwing ─────────────────────────
  *

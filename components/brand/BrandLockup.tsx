@@ -11,7 +11,7 @@ import {
 } from '@tappet/core/brand';
 
 /**
- * The Well Kept lockup — the data plate.
+ * The Tappet lockup — the data plate.
  *
  * ── One drawing, and the caller picks how much of it ────────────────────────
  *

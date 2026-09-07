@@ -51,7 +51,7 @@ import {
  *
  * This endpoint sends push notifications to every account in the product. An
  * unauthenticated one would be the most abusable surface in the app by a wide
- * margin — not a data leak, but a way to make Well Kept spam its own users
+ * margin — not a data leak, but a way to make Tappet spam its own users
  * until they uninstall it.
  *
  * So: a shared secret, compared in constant time, and **it fails closed**. If

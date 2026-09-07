@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Well Kept",
-    "slug": "wellkept",
+    "name": "Tappet",
+    "slug": "tappet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "wellkept",
+    "scheme": "tappet",
     "userInterfaceStyle": "dark",
     "ios": {
-      "bundleIdentifier": "com.southmoordigital.wellkept",
+      "bundleIdentifier": "com.southmoordigital.tappet",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "Well Kept uses the camera so you can photograph a service invoice and have its line items read for you.",
-        "NSPhotoLibraryUsageDescription": "Well Kept needs your photo library so you can choose a picture of your car, or attach a service invoice you have already photographed.",
+        "NSCameraUsageDescription": "Tappet uses the camera so you can photograph a service invoice and have its line items read for you.",
+        "NSPhotoLibraryUsageDescription": "Tappet needs your photo library so you can choose a picture of your car, or attach a service invoice you have already photographed.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
@@ -83,14 +83,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Well Kept needs your photo library so you can attach an invoice you have already photographed.",
-          "cameraPermission": "Well Kept uses the camera so you can photograph a service invoice and have its line items read for you."
+          "photosPermission": "Tappet needs your photo library so you can attach an invoice you have already photographed.",
+          "cameraPermission": "Tappet uses the camera so you can photograph a service invoice and have its line items read for you."
         }
       ],
       "expo-notifications"
     ],
     "android": {
-      "package": "com.southmoordigital.wellkept",
+      "package": "com.southmoordigital.tappet",
       "adaptiveIcon": {
         "backgroundColor": "#100F0D",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -100,7 +100,7 @@
       "predictiveBackGestureEnabled": false
     },
     "extra": {
-      "apiBaseUrl": "https://wellkept.southmoordigital.com",
+      "apiBaseUrl": "https://tappet.southmoordigital.com",
       "supabaseUrl": "https://hcldnnfwnrerznpruazf.supabase.co",
       "supabasePublishableKey": "sb_publishable_cojGPM6Cxjwg8G4VoybnEA_vq-qvIjN",
       "eas": {

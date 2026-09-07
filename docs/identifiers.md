@@ -37,17 +37,31 @@ the suite says so.
 
 | What | Value | Held by |
 |---|---|---|
-| Apple bundle identifier | `com.southmoordigital.wellkept` | `apps/mobile/app.json` → `expo.ios.bundleIdentifier` |
-| Android package | `com.southmoordigital.wellkept` | `apps/mobile/app.json` → `expo.android.package` |
-| `APPLE_BUNDLE_ID` | `com.southmoordigital.wellkept` | `lib/apple-root-ca.ts` |
-| IAP product id, monthly | `com.southmoordigital.wellkept.paid.monthly` | `packages/core/src/apple-subscription.ts` |
-| IAP product id, annual | `com.southmoordigital.wellkept.paid.annual` | `packages/core/src/apple-subscription.ts` |
-| Expo slug | `wellkept` | `apps/mobile/app.json` → `expo.slug` |
-| URL scheme | `wellkept` | `apps/mobile/app.json` → `expo.scheme`, and three more — see below |
-| Mobile API base | `https://wellkept.southmoordigital.com` | `apps/mobile/app.json` → `expo.extra.apiBaseUrl` |
-| `PRODUCT_ORIGIN` | `https://wellkept.southmoordigital.com` | `lib/site-role.ts` |
-| `DEMO_ORIGIN` | `https://wellkept-demo.davidmasterson.co` | `lib/site-role.ts` |
+| Apple bundle identifier | `com.southmoordigital.tappet` | `apps/mobile/app.json` → `expo.ios.bundleIdentifier` |
+| Android package | `com.southmoordigital.tappet` | `apps/mobile/app.json` → `expo.android.package` |
+| `APPLE_BUNDLE_ID` | `com.southmoordigital.tappet` | `lib/apple-root-ca.ts` |
+| IAP product id, monthly | `com.southmoordigital.tappet.paid.monthly` | `packages/core/src/apple-subscription.ts` |
+| IAP product id, annual | `com.southmoordigital.tappet.paid.annual` | `packages/core/src/apple-subscription.ts` |
+| Expo slug | `tappet` | `apps/mobile/app.json` → `expo.slug` |
+| URL scheme | `tappet` | `apps/mobile/app.json` → `expo.scheme`, and three more — see below |
+| Mobile API base | `https://tappet.southmoordigital.com` | `apps/mobile/app.json` → `expo.extra.apiBaseUrl` |
+| `PRODUCT_ORIGIN` | `https://tappet.southmoordigital.com` | `lib/site-role.ts` |
+| `DEMO_ORIGIN` | `https://tappet-demo.davidmasterson.co` | `lib/site-role.ts` |
 | Git remote | `git@github.com:davidmasterson303/wellkept.git` | `.git/config` |
+
+⚠ **The Git remote row is the one value the 7 Sep rename did not move, and it
+is deliberately not pre-updated.** `gh` is not installed on this machine and
+Homebrew cannot install it (CLAUDE.md §9), so the GitHub-side rename is David's,
+in the web UI. This page states what is true *now*; writing the intended value
+early would be the exact drift the file exists to catch, and the suite would go
+red on a claim nobody could satisfy. When the repo is renamed, one command
+finishes it:
+
+```
+git remote set-url origin git@github.com:davidmasterson303/tappet.git
+```
+
+…and this row moves with it, in the same commit.
 
 ⚠ The bundle id and both product ids become **permanent** the moment an App
 Store Connect record exists. None does yet, which is the only reason the 6 Sep
@@ -59,14 +73,35 @@ value they must agree on.
 
 ## Names that must not come back
 
-Superseded on 6 Sep, with no legitimate reason to appear in this file again:
+Two renames, two dead identifier sets. **A list that knows only the older one is
+worse than no list**: it reads green while the *newer* dead name sits in the
+file, which is the failure `product-name.test.ts` was re-armed for on 7 Sep.
 
-- `co.davidmasterson.crewchief` — the old bundle id, and the product ids built on it
+Superseded 6 Sep, when the product was renamed from CrewChief:
+
+- `co.davidmasterson.crewchief` — the old bundle id
 - `crewchief://` — the old scheme
+- `com.southmoordigital.crewchief.paid.monthly` and
+  `com.southmoordigital.crewchief.paid.annual` — the product ids built on it
 
-⚠ Deliberately **not** on that list, because each is still live and correct:
-`CREWCHIEF_DEMO_SITE` (the fallback half, until Netlify is renamed),
-`crewchief.davidmasterson.co` and `crewchief-demo.davidmasterson.co` (both still
-serving), and `crewchief-demo.netlify.app` (the Bolt stub the demo CNAMEs still
-point at). A blanket ban on the old name would fail on all four and get switched
-off, which is how a guard dies.
+Superseded 7 Sep, when Well Kept became Tappet:
+
+- `com.southmoordigital.wellkept` — the bundle id and Android package
+- `wellkept://` — the scheme
+- `com.southmoordigital.wellkept.paid.monthly` and
+  `com.southmoordigital.wellkept.paid.annual` — the product ids built on it
+
+⚠ These may appear **in this section and nowhere else on the page**, and the
+suite checks exactly that rather than counting occurrences. Counting was the
+first version and it could not survive this list: `com.southmoordigital.wellkept`
+is a prefix of both product ids beneath it, so a bare occurrence count reads
+three where a reader sees one, and the guard fails on correct content — which is
+how a guard gets switched off (CLAUDE.md §5).
+
+⚠ Deliberately **not** banned, because each is still live and correct:
+`CREWCHIEF_DEMO_SITE` and `WELLKEPT_DEMO_SITE` (both fallback halves, until
+Netlify is renamed — see `lib/site-role.ts`), `crewchief-demo.davidmasterson.co`
+and `wellkept-demo.davidmasterson.co` (still serving, and the first is
+recruiter-facing while David is job hunting), `crewchief-demo.netlify.app` (the
+Bolt stub the demo CNAMEs still point at), and the Git remote above. A blanket
+ban on either dead name would fire on all of them and get switched off.
