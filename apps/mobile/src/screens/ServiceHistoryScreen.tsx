@@ -440,7 +440,13 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 around each, because they are parts of one thing.
               */}
               {visit.records.map((record, index) => {
-                const meta = describeRecord(record, { withShop: false });
+                /*
+                  ⚠ Neither the shop nor the date: both are the visit heading
+                  directly above these rows. `withShop` already existed for that
+                  reason (R34); `withDate` is the same argument one field over,
+                  and it is what takes a row from ~110pt back toward B6's 56.
+                */
+                const meta = describeRecord(record, { withShop: false, withDate: false });
 
                 return (
                   /*
