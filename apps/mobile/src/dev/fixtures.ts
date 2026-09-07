@@ -50,8 +50,27 @@ const M235I = {
   */
   nhtsa_data: {
     recalls: [
-      { NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' },
-      { NHTSACampaignNumber: '21V-100', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' },
+      /*
+        ⚠ Real taxonomy strings, not tidy ones. NHTSA returns
+        `FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP`, and the recall card
+        deliberately shows the *mapped* name at its head and the *raw* string at
+        its foot — one is readable, the other is what a service desk recognises.
+
+        A fixture that says `'FUEL SYSTEM'` collapses those two into the same
+        text, which made a design critique report "printed twice per recall" and
+        very nearly cost the raw string its place. A fixture that cannot tell two
+        fields apart is a fixture that hides the reason they are both there.
+      */
+      {
+        NHTSACampaignNumber: '23V-441',
+        Component: 'FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP',
+        Summary: 'The fuel pump may fail without warning, causing an engine stall.',
+      },
+      {
+        NHTSACampaignNumber: '21V-100',
+        Component: 'AIR BAGS:SIDE/WINDOW:HEAD',
+        Summary: 'The inflator may rupture, propelling metal fragments into the cabin.',
+      },
     ],
   },
 };

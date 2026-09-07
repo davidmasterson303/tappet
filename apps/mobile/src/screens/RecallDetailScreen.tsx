@@ -805,6 +805,24 @@ export function RecallDetailScreen({
               /* "Issued 14 Mar 2024", per the spec — not the raw ISO string. */
               <Text style={styles.meta}>Issued {calendarDate(recall.reportedOn)}</Text>
             )}
+            {/*
+              ⚠ 6 Sep: this was cut as a duplicate and **restored**, because it
+              is not one.
+
+              The head above prints `componentPlainName(recall)` — the mapped,
+              readable form. This prints `recall.component`, the raw NHTSA
+              taxonomy string, and the docblock on the head says why: it "is what
+              a service desk recognises". `AIR BAGS:SIDE/WINDOW:HEAD` at the head
+              is unreadable; the same string at the foot is what you quote on the
+              phone.
+
+              The critique reported "FUEL SYSTEM printed twice per recall" and it
+              was looking at exactly that on screen — because the *fixture* used
+              `Component: 'FUEL SYSTEM'`, a value where the raw and mapped forms
+              coincide. The screenshot was honest and the conclusion drawn from it
+              was wrong, which is a fixture defect rather than a design one.
+              `dev/fixtures.ts` now carries real taxonomy strings.
+            */}
             {recall.component && <Text style={styles.meta}>{recall.component}</Text>}
           </View>
 
@@ -833,9 +851,27 @@ export function RecallDetailScreen({
             naming rule that `mobile-busy-controls-named` enforces — none of
             which a bespoke `Pressable` gets for free.
           */}
+          {/*
+            ── ⚠ 6 Sep: `ghost`, so two recalls stop making six 48pt buttons ───
+
+            R32's argument above is about *placement* and it still holds — this
+            is the differentiator, it belongs at the card's foot on a rule, and
+            it carries this recall as the question rather than opening an empty
+            thread.
+
+            What changed is weight. These cards repeat per recall, so an
+            `outline` here meant three equal-weight controls per card and, at two
+            open recalls, six 48pt buttons on one screen — the critique called it
+            a button farm and it was right: nothing was ranked.
+
+            `ghost` ranks them. FIND A DEALER and MARK AS REPAIRED act on the
+            recall; this one leaves for a conversation about it. Advisor is also
+            a tab away, which is the critique's other point and the reason this
+            is the one to demote rather than cut.
+          */}
           <Button
             label="Ask the advisor about this"
-            variant="outline"
+            variant="ghost"
             accessibilityLabel={`Ask the advisor about the ${plainComponent(recall) ?? 'recall'} recall`}
             onPress={() =>
               onAskAdvisor(
