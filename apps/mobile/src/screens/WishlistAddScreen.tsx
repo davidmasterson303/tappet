@@ -461,7 +461,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                         call. A whole-card tap target that costs money on a
                         mis-scroll is the wrong trade.
                       */
-                      variant="quiet"
+                      variant="outline"
                       size="small"
                       busy={working}
                       accessibilityLabel={`Add ${suggestion.name} to the wishlist`}

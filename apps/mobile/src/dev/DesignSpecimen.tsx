@@ -108,10 +108,9 @@ export default function DesignSpecimen() {
         </View>
       </Block>
 
-      <Block title="B4 · buttons — primary, quiet, outline, ghost, delete, disabled">
+      <Block title="B4 · buttons — primary, outline, ghost, delete, disabled">
         <View style={styles.stack}>
           <Button label="Scan invoice" onPress={() => {}} />
-          <Button label="Add photo" variant="quiet" onPress={() => {}} />
           <Button label="Change photo" variant="outline" onPress={() => {}} />
           <Button label="Not now" variant="ghost" onPress={() => {}} />
           <Button label="Delete my account" variant="delete" onPress={() => {}} />

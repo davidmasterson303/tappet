@@ -3,7 +3,23 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from '
 import { TARGET_MIN, cut, space, status, surface, text, type } from '../theme';
 import CutSurface from './CutSurface';
 
-export type ButtonVariant = 'primary' | 'quiet' | 'outline' | 'ghost' | 'delete';
+/*
+  ── ⚠ 6 Sep · `quiet` is gone, and B4's list is why ─────────────────────────
+
+  The brief names three: *"primary off-white fill with graphite mono caps,
+  secondary off-white hairline, destructive sodium hairline."* `quiet` was a
+  fourth — a graphite fill — and on the specimen sheet it landed directly above
+  the field, which is also a graphite fill with a hairline and the same cut at
+  the same height. The critique's words: "a tap target and an input are
+  indistinguishable."
+
+  That is not a taste call. A filled rectangle that is sometimes pressable and
+  sometimes typed into has no way to tell you which it is.
+
+  Its one call site took `outline`, which is the ladder's next rung and what the
+  brief calls secondary.
+*/
+export type ButtonVariant = 'primary' | 'outline' | 'ghost' | 'delete';
 export type ButtonSize = 'small' | 'large';
 
 /**
@@ -43,7 +59,7 @@ export type ButtonSize = 'small' | 'large';
  * ── One filled primary per screen ───────────────────────────────────────────
  *
  * Every screen spec says it, and this is where the temptation lives. `primary`
- * is the screen's single verb; `quiet`, `outline` and `ghost` are the ladder
+ * is the screen's single verb; `outline` and `ghost` are the ladder
  * beneath it. Two filled primaries on one screen means neither is one.
  *
  * ── Pressed deepens; it never lightens ──────────────────────────────────────
@@ -204,7 +220,6 @@ const SPINNER: Partial<Record<ButtonVariant, string>> = {
  */
 const FILL: Partial<Record<ButtonVariant, [string, string]>> = {
   primary: [text.primary, text.secondary],
-  quiet: [surface.raised, surface.well],
   delete: [surface.page, surface.raised],
 };
 
@@ -265,7 +280,6 @@ const styles = StyleSheet.create({
 
   /* B7: graphite ink on the off-white fill. */
   primaryLabel: { color: surface.page },
-  quietLabel: { color: text.primary },
   outlineLabel: { color: text.primary },
   ghostLabel: { color: text.primary },
   deleteLabel: { color: status.dangerText },

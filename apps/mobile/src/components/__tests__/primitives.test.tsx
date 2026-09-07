@@ -105,7 +105,7 @@ describe('Button', () => {
   });
 
   it('renders every variant', async () => {
-    for (const variant of ['primary', 'quiet', 'outline', 'ghost', 'delete'] as const) {
+    for (const variant of ['primary', 'outline', 'ghost', 'delete'] as const) {
       const view = await render(<Button label={variant} variant={variant} onPress={jest.fn()} />);
       expect(view.getByLabelText(variant)).toBeTruthy();
     }

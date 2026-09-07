@@ -6,7 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { R, TRACK, VIEW_H, VIEW_W } from '@wellkept/core/cluster-geometry';
 import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
 import { border, cut, plinth, radius, space, surface, TABULAR, text } from '../theme';
-import { interFace } from '../theme/fonts';
+import { monoFace, interFace } from '../theme/fonts';
 
 /**
  * What the hero dial hands off to when it reaches the nav bar.
@@ -174,8 +174,18 @@ const styles = StyleSheet.create({
   reading: {
     fontSize: 16,
     lineHeight: 20,
-    /* ⚠ One line — RN does not synthesise weights; see `mobile-font-faces`. */
-    fontFamily: interFace('600'), fontWeight: '600',
+    /*
+      ── ⚠ 6 Sep · B1: mono. This was `interFace('600')` ───────────────────────
+
+      A health score is a *value*, and B1 gives values mono — this was the last
+      one on the sheet still set in Inter. The critique caught that it was not
+      mono but guessed it was the condensed grotesk, and told me to check the
+      code rather than trust the eye. It was neither: Inter semibold, which at
+      16pt in a small chip reads close enough to both to hide.
+
+      ⚠ One line, still — RN does not synthesise weights; see `mobile-font-faces`.
+    */
+    fontFamily: monoFace('500'),
     ...TABULAR,
   },
 });
