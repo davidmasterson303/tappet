@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 
-import { space, status, text, type } from '../theme';
+import { space, status, surface, type } from '../theme';
 
 /**
  * A row that slides left to reveal one destructive action.
@@ -69,7 +69,17 @@ export default function SwipeToRemove({
         the invoice — and a list whose rows cannot be tapped is worse than one
         without swipe.
       */
-      onMoveShouldSetPanResponder: (_e, g) =>
+      /*
+        ⚠ **Capture**, not the bubbling phase. The row's own `Pressable` becomes
+        the responder on touch-start — it has to, it opens the invoice — and a
+        parent asking on the bubbling phase is never consulted, so the first
+        build of this simply did not move.
+
+        Capture gives this a first refusal on every *move*, and it refuses
+        everything that is not clearly a horizontal drag, so the tap still
+        reaches the row underneath.
+      */
+      onMoveShouldSetPanResponderCapture: (_e, g) =>
         Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 8,
       onPanResponderMove: (_e, g) => {
         const base = open.current ? -REVEAL : 0;
@@ -107,7 +117,19 @@ export default function SwipeToRemove({
         </Text>
       </View>
 
-      <Animated.View style={{ transform: [{ translateX: slide }] }} {...pan.panHandlers}>
+      {/*
+        ⚠ **Opaque.** The action sits *behind* this layer, so without a ground
+        of its own the row is a window onto it and REMOVE reads at rest on every
+        line — which is the inline link this gesture replaced, with extra steps.
+
+        `surface.page` because these rows sit directly on the page; a row that
+        painted `surface.raised` here would announce a card the design system
+        spent the whole port removing.
+      */}
+      <Animated.View
+        style={[styles.row, { transform: [{ translateX: slide }] }]}
+        {...pan.panHandlers}
+      >
         {children}
       </Animated.View>
     </View>
@@ -116,6 +138,7 @@ export default function SwipeToRemove({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
+  row: { backgroundColor: surface.page },
   behind: {
     position: 'absolute',
     top: 0,

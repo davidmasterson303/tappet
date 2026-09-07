@@ -38,7 +38,7 @@ import { localToday } from '@wellkept/core/garage-next-service';
 import { interFace } from '../theme/fonts';
 
 import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
-import { rememberGarageSize } from '../navigation/RootNavigator';
+import { rememberGarageSize } from '../navigation/last-vehicle';
 
 /**
  * Phase 3.2 — the garage, read only.
