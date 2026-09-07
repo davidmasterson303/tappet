@@ -123,7 +123,14 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
       So: take the text from the opening tag to its self-closing `/>` and ask
       the question of that.
     */
-    const asAControl = accountControlElement(navigator).includes("name: 'Account'");
+    /*
+      ⚠ Matches the *route name* anywhere in the element, not one call shape.
+      This first read `name: 'Account'` and broke within the hour, when the
+      control moved from `resetTo(…, [{ name: 'Account' }])` to
+      `navigation.navigate('Account')` — both wire it to the same screen, and a
+      guard that only knows one of them tests the spelling rather than the fact.
+    */
+    const asAControl = /'Account'/.test(accountControlElement(navigator));
 
     expect(onTheBar || asAControl).toBe(true);
   });
@@ -153,7 +160,7 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
     const unwired = `<AccountControl visible={true} onPress={() => {}} />
       <Stack.Screen name="Account" />`;
 
-    expect(accountControlElement(unwired).includes("name: 'Account'")).toBe(false);
+    expect(/'Account'/.test(accountControlElement(unwired))).toBe(false);
   });
 
   it('can still detect the bar being moved inside', () => {
