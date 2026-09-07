@@ -37,8 +37,8 @@ import Constants from 'expo-constants';
  * `effulgent-blancmange-6adfdf.netlify.app`, because the App Store listing and
  * every in-app legal link are built from this value and a generated preview
  * name is not what belongs in either. It moved to
- * `tappet.southmoordigital.com` with the 6 Sep rename; the reasoning did not
- * change, only the label.
+ * `wellkept.southmoordigital.com` on 6 Sep and `tappet.southmoordigital.com`
+ * on 7 Sep; the reasoning did not change either time, only the label.
  *
  * That swap also promoted a throwaway CI target into a user-facing surface, and
  * everything decided on the premise "nobody visits it" — build suppression,

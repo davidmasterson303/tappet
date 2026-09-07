@@ -43,6 +43,7 @@ the suite says so.
 | IAP product id, monthly | `com.southmoordigital.tappet.paid.monthly` | `packages/core/src/apple-subscription.ts` |
 | IAP product id, annual | `com.southmoordigital.tappet.paid.annual` | `packages/core/src/apple-subscription.ts` |
 | Expo slug | `tappet` | `apps/mobile/app.json` → `expo.slug` |
+| Expo project id | `a3f958b8-44f6-4164-9548-77971c68e435` | `apps/mobile/app.json` → `expo.extra.eas.projectId` |
 | URL scheme | `tappet` | `apps/mobile/app.json` → `expo.scheme`, and three more — see below |
 | Mobile API base | `https://tappet.southmoordigital.com` | `apps/mobile/app.json` → `expo.extra.apiBaseUrl` |
 | `PRODUCT_ORIGIN` | `https://tappet.southmoordigital.com` | `lib/site-role.ts` |
@@ -59,6 +60,19 @@ found by a test rather than by a reader.
 ⚠ The bundle id and both product ids become **permanent** the moment an App
 Store Connect record exists. None does yet, which is the only reason the 6 Sep
 rename was cheap.
+
+⚠ **The Expo slug was already permanent, and that was learned the expensive
+way.** A project id is bound to one slug for the life of the project — Expo's
+own reference says it cannot be changed, the dashboard offers no control, and
+`eas init` only ever rewrites the *local* config to match the server, so the
+obvious remedy silently reverts the rename instead of applying it. Renaming the
+slug therefore cost a **replacement project**, and the pair below must move
+together or every `eas build`, `eas update` and `eas submit` hard-throws on the
+mismatch. The old project is retired, not deleted, so the move stays reversible.
+
+This row is here because that class of identifier — permanent from the moment
+the account creates it — is exactly what this page is for, and the Expo pair was
+not on it when it bit.
 
 The scheme is declared in four places across three packages;
 `one-scheme-everywhere.test.ts` holds them together, and this page only pins the
@@ -83,6 +97,9 @@ Superseded 7 Sep, when Well Kept became Tappet:
 - `wellkept://` — the scheme
 - `com.southmoordigital.wellkept.paid.monthly` and
   `com.southmoordigital.wellkept.paid.annual` — the product ids built on it
+- `55451053-dc1a-481a-8257-76b476799f57` — the retired Expo project, whose
+  server-side slug is permanently `crewchief`. Kept alive but never referenced;
+  putting it back in `app.json` re-breaks every EAS command.
 
 ⚠ These may appear **in this section and nowhere else on the page**, and the
 suite checks exactly that rather than counting occurrences. Counting was the

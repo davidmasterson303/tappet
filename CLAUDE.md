@@ -115,11 +115,23 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
 ## 8. There are two Netlify projects, and the names invite the wrong guess
 
 ```
-effulgent-blancmange-6adfdf   deploys web-live    wellkept.southmoordigital.com
-                                                  App Store URL + the app's API
-crewchief-demo-live           deploys demo-live   wellkept-demo.davidmasterson.co
-glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
+tappet-web       deploys web-live   tappet.southmoordigital.com
+                 (was effulgent-    + wellkept.southmoordigital.com
+                 blancmange-6adfdf)  + crewchief.davidmasterson.co  [primary]
+                                    App Store URL + the app's API
+
+tappet-demo      deploys demo-live  tappet-demo.davidmasterson.co
+                 (was crewchief-    + wellkept-demo.davidmasterson.co
+                 demo-live)         + crewchief-demo.davidmasterson.co  [primary]
+
+glowing-hotteok-d2e57e             davidmasterson.co (personal portfolio)
+crewchief-demo                     dead Bolt stub — ⚠ do not delete
+luxuryphotoenhancer-demo           unrelated
 ```
+
+⚠ **Both projects were renamed on 7 Sep and the old names are gone from the
+dashboard.** Three hostnames per site, all serving; the `crewchief*` pair are
+still the **primary** domains, which is why nothing 301s yet.
 
 ⚠ **Five hostnames now serve the same two sites, and that is deliberate.**
 The 7 Sep rename to Tappet added `tappet.southmoordigital.com` and

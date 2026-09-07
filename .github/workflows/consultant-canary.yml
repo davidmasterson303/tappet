@@ -53,11 +53,15 @@
 #      absent from the deployment, which is why the endpoint reports
 #      `NOT_CONFIGURED` rather than a health verdict.
 #
-#      ⚠ **On the `crewchief-demo` project, not the main one.** There are two
-#      CrewChief sites in Netlify and the names invite the wrong guess:
+#      ⚠ **On the `tappet-demo` project, not the product one.** There are two
+#      Tappet sites in Netlify and the names invite the wrong guess:
 #
-#        crewchief-demo.netlify.app        <- deploys `demo-live`. THIS ONE.
-#        effulgent-blancmange-6adfdf...    <- deploys `main`, the app backend.
+#        tappet-demo   <- deploys `demo-live`. THIS ONE. (was crewchief-demo-live)
+#        tappet-web    <- serves the product and the app's API.
+#                         (was effulgent-blancmange-6adfdf)
+#
+#      ⚠ Both were renamed 7 Sep. And `tappet-web` no longer deploys `main` —
+#      **nothing does**; it deploys `web-live` behind a promote gate.
 #
 #      That split is deliberate, not drift: `scripts/promote-demo.mjs` promotes
 #      `main` to `demo-live` behind a gate, so the public demo is intentionally

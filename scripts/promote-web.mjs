@@ -3,7 +3,8 @@
  *
  * ── What this publishes, which is more than it sounds ───────────────────────
  *
- * `web-live` is served by `effulgent-blancmange-6adfdf`, which holds
+ * `web-live` is served by `tappet-web` (renamed 7 Sep from
+ * `effulgent-blancmange-6adfdf`), which holds
  * **tappet.southmoordigital.com** — the App Store listing's privacy-policy URL
  * and the origin every installed copy of the mobile app talks to. Merging here
  * is the act that moves both.

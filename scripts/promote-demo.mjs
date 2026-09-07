@@ -452,7 +452,7 @@ Netlify accepted the push and the build did not finish, or it failed. The
 hostname is still on its previous deploy — which for the demo means a
 recruiter sees the old build, not an error.
 
-  Netlify dashboard → crewchief-demo-live → Deploys, for the build log.
+  Netlify dashboard → tappet-demo → Deploys, for the build log.
 
 To undo: revert the merge commit on ${RELEASE_BRANCH} and push. The demo
 returns to its previous build without touching main.

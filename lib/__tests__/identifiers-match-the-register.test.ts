@@ -82,6 +82,12 @@ function actual(): { what: string; value: string | undefined }[] {
     },
     { what: 'IAP product id, annual', value: grab(subscription, /'([a-z0-9.]+\.paid\.annual)'/i) },
     { what: 'Expo slug', value: expo?.slug },
+    /*
+      ⚠ Bound to the slug above for the life of the project, and unchangeable —
+      which is why renaming the slug on 7 Sep cost a replacement project rather
+      than an edit. The two must agree, so both are asserted.
+    */
+    { what: 'Expo project id', value: expo?.extra?.eas?.projectId },
     { what: 'URL scheme', value: expo?.scheme },
     { what: 'Mobile API base', value: expo?.extra?.apiBaseUrl },
     { what: 'PRODUCT_ORIGIN', value: grab(siteRole, /PRODUCT_ORIGIN = '([^']+)'/) },
@@ -108,7 +114,7 @@ describe('the identifiers page agrees with the code', () => {
       .map((f) => f.what);
 
     expect(missing).toEqual([]);
-    expect(actual()).toHaveLength(11);
+    expect(actual()).toHaveLength(12);
   });
 
   it('names every value the code actually holds', () => {
@@ -170,6 +176,9 @@ describe('the identifiers page agrees with the code', () => {
       'wellkept://',
       'com.southmoordigital.wellkept.paid.monthly',
       'com.southmoordigital.wellkept.paid.annual',
+      // The retired Expo project: inert, kept for reversibility, and fatal if
+      // it ever finds its way back into `app.json`.
+      '55451053-dc1a-481a-8257-76b476799f57',
     ];
 
     // Nothing dead may be stated as a current fact.
