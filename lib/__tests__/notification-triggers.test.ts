@@ -135,7 +135,7 @@ describe('recallsWorthRaising', () => {
   it('carries a deep link the mobile client will accept', () => {
     const [notice] = raise([], [RAW[0]]);
 
-    expect(notice.content.url.startsWith('crewchief://')).toBe(true);
+    expect(notice.content.url.startsWith('wellkept://')).toBe(true);
     expect(notice.content.title).toContain('M235i');
   });
 

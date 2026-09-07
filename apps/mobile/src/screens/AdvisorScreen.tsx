@@ -13,6 +13,7 @@ import {
 
 import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
+import ScreenTitle from '../components/ScreenTitle';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -371,6 +372,9 @@ export function AdvisorScreen({
         about and gets out of the way. It is above the transcript so it does not
         scroll off — the context is true for every turn, not just the first.
       */}
+      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
+      <ScreenTitle>Advisor</ScreenTitle>
+
       {vehicleTitle ? (
         <View style={styles.context}>
           <Text style={styles.contextLabel} numberOfLines={1}>
@@ -626,10 +630,16 @@ function TurnView({ turn }: { turn: Turn }) {
  * The empty state names what the advisor can see, because the alternative is a
  * blank screen that invites "what do I even ask".
  *
- * ⚠ The three examples are **not** canned prompts to tap. Making them buttons
- * would turn a conversation into a menu on the first screen a new user meets,
- * which is why they go through `EmptyState`'s `children` — a slot the primitive
- * documents as taking quiet content and never controls.
+ * ⚠ **This paragraph described the opposite of the code, and the code won.** It
+ * read: *"The three examples are not canned prompts to tap. Making them buttons
+ * would turn a conversation into a menu on the first screen a new user meets."*
+ * Every one of them is a `Pressable` with `onPick` and `accessibilityRole
+ *="button"` — they were made tappable afterwards and this was never updated.
+ *
+ * Left as a warning rather than deleted: a docblock asserting a design position
+ * the file no longer holds is worse than none, because the position sounds
+ * considered and nothing on screen contradicts it. If the menu argument is right
+ * the *code* should change; it is not settled here.
  *
  * ── Why this used the primitive late ────────────────────────────────────────
  *
@@ -746,7 +756,8 @@ const styles = StyleSheet.create({
 
   /* #f87171 — the same red SignInScreen uses, and above the AA floor on `surface.page`. */
   error: { ...type.value, color: status.dangerText, paddingHorizontal: space.lg, paddingTop: space.sm },
-  counter: { fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
+  counter: { fontFamily: interFace('400'),
+    fontSize: 12, color: status.dangerText, paddingHorizontal: space.lg, paddingBottom: 6 },
   /*
     LEG-02's declined state. `text.muted`, not the counter's red: declining is a
     choice somebody made, not an error they hit, and dressing it as a failure
@@ -783,15 +794,24 @@ const styles = StyleSheet.create({
   starters: { gap: space.sm },
   starterRow: {
     /*
-      Full width, left-aligned, `surface.raised`, hairline border, `radius.well`
-      — the system's starter-row treatment. The container is what makes three
-      questions of three different lengths read as a set rather than as ragged
-      text.
+      ── ⚠ 6 Sep · B4 and B5: the box comes off, the grouping stays ───────────
+
+      This was `surface.raised` + a 1px border + `radius.well`, and the note here
+      argued for it: *"The container is what makes three questions of three
+      different lengths read as a set rather than as ragged text."*
+
+      The grouping problem was real; the box was one answer to it. The critique
+      named the result an AI tell in **six consecutive rounds** — "three
+      identical stacked suggestion cards", the stock chatbot-onboarding template
+      — and B5 rules out the filled, bordered card outright.
+
+      A hairline rule per row does the same grouping job the note wanted: three
+      ragged questions still read as one set because they share a left margin and
+      a repeating rule, which is exactly how the spec table makes eight ragged
+      factor labels read as a table. What is gone is the *panel*, not the set.
     */
-    backgroundColor: surface.raised,
-    borderWidth: 1,
-    borderColor: border.panel,
-    borderRadius: radius.well,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
     paddingHorizontal: space.md,
     /* Comfortably over the 44pt floor at one line, and grows with two. */
     paddingVertical: space.md,
@@ -836,6 +856,7 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingBottom: space.sm,
     color: text.primary,
+    fontFamily: interFace('400'),
     fontSize: 16,
     // Four lines before it scrolls, so a long question stays visible while it
     // is written without the composer eating the transcript.

@@ -34,7 +34,8 @@ import {
   lockupFor,
 } from '@wellkept/core/brand';
 
-const PACKAGE = join(__dirname, '..', '..', 'docs', 'brand-package');
+const ROOT = join(__dirname, '..', '..');
+const PACKAGE = join(ROOT, 'docs', 'brand-package');
 const svg = (name: string) => readFileSync(join(PACKAGE, `${name}.svg`), 'utf8');
 
 describe('the plate is the one Design drew', () => {
@@ -81,6 +82,45 @@ describe('the type is set the way Design set it', () => {
     expect(source).toContain(`letter-spacing="${BRAND_TYPE.name.tracking}"`);
     expect(source).toContain(`font-weight="${BRAND_TYPE.name.weight}"`);
     expect(source).toContain('font-variant="small-caps"');
+  });
+
+  /*
+    ── ⚠ The case above is named for the one property it did not check ───────
+
+    "keeps the name at **Newsreader** 500" asserted size, tracking, weight and
+    `font-variant`, and never the family — so `BRAND_TYPE.name.family` sat in
+    core read by nothing, and the React lockup spelled its own chain by hand:
+    `var(--font-display), Newsreader, Georgia, serif`.
+
+    That chain was right when written, because `--font-display` **was**
+    Newsreader. Brief B2 moved the display slot to Archivo and the first name in
+    it stopped being the drawn face. The wordmark rendered in a condensed
+    grotesk on every page from then on, and this file stayed green throughout
+    while carrying Newsreader in its own test name.
+
+    `CLAUDE.md` §5: check what a guard asserts, not that it is green. These two
+    cases assert the family — in Design's SVG and in the component that has to
+    match it — so the pair cannot drift again without failing.
+  */
+  it('sets the name in the family Design declared, in the SVG and the component', () => {
+    expect(svg('lockup-full')).toContain(BRAND_TYPE.name.family);
+
+    const component = readFileSync(
+      join(ROOT, 'components', 'brand', 'BrandLockup.tsx'),
+      'utf8'
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Built from the token, not spelled — so it cannot say Newsreader by luck.
+    expect(component).toContain('BRAND_TYPE.name.family');
+    expect(component).not.toMatch(/fontFamily[=:]\s*['"`]var\(--font-display\)/);
+  });
+
+  it('can still catch the wordmark on the wrong face', () => {
+    // §5's anti-vacuous case: the assertion above must fail for a display chain.
+    const planted = `fontFamily="var(--font-display), Newsreader, Georgia, serif"`;
+
+    expect(planted).toMatch(/fontFamily[=:]\s*['"`]?var\(--font-display\)/);
+    expect(BRAND_TYPE.name.family).toBe('Newsreader');
   });
 
   it('names the maker in Inter, not the serif', () => {

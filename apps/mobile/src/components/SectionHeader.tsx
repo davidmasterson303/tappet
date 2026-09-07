@@ -41,5 +41,12 @@ const styles = StyleSheet.create({
     gap: space.md,
     marginBottom: space.sm,
   },
-  title: { ...type.label, color: text.muted },
+  /*
+    ⚠ 6 Sep · B1: condensed, not Inter. This was `type.label` — the sans eyebrow
+    — and the critique named it in three consecutive rounds as "tracked grey
+    sans, neither condensed nor mono". B1 gives section heads the condensed
+    grotesk; see `type.displayLabel` for why that is its own token rather than
+    `displaySection` shrunk.
+  */
+  title: { ...type.displayLabel, color: text.muted },
 });

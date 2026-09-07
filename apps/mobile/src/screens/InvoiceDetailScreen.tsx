@@ -199,7 +199,13 @@ const styles = StyleSheet.create({
   docBlock: { gap: space.sm },
   openError: { ...type.label, color: text.muted },
   totalLabel: { ...type.label, color: text.muted, flex: 1 },
-  total: { ...type.value, ...TABULAR, color: text.primary },
+  /*
+    ⚠ 6 Sep · B1: mono. An invoice total is a value, and it was set in
+    `type.value` — which despite the name is the small *prose* size (see the
+    token). `TABULAR` was already here, which is the tell: someone wanted the
+    digits to line up and reached for the figure setting without the face.
+  */
+  total: { ...type.mono, ...TABULAR, color: text.primary },
 });
 
 export default InvoiceDetailScreen;

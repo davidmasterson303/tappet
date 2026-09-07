@@ -3,10 +3,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Droplets, Lightbulb, Loader as Loader2, RefreshCw } from 'lucide-react';
+import SpecBand from '@/components/SpecBand';
+import { Loader as Loader2, RefreshCw } from 'lucide-react';
 import ResearchButton from '@/components/ResearchButton';
+import { adviceDisclosure } from '@wellkept/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
 import { logger } from '@wellkept/core/logger';
 import TCOCard from '@/components/TCOCard';
@@ -23,6 +24,48 @@ function cleanPowertrain(value: string | null | undefined): string {
     return `${firstOption} (multiple options available)`;
   }
   return value;
+}
+
+/**
+ * One row of the spec table: label left, value right, hairline under.
+ *
+ * ⚠ **Powertrain and fluids are the same kind of data and now wear the same
+ * form.** They were two bands with two treatments — three floating equal-thirds
+ * columns for the powertrain, a ruled right-aligned table for the fluids — and
+ * a critique of the rendered page put the cost plainly: the same label-to-text
+ * pairs set two ways, with the first band four-fifths empty. One form, one
+ * head, one fewer heading to read past.
+ *
+ * ⚠ Stacked below `sm`, side by side above it. The row was label-left /
+ * value-right at every width once, and a long value ("0W-30 or 0W-40 Full
+ * Synthetic (BMW LL-01 spec)") wrapped to three lines of **right-aligned** body
+ * copy in a narrow column — ragged-left, the hardest alignment to read, four
+ * rows running.
+ *
+ * ── ⚠ Two columns, not `justify-between` ───────────────────────────────────
+ *
+ * The row used to push its label and value to opposite margins, so the value's
+ * **left** edge landed wherever its own text happened to start: measured at
+ * 1440, ENGINE's value began at x=1077 and COOLANT's at x=1043, with roughly
+ * 950px of nothing between each label and its value. Seven rows of that read as
+ * a stretched definition list rather than a table — the pairing was carried
+ * entirely by the hairline.
+ *
+ * A half-and-half grid gives every value one left edge at x=720, which is
+ * within 3px of where the header stat strip's first column starts (x=723,
+ * measured), so the strip and the table below it share a vertical axis.
+ *
+ * ⚠ The values stay **right-aligned inside that column**, so the numerals still
+ * meet at a common right edge — B7 asks for right-aligned numerals and this
+ * does not walk that back, it just stops the column from being the full page.
+ */
+function SpecRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-3 first:pt-0 sm:grid sm:grid-cols-2 sm:items-baseline">
+      <span className="mono label-uppercase block sm:mb-0">{label}</span>
+      <span className="mono mt-1 block text-sm text-white sm:mt-0 sm:text-right">{value}</span>
+    </div>
+  );
 }
 
 function EmptySpec({ label }: { label: string }) {
@@ -198,66 +241,65 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           card a header gives the button somewhere to be and gives the first
           block on the page a name.
         */}
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle className="display-serif text-white text-lg">Specification</CardTitle>
-              <ResearchButton
-                vehicleId={vehicle.id}
-                year={vehicle.year}
-                make={vehicle.make}
-                model={vehicle.model}
-                hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-5">
-            {/*
-              ── ⚠ Three rows, not three cards with circled glyphs ────────────
+        {/*
+          ── ⚠ One band for one kind of data ─────────────────────────────────
 
-              This was page → panel → this card → three bordered tiles, each
-              with an icon in its own bordered circle: four levels of rounded
-              rectangle to show three key/value pairs. A design critique called
-              it the page's worst offence and "the classic AI tell", and it was
-              right about the glyphs too — a waveform meant Transmission, a
-              lightning bolt meant Drivetrain on a petrol car, and the same bolt
-              headed Performance Stats a few hundred pixels below. One glyph,
-              two meanings, one screen.
+          This was two: SPECIFICATION as three equal-thirds columns with the
+          values at the same size as their labels, and FLUIDS as a ruled
+          right-aligned table below it. Same data shape, two forms, and the
+          first band left four-fifths of its row empty to hold three short
+          words.
 
-              A studio sets this as table rows with a hairline. So it is rows,
-              stacked on a phone and three-up from `sm`, and the labels do the
-              work the circles were doing.
-            */}
-            <div className="divide-y divide-white/8 sm:grid sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
-              {[
-                { label: 'Engine', value: cleanPowertrain(knowledge?.engine_type) },
-                { label: 'Transmission', value: cleanPowertrain(knowledge?.transmission_type) },
-                { label: 'Drivetrain', value: cleanPowertrain(knowledge?.drivetrain) },
-              ].map(({ label, value }) => (
-                <div key={label} className="py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 sm:first:pl-0 sm:last:pr-0">
-                  <p className="label-uppercase mb-1">{label}</p>
-                  <p className="text-sm font-semibold text-white leading-snug">{value}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          The powertrain rows are the table's first three; FLUIDS survives as a
+          mono group label inside it rather than as a second heading. Fewer
+          heads, one form, and the eye reads one column of labels down the page
+          instead of re-learning the layout halfway.
+        */}
+        <SpecBand title="Specification">
+          {/*
+            ⚠ **No FLUIDS sub-label.** Folding the two bands left it sitting a
+            gap above COOLANT with no rule of its own and the *same* 12px mono
+            weight as every row label beside it — so it read as a row whose
+            value had failed to load, which is the worst thing a spec table can
+            imply. A critique of the rendered page called it exactly that.
 
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="display-serif text-white text-lg">Performance</CardTitle>
-              <button
-                onClick={() => fetchPerformanceStats(true)}
-                disabled={perfLoading}
-                className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/35 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors disabled:opacity-40"
-                aria-label="Refresh performance stats"
-              >
-                <RefreshCw className={`h-4 w-4 ${perfLoading ? 'animate-spin' : ''}`} />
-              </button>
+            It is cut rather than promoted because it was never carrying
+            information: COOLANT, ENGINE OIL, BRAKE FLUID and TRANSMISSION FLUID
+            each say "fluid" in their own first or last word. Seven rows, one
+            table, one left edge for the eye to run down.
+          */}
+          <div className="divide-y divide-white/8">
+            <SpecRow label="Engine" value={cleanPowertrain(knowledge?.engine_type)} />
+            <SpecRow label="Transmission" value={cleanPowertrain(knowledge?.transmission_type)} />
+            <SpecRow label="Drivetrain" value={cleanPowertrain(knowledge?.drivetrain)} />
+            {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
+              <SpecRow key={key} label={key.replace(/_/g, ' ')} value={String(value)} />
+            ))}
+          </div>
+
+          {Object.keys(fluidSpecs).length === 0 && (
+            <div className="mt-7">
+              <EmptySpec label="Fluid specifications" />
             </div>
-          </CardHeader>
-          <CardContent>
+          )}
+        </SpecBand>
+
+        {/*
+          ── ⚠ The floating refresh icon is gone — the brief cut it ───────────
+
+          It sat at this heading's right edge as a bare glyph while
+          `ResearchButton` sat at Specification's as a bordered, labelled
+          button: one page, two treatments, for two actions a reader had no way
+          to tell apart. The locked brief lists "the floating refresh icon"
+          among the cuts it accepts, and a critique of the rendered page called
+          this one an orphan.
+
+          ⚠ **No capability goes with it.** `fetchPerformanceStats()` already
+          runs on mount — this control only re-ran a fetch that happens anyway,
+          which is why it can be deleted outright while `ResearchButton`, which
+          triggers work nothing else triggers, moves to the foot instead.
+        */}
+        <SpecBand title="Performance">
             {perfLoading && !hasPerformanceData ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="w-8 h-8 border-2 border-info-border border-t-info rounded-full animate-spin mb-3" />
@@ -283,7 +325,25 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                   the header — an icon that means three things means none, and
                   these were chosen to fill circles rather than to say anything.
                 */}
-                <div className="grid grid-cols-3 divide-x divide-white/8 rounded-xl border border-white/10 bg-white/[0.02]">
+                {/*
+                  ── ⚠ The frame around these three came off — brief B6 ───────
+
+                  It was a bordered, filled, rounded panel *inside* a card: two
+                  containers to show three numbers. The critique named the pair
+                  as this page's clearest generated tell — "three-up centred
+                  stat cells inside a nested bordered panel" — and B6 is
+                  explicit that a nested card becomes a hairline-ruled band.
+
+                  The dividers were already doing the work. Removing the frame
+                  leaves them doing it alone, and the figures land on the same
+                  graphite as the rest of the page.
+
+                  ⚠ Left-aligned, not centred. These are readings, and the
+                  header strip above sets the pattern the page should keep: the
+                  numeral starts where the label starts, so the eye reads down a
+                  column rather than hunting three centres.
+                */}
+                <div className="grid grid-cols-3">
                   {[
                     {
                       /*
@@ -313,12 +373,12 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                         : null,
                     },
                   ].map(({ label, value, unit, delta }) => (
-                    <div key={label} className="px-2 py-4 text-center sm:px-4 sm:py-5">
-                      <div className="num text-2xl sm:text-3xl font-bold text-white">
+                    <div key={label} className="pr-4 first:pl-0">
+                      <div className="mono num text-4xl sm:text-[56px] font-bold leading-none text-white">
                         {value || '\u2014'}
-                        {value && <span className="text-sm font-normal text-white/50 ml-0.5">{unit}</span>}
+                        {value && <span className="mono text-xs font-normal text-white/70 ml-1">{unit}</span>}
                       </div>
-                      <p className="label-uppercase mt-1.5">{label}</p>
+                      <p className="mono label-uppercase mt-2.5">{label}</p>
                       {/*
                         ⚠ Not green. "+52 from stock" is a fact about a
                         modification, not a good or a bad one, and the health
@@ -345,8 +405,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 */}
               </>
             )}
-          </CardContent>
-        </Card>
+        </SpecBand>
 
         {ENABLE_TCO && (
           <>
@@ -365,59 +424,8 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
           </>
         )}
 
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <CardTitle className="display-serif flex items-center gap-2 text-white text-lg">
-              <Droplets className="h-5 w-5 text-white/45" />
-              Fluid specifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/*
-              ⚠ Capped width on a desktop. Full-bleed in a 1130px card put
-              "Coolant" hard left and its value hard right with about 900px of
-              void between them — a critique called it the "classic
-              justified-table mistake at wide viewports", and the eye travel is
-              the whole cost. A measure the eye can cross keeps the pair
-              readable as a pair.
-            */}
-            {Object.keys(fluidSpecs).length > 0 ? (
-              <div className="divide-y divide-white/6 sm:max-w-3xl">
-                {/*
-                  ── ⚠ Label above value on a phone, side by side above `sm` ──
-
-                  The row was label-left / value-right at every width, so
-                  "0W-30 or 0W-40 Full Synthetic (BMW LL-01 spec)" wrapped to
-                  three lines of **right-aligned** body copy in a 60% column —
-                  ragged-left, which is the hardest alignment to read, four rows
-                  running. A design critique named it, and at the other end the
-                  same pattern put 900px of empty table between "Coolant" and
-                  its value on a desktop.
-
-                  Stacked, the value gets the full column and reads left to
-                  right like everything else.
-                */}
-                {Object.entries(fluidSpecs).map(([key, value]: [string, any]) => (
-                  <div
-                    key={key}
-                    className="py-3 first:pt-0 last:pb-0 sm:flex sm:items-baseline sm:justify-between sm:gap-8"
-                  >
-                    <span className="label-uppercase block sm:mb-0">{key.replace(/_/g, ' ')}</span>
-                    <span className="mt-1 block text-sm font-medium text-white sm:mt-0 sm:max-w-[60%] sm:text-right">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptySpec label="Fluid specifications" />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-white/10 bg-[#141720]">
-          <CardHeader className="pb-4">
-            <CardTitle className="display-serif flex items-center gap-2 text-white text-lg">
+        <SpecBand title="Worth knowing">
+          <>
               {/*
                 ── ⚠ It said "Five" and rendered three ─────────────────────
 
@@ -432,11 +440,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 So the heading stops counting. "Worth knowing" is true at three
                 facts and at five, which is the only wording that can be.
               */}
-              <Lightbulb className="h-5 w-5 text-white/45" />
-              Worth knowing
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+
             {/*
               ⚠ A hairline-divided list, not one bordered tile per fact inside a
               bordered card inside a bordered page panel. Three levels of
@@ -446,20 +450,62 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             */}
             {interestingFacts.length > 0 ? (
               <div className="divide-y divide-white/8">
+                {/*
+                  ⚠ 01/02/03, and the index is not a ranking. B7 sets this
+                  page's lists as a mono spec table with 01-style indices, and
+                  the earlier objection — that numerals in circles "implied a
+                  ranking that nothing computes" — was about the circles and the
+                  emphasis, not the counting. A flat mono index in the margin
+                  reads as an enumeration, which is what a list of three facts
+                  is.
+                */}
                 {interestingFacts.map((fact: string, index: number) => (
-                  <p
-                    key={`fact-${index}`}
-                    className="py-3 text-sm leading-normal text-white/70 first:pt-0 last:pb-0"
-                  >
-                    {fact}
-                  </p>
+                  <div key={`fact-${index}`} className="flex py-3 first:pt-0 last:pb-0">
+                    <span className="mono num w-8 shrink-0 text-xs leading-normal text-white/70">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <p className="text-sm leading-normal text-white/70">{fact}</p>
+                  </div>
                 ))}
               </div>
             ) : (
               <EmptySpec label="Interesting facts" />
             )}
-          </CardContent>
-        </Card>
+          </>
+        </SpecBand>
+
+        {/*
+          ── ⚠ The page says a model wrote it — UX-16, on a surface nobody
+             counted ──────────────────────────────────────────────────────────
+
+          Every figure above this line came out of the research model: the
+          engine, the gearbox, the fluid specifications, all three facts. The
+          page carried a control labelled "Refresh research" and no disclosure
+          at all, which is the exact state UX-16 and LEG-05 were raised to end
+          — and `advice-says-it-is-generated.test.ts` says in its own note why
+          a surface missing from its table has to read as a defect rather than
+          as one nobody got to.
+
+          ⚠ It is `'research'`, not `'plan'`. The claim that matters here is
+          the *matching level*: this was researched for a 2018 Honda Accord
+          Sport, not for **this** one. See the note in `advice-disclosure.ts`.
+
+          The action sits with it because this is where the sentence about
+          generated content already is, and because a critique read it framed
+          at heading level as outranking the section head beside it.
+        */}
+        <div className="flex flex-col gap-3 border-t border-white/8 pt-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8">
+          <p className="mono max-w-2xl text-xs leading-relaxed text-white/50">
+            {adviceDisclosure('research')}
+          </p>
+          <ResearchButton
+            vehicleId={vehicle.id}
+            year={vehicle.year}
+            make={vehicle.make}
+            model={vehicle.model}
+            hasData={hasPerformanceData || hasInterestingFacts || hasPowertrainData}
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

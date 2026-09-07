@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
    * costs an EAS build. Sport register already specifies tight heavy Inter, so
    * this is correct there and waiting on the font in standard.
    */
-  model: { ...type.editorial, color: text.primary },
+  model: { ...type.display, color: text.primary },
   subtitle: { ...type.value, color: text.secondary },
 
   /**

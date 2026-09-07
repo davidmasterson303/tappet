@@ -29,21 +29,9 @@ import {
   type ServiceVisit,
 } from '@wellkept/core/service-record';
 import { formatCurrency } from '@wellkept/core/formatting-utils';
+import CutSurface from '../components/CutSurface';
 import Icon from '../components/Icon';
-import {
-  FIELD_FONT_MIN,
-  OPTICAL_CENTRE,
-  PAGE_BODY,
-  TABULAR,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  status,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -106,6 +94,33 @@ type State =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'loaded'; records: ServiceRecord[] };
+
+/**
+ * The visit's stamp: when it happened and at what odometer reading.
+ *
+ * ⚠ A visit is a *moment* — one date, one shop, one reading — so all three
+ * belong to its heading and only the description and the price belong to a line
+ * beneath it. `describeRecord`'s `withShop`/`withDate`/`withMileage` are the
+ * other half of the same idea, turning each field off at the row.
+ *
+ * Reads the odometer from the first line that carries one, exactly as `date`
+ * does. Lines of one invoice can disagree — extraction sometimes reads a
+ * different number off a different part of the page — and picking the first is
+ * the same honest guess the date already makes, rather than inventing a range.
+ */
+function visitStamp(visit: ServiceVisit): string | null {
+  const parts: string[] = [];
+
+  const date = formatRecordDate(visit.date);
+  if (date) parts.push(date);
+
+  const reading = visit.records.find(
+    (r) => typeof r.mileage_at_service === 'number' && r.mileage_at_service > 0
+  )?.mileage_at_service;
+  if (typeof reading === 'number') parts.push(`${reading.toLocaleString('en-US')} mi`);
+
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
 
 export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -325,8 +340,20 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       a text input.
     */
     <View style={styles.screen}>
+      {/*
+        ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
+        a hand-rolled search box rather than the `Field` primitive — giving
+        `Field` the cut left this one square, which is how the critique kept
+        finding "the search field is square" after the fix had landed.
+      */}
       {state.records.length > 0 && (
-        <View style={[styles.search, styles.searchPinned]}>
+        <CutSurface
+          style={[styles.search, styles.searchPinned]}
+          cut={['bottomRight']}
+          size={cut.control}
+          fill={surface.well}
+          stroke={border.field}
+        >
           <Icon name="search" size={17} />
           <TextInput
             style={styles.searchInput}
@@ -348,7 +375,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
               <Icon name="x" size={16} />
             </Pressable>
           )}
-        </View>
+        </CutSurface>
       )}
 
       <ScrollView
@@ -425,8 +452,15 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                   <Text style={styles.visitShop} numberOfLines={1}>
                     {visit.shop ?? 'Service record'}
                   </Text>
-                  {formatRecordDate(visit.date) ? (
-                    <Text style={styles.visitDate}>{formatRecordDate(visit.date)}</Text>
+                  {/*
+                    ⚠ The visit's date **and** odometer, together. A visit is a
+                    moment: it happened on one date, at one shop, at one reading.
+                    All three belong here, and only the description and the price
+                    belong to the line — which is what takes a row from four
+                    lines back toward B6's one.
+                  */}
+                  {visitStamp(visit) ? (
+                    <Text style={styles.visitDate}>{visitStamp(visit)}</Text>
                   ) : null}
                 </View>
 
@@ -440,7 +474,13 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 around each, because they are parts of one thing.
               */}
               {visit.records.map((record, index) => {
-                const meta = describeRecord(record, { withShop: false });
+                /*
+                  ⚠ Neither the shop nor the date: both are the visit heading
+                  directly above these rows. `withShop` already existed for that
+                  reason (R34); `withDate` is the same argument one field over,
+                  and it is what takes a row from ~110pt back toward B6's 56.
+                */
+                const meta = describeRecord(record, { withShop: false, withDate: false, withMileage: false });
 
                 return (
                   /*
@@ -470,6 +510,27 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                     ]}
                   >
                     <View style={styles.head}>
+                      {/*
+                        ⚠ 6 Sep · B6: the index. Every record list in this app is
+                        the mono spec table — *"01 index, grotesk label,
+                        right-aligned mono value, hairline per row"* — and this
+                        list had the label, the value and the rule but not the
+                        index, which the critique caught three rounds running.
+
+                        `index + 1` padded to two digits, scoped to the visit
+                        rather than to the screen: the numbers say "second line
+                        of this invoice", not "seventh service you have ever
+                        recorded". A running total across visits would read as a
+                        count of the car's whole history and be wrong the moment
+                        a filter hides a row.
+
+                        `accessibilityElementsHidden` because the row already
+                        announces itself by description; a screen reader does not
+                        need "zero one" before every line.
+                      */}
+                      <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+                        {String(index + 1).padStart(2, '0')}
+                      </Text>
                       <Text style={styles.name}>{record.item_description ?? 'Service'}</Text>
                       {typeof record.total_cost === 'number' && record.total_cost > 0 && (
                         <Text style={styles.cost}>{formatCurrency(record.total_cost)}</Text>
@@ -478,6 +539,27 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
 
                     {meta ? <Text style={styles.meta}>{meta}</Text> : null}
 
+                    {/*
+                      ── ⚠ 6 Sep: the critique asked twice for this to go, and it stays ──
+
+                      The note was *"the Remove line under every service row — it
+                      turns a 56pt spec row into a four-line form; **the row swipe
+                      carries deletion**."*
+
+                      The first half is fair — this row is taller and busier than
+                      the spec table B6 asks for. The second half is not true of
+                      this screen: **there is no swipe-to-delete here.** No
+                      `Swipeable`, no gesture handler, nothing. Removing this
+                      control would take away the only way to delete a service
+                      record, which is a data-loss defect dressed as a design fix.
+
+                      A critic reading screenshots cannot know which affordances
+                      exist, and this one inferred a standard iOS gesture from a
+                      list that looks like it should have one. If the row is to
+                      slim down, deletion needs somewhere to go first — the visit
+                      detail this row already opens is the obvious candidate —
+                      and that is a product change, not a restyle.
+                    */}
                     {record.id ? (
                       <Pressable
                         accessibilityRole="button"
@@ -555,11 +637,19 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
         Hidden while the list is empty: the empty state already offers it, and
         two identical buttons on one screenful is a screen that cannot decide.
       */}
-      {state.records.length > 0 && (
-        <View style={styles.scanBar}>
-          <Button label="Scan an invoice" onPress={onScan} accessibilityLabel="Scan a new invoice" />
-        </View>
-      )}
+      {/*
+        ── ⚠ 6 Sep · B9: this button moved up a level, and its own note said why ─
+
+        A pinned "Scan an invoice" sat here, hidden while the list was empty,
+        under a note reading *"two identical buttons on one screenful is a screen
+        that cannot decide."* That note is why it is gone rather than why it
+        stayed: B9 makes the scan a first-class primary at the top of `Service`,
+        above the segment content, so this became the second of exactly the two
+        buttons it warned about — and the screen was indeed showing both.
+
+        The empty state below still offers its own, which is the case the note
+        was protecting: nothing to scroll to means nothing to pin.
+      */}
     </View>
   );
 }
@@ -597,6 +687,24 @@ function visitProvenance(visit: ServiceVisit): string {
   return 'Recorded on this car';
 }
 
+/*
+  ── ⚠ 6 Sep · B6 and B1: the record list became a spec table ────────────────
+
+  Locked brief B6: *"Factors, recommendations and every record list are a mono
+  spec table with 01 indices, right-aligned numerals, hairline rows."*
+
+  Every value on this screen was a proportional sans — prices, dates, totals,
+  the record count — so a column of amounts did not line up as a column and the
+  eye had to read each one rather than scan them. `TABULAR` was already applied
+  and could not help: tabular *figures* keep a font's digits the same width as
+  each other; they do not make Inter behave like a mono in a table.
+
+  Vendors take the condensed grotesk, as section heads. Amounts, dates and
+  counts take the mono. The `01` index is the one clause not carried here — the
+  rows are grouped by vendor rather than enumerated, so an index would number
+  line items inside a visit and not the visits themselves, which is the opposite
+  of what it is for.
+*/
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: surface.page },
   /* Pinned above the scroller, on the page's own surface so nothing shows through. */
@@ -608,23 +716,21 @@ const styles = StyleSheet.create({
     gap: space.sm,
     minHeight: TARGET_MIN,
     paddingHorizontal: space.md,
-    borderRadius: radius.well,
-    borderWidth: 1,
-    borderColor: border.field,
-    backgroundColor: surface.well,
+    /* ⚠ Ground and border are `CutSurface`'s now; a fill here squares the cut. */
     marginBottom: space.sm,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  searchInput: { flex: 1, color: text.primary, fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
+  searchInput: { flex: 1, color: text.primary, fontFamily: interFace('400'),
+    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
   searchClear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
   summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  summaryCount: { ...type.ui, color: text.secondary },
+  summaryCount: { ...type.mono, color: text.secondary },
   summaryTotal: { alignItems: 'flex-end', gap: 2 },
-  summaryCost: { ...type.bodyStrong, color: text.primary, ...TABULAR },
-  summaryScope: { ...type.label, color: text.muted, textTransform: 'uppercase' },
+  summaryCost: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
+  summaryScope: { ...type.monoLabel, color: text.muted },
 
   /**
    * The card, on the ladder rather than beside it.
@@ -644,11 +750,11 @@ const styles = StyleSheet.create({
   /* ── R17 · the visit's head ─────────────────────────────────────────────── */
   visitHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   visitIdentity: { flexShrink: 1, gap: 2 },
-  visitShop: { ...type.bodyStrong, color: text.primary },
+  visitShop: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
   /* R11. A date is data. */
-  visitDate: { ...type.value, color: text.muted, ...TABULAR },
+  visitDate: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* R11. The visit's total, and the biggest figure on the card. */
-  visitTotal: { ...type.bodyStrong, color: text.primary, ...TABULAR },
+  visitTotal: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
 
   /* ── the line items, nested inside it ───────────────────────────────────── */
   line: { gap: 4 },
@@ -670,11 +776,30 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
   },
 
-  head: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
-  name: { ...type.ui, color: text.primary, flexShrink: 1 },
+  /*
+    ── ⚠ 6 Sep · B6: `space-between` cannot lay out a spec table ──────────────
+
+    This was `justifyContent: 'space-between'` and it was right for two children
+    — label left, price right. Adding the `01` index made it three, and
+    space-between spreads three: the index went left, the price right, and the
+    label was pushed to the *centre* of whatever was left over. Every row has a
+    different label length, so every label started at a different x.
+
+    The critique read it as "centered, not tabular", which is exactly what it
+    was. A spec table's whole claim is a shared left edge, and the change that
+    added the index is the change that broke it.
+
+    `flex: 1` on the label is the fix rather than a third `justifyContent`: the
+    index is a fixed column, the label takes what is left, the price is pushed
+    right by that rather than by a distribution rule.
+  */
+  head: { flexDirection: 'row', alignItems: 'baseline', gap: space.md },
+  /** The spec table's index — mono, muted, fixed width so the labels line up. */
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22 },
+  name: { ...type.ui, color: text.primary, flex: 1 },
   /* R11. A right-aligned price column that is not tabular reads as ragged. */
-  cost: { ...type.uiStrong, color: text.primary, ...TABULAR },
-  meta: { ...type.value, color: text.muted, ...TABULAR },
+  cost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR },
+  meta: { ...type.mono, color: text.muted, ...TABULAR },
 
   /*
     Provenance and the remove control share a row, with the label given the
@@ -699,7 +824,8 @@ const styles = StyleSheet.create({
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
-  errorBody: { color: text.muted, fontSize: 14, textAlign: 'center' },
+  errorBody: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 14, textAlign: 'center' },
   retry: {
     marginTop: 6,
     paddingHorizontal: 18,

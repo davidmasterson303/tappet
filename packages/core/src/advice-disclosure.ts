@@ -80,7 +80,19 @@ export type AdviceSurface =
   /** A cost or labour estimate. */
   | 'estimate'
   /** A generated maintenance schedule or mod suggestion. */
-  | 'plan';
+  | 'plan'
+  /**
+   * Researched vehicle facts — specification, fluids, background.
+   *
+   * ⚠ Added 5 Sep, and its absence was the finding. `/vehicle-info` renders a
+   * whole page written by the research model — engine, transmission, fluid
+   * specs, "worth knowing" — with a control on it that says **Refresh
+   * Research**, and carried no disclosure at all. That is UX-16 on a surface
+   * nobody had counted, and `advice-says-it-is-generated.test.ts` says in its
+   * own note why a missing row reads as a defect rather than as a surface
+   * nobody got to.
+   */
+  | 'research';
 
 const DISCLOSURES: Record<AdviceSurface, string> = {
   consultant:
@@ -91,6 +103,20 @@ const DISCLOSURES: Record<AdviceSurface, string> = {
     'Estimated by AI for comparison. Real prices depend on the shop, the parts and what they find.',
   plan:
     'Suggested by AI from this vehicle’s typical schedule. Your car’s history and your manual come first.',
+  /*
+    ⚠ "for this year, make and model — not from your specific car" is the same
+    claim `RECALL_MATCH_CAVEAT` makes below, and it is here for the same reason.
+    The research runs on a 2018 Honda Accord Sport, not on *this* 2018 Honda
+    Accord Sport: it has no VIN, no service history and no odometer. A page of
+    specifications is exactly where a reader would assume otherwise, because
+    specifications are normally a fact about the object in front of you.
+
+    `CLAUDE.md` §10 is the standing position — ranges over verdicts, and no
+    claim the data cannot support. Saying "your car" here would be the same
+    overclaim as matching a recall on VIN when only the model was checked.
+  */
+  research:
+    'Researched by AI for this year, make and model — not from your specific car. Check anything important against your owner’s manual.',
 };
 
 /**

@@ -146,8 +146,41 @@ interface RequestOptions {
 /** Reads are quick or something is wrong. */
 const DEFAULT_TIMEOUT_MS = 20_000;
 
+import { fixtureFor } from '../dev/fixtures';
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, allowAnonymous = false, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+
+  /*
+    ── ⚠ Development fixtures, ahead of the token check ──────────────────────
+
+    Double-gated: `__DEV__` **and** `EXPO_PUBLIC_DESIGN_FIXTURES=1`. A build that
+    quietly served fixtures instead of the API would be this file's worst
+    failure — every screen would look perfect and none of it would be real — so
+    neither gate is allowed to stand alone.
+
+    ⚠ **Above `getAccessToken()` deliberately.** The point is to reach the
+    screens when there is no session to get, which is what the token check
+    correctly refuses to do. This is the *only* thing in this file that runs
+    before that check, and it can only run when a developer has opted in twice.
+
+    An unmapped path returns `undefined` and falls through to the real request,
+    so a screen `fixtures.ts` does not cover behaves normally rather than
+    rendering as empty — an un-fixtured screen should look broken, not finished.
+  */
+  /*
+    ⚠ `typeof __DEV__ !== 'undefined'` rather than a bare `__DEV__`.
+
+    It is a React Native global injected by Metro, and this module is imported by
+    tests that run in the **root** jest environment — plain node, where the
+    identifier does not exist and referencing it is a `ReferenceError`, not
+    `undefined`. Thirty-two tests failed on it, none of them in the mobile
+    workspace, which is why the mobile-scoped run stayed green.
+  */
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1') {
+    const canned = fixtureFor(path);
+    if (canned !== undefined) return canned as T;
+  }
 
   const token = await getAccessToken();
 

@@ -38,7 +38,7 @@
  * purpose — see its header — so a url built with anything but this is a
  * notification that silently does nothing when tapped.
  */
-const APP_SCHEME = 'crewchief://';
+const APP_SCHEME = 'wellkept://';
 
 /** What a push carries. `url` becomes `data.url` on the payload. */
 export interface NotificationContent {

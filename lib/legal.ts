@@ -97,15 +97,15 @@ export const CONTACT_EMAIL = 'support@southmoordigital.com';
  * nothing deploys from `main`, so no reader ever saw it. The 19 August value
  * was correct because the promote happened that day.
  *
- * ⛔ **The operator change is NOT on a hostname yet.** `web-live` has been
- * frozen since 23 Aug and `crewchief.davidmasterson.co` still serves a policy
- * naming David personally. Until that promote runs, this date describes a
- * change no reader can see — which the paragraph above calls the same defect as
- * a date that precedes its own change.
+ * ✅ **Published — checked 6 Sep against the live product host.** `/privacy`
+ * serves "Southmoor Digital LLC" and contains no occurrence of "David
+ * Masterson"; `/api/version` reports `web-live` built 5 Sep. The freeze this
+ * paragraph was written under has ended, so `30 August 2026` is now a date a
+ * reader can actually see.
  *
- * **So: if the promote slips past 30 August, move this line to the day it
- * runs.** It is one edit, and it is the difference between a date that means
- * something and one that teaches people it does not.
+ * The instruction it carried — *if the promote slips past 30 August, move this
+ * line to the day it runs* — is discharged rather than deleted: the promote did
+ * not slip, so the literal stands as written.
  *
  * ⚠ It does not move again for the contact address changing later the same day.
  * Two substance changes shipping together are one publication, and a date that

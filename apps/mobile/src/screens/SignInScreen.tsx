@@ -385,8 +385,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: surface.page, justifyContent: 'center' },
   form: { padding: 28, gap: 14 },
   lockup: { alignItems: 'flex-start', marginBottom: 4 },
-  subtitle: { color: text.muted, fontSize: 15, marginBottom: 14 },
-  error: { color: status.dangerText, fontSize: 13 },
+  subtitle: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 15, marginBottom: 14 },
+  error: { color: status.dangerText, fontFamily: interFace('400'),
+    fontSize: 13 },
   /*
     An explicit fill, not `opacity` — the same defect the advisor's "Ask"
     button carried, on the first screen anyone sees.
@@ -398,13 +400,16 @@ const styles = StyleSheet.create({
     colour literals and sees none here, and no test mounts this screen at all.
     A render test now does.
   */
-  notice: { color: status.confirm, fontSize: 13, lineHeight: 18 },
+  notice: { color: status.confirm, fontFamily: interFace('400'),
+    fontSize: 13, lineHeight: 18 },
   switchMode: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  switchModeText: { color: text.secondary, fontSize: 14 },
+  switchModeText: { color: text.secondary, fontFamily: interFace('400'),
+    fontSize: 14 },
 
   consent: { paddingTop: 4 },
   consentText: {
     color: text.secondary,
+    fontFamily: interFace('400'),
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
@@ -423,7 +428,9 @@ const styles = StyleSheet.create({
     should not compete with the sign-in button. #4ade80 and #f87171 both clear
     the AA floor on `surface.page` that `78eba74` made a rule.
   */
-  devCheckOk: { color: text.muted, fontSize: 12, textAlign: 'center' },
+  devCheckOk: { color: text.muted, fontFamily: interFace('400'),
+    fontSize: 12, textAlign: 'center' },
   devCheckFail: { color: status.dangerText, fontSize: 13, fontFamily: interFace('700'), fontWeight: '700', textAlign: 'center' },
-  devCheckDetail: { color: status.dangerText, fontSize: 11, textAlign: 'center' },
+  devCheckDetail: { color: status.dangerText, fontFamily: interFace('400'),
+    fontSize: 11, textAlign: 'center' },
 });

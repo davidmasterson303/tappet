@@ -46,7 +46,7 @@ jest.mock('@/lib/entitlement-store', () => ({
 */
 jest.mock('@/lib/apple-root-ca', () => ({
   getAppleRootCertificates: () => [readFileSync(join(FIXTURES, 'root.crt'), 'utf8')],
-  APPLE_BUNDLE_ID: 'co.davidmasterson.crewchief',
+  APPLE_BUNDLE_ID: 'com.southmoordigital.wellkept',
 }));
 
 const { POST } = require('@/app/api/internal/apple-notifications/route');
@@ -76,10 +76,10 @@ function notification(chain = CHAIN, key = KEY): string {
         signedTransactionInfo: jws(
           {
             /* IAP-03 — the route refuses a transaction signed for another app. */
-            bundleId: 'co.davidmasterson.crewchief',
+            bundleId: 'com.southmoordigital.wellkept',
             transactionId: '2000000000000009',
             originalTransactionId: '2000000000000001',
-            productId: 'co.davidmasterson.crewchief.paid.monthly',
+            productId: 'com.southmoordigital.wellkept.paid.monthly',
             expiresDate: Date.parse('2026-09-18T10:00:00Z'),
             environment: 'Production',
             signedDate: Date.parse('2026-08-18T10:00:00Z'),

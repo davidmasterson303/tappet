@@ -13,6 +13,41 @@ import { onSessionChange, signOut, startSessionAutoRefresh } from './src/auth/se
 import { unregisterPush } from './src/notifications/register';
 import { supabase } from './src/auth/supabase';
 import { SignInScreen } from './src/screens/SignInScreen';
+import DesignSpecimen from './src/dev/DesignSpecimen';
+
+/**
+ * The design-system specimen, in place of the app.
+ *
+ * ⚠ Double-gated: `__DEV__` **and** an opt-in env flag. `__DEV__` alone would
+ * put a developer one typo away from shipping a sheet of swatches as the
+ * product, and the flag alone would leave the branch in a release bundle.
+ *
+ * Set `EXPO_PUBLIC_DESIGN_SPECIMEN=1` in `apps/mobile/.env` and restart Metro —
+ * `EXPO_PUBLIC_*` values are inlined at bundle time, so a running server will
+ * not pick it up. See `src/dev/DesignSpecimen.tsx` for what it is for.
+ */
+const SHOW_SPECIMEN = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_SPECIMEN === '1';
+
+/**
+ * The product screens, driven by fixtures, with no session.
+ *
+ * ── ⚠ Why the session gate is bypassed rather than faked ────────────────────
+ *
+ * The design loop grades real screens, and twice it has been called blocked
+ * because the simulator could not sign in. Both times the reasoning was that the
+ * screens need a session; they do not — they need **data**, and the session is
+ * only the gate in front of it. `api/client.ts` serves that data from
+ * `dev/fixtures.ts` under the same flag.
+ *
+ * ⚠ The token handed down is a placeholder string and never reaches the network,
+ * because every request this mode makes is answered before the fetch. If a
+ * screen calls a path `fixtures.ts` does not cover, the request falls through,
+ * the placeholder is rejected, and the screen shows its error state — which is
+ * the correct outcome: an un-fixtured screen should look broken, not finished.
+ *
+ * Same double gate as the specimen, for the same reason.
+ */
+const SHOW_FIXTURES = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 /**
@@ -84,6 +119,20 @@ export default function App() {
           <View style={styles.loading}>
             <ActivityIndicator color={text.muted} />
           </View>
+        ) : SHOW_FIXTURES ? (
+          <RootNavigator
+            accessToken="design-fixtures"
+            email="design@fixtures.local"
+            onSignOut={() => {}}
+          />
+        ) : SHOW_SPECIMEN ? (
+          /*
+            ⚠ Below `fontsReady` deliberately. The specimen's whole job is to
+            show the type, and a sheet captured before Archivo Narrow and
+            JetBrains Mono have loaded is a sheet of San Francisco that looks
+            like the fonts were never wired up.
+          */
+          <DesignSpecimen />
         ) : session ? (
           /*
             Phase 3.2 replaces the 3.1 proof screen. `SignedInScreen` existed to

@@ -59,8 +59,8 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('notificationUrl', () => {
   it('accepts an in-app link', () => {
-    expect(notificationUrl(notification({ url: 'crewchief://vehicle/abc/advisor' }))).toBe(
-      'crewchief://vehicle/abc/advisor'
+    expect(notificationUrl(notification({ url: 'wellkept://vehicle/abc/advisor' }))).toBe(
+      'wellkept://vehicle/abc/advisor'
     );
   });
 
@@ -69,14 +69,14 @@ describe('notificationUrl', () => {
     ['http://evil.example', 'an insecure website'],
     ['javascript:alert(1)', 'a script url'],
     ['file:///etc/passwd', 'a local file'],
-    ['CREWCHIEF://vehicle/abc', 'a case-shifted scheme'],
-    [' crewchief://vehicle/abc', 'a leading space that hides the scheme'],
-    ['//crewchief://vehicle/abc', 'a protocol-relative prefix'],
+    ['WELLKEPT://vehicle/abc', 'a case-shifted scheme'],
+    [' wellkept://vehicle/abc', 'a leading space that hides the scheme'],
+    ['//wellkept://vehicle/abc', 'a protocol-relative prefix'],
   ])('refuses %s (%s)', (url) => {
     /*
       Each of these would otherwise be handed to the navigator's linking
       handler. The case-shifted and space-prefixed ones matter most: they are
-      what a filter written with `includes('crewchief://')` would let through,
+      what a filter written with `includes('wellkept://')` would let through,
       and `startsWith` on the raw string is what makes them fail.
     */
     expect(notificationUrl(notification({ url }))).toBeNull();
@@ -112,10 +112,10 @@ describe('notificationUrl', () => {
 describe('initialNotificationUrl — the cold start', () => {
   it('reads the notification the app was opened by', async () => {
     getLastNotificationResponseAsync.mockResolvedValue({
-      notification: notification({ url: 'crewchief://vehicle/xyz' }),
+      notification: notification({ url: 'wellkept://vehicle/xyz' }),
     });
 
-    await expect(initialNotificationUrl()).resolves.toBe('crewchief://vehicle/xyz');
+    await expect(initialNotificationUrl()).resolves.toBe('wellkept://vehicle/xyz');
   });
 
   it('returns null when the app was opened normally', async () => {
@@ -151,8 +151,8 @@ describe('subscribeToNotificationTaps', () => {
     const handler = jest.fn();
     const unsubscribe = subscribeToNotificationTaps(handler);
 
-    captured?.({ notification: notification({ url: 'crewchief://garage' }) });
-    expect(handler).toHaveBeenCalledWith('crewchief://garage');
+    captured?.({ notification: notification({ url: 'wellkept://garage' }) });
+    expect(handler).toHaveBeenCalledWith('wellkept://garage');
 
     // A url that fails the scheme rule must not reach the navigator at all.
     handler.mockClear();

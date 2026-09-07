@@ -5,7 +5,7 @@ import type { MetadataRoute } from 'next';
  *
  * ── ⚠ There was no robots.txt at all (SEC-10) ───────────────────────────────
  *
- * `crewchief.davidmasterson.co` is the App Store listing's marketing URL and
+ * `wellkept.southmoordigital.com` is the App Store listing's marketing URL and
  * the origin the mobile app talks to, and it served **no `robots.txt`** — so
  * every route on it was crawlable, including `/dev/rls-check`, which renders
  * the results of eight live RLS probes and returned 200 in production because

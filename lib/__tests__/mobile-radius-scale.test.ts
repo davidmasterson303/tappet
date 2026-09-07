@@ -114,10 +114,22 @@ describe('the mobile app names no corner radius outside the token layer', () => 
       broken. This imports the layer they moved *into*, so the suite exercises
       shipped code rather than only reading it.
     */
-    expect(radius.well).toBe(8);
-    expect(radius.button).toBe(12);
-    expect(radius.card).toBe(14);
-    expect(radius.hero).toBe(20);
+    /*
+      ⚠ 6 Sep: these were `8 / 12 / 14 / 20` — the radius scale as it stood
+      before the mobile design brief. B4 zeroed every step ("every container
+      corner is a 45° cut at zero radius"), so the numbers changed and the
+      *claim* did not: there is still a token layer, it is still imported here,
+      and this suite still exercises shipped code rather than only reading it.
+
+      ⚠ Asserted as `0` rather than deleted. An app with no radius literals and
+      no token layer is broken rather than compliant, which is the whole point
+      of this case — and a scale that has quietly lost its keys would pass a
+      test that merely stopped looking.
+    */
+    expect(radius.well).toBe(0);
+    expect(radius.button).toBe(0);
+    expect(radius.card).toBe(0);
+    expect(radius.hero).toBe(0);
   });
 
   it('still names the three the theme says do not exist', () => {

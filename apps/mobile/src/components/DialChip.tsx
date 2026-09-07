@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
+
+import CutSurface from './CutSurface';
 import Svg, { Path } from 'react-native-svg';
 
 import { R, TRACK, VIEW_H, VIEW_W } from '@wellkept/core/cluster-geometry';
 import { getHealthBandJudgement, healthBandHex } from '@wellkept/core/health-band';
-import { TABULAR, border, plinth, radius, space, surface } from '../theme';
-import { interFace } from '../theme/fonts';
+import { border, cut, plinth, radius, space, surface, TABULAR, text } from '../theme';
+import { monoFace, interFace } from '../theme/fonts';
 
 /**
  * What the hero dial hands off to when it reaches the nav bar.
@@ -45,7 +47,27 @@ const ARC = 26;
 
 export default function DialChip({ score }: { score: number }) {
   const band = getHealthBandJudgement(score);
-  const colour = healthBandHex(band);
+  /*
+    ── ⚠ 6 Sep · B3 and B7: the chip stopped being gold ──────────────────────
+
+    This stroked its arc and set its numeral in `healthBandHex(band)` at every
+    reading, so a 70 drew in the `ok` band's `#D6BE9B` — the gold B3 names and
+    bans, on the one element that persists through the entire scroll.
+
+    The critique's Cut list asked for this chip to go entirely, on the reading
+    that the score is repeated further down the screen. **It is not chrome and
+    it is not being removed.** R10/R25 made it a control: it is the only
+    affordance that stays in reach for the whole scroll, it carries the spoken
+    name "Health score 70 out of 100 — Fair. Opens health detail", and the
+    alternative route into health is a row most of the way down the sheet.
+    Deleting a documented, screen-reader-labelled door because a still frame
+    looked redundant would be a regression the next critique could not see.
+
+    So the violation is fixed rather than the element removed: the same rule the
+    main dial follows — ink unless the band is a genuine warning.
+  */
+  const isWarning = band.name === 'warn' || band.name === 'bad';
+  const colour = isWarning ? healthBandHex(band) : text.primary;
   const rounded = Math.round(score);
 
   /*
@@ -60,8 +82,20 @@ export default function DialChip({ score }: { score: number }) {
   const lit = (Math.max(0, Math.min(100, rounded)) / 100) * ARC_LENGTH;
 
   return (
-    <View
+    /*
+      ── ⚠ 6 Sep · B4: this was a pill, and B4 names pills specifically ────────
+
+      `borderRadius: radius.pill` on a bordered, filled chip is the one shape the
+      line rules out — *"every container corner is a 45° cut at zero radius …
+      no capsules or pills."* `CutSurface` draws the ground and the corner; the
+      radius scale it used is zeroed anyway, so the pill was the last one left.
+    */
+    <CutSurface
       style={styles.chip}
+      cut={['bottomRight']}
+      size={cut.control}
+      fill={surface.card}
+      stroke={border.panel}
       accessibilityRole="image"
       accessibilityLabel={`Health score ${rounded} out of 100 — ${band.label}`}
     >
@@ -107,7 +141,7 @@ export default function DialChip({ score }: { score: number }) {
       </Svg>
 
       <Text style={[styles.reading, { color: colour }]}>{rounded}</Text>
-    </View>
+    </CutSurface>
   );
 }
 
@@ -118,10 +152,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
     paddingHorizontal: space.sm,
     paddingVertical: 5,
-    borderRadius: radius.pill,
-    backgroundColor: surface.card,
-    borderWidth: 1,
-    borderColor: border.panel,
+    /* ⚠ Ground, border and corner are `CutSurface`'s; a fill here squares it. */
     overflow: 'hidden',
   },
   catchLight: {
@@ -143,8 +174,18 @@ const styles = StyleSheet.create({
   reading: {
     fontSize: 16,
     lineHeight: 20,
-    /* ⚠ One line — RN does not synthesise weights; see `mobile-font-faces`. */
-    fontFamily: interFace('600'), fontWeight: '600',
+    /*
+      ── ⚠ 6 Sep · B1: mono. This was `interFace('600')` ───────────────────────
+
+      A health score is a *value*, and B1 gives values mono — this was the last
+      one on the sheet still set in Inter. The critique caught that it was not
+      mono but guessed it was the condensed grotesk, and told me to check the
+      code rather than trust the eye. It was neither: Inter semibold, which at
+      16pt in a small chip reads close enough to both to hide.
+
+      ⚠ One line, still — RN does not synthesise weights; see `mobile-font-faces`.
+    */
+    fontFamily: monoFace('500'),
     ...TABULAR,
   },
 });

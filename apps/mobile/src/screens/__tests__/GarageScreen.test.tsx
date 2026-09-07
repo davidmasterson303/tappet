@@ -211,7 +211,29 @@ describe('the garage', () => {
           when there is something on both sides, so a car with no trim must not
           render a leading "· ".
     */
-    expect(view.getByText('xDrive · Daily Driver · 66,000 mi')).toBeTruthy();
+    /*
+      ⚠ 6 Sep · B2: this asserted the joined line
+      `'xDrive · Daily Driver · 66,000 mi'`, and the claim it was making — that
+      the payload's trim, status and mileage all reach the screen — is kept
+      exactly. What changed is the treatment: those three are now cells in
+      `StatStrip`, a mono eyebrow over each value, so there is no single string
+      to match.
+
+      Asserting the values *and* their labels is strictly stronger than matching
+      the old sentence: the sentence would have passed with the labels missing.
+
+      ⚠ **Matched in title case, though they render in caps.** `StatStrip` capitalises
+      with `textTransform`, which is a style — the node's text is still
+      "Mileage", and this query reads the text. Asserting 'MILEAGE' here fails
+      against a component that is working correctly, which is the shape of guard
+      this repo has been bitten by before.
+    */
+    expect(view.getByText('Mileage')).toBeTruthy();
+    expect(view.getByText('66,000 mi')).toBeTruthy();
+    expect(view.getByText('Trim')).toBeTruthy();
+    expect(view.getByText('xDrive')).toBeTruthy();
+    expect(view.getByText('Use')).toBeTruthy();
+    expect(view.getByText('Daily Driver')).toBeTruthy();
 
     // Recalls stay on the bay. A garage that shows condition but not an open
     // safety defect is showing the reassuring half.
@@ -392,6 +414,20 @@ describe('the bay’s hierarchy', () => {
 
     const view = await renderGarage();
     const chip = await view.findByText('1 open recall');
+
+    /*
+      ⚠ Wait for the dial to *land* before snapshotting the tree.
+
+      B3 makes the numeral count up over 600ms, so `toJSON()` taken mid-sweep
+      contains "43" or "68" — never "70" — and the `findIndex` below returns -1.
+      That is the whole of a flake that failed roughly one run in four all
+      session and, on 7 Sep, blocked a web promote: the script runs this suite
+      because `packages/core` is shared, and a 1-in-4 test is a 1-in-4 deploy.
+
+      The assertion is about *order*, not about timing, so waiting is the fix
+      rather than loosening what it checks.
+    */
+    await view.findByText('70');
 
     /*
       Order in the rendered tree, which is what a sighted reader scans and what

@@ -76,8 +76,21 @@ function stripComments(code: string): string {
  * prop on `react-native-svg`'s `Text`, which takes the same fallback and would
  * have been missed by a style-only scan.
  */
-const NAKED_STYLE = /(?<!interFace\('\d{3}'\), )fontWeight: '(\d{3})'/;
-const NAKED_PROP = /(?<!fontFamily=\{interFace\('\d{3}'\)\} )fontWeight="(\d{3})"/;
+/*
+  ⚠ **6 Sep: `interFace` is no longer the only way to name a face.** The locked
+  iOS brief put a condensed grotesk on titles and a mono on every value, so
+  `displayFace` and `monoFace` join it in `theme/fonts.ts`.
+
+  This pattern knew one function name. Left alone it would have flagged every
+  correct use of the two new ones — and a guard that cries wolf on an invisible
+  rule is worse than none, because the fix it invites is to make it pass. Both
+  alternations below are the same rule, widened to the faces that now exist.
+*/
+const FACE_FN = "(?:interFace|displayFace|monoFace)";
+const NAKED_STYLE = new RegExp(`(?<!${FACE_FN}\\('\\d{3}'\\), )fontWeight: '(\\d{3})'`);
+const NAKED_PROP = new RegExp(
+  `(?<!fontFamily=\\{${FACE_FN}\\('\\d{3}'\\)\\} )fontWeight="(\\d{3})"`,
+);
 
 describe('every named weight names the face that carries it', () => {
   const files = sourceFiles(MOBILE_SRC)
@@ -215,5 +228,82 @@ describe('the faces the roles are built from', () => {
     expect(NAKED_PROP.test("<SvgText fontFamily={interFace('500')} fontWeight=\"500\" />")).toBe(
       false
     );
+  });
+});
+
+/**
+ * A text style that names a size and a colour also names its face.
+ *
+ * ── ⚠ Why the existing scans did not catch this ─────────────────────────────
+ *
+ * The guards above catch a `fontWeight` with no face beside it, and every role
+ * in the type scale having a `fontFamily`. Neither catches the case that had 54
+ * live instances across 12 files on 6 Sep: a screen-level style with a
+ * `fontSize` and a `color` and **no face at all** — no family, no weight,
+ * nothing to catch.
+ *
+ * React Native renders that as San Francisco. It does not warn, it does not
+ * fall back to the app's face, and next to correctly-set Inter at the same size
+ * the difference reads as a deliberate choice rather than as a bug. The design
+ * critique called two of them "tracked sans caps" for three rounds without
+ * either of us noticing they were not Inter at all.
+ *
+ * ⚠ **Scoped to styles that set both a size and a colour**, which is what a
+ * *complete* text style looks like. Partial styles that exist to be merged —
+ * `fontFloor: { fontSize: FIELD_FONT_MIN }` is the load-bearing one — set a size
+ * and nothing else, and flagging them would be the spurious failure `CLAUDE.md`
+ * warns is worse than no guard: someone would "fix" it by inlining a face that
+ * then overrides the caller's.
+ */
+describe('every complete text style names its face', () => {
+  const styleBlock = /\n  ([a-zA-Z]\w*): \{([^{}]*)\},/g;
+
+  function facelessIn(source: string): string[] {
+    const found: string[] = [];
+    /*
+      ⚠ `Array.from`, not a bare `for…of` over the iterator. This project's root
+      `tsconfig` targets below ES2015, so iterating a `matchAll` result directly
+      is a TS2802 — and the root typecheck is the one the promote script runs,
+      which is where it surfaced rather than in the mobile-scoped check I had
+      been using.
+    */
+    for (const [, name, body] of Array.from(source.matchAll(styleBlock))) {
+      if (!body.includes('fontSize') || !body.includes('color')) continue;
+      if (body.includes('fontFamily') || body.includes('...type.')) continue;
+      // A naked weight is the scan above's job, not this one's.
+      if (body.includes('fontWeight')) continue;
+      found.push(name);
+    }
+    return found;
+  }
+
+  const files = sourceFiles(MOBILE_SRC);
+
+  it('has sources to scan', () => {
+    expect(files.length).toBeGreaterThan(20);
+  });
+
+  it('finds no style rendering in the system face', () => {
+    const offenders = files.flatMap(({ rel, code }) =>
+      facelessIn(stripComments(code)).map((name) => `${rel}:${name}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  /*
+    ⚠ The anti-vacuous case. The assertion above passes if `facelessIn` returned
+    nothing for any reason — a regex that stopped matching, a `sources` list that
+    silently emptied — which is precisely how a scanner in this repo once
+    reported a clean app forever. This proves it can still see one.
+  */
+  it('can still detect one', () => {
+    const planted = `
+const styles = StyleSheet.create({
+  headline: {
+    color: text.primary,
+    fontSize: 18,
+  },
+});`;
+    expect(facelessIn(planted)).toEqual(['headline']);
   });
 });

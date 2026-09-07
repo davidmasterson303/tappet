@@ -33,7 +33,7 @@ import { createContext, useContext, type ReactNode } from 'react';
  *
  * ⚠ `false` — **unset means product**, the same direction `lib/site-role.ts`
  * takes and for the same reason. The failure that direction prevents is demo
- * framing appearing on `crewchief.davidmasterson.co`, which is the App Store
+ * framing appearing on `wellkept.southmoordigital.com`, which is the App Store
  * listing's URL. That already happened once with the masthead. The opposite
  * default fails toward "the product looks like a toy on the page Apple reads",
  * which is strictly worse than "the demo site is missing a demo label".

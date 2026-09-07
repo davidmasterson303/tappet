@@ -1,8 +1,12 @@
+import { ArchivoNarrow_600SemiBold } from '@expo-google-fonts/archivo-narrow/600SemiBold';
+import { ArchivoNarrow_700Bold } from '@expo-google-fonts/archivo-narrow/700Bold';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
+import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular';
+import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
 import { Newsreader_500Medium } from '@expo-google-fonts/newsreader/500Medium';
 import { Newsreader_700Bold } from '@expo-google-fonts/newsreader/700Bold';
 
@@ -39,4 +43,8 @@ export const FONT_ASSETS: Record<FontFace, number> = {
   Inter_800ExtraBold,
   Newsreader_500Medium,
   Newsreader_700Bold,
+  ArchivoNarrow_600SemiBold,
+  ArchivoNarrow_700Bold,
+  JetBrainsMono_400Regular,
+  JetBrainsMono_500Medium,
 };

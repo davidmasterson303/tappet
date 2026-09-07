@@ -40,7 +40,7 @@ import {
 const CONTENT = {
   title: 'Recall notice — Accord',
   body: 'Something about brakes. Tap to ask the advisor what it means.',
-  url: 'crewchief://vehicle/abc/advisor?ask=What%20does%20this%20mean',
+  url: 'wellkept://vehicle/abc/advisor?ask=What%20does%20this%20mean',
 };
 
 function token(n: number): string {

@@ -28,7 +28,16 @@ import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..', '..');
 
-const ROOTS = ['app', 'components', 'packages/core/src', 'apps/mobile/src'];
+/*
+  ⚠ `lib` was added 6 Sep and had been missing since this scan was written. It
+  is where the product's identity actually lives — `apple-root-ca.ts` holds
+  `APPLE_BUNDLE_ID`, `site-role.ts` holds both live origins, `legal.ts` holds
+  `CONTACT_EMAIL` and `OPERATOR` — so a rename could have been completed
+  everywhere this swept and still left the bundle id naming the old product,
+  with the suite green. It sweeps clean today; the point is that it is now
+  swept. `__tests__` is skipped by the walker, as before.
+*/
+const ROOTS = ['app', 'components', 'lib', 'packages/core/src', 'apps/mobile/src'];
 const EXTRA_FILES = ['apps/mobile/app.json', 'public/manifest.json'];
 
 const OLD_NAME = /crew[-_ ]?chief/i;
@@ -42,33 +51,8 @@ type Exemption = { reason: string; pattern: RegExp };
 */
 const EXEMPT: Exemption[] = [
   {
-    reason: 'deep-link scheme — shipped builds already emit crewchief:// links',
-    pattern: /crewchief:\/\//i,
-  },
-  {
-    reason: 'Apple bundle identifier and the product ids built on it — permanent',
-    pattern: /co\.davidmasterson\.crewchief/i,
-  },
-  {
-    reason: 'live hostnames — the App Store URL and the demo',
-    pattern: /crewchief(-demo)?\.davidmasterson\.co/i,
-  },
-  {
-    reason: 'Expo slug and scheme in app.json — changing them moves EAS URLs',
-    pattern: /"(slug|scheme)":\s*"crewchief"/i,
-  },
-  {
     reason: 'per-site Netlify environment variables — renamed only with Netlify',
     pattern: /CREWCHIEF_[A-Z_]+/,
-  },
-  {
-    reason: 'persisted keys and the demo cookie — renaming them drops stored state',
-    pattern: /['"`]crewchief[._-][A-Za-z-]|crewchief_demo|crewchief-failed-deletions/i,
-  },
-  {
-    reason:
-      'a window debug flag a developer types into a console — an internal identifier, not a name the product wears',
-    pattern: /__CREW_CHIEF_DEBUG_VERBOSE/,
   },
   {
     reason:
@@ -124,10 +108,29 @@ function sources(dir: string, acc: string[] = []): string[] {
    collapses every line below it, so the line numbers stop matching the file —
    the first draft reported a docblock's `*` as a finding on the wrong line,
    which is a report nobody can act on. */
+/**
+ * Blank out comments, keeping every newline so a finding's line number survives.
+ *
+ * ⚠ `//` does not start a comment when a `:` sits immediately before it. That
+ * one exception is what lets this scan see a url at all. Without it
+ * `.replace(/\/\/.*$/gm, '')` eats from the scheme separator to end of line, so
+ * `'https://crewchief.davidmasterson.co'` reached `OLD_NAME` as `'https:` and
+ * matched nothing — the scanner was structurally blind to every url in
+ * TypeScript, and the "live hostnames" exemption it carried until 6 Sep was
+ * therefore never doing anything. JSON was only ever covered because the
+ * stripper is not run on it.
+ *
+ * ⚠ The exception mis-fires in one direction only, and it is the loud one. A
+ * comment opened with no space after a colon — `case 'x'://note` — is not
+ * stripped, so a comment there would be read as code and *reported*. A false
+ * finding is answerable; the silence it replaces was not. Protocol-relative
+ * urls (`//host/path`, no scheme) stay invisible, which is the same trade at a
+ * far rarer shape.
+ */
 function stripComments(code: string): string {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/\/\/.*$/gm, '');
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 function findings(): { file: string; line: number; text: string }[] {
@@ -147,10 +150,19 @@ function findings(): { file: string; line: number; text: string }[] {
       The stripped copy decides whether a hit is in code or in prose; the RAW
       line is what gets matched against the exemptions and reported.
 
-      ⚠ Not interchangeable: `stripComments` cuts `//` out of `crewchief://`,
-      so a scheme line reaches the exemptions as `crewchief:` and matches none
-      of them. Reading the verdict off the stripped text would have reported
-      every deep link as an unfinished rename.
+      ⚠ Not interchangeable for reporting: the RAW line is what a finding
+      shows, so a reader is given the text that is actually in the file rather
+      than a truncated copy of it.
+
+      ⚠ And a gap worth naming here, because it is the reason no hostname needs
+      an exemption any more — not that the hostnames stopped containing the old
+      name, though on 6 Sep they did, but that this scan could never see them.
+      `stripComments` deletes from `//` to end of line, so a url literal in a
+      `.ts` file loses its separator and everything after it:
+      `'https://crewchief.davidmasterson.co'` reaches `OLD_NAME` as `'https:`
+      and does not match at all. The scanner is blind to every url in
+      TypeScript. JSON is untouched by the stripper, which is the only reason
+      `app.json` was ever really covered.
     */
     code.split('\n').forEach((stripped, i) => {
       if (!OLD_NAME.test(stripped)) return;
@@ -184,6 +196,27 @@ describe('the product is called Well Kept everywhere it is named', () => {
     expect(stripComments('const label = "CrewChief"; // note')).toMatch(OLD_NAME);
     // And line numbers survive, or a finding points at the wrong line.
     expect(stripComments('/* a\n b */\nconst x = 1;').split('\n')).toHaveLength(3);
+
+    /*
+      ⚠ The url cases, added 6 Sep with the fix they pin. Each one failed before
+      it: the stripper cut at the scheme separator, so a hostname in code was
+      not exempted, it was invisible.
+    */
+    // A url in code survives, so a hostname naming the old product is findable.
+    expect(stripComments("const u = 'https://crewchief.davidmasterson.co';")).toMatch(OLD_NAME);
+    /*
+      Both halves of the line survive, not just the part before the scheme. The
+      character before `//` is put back by the capture, so the trailing space is
+      expected — it is whitespace in stripped output, which nothing reads.
+    */
+    expect(stripComments("const u = 'https://example.com/x'; // note")).toBe(
+      "const u = 'https://example.com/x'; "
+    );
+    // …and a genuine line comment is still stripped, url inside it or not.
+    expect(stripComments('const a = 1; // https://crewchief.davidmasterson.co')).not.toMatch(
+      OLD_NAME
+    );
+    expect(stripComments('// CrewChief')).not.toMatch(OLD_NAME);
   });
 
   it('the archetype exemption covers the job and not the product', () => {

@@ -18,6 +18,7 @@ import Icon from '../components/Icon';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
 import GarageBay from '../components/GarageBay';
+import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
 import { SkeletonCard } from '../components/Skeleton';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
@@ -35,6 +36,8 @@ import { getHealthBandJudgement } from '@wellkept/core/health-band';
 import { normaliseRecalls } from '@wellkept/core/recalls';
 import { localToday } from '@wellkept/core/garage-next-service';
 import { interFace } from '../theme/fonts';
+
+import { rememberGarageSize } from '../navigation/RootNavigator';
 
 /**
  * Phase 3.2 — the garage, read only.
@@ -190,20 +193,24 @@ function VehicleBay({
   ).length;
 
   /*
-    `Premium · Daily driver · 48,210 mi` — the board's subtitle, assembled here
-    because only the screen knows which fields the payload actually carried.
-    Each part is optional and the separator earns its place only when there is
-    something on both sides of it.
+    ⚠ 6 Sep · B2: the strip's cells, assembled here because only the screen knows
+    which fields the payload actually carried.
+
+    This was `[trim, status, mileage].join(' · ')` — and `VehicleDetailScreen`
+    built the same line as `[mileage, trim, status]`. Two independent joins, the
+    same three facts, opposite orders, and nothing to make anyone compare them
+    until the critique read both screens side by side. The order now lives in one
+    place: this array and its twin, against `StatStrip`'s contract.
   */
-  const subtitle = [
-    vehicle.trim,
-    vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
+  const stats: Stat[] = [
     typeof vehicle.current_mileage === 'number'
-      ? `${miles.format(vehicle.current_mileage)} mi`
+      ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi` }
       : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
+    vehicle.vehicle_status
+      ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
+      : null,
+  ].filter((cell): cell is Stat => cell !== null);
 
   return (
     <GarageBay
@@ -218,7 +225,7 @@ function VehicleBay({
       score={score}
       index={index}
       total={total}
-      subtitle={subtitle}
+      stats={stats}
       active={active}
       onOpen={onOpen}
       onOpenService={onOpenService}
@@ -414,7 +421,22 @@ export function GarageScreen({
 
     try {
       const body = await apiRequest<{ vehicles?: Vehicle[] }>('/vehicles');
-      setState({ status: 'ok', vehicles: body.vehicles ?? [] });
+      const vehicles = body.vehicles ?? [];
+
+      /*
+        ⚠ The tab bar needs to know the garage's *size*, not its contents.
+
+        `History` and `Advisor` both require a vehicleId, and on a cold start the
+        bar has none — so both reset to this screen, which on a one-car garage
+        reads as two dead tabs. Telling the navigator how many cars there are
+        lets it act on the only one without guessing, and go on asking when
+        there is a real choice. See `rememberGarageSize`.
+      */
+      rememberGarageSize(
+        vehicles.map((v) => ({ id: v.id, title: bayTitle(v) }))
+      );
+
+      setState({ status: 'ok', vehicles });
     } catch (error) {
       const apiError = error as ApiRequestError;
       setState({
@@ -749,7 +771,18 @@ const styles = StyleSheet.create({
     */
     paddingHorizontal: space.lg,
   },
-  heading: { ...type.editorial, color: text.primary, letterSpacing: -0.6 },
+  /*
+    ⚠ The serif came off this title on 6 Sep. Locked brief B1: *"No serif except
+    the WK mark; condensed-grotesk caps for titles, model names and section
+    heads."*
+
+    `type.editorial` is still the right token for the wordmark and wrong for
+    everything else — the lockup beside this string is the one serif the screen
+    is allowed. The `letterSpacing: -0.6` went with it: that was a serif's
+    negative tracking, and `type.display` sets its own positive figure because
+    caps need opening up rather than closing.
+  */
+  heading: { ...type.display, color: text.primary },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   /*

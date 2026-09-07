@@ -40,8 +40,9 @@ export const metadata: Metadata = {
  * ── What is still unsettled — the page is already published ─────────────────
  *
  * This heading used to read "before this is published", and that framing
- * expired on 17 Aug: the page went live on `crewchief.davidmasterson.co`, which
- * is the privacy-policy URL in the App Store listing. It is not a draft waiting
+ * expired on 17 Aug: the page went live on the product host — then
+ * `crewchief.davidmasterson.co`, `wellkept.southmoordigital.com` since the
+ * 6 Sep rename — which is the privacy-policy URL in the App Store listing. It is not a draft waiting
  * for a launch date; it is what App Review reads.
  *
  * ✅ Both are named — `CONTACT_EMAIL` on 19 Aug, and `OPERATOR` twice: David
@@ -51,10 +52,12 @@ export const metadata: Metadata = {
  * substance of the document rather than its trim. See `lib/legal.ts` for why
  * the contact is deliberately not a domain address.
  *
- * ⛔ **The operator on the live page is still the person, not the company.**
- * This file changed on 30 Aug; `web-live` has been frozen since 23 Aug, so the
- * document App Review reads names David until a promote runs. The date in
- * `lib/legal.ts` is written for the day it ships, not the day it was edited.
+ * ✅ **The live page names the company — checked 6 Sep.** `/privacy` on the
+ * product host serves "Southmoor Digital LLC" and no occurrence of "David
+ * Masterson", so the document App Review reads is the current one. The 23 Aug
+ * freeze this paragraph was written under has ended. The date in `lib/legal.ts`
+ * is still written for the day it ships rather than the day it was edited, which
+ * is exactly why it needed no moving.
  */
 export default function PrivacyPolicyPage() {
   return (

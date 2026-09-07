@@ -166,10 +166,21 @@ const styles = StyleSheet.create({
     edge, where the panel meets the input it belongs to.
   */
   panel: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: border.field,
-    backgroundColor: surface.card,
+    /*
+      ── ⚠ 6 Sep · B4 and B5: three cards became three ruled rows ─────────────
+
+      These were bordered, filled, rounded boxes stacked in a column, and the
+      critique named them an AI tell in **five consecutive rounds** — "three
+      identical stacked suggestion cards", the stock chatbot-onboarding
+      template.
+
+      B5 turns a card into a hairline-ruled band; B4 removes the radius. A
+      suggestion is a row you can press, not a panel: the rule above it groups
+      it with its neighbours and nothing else is needed to say it is tappable —
+      `NavRow`'s docblock already made that argument for the hub.
+    */
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
     overflow: 'hidden',
   },
   /** 44 is the floor, and a list of choices is the last place to shave it. */
@@ -179,7 +190,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  rowPressed: { backgroundColor: surface.well },
+  /*
+    ⚠ The pressed state stays a fill, because a row with no border needs *some*
+    feedback and an opacity would fade the text with it — the 1.61:1 defect the
+    button guards exist for.
+  */
+  rowPressed: { backgroundColor: surface.raised },
   rowText: { ...type.body, color: text.primary },
   note: {
     flexDirection: 'row',

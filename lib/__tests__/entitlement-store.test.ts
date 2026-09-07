@@ -30,7 +30,7 @@ jest.mock('@/lib/supabase', () => ({
 const { applyVerifiedAppleEvent } = require('@/lib/entitlement-store');
 
 const USER = '11111111-2222-3333-4444-555555555555';
-const MONTHLY = 'co.davidmasterson.crewchief.paid.monthly';
+const MONTHLY = 'com.southmoordigital.wellkept.paid.monthly';
 
 function event(over: Partial<AppleSubscriptionEvent> = {}): AppleSubscriptionEvent {
   return {

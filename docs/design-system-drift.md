@@ -597,7 +597,46 @@ is what it is for. **So this change reaches the iOS app too**, and the phone has
 not been looked at since.
 
 
-### 3.12 ⚠ The iOS app is running the pre-4-September system — audit, 5 Sep
+### 3.12 ✅ The iOS app has been ported — audit 5 Sep, closed 5 Sep
+
+**Resolved for colour; the radius row is deliberately still open.** The audit
+below is kept as written, because the table is the record of what diverged and
+the argument for the build ramp is the reason the port was worth doing.
+
+What was done, later the same day, on David's instruction to port before
+spending an EAS slot:
+
+- **Every colour row above is closed.** `status.confirm`, `status.dangerText`,
+  `status.danger` and its pressed state, the critical banner pair, and the whole
+  `build` ramp now hold the web values. The green success banner went with them:
+  `confirmFill` was a hue, and under the collapse good news is off-white ink, so
+  the fill is a neutral step and a new `confirmBorder` carries the identity.
+- **Two contrast defects fell out of it.** `text.primary` on the old
+  `status.danger` measured **4.36:1** — under AA — and on the green
+  `confirmFill` **2.98:1**. Nothing asserted either pair; `AlertBanner`'s
+  `confirm` tone is rendered by no test. Both are now comfortably over the
+  floor (5.68:1 and 14.47:1) as a side effect of the hue change.
+- **Option 2 was taken in part.** `retired-palette-literals.test.ts` now scans
+  `apps/mobile/src`, which is the hole that let this run for a day — it was
+  scoped to the web surfaces because that is where the migration started, so it
+  reported clean on the client that had not moved. It is proven against a
+  planted value in a mobile file.
+- **`status-ramps-distinct.test.ts` was narrowed rather than relaxed.** It
+  fired on a *correct* change: `--confirm` and `--ring-good` are one value on
+  web by design, so "the two families never share a colour" stopped being true
+  the moment mobile was right. The rule now covers the warning axis, where its
+  stated reason — severity blurring — actually lives, and the historic
+  `attention == warn` collision still fails it.
+
+⚠ **Still open: the radius row.** 8/12/14 on native against 0/5/8-plus-chamfer
+on web is the one row that is plausibly option 3 — a dialect may round its
+corners where the other mills them — and it is a visual call rather than a
+token sync, so it is Design's to make and is not being made here.
+
+⚠ **Still true: nothing here is on the phone.** The port is JS-only and so is
+free of a native rebuild, but it reaches a device only through an EAS build.
+
+The audit, as originally written:
 
 No build was made and nothing on the phone was changed. This is the comparison
 David asked for after the web palette moved, and it is worse than expected.
@@ -646,6 +685,48 @@ means opposite things depending on which client the owner opens.
 ⚠ Whichever is chosen, **nothing here is on the phone yet.** JS-only changes are
 free; per `CLAUDE.md` §9 a native rebuild costs one of ~15 monthly EAS slots.
 
+
+### 3.13 ✅ One of the two refresh controls went after all — 5 Sep, revised
+
+⚠ **The first version of this entry was wrong about one of the two, and the
+correction is the interesting part.** It argued both controls should keep their
+capability because they are two different actions. That is true, and it is not
+sufficient: `fetchPerformanceStats()` **already runs on mount**, so the
+Performance glyph re-triggered a fetch that happens anyway. Deleting it costs
+nothing, and the locked brief lists "the floating refresh icon" among the cuts
+it explicitly accepts — so it was never a deviation to begin with. It is gone.
+
+`ResearchButton` is the real case and it stands: it triggers work nothing else
+triggers, so it moved rather than went — unframed, mono, at the foot of the
+page beside the disclosure, where a critique's own suggestion put it. What
+follows is the original entry, which still holds for that control:
+
+---
+
+### 3.13a ⚠ The critique cut both refresh controls; one capability stayed
+
+`/vehicle-info`'s Cut list asked for both refresh controls to go, and offered a
+replacement: *"If freshness must show, it is one mono line: `RESEARCHED
+2026-08-30`."* The reasoning is sound as design — the page had a labelled
+button on one section and a ghost icon on another, which reads as one action
+wearing two costumes, and a read-only owner page does not need two.
+
+**They are not one action.** `ResearchButton` re-runs vehicle research and
+writes `vehicle_knowledge_base`; the Performance glyph calls
+`fetchPerformanceStats(true)`, which refetches the figures alone. Deleting them
+removes two capabilities, and David's standing boundary on this design work is
+that nothing is off limits *except* functionality changes.
+
+So the **treatment** moved and the **capability** did not: both now sit on the
+band head's baseline through `SpecBand`'s `action` slot, so they are the same
+kind of thing in the same place instead of two different affordances competing
+down the page.
+
+⚠ **This is a real deviation and it is Design's to settle**, not mine. If the
+critique's position is that an owner should never trigger research from this
+page, that is a product call about what the button is for — and the honest
+version of that change deletes the endpoint call too, rather than hiding the
+control and leaving the capability stranded behind it.
 
 ## 4. The export's five adherence rules, against what this repo already runs
 
@@ -1083,3 +1164,127 @@ moved into the well · dial numerals only at the ends and the three points where
 the verdict changes · NHTSA's recall text no longer clamped on a phone · all
 four tabs fitting a 390px screen · alert capsules becoming hairline rows behind
 one rule · chevrons no longer used as bullets.
+
+---
+
+## 6. The iOS design port — 6 Sep 2026
+
+Raised by the mobile design loop (`design-loop/mobile-ios/`), whose brief was
+written by the critic in BRIEF mode against the settled web system and locked by
+David on 6 Sep. Everything here is the phone joining the system, so most of it is
+drift being *closed*. Three items are new deviations Design should rule on.
+
+### 6.1 The condensed slot is Archivo **Narrow**, not Archivo ⚠ needs a ruling
+
+The system's display voice is Archivo driven along its `wdth` axis — 62% for the
+masthead, 72% for page heads, 88% for the standard instrument voice, requested in
+`app/layout.tsx` as `Archivo:wdth,wght@62..100,500..800` and applied with
+`font-stretch`.
+
+**React Native has no `font-stretch`.** A variable font loaded on the phone
+renders at its default instance and the width axis is unreachable — so bundling
+Archivo itself would have produced regular-width heads while every stylesheet
+claimed to set a condensed one: no error, no symptom, and it reads as a design
+decision. That is the defect class `CLAUDE.md` §6 exists for.
+
+David ruled on 6 Sep for `@expo-google-fonts/archivo-narrow`. **It is a different
+family, not the same family at a narrower stop** — its metrics are its own and it
+will not match web glyph for glyph. The three-widths-one-voice idea collapses to
+one width on the phone.
+
+The alternative considered and rejected was shipping no condensation at all,
+which would have put mobile titles in regular-width Archivo beside web's 72%.
+
+### 6.2 The mono slot is web's own face ✅ closed
+
+`@expo-google-fonts/jetbrains-mono` at 400 and 500 — the same family and the same
+two cuts `app/layout.tsx` requests. The app previously had **no mono face at
+all**; every value, date, index and state label was Inter.
+
+### 6.3 The radius scale is zeroed, and the cut is drawn in SVG ✅ closed, with a note
+
+Brief B4: *"Every container corner is a 45° cut at zero radius."* The five-step
+native radius scale (8 / 12 / 14 / 20 / 999) is now all zeroes, and a `cut` scale
+replaces it — 8 on the plate, 12 on a control.
+
+⚠ **The tokens survive as zeroes rather than being deleted**, because sixty-seven
+call sites reference them and the honest fix at each is a per-surface design
+question ("does this corner take a cut?"). A surviving `borderRadius: radius.card`
+is therefore a *marker for work not yet done*, not a bug.
+
+⚠ **This retires the 23 Aug native pill override** recorded earlier in this file,
+which argued that "a 12pt corner on a 52pt-tall full-bleed control reads as a web
+form submit; the phone's own idiom is the pill". The new system has no pills on
+either client, so the override's premise is gone.
+
+### 6.4 The health dial no longer spends the band colour at every score ⚠ needs a ruling
+
+Brief B3 forbids gold on the dial; B7 restricts sodium to genuine warnings. The
+dial previously stroked itself in the band colour at every reading, which put
+`#D6BE9B` — the `ok` band — on screen for every score between 60 and 79.
+
+**The band table is untouched**, and must stay untouched: thresholds, wording and
+colour are owned by `@wellkept/core/health-band` and shared with web, and the
+phone holding a second opinion about what "Fair" looks like is the defect that
+ownership prevents. What changed is only *when the dial spends a hue*: `good` and
+`ok` now draw in off-white ink, `warn` and `bad` keep their sodium.
+
+Design should confirm this matches web, where `ClusterGauge` strokes the settled
+arc `#EDE7DF` while `--ring-ok` remains a live token.
+
+### 6.5 The blurred letterbox is gone from the phone ✅ closed
+
+`BayRoom` carried CC-142's contain-over-blur — an over-scanned `blurRadius={32}`
+fill under a `contain`ed sharp layer. Web retired that treatment ("blurred
+letterbox fill gone"); the phone had kept it. Now a single `cover` layer,
+edge to edge.
+
+⚠ **The cost CC-142 named is real and now accepted:** `cover` on a tall phone
+photograph crops to a band through the middle. `focal_point_x` / `focal_point_y`
+still exist on the `vehicles` table and are the fix if owners start losing their
+cars to the crop — not a return of the blur.
+
+### 6.6 Outstanding, not yet built
+
+Brief B8 asks for four tab roots with their own stacks and no back chevron.
+`createBottomTabNavigator` appears **nowhere** in `apps/mobile`: there is one
+`createNativeStackNavigator` with a custom `TabBar` drawn over it. This is a
+navigation rebuild rather than a styling change and is the one checklist line
+that is not a design edit.
+
+### 6.7 Two brief lines collide with shipped guards — **blocked, needs a ruling**
+
+Attempted on 6 Sep, reverted the same session. Both are real conflicts between
+the locked iOS brief and decisions this codebase already enforces in tests, and
+neither is the implementer's to break.
+
+**a) B7's off-white primary vs. `Button — one filled treatment › wears the brand
+fill, not white`.** The studio paragraph asks for *"primary off-white fill with
+graphite mono caps"*. There is a guard asserting the opposite by name, backed by
+the 23 Aug removal of `surface.inverse` ("a white button is a foreign colour
+here") after the app reached six screens of white CTAs against one cyan fill.
+
+The brief's reasoning is sound for the new system — under the two-hue collapse a
+*hue* fill is reserved for hover and critical, so a teal block is now the foreign
+colour. But a guard that names its opposite is a decision with an argument, and
+overwriting it quietly is how the white button came back last time.
+
+**b) B4's cut on buttons vs. the rendered contrast suite.** Drawing the 45° cut
+requires the fill to move from `backgroundColor` into an SVG path (see
+`CutSurface` — RN has no `clip-path`). **The contrast suite walks style objects
+to find the surface each string is measured against**, so the moment the fill
+leaves `backgroundColor` it stops being able to see any button's ground: ~20
+cases across the app failed, and the ones that did not fail would have been
+measuring against the wrong surface silently.
+
+That suite is the one the theme docblock credits with catching the 4.47:1
+`onInverseMuted` defect that no source scan could see. Making it blind to every
+filled control in the app is not a cost worth a corner.
+
+**What would unblock it:** teaching the contrast helper to read a `CutSurface`
+fill as the surface beneath its siblings. That is a change to a load-bearing
+accessibility guard and should be made deliberately, not as a side effect of a
+design port.
+
+Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
+square, not capsule) and their existing ink.

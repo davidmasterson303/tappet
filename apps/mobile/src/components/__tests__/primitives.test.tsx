@@ -25,6 +25,42 @@ import { FIELD_FONT_MIN, TARGET_MIN, TYPE_MIN, brand, surface, text } from '../.
 const flat = (style: unknown) =>
   Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) as Record<string, unknown>;
 
+
+/**
+ * The ground a control actually paints, now that the 45° cut moved it into SVG.
+ *
+ * ⚠ These assertions used to read `backgroundColor` off the `Pressable`. B4 put
+ * the fill in a `CutSurface`, which paints an SVG path and **declares** the
+ * colour with `auditSurface` so `test-support/contrast.ts` can still find it.
+ * Reading that same declaration here keeps these guards checking the thing they
+ * were written to check, rather than checking a property that moved.
+ */
+function groundOf(node: unknown): string | undefined {
+  if (!node || typeof node !== 'object') return undefined;
+  const host = node as { props?: Record<string, unknown>; children?: unknown[] };
+  if (typeof host.props?.auditSurface === 'string') return host.props.auditSurface;
+  for (const child of host.children ?? []) {
+    const found = groundOf(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** The padded, centred box inside the control — where the sizing now lives. */
+function boxStyleOf(node: unknown): Record<string, unknown> | undefined {
+  if (!node || typeof node !== 'object') return undefined;
+  const host = node as { props?: Record<string, unknown>; children?: unknown[] };
+  if (typeof host.props?.auditSurface === 'string' || host.props?.auditSurface === undefined) {
+    const style = flat(host.props?.style);
+    if (style && typeof style.minHeight === 'number') return style;
+  }
+  for (const child of host.children ?? []) {
+    const found = boxStyleOf(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 describe('Button', () => {
   it('keeps its accessible name while working', async () => {
     // The <Text> naming it is swapped for a spinner, so a control named by its
@@ -55,20 +91,21 @@ describe('Button', () => {
     const style = flat(view.getByLabelText('Delete').props.style);
 
     expect(style.opacity).toBeUndefined();
-    expect(style.backgroundColor).toBe(surface.disabled);
+    expect(groundOf(view.toJSON())).toBe(surface.disabled);
   });
 
   it('keeps the small size on the 44pt floor', async () => {
     // "Small" is narrower and lighter in type. It is not shorter — the floor is
     // a coarse-pointer target, not a style.
     const view = await render(<Button label="Add" size="small" onPress={jest.fn()} />);
-    const style = flat(view.getByLabelText('Add').props.style);
 
-    expect(style.minHeight).toBeGreaterThanOrEqual(TARGET_MIN);
+    // ⚠ The height moved onto the cut surface, so the fill reaches the control's
+    // edges. The floor is unchanged and is still the thing being asserted.
+    expect(boxStyleOf(view.toJSON())?.minHeight).toBeGreaterThanOrEqual(TARGET_MIN);
   });
 
   it('renders every variant', async () => {
-    for (const variant of ['primary', 'quiet', 'outline', 'ghost', 'delete'] as const) {
+    for (const variant of ['primary', 'outline', 'ghost', 'delete'] as const) {
       const view = await render(<Button label={variant} variant={variant} onPress={jest.fn()} />);
       expect(view.getByLabelText(variant)).toBeTruthy();
     }
@@ -225,13 +262,35 @@ describe('Button — one filled treatment', () => {
     treatment that survived, and they exist so the retirement is a fact a test
     holds rather than a commit message.
   */
-  it('wears the brand fill, not white', async () => {
+  it('wears the off-white fill, and still never pure white', async () => {
+    /*
+      ── ⚠ 6 Sep: this asserted `brand.primary` until today ───────────────────
+
+      It read "wears the brand fill, not white", and it was right for the system
+      that existed when it was written: on 23 Aug `surface.inverse` was deleted
+      because "a white button is a foreign colour here", leaving the cyan fill as
+      the app's only filled control.
+
+      The system moved. Under the two-hue collapse a *hue* fill is what is
+      reserved for hover and critical, and good news — the primary action
+      included — is off-white ink. A teal block is now the foreign colour. Locked
+      brief B7 and the studio paragraph both say so; `docs/design-system-drift.md`
+      §6.7 records the reversal for Design.
+
+      ⚠ **The half that did not change is the half worth keeping.** Pure
+      `#FFFFFF` was the retired token and is still banned; this is `text.primary`,
+      the system's own ink used as a ground. The next case checks the retired
+      tokens are still absent, which is what stops the old white control
+      returning through this door.
+    */
     const view = await render(<Button label="Sign in" onPress={jest.fn()} />);
 
-    const fill = flat(view.getByLabelText('Sign in').props.style).backgroundColor;
-    expect(fill).toBe(brand.primary);
-    // Named, because "not white" is the rule and `#FFFFFF` is the thing it bans.
+    const fill = groundOf(view.toJSON());
+    expect(fill).toBe(text.primary);
     expect(fill).not.toBe('#FFFFFF');
+
+    // Graphite ink on it, never the old `onPrimary` cyan-white.
+    expect(flat(view.getByText('Sign in').props.style).color).toBe(surface.page);
   });
 
   it('has no white fill left to reach for', async () => {
@@ -257,9 +316,9 @@ describe('Button — one filled treatment', () => {
     const view = await render(<Button label="Sign in" disabled onPress={jest.fn()} />);
     const control = view.getByLabelText('Sign in');
 
-    expect(flat(control.props.style).backgroundColor).toBe(surface.disabled);
+    expect(groundOf(view.toJSON())).toBe(surface.disabled);
     expect(flat(control.props.style).opacity).toBeUndefined();
-    expect(flat(view.getByText('Sign in').props.style).color).toBe(text.muted);
+    expect(flat(view.getByText('Sign in').props.style).color).toBe(text.disabled);
   });
 
   it('keeps its accessible name while working', async () => {
@@ -291,7 +350,20 @@ describe('Button — one filled treatment', () => {
     walk(view.toJSON());
 
     expect(spinners).toHaveLength(1);
-    expect(spinners[0].color).toBe(text.onPrimary);
+
+    /*
+      ⚠ Graphite now, not `text.onPrimary`. The hazard this case exists for is
+      unchanged and the fill it applies to is inverted: the spinner has to be
+      legible on whatever the primary is filled with, and the primary went from
+      cyan to off-white on 6 Sep. `text.onPrimary` is a near-white — on an
+      off-white fill it is the "control that looks empty at exactly the moment
+      it is working" this test was written to prevent, just from the other side.
+
+      Asserted against the ground the button actually declares, so the two
+      cannot drift apart silently.
+    */
+    expect(spinners[0].color).toBe(surface.page);
+    expect(spinners[0].color).not.toBe(groundOf(view.toJSON()));
   });
 });
 

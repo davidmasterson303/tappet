@@ -99,7 +99,7 @@ export default function AiConsentSheet({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: surface.page },
   body: { ...PAGE_BODY, paddingTop: 64 },
-  title: { ...type.editorial, color: text.primary, letterSpacing: -0.4 },
+  title: { ...type.display, color: text.primary },
   lead: { ...type.body, color: text.secondary },
 
   points: {

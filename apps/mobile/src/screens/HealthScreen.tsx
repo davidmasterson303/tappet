@@ -238,9 +238,26 @@ export function HealthScreen({
       <Card>
         {state.score !== null && band ? (
           <>
-            <Plinth>
-              <ClusterGauge score={state.score} size={HERO_SIZE} />
-            </Plinth>
+            {/*
+              ── ⚠ 6 Sep · B5: the dial stands on the page, not on a plinth ────
+
+              `Plinth` wrapped this dial and its docblock argued the case well:
+              *"A 196pt dial dropped straight onto a card is a picture of a dial.
+              The plinth is what makes it an object in the room."*
+
+              That argument was made when the dial sat on a **card** — a filled,
+              bordered, rounded surface that the plinth had to stand out from.
+              B5 turned the card into a hairline band, so the plinth became the
+              only box on the screen, and a lone box around an instrument is the
+              nesting the line forbids: the critique found "the Health dial sits
+              in an enclosed hairline box beneath a band rule".
+
+              The dial does not need lifting off a surface that is no longer
+              there. `Plinth` is left in the tree with its guards intact — it is
+              a considered component and this was its only call site, so
+              deleting it would throw away the reasoning along with the usage.
+            */}
+            <ClusterGauge score={state.score} size={HERO_SIZE} />
             {state.summary ? <Text style={styles.summary}>{state.summary}</Text> : null}
           </>
         ) : (

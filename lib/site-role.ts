@@ -3,10 +3,10 @@
  *
  * One codebase, two Netlify projects, two hostnames:
  *
- *   crewchief.davidmasterson.co        web-live    the product. App Store
- *                                                  listing URL, and the origin
- *                                                  every installed app calls
- *   crewchief-demo.davidmasterson.co   demo-live   the portfolio piece
+ *   wellkept.southmoordigital.com     web-live    the product. App Store
+ *                                                 listing URL, and the origin
+ *                                                 every installed app calls
+ *   wellkept-demo.davidmasterson.co   demo-live   the portfolio piece
  *
  * Until 20 Aug nothing in the application knew the difference, and that was
  * fine while there was only one site — which there was, and it was the demo.
@@ -61,6 +61,32 @@ const ENABLED = 'true';
  * set to `false` meaning to switch the banner off must not switch it on because
  * a non-empty string looked truthy.
  */
+/*
+  ── ⚠ 6 Sep · the variable is being renamed, and both names are read ─────────
+
+  Call sites read `WELLKEPT_DEMO_SITE ?? CREWCHIEF_DEMO_SITE`. This is a
+  transition, and it is deliberate rather than untidy.
+
+  The variable is **not** in `netlify.toml` — it is set per-site in each Netlify
+  project's own dashboard, so code and configuration move on different clocks and
+  nothing in a deploy makes them move together. That is CLAUDE.md §7's "secrets
+  are usually needed in two places, and setting one looks done", and here the
+  half-done state is invisible: unset means "this is the product", so a demo
+  whose variable no longer matches the name the code reads does not error, it
+  quietly serves recruiters the product's signup call to action. That exact
+  failure is what `promote-demo.mjs` checks the live demo host for.
+
+  Reading both names removes the ordering requirement entirely: the dashboard can
+  be renamed before this ships, after it ships, or never, and the demo keeps its
+  framing throughout.
+
+  ⚠ **The fallback is the thing to delete, not to keep.** It is only correct
+  while both names might be live. Once `WELLKEPT_DEMO_SITE` is set on
+  `demo-live` and confirmed by `verify-demo.mjs` against the running host,
+  drop the `?? process.env.CREWCHIEF_DEMO_SITE` half at every call site — an
+  alternative that has stopped being reachable is the same rot as an exemption
+  that has stopped being true.
+*/
 export function isDemoSite(value: string | undefined | null): boolean {
   return value?.trim().toLowerCase() === ENABLED;
 }
@@ -69,7 +95,8 @@ export function isDemoSite(value: string | undefined | null): boolean {
  * ── The share card, which is the other thing that differs per site ──────────
  *
  * Found 20 Aug by Cowork, and it had been wrong on the App Store's hostname
- * since the 17 Aug split. `crewchief.davidmasterson.co` was serving:
+ * since the 17 Aug split. The product host — `crewchief.davidmasterson.co`
+ * until the 6 Sep rename — was serving:
  *
  *     og:url          https://crewchief-demo.davidmasterson.co/
  *     og:description  "…Live demo with sample vehicles — no signup required."
@@ -90,8 +117,8 @@ export function isDemoSite(value: string | undefined | null): boolean {
  * set correctly on both sites.
  */
 
-export const DEMO_ORIGIN = 'https://crewchief-demo.davidmasterson.co';
-export const PRODUCT_ORIGIN = 'https://crewchief.davidmasterson.co';
+export const DEMO_ORIGIN = 'https://wellkept-demo.davidmasterson.co';
+export const PRODUCT_ORIGIN = 'https://wellkept.southmoordigital.com';
 
 /** The origin a build should claim as its own in canonical and share tags. */
 export function siteOrigin(demo: boolean): string {

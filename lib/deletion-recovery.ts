@@ -12,7 +12,7 @@ export interface FailedDeletion {
 }
 
 class DeletionRecoveryQueue {
-  private storageKey = 'crewchief-failed-deletions';
+  private storageKey = 'wellkept-failed-deletions';
   private queue: Map<string, FailedDeletion> = new Map();
 
   constructor() {

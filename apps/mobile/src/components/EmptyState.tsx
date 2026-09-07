@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { space, text, type } from '../theme';
+import { border, space, text, type } from '../theme';
 import Button from './Button';
 
 /**
@@ -95,15 +95,63 @@ const styles = StyleSheet.create({
     that would be there reads as a section with nothing in it yet, which is what
     this is.
   */
+  /*
+    ── ⚠ 6 Sep: empty states are left-aligned, and centring is now the opt-in ─
+
+    The locked brief's studio paragraph: *"Empty states left-aligned: mono
+    caption, sans body, one button."*
+
+    This centred by default with `alignStart` as an escape hatch, and the
+    critique named the result an AI tell in **every** round — "centered heading,
+    centered body, full-width filled button… the default template, where the
+    brief asks for left-aligned", and separately "the one place the app stops
+    being left-aligned". Every other screen in this product reads from a left
+    margin; an empty state that centres is the screen changing its mind about
+    where sentences start, at the moment the user has least to look at.
+
+    So the default flipped. `alignStart` survives as a no-op prop rather than
+    being deleted, because six call sites pass it and each removal is a separate
+    diff — a surviving `alignStart` now marks a call site not yet tidied, not a
+    behaviour.
+  */
   wrap: {
     paddingVertical: space.h1,
     paddingHorizontal: space.lg,
     gap: space.sm,
-    alignItems: 'center',
+    alignItems: 'stretch',
+    /* B5: a top rule, so it is a band like everything else rather than a card. */
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
   },
-  wrapStart: { alignItems: 'stretch' },
-  headline: { ...type.title, color: text.primary, textAlign: 'center' },
-  body: { ...type.body, color: text.muted, textAlign: 'center' },
-  alignStart: { textAlign: 'left' },
+  wrapStart: {},
+  /* B1: the headline is a section head — condensed grotesk caps. */
+  /*
+    ⚠ 6 Sep · B1: a mono caps caption, because the brief names one.
+
+    The prose is *"Empty states left-aligned: mono caption, sans body, one
+    button"* — three faces in a fixed order, and this was setting the caption in
+    the condensed grotesk used for section heads.
+
+    ⚠ **The critique thinks the brief is wrong here** — "the grotesk head reads
+    better than the brief's mono caption; if the brief is ever reopened, amend
+    that prose line rather than the sheet." That is David's call and the brief is
+    locked, so this follows the brief. If it is reopened, this is the line to
+    revisit and the argument is already made.
+  */
+  headline: {
+    ...type.monoLabel,
+    color: text.primary,
+    textTransform: 'uppercase',
+    /*
+      ⚠ Declared, not inherited. Dropping this left the headline reading left
+      anyway — RN defaults to it in LTR — and `AdvisorScreen`'s guard caught it,
+      correctly: the assertion is that the alignment is *stated*, because the
+      value this component shipped with was `center` and an undeclared default is
+      one stylesheet edit away from going back.
+    */
+    textAlign: 'left',
+  },
+  body: { ...type.body, color: text.muted, textAlign: 'left' },
+  alignStart: {},
   action: { marginTop: space.md, alignSelf: 'stretch' },
 });
