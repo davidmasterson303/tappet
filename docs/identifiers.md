@@ -47,21 +47,14 @@ the suite says so.
 | Mobile API base | `https://tappet.southmoordigital.com` | `apps/mobile/app.json` → `expo.extra.apiBaseUrl` |
 | `PRODUCT_ORIGIN` | `https://tappet.southmoordigital.com` | `lib/site-role.ts` |
 | `DEMO_ORIGIN` | `https://tappet-demo.davidmasterson.co` | `lib/site-role.ts` |
-| Git remote | `git@github.com:davidmasterson303/wellkept.git` | `.git/config` |
+| Git remote | `git@github.com:davidmasterson303/tappet.git` | `.git/config` |
 
-⚠ **The Git remote row is the one value the 7 Sep rename did not move, and it
-is deliberately not pre-updated.** `gh` is not installed on this machine and
-Homebrew cannot install it (CLAUDE.md §9), so the GitHub-side rename is David's,
-in the web UI. This page states what is true *now*; writing the intended value
-early would be the exact drift the file exists to catch, and the suite would go
-red on a claim nobody could satisfy. When the repo is renamed, one command
-finishes it:
-
-```
-git remote set-url origin git@github.com:davidmasterson303/tappet.git
-```
-
-…and this row moves with it, in the same commit.
+⚠ **The Git remote row moved last, and the suite is what noticed.** `gh` is not
+installed here and Homebrew cannot install it (CLAUDE.md §9), so the GitHub-side
+rename was done outside this repo — and the moment the local remote followed,
+`identifiers-match-the-register.test.ts` went red against this page while every
+other row still agreed. That is the file working: one row went stale, and it was
+found by a test rather than by a reader.
 
 ⚠ The bundle id and both product ids become **permanent** the moment an App
 Store Connect record exists. None does yet, which is the only reason the 6 Sep
@@ -103,5 +96,7 @@ how a guard gets switched off (CLAUDE.md §5).
 Netlify is renamed — see `lib/site-role.ts`), `crewchief-demo.davidmasterson.co`
 and `wellkept-demo.davidmasterson.co` (still serving, and the first is
 recruiter-facing while David is job hunting), `crewchief-demo.netlify.app` (the
-Bolt stub the demo CNAMEs still point at), and the Git remote above. A blanket
-ban on either dead name would fire on all of them and get switched off.
+Bolt stub the demo CNAMEs still point at), and `wellkept.southmoordigital.com`
+and `wellkept-demo.davidmasterson.co`, **both still serving** — the new
+hostnames were added as aliases on 7 Sep and nothing was retired. A blanket ban
+on either dead name would fire on all of them and get switched off.

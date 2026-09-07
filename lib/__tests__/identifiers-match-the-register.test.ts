@@ -197,7 +197,10 @@ describe('the identifiers page agrees with the code', () => {
       'WELLKEPT_DEMO_SITE',
       'crewchief-demo.davidmasterson.co',
       'crewchief-demo.netlify.app',
-      'davidmasterson303/wellkept.git',
+      // Added as aliases 7 Sep; the old hostnames were not retired, and the
+      // recruiter-facing one must keep serving while David is job hunting.
+      'wellkept.southmoordigital.com',
+      'wellkept-demo.davidmasterson.co',
     ];
 
     expect(stillLive.filter((s) => !page.includes(s))).toEqual([]);

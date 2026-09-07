@@ -121,28 +121,35 @@ crewchief-demo-live           deploys demo-live   wellkept-demo.davidmasterson.c
 glowing-hotteok-d2e57e        deploys main        davidmasterson.co (personal)
 ```
 
-⚠ **Those two hostnames still say `wellkept`, and the repo no longer does.**
-The 7 Sep rename to Tappet moved every identifier in the source — including
-`PRODUCT_ORIGIN`, `DEMO_ORIGIN` and `app.json` → `extra.apiBaseUrl`, which now
-name `tappet.southmoordigital.com` and `tappet-demo.davidmasterson.co`. **Those
-hostnames do not exist yet.** DNS and the Netlify aliases are Track B, outside
-this repo.
+⚠ **Five hostnames now serve the same two sites, and that is deliberate.**
+The 7 Sep rename to Tappet added `tappet.southmoordigital.com` and
+`tappet-demo.davidmasterson.co` as **aliases**. Nothing was retired: both
+`wellkept*` hostnames and `crewchief-demo.davidmasterson.co` still serve, which
+costs nothing and means no window where a link is dead — the recruiter-facing
+one especially, while David is job hunting.
 
-**So `main` is correct and unshippable at the same time, and that is the
-intended state.** It is safe because nothing deploys from `main` (below) — but
-it means:
+Verified 7 Sep, and a `200` alone would not have shown it:
 
-- ⛔ **Do not promote until the new hostnames resolve and serve.** A promote
-  publishes the API installed apps call. Promoting now points the product at a
-  hostname with no DNS record.
-- ⛔ **Do not cut a mobile build until then either.** `extra.apiBaseUrl` is
-  baked into the binary, and EAS builds are ~15/month (§9). A build shipped
-  against a hostname that does not resolve is a wasted build and an app that
-  cannot reach its own API.
-- The order is fixed by the 301/POST trap: add the new hostnames as **aliases**,
-  verify them serving, repoint the app, and only then flip a primary domain.
-  Netlify redirects non-primary domains to the primary, and a 301 downgrades a
-  POST to a GET — so flipping first breaks API writes silently.
+```
+/api/version   application/json on all five   (HTML would mean the Bolt stub)
+POST           401, redirect_url empty        (a 301 downgrades POST to GET)
+GET            200, no redirect anywhere      (no primary has been flipped)
+```
+
+⚠ **No primary domain has been flipped, and that ordering is load-bearing.**
+Netlify redirects non-primary domains to the primary, and a 301 downgrades a
+POST to a GET — so a primary flip before the app is repointed breaks API writes
+**silently**. Flip only after a build carrying the new `apiBaseUrl` is live and
+the installed apps have moved.
+
+⚠ **The canary hardcodes a hostname this rename will eventually retire.**
+`.github/workflows/consultant-canary.yml` passes
+`https://crewchief-demo.davidmasterson.co` explicitly, so it overrides the
+script's default. It is running (rows every 5–8h in `ai_usage_events`, surface
+`canary`) and it fails **loudly** — exit 3, and the interpret step turns any
+non-success into `::error::` and `exit 1`. So retiring that hostname turns CI
+red rather than turning the monitor into good news; move the line in the same
+change that retires the host.
 
 **Nothing deploys from `main`.** Pushing to `main` costs nothing and publishes
 nothing; both product hostnames move only when someone merges into their
