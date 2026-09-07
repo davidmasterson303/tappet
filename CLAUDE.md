@@ -172,6 +172,27 @@ deploys, an ignore rule needs an inverted exit code to be right, and one
 failure mode. `demo-live` had been running the pattern correctly all along —
 9 builds against 111 from the same commit stream.
 
+⚠ **7 Sep — the ignore rule this argument rejected proved the argument.** The
+`ignore` command in `netlify.toml` silently cancelled **both** promotes that day
+in ~3 seconds each, leaving `web-live` on a build from 5 Sep while everything
+reported success. The renames invalidated the build cache, so `CACHED_COMMIT_REF`
+was empty and `git diff --quiet <ref> <paths>` became a working-tree comparison
+that finds nothing and exits **0** — the value that cancels. The file's own
+comment claimed the opposite ("the command fails, and the build proceeds… that is
+the safe direction"), and had never been tested against an empty cache.
+
+It is also a **deadlock**: the successful build that repopulates the cache is the
+one being cancelled. Only a manual retry from the Netlify dashboard broke it.
+
+Two things to carry:
+
+- **`promote-web` caught it.** It waits for the deploy and checks the hostname is
+  serving the merge commit, which is the half of the script that exists for
+  exactly this. Without it the promote would have reported success.
+- **A green promote is not a deploy.** Read `/api/version` on the host, not the
+  script's exit code — and expect the **merge** commit there, never the `main`
+  one named in the message.
+
 Each release branch has its own gate, and they run in order:
 
 ```
