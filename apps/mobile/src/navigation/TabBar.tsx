@@ -4,7 +4,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon, { type IconName } from '../components/Icon';
 import { TARGET_MIN, border, brand, space, surface, text, type } from '../theme';
 
-export type TabName = 'Garage' | 'History' | 'Advisor' | 'Account';
+/*
+  ── ⚠ 7 Sep · Account left the bar, Plan took its place ─────────────────────
+
+  David: *"it feels like maybe wishlist should be added to bottom nav and
+  account should be moved to some other global nav element… this will convey
+  more functionality."*
+
+  The reasoning holds up against what each destination *is*. Three of these tabs
+  are things you do to a car — read it, record work on it, ask about it — and
+  `Plan` is the fourth of exactly that kind: R15 merged Wishlist and Build into
+  one answer to "what should I do to this car next". It had no way in from the
+  bar at all, so the app's most forward-looking screen was the hardest to reach.
+
+  `Account` is not that kind of thing. It is the app's own settings, visited
+  rarely and never as part of looking after a car, and it was spending a quarter
+  of the most valuable chrome in the product. It moves to a control on the
+  roots — see `ScreenTitle`'s trailing slot.
+*/
+export type TabName = 'Garage' | 'History' | 'Advisor' | 'Plan';
 
 /**
  * ── ⚠ Four, and the first one is a car rather than the garage ──────────────
@@ -32,7 +50,13 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
   { name: 'Garage', label: 'Car', icon: 'car' },
   { name: 'History', label: 'History', icon: 'file-text' },
   { name: 'Advisor', label: 'Advisor', icon: 'message-square' },
-  { name: 'Account', label: 'Account', icon: 'sliders' },
+  /*
+    ⚠ `wrench`, not `sliders`. `sliders` went with Account, and it was already
+    doing two jobs — the critique caught it as "one glyph for both the Account
+    tab and the 'What is driving this score' row". A wrench is what this screen
+    is about: the work a car still needs.
+  */
+  { name: 'Plan', label: 'Plan', icon: 'wrench' },
 ];
 
 /**

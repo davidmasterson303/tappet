@@ -25,7 +25,13 @@ describe('the tab bar', () => {
   it('offers all four destinations, by name', async () => {
     const view = await render(withSafeArea(<TabBar current="Garage" onSelect={jest.fn()} />));
 
-    for (const label of ['Car', 'History', 'Advisor', 'Account']) {
+    /*
+      ⚠ 7 Sep: `Account` → `Plan`. The account left the bar so `Plan` — R15's
+      merged Wishlist and Build — could take the slot, and moved to
+      `AccountControl`, still a sibling of the navigator so App Store 5.1.1(v)
+      keeps its structural guarantee rather than going back to vigilance.
+    */
+    for (const label of ['Car', 'History', 'Advisor', 'Plan']) {
       expect(view.getByLabelText(label)).toBeTruthy();
     }
   });
@@ -72,19 +78,25 @@ describe('the tab bar', () => {
     const onSelect = jest.fn();
     const view = await render(withSafeArea(<TabBar current="Garage" onSelect={onSelect} />));
 
-    await userEvent.press(view.getByLabelText('Account'));
-    expect(onSelect).toHaveBeenCalledWith('Account');
+    await userEvent.press(view.getByLabelText('Plan'));
+    expect(onSelect).toHaveBeenCalledWith('Plan');
   });
 
   it('is reachable from every position, including its own', async () => {
     /*
       The anti-vacuous half of the compliance claim: a bar that hid the current
       tab's own control would pass both cases above and would strand somebody on
-      the account screen — which is the screen a departing user is on.
+      the tab they are already looking at.
     */
-    const view = await render(withSafeArea(<TabBar current="Account" onSelect={jest.fn()} />));
+    /*
+      ⚠ Re-pointed 7 Sep from `Account`, which is no longer a tab — it moved to a
+      root's trailing control so `Plan` could take the slot. The claim is
+      unchanged and still the anti-vacuous half: a bar that hid the *current*
+      tab's own control would pass both cases above and strand whoever is on it.
+    */
+    const view = await render(withSafeArea(<TabBar current="Plan" onSelect={jest.fn()} />));
 
-    expect(view.getByLabelText('Account')).toBeTruthy();
+    expect(view.getByLabelText('Plan')).toBeTruthy();
     expect(view.getByLabelText('Car')).toBeTruthy();
   });
 });

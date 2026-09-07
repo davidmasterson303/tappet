@@ -26,6 +26,7 @@ import { GarageScreen } from '../screens/GarageScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
+import AccountControl from './AccountControl';
 import TabBar, { type TabName } from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
@@ -553,9 +554,24 @@ function lastVehicle() {
  * blank three screens in would read as having lost its place, which is the
  * failure mode of every hand-rolled tab bar.
  */
+/**
+ * The four screens that are a tab's own root.
+ *
+ * ⚠ Used to decide where the account control may float. A pushed screen owns
+ * its top-right through its header; a root has none, which is the gap this
+ * fills.
+ */
+const ROOT_ROUTES = new Set(['Garage', 'Service', 'Advisor', 'Plan', 'Account']);
+
 function tabFor(route: string | undefined): TabName {
   if (route === 'Advisor') return 'Advisor';
-  if (route === 'Account') return 'Account';
+  /*
+    ⚠ 7 Sep: `Plan` is its own tab, and `Account` is no longer one. Account is
+    reached from a root's trailing control, so while it is open the bar keeps
+    showing where in the car you were — which is where the back gesture returns
+    you. A bar that blanked would read as having lost its place.
+  */
+  if (route === 'Plan') return 'Plan';
   /*
     ⚠ `Service` is the History tab, and it is also reachable from the car's hub.
     The bar follows the screen rather than how somebody arrived at it — opening
@@ -1075,6 +1091,22 @@ export function RootNavigator({
         returns to the garage already on the stack instead of stacking a second
         copy of it behind the first.
       */}
+      {/*
+        ⚠ A sibling of the navigator, exactly like `TabBar`, and for the same
+        reason — see `AccountControl`. It left the bar so `Plan` could take the
+        slot; it did not leave this *level*, because App Store 5.1.1(v) and
+        `mobile-account-reachable.test.ts` both depend on no screen being able to
+        swallow it.
+
+        Shown on roots only: a pushed screen has a header with its own back
+        control, and a floating glyph would sit on top of it. The same route
+        check that lights the bar decides.
+      */}
+      <AccountControl
+        visible={ROOT_ROUTES.has(route ?? '')}
+        onPress={() => resetTo(navigation, [{ name: 'Account' }])}
+      />
+
       <TabBar
         current={tabFor(route)}
         onSelect={(tab) => {
@@ -1128,6 +1160,24 @@ export function RootNavigator({
                 params: { vehicleId: car.vehicleId, title: car.title, segment: 'history' },
               },
             ]);
+            return;
+          }
+
+          if (tab === 'Plan') {
+            /*
+              ⚠ Same shape as History and Advisor: `Plan` is about *a car*, so it
+              needs a vehicleId and the bar has none. `lastVehicle()` covers the
+              cold start when the garage holds exactly one — see its note — and
+              falls back to the garage when choosing is a real question.
+            */
+            const car = lastVehicle();
+            if (car) {
+              resetTo(navigation, [
+                { name: 'Plan', params: { vehicleId: car.vehicleId, title: car.title } },
+              ]);
+            } else {
+              resetTo(navigation, [{ name: 'Garage' }]);
+            }
             return;
           }
 
