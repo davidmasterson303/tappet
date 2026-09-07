@@ -37,6 +37,8 @@ import { normaliseRecalls } from '@wellkept/core/recalls';
 import { localToday } from '@wellkept/core/garage-next-service';
 import { interFace } from '../theme/fonts';
 
+import { rememberGarageSize } from '../navigation/RootNavigator';
+
 /**
  * Phase 3.2 — the garage, read only.
  *
@@ -419,7 +421,22 @@ export function GarageScreen({
 
     try {
       const body = await apiRequest<{ vehicles?: Vehicle[] }>('/vehicles');
-      setState({ status: 'ok', vehicles: body.vehicles ?? [] });
+      const vehicles = body.vehicles ?? [];
+
+      /*
+        ⚠ The tab bar needs to know the garage's *size*, not its contents.
+
+        `History` and `Advisor` both require a vehicleId, and on a cold start the
+        bar has none — so both reset to this screen, which on a one-car garage
+        reads as two dead tabs. Telling the navigator how many cars there are
+        lets it act on the only one without guessing, and go on asking when
+        there is a real choice. See `rememberGarageSize`.
+      */
+      rememberGarageSize(
+        vehicles.map((v) => ({ id: v.id, title: bayTitle(v) }))
+      );
+
+      setState({ status: 'ok', vehicles });
     } catch (error) {
       const apiError = error as ApiRequestError;
       setState({

@@ -185,7 +185,15 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         name: [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'this car',
         mileage,
         schedule: Array.isArray(rawSchedule) ? (rawSchedule as ScheduleEntry[]) : [],
-        history: Array.isArray(history?.maintenanceLineItems) ? history.maintenanceLineItems : [],
+        /*
+          ⚠ `history?.` on both sides. `Array.isArray(history?.maintenanceLineItems)`
+          narrows the *property* and not `history` itself, so the true branch was
+          dereferencing a possibly-null object — a real `TS18047` that had been
+          filtered out of this session's typechecks as "pre-existing noise".
+        */
+        history: Array.isArray(history?.maintenanceLineItems)
+          ? history?.maintenanceLineItems ?? []
+          : [],
       });
       setReading(String(mileage));
     } catch (error) {

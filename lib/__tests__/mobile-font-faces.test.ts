@@ -260,7 +260,14 @@ describe('every complete text style names its face', () => {
 
   function facelessIn(source: string): string[] {
     const found: string[] = [];
-    for (const [, name, body] of source.matchAll(styleBlock)) {
+    /*
+      ⚠ `Array.from`, not a bare `for…of` over the iterator. This project's root
+      `tsconfig` targets below ES2015, so iterating a `matchAll` result directly
+      is a TS2802 — and the root typecheck is the one the promote script runs,
+      which is where it surfaced rather than in the mobile-scoped check I had
+      been using.
+    */
+    for (const [, name, body] of Array.from(source.matchAll(styleBlock))) {
       if (!body.includes('fontSize') || !body.includes('color')) continue;
       if (body.includes('fontFamily') || body.includes('...type.')) continue;
       // A naked weight is the scan above's job, not this one's.

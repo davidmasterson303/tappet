@@ -102,7 +102,7 @@ describe('one deep-link scheme, declared four times', () => {
 
   it('declares the same scheme in all four', () => {
     const found = declaredSchemes();
-    const distinct = [...new Set(found.map((d) => d.scheme))];
+    const distinct = Array.from(new Set(found.map((d) => d.scheme)));
 
     // Reported as the full picture: which file says what, not just "2 !== 1".
     expect([distinct.length, found.map((d) => `${d.scheme} @ ${d.file}`)]).toEqual([
@@ -129,10 +129,10 @@ describe('one deep-link scheme, declared four times', () => {
       session happened to be holding open.
     */
     const drifted = ['wellkept', 'wellkept', 'crewchief', 'wellkept'];
-    expect([...new Set(drifted)].length).toBe(2);
+    expect(Array.from(new Set(drifted)).length).toBe(2);
 
     const agreed = ['wellkept', 'wellkept', 'wellkept', 'wellkept'];
-    expect([...new Set(agreed)].length).toBe(1);
+    expect(Array.from(new Set(agreed)).length).toBe(1);
   });
 
   it('does not match the scheme where it is only discussed', () => {

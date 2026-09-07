@@ -168,7 +168,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     so a screen `fixtures.ts` does not cover behaves normally rather than
     rendering as empty — an un-fixtured screen should look broken, not finished.
   */
-  if (__DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1') {
+  /*
+    ⚠ `typeof __DEV__ !== 'undefined'` rather than a bare `__DEV__`.
+
+    It is a React Native global injected by Metro, and this module is imported by
+    tests that run in the **root** jest environment — plain node, where the
+    identifier does not exist and referencing it is a `ReferenceError`, not
+    `undefined`. Thirty-two tests failed on it, none of them in the mobile
+    workspace, which is why the mobile-scoped run stayed green.
+  */
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1') {
     const canned = fixtureFor(path);
     if (canned !== undefined) return canned as T;
   }
