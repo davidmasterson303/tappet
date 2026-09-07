@@ -78,19 +78,21 @@ export const FONT_FACES = [
   'Inter_600SemiBold',
   'Inter_700Bold',
   'Inter_800ExtraBold',
-  'Newsreader_700Bold',
   /*
-    ⚠ Added 30 Aug for the brand lockup, and it is the only thing that uses it.
+    ⚠ One Newsreader cut, and it is the editorial one.
 
-    Design sets the plate's engraved name at Newsreader **500**, and the app
-    carried 700 alone. Rendering the mark a weight heavier than specified is the
-    kind of drift nobody reports — it looks like a design decision.
+    `Newsreader_500Medium` was added 30 Aug for the brand lockup, because the
+    engraved name on the coachbuilder plate was set at that weight and rendering
+    a mark a weight heavier than specified is drift nobody reports.
 
-    Free: `@expo-google-fonts/newsreader` is already a dependency and this is
-    another face out of it, loaded by `useFonts` at runtime. No native module,
-    so no EAS build.
+    It came out on 7 Sep with the identity redraw. The lockup's type is now an
+    **outlined path** rather than `<SvgText>`, so the mark carries no font at
+    all — which is also how it sidesteps the width-axis substitution below.
+    Nothing else in the app ever set the 500 cut, so it was a file in the bundle
+    with no reader. `mobile-font-faces.test.ts` asserts the mark stays
+    font-free, so this cannot quietly come back.
   */
-  'Newsreader_500Medium',
+  'Newsreader_700Bold',
   /*
     ── ⚠ 6 Sep: the condensed slot, and the substitution inside it ────────────
 

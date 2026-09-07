@@ -1,6 +1,8 @@
+import CutSurface from './CutSurface';
+
 import { StyleSheet, Text, View } from 'react-native';
 
-import { TYPE_MIN, border, radius, space, status, surface, text, type } from '../theme';
+import { border, cut, radius, space, status, surface, text, type, TYPE_MIN } from '../theme';
 
 export type ChipTone = 'neutral' | 'attention' | 'critical' | 'confirm';
 
@@ -27,25 +29,55 @@ export type ChipTone = 'neutral' | 'attention' | 'critical' | 'confirm';
  */
 export default function Chip({ label, tone = 'neutral' }: { label: string; tone?: ChipTone }) {
   return (
-    <View style={[styles.chip, styles[tone]]}>
+    <CutSurface
+      style={styles.chip}
+      cut={['bottomRight']}
+      /*
+        ⚠ `cut.plate` (8), not `cut.control` (12). A chip is ~20pt tall and a
+        12pt cut would take most of its right edge — the scale's steps exist
+        because the same angle at the same size reads differently on a 48pt
+        button and on a caption-height chip.
+      */
+      size={cut.plate}
+      stroke={STROKE[tone]}
+    >
       <Text style={[styles.label, styles[`${tone}Label` as const]]}>{label}</Text>
-    </View>
+    </CutSurface>
   );
 }
+
+/** The hairline each tone draws, now that `CutSurface` strokes the shape. */
+const STROKE: Record<ChipTone, string> = {
+  neutral: border.panel,
+  attention: status.attentionBorder,
+  critical: status.criticalBorder,
+  confirm: border.panel,
+};
 
 const styles = StyleSheet.create({
   chip: {
     borderRadius: radius.pill,
-    borderWidth: 1,
     paddingHorizontal: space.sm,
     paddingVertical: 2,
     alignSelf: 'flex-start',
+    /*
+      ⚠ B4: the chip was the last square container on the garage. The border
+      moves to `CutSurface` with the shape — a `borderWidth` here would draw a
+      square outline over the cut one.
+    */
   },
   /*
     Not overridable, deliberately. See the docblock — this is the one place the
     11px chip can be prevented rather than corrected.
   */
-  label: { ...type.label, fontSize: TYPE_MIN, letterSpacing: 0.4 },
+  /*
+    ⚠ 7 Sep · B1: mono caps. A chip carries a **state** — "2 open recalls" is a
+    count and a condition — and B1 gives states mono along with values, dates and
+    indices. This was `type.label` (the sans eyebrow) in sentence case, which the
+    critique caught against the same fact rendered as condensed caps on Vehicle:
+    one product saying one thing two ways.
+  */
+  label: { ...type.monoLabel, fontSize: TYPE_MIN, textTransform: 'uppercase' },
 
   /*
     ── ⚠ 6 Sep · B7: the hue is the border, the ink is off-white ──────────────
@@ -64,15 +96,15 @@ const styles = StyleSheet.create({
     which also fixes a contrast problem nobody had measured: sodium ink on a
     sodium wash was the lowest-contrast text in the component.
   */
-  neutral: { borderColor: border.panel },
+  neutral: {},
   neutralLabel: { color: text.muted },
 
-  attention: { borderColor: status.attentionBorder },
+  attention: {},
   attentionLabel: { color: text.primary },
 
-  critical: { borderColor: status.criticalBorder },
+  critical: {},
   criticalLabel: { color: text.primary },
 
-  confirm: { borderColor: border.panel },
+  confirm: {},
   confirmLabel: { color: text.secondary },
 });

@@ -7,7 +7,6 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
-import { Newsreader_500Medium } from '@expo-google-fonts/newsreader/500Medium';
 import { Newsreader_700Bold } from '@expo-google-fonts/newsreader/700Bold';
 
 import type { FontFace } from './fonts';
@@ -41,7 +40,6 @@ export const FONT_ASSETS: Record<FontFace, number> = {
   Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
-  Newsreader_500Medium,
   Newsreader_700Bold,
   ArchivoNarrow_600SemiBold,
   ArchivoNarrow_700Bold,

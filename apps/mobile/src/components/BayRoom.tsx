@@ -8,7 +8,9 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { TARGET_MIN, bay, border, radius, space, surface, text, type } from '../theme';
+import CutSurface from './CutSurface';
+
+import { bay, border, cut, radius, space, surface, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -157,7 +159,26 @@ export default function BayRoom({
   const wordmark = (make ?? '').trim().toUpperCase();
 
   return (
-    <View style={[styles.room, { height }]}>
+    /*
+      ── ⚠ 7 Sep · B2: the cut belongs to the plate, not to the photograph ────
+
+      B2 asks for the plate "full-bleed edge to edge with one 8pt 45° cut
+      top-right". That cut had no owner: nothing drew it, and the critique found
+      the plate ending "in a straight edge at the graphite step" in three
+      consecutive rounds.
+
+      ⚠ It goes on the *container* rather than on the image deliberately. The
+      owner's photograph is missing far more often than not — no upload yet, a
+      format iOS cannot decode, a signed URL expired — and a cut that lived on
+      the image would vanish exactly when the plate most needs to still look
+      like a plate. The geometry is the plate's; the photograph is its contents.
+    */
+    <CutSurface
+      style={[styles.room, { height }]}
+      cut={['topRight']}
+      size={cut.plate}
+      fill={bay.roomFar}
+    >
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
           <RadialGradient
@@ -250,7 +271,7 @@ export default function BayRoom({
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#bayFade)" />
       </Svg>
 
-    </View>
+    </CutSurface>
   );
 }
 
