@@ -169,7 +169,7 @@ it needs no fonts because the SVGs are already outlined.
 - `app/opengraph-image.tsx` — the share card, now carrying the real wordmark
   instead of Satori's fallback face.
 - `app/icon.svg`, `app/apple-icon.png`, `app/favicon.ico`,
-  `public/icons/icon-{192,512}.png`, `public/brand/wellkept-*.svg`.
+  `public/icons/icon-{192,512}.png`, `public/brand/tappet-*.svg`.
 - `apps/mobile/assets/*` — icon, splash and the three Android adaptive layers.
 - `lib/__tests__/brand.test.ts` pins all of it against the files in this folder.
 

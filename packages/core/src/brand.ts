@@ -1,24 +1,17 @@
 /**
  * The Tappet mark, as data — so the two clients cannot draw different plates.
  *
- * ⛔ **The artwork still draws the old name.** The 7 Sep rename moved every
- * string; the outlines in `./brand-geometry.ts` were deliberately left alone,
- * so the plate is cut with a **W** and the wordmark spells **WELL KEPT**. The
- * letter becomes a T and the wordmark one word when the package is regenerated
- * — David's design-critic round, after the rename. Read that file's header
- * before reasoning about anything below.
- *
  * ── The mark ────────────────────────────────────────────────────────────────
  *
  * A **data plate**: every car carries one stamped plate that *is* its record,
  * on the door jamb. This is that plate in the house chamfer geometry, with a
- * single **W cut clean through it**, so whatever sits behind the plate shows in
+ * single **T cut clean through it**, so whatever sits behind the plate shows in
  * the letter.
  *
  * ⚠ **`MARK_PATH` must be drawn with `fill-rule="evenodd"`, and only that.**
  * The plate and the letter are one path; the fill rule is what turns the second
  * contour into a hole. Drop it — or split the path back into two elements — and
- * the W fills solid in the plate's own colour, which does not look like a bug.
+ * the letter fills solid in the plate's own colour, which does not look like a bug.
  * It looks like a slightly heavier logo.
  *
  * A `<mask>` was the obvious way to write this and it is the wrong one: masks
@@ -93,8 +86,8 @@ export {
   PLATE_GRID,
   PLATE_PATH,
   TYPE_SOURCE,
+  LETTER_PATH,
   WORDMARK_PATH,
-  W_PATH,
 } from './brand-geometry';
 
 import { LOCKUP, TYPE_SOURCE } from './brand-geometry';
@@ -118,8 +111,23 @@ export const CLEAR_SPACE = LOCKUP.mark;
  * ⚠ Below these widths a lockup stops being legible, and the fallback is not
  * "shrink it". Both numbers are derived, not chosen:
  *
- * - **`short` is 140** because that is the nav budget the brief sets, and at
- *   140px the wordmark's cap height is exactly the 20px floor it also sets.
+ * - **`short` is derived from the cap floor**, not from the nav budget, and the
+ *   two used to be the same number by accident. Under `WELL KEPT` the lockup
+ *   measured 139.51 units, so 140px was simultaneously the brief's nav budget
+ *   *and* the width at which the cap reached its 20px floor — 20.07px. The
+ *   constant `140` was therefore right for two reasons and testable by one.
+ *
+ *   ⚠ `TAPPET` is one short word: 104.775 units. At 140px its cap now renders
+ *   at **26.72px**, so the stated derivation stopped being true on 7 Sep while
+ *   `MIN_WIDTH.short` still read 140 and the guard still passed — it asserts
+ *   `capAt(140) >= 20`, and 26.72 clears that comfortably. A number that has
+ *   quietly stopped being derived, behind an assertion too loose to notice,
+ *   is CLAUDE.md §5 exactly.
+ *
+ *   Derived now: the 20px cap is reached at `CAP_FLOOR_PX × width / cap` =
+ *   105px. The shorter wordmark genuinely does survive a narrower slot, and
+ *   the brief's 140px budget is a **ceiling** this must fit under, asserted
+ *   separately rather than conflated with the floor.
  *   Narrower and the name goes under the floor, so the mark takes over alone.
  * - **`full` is 204** because that is where the maker line reaches this
  *   project's 12px text floor. The maker sets at `makerCap / capPerEm` =
@@ -133,11 +141,32 @@ export const CLEAR_SPACE = LOCKUP.mark;
  */
 export const MAKER_FLOOR_PX = 12;
 
+/** The brief's cap-height floor for the wordmark, in px. */
+export const CAP_FLOOR_PX = 20;
+
+/** The brief's nav budget — a ceiling the short lockup must fit under. */
+export const NAV_BUDGET_PX = 140;
+
 export const MIN_WIDTH = {
+  /*
+    ⚠ Derived from `widthFull`, not `width`, and the difference is not cosmetic.
+
+    The maker line's rendered cap is `makerGridSize × W / viewBoxWidth`, so the
+    viewBox in the denominator has to be **the one this variant actually
+    draws**. The full lockup's is `widthFull`. Using `width` divides by a
+    smaller number, which makes the maker line look larger than it is and puts
+    the floor ~21px too low — the drawing would be permitted at a width where
+    its smallest text sits under the 12px floor this project sets.
+
+    It could not have been wrong before 7 Sep, because one width served both
+    variants. It became wrong the moment TAPPET made the maker line the wider
+    line. A derivation that was right by coincidence is the thing to re-check
+    when the coincidence ends.
+  */
   full: Math.ceil(
-    (MAKER_FLOOR_PX * LOCKUP.width) / (LOCKUP.makerCap / TYPE_SOURCE.mono.capPerEm)
+    (MAKER_FLOOR_PX * LOCKUP.widthFull) / (LOCKUP.makerCap / TYPE_SOURCE.mono.capPerEm)
   ),
-  short: 140,
+  short: Math.ceil((CAP_FLOOR_PX * LOCKUP.width) / LOCKUP.cap),
 } as const;
 
 /**

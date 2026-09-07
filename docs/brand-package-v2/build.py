@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Well Kept brand package: outlined SVGs, then PNGs from them.
+"""Generate the Tappet brand package: outlined SVGs, then PNGs from them.
 
 Two rules from the first brand package's README drive this whole script, and
 both are here because they fail *silently*:
@@ -41,8 +41,16 @@ GROUND = '#100F0D'   # --background  (splash, adaptive-icon background)
 
 # ── geometry ───────────────────────────────────────────────────────────────
 S, C   = 66.0, 10.0  # plate grid, chamfer (15% of the side)
-W_CAP  = 44.0        # the letter inside the plate
+LETTER_CAP = 44.0    # the letter inside the plate
 TILE   = 100.0       # app-icon grid; the plate is 66% of it
+# ── the name, in one place ─────────────────────────────────────────────────
+# Three renames in, these are the only strings that carry it. The letter and
+# the wordmark are shaped from the same font at the same axes, so the mark
+# and the wordmark stay one drawing by construction.
+PRODUCT  = 'Tappet'
+LETTER   = 'T'          # cut through the plate
+WORDMARK = 'TAPPET'     # one word now, so the lockup measures recompute
+
 LOCK_CAP = 20.0      # lockup cap height — every lockup measure derives from it
 MARK_R, GAP_R = 1.00, 0.28   # mark side and gap, in cap heights
 MAKER_R = 0.30               # maker cap height, as a share of the wordmark's
@@ -103,7 +111,7 @@ def string_path(font, font_bytes, text, size, tracking=0.0, x0=0.0, y0=0.0):
 def svg(vb_w, vb_h, body, title, w=None, h=None, extra=''):
     dims = f' width="{w}" height="{h}"' if w else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {vb_w:g} {vb_h:g}"{dims}'
-            f' role="img" aria-label="Well Kept"{extra}>\n  <title>{title}</title>\n{body}\n</svg>\n')
+            f' role="img" aria-label="{PRODUCT}"{extra}>\n  <title>{title}</title>\n{body}\n</svg>\n')
 
 
 def main():
@@ -123,9 +131,9 @@ def main():
     # ── the mark: plate with the W cut clean through it ────────────────────
     # Not a filled letter — a hole, so the ground behind genuinely shows in the
     # W. That is what makes one drawing serve both polarities and a photograph.
-    wsize = W_CAP / cap_a
-    _, wadv = string_path(arch, arch_b, 'W', wsize)
-    wd, _ = string_path(arch, arch_b, 'W', wsize, 0.0, (S - wadv) / 2, S / 2 + W_CAP / 2)
+    wsize = LETTER_CAP / cap_a
+    _, wadv = string_path(arch, arch_b, LETTER, wsize)
+    wd, _ = string_path(arch, arch_b, LETTER, wsize, 0.0, (S - wadv) / 2, S / 2 + LETTER_CAP / 2)
     def mark_body(fill, mid, indent='  '):
         """The plate and the letter as **one path**, knocked out by fill rule.
 
@@ -153,20 +161,35 @@ def main():
 
     files = {}
     files['svg/mark.svg'] = svg(S, S, mark_body('currentColor', 'wk-cut-mark'),
-                                'Well Kept — mark')
+                                f'{PRODUCT} — mark')
 
     # ── the lockups ────────────────────────────────────────────────────────
     cap = LOCK_CAP
     mark_s, gap = cap * MARK_R, cap * GAP_R
     wsize_l = cap / cap_a
     track = TRACK_R * cap
-    word_d, word_w = string_path(arch, arch_b, 'WELL KEPT', wsize_l, track, mark_s + gap, cap)
+    word_d, word_w = string_path(arch, arch_b, WORDMARK, wsize_l, track, mark_s + gap, cap)
     mcap = cap * MAKER_R
     msize = mcap / cap_m
     mtrack = MTRACK_R * mcap
     maker_base = cap + mcap * 1.9
     maker_d, maker_w = string_path(mono, mono_b, 'SOUTHMOOR DIGITAL', msize, mtrack, mark_s + gap, maker_base)
-    vb_w = mark_s + gap + word_w
+    '''
+    ⚠ The lockup is as wide as its WIDEST line, which is not always the wordmark.
+
+    This read `mark_s + gap + word_w` until 7 Sep, and it was right only by
+    luck: WELL KEPT ran 113.91 units against SOUTHMOOR DIGITAL's 93.436, so the
+    wordmark always won. TAPPET is 79.175 — one short word — and the maker line
+    became the wider of the two. The viewBox did not know that, so the full
+    lockup shipped clipped to `SOUTHMOOR DIGI`.
+
+    ⚠ It fails **silently and only in one file**: `lockup.svg` has no maker line
+    and stays correct, so the short lockup, the icon and every favicon look
+    fine. Nothing errors — an SVG simply draws outside its viewBox and the
+    renderer crops it. Exactly the shape CLAUDE.md §6 is about.
+    '''
+    vb_w = mark_s + gap + word_w                      # short: the wordmark
+    vb_w_full = mark_s + gap + max(word_w, maker_w)   # full: whichever is wider
     scale = mark_s / S
 
     def lockup(with_maker):
@@ -176,8 +199,8 @@ def main():
                 f'  <path d="{word_d}" fill="currentColor"/>')
         if with_maker:
             body += f'\n  <path d="{maker_d}" fill="currentColor" opacity="0.6"/>'
-        return svg(vb_w, vb_h, body,
-                   'Well Kept — lockup' + (' with maker' if with_maker else ''))
+        return svg(vb_w_full if with_maker else vb_w, vb_h, body,
+                   f'{PRODUCT} — lockup' + (' with maker' if with_maker else ''))
 
     files['svg/lockup.svg'] = lockup(False)
     files['svg/lockup-full.svg'] = lockup(True)
@@ -193,7 +216,7 @@ def main():
         body = ((f'  <rect width="{TILE:g}" height="{TILE:g}" fill="{tile_fill}"/>\n' if ground else '')
                 + f'  <g transform="translate({off:.4f} {off:.4f}) scale({k:.5f})">\n'
                 + mark_body(plate_fill, mid, '  ') + '\n  </g>')
-        return svg(TILE, TILE, body, 'Well Kept — app icon')
+        return svg(TILE, TILE, body, f'{PRODUCT} — app icon')
 
     files['svg/icon.svg'] = icon_svg()
 
@@ -218,12 +241,12 @@ def main():
         f'  </style>\n'
         + mark_body('currentColor', 'wk-cut-favicon').replace(
             'fill="currentColor"', 'class="wk-plate"'),
-        'Well Kept — favicon')
+        f'{PRODUCT} — favicon')
     files['svg/favicon-solid.svg'] = svg(
         S, S,
         f'  <rect width="{S:g}" height="{S:g}" fill="{GRAPH}"/>\n'
         + mark_body(INK, 'wk-cut-favicon-solid'),
-        'Well Kept — favicon, opaque')
+        f'{PRODUCT} — favicon, opaque')
     # Android adaptive foreground: the outer 33% of the canvas can be masked away
     # and the mask may be a circle, so a *square* plate has to fit the inscribed
     # square of that circle — 0.667/√2 = 47% of the canvas, not 66%.
@@ -234,7 +257,7 @@ def main():
     # to agree with a hex string in a config file by hand.
     files['svg/android-background.svg'] = svg(
         TILE, TILE, f'  <rect width="{TILE:g}" height="{TILE:g}" fill="{GROUND}"/>',
-        'Well Kept — Android adaptive background')
+        f'{PRODUCT} — Android adaptive background')
     files['svg/android-monochrome.svg'] = icon_svg(tile_fill='#000', plate_fill='#fff',
                                                    plate_share=0.47, ground=False,
                                                    mid='wk-cut-android-mono')
@@ -248,11 +271,12 @@ def main():
                     'version': arch['name'].getDebugName(5)},
         'mono': {'axes': {'wght': 400}, 'capPerEm': round(cap_m, 4),
                  'version': mono['name'].getDebugName(5)},
-        'plate': {'grid': S, 'chamfer': C, 'chamferShare': C / S, 'wCap': W_CAP,
-                  'wAdvance': round(wadv, 3), 'sideMargin': round((S - wadv) / 2, 3),
-                  'capMargin': round((S - W_CAP) / 2, 3)},
+        'plate': {'grid': S, 'chamfer': C, 'chamferShare': C / S, 'letterCap': LETTER_CAP,
+                  'letterAdvance': round(wadv, 3), 'sideMargin': round((S - wadv) / 2, 3),
+                  'capMargin': round((S - LETTER_CAP) / 2, 3)},
         'lockup': {'cap': cap, 'mark': mark_s, 'gap': round(gap, 3),
                    'wordmarkAdvance': round(word_w, 3), 'total': round(vb_w, 3),
+                   'totalFull': round(vb_w_full, 3),
                    'makerAdvance': round(maker_w, 3), 'makerCap': mcap},
         'icon': {'tile': TILE, 'plateShare': S / TILE, 'androidPlateShare': 0.47},
         'colours': {'ink': INK, 'tile': GRAPH, 'ground': GROUND},
@@ -319,8 +343,8 @@ def render_pngs(out):
 
 
 
-CORE_HEADER = """/**
- * The Well Kept mark, as geometry. **Generated — do not edit.**
+CORE_HEADER = f"""/**
+ * The {PRODUCT} mark, as geometry. **Generated — do not edit.**
  *
  * Regenerate with `docs/brand-package-v2/build.py --core <this file>`; the
  * README beside that script has the two curl lines that fetch the fonts.
@@ -342,7 +366,7 @@ CORE_HEADER = """/**
 """
 
 
-def write_core(dest, meta, plate_w_d, word_d, maker_d, lockup_w, mark_scale):
+def write_core(dest, meta, plate_letter_d, word_d, maker_d, lockup_w, mark_scale):
     """Emit the generated geometry module the two clients import."""
     p, l, i, c = meta['plate'], meta['lockup'], meta['icon'], meta['colours']
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -351,17 +375,17 @@ export const PLATE_GRID = {p['grid']:g};
 export const PLATE_CHAMFER = {p['chamfer']:g};
 export const PLATE_PATH = '{PLATE}';
 
-/** The W, outlined and already positioned on the plate grid. */
-export const W_PATH =
-  '{plate_w_d}';
+/** The letter, outlined and already positioned on the plate grid. */
+export const LETTER_PATH =
+  '{plate_letter_d}';
 
 /**
  * The mark as one path: the plate, then the letter, knocked out by fill rule.
  * Draw it with `fill-rule="evenodd"` and nothing else — see `brand.ts`.
  */
-export const MARK_PATH = `${{PLATE_PATH}} ${{W_PATH}}`;
+export const MARK_PATH = `${{PLATE_PATH}} ${{LETTER_PATH}}`;
 
-/** "WELL KEPT", outlined, positioned on the lockup grid at x = mark + gap. */
+/** "{WORDMARK}", outlined, positioned on the lockup grid at x = mark + gap. */
 export const WORDMARK_PATH =
   '{word_d}';
 
@@ -379,6 +403,15 @@ export const LOCKUP = {{
   makerCap: {l['makerCap']:g},
   /** viewBox width for every lockup; height depends on the maker line. */
   width: {l['total']:g},
+  /**
+   * ⚠ The FULL lockup is wider, and only sometimes. Use this for the variant
+   * that draws the maker line — `width` crops it.
+   *
+   * `SOUTHMOOR DIGITAL` is a fixed 93.436 units. `WELL KEPT` ran 113.91, so the
+   * wordmark was always the wider line and one width served both. `TAPPET` is
+   * {l['wordmarkAdvance']:g}, and the maker line became the wider of the two.
+   */
+  widthFull: {l['totalFull']:g},
   /** viewBox height without the maker line — the mark is the tallest thing. */
   heightShort: {l['mark']:g},
   heightFull: {meta['lockup']['makerCap'] * 0.35 + l['cap'] + meta['lockup']['makerCap'] * 1.9:g},

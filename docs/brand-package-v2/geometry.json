@@ -18,17 +18,18 @@
     "grid": 66.0,
     "chamfer": 10.0,
     "chamferShare": 0.15151515151515152,
-    "wCap": 44.0,
-    "wAdvance": 45.09,
-    "sideMargin": 10.455,
+    "letterCap": 44.0,
+    "letterAdvance": 29.376,
+    "sideMargin": 18.312,
     "capMargin": 11.0
   },
   "lockup": {
     "cap": 20.0,
     "mark": 20.0,
     "gap": 5.6,
-    "wordmarkAdvance": 113.91,
-    "total": 139.51,
+    "wordmarkAdvance": 79.175,
+    "total": 104.775,
+    "totalFull": 119.036,
     "makerAdvance": 93.436,
     "makerCap": 6.0
   },

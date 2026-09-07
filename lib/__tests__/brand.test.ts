@@ -34,12 +34,14 @@ import {
   MAKER_PATH,
   MAKER_FLOOR_PX,
   MARK_PATH,
+  CAP_FLOOR_PX,
   MIN_WIDTH,
+  NAV_BUDGET_PX,
   PLATE_GRID,
   PLATE_PATH,
   TYPE_SOURCE,
+  LETTER_PATH,
   WORDMARK_PATH,
-  W_PATH,
   lockupFor,
 } from '@tappet/core/brand';
 
@@ -69,7 +71,7 @@ const geometry = () =>
   JSON.parse(readFileSync(join(PACKAGE, 'geometry.json'), 'utf8')) as {
     archivo: { capPerEm: number; axes: { wdth: number; wght: number } };
     mono: { capPerEm: number };
-    lockup: { total: number; wordmarkAdvance: number };
+    lockup: { total: number; totalFull: number; wordmarkAdvance: number; makerAdvance: number };
     icon: { plateShare: number; androidPlateShare: number };
   };
 
@@ -94,12 +96,12 @@ describe('the drawing is the one in the package', () => {
     expect(ALL.length).toBe(8);
   });
 
-  it('carries the same plate, W, wordmark and maker outlines', () => {
-    // The plate and the W are one `d` — see the fill-rule cases below — so the
-    // mark is asserted whole rather than in halves.
+  it('carries the same plate, letter, wordmark and maker outlines', () => {
+    // The plate and the letter are one `d` — see the fill-rule cases below —
+    // so the mark is asserted whole rather than in halves.
     expect(svg('mark')).toContain(`d="${MARK_PATH}"`);
     expect(MARK_PATH).toContain(PLATE_PATH);
-    expect(MARK_PATH).toContain(W_PATH);
+    expect(MARK_PATH).toContain(LETTER_PATH);
     expect(svg('lockup')).toContain(`d="${WORDMARK_PATH}"`);
     expect(svg('lockup-full')).toContain(`d="${MAKER_PATH}"`);
     expect(svg('mark')).toContain(`viewBox="0 0 ${PLATE_GRID} ${PLATE_GRID}"`);
@@ -111,10 +113,10 @@ describe('the drawing is the one in the package', () => {
       likely to be quietly satisfied by the wrong thing, so prove the comparison
       has teeth before trusting the case above.
     */
-    const nudged = `${W_PATH.slice(0, -8)}9.999 Z`;
+    const nudged = `${LETTER_PATH.slice(0, -8)}9.999 Z`;
 
     expect(svg('mark')).not.toContain(`d="${nudged}"`);
-    expect(nudged).not.toBe(W_PATH);
+    expect(nudged).not.toBe(LETTER_PATH);
   });
 
   it('agrees with the package on the numbers the outlines were shaped from', () => {
@@ -186,7 +188,7 @@ describe('the letter is a hole, and the fill rule is what makes it one', () => {
     // Order matters to nothing but readability; that both are present in one
     // `d` is what even-odd needs, and splitting them back into two elements is
     // the change this catches.
-    expect(MARK_PATH).toBe(`${PLATE_PATH} ${W_PATH}`);
+    expect(MARK_PATH).toBe(`${PLATE_PATH} ${LETTER_PATH}`);
     expect(svg('mark')).toContain(`d="${MARK_PATH}"`);
   });
 });
@@ -287,33 +289,112 @@ describe('the mark takes no hue', () => {
   });
 });
 
+describe('every line fits inside the box it is drawn in', () => {
+  /*
+    ⚠ The 7 Sep regression, and the reason it is worth a guard of its own.
+
+    `TAPPET` is one short word: 79.175 units against `SOUTHMOOR DIGITAL`'s fixed
+    93.436. The maker line therefore became the **widest** element of the full
+    lockup, and the viewBox was still computed from the wordmark — so
+    `lockup-full.svg` shipped cropped to `SOUTHMOOR DIGI`.
+
+    It could not happen while the product was called Well Kept, because
+    `WELL KEPT` ran 113.91 and always won. That is the shape worth guarding:
+    not a wrong number, but a rule that was **right by coincidence** until a
+    rename ended the coincidence.
+
+    ⚠ And it fails silently. An SVG whose geometry exceeds its viewBox is not an
+    error — the renderer simply crops, and only in the one file that draws the
+    maker line. `mark`, `icon`, every favicon and the short lockup all stayed
+    correct, so nothing in the suite or on screen said a word. CLAUDE.md §6.
+  */
+  const left = () => LOCKUP.mark + LOCKUP.gap;
+
+  it('gives the full lockup a viewBox wide enough for its maker line', () => {
+    const g = geometry();
+    expect(g.lockup.totalFull).toBeGreaterThanOrEqual(left() + g.lockup.makerAdvance);
+    expect(LOCKUP.widthFull).toBe(g.lockup.totalFull);
+
+    // The shipped file, not just the number that describes it.
+    expect(svg('lockup-full')).toContain(`viewBox="0 0 ${LOCKUP.widthFull} ${LOCKUP.heightFull}"`);
+  });
+
+  it('does not pad the short lockup out to the wider box', () => {
+    /*
+      The other direction, and the mistake made while fixing the first: widening
+      both variants clears the crop and leaves the short lockup with 14 units of
+      dead space on its right, which silently breaks the 140px nav budget.
+    */
+    const g = geometry();
+    expect(LOCKUP.width).toBe(left() + g.lockup.wordmarkAdvance);
+    expect(svg('lockup')).toContain(`viewBox="0 0 ${LOCKUP.width} ${LOCKUP.heightShort}"`);
+    expect(LOCKUP.width).toBeLessThan(LOCKUP.widthFull);
+  });
+
+  it('can still detect a box that crops its own contents', () => {
+    /*
+      §5's anti-vacuous half. Both cases above are `toBeGreaterThanOrEqual` and
+      an equality against generated values, which is precisely the shape that
+      passes when the generator and the file are wrong together. So state the
+      failure directly: the pre-fix width, measured against the same rule.
+    */
+    const g = geometry();
+    const preFix = left() + g.lockup.wordmarkAdvance; // what the builder used to emit
+    expect(preFix).toBeLessThan(left() + g.lockup.makerAdvance);
+    expect(preFix).not.toBe(g.lockup.totalFull);
+  });
+});
+
 describe('the minimum sizes are derived, not chosen', () => {
   it('drops the maker line where it would break the 12px type floor', () => {
     /*
       The maker sets at `makerCap / capPerEm` grid units and renders at
-      `that × width / LOCKUP.width` px. Re-derived here rather than restated,
+      `that × width / viewBox` px. Re-derived here rather than restated,
       because a guard that repeats a number cannot catch the number being wrong
       — which is exactly how the cap-height error survived two rounds.
+
+      ⚠ The viewBox is `widthFull`, because the maker line only exists on the
+      full lockup and that is the drawing whose box it is measured in. Dividing
+      by the short `width` overstates the rendered cap and puts the floor ~21px
+      too low. It was right by coincidence until 7 Sep, when a one-word wordmark
+      made the maker line the wider of the two.
     */
     const makerGridSize = LOCKUP.makerCap / TYPE_SOURCE.mono.capPerEm;
-    const renderedAt = (width: number) => (makerGridSize * width) / LOCKUP.width;
+    const renderedAt = (width: number) => (makerGridSize * width) / LOCKUP.widthFull;
 
     expect(renderedAt(MIN_WIDTH.full)).toBeGreaterThanOrEqual(MAKER_FLOOR_PX);
     expect(renderedAt(MIN_WIDTH.full - 1)).toBeLessThan(MAKER_FLOOR_PX);
   });
 
-  it('holds the nav budget at the cap floor', () => {
+  it('derives the short floor from the cap height, not from the nav budget', () => {
     /*
-      ⚠ The brief line that was silently failing. "The nav lockup fits 140px at
-      a ≥20px cap height" was being reported as met while the cap measured
-      18.8px, because the cap-height constant was wrong. Asserting it in grid
-      units against the shipped geometry is what makes it checkable.
+      ⚠ These were one number by coincidence and are now two.
+
+      `WELL KEPT` measured 139.51 units, so 140px was both the brief's nav
+      budget and the width where the cap reached its 20px floor. `MIN_WIDTH.short`
+      was written as the literal `140`, and it was right for both reasons.
+
+      `TAPPET` is 104.775 units. At 140px its cap renders at 26.72px, so the
+      derivation stated in `brand.ts` stopped being true — while this test went
+      on passing, because the old assertion was `capAt(140) >= 20` and 26.72
+      clears it. Asserting the floor is *tight* is what makes it a guard rather
+      than a formality.
     */
     const capAt = (width: number) => (LOCKUP.cap * width) / LOCKUP.width;
 
-    expect(MIN_WIDTH.short).toBe(140);
-    expect(capAt(MIN_WIDTH.short)).toBeGreaterThanOrEqual(20);
-    expect(LOCKUP.width).toBeLessThanOrEqual(140);
+    expect(capAt(MIN_WIDTH.short)).toBeGreaterThanOrEqual(CAP_FLOOR_PX);
+    // Tight: one pixel narrower and the cap is under the floor. A `>=` alone
+    // would have passed at 140 too, which is how the stale number survived.
+    expect(capAt(MIN_WIDTH.short - 1)).toBeLessThan(CAP_FLOOR_PX);
+  });
+
+  it('still fits the nav budget, which is a ceiling and not the floor', () => {
+    // The brief's 140px is a budget the drawing must fit *under*. Conflating it
+    // with the cap floor is what let a stale constant look derived.
+    expect(LOCKUP.width).toBeLessThanOrEqual(NAV_BUDGET_PX);
+    expect(MIN_WIDTH.short).toBeLessThanOrEqual(NAV_BUDGET_PX);
+    // …and the full lockup is the wider drawing now, so it is not a nav option.
+    expect(LOCKUP.widthFull).toBeGreaterThan(LOCKUP.width);
   });
 
   it('never scales the lockup below legibility instead', () => {
@@ -356,7 +437,9 @@ describe('the app icon and the Android foreground are not the same share', () =>
 });
 
 describe('the name', () => {
-  it('is two words, both capitalised', () => {
+  it('is one word, capitalised', () => {
+    // Two words until 7 Sep. The count is not incidental: it is why the maker
+    // line became the lockup's widest element and needed its own viewBox.
     expect(BRAND_NAME).toBe('Tappet');
   });
 });

@@ -3,6 +3,19 @@
 **Status: LOCKED.** Written by the design-critic in BRIEF mode on iteration 00 and
 frozen. Only David edits this file — not the implementer, not the critic.
 
+> **7 Sep 2026 — letter and wordmark only.** The product was renamed Well Kept →
+> Tappet, so the stamped letter became **T** and the wordmark became one word.
+> David authorised Claude Code to change exactly those two things and nothing
+> else. The aesthetic direction, the palette, the chamfer, the polarity rule and
+> every B-numbered check are untouched — only the glyph they refer to moved.
+>
+> One consequence is recorded rather than acted on: `SOUTHMOOR DIGITAL` is now
+> **wider than the wordmark it sits under** (93.4 units against TAPPET's 79.2),
+> where under WELL KEPT's 113.9 it never was. B7 still says "flush left under
+> the wordmark" and it still is — but the maker line is now the widest element
+> of the full lockup. Whether that proportion is acceptable is a judgement for
+> David, not a rename.
+
 ---
 
 ## Aesthetic direction (given to the critic)
@@ -20,17 +33,17 @@ grotesk display face with mono for data.
 ## The studio version
 
 Concept: **the data plate.** Every car carries one stamped plate that *is* its record —
-the VIN plate on the door jamb. Well Kept's mark is that plate in the house geometry, and
+the VIN plate on the door jamb. Tappet's mark is that plate in the house geometry, and
 its letter is stamped, not printed.
 
-The mark is a solid chamfered plate with a single **W cut clean through it** — whatever
+The mark is a solid chamfered plate with a single **T cut clean through it** — whatever
 sits behind the plate shows through the letter. That one rule yields both polarities from
 one drawing: off-white plate on graphite, graphite plate on light, and on a photograph the
-wet asphalt shows through the W. No stroke, no glow, no rivets, no "WK". The W is the same
-glyph as the wordmark's W, so mark and wordmark are one drawing.
+wet asphalt shows through the T. No stroke, no glow, no rivets, no monogram. The T is the
+same glyph as the wordmark's T, so mark and wordmark are one drawing.
 
-The wordmark stands free, never boxed: WELL KEPT in the condensed heavy grotesk, caps,
-tracking −1%, one word space. Maker line SOUTHMOOR DIGITAL in the mono, caps, +10%
+The wordmark stands free, never boxed: TAPPET in the condensed heavy grotesk, caps,
+tracking −1%, one word. Maker line SOUTHMOOR DIGITAL in the mono, caps, +10%
 tracking, ~30% of wordmark cap height, flush left beneath. Short lockup: plate-mark beside
 wordmark, baseline-aligned, gap of half the mark's width.
 
@@ -42,14 +55,14 @@ The mark carries **no hue**. The two hues are light, and light belongs to the en
 
 ## Brief checklist
 
-- **B1.** Wordmark and W set in the north star's condensed heavy grotesk; no serif anywhere.
-- **B2.** Mark is a solid chamfered plate with the W cut through it; no stroke, glow or rivets.
-- **B3.** One drawing at 1024/180/120/87/60/40/29/16 — W only, no polarity flip, no WK→W switch.
-- **B4.** Off-white plate on dark, graphite plate on light, same file; mono-on-light at 24px shows a readable W.
+- **B1.** Wordmark and T set in the north star's condensed heavy grotesk; no serif anywhere.
+- **B2.** Mark is a solid chamfered plate with the T cut through it; no stroke, glow or rivets.
+- **B3.** One drawing at 1024/180/120/87/60/40/29/16 — T only, no polarity flip, no monogram→letter switch.
+- **B4.** Off-white plate on dark, graphite plate on light, same file; mono-on-light at 24px shows a readable T.
 - **B5.** No hue inside the mark; cyan and sodium appear only in photography and UI states.
 - **B6.** Wordmark stands free, never boxed; nav lockup fits 140px at ≥20px cap height.
 - **B7.** Maker line in the mono, caps, letterspaced, flush left under the wordmark.
-- **B8.** On a photograph the mark sits over asphalt, not the car, and the photo shows through the W.
+- **B8.** On a photograph the mark sits over asphalt, not the car, and the photo shows through the T.
 - **B9.** Home-screen tile is matte graphite #1A1A1A with the plate ~66% of tile width.
 
 ---

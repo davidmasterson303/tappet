@@ -15,7 +15,7 @@ import {
  *
  * ── One drawing, and the caller picks how much of it ────────────────────────
  *
- * A solid chamfered plate with the W cut through it, and the wordmark beside
+ * A solid chamfered plate with the letter cut through it, and the wordmark beside
  * it. `full` adds the maker line, `short` drops it, `icon` and `mono` are the
  * plate alone. Every one of them is the *same* geometry from
  * `@tappet/core/brand` — there is no reduction ladder and no second drawing,
@@ -98,13 +98,21 @@ export function BrandLockup({
   }
 
   const full = chosen === 'full';
+  /*
+    ⚠ Both measures are per-variant. The full lockup is the wider drawing
+    whenever the maker line outruns the wordmark, which is what a one-word
+    wordmark did on 7 Sep — using `LOCKUP.width` for it crops `SOUTHMOOR
+    DIGITAL` mid-word, and an SVG drawn outside its viewBox is cropped in
+    silence rather than reported.
+  */
+  const boxWidth = full ? LOCKUP.widthFull : LOCKUP.width;
   const boxHeight = full ? LOCKUP.heightFull : LOCKUP.heightShort;
-  const height = Math.round((width * boxHeight) / LOCKUP.width);
+  const height = Math.round((width * boxHeight) / boxWidth);
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox={`0 0 ${LOCKUP.width} ${boxHeight}`}
+      viewBox={`0 0 ${boxWidth} ${boxHeight}`}
       width={width}
       height={height}
       role="img"
