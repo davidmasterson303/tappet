@@ -79,8 +79,31 @@
  * whose date moves for a CSS edit teaches people the date means nothing.
  */
 
-/** The legal name the service is operated under — confirmed by David, 30 Aug. */
-export const OPERATOR = 'Southmoor Digital LLC';
+/**
+ * The legal name the service is operated under.
+ *
+ * ⛔ **Reverted 7 Sep: Southmoor Digital LLC is not a registered entity.**
+ *
+ * It was set to the company on 30 Aug. Checked against the Colorado registry on
+ * 7 Sep with the instrument's freshness measured rather than assumed — dataset
+ * two days old, a positive control and a recency control both passing — and
+ * `%SOUTHMOOR DIGITAL%` returns **zero rows** out of 51 matching `%SOUTHMOOR%`.
+ * The rename package's own instruction was that these fields must not move until
+ * the filing was confirmed. They moved anyway.
+ *
+ * That made the published privacy policy attribute the service to a company with
+ * no registry record — on `crewchief.davidmasterson.co`, which is the hostname
+ * on the App Store listing draft, so it is the page App Review reads.
+ *
+ * ⚠ `CONTACT_EMAIL` below is deliberately **not** reverted. The address is real,
+ * monitored, and on a domain David owns outright; a working contact address is
+ * true regardless of what entity operates the service. Only the operator claim
+ * was false.
+ *
+ * This goes back the moment the Articles are filed — $50, Colorado, effective
+ * immediately — and at that point this whole block is deleted rather than edited.
+ */
+export const OPERATOR = 'David Masterson';
 
 /**
  * A monitored address on the operator's own domain — confirmed by David, 30 Aug,
@@ -97,6 +120,10 @@ export const CONTACT_EMAIL = 'support@southmoordigital.com';
  * nothing deploys from `main`, so no reader ever saw it. The 19 August value
  * was correct because the promote happened that day.
  *
+ * ⛔ **Superseded 7 Sep by the revert above — this describes the state this
+ * branch changes.** Accurate until the promote that carries the revert; at that
+ * point the live page names the person again and this paragraph goes.
+ *
  * ✅ **Published — checked 6 Sep against the live product host.** `/privacy`
  * serves "Southmoor Digital LLC" and contains no occurrence of "David
  * Masterson"; `/api/version` reports `web-live` built 5 Sep. The freeze this
@@ -111,6 +138,17 @@ export const CONTACT_EMAIL = 'support@southmoordigital.com';
  * Two substance changes shipping together are one publication, and a date that
  * ticks per edit rather than per publication is the same defect in the other
  * direction.
+ *
+ * ⛔ **This literal is deliberately left at 30 August on this branch, and it is
+ * wrong the moment the revert above ships.** The operator a reader sees will have
+ * changed, which is a substance change by this file's own definition, so the date
+ * has to become the day the promote runs — a day nobody knows yet, which is
+ * exactly why it is not guessed here.
+ *
+ * **Whoever promotes this makes one edit, in two places, together:** this literal,
+ * and the exact pin in `legal-pages.test.ts` that holds it. The pin is exact on
+ * purpose — a floor would let any edit drag the date forward — so the test failing
+ * is the reminder, not an obstacle.
  */
 export const LAST_UPDATED = '30 August 2026';
 

@@ -52,6 +52,10 @@ export const metadata: Metadata = {
  * substance of the document rather than its trim. See `lib/legal.ts` for why
  * the contact is deliberately not a domain address.
  *
+ * ⛔ **Superseded 7 Sep: `OPERATOR` is being reverted to the person, because
+ * Southmoor Digital LLC is not a registered entity. This paragraph describes the
+ * state until that ships.**
+ *
  * ✅ **The live page names the company — checked 6 Sep.** `/privacy` on the
  * product host serves "Southmoor Digital LLC" and no occurrence of "David
  * Masterson", so the document App Review reads is the current one. The 23 Aug

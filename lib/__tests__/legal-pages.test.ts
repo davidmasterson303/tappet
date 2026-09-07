@@ -189,15 +189,25 @@ describe('who operates the service, and who to write to about it', () => {
 
   it('names a real operator rather than a bracketed placeholder', () => {
     /*
-      ⚠ Changed 30 Aug: the operator is **Southmoor Digital LLC**, not a person.
+      ⚠ Changed 30 Aug to **Southmoor Digital LLC**, and ⛔ **reverted to the
+      person on 7 Sep** — the reasoning sits above the constant in `lib/legal.ts`.
 
-      The pin is the point. This value decides who a reader is contracting with
-      and who is accountable for what the product says about their car, so it
-      moves only when David says it moves — an entity appearing or disappearing
-      here through a merge, a refactor or a find-and-replace is the failure this
-      exact literal exists to stop.
+      The pin did its job in the direction nobody expected. It held the name
+      steady while the entity turned out not to exist: checked against the
+      Colorado registry on 7 Sep with the dataset's freshness measured and two
+      controls passing, `%SOUTHMOOR DIGITAL%` returns zero rows out of 51 matching
+      `%SOUTHMOOR%`. The published policy was attributing the service to a company
+      with no registry record, on the hostname App Review reads.
+
+      The pin is still the point, and this edit is the shape it exists to force:
+      the operator moves only when somebody writes down that it moved and why. An
+      entity appearing or disappearing here through a merge, a refactor or a
+      find-and-replace is the failure this exact literal stops.
+
+      ⚠ This goes back to `'Southmoor Digital LLC'` the moment the Articles are
+      filed, and not before.
     */
-    expect(OPERATOR).toBe('Southmoor Digital LLC');
+    expect(OPERATOR).toBe('David Masterson');
 
     // Anti-vacuous: this must still be able to catch a placeholder coming back.
     expect(OPERATOR).not.toMatch(/[[\]]|TBD|not yet|to be decided/i);
