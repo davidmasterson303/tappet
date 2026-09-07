@@ -435,6 +435,24 @@ const screenOptions = {
     fontSize: type.monoNav.fontSize,
     letterSpacing: type.monoNav.letterSpacing,
   },
+  /*
+    ── ⚠ 6 Sep · B1: the back label speaks the same language as the title ─────
+
+    `VehicleDetailScreen` draws its own back control — mono caps "‹ GARAGE" with
+    a hairline chevron — while every native-stack push used the platform default:
+    a heavy chevron and a sentence-case sans label. The critique found both in
+    one stack and called it "two back affordances", which is what it was.
+
+    `headerBackTitleStyle` puts the label in the mono nav face. The chevron
+    itself stays native — `headerBackImageSource` would mean shipping a glyph
+    asset, and a hairline SVG chevron per screen is a bigger change than this
+    line; the label is the half that was speaking the wrong language.
+  */
+  headerBackTitleStyle: {
+    fontFamily: type.monoNav.fontFamily,
+    fontSize: type.monoNav.fontSize,
+    letterSpacing: type.monoNav.letterSpacing,
+  },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: surface.page },
 } as const;

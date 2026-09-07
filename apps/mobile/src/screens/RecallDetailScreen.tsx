@@ -23,17 +23,7 @@ import {
   type AddressedRecall,
 } from '../api/recalls';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import {
-  PAGE_BODY,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  status,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import {
   componentPlainName,
   hasRemedy,
@@ -991,8 +981,13 @@ const styles = StyleSheet.create({
   disclosureText: { ...type.uiStrong, color: text.secondary },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  meta: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 12 },
+  /*
+    ⚠ 6 Sep · B1: mono. This carries "Campaign 23V-441" — an identifier issued
+    by NHTSA, which is a value in exactly the sense B1 means: something to read
+    off and quote, not a sentence. It was Inter, which the critique caught beside
+    the mono values around it.
+  */
+  meta: { ...type.mono, color: text.muted, fontSize: 12, ...TABULAR },
 
 
   footnote: { color: text.muted, fontFamily: interFace('400'),

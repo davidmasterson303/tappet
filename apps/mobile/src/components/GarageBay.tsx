@@ -475,7 +475,14 @@ const styles = StyleSheet.create({
     The same size, one step quieter. Not italic and not a different face: this
     is a real answer to the question, not an apology for one.
   */
-  nextServiceUnknown: { ...type.ui, color: text.muted, flex: 1, textAlign: 'right' },
+  /*
+    ⚠ 6 Sep · B1: mono. "No schedule yet" is a **state**, and B1 gives states
+    mono along with values and dates — the job name above it is a name and keeps
+    the sans. The critique saw this one sitting in a slot whose every other
+    occupant is mono and read it as a leak, which it was: the slot is right, and
+    what belongs in it changes with the string.
+  */
+  nextServiceUnknown: { ...type.mono, color: text.muted, flex: 1, textAlign: 'right' },
   /**
    * ⚠ **No horizontal padding, as of 23 Aug.**
    *

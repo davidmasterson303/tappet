@@ -95,6 +95,33 @@ type State =
   | { kind: 'error'; message: string }
   | { kind: 'loaded'; records: ServiceRecord[] };
 
+/**
+ * The visit's stamp: when it happened and at what odometer reading.
+ *
+ * ⚠ A visit is a *moment* — one date, one shop, one reading — so all three
+ * belong to its heading and only the description and the price belong to a line
+ * beneath it. `describeRecord`'s `withShop`/`withDate`/`withMileage` are the
+ * other half of the same idea, turning each field off at the row.
+ *
+ * Reads the odometer from the first line that carries one, exactly as `date`
+ * does. Lines of one invoice can disagree — extraction sometimes reads a
+ * different number off a different part of the page — and picking the first is
+ * the same honest guess the date already makes, rather than inventing a range.
+ */
+function visitStamp(visit: ServiceVisit): string | null {
+  const parts: string[] = [];
+
+  const date = formatRecordDate(visit.date);
+  if (date) parts.push(date);
+
+  const reading = visit.records.find(
+    (r) => typeof r.mileage_at_service === 'number' && r.mileage_at_service > 0
+  )?.mileage_at_service;
+  if (typeof reading === 'number') parts.push(`${reading.toLocaleString('en-US')} mi`);
+
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -425,8 +452,15 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                   <Text style={styles.visitShop} numberOfLines={1}>
                     {visit.shop ?? 'Service record'}
                   </Text>
-                  {formatRecordDate(visit.date) ? (
-                    <Text style={styles.visitDate}>{formatRecordDate(visit.date)}</Text>
+                  {/*
+                    ⚠ The visit's date **and** odometer, together. A visit is a
+                    moment: it happened on one date, at one shop, at one reading.
+                    All three belong here, and only the description and the price
+                    belong to the line — which is what takes a row from four
+                    lines back toward B6's one.
+                  */}
+                  {visitStamp(visit) ? (
+                    <Text style={styles.visitDate}>{visitStamp(visit)}</Text>
                   ) : null}
                 </View>
 
@@ -446,7 +480,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                   reason (R34); `withDate` is the same argument one field over,
                   and it is what takes a row from ~110pt back toward B6's 56.
                 */
-                const meta = describeRecord(record, { withShop: false, withDate: false });
+                const meta = describeRecord(record, { withShop: false, withDate: false, withMileage: false });
 
                 return (
                   /*
