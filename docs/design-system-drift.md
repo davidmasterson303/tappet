@@ -1130,7 +1130,7 @@ palette is three jobs and three hues:
 
 plus the mark, which is cyan and appears once per screen.
 
-### 11.3 · ⚠ The mark keeps its glow, and Design owns that
+### 11.3 · ⚠ The mark keeps its glow, and Design owns that — **superseded, see §12**
 
 `BRAND_COLOR.glow` is `#22D3EE`, pinned to Design's own SVG files by
 `brand.test.ts`. A critique called the plate's backlight "the AI tell". Whether
@@ -1288,3 +1288,159 @@ design port.
 
 Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
 square, not capsule) and their existing ink.
+
+---
+
+## 12. The identity, redrawn against a design critic — 7 Sep 2026
+
+Raised by `design-loop/logo/` (gitignored). An independent critic wrote the brief
+in BRIEF mode from screenshots of the **shipped** mark and graded three
+iterations against it, never seeing code: 4/10 → 7 → 8, all nine brief lines met,
+critic called it settled. Package in `docs/brand-package-v2/`, frozen brief in
+its `BRIEF.md`.
+
+✅ **Shipped 7 Sep on David's instruction.** This section was written as a
+proposal — §11.3 of this register says the mark and its glow are Design's to own
+— and David ruled to adopt it. It is recorded here in full because Design still
+has to absorb it into the system: the entries below are what changed and why,
+not a request.
+
+Every icon slot on web and mobile now renders from `docs/brand-package-v2/`.
+`packages/core/src/brand-geometry.ts` is **generated** by that package's
+`build.py`; `brand.ts` carries the API and the reasoning; both `BrandLockup`
+components kept their props, so no call site changed. 189 web suites and 27
+mobile suites pass, both typechecks clean.
+
+⚠ **§11.3 is superseded.** "The mark keeps its glow" was the right call against
+the mark that had one. This mark has no glow to keep, and no hue at all — see
+12.1.
+
+### 12.1 ⚠ The mark becomes a stamped plate, not a backlit one ✅ shipped
+
+A solid chamfered plate with the **W cut clean through it**, so the ground
+behind shows in the letter (by fill rule rather than by a mask — see 12.6). The critic's reading of the current mark was
+that serif small caps, four rivets and a cyan bloom make a heritage plaque, and
+that the north star is an instrument photographed at night — the sheet's own
+chrome was closer to the brief than the mark it presented.
+
+What the mask buys, and the reason it is one rule rather than five:
+
+- **Both polarities are one file** — off-white on graphite, graphite on ivory,
+  nothing redrawn.
+- **The reduction ladder disappears.** The shipped package needs four drawings
+  (full / single-W / flat / inverted-29) and picks by size floor. This is one
+  drawing from 1024 to 16. The `lockupFor` reduction rule in core has nothing
+  left to choose between.
+- **It survives a photograph** — the asphalt shows through the W.
+
+### 12.2 The wordmark lands on the masthead width, and is not a new value ✅
+
+`Newsreader` 500 small caps → **Archivo `wdth` 62 / `wght` 800**, caps, −1%
+tracking. 62% is already the system's masthead stop (`app/globals.css`, the
+`font-stretch: 62%` rule and its docblock) — this is the identity joining a token
+that exists, not asking for one.
+
+It also closes the defect `BrandLockup.tsx` documents at length: the lockup's
+hand-spelled `var(--font-display), Newsreader, …` chain had been silently
+rendering the brand mark in Archivo ever since brief B2 moved the display slot.
+The mark was already in this face. It was just not supposed to be.
+
+### 12.3 ⚠ Archivo's cap height is **0.686 em**, not 0.73 — a system-wide fact
+
+Read from the font's own OS/2 `sCapHeight`. Any spec written in cap heights is
+6% out if it assumes 0.73. It cost two rounds of this loop: a nav lockup was
+being reported at a 20px cap while measuring **18.8px**, under the brief's floor,
+green on paper. `CLAUDE.md` §5 is exactly this — the guard asserted a number it
+had computed from the wrong constant.
+
+Consequence carried into the package: correcting it left 25.6px for the mark and
+the gap inside a 140px nav budget, so the mark is exactly one cap high and the
+gap is one word space. The brief prose's "gap of half the mark's width" cannot
+hold alongside the 140px budget at this wordmark width; the critic flagged the
+sentence as David's to amend.
+
+### 12.4 §6.1's `font-stretch` problem does not reach the lockup ✅ closed
+
+§6.1 rules that the phone gets Archivo **Narrow** because React Native cannot
+drive a `wdth` axis, and that its metrics are its own and will not match web.
+That constraint does not apply here: **the package's type is outlined to paths**,
+so the lockup is geometry rather than text and `react-native-svg` (15.15.4, already
+a mobile dependency) renders the identical drawing on both platforms with no font
+loaded at all. The mark and the wordmark stay glyph-for-glyph identical across
+web and phone even while body and display type diverge.
+
+Outlining is also the previous package's own unmet instruction — its README asks
+for it at export time, and every SVG it shipped still declares
+`font-family="Newsreader, Georgia, serif"`.
+
+### 12.5 Two silent-failure fixes Design should carry into the system ✅
+
+- **The mono favicon was invisible on light.** `favicon-mono.svg` draws the plate
+  in `currentColor` and the W in a hardcoded `#16140F`; on a light ground both are
+  dark and the tab shows a featureless blob. Reproduced in the loop's baseline
+  capture. The new mark has no second colour to get wrong, and both PNG polarities
+  ship because a raster favicon cannot follow `currentColor`.
+- **An Android adaptive foreground cannot use the icon's 66% plate.** The outer
+  third is maskable and the mask may be a circle, so a square plate must fit the
+  inscribed square: 0.667 / √2 = **47%** of the canvas. At 66% the corners clip
+  under a round launcher, silently. Verified against circular and squircle masks.
+
+### 12.6 ⚠ The letter is cut by fill rule, not by a mask — and that is silent
+
+`MARK_PATH` is the plate and the W in **one path**; `fill-rule="evenodd"` turns
+the second contour into a hole. A `<mask>` was the obvious way to write it and
+is the wrong one three times over: masks need document-global ids that collide
+when two copies are inlined; Satori (which renders `app/opengraph-image.tsx`)
+supports `<path>` and little else, and **fails by answering 200 with a zero-byte
+body**; and one element means web and `react-native-svg` draw identical markup.
+
+The trade is the reason this is in the drift register rather than only in a
+docblock: **drop the fill rule and nothing breaks visibly.** The W fills in the
+plate's own colour and the mark reads as a slightly heavier logo. `CLAUDE.md`
+§6's defect class exactly, so `brand.test.ts` asserts it on all eight package
+drawings and all three components.
+
+### 12.7 What the redraw closed, and what it removed
+
+Not deviations — drift being *closed*, listed so Design can see the whole pass:
+
+- **`app/favicon.ico` and `app/apple-icon.png` were two logos out of date.**
+  `app/layout.tsx` documented the gap: they were still the **Sweep dial**,
+  because regenerating them needed a rasteriser with Newsreader loaded and
+  nothing on this machine had one. Outlining removes the dependency rather than
+  satisfying it — every size now rasterises from geometry.
+- **The share card had lost its typeface.** `opengraph-image.tsx` set the name
+  in Satori's default face, because loading a webfont means a network fetch
+  inside `next build` and that build is the promote gate for the App Store's
+  hostname. An outlined path is the one thing Satori does support, so the card
+  now carries the real wordmark with no font and no fetch.
+- **`Newsreader_500Medium` left the mobile bundle.** It was added 30 Aug for the
+  engraved plate name and nothing else ever used it.
+- **`BrandWordmark` stopped being a second assembly.** It existed because the
+  old mark was a wide plate with the name inside it, which could not shrink into
+  a bar. The lockup is a mark beside a free wordmark now, so the nav treatment
+  *is* the short lockup.
+- **`RIVETS`, `BRAND_TYPE` and the four-drawing reduction ladder are gone** from
+  core, along with `PLATE.favicon` — the second plate path that existed because
+  the icon's proportions closed up at 24px.
+
+### 12.8 Recorded deviations from the critic's brief
+
+- The brief names `#1A1A1A` and `#F2F1EC`, sampled off the north-star board. The
+  package uses the shipped tokens `#1A1815` (`--surface-1`) and `#F5F3F0`
+  (`--foreground`) — the same colours to within a rounding error, and
+  `CLAUDE.md` says a rebrand moves no palette values.
+- The critic's score fell 9 → 8 between the last two rounds while the checklist
+  stayed nine-of-nine met and it stated plainly that nothing had regressed. Its
+  own rule forbids that. Noted rather than smoothed over: the 9 was awarded on
+  the wrong cap constant, so the 8 is the one measured against a lockup that
+  actually meets B6.
+- The brief prose says the lockup's gap is "half the mark's width". It is one
+  word space, and it cannot be half the mark: the 140px nav budget and the 20px
+  cap floor are both checklist lines and the gap is not, so the gap gave way.
+  The critic flagged the sentence as **David's to amend** — the brief is locked
+  and the implementer does not edit it. `docs/brand-package-v2/BRIEF.md` is the
+  frozen copy.
+- **`CLEAR_SPACE` changed meaning.** It was 48 grid units on a 280-unit lockup;
+  it is now one mark height, stated against `LOCKUP.mark` so it survives a grid
+  change instead of needing re-derivation.

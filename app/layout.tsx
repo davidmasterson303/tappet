@@ -63,13 +63,23 @@ export const metadata: Metadata = {
      are app/favicon.ico, app/icon.svg and app/apple-icon.png, served by the
      same filename convention as opengraph-image.tsx below.
 
-     ⚠ **They are no longer generated together, and that is a known gap.**
-     `app/icon.svg` carries the Well Kept plate as of 1 Sep; `favicon.ico`,
-     `apple-icon.png` and the manifest's two PNGs are still the Sweep dial,
-     because regenerating them needs a rasteriser with Newsreader loaded — the
-     outlining step Design's package README describes, which is an export task
-     rather than a code one. A browser showing the plate in its tab and the dial
-     on a pinned shortcut is the visible symptom until that runs.
+     ✅ **They are generated together again as of 7 Sep.** This block used to
+     record a gap: `icon.svg` carried the Well Kept plate while `favicon.ico`,
+     `apple-icon.png` and the manifest's two PNGs were still the *Sweep dial* —
+     two logos ago — because regenerating them needed a rasteriser with
+     Newsreader loaded, and nothing on this machine had one.
+
+     The identity redraw removes the dependency rather than satisfying it: the
+     package's type is outlined to paths, so `docs/brand-package-v2/build.py`
+     rasterises every size from geometry with no font involved. All four come
+     out of one run.
+
+     ⚠ `icon.svg` is the one a modern browser takes, and it swaps polarity
+     itself through a `prefers-color-scheme` media query inside the file — which
+     no raster can do. `favicon.ico` is the fallback and carries its own tile,
+     because a transparent raster favicon has to pick a polarity and one
+     polarity is always wrong: the tab simply looks empty, and nothing reports
+     it.
   */
   manifest: '/manifest.json',
   /*
