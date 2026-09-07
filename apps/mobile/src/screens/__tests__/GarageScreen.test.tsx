@@ -416,6 +416,20 @@ describe('the bay’s hierarchy', () => {
     const chip = await view.findByText('1 open recall');
 
     /*
+      ⚠ Wait for the dial to *land* before snapshotting the tree.
+
+      B3 makes the numeral count up over 600ms, so `toJSON()` taken mid-sweep
+      contains "43" or "68" — never "70" — and the `findIndex` below returns -1.
+      That is the whole of a flake that failed roughly one run in four all
+      session and, on 7 Sep, blocked a web promote: the script runs this suite
+      because `packages/core` is shared, and a 1-in-4 test is a 1-in-4 deploy.
+
+      The assertion is about *order*, not about timing, so waiting is the fix
+      rather than loosening what it checks.
+    */
+    await view.findByText('70');
+
+    /*
       Order in the rendered tree, which is what a sighted reader scans and what
       a screen reader walks. Asserted as *position* rather than as a style: the
       finding was hierarchy, and a chip that merely got bigger under the dial
