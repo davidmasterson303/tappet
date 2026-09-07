@@ -23,9 +23,17 @@ export const PLATE_GRID = 66;
 export const PLATE_CHAMFER = 10;
 export const PLATE_PATH = 'M10 0 H56 L66 10 V56 L56 66 H10 L0 56 V10 Z';
 
-/** The letter, outlined and already positioned on the plate grid. */
+/**
+ * The letter, **drawn** and already positioned on the plate grid.
+ *
+ * ⚠ Not outlined from Archivo like the wordmark below — this one shape is
+ * bespoke. A flat-faced tappet in profile is already a T, and the plate device
+ * was built around a W it cannot otherwise fill: Archivo's T advances 29.38
+ * against the W's 45.09 on a 66-unit plate, and no cap height closes that
+ * without going off the plate. See `build.py`'s `tappet_path`.
+ */
 export const LETTER_PATH =
-  'M28.15 55V19.366H19.215V10.901H46.762V19.366H37.926V55Z';
+  'M10.455 11 H55.545 V22.5 H46.5 A6 6 0 0 0 40.5 28.5 V55 H25.5 V28.5 A6 6 0 0 0 19.5 22.5 H10.455 Z';
 
 /**
  * The mark as one path: the plate, then the letter, knocked out by fill rule.

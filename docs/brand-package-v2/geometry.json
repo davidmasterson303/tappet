@@ -19,8 +19,8 @@
     "chamfer": 10.0,
     "chamferShare": 0.15151515151515152,
     "letterCap": 44.0,
-    "letterAdvance": 29.376,
-    "sideMargin": 18.312,
+    "letterAdvance": 45.09,
+    "sideMargin": 10.455,
     "capMargin": 11.0
   },
   "lockup": {

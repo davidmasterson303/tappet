@@ -2,6 +2,6 @@
   <title>Tappet — app icon</title>
   <g transform="translate(26.5000 26.5000) scale(0.71212)">
   <path fill-rule="evenodd" fill="#F5F3F0"
-    d="M10 0 H56 L66 10 V56 L56 66 H10 L0 56 V10 Z M28.15 55V19.366H19.215V10.901H46.762V19.366H37.926V55Z"/>
+    d="M10 0 H56 L66 10 V56 L56 66 H10 L0 56 V10 Z M10.455 11 H55.545 V22.5 H46.5 A6 6 0 0 0 40.5 28.5 V55 H25.5 V28.5 A6 6 0 0 0 19.5 22.5 H10.455 Z"/>
   </g>
 </svg>

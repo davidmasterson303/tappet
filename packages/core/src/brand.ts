@@ -8,6 +8,19 @@
  * single **T cut clean through it**, so whatever sits behind the plate shows in
  * the letter.
  *
+ * ⚠ **That T is drawn, not typeset, and it is also a tappet.** A flat-faced
+ * mushroom tappet in profile — wide flat crown where the cam lobe strikes, on a
+ * narrower cylindrical body — is already a T, so the letter and the part the
+ * product is named after are one silhouette. The machined fillet between crown
+ * and body is what separates it from a letterform.
+ *
+ * It is drawn because the plate was designed around a **W**, and a T cannot
+ * fill it: Archivo's T advances 29.38 units against the W's 45.09 on a 66-unit
+ * plate, and matching that by scaling would need a cap height larger than the
+ * plate. The drawn tappet fills 68.3% — the W's optical box exactly. Full
+ * derivation on `LETTER_PATH` in `./brand-geometry.ts`; the trade against the
+ * brief's B1 is recorded in `docs/brand-package-v2/BRIEF.md`.
+ *
  * ⚠ **`MARK_PATH` must be drawn with `fill-rule="evenodd"`, and only that.**
  * The plate and the letter are one path; the fill rule is what turns the second
  * contour into a hole. Drop it — or split the path back into two elements — and

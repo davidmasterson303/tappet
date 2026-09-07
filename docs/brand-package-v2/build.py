@@ -108,6 +108,67 @@ def string_path(font, font_bytes, text, size, tracking=0.0, x0=0.0, y0=0.0):
     return ' '.join(out), x - x0 - (tracking if run else 0.0)
 
 
+# ── the letter, drawn rather than typeset ──────────────────────────────────
+"""7 Sep 2026 — why this one shape is not set in Archivo like the wordmark is.
+
+A **flat-faced (mushroom) tappet in profile is already a T**: a wide flat crown,
+which is the face the cam lobe strikes, sitting on a narrower cylindrical body.
+The letter and the machine part are one silhouette, so the mark says the
+product's name and names the object in the same outline.
+
+⚠ It is also the only thing that fixes the proportion. The plate device was
+built around **W**, about the widest, densest capital there is: at cap 44 on the
+66-unit plate its advance is 45.09, leaving 10.46 each side. Archivo's **T**
+advances 29.38 — 18.31 each side — so a straight glyph swap leaves a letter
+sitting *in* the plate instead of filling it. And it cannot be fixed by scaling:
+matching the W's width needs cap ≈ 72 on a 66-unit plate, which is off the
+plate. A T is empty precisely where a W is dense — at the ends of the bar and
+either side of the stem — and a tappet's crown and fillet put mass exactly
+there.
+
+⚠ Measured, because the critique overstated the problem in the other direction:
+the typeset T did **not** fail at small sizes. Its 16px favicon rendered a clean
+2px stem with 5.9% antialiased pixels. This one renders a **4px body**, so it is
+more robust at 16px, not less — the 10.2% antialiasing is the fillet arc, which
+is the detail doing the work.
+
+⚠ **The fillet is the whole tell.** A square armpit reads as a letterform; a
+radius there reads as a turned steel part. It is a true circular arc tangent to
+both the crown underside and the body side, so it is one `A` command and it
+scales exactly. Sweep flag 0 — flag 1 bulges the wrong way and reads lumpy.
+
+⚠ This departs from the brief's B1 (the mark's letter was to be set in the same
+condensed grotesk as the wordmark) and from the one-drawing rule. David directed
+the change on 7 Sep with both consequences stated; see BRIEF.md.
+"""
+
+LETTER_W = 45.09   # crown width — the W's optical box, deliberately
+CROWN = 11.5       # crown thickness
+BODY = 15.0        # cylindrical body width
+FILLET = 6.0       # crown-to-body radius; the machined transition
+
+
+def tappet_path():
+    """The tappet-T as one closed contour, centred on the plate grid.
+
+    Returns `(advance, d)` so it drops into the same two names the typeset
+    letter used, and `geometry.json` keeps reporting a real measured advance
+    rather than a constant somebody typed.
+    """
+    xl, xr = (S - LETTER_W) / 2, (S + LETTER_W) / 2
+    yt, yb = (S - LETTER_CAP) / 2, (S + LETTER_CAP) / 2
+    ybar = yt + CROWN
+    bxl, bxr = (S - BODY) / 2, (S + BODY) / 2
+    d = (
+        f'M{_n(xl)} {_n(yt)} H{_n(xr)} V{_n(ybar)} H{_n(bxr + FILLET)} '
+        f'A{_n(FILLET)} {_n(FILLET)} 0 0 0 {_n(bxr)} {_n(ybar + FILLET)} '
+        f'V{_n(yb)} H{_n(bxl)} V{_n(ybar + FILLET)} '
+        f'A{_n(FILLET)} {_n(FILLET)} 0 0 0 {_n(bxl - FILLET)} {_n(ybar)} '
+        f'H{_n(xl)} Z'
+    )
+    return LETTER_W, d
+
+
 def svg(vb_w, vb_h, body, title, w=None, h=None, extra=''):
     dims = f' width="{w}" height="{h}"' if w else ''
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {vb_w:g} {vb_h:g}"{dims}'
@@ -128,12 +189,11 @@ def main():
     cap_a = arch['OS/2'].sCapHeight / arch['head'].unitsPerEm
     cap_m = mono['OS/2'].sCapHeight / mono['head'].unitsPerEm
 
-    # ── the mark: plate with the W cut clean through it ────────────────────
+    # ── the mark: plate with the tappet cut clean through it ───────────────
     # Not a filled letter — a hole, so the ground behind genuinely shows in the
-    # W. That is what makes one drawing serve both polarities and a photograph.
-    wsize = LETTER_CAP / cap_a
-    _, wadv = string_path(arch, arch_b, LETTER, wsize)
-    wd, _ = string_path(arch, arch_b, LETTER, wsize, 0.0, (S - wadv) / 2, S / 2 + LETTER_CAP / 2)
+    # letter. That is what makes one drawing serve both polarities and a
+    # photograph.
+    wadv, wd = tappet_path()
     def mark_body(fill, mid, indent='  '):
         """The plate and the letter as **one path**, knocked out by fill rule.
 
@@ -375,7 +435,15 @@ export const PLATE_GRID = {p['grid']:g};
 export const PLATE_CHAMFER = {p['chamfer']:g};
 export const PLATE_PATH = '{PLATE}';
 
-/** The letter, outlined and already positioned on the plate grid. */
+/**
+ * The letter, **drawn** and already positioned on the plate grid.
+ *
+ * ⚠ Not outlined from Archivo like the wordmark below — this one shape is
+ * bespoke. A flat-faced tappet in profile is already a T, and the plate device
+ * was built around a W it cannot otherwise fill: Archivo's T advances 29.38
+ * against the W's 45.09 on a 66-unit plate, and no cap height closes that
+ * without going off the plate. See `build.py`'s `tappet_path`.
+ */
 export const LETTER_PATH =
   '{plate_letter_d}';
 
