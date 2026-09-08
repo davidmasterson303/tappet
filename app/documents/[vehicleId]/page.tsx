@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import VehicleInsights from '@/components/VehicleInsights';
 import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { formatDate } from '@tappet/core/formatting-utils';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -137,6 +139,37 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
     },
   });
 
+  /*
+    ── ⚠ 8 Sep · the schedule moved here, beside the record it is computed from ──
+
+    `Service due` and `Service history` were separate destinations — this page,
+    and a tab inside a collapsible on the dashboard three clicks away. The phone
+    made this move first and `ServiceScreen.tsx` carries the argument: they are
+    *"the same subject seen from two ends: what this car has had done, and what
+    it needs next — and the second is computed **from** the first"*, so an owner
+    comparing them was navigating between two screens to hold one thought.
+
+    ⚠ It also frees the word. This tab was labelled "Maintenance" while
+    rendering a heading that says "Service history", and the actual maintenance
+    schedule — the reason invoices are read at all — had no name in the
+    navigation.
+  */
+  const [segment, setSegment] = useState<'due' | 'history'>('due');
+
+  const { data: knowledge } = useQuery({
+    queryKey: ['knowledge', params.vehicleId],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const supabase = getClientSupabase();
+      const { data } = await supabase
+        .from('vehicle_knowledge_base')
+        .select('*')
+        .eq('vehicle_id', params.vehicleId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: visits, isLoading: loadingHistory } = useQuery({
     queryKey: ['maintenance-line-items', params.vehicleId],
     staleTime: 60 * 1000,
@@ -217,6 +250,39 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
       contentSurface="bare"
     >
       <div className="space-y-6">
+        {/*
+          ⚠ Due first. The page is opened far more often to ask "what does this
+          car need" than to re-read an invoice already filed, and the phone
+          opens on the same segment for the same reason.
+        */}
+        <div role="tablist" aria-label="Service" className="inline-flex rounded-xl border border-white/8 bg-white/4 p-0.5">
+          {(['due', 'history'] as const).map((value) => {
+            const on = segment === value;
+            return (
+              <button
+                key={value}
+                role="tab"
+                type="button"
+                aria-selected={on}
+                onClick={() => setSegment(value)}
+                className={`label-uppercase min-h-[44px] rounded-lg px-5 transition-colors ${
+                  on ? 'bg-slate-800 text-white' : 'text-white/50 hover:text-white/80'
+                }`}
+              >
+                {value === 'due' ? 'Due' : 'History'}
+              </button>
+            );
+          })}
+        </div>
+
+        {segment === 'due' ? (
+          vehicle && knowledge ? (
+            <VehicleInsights vehicle={vehicle} knowledge={knowledge} section="maintenance" />
+          ) : (
+            <p className="text-sm text-white/60 py-8">No maintenance schedule available yet.</p>
+          )
+        ) : (
+        <>
         {/*
           ⚠ Stacks on a phone. Side by side, the button squeezed the heading
           into "Service / History" over two lines at 390px — a two-word title
@@ -503,6 +569,8 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </DashboardLayout>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import VehicleInsights from '@/components/VehicleInsights';
 import { Button } from '@/components/ui/button';
 import SpecBand from '@/components/SpecBand';
 import { Loader as Loader2, RefreshCw } from 'lucide-react';
@@ -423,6 +424,32 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
             />
           </>
         )}
+
+        {/*
+          ── ⚠ 8 Sep · known issues came here, and this is why here ───────────
+
+          They were a tab inside a card called "The Dossier", inside a
+          collapsible, at the foot of the dashboard. An IA review of the
+          rendered page found the product's most expensive capability —
+          research into what goes wrong on *this* year, make and model —
+          wearing a disguise: the dashboard mentioned "Four tracked known
+          issues" in one line of prose and offered no way to read them.
+
+          This page already carries everything else the research produced —
+          the specification, the fluids, "Worth knowing" — from the same
+          `vehicle_knowledge_base` row. Known issues were the one output of
+          that research filed somewhere else, so a reader who wanted to know
+          what this model does wrong had to leave the page about this model.
+
+          ⚠ Above "Worth knowing" deliberately. Trivia should not outrank a
+          list of failures the owner can act on, and each issue here carries
+          its own path into the needs list on the Plan tab.
+        */}
+        {knowledge ? (
+          <SpecBand title="Known issues">
+            <VehicleInsights vehicle={data.vehicle} knowledge={knowledge} section="issues" />
+          </SpecBand>
+        ) : null}
 
         <SpecBand title="Worth knowing">
           <>
