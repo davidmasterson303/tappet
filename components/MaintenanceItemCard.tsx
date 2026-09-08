@@ -86,6 +86,12 @@ interface MaintenanceItemCardProps {
   anchor?: string | null;
   /** Drives the emphasis. Null when the row could not be evaluated. */
   status?: 'overdue' | 'due' | 'soon' | 'later' | 'unknown' | null;
+  /**
+   * Where the anchor came from — "From your service records". Null when there
+   * was nothing to count from, in which case `anchor` already says so and a
+   * second line about absent evidence would be the same sentence twice.
+   */
+  basis?: string | null;
   vehicleId: string;
   isInWishlist: boolean;
   onAddToHistory: (itemName: string) => void;
@@ -97,6 +103,7 @@ export default function MaintenanceItemCard({
   item,
   anchor = null,
   status = null,
+  basis = null,
   vehicleId,
   isInWishlist,
   onAddToHistory,
@@ -148,6 +155,7 @@ export default function MaintenanceItemCard({
           {intervalLabel(item) ? (
             <p className="text-sm text-white/55 mt-1">{intervalLabel(item)}</p>
           ) : null}
+          {basis ? <p className="text-xs text-white/50 mt-1">{basis}</p> : null}
           {item.description ? (
             <p className="text-sm text-white/55 mt-1.5 leading-normal">{item.description}</p>
           ) : null}

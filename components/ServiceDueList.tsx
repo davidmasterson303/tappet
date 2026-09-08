@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { evaluateSchedule, type ScheduleEntry, type ServiceDue } from '@tappet/core/service-due';
 import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
-import { SCHEDULE_BASIS_LABELS } from '@tappet/core/service-provenance';
+import { SCHEDULE_BASIS_LABELS, SERVICE_BASIS_LABELS, serviceBasis } from '@tappet/core/service-provenance';
 import MaintenanceItemCard from '@/components/MaintenanceItemCard';
 
 /**
@@ -154,6 +154,45 @@ export default function ServiceDueList({
           key={entry.service}
           item={{ ...entry, priority: entry.priority }}
           anchor={d ? anchorLine(d) : null}
+          /*
+            ⚠ Where the anchor came from, per row, derived rather than asserted.
+
+            A critique of the rebuilt page said the product's most valuable
+            capability — that it reads your invoices and anchors intervals to
+            them — was invisible from every screen. It was overstated (the hero
+            says "Read 9 service records"), but it was right about this page:
+            the one surface computing against those records said nothing about
+            them.
+
+            ⚠ Per row, not per page, because the evidence genuinely differs
+            between rows. `evaluateSchedule` returns `records` for a service
+            found in an extracted invoice and `owner-reported` for one the owner
+            recalled at sign-up, and `service-provenance.ts` argues at length
+            why those must not share a sentence: a line item is a document, an
+            onboarding answer is a recollection. A page-level claim would take
+            the stronger of the two and apply it to both.
+          */
+          basis={
+            /*
+              ⚠ Rendered for every row with a computed position, not only those
+              with records — `serviceBasis(null)` is "Estimated from your
+              mileage", and that is the answer a reader most needs.
+
+              A row saying "About 2,700 miles to go" with nothing under it reads
+              as measured. It is not: with no record to count from,
+              `evaluateSchedule` counts from the odometer and the interval
+              alone. Naming the three sources apart is `service-provenance.ts`'s
+              whole argument — an invoice line is a document, an onboarding
+              answer is a recollection, an estimate is neither.
+
+              Suppressed only when the status is `unknown`, where the anchor
+              line already says there was nothing to count from and a basis
+              line would be the same sentence twice.
+            */
+            d && d.status !== 'unknown'
+              ? SERVICE_BASIS_LABELS[serviceBasis(d.evidence)]
+              : null
+          }
           status={d?.status ?? null}
           vehicleId={vehicleId}
           isInWishlist={savedItemNames.has(entry.service)}
