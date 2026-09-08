@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import VehicleInsights from '@/components/VehicleInsights';
+import ServiceDueList from '@/components/ServiceDueList';
+import { useWishlistData } from '@/hooks/useWishlistData';
+import { useQueryClient as useQC } from '@tanstack/react-query';
 import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { formatDate } from '@tappet/core/formatting-utils';
 import { useState } from 'react';
@@ -117,6 +119,7 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 export default function DocumentsPage({ params }: { params: { vehicleId: string } }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const qc = useQC();
 
   const cachedData = queryClient.getQueryData<any>(['dashboard', params.vehicleId]);
   const cachedVehicle = cachedData?.vehicle ?? (cachedData?.id ? cachedData : undefined);
@@ -155,6 +158,31 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
     navigation.
   */
   const [segment, setSegment] = useState<'due' | 'history'>('due');
+
+  /*
+    ⚠ Raw line items, not the grouped visits below. `evaluateSchedule` anchors
+    an interval against the odometer reading a service was done at, and the
+    visits query does not select `mileage_at_service` — it groups rows for the
+    History segment, which does not need it. Two questions, two shapes.
+  */
+  const { data: historyRows } = useQuery({
+    queryKey: ['service-rows', params.vehicleId],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const supabase = getClientSupabase();
+      const { data, error } = await supabase
+        .from('maintenance_line_items')
+        .select('item_description, service_date, mileage_at_service, source')
+        .eq('vehicle_id', params.vehicleId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: wishlistItems } = useWishlistData(params.vehicleId);
+  const savedItemNames = new Set<string>(
+    (wishlistItems ?? []).map((item: any) => item.item_name as string)
+  );
 
   const { data: knowledge } = useQuery({
     queryKey: ['knowledge', params.vehicleId],
@@ -240,6 +268,14 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
   return (
     <DashboardLayout
       vehicle={vehicle}
+      /*
+        ⚠ The header renders RELIABILITY only when it is handed `knowledge`, so
+        omitting it here made this the one tab whose stats strip was a column
+        short — MILEAGE and AVG on Service, MILEAGE, AVG and RELIABILITY
+        everywhere else. A header that changes shape between tabs reads as a
+        loading state rather than a difference in the data.
+      */
+      knowledge={knowledge}
       currentPage="maintenance"
       vehicleImage={vehicleImage}
       /*
@@ -276,11 +312,18 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
         </div>
 
         {segment === 'due' ? (
-          vehicle && knowledge ? (
-            <VehicleInsights vehicle={vehicle} knowledge={knowledge} section="maintenance" />
-          ) : (
-            <p className="text-sm text-white/60 py-8">No maintenance schedule available yet.</p>
-          )
+          <ServiceDueList
+            schedule={(knowledge?.maintenance_schedule ?? []) as never[]}
+            historyRows={(historyRows ?? []) as never[]}
+            currentMileage={vehicle?.current_mileage ?? null}
+            vehicleId={params.vehicleId}
+            savedItemNames={savedItemNames}
+            loading={false}
+            onAddToHistory={() => {}}
+            onWishlistToggleComplete={async () => {
+              await qc.invalidateQueries({ queryKey: ['wishlist', params.vehicleId] });
+            }}
+          />
         ) : (
         <>
         {/*

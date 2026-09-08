@@ -2,7 +2,27 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Heart, Loader as Loader2 } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
-import type { MaintenanceScheduleItem } from '@tappet/core/types';
+/**
+ * What this card needs from a schedule row.
+ *
+ * ⚠ Structural rather than `MaintenanceScheduleItem`, because core holds two
+ * types for these rows and they disagree: `MaintenanceScheduleItem` requires
+ * `interval_miles: number`, while `ScheduleEntry` — the one `evaluateSchedule`
+ * consumes — makes it optional and nullable. `ScheduleEntry` is the honest one:
+ * `vehicle-utils.ts` records that a brake fluid flush genuinely has no mileage
+ * interval, and the stored rows carry `interval_months: null` routinely.
+ *
+ * Reconciling the two core types is worth doing and is not this change; a card
+ * that accepts what both produce is, and it stops the stricter one forcing a
+ * cast at the call site.
+ */
+export interface ScheduleRow {
+  service: string;
+  interval_miles?: number | null;
+  interval_months?: number | null;
+  description?: string;
+  priority?: string;
+}
 
 /**
  * "Every 5,000 mi or 6 months", from whichever halves are present.
@@ -13,7 +33,7 @@ import type { MaintenanceScheduleItem } from '@tappet/core/types';
  * "Every 0 mi" or a bare "Interval:" is a reading the data does not support.
  * §6: a missing figure is "we cannot say", never a number.
  */
-function intervalLabel(item: MaintenanceScheduleItem): string | null {
+function intervalLabel(item: ScheduleRow): string | null {
   const miles = typeof item.interval_miles === 'number' && item.interval_miles > 0
     ? `${item.interval_miles.toLocaleString()} mi`
     : null;
@@ -57,7 +77,15 @@ function intervalLabel(item: MaintenanceScheduleItem): string | null {
  * to check, and no test rendered this card.
  */
 interface MaintenanceItemCardProps {
-  item: MaintenanceScheduleItem & { priority?: string };
+  item: ScheduleRow;
+  /**
+   * Where this car stands against the interval — "Overdue by about 15,000
+   * miles". Null when nothing can be computed, which is a real state: no
+   * odometer, or no record of this service to count from.
+   */
+  anchor?: string | null;
+  /** Drives the emphasis. Null when the row could not be evaluated. */
+  status?: 'overdue' | 'due' | 'soon' | 'later' | 'unknown' | null;
   vehicleId: string;
   isInWishlist: boolean;
   onAddToHistory: (itemName: string) => void;
@@ -67,6 +95,8 @@ interface MaintenanceItemCardProps {
 
 export default function MaintenanceItemCard({
   item,
+  anchor = null,
+  status = null,
   vehicleId,
   isInWishlist,
   onAddToHistory,
@@ -99,9 +129,24 @@ export default function MaintenanceItemCard({
       <div className="flex items-start justify-between mb-3">
         <div className="min-w-0">
           <h4 className="font-semibold text-white">{item.service}</h4>
+          {/*
+            ⚠ The anchor first, the interval second. "Overdue by about 15,000
+            miles" is the answer this page exists to give; "Every 30,000 mi" is
+            the rule it was computed from. They were the other way round — in
+            fact the anchor was absent entirely — until 8 Sep.
+          */}
+          {anchor ? (
+            <p
+              className={`text-sm mt-1 ${
+                status === 'overdue' || status === 'due' ? 'text-orange-300' : 'text-white/70'
+              }`}
+            >
+              {anchor}
+            </p>
+          ) : null}
           {/* Absent when the row carries no interval at all — see `intervalLabel`. */}
           {intervalLabel(item) ? (
-            <p className="text-sm text-white/60 mt-1">{intervalLabel(item)}</p>
+            <p className="text-sm text-white/55 mt-1">{intervalLabel(item)}</p>
           ) : null}
           {item.description ? (
             <p className="text-sm text-white/55 mt-1.5 leading-normal">{item.description}</p>
