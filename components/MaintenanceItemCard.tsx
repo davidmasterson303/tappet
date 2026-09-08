@@ -147,7 +147,7 @@ export default function MaintenanceItemCard({
           ) : (
             <>
               <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
-              {isSaved ? 'Remove from Wishlist' : 'Add to Wishlist'}
+              {isSaved ? 'Remove from Needs' : 'Add to Needs'}
             </>
           )}
         </Button>
