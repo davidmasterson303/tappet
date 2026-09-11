@@ -1252,7 +1252,7 @@ Brief B8 asks for four tab roots with their own stacks and no back chevron.
 navigation rebuild rather than a styling change and is the one checklist line
 that is not a design edit.
 
-### 6.7 Two brief lines collide with shipped guards — **blocked, needs a ruling**
+### 6.7 Two brief lines collide with shipped guards — **superseded the same day, see the note at the end of this section**
 
 Attempted on 6 Sep, reverted the same session. Both are real conflicts between
 the locked iOS brief and decisions this codebase already enforces in tests, and
@@ -1288,6 +1288,27 @@ design port.
 
 Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
 square, not capsule) and their existing ink.
+
+> **⚠ Superseded, 6 Sep, by the session that wrote it — found 11 Sep.** Both
+> halves were resolved later the same day in `c509f35` and this section was
+> never updated, so for five days it said the opposite of the code (CLAUDE.md
+> §1). What is true:
+>
+> - **(a) is done, not blocked.** `primitives.test.tsx › Button — one filled
+>   treatment › wears the off-white fill, and still never pure white` now asserts
+>   the reversal by name: the fill is `text.primary` used as a ground, the ink is
+>   `surface.page`, `#FFFFFF` and the retired `inverse` tokens stay banned. The
+>   guard's own comment records why the 23 Aug decision moved. Design's blessing
+>   is still wanted; the code did not wait for it.
+> - **(b) is done, not blocked.** `Button.tsx` draws the fill in a `CutSurface`
+>   that **wraps** the label rather than sitting behind it, because
+>   `test-support/contrast.ts` composites down the ancestor chain — an
+>   absolutely-positioned sibling is invisible to it and every label measured at
+>   1.00:1 against the page. The audit was not taught anything; the tree was
+>   shaped so the ground is where the walk looks. `ghost` gets the same wrapper
+>   and paints nothing with it, so every variant has the same ancestor path.
+>
+> Nothing here needs a ruling any more. It needs Design to read (a).
 
 ### 6.8 ✅ §6.6 closed — the tab navigation is rebuilt, 11 Sep
 
