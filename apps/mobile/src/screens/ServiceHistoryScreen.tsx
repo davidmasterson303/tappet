@@ -22,7 +22,6 @@ import {
   describeRemoval,
   formatRecordDate,
   groupIntoVisits,
-  isRecollection,
   recordSourceLabel,
   totalRecorded,
   type ServiceRecord,
@@ -608,15 +607,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 it is attached to.
               */}
               <View style={styles.foot}>
-                <Text
-                  style={[
-                    styles.provenance,
-                    visit.records.some((record) => isRecollection(record.source)) &&
-                      styles.recollection,
-                  ]}
-                >
-                  {visitProvenance(visit)}
-                </Text>
+                <Text style={styles.provenance}>{visitProvenance(visit)}</Text>
               </View>
             </Card>
           ))}
@@ -819,26 +810,18 @@ const styles = StyleSheet.create({
   /* R9. Quiet. The destructive colour appears only in the confirm `remove` raises. */
   removeText: { ...type.label, letterSpacing: 0, color: text.muted },
   /*
-    ── ⚠ 7 Sep · B7: the sodium moves from the ink to a rule ─────────────────
+    ── ⚠ 11 Sep · B7: the recollection carries no sodium at all ──────────────
 
-    The note here argued the tint carries meaning rather than decoration, and it
-    is right: *"the label already says 'what you told us at sign-up'; the colour
-    is what survives someone skimming, and skimming is what a list invites."*
-    A recollection is not a scanned document and §10 does not let the list
-    pretend otherwise.
-
-    B7 spends sodium as a **line**, though, not as ink. The critique proposed the
-    resolution rather than the removal — "a sodium hairline on the band's left
-    edge with the text staying grey" — which keeps exactly what the note was
-    protecting. A rule down the edge of a row survives skimming better than a
-    tint on a caption does, because it reads at the width of the row rather than
-    the width of a word.
+    This row's provenance was tinted sodium on 6 Sep and given a sodium rule
+    down its edge on 7 Sep, each time on the argument that the colour "is what
+    survives someone skimming". The next critique, reading the screen cold,
+    called the rule what it is under the locked brief: *"the sodium bar spends
+    the warning hue on provenance"*. B7 is unambiguous — sodium only on genuine
+    warnings — and a recollection is not a warning, it is a source. Web sets
+    the same caption in quiet grey with nothing beside it, so the phone now
+    does too; the words still say "what you told us at sign-up", and §10 is
+    satisfied by the words. Sodium on the service record now means one thing.
   */
-  recollection: {
-    borderLeftWidth: 2,
-    borderLeftColor: status.attention,
-    paddingLeft: space.sm,
-  },
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },

@@ -211,7 +211,11 @@ describe('recalls', () => {
     respond({ nhtsa_data: { recalls: [{ NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM' }] } });
     const { view } = await mount();
 
-    expect(await view.findByLabelText(/View 1 open recall$/)).toBeTruthy();
+    /*
+      The label now carries the worst recall after a full stop, so the anchor
+      is the sentence's end or that stop — either way "1 open recalls" fails.
+    */
+    expect(await view.findByLabelText(/^View 1 open recall(\.|$)/)).toBeTruthy();
   });
 
   it('opens the recall screen when tapped', async () => {
@@ -544,15 +548,24 @@ describe('the hero pullback', () => {
     expect(HERO_TITLE_FADE_SPAN).toBeLessThan(HERO_NAV_FADE_START);
   });
 
-  it('renders the empty-state fill and no image when there is no photo', async () => {
+  it('renders the house plate and no photograph when there is no photo', async () => {
     respond({ photo_url: null });
     const { view } = await mount();
 
     await view.findAllByText(/2018 Honda Accord/);
-    expect(hostNodes(view.root, 'Image')).toHaveLength(0);
-    // The radial is a designed state, not a gap — a garage carries
-    // unphotographed vehicles for weeks.
-    expect(hostNodes(view.root, 'RNSVGRadialGradient').length).toBeGreaterThan(0);
+    /*
+      ⚠ Re-pointed 11 Sep. This asserted no `Image` and a radial gradient: the
+      empty hero was a lit-room fill. B2 gives it the night plate now — an
+      `Image`, but a bundled one — so the claim is split into its two halves:
+      nothing is fetched (no `uri`), and the designed empty state is present.
+      A garage carries unphotographed vehicles for weeks; it is a state, not a
+      gap.
+    */
+    const sources = hostNodes(view.root, 'Image').map(
+      (props) => props.source as { uri?: string; testUri?: string } | undefined
+    );
+    expect(sources.filter((source) => source?.uri)).toHaveLength(0);
+    expect(sources.filter((source) => String(source?.testUri ?? '').includes('night-plate'))).toHaveLength(1);
   });
 
   it('gives the nav title the slack and reserves the chip its slot', async () => {

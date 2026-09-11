@@ -24,6 +24,7 @@ import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/ga
 import { componentPlainName, normaliseRecalls } from '@tappet/core/recalls';
 import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
+import RecallBand from '../components/RecallBand';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
@@ -1033,25 +1034,21 @@ export function VehicleDetailScreen({
         pump that can cut power"*, and it is right: a banner that describes
         itself is furniture, and a banner that names the defect is information.
       */}
+      {/*
+        ⚠ 6 Sep · B7: a *count* of open recalls is a state — it says there is
+        something to read, not that the car is unsafe to drive tonight — so it
+        never took the `critical` fill, and on 11 Sep it stopped taking the
+        `attention` frame as well. `RecallBand` is a hairline row with the
+        sodium triangle beside it: B5's band and B7's line, on the one screen
+        that still had a box. The `AlertBanner` tones stay for the states that
+        are alerts.
+      */}
       {openRecalls > 0 && (
-        <Pressable
+        <RecallBand
+          count={openRecalls}
+          worst={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
           onPress={onViewRecalls}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
-        >
-          {/*
-            ⚠ 6 Sep · B7: `attention`, not `critical`. A *count* of open recalls
-            is a state — it says there is something to read, not that the car is
-            unsafe to drive tonight. `critical` is now the only filled tone in
-            the app (see `AlertBanner`), and spending it here would flatten the
-            difference between "two recalls exist" and "do not drive this".
-          */}
-          <AlertBanner
-            tone="attention"
-            headline={`${openRecalls} open ${openRecalls === 1 ? 'recall' : 'recalls'}`}
-            body={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
-          />
-        </Pressable>
+        />
       )}
 
       {/*
