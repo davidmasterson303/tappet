@@ -16,13 +16,12 @@ export type DevGarageState = 'demo' | 'empty' | 'error' | 'loading';
  * rows never produce.
  */
 /**
- * The eyebrow names the session's email on the real page. There is no session
- * here, so a fixture address stands in — a reserved example domain, so it
- * cannot be mistaken for anyone's — and the view renders the shape a signed-in
- * user sees rather than the shape the page falls back to while a session is
- * still resolving.
+ * The eyebrow names the profile's display name on the real page. There is no
+ * session here, so the settings fixture's name stands in, and the view
+ * renders the shape a signed-in user sees rather than the shape the page
+ * falls back to while the profile read is still in flight.
  */
-const OWNER = 'ada@example.com';
+const OWNER = 'Ada';
 
 export default function DevGarage({ state }: { state: DevGarageState }) {
   const { data: vehicles = [], isLoading, error } = useDemoVehicles();

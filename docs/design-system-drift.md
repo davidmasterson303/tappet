@@ -1500,3 +1500,130 @@ Not deviations — drift being *closed*, listed so Design can see the whole pass
 - **`CLEAR_SPACE` changed meaning.** It was 48 grid units on a 280-unit lockup;
   it is now one mark height, stated against `LOCKUP.mark` so it survives a grid
   change instead of needing re-derivation.
+
+---
+
+## 13. The three signed-in pages join the system — 11 Sep 2026
+
+Raised by `design-loop/signed-in/` (gitignored). `/garage`, `/settings` and
+`/onboard` sit behind the middleware, so through two locked briefs and 27
+graded rounds no critic ever saw them. On 11 Sep the pages were split into a
+data wrapper and a view, `/dev/garage`, `/dev/settings` and `/dev/onboard`
+render the views with no session (`dev-surfaces-render-the-real-views`
+pins that they are the same components), and an independent critic wrote a
+brief in BRIEF mode against the frozen north-star, the two reference pages
+(`/` and `/check`) and the settled-system paragraph. Locked without review —
+David delegated the pass. Baseline **4/10**, blind-ranked 4th, 5th and 6th of
+six; closing **8/10**, nine of ten lines met, the garage blind-ranked **1st of
+six** above both references and the north-star board. Four commits, each
+carrying its critique score.
+
+Everything here is drift being *closed* — three pages that had stayed on the
+pre-4-Sep register while the components inside them moved. Three items are
+new and Design should rule on them.
+
+### 13.1 Two shared pieces the landing does not yet use ⚠ needs a ruling
+
+`components/PageOpener.tsx` (mono eyebrow, condensed uppercase headline at
+the 62% masthead width, one quiet line) and `components/FleetStrip.tsx` (the
+IN THE GARAGE / AVERAGE HEALTH / OPEN RECALLS strip) are `app/page.tsx`'s
+inline patterns extracted as components so the three signed-in pages cannot
+drift from each other. **The landing still carries its inline copies** — it
+is graded on its own loop and was outside this pass's lane — so the product
+now has one pattern spelled twice. Adopting the components on the landing is
+a mechanical change; the one behavioural difference is below.
+
+### 13.2 The strip prints an em dash where the landing omits the cell ⚠ needs a ruling
+
+The landing's strip *omits* AVERAGE HEALTH when nothing is scored and OPEN
+RECALLS when the count is zero. The signed-in strip prints **—** in both
+cases, with "not known" for a screen reader — the locked brief's words are
+"em dash where the data cannot say", and the dash is doing §10's job: a
+non-reading rendered as one. The refusal is identical (a zero recall count
+may mean the lookup never ran, and the garage query does not select
+`lookup_status`); only the typography differs. One of the two should win
+when 13.1 is taken up.
+
+### 13.3 `.field` has an `lg` step ✅ closed, with a note
+
+`input.tsx` said "there is no `lg` — nothing in the app asked for one, and an
+unused size is a decision nobody has made yet." The add-a-vehicle brief made
+the VIN field the largest element on its page: 64px tall, 24px type, in
+`.field-lg` beside the other two steps, with an override inside the
+coarse-pointer block so the 16px anti-zoom rule cannot pull it back down.
+Mono is not part of the step — the caller asks for it.
+
+### 13.4 The card's hover is one chip, and it is not the chip the brief names ⚠ needs a ruling
+
+Brief B10: *"Card hover: hairline brightens, one chip; no lift, no second
+affordance."* `VehicleCard` — shared with the landing — lost its `card-lift`
+transform and its two hover controls became one: a mono cut chip on the
+plate's corner reading OPTIONS, which is the vehicle menu. The critic asked
+three times for it to read ADD PHOTO and do only that, and it was declined
+each time for the same reason: **`deleteVehicle` has exactly one call site,
+this menu.** Naming a menu after one of its items would tell someone hovering
+a photographed car that the chip adds a photo. If deleting a vehicle ever
+moves to the dashboard, the chip can become the single verb the brief wants.
+
+Two things found by measurement on the way, both real on the landing too:
+
+- The old trigger was `MoveVertical as MoreVertical` — a ↕ arrow renamed to
+  look like a ⋮ glyph, drawn in a circle with no label. The critic read it as
+  a "reorder handle" because that is what it was drawn as.
+- The first placement of the new chip, hidden with opacity in the header row,
+  still occupied 92px of the row and pushed every dial to 52% of the card's
+  width at rest. Moved onto the plate's corner, re-measured at 80%.
+
+### 13.5 The VIN plate photograph is contained, and it is capped ✅ closed
+
+`/onboard` carries a generated night plate of a VIN tag beside the form
+(`public/design/onboard-vin-plate-{800,1400}.webp`, provenance and prompt in
+`public/design/CREDITS.md`, US$0.40 of Gemini spend in `cost-log.jsonl`).
+Contained, not a background — CC-142 §5 removed photographic page
+*backgrounds* and this page still draws its room. `image-weight-budget`
+caps the heaviest derivative at 96 KB, the same shape as `/check`'s
+exemption. ⚠ Of the three candidates, one rendered a **legible VIN-like
+string** on the tag and was rejected: a fake number beside the field that
+asks for a real one is precision this product does not invent.
+
+### 13.6 The room's seam is exposed on short pages — for Design
+
+`.service-bay`'s wall/floor seam — one 1px line at 64% of the viewport,
+kept deliberately as "geometry, not texture" when the panel joins were cut —
+sits behind cards on the landing and behind nothing on `/settings` and
+`/onboard`, where two critiques read it as a hard horizontal artefact. It is
+the landing's plate exactly, which is what brief B1 asks for, so it was not
+touched here. Whether the seam should feather, or the short pages should
+cover it, is a system question.
+
+### 13.7 Recorded deviations from the critic's brief
+
+- The garage eyebrow reads SIGNED IN AS and the **profile's display name**,
+  fetched through `getProfile` under `['profile', userId]` with a
+  five-minute stale window and invalidated by a settings save. Round one said
+  only SIGNED IN; round three tried the session email and the critic read a
+  lowercase address inside a tracked uppercase line as the wrong register.
+  This is the first place the display name is shown outside the field that
+  sets it.
+- The add-a-vehicle header omits "Add vehicle" — the page is the action. The
+  critic graded B1 met "as a contextual omission" and parked whether David
+  wants it literal.
+- Not applied from the closing critique, and recorded because they reverse
+  earlier grades on unchanged code: setting the DELETE ACCOUNT headline
+  off-white (B3 passed it in sodium in round two), cutting "Up to 60
+  characters." (endorsed as "the whole message" in round two), and an 11px
+  three-across mobile strip (under `viewport-floors`' 12px floor).
+
+### Not design-system changes, listed so Design can see the whole pass
+
+The delete button, the settings shield, the `FormField` error line, the
+onboarding alert and the garage's failed state were all `text-red-400` —
+`#F87171`, the retired critical red, spelled as a utility class where
+`retired-palette-literals` scans hex · the account chip, the Distance pills,
+the photo pill, the options disc, the delete dialog's icon disc and the
+settings panels were the last radii on the signed-in surface · the empty
+garage no longer pitches the product to someone who has bought it · the
+three settings sub-descriptions and the delete panel's restated one are gone,
+as are both icon tiles and the duplicate "Go to Garage" link · Save is grey
+until something is dirty · the delete dialog uses the primitive's destructive
+variant instead of `bg-red-500 … disabled:opacity-40`.

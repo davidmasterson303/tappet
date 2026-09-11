@@ -54,9 +54,9 @@ export interface GarageViewProps {
   loading: boolean;
   error: string | null;
   /**
-   * Who is signed in, for the eyebrow — the session's email. `null` when the
-   * page does not know (the session is still resolving), and the eyebrow
-   * says only that someone is.
+   * Who is signed in, for the eyebrow — the profile's display name. `null`
+   * when the page does not know yet (the session or the profile read is
+   * still resolving), and the eyebrow says only that someone is.
    */
   owner?: string | null;
 }
@@ -83,31 +83,21 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
           headline, one quiet line.
 
           The eyebrow is a state label, which is what mono is for here, and it
-          says who: SIGNED IN AS and the session's email. Round one said only
-          SIGNED IN and the critique cut it — "says nothing; the brief's
-          'SIGNED IN AS ADA' says who. Say who or drop the line." Dropping it
-          would take the eyebrow B2 asks for. The email is the account's own
-          identifier and true as printed; what this deliberately does *not*
-          do is print its local part as if it were a display name, which
-          would show someone who set "David" in settings a different word.
-          The garage does not fetch the profile, and an eyebrow is not a
-          reason to start.
+          says who: SIGNED IN AS and the profile's display name. Round one
+          said only SIGNED IN and the critique cut it — "says nothing; the
+          brief's 'SIGNED IN AS ADA' says who." Round three tried the
+          session's email and the critique read a lowercase address inside a
+          tracked uppercase line as the wrong register, which it was. The
+          name is the one settings lets a person choose, read once and cached
+          (see `app/garage/page.tsx`), and it takes the line's case like every
+          other word in it.
 
           "Managing N vehicles" is gone; the fleet strip below carries the
           count, and carries it as a number rather than as a sentence.
         */}
         <PageOpener
           className="mb-10"
-          eyebrow={
-            owner ? (
-              <>
-                Signed in as{' '}
-                <span className="inline-block max-w-full truncate align-bottom normal-case">{owner}</span>
-              </>
-            ) : (
-              'Signed in'
-            )
-          }
+          eyebrow={owner ? `Signed in as ${owner}` : 'Signed in'}
           title="Garage"
           lede={
             loading
