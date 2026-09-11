@@ -25,7 +25,37 @@
  * Checking for the latter and concluding a good deploy failed has cost real
  * time on this project already, so both callers pass the merge commit and this
  * file says so where somebody changing it will read it.
+ *
+ * ── ⚠ Short and full SHAs must both match (11 Sep) ──────────────────────────
+ *
+ * `/api/version` reports the full 40-character SHA. `promote-web` passed the
+ * full merge SHA; `promote-demo` passed `git rev-parse … .slice(0, 8)`. An
+ * exact `===` therefore matched on the web side and could never match on the
+ * demo side — the first real demo promote through this waiter printed
+ * `still 0986d15c` six minutes running, for the very commit it was waiting
+ * for, then declared the deploy missing. A gate that cries wolf is worse than
+ * none (CLAUDE.md §5): the next person reads "did not appear" and goes to the
+ * Netlify dashboard to debug a deploy that already landed.
+ *
+ * So the comparison is by prefix, in either direction, with a floor: seven
+ * characters is git's own abbreviation minimum, and anything shorter would let
+ * an empty or truncated expectation match every deploy — which is the silent
+ * failure in the other direction. `await-deploy.test.ts` pins both halves.
  */
+
+/** Git's abbreviation floor; below it a prefix match proves nothing. */
+const MIN_SHA_PREFIX = 7;
+
+/**
+ * Whether `served` (from `/api/version`) is the commit `expected` names, where
+ * either may be abbreviated. Exported so the test can pin it without polling.
+ */
+export function commitMatches(served, expected) {
+  const a = String(served ?? '').trim().toLowerCase();
+  const b = String(expected ?? '').trim().toLowerCase();
+  if (a.length < MIN_SHA_PREFIX || b.length < MIN_SHA_PREFIX) return false;
+  return a.startsWith(b) || b.startsWith(a);
+}
 
 const POLL_MS = 15_000;
 const DEPLOY_TIMEOUT_MS = 6 * 60_000;
@@ -54,7 +84,7 @@ export async function awaitDeploy({
       const res = await fetch(`${hostname}/api/version`, { cache: 'no-store' });
       const body = await res.json();
 
-      if (body.commit === expectCommit) {
+      if (commitMatches(body.commit, expectCommit)) {
         console.log(`  \x1b[32m✓\x1b[0m serving ${short} on ${body.branch}`);
         return true;
       }

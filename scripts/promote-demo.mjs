@@ -418,7 +418,16 @@ try {
   false alarm that the demo had moved unexpectedly, and cost a round trip to
   disprove.
 */
-const mergeCommit = sh('git rev-parse demo-live').slice(0, 8);
+/*
+  ⚠ The full SHA, not `.slice(0, 8)`. This used to be abbreviated here, and
+  `awaitDeploy` compared it exactly against the full SHA `/api/version`
+  reports — so the demo waiter could never succeed and reported the first
+  real promote through it as missing while the hostname was already serving
+  the merge. The waiter now matches by prefix as well, but the expectation is
+  passed whole so the two callers hand it the same thing.
+*/
+const mergeCommit = sh('git rev-parse demo-live');
+const mergeShort = mergeCommit.slice(0, 8);
 
 /*
   ── ⚠ BLD-02 · the demo waited on an instruction, not on a check ────────────
@@ -446,7 +455,7 @@ const deployed = await awaitDeploy({
 
 if (!deployed) {
   console.log(`
-⚠ ${DEMO} is not serving ${mergeCommit}.
+⚠ ${DEMO} is not serving ${mergeShort}.
 
 Netlify accepted the push and the build did not finish, or it failed. The
 hostname is still on its previous deploy — which for the demo means a
@@ -461,16 +470,16 @@ returns to its previous build without touching main.
 }
 
 console.log(`
-${DEMO} is serving ${mergeCommit}.
+${DEMO} is serving ${mergeShort}.
 
   node scripts/verify-demo.mjs
 
-⚠ ${mergeCommit} is the **merge commit** on ${RELEASE_BRANCH}, which is what
+⚠ ${mergeShort} is the **merge commit** on ${RELEASE_BRANCH}, which is what
 Netlify built. It will NOT report ${head.slice(0, 8)}: that is the commit being
 promoted, and it is recorded in the merge message, not in the build. Checking
 for the latter and concluding the deploy failed has cost real time before.
 
-Record ${mergeCommit} as ${RELEASE_BRANCH}'s new baseline.
+Record ${mergeShort} as ${RELEASE_BRANCH}'s new baseline.
 
 To undo: revert the merge commit on ${RELEASE_BRANCH} and push. The demo
 returns to its previous build without touching main.
