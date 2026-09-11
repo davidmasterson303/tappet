@@ -191,7 +191,24 @@ export function WishlistSection({ vehicleId }: WishlistSectionProps) {
           <div className="flex items-center gap-3">
             <ListChecks className="h-5 w-5 text-info" />
             <div>
-              <h2 className="text-base font-semibold text-white leading-tight">Wishlist</h2>
+              {/*
+                ⚠ 8 Sep · "Needs", because the segment above it says Needs.
+
+                This heading read "Wishlist" while the control that reveals it
+                reads NEEDS — two words for one list, inside one screen, which
+                is the exact fault the IA change was made to remove. The phone
+                has called it Needs since `PlanScreen` was written.
+
+                The word matters beyond consistency: a CVT fluid flush overdue
+                by 15,000 miles is not a wish. "Wishlist" frames maintenance
+                the owner cannot safely skip as discretionary shopping, which
+                undersells the one list in the product that is a call to act.
+
+                ⚠ The API path, the table and the hook keep `wishlist`. That is
+                an address, and renaming data for a copy change is how a rename
+                acquires a migration.
+              */}
+              <h2 className="text-base font-semibold text-white leading-tight">Needs</h2>
               {wishlistItems.length > 0 && (
                 <p className="text-xs text-white/50 mt-0.5">
                   {wishlistItems.length} item{wishlistItems.length !== 1 ? 's' : ''}{totalEstimate > 0 ? ` · Est. ${formatCurrency(totalEstimate)}` : ''}

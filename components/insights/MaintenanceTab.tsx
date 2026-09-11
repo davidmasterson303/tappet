@@ -2,11 +2,14 @@
 
 import { SCHEDULE_BASIS_LABELS } from '@tappet/core/service-provenance';
 import MaintenanceItemCard from '@/components/MaintenanceItemCard';
+import type { MaintenanceScheduleItem } from '@tappet/core/types';
 
-interface MaintenanceItem {
-  item: string;
-  [key: string]: unknown;
-}
+/*
+  ⚠ This said `{ item: string }` and the rows have no `item`. The declaration
+  was the reason nothing caught the card beneath it rendering blanks — an
+  invented shape, asserted by an index signature that accepted anything.
+*/
+type MaintenanceItem = MaintenanceScheduleItem & { priority?: string };
 
 interface MaintenanceTabProps {
   schedule: MaintenanceItem[];
@@ -49,12 +52,20 @@ export default function MaintenanceTab({
       */}
       <p className="text-xs text-white/50">{SCHEDULE_BASIS_LABELS['generated-schedule']}</p>
 
+      {/*
+        ⚠ `key` and `isInWishlist` both read `item.item` until 8 Sep, a field
+        these rows do not have. So every card in the list keyed on `undefined`
+        — one key for the whole list — and `savedItemNames.has(undefined)` was
+        false for every row, which meant an item already on the wishlist still
+        offered "Add to Wishlist". Both are `service`, which is what the row
+        actually carries and what the phone has always read.
+      */}
       {schedule.map((item) => (
         <MaintenanceItemCard
-          key={item.item}
+          key={item.service}
           item={item}
           vehicleId={vehicleId}
-          isInWishlist={savedItemNames.has(item.item)}
+          isInWishlist={savedItemNames.has(item.service)}
           onAddToHistory={onAddToHistory}
           onWishlistToggleComplete={onWishlistToggleComplete}
           loading={loading}

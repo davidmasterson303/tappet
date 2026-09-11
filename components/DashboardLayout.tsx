@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, MessageSquare, Wrench, CreditCard as Edit2, Check, X, Info, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
+import { Gauge, ListChecks, MessageSquare, Wrench, CreditCard as Edit2, Check, X, Info, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
 import { CONTACT_EMAIL } from '@/lib/legal';
 import { isDemoVehicleId } from '@tappet/core/demo';
@@ -66,18 +66,64 @@ interface DashboardLayoutProps {
   mobileLayout?: 'page' | 'app-shell';
 }
 
+/*
+  ── ⚠ 8 Sep · the nav names the product's capabilities, not its pages ────────
+
+  What it was, and what each row cost:
+
+    Dashboard      kept
+    Consultant  →  Advisor       the phone already said Advisor, and the
+                                 advisor is called Jay in both. One product
+                                 charging one subscription had two words for
+                                 one person. "Consultant" also implies billing
+                                 per engagement, which is the wrong promise on
+                                 a subscription.
+    Maintenance →  Service       the tab said Maintenance and the page it
+                                 opened rendered `<h2>Service history</h2>`.
+                                 The word it was occupying is the *schedule*,
+                                 which was three clicks deep in a collapsible.
+    Vehicle Info → (gone)        a spec sheet held a quarter of the navigation
+                                 while the schedule, the needs list and the
+                                 mods ladder had no tab between them. It is
+                                 reached from the car's name in the breadcrumb,
+                                 which is how the phone reaches Profile.
+    (new)          Plan          needs and mods, which were the two things
+                                 buried at the bottom of the dashboard.
+
+  ⚠ **Same labels and the same order as `apps/mobile/.../TabBar.tsx`**, whose
+  positions are Car · Service · Advisor · Plan. The clients had drifted into
+  separate vocabularies for identical destinations; a person who pays once
+  should not learn two. `Dashboard` is the one deliberate difference — on the
+  phone the tab bar is the whole navigation so the tab is the car, while on the
+  web the breadcrumb already names the car above these tabs.
+
+  ⚠ **The routes did not move.** `/consultant/:id` and `/documents/:id` are in
+  shipped deep links, in the mobile client's push URLs and in tests. A label is
+  chrome and a route is an address, and only one of them is safe to rename in
+  the same change as an IA move.
+*/
 const tabs = [
-  { key: 'dashboard', label: 'Dashboard', icon: Wrench, href: (id: string) => `/dashboard/${id}` },
-  { key: 'consultant', label: 'Consultant', icon: MessageSquare, href: (id: string) => `/consultant/${id}` },
-  { key: 'maintenance', label: 'Maintenance', icon: Clock, href: (id: string) => `/documents/${id}` },
-  { key: 'vehicle-info', label: 'Vehicle Info', icon: Info, href: (id: string) => `/vehicle-info/${id}` },
+  { key: 'dashboard', label: 'Dashboard', icon: Gauge, href: (id: string) => `/dashboard/${id}` },
+  { key: 'maintenance', label: 'Service', icon: Wrench, href: (id: string) => `/documents/${id}` },
+  { key: 'consultant', label: 'Advisor', icon: MessageSquare, href: (id: string) => `/consultant/${id}` },
+  { key: 'plan', label: 'Plan', icon: ListChecks, href: (id: string) => `/plan/${id}` },
 ] as const;
+
+/*
+  Not a tab any more, but still a destination — the breadcrumb's car name opens
+  it. Kept in a list of its own so `activeBreadcrumb` can still name the page a
+  reader is standing on.
+*/
+const OFF_NAV = [{ key: 'vehicle-info', label: 'Vehicle Info' }] as const;
 
 export default function DashboardLayout({ vehicle, knowledge, currentPage, children, vehicleImage, healthSummary, contentSurface = 'panel', mobileLayout = 'page' }: DashboardLayoutProps) {
   const appShell = mobileLayout === 'app-shell';
   const router = useRouter();
   const homeHref = useHomeHref();
-  const activeBreadcrumb = tabs.find(({ key }) => key === currentPage)?.label ?? '';
+  const activeBreadcrumb =
+    tabs.find(({ key }) => key === currentPage)?.label ??
+    OFF_NAV.find(({ key }) => key === currentPage)?.label ??
+    '';
   const [isEditingAvgMileage, setIsEditingAvgMileage] = useState(false);
   const [isEditingCurrentMileage, setIsEditingCurrentMileage] = useState(false);
   const [avgMileage, setAvgMileage] = useState(vehicle.avg_miles_per_month?.toString() || '');
@@ -391,7 +437,27 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                   Garage
                 </button>
                 <ChevronRight className="h-3.5 w-3.5" />
-                <span className="text-white/70 px-1">{vehicle.year} {vehicle.make} {vehicle.model}</span>
+                {/*
+                  ── ⚠ 8 Sep · the car's name is the door to its spec sheet ──
+
+                  `Vehicle Info` was a tab, and it was spending a quarter of the
+                  navigation on a read-only spec sheet while the maintenance
+                  schedule, the needs list and the mods ladder had no tab
+                  between them. It is still a page and still worth reading —
+                  it is just not a thing an owner opens as often as the three
+                  that displaced it.
+
+                  This is the phone's own pattern: `VehicleProfile` is pushed
+                  from the hub, never a tab. The breadcrumb already names the
+                  car directly above the tabs, so the name it prints is the
+                  most findable place a "tell me about this car" link can sit.
+                */}
+                <Link
+                  href={`/vehicle-info/${vehicle.id}`}
+                  className="tap-target-44 px-1 text-white/70 underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-white/50"
+                >
+                  {vehicle.year} {vehicle.make} {vehicle.model}
+                </Link>
                 {scrolled && healthSummary?.health_score != null && (
                   <span className="ml-1.5">{healthPill(healthSummary.health_score)}</span>
                 )}
