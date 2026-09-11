@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Download, Loader as Loader2, User, SlidersHorizontal, ShieldAlert } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowLeft, Download, Loader as Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
 import { FormField } from '@/components/ui/form-field';
 import { useScrollReveal, revealDelay } from '@/hooks/use-scroll-reveal';
+import { PageOpener } from '@/components/PageOpener';
 
 /**
  * Account settings, as a view over a profile it is handed.
@@ -21,9 +21,24 @@ import { useScrollReveal, revealDelay } from '@/hooks/use-scroll-reveal';
  * is "typically included in the app's account settings".
  *
  * Styling is entirely design-system tokens: surfaces via bg-card/bg-secondary,
- * text via foreground/muted-foreground, informational accents via --info, and
- * the danger group via the critical family. No ad-hoc colours — the point of
- * the token layer is that a palette change propagates here for free.
+ * text via foreground/muted-foreground, and the danger group via the critical
+ * family. No ad-hoc colours — the point of the token layer is that a palette
+ * change propagates here for free.
+ *
+ * ── 11 Sep — the page joins the settled system ──────────────────────────────
+ *
+ * The first critique this page ever received (it sat behind the middleware
+ * through two locked briefs) blind-ranked it 5th of 6 for two things: a serif
+ * headline on a product whose display slot moved to a condensed grotesk on
+ * 4 Sep, and a **third hue** — `text-red-400` on the delete button and its
+ * shield, which is `#F87171`, the exact value `retired-palette-literals`
+ * names as the retired critical red. It survived that guard because it was
+ * spelled as a utility class rather than as hex. The delete group is on the
+ * sodium axis now like every other alarm in the system, the headline is the
+ * instrument voice under a mono eyebrow, and the four decorative section icons
+ * — the critique's "decorative cyan icon beside every settings section" — are
+ * gone. The way back is the eyebrow, `← Garage`, rather than a nav bar of its
+ * own above the page.
  *
  * ── ⚠ Why the page is split in two ──────────────────────────────────────────
  *
@@ -39,14 +54,12 @@ type DistanceUnit = 'mi' | 'km';
 function SettingsSection({
   title,
   description,
-  icon: Icon,
   index,
   children,
   tone = 'default',
 }: {
   title: string;
   description: string;
-  icon: LucideIcon;
   index: number;
   children: React.ReactNode;
   tone?: 'default' | 'critical';
@@ -63,15 +76,15 @@ function SettingsSection({
         borderColor: isCritical ? 'var(--critical-border)' : undefined,
       }}
     >
-      <div className="mb-5 flex items-start gap-3">
-        <Icon
-          className={`mt-0.5 h-5 w-5 shrink-0 ${isCritical ? 'text-red-400' : 'text-info'}`}
-          aria-hidden={true}
-        />
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-        </div>
+      <div className="mb-5">
+        <h2
+          className={`display-instrument display-instrument-narrow uppercase text-xl leading-none ${
+            isCritical ? 'text-[color:var(--critical)]' : 'text-foreground'
+          }`}
+        >
+          {title}
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
       </div>
       {children}
     </section>
@@ -159,27 +172,26 @@ export function SettingsView({
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-surface-nav">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 sm:px-6 py-4">
-          <Link
-            href="/garage"
-            className="tap-target-44 flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden={true} />
-            Garage
-          </Link>
-        </div>
-      </nav>
-
-      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-10">
-        {/* The single display-serif element on this screen. */}
-        <h1 className="display-serif mb-8 text-3xl text-foreground">Settings</h1>
+      <main className="mx-auto max-w-3xl px-4 sm:px-6 py-14">
+        <PageOpener
+          className="mb-10"
+          eyebrow={
+            <Link
+              href="/garage"
+              className="tap-target-44 relative inline-flex items-center gap-1.5 text-white/55 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-3 w-3" aria-hidden={true} />
+              Garage
+            </Link>
+          }
+          title="Settings"
+          lede="Your profile, preferences and data."
+        />
 
         <div className="flex flex-col gap-5">
           <SettingsSection
             title="Profile"
             description="How you appear in the app."
-            icon={User}
             index={0}
           >
             <FormField
@@ -197,7 +209,6 @@ export function SettingsView({
           <SettingsSection
             title="Preferences"
             description="Units and formatting across the app."
-            icon={SlidersHorizontal}
             index={1}
           >
             <div className="space-y-2">
@@ -251,7 +262,6 @@ export function SettingsView({
           <SettingsSection
             title="Your data"
             description="Download everything Tappet holds about you."
-            icon={Download}
             index={2}
           >
             <Button
@@ -277,7 +287,6 @@ export function SettingsView({
           <SettingsSection
             title="Delete account"
             description="Permanently remove your account and everything in it."
-            icon={ShieldAlert}
             index={3}
             tone="critical"
           >
@@ -285,10 +294,16 @@ export function SettingsView({
               This deletes your vehicles, maintenance history, uploaded invoices and consultant
               conversations. It cannot be undone, and we cannot recover it for you afterwards.
             </p>
+            {/*
+              Sodium outline, sodium wash on hover — B3. `border-red-400/40
+              text-red-400 hover:bg-red-500/10` was the retired red family
+              as utility classes; the alarm family is `--critical` and its
+              wash, the same pair the landing's failed-load panel uses.
+            */}
             <Button
               variant="outline"
               onClick={() => setDeleteOpen(true)}
-              className="border-red-400/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="border-[color:var(--critical-border)] text-[color:var(--critical)] hover:border-[color:var(--critical)] hover:bg-[color:var(--critical-wash)]"
             >
               Delete my account
             </Button>

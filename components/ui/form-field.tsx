@@ -71,7 +71,14 @@ export const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
         />
 
         {invalid ? (
-          <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-red-400">
+          /*
+            `--critical`, not `text-red-400`. The message was the one part of
+            the error state still on the retired red family after the two-hue
+            collapse — the border had moved to `--critical-border` via
+            `.field[aria-invalid]` while the sentence beneath it stayed red.
+            Sodium is the alarm axis, and 7.1:1 on the card surface.
+          */
+          <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-[color:var(--critical)]">
             <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </p>

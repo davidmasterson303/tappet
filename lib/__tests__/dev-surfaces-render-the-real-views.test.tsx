@@ -132,6 +132,13 @@ const car = (over: Partial<GarageVehicle>): GarageVehicle => ({
   ...over,
 });
 
+/*
+  Re-pointed 11 Sep when the garage joined the settled design system. The copy
+  these read moved: "Managing N vehicles" became the fleet strip (a mono count
+  under IN THE GARAGE), and "Your Garage is Empty" became the ghost slot's
+  "No vehicles yet". The shape of the block is unchanged — every state still
+  asserts something the other states do not show.
+*/
 describe('GarageView renders each of its states', () => {
   it('lists every vehicle it is handed, and says how many', () => {
     render(
@@ -146,27 +153,35 @@ describe('GarageView renders each of its states', () => {
     );
     expect(screen.getAllByTestId('vehicle-card')).toHaveLength(2);
     expect(screen.getByText('2020 Subaru WRX')).toBeInTheDocument();
-    expect(screen.getByText(/managing 2 vehicles/i)).toBeInTheDocument();
-    expect(screen.queryByText(/your garage is empty/i)).not.toBeInTheDocument();
+    // The count lives in the strip now, as a number under its label.
+    expect(screen.getByText(/in the garage/i).nextElementSibling).toHaveTextContent('2');
+    expect(screen.queryByTestId('ghost-vehicle-slot')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
   });
 
   it('shows the empty state for no vehicles', () => {
     render(<GarageView vehicles={[]} loading={false} error={null} />);
-    expect(screen.getByText(/your garage is empty/i)).toBeInTheDocument();
+    expect(screen.getByText(/no vehicles yet/i)).toBeInTheDocument();
+    expect(screen.getByTestId('ghost-vehicle-slot')).toBeInTheDocument();
     expect(screen.queryAllByTestId('vehicle-card')).toHaveLength(0);
+    // The strip refuses to average or count recalls over nothing — §10.
+    expect(screen.getByText(/in the garage/i).nextElementSibling).toHaveTextContent('0');
+    expect(screen.getAllByText('not known')).toHaveLength(2);
   });
 
   it('shows the error, and not the empty state, when the query failed', () => {
     render(<GarageView vehicles={[]} loading={false} error="boom" />);
     expect(screen.getByText(/error loading vehicles/i)).toBeInTheDocument();
     expect(screen.getByText('boom')).toBeInTheDocument();
-    expect(screen.queryByText(/your garage is empty/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/in the garage/i)).not.toBeInTheDocument();
   });
 
   it('says it is loading rather than claiming an empty garage while the session lands', () => {
     render(<GarageView vehicles={[]} loading error={null} />);
     expect(screen.getByText(/loading your vehicles/i)).toBeInTheDocument();
-    expect(screen.queryByText(/your garage is empty/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/in the garage/i)).not.toBeInTheDocument();
   });
 });
 
