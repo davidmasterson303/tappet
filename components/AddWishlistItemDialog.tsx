@@ -114,7 +114,7 @@ export function AddWishlistItemDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add Item to Wishlist</DialogTitle>
+          <DialogTitle>Add to Needs</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -259,7 +259,7 @@ export function AddWishlistItemDialog({
                   Adding...
                 </>
               ) : (
-                'Add to Wishlist'
+                'Add to Needs'
               )}
             </Button>
           </DialogFooter>

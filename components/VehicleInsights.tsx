@@ -33,14 +33,42 @@ import ModificationsTab from './insights/ModificationsTab';
 import RegisterSwitch from './RegisterSwitch';
 import { showsModifications } from '@tappet/core/mod-progression';
 
+/**
+ * One of the three bodies this component can render on its own.
+ *
+ * ⚠ **The dossier is gone as a container, and this prop is what dissolved it.**
+ * Until 8 Sep these three lived as tabs inside a card called "The Dossier",
+ * inside a collapsible, at the bottom of the dashboard — three clicks from
+ * landing, under a name that describes the drawer rather than anything in it.
+ * An IA review put the cost plainly: a subscriber counting what they are paying
+ * for could not see the maintenance schedule, the mods ladder or the needs
+ * list at all, so the product read as a health score with a note attached.
+ *
+ * Each body now lives on the page that owns its question — issues with the
+ * vehicle's research, maintenance with the service record it is computed from,
+ * mods with the plan. The data layer stayed here rather than being copied three
+ * ways: `Icon.tsx` carries this repo's rule about hand-duplicated things
+ * drifting, and two of these bodies write to the same wishlist.
+ */
+export type InsightSection = 'issues' | 'maintenance' | 'mods';
+
 interface VehicleInsightsProps {
   vehicle: any;
   knowledge: any;
   onWishlistStateUpdate?: (itemNames: Set<string>) => void;
+  /**
+   * Render exactly one body, with no card, no tab strip and no name.
+   *
+   * ⚠ Omitting it renders the old dossier, and nothing ships that way any more
+   * — the three call sites all pass a section. It is kept because the early
+   * returns above (`pending`, `failed`, `unsupported`) are the same for every
+   * section and deleting the branch would mean re-deriving them per page.
+   */
+  section?: InsightSection;
 }
 
 const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, VehicleInsightsProps>(
-  ({ vehicle, knowledge, onWishlistStateUpdate }, ref) => {
+  ({ vehicle, knowledge, onWishlistStateUpdate, section }, ref) => {
     const router = useRouter();
     const { data: wishlistItems } = useWishlistData(vehicle.id);
     const savedItemNames = useMemo(
@@ -476,6 +504,111 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
     const knownIssues = knowledge.known_issues || [];
     const maintenanceSchedule = knowledge.maintenance_schedule || [];
 
+    const issuesBody = (
+      <IssuesTab
+        issues={knownIssues}
+        /*
+          Always true here — the early returns above send `pending`, `failed`
+          and `unsupported` elsewhere. Passed anyway so the guarantee is stated
+          rather than assumed by a component that cannot see this file.
+        */
+        researchComplete={knowledge.research_status === 'completed'}
+        vehicleId={vehicle.id}
+        issueTracking={issueTracking}
+        savedItemNames={savedItemNames}
+        loading={loading}
+        onMarkFixed={handleMarkFixedClick}
+        onNotApplicable={handleIssueStatusUpdate}
+        onWishlistToggleComplete={handleWishlistToggleComplete}
+      />
+    );
+
+    const maintenanceBody = (
+      <MaintenanceTab
+        schedule={maintenanceSchedule}
+        vehicleId={vehicle.id}
+        savedItemNames={savedItemNames}
+        loading={loading}
+        onAddToHistory={(itemName) => {
+          setSelectedMaintenanceItem(itemName);
+          setMaintenanceDialogOpen(true);
+        }}
+        onWishlistToggleComplete={handleWishlistToggleComplete}
+      />
+    );
+
+    const modsBody = (
+      <ModificationsTab
+        vehicle={vehicle}
+        performanceMods={performanceMods}
+        modDetails={modDetails}
+        modTracking={modTracking}
+        savedItemNames={savedItemNames}
+        loading={loading}
+        loadingModNames={loadingModNames}
+        onModStatusUpdate={handleModStatusUpdate}
+        onWishlistToggleComplete={handleWishlistToggleComplete}
+      />
+    );
+
+    /*
+      The dialogs belong to the bodies, not to the container, so they ship with
+      whichever section is on screen. Both are driven by state this component
+      owns; rendering them only in the legacy branch is how a "mark fixed"
+      button on a sectioned page would open nothing.
+    */
+    const dialogs = (
+      <>
+        <IssueFixDialog
+          open={issueFixDialogOpen}
+          onOpenChange={setIssueFixDialogOpen}
+          issueName={selectedIssue?.name || ''}
+          onSubmit={handleIssueFixSubmit}
+          isLoading={loading}
+        />
+        <MaintenanceHistoryDialog
+          open={maintenanceDialogOpen}
+          onOpenChange={setMaintenanceDialogOpen}
+          maintenanceItem={selectedModForInstall || selectedMaintenanceItem}
+          isModInstallation={!!selectedModForInstall}
+          onSubmit={handleMaintenanceHistorySubmit}
+          isLoading={loading}
+        />
+      </>
+    );
+
+    if (section) {
+      /*
+        ⚠ `mods` answers to the same gate the dossier tab did. A person who told
+        us the car is stock should not be shown a modifications surface, and the
+        page that renders this section is expected to hide its own switcher too
+        — a one-option control is not a control.
+      */
+      if (section === 'mods' && !modsVisible) {
+        return (
+          <>
+            <RegisterSwitch vehicleId={vehicle.id as string} visible={modsVisible} onApply={setModsVisible} />
+            {dialogs}
+          </>
+        );
+      }
+
+      return (
+        <>
+          {section === 'mods' ? (
+            <RegisterSwitch
+              vehicleId={vehicle.id as string}
+              visible={modsVisible}
+              className="mb-4"
+              onApply={setModsVisible}
+            />
+          ) : null}
+          {section === 'issues' ? issuesBody : section === 'maintenance' ? maintenanceBody : modsBody}
+          {dialogs}
+        </>
+      );
+    }
+
     return (
       <>
         <Card className="bg-slate-900/50 border-info-border">
@@ -552,75 +685,14 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
                 })}
               </TabsList>
 
-              <TabsContent value="issues">
-                <IssuesTab
-                  issues={knownIssues}
-                  /*
-                    Always true here — the early returns above send `pending`,
-                    `failed` and `unsupported` elsewhere. Passed anyway so the
-                    guarantee is stated rather than assumed by a component that
-                    cannot see this file.
-                  */
-                  researchComplete={knowledge.research_status === 'completed'}
-                  vehicleId={vehicle.id}
-                  issueTracking={issueTracking}
-                  savedItemNames={savedItemNames}
-                  loading={loading}
-                  onMarkFixed={handleMarkFixedClick}
-                  onNotApplicable={handleIssueStatusUpdate}
-                  onWishlistToggleComplete={handleWishlistToggleComplete}
-                />
-              </TabsContent>
-
-              <TabsContent value="maintenance">
-                <MaintenanceTab
-                  schedule={maintenanceSchedule}
-                  vehicleId={vehicle.id}
-                  savedItemNames={savedItemNames}
-                  loading={loading}
-                  onAddToHistory={(itemName) => {
-                    setSelectedMaintenanceItem(itemName);
-                    setMaintenanceDialogOpen(true);
-                  }}
-                  onWishlistToggleComplete={handleWishlistToggleComplete}
-                />
-              </TabsContent>
-
-              {modsVisible && (
-                <TabsContent value="mods">
-                  <ModificationsTab
-                    vehicle={vehicle}
-                    performanceMods={performanceMods}
-                    modDetails={modDetails}
-                    modTracking={modTracking}
-                    savedItemNames={savedItemNames}
-                    loading={loading}
-                    loadingModNames={loadingModNames}
-                    onModStatusUpdate={handleModStatusUpdate}
-                    onWishlistToggleComplete={handleWishlistToggleComplete}
-                  />
-                </TabsContent>
-              )}
+              <TabsContent value="issues">{issuesBody}</TabsContent>
+              <TabsContent value="maintenance">{maintenanceBody}</TabsContent>
+              {modsVisible && <TabsContent value="mods">{modsBody}</TabsContent>}
             </Tabs>
           </CardContent>
         </Card>
 
-        <IssueFixDialog
-          open={issueFixDialogOpen}
-          onOpenChange={setIssueFixDialogOpen}
-          issueName={selectedIssue?.name || ''}
-          onSubmit={handleIssueFixSubmit}
-          isLoading={loading}
-        />
-
-        <MaintenanceHistoryDialog
-          open={maintenanceDialogOpen}
-          onOpenChange={setMaintenanceDialogOpen}
-          maintenanceItem={selectedModForInstall || selectedMaintenanceItem}
-          isModInstallation={!!selectedModForInstall}
-          onSubmit={handleMaintenanceHistorySubmit}
-          isLoading={loading}
-        />
+        {dialogs}
       </>
     );
   }

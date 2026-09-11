@@ -172,17 +172,29 @@ deploys, an ignore rule needs an inverted exit code to be right, and one
 failure mode. `demo-live` had been running the pattern correctly all along —
 9 builds against 111 from the same commit stream.
 
-⚠ **7 Sep — the ignore rule this argument rejected proved the argument.** The
-`ignore` command in `netlify.toml` silently cancelled **both** promotes that day
-in ~3 seconds each, leaving `web-live` on a build from 5 Sep while everything
-reported success. The renames invalidated the build cache, so `CACHED_COMMIT_REF`
+⚠ **7 Sep — the ignore rule this argument rejected proved the argument, and is
+now deleted.** The `ignore` command in `netlify.toml` silently cancelled **three**
+deploys that afternoon — two to `web-live`, one to `demo-live` — in ~3 seconds
+each, leaving both hostnames on builds from 5 Sep while everything reported
+success. Both only moved when a human clicked **Retry** in the dashboard, which
+skips the ignore command. The renames invalidated the build cache, so `CACHED_COMMIT_REF`
 was empty and `git diff --quiet <ref> <paths>` became a working-tree comparison
 that finds nothing and exits **0** — the value that cancels. The file's own
 comment claimed the opposite ("the command fails, and the build proceeds… that is
 the safe direction"), and had never been tested against an empty cache.
 
-It is also a **deadlock**: the successful build that repopulates the cache is the
-one being cancelled. Only a manual retry from the Netlify dashboard broke it.
+⚠ **The first diagnosis was wrong, and the second fix failed in the same way.**
+An empty `CACHED_COMMIT_REF` looked like the cause; the guarded version shipped,
+ran on the demo build, and **still returned 0** with the new command printed
+verbatim in the log. So the same `git diff` that exits 1 against 404 changed
+files locally exits 0 inside Netlify's blobless clone — and the ignore command's
+stdout is not in the deploy log, so there is no way to see what it evaluated.
+
+The rule is therefore **gone**, not fixed a third time. A control that cannot be
+tested where it runs, whose failure direction is a silently stale deployment, is
+not defence in depth. The gate is the control. A promote carrying only mobile
+changes now rebuilds the web app, which is minutes against a stale production
+deploy that reports success.
 
 Two things to carry:
 

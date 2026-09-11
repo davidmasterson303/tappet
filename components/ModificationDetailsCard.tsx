@@ -214,7 +214,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
                 ) : (
                   <>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add to Wishlist
+                    Add to Needs
                   </>
                 )}
               </Button>

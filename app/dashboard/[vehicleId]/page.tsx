@@ -9,7 +9,7 @@ import { driversForVehicle, driversSupportAScore } from '@tappet/core/health-dri
 import type { ServiceHistoryRow } from '@tappet/core/service-history';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import DashboardContent from '@/components/DashboardContent';
+import DashboardNextSteps from '@/components/DashboardNextSteps';
 import RecallAlerts from '@/components/RecallAlerts';
 import HealthSummary from '@/components/HealthSummary';
 import DiagnosticHero from '@/components/DiagnosticHero';
@@ -27,7 +27,8 @@ import { getHealthBand } from '@/hooks/use-health-band';
 /*
   The score history is `defaultOpen={false}`, so it loads when it is unfolded.
 
-  Same reasoning as the two sections in `DashboardContent` — see the note there
+  Same reasoning the two dashboard collapsibles used before 8 Sep — see
+  `DashboardNextSteps` for why they are gone
   — and it is the last closed-by-default tree that was still being downloaded
   on every dashboard load. Smaller than those two, because the chart is
   hand-rolled SVG rather than a charting library, but it is on the same side of
@@ -404,11 +405,7 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
               </CollapsibleSection>
             )}
 
-            <DashboardContent
-              vehicle={data.vehicle}
-              knowledge={data.knowledge}
-              vehicleId={params.vehicleId}
-            />
+            <DashboardNextSteps vehicleId={params.vehicleId} knowledge={data.knowledge} />
           </div>
         </div>
         {/*

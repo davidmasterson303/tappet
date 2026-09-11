@@ -369,6 +369,40 @@ function HealthFactorRows({
             </p>
           )}
 
+          {/*
+            ── ⚠ The same shape, on the row where it is a safety claim ────────
+
+            Observed 8 Sep on the demo Accord, in one row of the rendered page:
+
+                RECALLS
+                Recalls have not been checked for this vehicle.   <- driver
+                No open recalls.                                  <- claim
+
+            Two sentences about one car that cannot both be true, and the second
+            is an all-clear about safety recalls on a vehicle nobody looked up.
+
+            ⚠ **The written claim is not suppressed, and that is deliberate.**
+            `health-claims.ts` passes a written status through regardless of the
+            flag, on the argument that something produced that sentence and
+            suppressing a real finding is the failure in the dangerous
+            direction — its test's example is "Takata airbag inflator — do not
+            drive". A model can know that from its research even when the NHTSA
+            lookup never ran, so discarding the text would trade a contradiction
+            for a silence, which is the worse of the two.
+
+            So the row does here what it already does above: it names the
+            disagreement rather than picking a winner. §10 — ranges over
+            verdicts, and no claim the data cannot support.
+          */}
+          {row.key === 'recalls' && row.driver?.score === null && row.claim?.state === 'attention' && (
+            <p className="mt-2.5 border-l-2 border-white/15 pl-3 text-sm leading-normal text-white/55">
+              These disagree. No NHTSA lookup has run for this car, so nothing
+              here is a checked result; the line above it comes from research
+              into this model rather than from the recall database. A recall
+              check settles it.
+            </p>
+          )}
+
           {row.key === 'recalls' && (
             <RecallHistoryModal
               recalls={recalls}

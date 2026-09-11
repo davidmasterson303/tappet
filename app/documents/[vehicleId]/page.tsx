@@ -2,8 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import ServiceDueList from '@/components/ServiceDueList';
+import { useWishlistData } from '@/hooks/useWishlistData';
+import { useQueryClient as useQC } from '@tanstack/react-query';
 import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { formatDate } from '@tappet/core/formatting-utils';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -115,6 +119,7 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 export default function DocumentsPage({ params }: { params: { vehicleId: string } }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const qc = useQC();
 
   const cachedData = queryClient.getQueryData<any>(['dashboard', params.vehicleId]);
   const cachedVehicle = cachedData?.vehicle ?? (cachedData?.id ? cachedData : undefined);
@@ -133,6 +138,62 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error('Vehicle not found');
+      return data;
+    },
+  });
+
+  /*
+    ── ⚠ 8 Sep · the schedule moved here, beside the record it is computed from ──
+
+    `Service due` and `Service history` were separate destinations — this page,
+    and a tab inside a collapsible on the dashboard three clicks away. The phone
+    made this move first and `ServiceScreen.tsx` carries the argument: they are
+    *"the same subject seen from two ends: what this car has had done, and what
+    it needs next — and the second is computed **from** the first"*, so an owner
+    comparing them was navigating between two screens to hold one thought.
+
+    ⚠ It also frees the word. This tab was labelled "Maintenance" while
+    rendering a heading that says "Service history", and the actual maintenance
+    schedule — the reason invoices are read at all — had no name in the
+    navigation.
+  */
+  const [segment, setSegment] = useState<'due' | 'history'>('due');
+
+  /*
+    ⚠ Raw line items, not the grouped visits below. `evaluateSchedule` anchors
+    an interval against the odometer reading a service was done at, and the
+    visits query does not select `mileage_at_service` — it groups rows for the
+    History segment, which does not need it. Two questions, two shapes.
+  */
+  const { data: historyRows } = useQuery({
+    queryKey: ['service-rows', params.vehicleId],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const supabase = getClientSupabase();
+      const { data, error } = await supabase
+        .from('maintenance_line_items')
+        .select('item_description, service_date, mileage_at_service, source')
+        .eq('vehicle_id', params.vehicleId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: wishlistItems } = useWishlistData(params.vehicleId);
+  const savedItemNames = new Set<string>(
+    (wishlistItems ?? []).map((item: any) => item.item_name as string)
+  );
+
+  const { data: knowledge } = useQuery({
+    queryKey: ['knowledge', params.vehicleId],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const supabase = getClientSupabase();
+      const { data } = await supabase
+        .from('vehicle_knowledge_base')
+        .select('*')
+        .eq('vehicle_id', params.vehicleId)
+        .maybeSingle();
       return data;
     },
   });
@@ -207,6 +268,14 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
   return (
     <DashboardLayout
       vehicle={vehicle}
+      /*
+        ⚠ The header renders RELIABILITY only when it is handed `knowledge`, so
+        omitting it here made this the one tab whose stats strip was a column
+        short — MILEAGE and AVG on Service, MILEAGE, AVG and RELIABILITY
+        everywhere else. A header that changes shape between tabs reads as a
+        loading state rather than a difference in the data.
+      */
+      knowledge={knowledge}
       currentPage="maintenance"
       vehicleImage={vehicleImage}
       /*
@@ -217,6 +286,46 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
       contentSurface="bare"
     >
       <div className="space-y-6">
+        {/*
+          ⚠ Due first. The page is opened far more often to ask "what does this
+          car need" than to re-read an invoice already filed, and the phone
+          opens on the same segment for the same reason.
+        */}
+        <div role="tablist" aria-label="Service" className="inline-flex rounded-xl border border-white/8 bg-white/4 p-0.5">
+          {(['due', 'history'] as const).map((value) => {
+            const on = segment === value;
+            return (
+              <button
+                key={value}
+                role="tab"
+                type="button"
+                aria-selected={on}
+                onClick={() => setSegment(value)}
+                className={`label-uppercase min-h-[44px] rounded-lg px-5 transition-colors ${
+                  on ? 'bg-slate-800 text-white' : 'text-white/50 hover:text-white/80'
+                }`}
+              >
+                {value === 'due' ? 'Due' : 'History'}
+              </button>
+            );
+          })}
+        </div>
+
+        {segment === 'due' ? (
+          <ServiceDueList
+            schedule={(knowledge?.maintenance_schedule ?? []) as never[]}
+            historyRows={(historyRows ?? []) as never[]}
+            currentMileage={vehicle?.current_mileage ?? null}
+            vehicleId={params.vehicleId}
+            savedItemNames={savedItemNames}
+            loading={false}
+            onAddToHistory={() => {}}
+            onWishlistToggleComplete={async () => {
+              await qc.invalidateQueries({ queryKey: ['wishlist', params.vehicleId] });
+            }}
+          />
+        ) : (
+        <>
         {/*
           ⚠ Stacks on a phone. Side by side, the button squeezed the heading
           into "Service / History" over two lines at 390px — a two-word title
@@ -503,6 +612,8 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </DashboardLayout>
