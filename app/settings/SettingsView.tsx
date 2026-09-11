@@ -10,6 +10,7 @@ import { DeleteAccountDialog } from '@/components/DeleteAccountDialog';
 import { FormField } from '@/components/ui/form-field';
 import { useScrollReveal, revealDelay } from '@/hooks/use-scroll-reveal';
 import { PageOpener } from '@/components/PageOpener';
+import { SignedInShell, AddVehicleAction } from '@/components/SignedInShell';
 
 /**
  * Account settings, as a view over a profile it is handed.
@@ -67,13 +68,18 @@ function SettingsSection({
   const ref = useScrollReveal<HTMLElement>();
   const isCritical = tone === 'critical';
 
+  /*
+    A cut panel with a 12% hairline — B4/B7. This was `rounded-lg` with
+    `edge-light`'s four-way gradient border, the one container on the page
+    still at a radius while every control inside it took the cut.
+  */
   return (
     <section
       ref={ref}
-      className="scroll-reveal rounded-lg border bg-card p-4 sm:p-6 edge-light"
+      className="scroll-reveal cut-panel border bg-card p-4 sm:p-6"
       style={{
         ...revealDelay(index),
-        borderColor: isCritical ? 'var(--critical-border)' : undefined,
+        borderColor: isCritical ? 'var(--critical-border)' : 'rgb(255 255 255 / 0.12)',
       }}
     >
       <div className="mb-5">
@@ -132,6 +138,13 @@ export function SettingsView({
   const [vehicleCount, setVehicleCount] = useState(initial.vehicleCount);
   const hasLiveSubscription = initial.hasLiveSubscription;
 
+  /*
+    Dirty is derived too, for the same reason. Save is grey until something
+    has actually changed (B7): a live Save beside untouched fields is a
+    control that promises a write it has nothing to write.
+  */
+  const dirty = displayName !== initial.displayName || distanceUnit !== initial.distanceUnit;
+
   // Derived, not stored — a separate error state can drift out of sync with
   // the value it describes.
   const nameError =
@@ -171,7 +184,7 @@ export function SettingsView({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <SignedInShell actions={<AddVehicleAction />}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-14">
         <PageOpener
           className="mb-10"
@@ -213,7 +226,22 @@ export function SettingsView({
           >
             <div className="space-y-2">
               <Label className="text-muted-foreground">Distance</Label>
-              <div className="flex gap-2" role="radiogroup" aria-label="Distance unit">
+              {/*
+                A two-segment cut control, mono, the selected segment off-white
+                — B7. This was two pills with a cyan-tinted selection: cyan
+                is information and focus here, not "chosen", and a pill is not
+                a shape this system has.
+
+                The visible label is the unit; the full word follows for a
+                screen reader, so the accessible name still contains what is
+                on screen (WCAG 2.5.3) and reads as a word rather than as two
+                letters.
+              */}
+              <div
+                className="chamfer-sm flex w-max border border-[color:var(--border-field)]"
+                role="radiogroup"
+                aria-label="Distance unit"
+              >
                 {(['mi', 'km'] as DistanceUnit[]).map((unit) => {
                   const active = distanceUnit === unit;
                   return (
@@ -223,13 +251,14 @@ export function SettingsView({
                       role="radio"
                       aria-checked={active}
                       onClick={() => setDistanceUnit(unit)}
-                      className={`tap-target-44 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                      className={`mono min-h-[44px] px-5 text-xs uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
                         active
-                          ? 'border-info-border bg-info-wash text-info-strong'
-                          : 'border-border text-muted-foreground hover:text-foreground'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {unit === 'mi' ? 'Miles' : 'Kilometres'}
+                      {unit}
+                      <span className="sr-only">{unit === 'mi' ? ', miles' : ', kilometres'}</span>
                     </button>
                   );
                 })}
@@ -237,7 +266,8 @@ export function SettingsView({
             </div>
           </SettingsSection>
 
-          <div className="flex justify-end">
+          {/* The rule closes the editable group; Save sits beneath it — B7. */}
+          <div className="flex justify-end border-t border-white/8 pt-5">
             {/*
               ⚠ **UI-01, the worst of them.** `hover:bg-accent` with the default
               variant's `text-primary-foreground` renders "Save changes" at
@@ -247,7 +277,7 @@ export function SettingsView({
               `bg-primary` was already the default variant's fill, so the whole
               override said nothing except "and make the hover unreadable".
             */}
-            <Button onClick={handleSave} disabled={saving || Boolean(nameError)}>
+            <Button onClick={handleSave} disabled={saving || !dirty || Boolean(nameError)}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
@@ -317,6 +347,6 @@ export function SettingsView({
         vehicleCount={vehicleCount}
         hasLiveSubscription={hasLiveSubscription}
       />
-    </div>
+    </SignedInShell>
   );
 }

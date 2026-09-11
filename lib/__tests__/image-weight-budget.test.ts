@@ -139,6 +139,30 @@ describe('image weight budgets', () => {
     expect(heaviest).toBeLessThan(70 * 1024);
   });
 
+  /*
+    ── /onboard carries one contained plate — 11 Sep ─────────────────────────
+
+    The signed-in brief (B9) puts a generated night photograph of a VIN plate
+    beside the add-a-vehicle form. Contained, not a background: CC-142 §5
+    removed photographic page backgrounds and this page still draws its room
+    in CSS. `/onboard` is not in `IMAGE_FREE_PAGES`, so the plate is permitted
+    — and, as with `/check`, permitted with a number. 96 KB is roughly 1.5x
+    what the 1400px derivative costs (63.6 KB, measured on 11 Sep), which
+    leaves room to re-encode without leaving room to swap in a JPEG.
+  */
+  it('the /onboard plate stays a plate, not a photograph budget', () => {
+    const src = readFileSync(join(ROOT, 'app/onboard/OnboardVinForm.tsx'), 'utf8');
+    const refs = Array.from(src.matchAll(/\/design\/([a-z0-9-]+\.webp)/g)).map((m) => m[1]);
+
+    // Anti-vacuous: if the page stops referencing the plate this must fail
+    // rather than pass by finding nothing to weigh.
+    expect(refs.length).toBeGreaterThan(0);
+
+    const heaviest = Math.max(...refs.map((f) => bytes(`/design/${f}`)));
+    expect(heaviest).toBeGreaterThan(0);
+    expect(heaviest).toBeLessThan(96 * 1024);
+  });
+
   it('the garage grid stays under 250 KB as actually delivered', () => {
     const total = gridCardSources().reduce((sum, p) => sum + deliveredBytes(p), 0);
 

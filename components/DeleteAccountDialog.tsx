@@ -107,13 +107,21 @@ export function DeleteAccountDialog({
     <Dialog open={open} onOpenChange={deleting ? undefined : onOpenChange}>
       <DialogContent className="bg-card border-border sm:max-w-md">
         <DialogHeader>
+          {/*
+            Sodium on a cut square, the instrument voice for the title — the
+            same three corrections the settings page behind this dialog took
+            on 11 Sep. `text-red-400` is `#F87171`, the retired critical red
+            spelled as a utility class; a `rounded-full` disc is a shape this
+            system does not have; `.display-serif` is the editorial voice that
+            left the display slot on 4 Sep.
+          */}
           <div
-            className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
+            className="chamfer-sm mx-auto mb-3 flex h-12 w-12 items-center justify-center"
             style={{ background: 'var(--critical-wash)' }}
           >
-            <TriangleAlert className="h-6 w-6 text-red-400" aria-hidden="true" />
+            <TriangleAlert className="h-6 w-6 text-[color:var(--critical)]" aria-hidden="true" />
           </div>
-          <DialogTitle className="display-serif text-center text-2xl text-foreground">
+          <DialogTitle className="display-instrument display-instrument-narrow uppercase text-center text-2xl text-foreground">
             Delete your account
           </DialogTitle>
           <DialogDescription className="text-center text-muted-foreground">
@@ -191,11 +199,14 @@ export function DeleteAccountDialog({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleDelete}
-            disabled={!confirmed || deleting}
-            className="bg-red-500 text-white hover:bg-red-400 disabled:opacity-40"
-          >
+          {/*
+            The primitive's destructive variant: `--critical-solid` under
+            near-white ink, 4.66:1, with the disabled fill and ink the
+            primitive states. This carried `bg-red-500 hover:bg-red-400
+            disabled:opacity-40` — a third hue, and an alpha the contrast guard
+            cannot composite.
+          */}
+          <Button variant="destructive" onClick={handleDelete} disabled={!confirmed || deleting}>
             {deleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />

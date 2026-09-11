@@ -1789,6 +1789,28 @@ nav {
   }
 
   /*
+   * The `lg` size step — 11 Sep, signed-in brief B8.
+   *
+   * `input.tsx` said "there is no `lg` — nothing in the app asked for one,
+   * and an unused size is a decision nobody has made yet." The add-a-vehicle
+   * page now asks: its brief makes the VIN field the largest element on the
+   * page, 64px tall in 24px mono, because a seventeen-character code is the
+   * one thing that page exists to take and a 40px field made the headline
+   * the hero instead.
+   *
+   * Here rather than at the call site for the reason `.field` gives — a call
+   * site that still needs a height or a size is a bug in the primitive. Mono
+   * is not part of the step: it is the caller's choice, because a large
+   * field is not necessarily a code field.
+   */
+  .field-lg {
+    min-height: 64px;
+    padding: 14px 16px;
+    font-size: 24px;
+    letter-spacing: 0.04em;
+  }
+
+  /*
    * ── R2 — the iOS zoom trap ─────────────────────────────────────────────
    *
    * Mobile Safari zooms the viewport when a focused input is under 16px, and
@@ -1831,6 +1853,15 @@ nav {
     input[type='url'],
     input[type='password'] {
       font-size: 16px;
+    }
+
+    /*
+     * The rule above exists to lift fields *under* 16px; it must not pull the
+     * `lg` step down to it. Same specificity, later in source, so this wins
+     * for a field that carries both classes.
+     */
+    .field-lg {
+      font-size: 24px;
     }
   }
 

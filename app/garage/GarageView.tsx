@@ -1,20 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import { firstEmbed } from '@tappet/core/vehicle-embed';
 import { byAttention } from '@tappet/core/garage-order';
 import { fleetSummary } from '@tappet/core/fleet-summary';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { BrandWordmark } from '@/components/brand/BrandLockup';
 import { VehicleCard } from '@/components/VehicleCard';
 import type { GarageVehicle } from '@/hooks/useVehicles';
-import { AccountMenu } from '@/components/AccountMenu';
 import { RevealOnScroll } from '@/components/RevealOnScroll';
-import { useHomeHref } from '@/hooks/use-home-href';
 import { PageOpener } from '@/components/PageOpener';
 import { FleetStrip } from '@/components/FleetStrip';
 import { GhostVehicleSlot } from '@/components/GhostVehicleSlot';
+import { SignedInShell, AddVehicleAction } from '@/components/SignedInShell';
 
 /**
  * The signed-in garage, as a view over data it is handed.
@@ -47,6 +42,12 @@ import { GhostVehicleSlot } from '@/components/GhostVehicleSlot';
  * the page opens like the landing — mono eyebrow, condensed headline, the
  * fleet strip — and the grid is the same grid with, when there is nothing in
  * it, one ghost slot where the first car will go.
+ *
+ * The room and the header are `SignedInShell`'s, shared with settings and
+ * onboarding: the landing's drawn `.service-bay` plate rather than the pure
+ * black and separate `.vignette-frame` this page carried, which the critique
+ * graded as "the whole distance" between this garage and the landing on the
+ * same cards. CC-142 §5 still holds — the plate is drawn, not photographed.
  */
 export interface GarageViewProps {
   vehicles: GarageVehicle[];
@@ -55,63 +56,17 @@ export interface GarageViewProps {
 }
 
 export function GarageView({ vehicles, loading, error }: GarageViewProps) {
-  const homeHref = useHomeHref();
   const fleet = fleetSummary(vehicles);
 
   return (
-    <div className="relative w-full min-h-screen">
-      {/*
-        CC-142 §5 — flat, not photographic. The garage is now a grid of
-        identity plates, each carrying its own make-derived field; a
-        photographic backdrop behind them put a second, unrelated image
-        underneath every one of those and tinted the lot. It also fetched
-        470 KB of `dark-roomb.jpeg` to sit at low opacity behind opaque cards.
-
-        Image backgrounds stay on landing and auth, which are not in scope.
-      */}
-      <div className="absolute inset-0 z-0 bg-black" />
-      {/* Signature vignette — see app/demo/page.tsx. */}
-      <div
-        className="fixed inset-0 z-0 vignette-frame pointer-events-none"
-        aria-hidden="true"
-      />
-
-      <nav className="relative z-20 border-b border-white/8" style={{ backgroundColor: '#000000', backdropFilter: 'blur(12px)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4">
-          <div className="flex items-center justify-between">
-            <Link href={homeHref} className="flex items-center group">
-              {/* 21px mark — the small cut, switched inside the component. */}
-              <BrandWordmark size={28} />
-            </Link>
-            <div className="flex items-center gap-3">
-              {/*
-                `from=garage` marks this as a deliberate visit. /onboard now
-                redirects a user who already has vehicles, and without this
-                marker that guard would make adding a second car impossible —
-                see lib/onboarding.ts.
-
-                ⚠ An outline, not a cyan one. This carried `border-cyan-400
-                text-cyan-400` — a cyan call to action on a page whose design
-                system reserves cyan for information and focus, and the one
-                thing the critique named under "no cyan-filled CTA" (B3). The
-                brief's header is "one off-white hairline cut-corner 'Add
-                vehicle'": the primitive's outline variant is exactly that, and
-                the label is sentence case like every other control here.
-              */}
-              <Link href="/onboard?from=garage">
-                <Button variant="outline" size="sm" className="font-semibold text-[color:var(--text-primary)]">
-                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Add vehicle
-                </Button>
-              </Link>
-              <AccountMenu />
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    /*
+      The header's "Add vehicle" lives in `SignedInShell.tsx` with its
+      `?from=garage` marker; `onboarding-guard.test.ts` reads that file as
+      well as this one.
+    */
+    <SignedInShell actions={<AddVehicleAction />}>
       {/* Widened at `2xl` to match the dashboard — see app/page.tsx. */}
-      <main className="relative z-20 max-w-7xl 2xl:max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-12 py-14">
+      <main className="relative max-w-7xl 2xl:max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-12 py-14">
         {/*
           ── The opener, in the landing's voice ──────────────────────────────
 
@@ -196,6 +151,6 @@ export function GarageView({ vehicles, loading, error }: GarageViewProps) {
           </div>
         )}
       </main>
-    </div>
+    </SignedInShell>
   );
 }

@@ -4,8 +4,13 @@ import { cn } from '@tappet/core/utils';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /**
-   * `sm` drops the control to 34px. There is no `lg` — nothing in the app asked
-   * for one, and an unused size is a decision nobody has made yet.
+   * `sm` drops the control to 34px; `lg` lifts it to 64px in 24px type.
+   *
+   * ⚠ `lg` did not exist until 11 Sep, and this note used to say why: "nothing
+   * in the app asked for one, and an unused size is a decision nobody has
+   * made yet." The add-a-vehicle page asked — its brief makes the VIN field the
+   * largest element on the page — and the step lives in `.field-lg` beside
+   * the other two, with the coarse-pointer override that keeps it at 24px.
    *
    * Named `fieldSize`, not `size`, and that is not fussiness: `<input size>` is a
    * real DOM attribute meaning "width in characters". Calling this `size` and
@@ -15,7 +20,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
    * caller legitimately using it. `Textarea` uses the same name for the same
    * reason.
    */
-  fieldSize?: 'default' | 'sm';
+  fieldSize?: 'default' | 'sm' | 'lg';
 }
 
 /**
@@ -41,6 +46,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           'field',
           fieldSize === 'sm' && 'field-sm',
+          fieldSize === 'lg' && 'field-lg',
           // shadcn's file-input reset stays: a file control's button is not a
           // text field, and `.field` has nothing to say about it.
           'file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground',

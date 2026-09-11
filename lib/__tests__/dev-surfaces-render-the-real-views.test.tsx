@@ -200,8 +200,9 @@ describe('SettingsView renders the profile it is handed and writes through the a
       expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
     }
     expect(screen.getByDisplayValue('Ada')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Kilometres' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Miles' })).toHaveAttribute('aria-checked', 'false');
+    // The segmented control shows the unit and reads the word — "KM, kilometres".
+    expect(screen.getByRole('radio', { name: /kilometres/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /miles/i })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('saves through the injected action with the current values, so the dev surface can be inert', async () => {
@@ -213,7 +214,11 @@ describe('SettingsView renders the profile it is handed and writes through the a
         actions={{ updateProfile, exportAccountData: async () => ({ success: false }) }}
       />,
     );
-    await user.click(screen.getByRole('radio', { name: 'Kilometres' }));
+    // Save is disabled until something changed — B7 — so the write must
+    // follow a change, and a click on a disabled Save must not reach it.
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+    await user.click(screen.getByRole('radio', { name: /kilometres/i }));
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: /save changes/i }));
     expect(updateProfile).toHaveBeenCalledWith({ display_name: 'Ada', distance_unit: 'km' });
   });

@@ -10,6 +10,7 @@ import { Loader as Loader2, ArrowLeft } from 'lucide-react';
 import { decodeVIN } from '../actions';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { PageOpener } from '@/components/PageOpener';
+import { SignedInShell } from '@/components/SignedInShell';
 
 /**
  * The VIN form, and then the wizard.
@@ -37,6 +38,28 @@ import { PageOpener } from '@/components/PageOpener';
  * and the `hover:scale` were each a per-page override of something the
  * primitive settles, and the primitive's hover is the sodium fill that means
  * "the thing you are about to press".
+ *
+ * ── The VIN is the hero — B8 ────────────────────────────────────────────────
+ *
+ * Round two made the field the largest element on the page: the `lg` step of
+ * `.field`, 64px in 24px mono, with a cyan hairline beneath it that advances
+ * one seventeenth per character. The "0/17" counter went — the ramp is the
+ * count — and the ramp is a real `progressbar` so a screen reader gets the
+ * same fact the eye does. "17-character VIN" had been on the page three
+ * times (body line, label, placeholder); the body line keeps it.
+ *
+ * ── The photograph — B9 ─────────────────────────────────────────────────────
+ *
+ * The right column carries a generated night plate of a VIN tag at the base
+ * of a windscreen, styled to the north-star. It is a **contained** image
+ * beside the form, which is the distinction CC-142 §5 draws: what §5 removed
+ * was a photographic page *background* under a wash, and this page keeps a
+ * drawn one. `image-weight-budget.test.ts` caps the plate's heaviest
+ * derivative, as it does `/check`'s, so the exemption has a number attached.
+ * The plate's stamped characters are deliberately not legible — the one
+ * candidate that rendered a readable VIN-like string was rejected, because
+ * a fake number on the page that asks for a real one is precision this
+ * product does not invent. Provenance in `public/design/CREDITS.md`.
  */
 export default function OnboardVinForm() {
   const router = useRouter();
@@ -79,13 +102,8 @@ export default function OnboardVinForm() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* CC-142 §5 — flat on authenticated routes. Under a 0.72–0.88 black
-          wash this photograph was already almost entirely invisible; what it
-          reliably did was download. */}
-      <div className="fixed inset-0 z-0 bg-black" />
-
-      <main className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-12 py-14">
+    <SignedInShell>
+      <main className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-12 py-14">
         <PageOpener
           className="mb-10"
           eyebrow={
@@ -101,72 +119,105 @@ export default function OnboardVinForm() {
           lede="Enter the 17-character VIN. We decode it and research the car."
         />
 
-        {/* The panel is `/check`'s: cut corner, the card surface, the hairline. */}
-        <div className="cut-panel border border-[color:var(--border)] bg-[hsl(var(--card))]/95 p-5 sm:p-6 w-full max-w-lg">
-          <form onSubmit={handleVINSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="vin" className="text-[color:var(--text-muted)]">
-                  Vehicle Identification Number (VIN)
+        {/*
+          Two columns from `lg`: the form at 720 on the left, the plate on the
+          right; on a phone the plate stacks above the form, as the brief
+          places it.
+        */}
+        <div className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)] items-start">
+          {/* The panel is `/check`'s: cut corner, the card surface, the hairline. */}
+          <div className="order-2 lg:order-1 cut-panel border border-[color:var(--border)] bg-[hsl(var(--card))]/95 p-5 sm:p-6">
+            <form onSubmit={handleVINSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="vin" className="mono text-xs uppercase tracking-[0.18em] text-white/55">
+                  VIN
                 </Label>
+                <Input
+                  id="vin"
+                  fieldSize="lg"
+                  value={vin}
+                  onChange={(e) => setVin(e.target.value.toUpperCase())}
+                  maxLength={17}
+                  className="mono"
+                  disabled={loading}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-describedby="vin-hint"
+                />
                 {/*
-                  A count, not a verdict. This went `text-green-400` at 17,
-                  which is a third hue saying "good" — and good is off-white
-                  ink here (B3). The counter lifts from muted to primary when
-                  the VIN is complete, which is the same thing said in the
-                  system's own words.
+                  The ramp: a cyan hairline advancing one seventeenth per
+                  character. Cyan is information and focus, and this is both.
+                  `progressbar` rather than decoration so the count survives
+                  for anyone not looking at it.
                 */}
-                <span
-                  className={`mono text-xs tabular-nums transition-colors ${
-                    vin.length === 17 ? 'text-[color:var(--text-primary)]' : 'text-[color:var(--text-muted)]'
-                  }`}
+                <div
+                  role="progressbar"
+                  aria-label="VIN length"
+                  aria-valuemin={0}
+                  aria-valuemax={17}
+                  aria-valuenow={vin.length}
+                  className="h-px w-full bg-white/10"
                 >
-                  {vin.length}/17
-                </span>
+                  <div
+                    className="h-px bg-[color:var(--brand-accent)] transition-[width] duration-[120ms] ease-linear"
+                    style={{ width: `${(vin.length / 17) * 100}%` }}
+                  />
+                </div>
+                <p id="vin-hint" className="text-xs text-[color:var(--text-muted)]">
+                  Find it on the driver&apos;s side dashboard or door jamb.
+                </p>
               </div>
-              <Input
-                id="vin"
-                placeholder="Enter 17-character VIN"
-                value={vin}
-                onChange={(e) => setVin(e.target.value.toUpperCase())}
-                maxLength={17}
-                className="mono text-base"
-                disabled={loading}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <p className="text-xs text-[color:var(--text-muted)]">
-                Find your VIN on the driver&apos;s side dashboard or door jamb.
-              </p>
-            </div>
 
-            {/*
-              Sodium, not red — B3. `bg-red-500/10 border-red-400/30
-              text-red-300` was the retired red family as utility classes. The
-              same cut panel and tokens the landing's failed-load notice uses.
-            */}
-            {error && (
-              <div
-                role="alert"
-                className="chamfer-sm border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] p-4 text-sm text-[color:var(--critical)]"
-              >
-                {error}
-              </div>
-            )}
-
-            <Button type="submit" className="w-full font-semibold" disabled={loading || vin.length !== 17}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                  Decoding VIN…
-                </>
-              ) : (
-                'Continue'
+              {/*
+                Sodium, not red — B3. `bg-red-500/10 border-red-400/30
+                text-red-300` was the retired red family as utility classes.
+                The same cut panel and tokens the landing's failed-load notice
+                uses.
+              */}
+              {error && (
+                <div
+                  role="alert"
+                  className="chamfer-sm border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] p-4 text-sm text-[color:var(--critical)]"
+                >
+                  {error}
+                </div>
               )}
-            </Button>
-          </form>
+
+              <Button type="submit" className="w-full font-semibold" disabled={loading || vin.length !== 17}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Decoding VIN…
+                  </>
+                ) : (
+                  'Continue'
+                )}
+              </Button>
+            </form>
+          </div>
+
+          {/*
+            The plate. An `<img>` rather than a CSS background so the preload
+            scanner can see it; stated intrinsic size so it cannot shift the
+            form when it lands; eager, because it is above the fold on both
+            viewports.
+          */}
+          <figure className="order-1 lg:order-2 cut-panel overflow-hidden border border-white/8 bg-[hsl(var(--card))]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/design/onboard-vin-plate-1400.webp"
+              srcSet="/design/onboard-vin-plate-800.webp 800w, /design/onboard-vin-plate-1400.webp 1400w"
+              sizes="(min-width: 1024px) 45vw, 100vw"
+              width={2528}
+              height={1696}
+              loading="eager"
+              decoding="async"
+              alt="A VIN plate at the base of a windscreen at night, lit by a streetlamp"
+              className="block h-auto w-full"
+            />
+          </figure>
         </div>
       </main>
-    </div>
+    </SignedInShell>
   );
 }

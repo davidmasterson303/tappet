@@ -48,12 +48,29 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/*
+          A square chip with the cut, not a circle — signed-in brief B4, and the
+          critique's first AI tell: "circular avatar chip with the generic
+          person glyph — component-library default".
+
+          ⚠ The clip is on the inner span, deliberately. `clip-path` clips
+          hit-testing as well as paint, so a clipped button loses the 44px
+          hit area that `.tap-target-44` draws through a pseudo-element outside
+          its box — a 36px chip would become a 36px target on a phone. The
+          button stays unclipped and carries the target and the focus ring;
+          the span inside it is the visible chip.
+        */}
         <button
           type="button"
           aria-label="Account menu"
-          className="tap-target-44 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-target-44 group/account flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          <User className="h-4 w-4" aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="chamfer-sm flex h-9 w-9 items-center justify-center border border-[color:var(--border-field)] bg-transparent transition-colors group-hover/account:border-[color:var(--border-field-hover)]"
+          >
+            <User className="h-4 w-4" />
+          </span>
         </button>
       </DropdownMenuTrigger>
 
