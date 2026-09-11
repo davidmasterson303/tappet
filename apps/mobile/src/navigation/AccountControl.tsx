@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NAV_BAND } from '../components/RootScreen';
 import { space, text, type } from '../theme';
 
 /**
@@ -46,7 +47,14 @@ export default function AccountControl({
 
   return (
     <View
-      style={[styles.slot, { top: insets.top + space.sm }]}
+      /*
+        ⚠ 11 Sep: centred on the 44pt band a root's title collapses into, so
+        the mono nav title and this word share a baseline once the screen has
+        scrolled — they are the two things on that row. At rest it sits a few
+        points above the large title's optical centre, which reads as a nav
+        control should: on the bar, not on the heading.
+      */
+      style={[styles.slot, { top: insets.top + (NAV_BAND - type.monoLabel.lineHeight) / 2 }]}
       pointerEvents="box-none"
     >
       <Pressable

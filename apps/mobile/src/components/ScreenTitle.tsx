@@ -35,7 +35,24 @@ import { space, text, type } from '../theme';
  * which ignores `textTransform`, so those titles are written in caps at the
  * call site. Two rules, because two renderers — worth knowing before "fixing"
  * one to match the other.
+ *
+ * ── ⚠ 11 Sep · a screen with a native header draws no large title ───────────
+ *
+ * `Service`, `Plan` and `Account` each reach the screen two ways: as a tab root,
+ * where this is the only name on screen, and pushed onto a stack, where the
+ * native header now carries the mono nav title (see `rootTitle` in
+ * `RootNavigator`). Drawing this as well put two names on one screen — which
+ * the critique called out on Account by name — so the header's presence decides.
+ * `canGoBack()` is the same question `rootTitle` asks, so the two cannot drift.
+ *
+ * `RootScreen` is the root's version of this: the same title, plus the collapse
+ * into the mono form that B8 asks for. It reads `TITLE_BAND` from here so the
+ * two agree on how tall the title's band is.
  */
+
+/** The title's band, below the safe-area inset: its top air, its line, its bottom air. */
+export const TITLE_BAND = space.sm + type.display.lineHeight + space.md;
+
 export default function ScreenTitle({ children }: { children: string }) {
   /*
     ⚠ Both of these read their **context** rather than calling the library's
@@ -62,24 +79,24 @@ export default function ScreenTitle({ children }: { children: string }) {
   const navigation = useContext(NavigationContext);
 
   /*
-    ── ⚠ The safe-area inset, and why it is conditional ──────────────────────
+    ── ⚠ The safe-area inset, and why the title carries it ───────────────────
 
     `rootTitle` hides the native header on a root (`headerShown: canGoBack()`),
     and hiding the header hides the thing that was insetting content below the
     status bar and the notch. The first capture after that change had SERVICE
     drawn *through* the clock.
 
-    The same screen pushed from the car's hub keeps its header, which insets for
-    it — adding the inset there too would leave ~59pt of dead graphite under the
-    header.
-
-    So the condition mirrors `rootTitle`'s exactly, in the one other place that
+    The same screen pushed from the car's hub keeps its header, which names it —
+    so the condition mirrors `rootTitle`'s exactly, in the one other place that
     needs to know: there is a header if and only if this screen can go back.
   */
   const hasHeader = navigation?.canGoBack() ?? false;
 
+  /* The header names the screen; a second name would be a regression. */
+  if (hasHeader) return null;
+
   return (
-    <Text style={[styles.title, { paddingTop: (hasHeader ? 0 : (insets?.top ?? 0)) + space.sm }]}>
+    <Text style={[styles.title, { paddingTop: (insets?.top ?? 0) + space.sm }]}>
       {children}
     </Text>
   );

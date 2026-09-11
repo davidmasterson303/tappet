@@ -32,6 +32,7 @@ import { formatCurrency } from '@tappet/core/formatting-utils';
 import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
+import { useRootScroll } from '../components/RootScreen';
 import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
@@ -124,6 +125,11 @@ function visitStamp(visit: ServiceVisit): string | null {
 }
 
 export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut }: Props) {
+  /*
+    B8 · the root's scroll contract. `null` when this screen is pushed with a
+    native header or mounted on its own, and spreads to nothing there.
+  */
+  const rootScroll = useRootScroll();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('');
@@ -383,6 +389,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
         /* R37 / R57. Centred while there is nothing on file; top-aligned after. */
         contentContainerStyle={[styles.body, state.records.length === 0 && OPTICAL_CENTRE]}
         keyboardShouldPersistTaps="handled"
+        {...rootScroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={text.muted} />
         }

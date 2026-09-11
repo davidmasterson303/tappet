@@ -14,6 +14,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import { useRootScroll } from '../components/RootScreen';
 import {
   evaluateSchedule,
   milestoneReason,
@@ -147,6 +148,11 @@ type State =
 const miles = new Intl.NumberFormat('en-US');
 
 export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
+  /*
+    B8 · the root's scroll contract. `null` when this screen is pushed with a
+    native header or mounted on its own, and spreads to nothing there.
+  */
+  const rootScroll = useRootScroll();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [confirmed, setConfirmed] = useState(false);
   const [reading, setReading] = useState('');
@@ -413,7 +419,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const unknowns = services.filter((service) => service.status === 'unknown');
 
   return (
-    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={styles.body}
+      keyboardShouldPersistTaps="handled"
+      {...rootScroll}
+    >
       {confirmBanner}
 
       {/*

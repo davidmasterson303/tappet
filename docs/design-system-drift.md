@@ -1289,6 +1289,62 @@ design port.
 Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
 square, not capsule) and their existing ink.
 
+### 6.8 ✅ §6.6 closed — the tab navigation is rebuilt, 11 Sep
+
+`@react-navigation/bottom-tabs` is installed (JS only — it sits on
+`react-native-screens` and `react-native-safe-area-context`, both already in
+the dev client, so no EAS build) and `RootNavigator` is a tree: a root native
+stack holding the tabs and `Account`, four tabs in the order the last graded
+round used — **Garage, Service, Plan, Advisor** — each with its own native
+stack. The dossier (Garage → Vehicle → Health / Service / Plan / scan) lives
+under the first tab, as the brief's studio paragraph says. `backBehavior="none"`
+is what keeps a root chevron-less: with the library default, `canGoBack()`
+answers yes on every tab but the first and the roots would have grown a header
+pointing sideways at the garage. `lib/__tests__/mobile-tab-roots.test.ts` pins
+the three things that fail silently there.
+
+⚠ **The first tab is labelled GARAGE, not CAR.** David's 30 Aug instruction
+("the garage link in bottom nav should be replaced with car detail view") was
+made against a garage that was a list of cards; the locked brief's garage *is*
+the car — the dossier header re-stacked, plate and dial included — so the tab
+and its root now agree on a name, the way the critique made Service agree with
+its screen. The traffic argument survives as structure: a tab keeps its own
+stack, so leaving the car for Service and coming back lands on the car.
+
+⚠ **B8's collapse is the screen's own, not UIKit's.** `ScreenTitle`'s docblock
+records why `headerLargeTitle` could not be used (it draws over the pinned
+rail, search field and context line three roots carry above their scroller).
+`RootScreen` now holds both titles in one band and animates the band between
+the 34pt condensed height and the 44pt mono nav height once the content has
+scrolled past a threshold — a threshold rather than a scroll-tracked height,
+because a band above the scroller that shrinks under the finger moves the
+content at twice the finger's speed. The pushed instance of a root (Service
+and Plan reached from the hub) draws no large title; the native header's mono
+title names it instead, so one screen carries one name in either position.
+
+⚠ **`headerTitleAlign: 'left'` does nothing on iOS**, and the navigator's own
+comment claimed otherwise. native-stack's types: *"Not supported on iOS. It's
+always `center`."* Pushed screens keep UIKit's centred mono title; a
+left-aligned one would need a custom `headerLeft` carrying the title beside
+the back control. Recorded here rather than built, since it is not on the
+five graded screens.
+
+**Guards re-pointed, claims kept:** `mobile-account-reachable` (the bar is the
+tab navigator's own `tabBar` — its old "after `</Stack.Navigator>`" assertion
+was passing against the first of five closing tags), `mobile-push-routing`
+(the cold-start seed is pinned to the object registering `vehicle/:vehicleId`,
+inside the garage tab's config, where a hoisted one would type-check and seed
+nothing), `push-notification-links` (reads the nested config tree). A
+`tests-test-real-code` registry entry was added for the new scan.
+
+⚠ **Two things the loop's own instructions had wrong.** `apps/mobile/.env`
+carried `EXPO_PUBLIC_DESIGN_FIXTURES=0`, not `1`; since `.env*` is not the
+implementer's to edit, `.claude/launch.json` gained an `expo-mobile-fixtures`
+configuration that sets the flag in the process environment (which `@expo/env`
+never overrides). And the installed dev client registers `crewchief://`, not
+`tappet://`, so deep links cannot be exercised on the simulator until the next
+EAS build — the linking config is covered by the source guards instead.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

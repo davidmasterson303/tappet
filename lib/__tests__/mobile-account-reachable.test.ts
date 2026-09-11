@@ -15,7 +15,7 @@
  * being up, for exactly the person most likely to be leaving.
  *
  * That guarantee was held together by vigilance. **R13 replaced it with a
- * structure**: the account is a tab, the bar is a sibling of the navigator
+ * structure**: the account is a route, its way in is a sibling of the navigator
  * rather than a child of any screen, and no early return inside a screen can
  * take it away.
  *
@@ -24,8 +24,19 @@
  * Three structural facts, all of which a refactor could quietly undo:
  *
  *   1. The navigator registers an `Account` route.
- *   2. `TabBar` is rendered **outside** `Stack.Navigator`, not inside a screen.
- *   3. The bar offers `Account` as one of its destinations.
+ *   2. The bar is rendered by the navigator, **outside** every screen.
+ *   3. The way into `Account` is wired, and sits outside the navigator too.
+ *
+ * ── ⚠ 11 Sep · re-pointed for `@react-navigation/bottom-tabs` ───────────────
+ *
+ * Fact 2 used to be "`<TabBar` appears after `</Stack.Navigator>`", because
+ * there was one stack and the bar was drawn beside it. There are five stacks
+ * now, and that assertion **kept passing** against the first closing tag it
+ * found — a pass for the wrong reason, which CLAUDE.md §5 names as worse than
+ * a failure. The claim is unchanged; its evidence is the tab navigator's own
+ * `tabBar` prop, which React Navigation renders outside every screen by
+ * construction. Fact 3's evidence is likewise scoped to the container's own
+ * children rather than to whichever `</Stack.Navigator>` comes first.
  *
  * `apps/mobile/src/navigation/__tests__/TabBar.test.tsx` covers the control
  * itself — that it is named, that it announces its selected state, and that it
@@ -65,6 +76,54 @@ function accountControlElement(source: string): string {
   return end === -1 ? '' : source.slice(at, end + 2);
 }
 
+/**
+ * The opening tag's attributes, ending at the `>` that closes it — counted by
+ * depth, because `tabBar={(props) => <TabBar … />}` puts a `>` inside the
+ * attribute. The same reader `mobile-back-labels.test.ts` needed for the
+ * `options={({ route }) => …}` case.
+ */
+function openingTagAttributes(source: string, tag: string): string {
+  const at = source.indexOf(tag);
+  if (at === -1) return '';
+
+  let depth = 0;
+  for (let i = at + tag.length; i < source.length; i += 1) {
+    const character = source[i];
+    if (character === '{' || character === '(') depth += 1;
+    else if (character === '}' || character === ')') depth -= 1;
+    else if (character === '>' && depth === 0) return source.slice(at + tag.length, i);
+  }
+
+  return source.slice(at + tag.length);
+}
+
+/**
+ * Is the bar the tab navigator's own, rather than something a screen renders?
+ *
+ * True only when the single `<TabBar` in the source sits inside the
+ * `tabBar={…}` attribute of `<Tab.Navigator`. A bar rendered from a
+ * `Stack.Screen` callback — the failure this file exists for — is outside that
+ * attribute and fails here.
+ */
+function barIsTheNavigators(source: string): boolean {
+  const attributes = openingTagAttributes(source, '<Tab.Navigator');
+  const prop = attributes.indexOf('tabBar={');
+  if (prop === -1) return false;
+
+  const occurrences = source.split('<TabBar').length - 1;
+  return occurrences === 1 && attributes.indexOf('<TabBar', prop) !== -1;
+}
+
+/**
+ * The container's own children: what sits between `<NavigationContainer` and
+ * `</NavigationContainer>` in the root component.
+ */
+function containerChildren(source: string): string {
+  const open = source.indexOf('<NavigationContainer');
+  const close = source.indexOf('</NavigationContainer>');
+  return open === -1 || close === -1 ? '' : source.slice(open, close);
+}
+
 const navigator = readFileSync(NAVIGATOR, 'utf8');
 const tabBar = readFileSync(TAB_BAR, 'utf8');
 
@@ -74,19 +133,18 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
     expect(navigator).toMatch(/Account: undefined;/);
   });
 
-  it('renders the bar outside the navigator, where no screen can swallow it', () => {
+  it('renders the bar as the navigator’s own, where no screen can swallow it', () => {
     /*
       ⚠ **The whole structural claim, in one assertion.** The five cases this
       file used to carry existed because the account lived *inside* a screen and
-      an early return could take it away. What replaces them is position: if
-      `<TabBar` ever moves inside `<Stack.Navigator>`, it becomes a screen's
-      child again and the old failure mode comes back with it.
+      an early return could take it away. What replaces them is position: the
+      bar is the tab navigator's `tabBar`, which the navigator renders beside
+      its screens rather than inside any of them. If `<TabBar` ever moves into a
+      screen's render callback, it becomes a screen's child again and the old
+      failure mode comes back with it.
     */
-    const navigatorClose = navigator.indexOf('</Stack.Navigator>');
-    const barAt = navigator.indexOf('<TabBar');
-
-    expect(navigatorClose).toBeGreaterThan(-1);
-    expect(barAt).toBeGreaterThan(navigatorClose);
+    expect(navigator).toContain('<Tab.Navigator');
+    expect(barIsTheNavigators(navigator)).toBe(true);
   });
 
   it('offers a way into Account from outside every screen', () => {
@@ -137,15 +195,21 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
 
   it('renders that control outside the navigator too', () => {
     /*
-      The ordering case above covers `TabBar`. Now that the account's way in is
+      The bar's case above covers `TabBar`. Now that the account's way in is
       a *different* element, it needs the same proof: a control inside
       `Stack.Navigator` is a control a screen can swallow, which is the whole
       failure this file was written for.
-    */
-    const navigatorClose = navigator.indexOf('</Stack.Navigator>');
-    const controlAt = navigator.indexOf('<AccountControl');
 
-    if (controlAt === -1) return; // still on the bar; the case above covers it.
+      ⚠ Scoped to the container's own children. With five stacks in the file,
+      "after a `</Stack.Navigator>`" is true of almost anything; what matters
+      is that the control is the root navigator's *sibling* — after the root
+      stack closes and before the container does.
+    */
+    const children = containerChildren(navigator);
+    const navigatorClose = children.indexOf('</Stack.Navigator>');
+    const controlAt = children.indexOf('<AccountControl');
+
+    if (navigator.indexOf('<AccountControl') === -1) return; // still on the bar; the case above covers it.
 
     expect(navigatorClose).toBeGreaterThan(-1);
     expect(controlAt).toBeGreaterThan(navigatorClose);
@@ -163,19 +227,49 @@ describe('App Store 5.1.1(v) — the account is a destination', () => {
     expect(/'Account'/.test(accountControlElement(unwired))).toBe(false);
   });
 
-  it('can still detect the bar being moved inside', () => {
+  it('can still detect the bar being moved inside a screen', () => {
     /*
       Rule 5's other half, against a source shaped like the real one. Without
-      it, the ordering assertion above passes on any file that happens not to
-      contain `<TabBar` at all.
+      it, the assertion above passes on any file that happens not to contain
+      `<TabBar` at all — and the shape that matters is a bar rendered from a
+      screen's callback, which is a bar a screen can swallow.
     */
     const moved = `
-      <Stack.Navigator>
-        <TabBar current="Garage" />
-      </Stack.Navigator>
+      <Tab.Navigator backBehavior="none" screenOptions={{ headerShown: false }}>
+        <Tab.Screen name="GarageTab">{() => <TabBar state={state} navigation={navigation} />}</Tab.Screen>
+      </Tab.Navigator>
     `;
 
-    expect(moved.indexOf('<TabBar')).toBeLessThan(moved.indexOf('</Stack.Navigator>'));
+    expect(barIsTheNavigators(moved)).toBe(false);
+
+    const twice = `
+      <Tab.Navigator tabBar={(props) => <TabBar state={props.state} navigation={props.navigation} />}>
+        <Tab.Screen name="GarageTab">{() => <TabBar state={state} navigation={navigation} />}</Tab.Screen>
+      </Tab.Navigator>
+    `;
+
+    expect(barIsTheNavigators(twice)).toBe(false);
+
+    const theirs = `
+      <Tab.Navigator tabBar={(props) => <TabBar state={props.state} navigation={props.navigation} />}>
+        <Tab.Screen name="GarageTab">{() => <GarageStack />}</Tab.Screen>
+      </Tab.Navigator>
+    `;
+
+    expect(barIsTheNavigators(theirs)).toBe(true);
+  });
+
+  it('can still detect the control being moved inside', () => {
+    const moved = `
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen name="Tabs">{() => <AccountControl visible onPress={() => navigation.navigate('Account')} />}</Stack.Screen>
+        </Stack.Navigator>
+      </NavigationContainer>
+    `;
+    const children = containerChildren(moved);
+
+    expect(children.indexOf('<AccountControl')).toBeLessThan(children.indexOf('</Stack.Navigator>'));
   });
 });
 

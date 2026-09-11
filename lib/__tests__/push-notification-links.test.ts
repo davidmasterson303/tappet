@@ -44,12 +44,23 @@ const navigator = readFileSync(
  *
  * Restating them is what this file exists to prevent: a second copy of the
  * table drifts, and the direction it drifts in is the silent one.
+ *
+ * ⚠ 11 Sep: the config is a tree — a root stack over four tabs, each with a
+ * stack — and its per-tab halves are declared as their own typed constants
+ * ahead of `linking` (the navigator says why). So the reader takes the whole
+ * declaration, from the first of those constants to `subscribe`, and collects
+ * every `Name: 'path'` in it. The first version matched one `screens: { … }`
+ * lazily to its first `}`, which against the tree returned the garage tab's
+ * routes and nothing else — and the anti-vacuous case below is what caught it.
  */
 function registeredRoutes(): string[] {
-  const screens = navigator.match(/screens:\s*\{([\s\S]*?)\}/);
-  if (!screens) throw new Error('linking.config.screens not found in RootNavigator');
+  const start = navigator.indexOf('const garageLinks');
+  const end = navigator.indexOf('subscribe(listener)', start);
+  if (start === -1 || end === -1) throw new Error('linking config not found in RootNavigator');
 
-  return Array.from(screens[1].matchAll(/:\s*'([^']+)'/g)).map((m) => m[1]);
+  return Array.from(navigator.slice(start, end).matchAll(/\b([A-Za-z]+):\s*'([^']+)'/g))
+    .filter((m) => m[1] !== 'initialRouteName')
+    .map((m) => m[2]);
 }
 
 /** `vehicle/:vehicleId/advisor` → a matcher for `vehicle/<anything>/advisor`. */

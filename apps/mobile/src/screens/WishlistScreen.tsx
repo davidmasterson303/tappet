@@ -18,6 +18,7 @@ import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import { useRootScroll } from '../components/RootScreen';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
@@ -183,6 +184,11 @@ function isUrgent(item: WishlistItem): boolean {
 }
 
 export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: Props) {
+  /*
+    B8 · the root's scroll contract. `null` when this screen is pushed with a
+    native header or mounted on its own, and spreads to nothing there.
+  */
+  const rootScroll = useRootScroll();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [doneItem, setDoneItem] = useState<WishlistItem | null>(null);
@@ -364,6 +370,7 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
       */
       contentContainerStyle={[styles.body, empty && OPTICAL_CENTRE]}
       keyboardShouldPersistTaps="handled"
+      {...rootScroll}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

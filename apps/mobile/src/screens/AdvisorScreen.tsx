@@ -14,7 +14,7 @@ import {
 import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
 import CutSurface from '../components/CutSurface';
-import ScreenTitle from '../components/ScreenTitle';
+import RootScreen from '../components/RootScreen';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -372,140 +372,153 @@ export function AdvisorScreen({
         A quiet line, not a chip and not a heading: it names what the thread is
         about and gets out of the way. It is above the transcript so it does not
         scroll off — the context is true for every turn, not just the first.
+
+        11 Sep · B8: `RootScreen` draws the root's condensed name and collapses
+        it into the mono nav title once the transcript has scrolled; this line
+        is `pinned` under the band and moves with it. The transcript signs the
+        scroll contract through the function child, because the list is this
+        screen's own and cannot read a context its parent provides.
       */}
-      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
-      <ScreenTitle>Advisor</ScreenTitle>
-
-      {vehicleTitle ? (
-        <View style={styles.context}>
-          <Text style={styles.contextLabel} numberOfLines={1}>
-            About {vehicleTitle}
-          </Text>
-        </View>
-      ) : null}
-
-      <FlatList
-        ref={listRef}
-        data={turns}
-        keyExtractor={(turn) => turn.id}
-        contentContainerStyle={styles.transcript}
-        renderItem={({ item }) => <TurnView turn={item} />}
-        ListEmptyComponent={<AdvisorEmptyState onPick={setDraft} />}
-        /*
-          Content-size rather than a call after each setState: the answer's
-          height is not known until it has laid out, and scrolling before that
-          lands part-way up a long reply.
-        */
-        onContentSizeChange={() => {
-          if (turns.length > 0) listRef.current?.scrollToEnd({ animated: true });
-        }}
-        keyboardDismissMode="interactive"
-      />
-
-      {busy ? (
-        <View style={styles.thinking}>
-          {/*
-            A stage label plus bars shaped like the answer that is coming —
-            not a centred spinner. An advisor reply is three or four lines of
-            prose, so that is what waits in its place; a spinner says only
-            "something is happening somewhere".
-
-            The label is the honest part: it names the stage rather than
-            implying progress nobody is measuring.
-          */}
-          <Text style={styles.thinkingText}>Reading this car's history…</Text>
-          <View style={styles.thinkingBars}>
-            <Skeleton width="100%" />
-            <Skeleton width="92%" />
-            <Skeleton width="60%" />
-          </View>
-        </View>
-      ) : null}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {/*
-        ── R51 · a panel with its own focus ring, not a field in a row ───────
-
-        The border used to be on the `TextInput`, inside a row that also held
-        the button — so the composer read as two controls that happened to be
-        adjacent, and the focused edge belonged to the smaller of them. Now the
-        panel carries the border and the ring, and the send control lives inside
-        it: one object, which is what it is.
-      */}
-      {/*
-        ⚠ 7 Sep · B4: the composer takes the cut, and its focus ring becomes a
-        stroke rather than a border — `CutSurface` draws the shape, so a
-        `borderColor` on the view underneath would square the corner it just cut.
-      */}
-      <CutSurface
-        style={styles.composer}
-        cut={['bottomRight']}
-        size={cut.control}
-        fill={surface.raised}
-        stroke={focused ? brand.accent : border.field}
+      <RootScreen
+        title="Advisor"
+        pinned={
+          vehicleTitle ? (
+            <View style={styles.context}>
+              <Text style={styles.contextLabel} numberOfLines={1}>
+                About {vehicleTitle}
+              </Text>
+            </View>
+          ) : null
+        }
       >
-        <TextInput
-          style={styles.input}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Type a question"
-          /*
-            ⚠ Named, because a placeholder is not a label — and this was the one
-            unlabelled input left in the app, on the screen the product's whole
-            argument rests on. VoiceOver reads a placeholder as the field's
-            *value* while it is empty and drops it entirely once someone types,
-            so a returning screen-reader user found an unnamed box containing
-            their own half-written question. `Field` states this rule; this
-            input cannot be a `Field` — a chat composer takes no visible label —
-            so it carries the name directly.
-          */
-          accessibilityLabel="Ask about this car"
-          placeholderTextColor={text.muted}
-          multiline
-          // Not `editable={!busy}`: a disabled input drops the keyboard and
-          // loses the caret, and there is nothing wrong with typing the next
-          // question while this one is in flight. Only sending is gated.
-          returnKeyType="default"
-        />
-        {/*
-          The filled primary, from the primitive.
+        {(scroll) => (
+          <>
+            <FlatList
+              ref={listRef}
+              data={turns}
+              keyExtractor={(turn) => turn.id}
+              contentContainerStyle={styles.transcript}
+              renderItem={({ item }) => <TurnView turn={item} />}
+              ListEmptyComponent={<AdvisorEmptyState onPick={setDraft} />}
+              /*
+                Content-size rather than a call after each setState: the answer's
+                height is not known until it has laid out, and scrolling before that
+                lands part-way up a long reply.
+              */
+              onContentSizeChange={() => {
+                if (turns.length > 0) listRef.current?.scrollToEnd({ animated: true });
+              }}
+              keyboardDismissMode="interactive"
+              {...scroll}
+            />
 
-          ⚠ It also puts this on the 44pt floor. The hand-rolled version had
-          `paddingVertical: 13` and no `minHeight`, so its height depended on
-          the label's line box — which is how a control quietly stops meeting a
-          coarse-pointer target without anyone changing a number.
+            {busy ? (
+              <View style={styles.thinking}>
+                {/*
+                  A stage label plus bars shaped like the answer that is coming —
+                  not a centred spinner. An advisor reply is three or four lines of
+                  prose, so that is what waits in its place; a spinner says only
+                  "something is happening somewhere".
 
-          `small` rather than `large`: it sits beside the composer's input, and
-          the size names the type weight, never the height. Both clear 44.
-        */}
-        <Button
-          label="Ask"
-          variant="primary"
-          size="small"
-          onPress={() => void send()}
-          disabled={!canSend}
-          accessibilityLabel="Send question to the advisor"
-        />
-      </CutSurface>
+                  The label is the honest part: it names the stage rather than
+                  implying progress nobody is measuring.
+                */}
+                <Text style={styles.thinkingText}>Reading this car's history…</Text>
+                <View style={styles.thinkingBars}>
+                  <Skeleton width="100%" />
+                  <Skeleton width="92%" />
+                  <Skeleton width="60%" />
+                </View>
+              </View>
+            ) : null}
 
-      {consent === 'declined' ? (
-        <Text style={styles.declineNote}>
-          {ADVISOR_AI_CONSENT.declineNote}{' '}
-          <Text style={styles.declineAction} onPress={() => setConsentOpen(true)}>
-            Change that
-          </Text>
-        </Text>
-      ) : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {overLength ? (
-        <Text style={styles.counter}>
-          {trimmed.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()} — too long to
-          send
-        </Text>
-      ) : null}
+            {/*
+              ── R51 · a panel with its own focus ring, not a field in a row ───────
+
+              The border used to be on the `TextInput`, inside a row that also held
+              the button — so the composer read as two controls that happened to be
+              adjacent, and the focused edge belonged to the smaller of them. Now the
+              panel carries the border and the ring, and the send control lives inside
+              it: one object, which is what it is.
+            */}
+            {/*
+              ⚠ 7 Sep · B4: the composer takes the cut, and its focus ring becomes a
+              stroke rather than a border — `CutSurface` draws the shape, so a
+              `borderColor` on the view underneath would square the corner it just cut.
+            */}
+            <CutSurface
+              style={styles.composer}
+              cut={['bottomRight']}
+              size={cut.control}
+              fill={surface.raised}
+              stroke={focused ? brand.accent : border.field}
+            >
+              <TextInput
+                style={styles.input}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Type a question"
+                /*
+                  ⚠ Named, because a placeholder is not a label — and this was the one
+                  unlabelled input left in the app, on the screen the product's whole
+                  argument rests on. VoiceOver reads a placeholder as the field's
+                  *value* while it is empty and drops it entirely once someone types,
+                  so a returning screen-reader user found an unnamed box containing
+                  their own half-written question. `Field` states this rule; this
+                  input cannot be a `Field` — a chat composer takes no visible label —
+                  so it carries the name directly.
+                */
+                accessibilityLabel="Ask about this car"
+                placeholderTextColor={text.muted}
+                multiline
+                // Not `editable={!busy}`: a disabled input drops the keyboard and
+                // loses the caret, and there is nothing wrong with typing the next
+                // question while this one is in flight. Only sending is gated.
+                returnKeyType="default"
+              />
+              {/*
+                The filled primary, from the primitive.
+
+                ⚠ It also puts this on the 44pt floor. The hand-rolled version had
+                `paddingVertical: 13` and no `minHeight`, so its height depended on
+                the label's line box — which is how a control quietly stops meeting a
+                coarse-pointer target without anyone changing a number.
+
+                `small` rather than `large`: it sits beside the composer's input, and
+                the size names the type weight, never the height. Both clear 44.
+              */}
+              <Button
+                label="Ask"
+                variant="primary"
+                size="small"
+                onPress={() => void send()}
+                disabled={!canSend}
+                accessibilityLabel="Send question to the advisor"
+              />
+            </CutSurface>
+
+            {consent === 'declined' ? (
+              <Text style={styles.declineNote}>
+                {ADVISOR_AI_CONSENT.declineNote}{' '}
+                <Text style={styles.declineAction} onPress={() => setConsentOpen(true)}>
+                  Change that
+                </Text>
+              </Text>
+            ) : null}
+
+            {overLength ? (
+              <Text style={styles.counter}>
+                {trimmed.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()} — too long to
+                send
+              </Text>
+            ) : null}
+          </>
+        )}
+      </RootScreen>
     </KeyboardAvoidingView>
   );
 }

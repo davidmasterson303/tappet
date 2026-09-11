@@ -49,6 +49,18 @@
       ],
       "cwd": "apps/mobile",
       "port": 8081
+    },
+    {
+      "name": "expo-mobile-fixtures",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "EXPO_PUBLIC_DESIGN_FIXTURES=1",
+        "npx",
+        "expo",
+        "start"
+      ],
+      "cwd": "apps/mobile",
+      "port": 8081
     }
   ]
 }
