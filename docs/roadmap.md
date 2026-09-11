@@ -39,8 +39,10 @@
 > Needs. `9e74a9b` cites "a critique of the rebuilt pages"; nothing follows it.
 >
 > Still open from the loops: `/garage`, `/settings`, `/onboard` **never judged**
-> (they 307 without a session — the dev account in `apps/mobile/.env` is the
-> session); and four rulings waiting on David in `docs/design-system-drift.md`
+> (they 307 without a session — and ⚠ the dev account in `apps/mobile/.env`
+> is **not** one: its password returns `400 Invalid login credentials`, checked
+> 11 Sep; the phone has run on fixtures since 5 Aug, so the rotation went
+> unnoticed); and four rulings waiting on David in `docs/design-system-drift.md`
 > **§6.1, §6.4, §6.7a, §6.7b**, two of which pin brief lines against shipped guards.
 >
 > #### The 6 Sep Cowork list, item by item

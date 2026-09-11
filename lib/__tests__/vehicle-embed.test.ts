@@ -67,7 +67,8 @@ describe('both garages actually use it', () => {
   */
   it.each([
     ['the landing garage', 'app/page.tsx'],
-    ['the signed-in garage', 'app/garage/page.tsx'],
+    // The screen moved to GarageView.tsx on 11 Sep; page.tsx only fetches.
+    ['the signed-in garage', 'app/garage/GarageView.tsx'],
   ])('%s reads the embeds through firstEmbed', (_name, file) => {
     const source = read(file);
 
@@ -77,7 +78,8 @@ describe('both garages actually use it', () => {
 
   it.each([
     ['the landing garage', 'app/page.tsx'],
-    ['the signed-in garage', 'app/garage/page.tsx'],
+    // The screen moved to GarageView.tsx on 11 Sep; page.tsx only fetches.
+    ['the signed-in garage', 'app/garage/GarageView.tsx'],
   ])('%s no longer indexes an embed with [0]', (_name, file) => {
     /*
       ⚠ The assertion that would have failed before the fix, and the one that
