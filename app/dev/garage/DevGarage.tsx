@@ -15,19 +15,29 @@ export type DevGarageState = 'demo' | 'empty' | 'error' | 'loading';
  * that cost). `state` overrides the data only to reach the two states the demo
  * rows never produce.
  */
+/**
+ * The eyebrow names the session's email on the real page. There is no session
+ * here, so a fixture address stands in — a reserved example domain, so it
+ * cannot be mistaken for anyone's — and the view renders the shape a signed-in
+ * user sees rather than the shape the page falls back to while a session is
+ * still resolving.
+ */
+const OWNER = 'ada@example.com';
+
 export default function DevGarage({ state }: { state: DevGarageState }) {
   const { data: vehicles = [], isLoading, error } = useDemoVehicles();
 
-  if (state === 'loading') return <GarageView vehicles={[]} loading error={null} />;
-  if (state === 'empty') return <GarageView vehicles={[]} loading={false} error={null} />;
+  if (state === 'loading') return <GarageView vehicles={[]} loading error={null} owner={OWNER} />;
+  if (state === 'empty') return <GarageView vehicles={[]} loading={false} error={null} owner={OWNER} />;
   if (state === 'error') {
     return (
       <GarageView
         vehicles={[]}
         loading={false}
         error="Could not reach the garage. This is the error state, rendered on purpose."
+        owner={OWNER}
       />
     );
   }
-  return <GarageView vehicles={vehicles} loading={isLoading} error={error?.message ?? null} />;
+  return <GarageView vehicles={vehicles} loading={isLoading} error={error?.message ?? null} owner={OWNER} />;
 }

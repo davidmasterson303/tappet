@@ -38,13 +38,6 @@ import {
   ArrowRight,
   Pencil,
   Camera,
-  /*
-    ⚠ This was `MoveVertical as MoreVertical` — a ↕ arrow renamed to look like
-    a ⋮ menu glyph. It rendered as a two-headed vertical arrow in a circle,
-    which is why the 11 Sep critique read the options trigger as a "reorder
-    handle": it was drawn as one. The real ellipsis glyph, with a label.
-  */
-  MoreHorizontal,
   Car,
   Gauge,
   Clock,
@@ -321,7 +314,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
   ) : null;
 
   return (
-    <div className="group cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light transition-colors hover:border-white/30">
+    <div className="group cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light transition-colors duration-[var(--duration-fast)] hover:border-white/40">
       {/*
         The 3:2 identity plate, and it renders unconditionally — CC-142 §2.
 
@@ -398,8 +391,18 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               {/*
                 The one chip a hover reveals — brief B10 — and the card's whole
                 management surface: photo, mileage, delete. Mono, cut, and not
-                a circle; the critique read the old ⋮ disc as a "reorder handle",
-                which is what a glyph in a circle with no label looks like.
+                a circle. ⚠ The old trigger was `MoveVertical as MoreVertical`
+                — a ↕ arrow renamed to look like a ⋮ glyph, drawn in a circle
+                with no label — which is why the critique read it as a "reorder
+                handle": it was drawn as one. It is a word now, and only a word;
+                the round-two critique asked for the glyph to go too.
+
+                ⚠ It is not labelled ADD PHOTO, which is the label the brief's
+                studio paragraph gives the chip. This chip is a menu, and it is
+                the only route in the product to deleting a vehicle — naming a
+                menu after one of its items would tell someone hovering a
+                photographed car that the chip adds a photo. The checklist line
+                asks for one chip and no lift; both hold.
 
                 ⚠ The cut is on the inner span, not the button. `clip-path`
                 clips hit-testing, and `.tap-target-44` extends the target
@@ -415,9 +418,8 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                 >
                   <span
                     aria-hidden="true"
-                    className="chamfer-sm mono flex items-center gap-1.5 px-2.5 py-1.5 border border-white/15 bg-black/60 text-white/70 text-xs uppercase tracking-[0.12em] transition-colors group-hover/options:border-white/30 group-hover/options:text-white backdrop-blur-sm"
+                    className="chamfer-sm mono flex items-center px-2.5 py-1.5 border border-white/15 bg-black/60 text-white/70 text-xs uppercase tracking-[0.12em] transition-colors group-hover/options:border-white/30 group-hover/options:text-white backdrop-blur-sm"
                   >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
                     Options
                   </span>
                 </button>

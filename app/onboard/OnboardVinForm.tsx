@@ -124,7 +124,7 @@ export default function OnboardVinForm() {
           right; on a phone the plate stacks above the form, as the brief
           places it.
         */}
-        <div className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)] items-start">
+        <div className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)] items-stretch">
           {/* The panel is `/check`'s: cut corner, the card surface, the hairline. */}
           <div className="order-2 lg:order-1 cut-panel border border-[color:var(--border)] bg-[hsl(var(--card))]/95 p-5 sm:p-6">
             <form onSubmit={handleVINSubmit} className="space-y-6">
@@ -201,8 +201,15 @@ export default function OnboardVinForm() {
             scanner can see it; stated intrinsic size so it cannot shift the
             form when it lands; eager, because it is above the fold on both
             viewports.
+
+            ⚠ Its height is the form's, not its own. At its 3:2 aspect the
+            plate ran 42px deeper than the panel beside it (measured), so the
+            two columns started on one line and ended on two. From `lg` the
+            figure takes the grid row's height — which the panel sets, because
+            an absolutely positioned image contributes none — and the image
+            covers it; below `lg`, stacked above the form, it keeps its aspect.
           */}
-          <figure className="order-1 lg:order-2 cut-panel overflow-hidden border border-white/8 bg-[hsl(var(--card))]">
+          <figure className="relative order-1 lg:order-2 cut-panel overflow-hidden border border-white/8 bg-[hsl(var(--card))] aspect-[3/2] lg:aspect-auto lg:min-h-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/design/onboard-vin-plate-1400.webp"
@@ -213,7 +220,7 @@ export default function OnboardVinForm() {
               loading="eager"
               decoding="async"
               alt="A VIN plate at the base of a windscreen at night, lit by a streetlamp"
-              className="block h-auto w-full"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           </figure>
         </div>

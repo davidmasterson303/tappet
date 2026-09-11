@@ -12,7 +12,7 @@ import { GarageView } from './GarageView';
  * the docblock there). Anything visual belongs in the view, not here.
  */
 export default function GaragePage() {
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: vehicles = [], isLoading, error: queryError } = useMyVehicles();
 
   // The vehicle query is disabled until the session resolves, and a disabled
@@ -23,5 +23,5 @@ export default function GaragePage() {
 
   const error = queryError?.message || null;
 
-  return <GarageView vehicles={vehicles} loading={loading} error={error} />;
+  return <GarageView vehicles={vehicles} loading={loading} error={error} owner={user?.email ?? null} />;
 }

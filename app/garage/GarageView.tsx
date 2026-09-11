@@ -53,9 +53,15 @@ export interface GarageViewProps {
   vehicles: GarageVehicle[];
   loading: boolean;
   error: string | null;
+  /**
+   * Who is signed in, for the eyebrow — the session's email. `null` when the
+   * page does not know (the session is still resolving), and the eyebrow
+   * says only that someone is.
+   */
+  owner?: string | null;
 }
 
-export function GarageView({ vehicles, loading, error }: GarageViewProps) {
+export function GarageView({ vehicles, loading, error, owner = null }: GarageViewProps) {
   const fleet = fleetSummary(vehicles);
 
   return (
@@ -76,17 +82,32 @@ export function GarageView({ vehicles, loading, error }: GarageViewProps) {
           landing's opener as one piece — mono eyebrow, condensed uppercase
           headline, one quiet line.
 
-          The eyebrow is a state label, which is what mono is for here. It
-          does not name the owner: the garage query does not fetch the profile,
-          and `user.email` is not a display name — printing it would show
-          someone who set "David" in settings their email's local part instead.
+          The eyebrow is a state label, which is what mono is for here, and it
+          says who: SIGNED IN AS and the session's email. Round one said only
+          SIGNED IN and the critique cut it — "says nothing; the brief's
+          'SIGNED IN AS ADA' says who. Say who or drop the line." Dropping it
+          would take the eyebrow B2 asks for. The email is the account's own
+          identifier and true as printed; what this deliberately does *not*
+          do is print its local part as if it were a display name, which
+          would show someone who set "David" in settings a different word.
+          The garage does not fetch the profile, and an eyebrow is not a
+          reason to start.
 
           "Managing N vehicles" is gone; the fleet strip below carries the
           count, and carries it as a number rather than as a sentence.
         */}
         <PageOpener
           className="mb-10"
-          eyebrow="Signed in"
+          eyebrow={
+            owner ? (
+              <>
+                Signed in as{' '}
+                <span className="inline-block max-w-full truncate align-bottom normal-case">{owner}</span>
+              </>
+            ) : (
+              'Signed in'
+            )
+          }
           title="Garage"
           lede={
             loading

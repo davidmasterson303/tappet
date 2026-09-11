@@ -60,7 +60,14 @@ function SettingsSection({
   tone = 'default',
 }: {
   title: string;
-  description: string;
+  /**
+   * Optional since 11 Sep. Three of the four groups carried a line restating
+   * their heading — "How you appear in the app." under PROFILE — and the
+   * critique named the habit: explaining a label that already explains
+   * itself. The delete group keeps its line, because that one states a
+   * consequence rather than a synonym.
+   */
+  description?: string;
   index: number;
   children: React.ReactNode;
   tone?: 'default' | 'critical';
@@ -90,7 +97,7 @@ function SettingsSection({
         >
           {title}
         </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+        {description ? <p className="mt-1.5 text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {children}
     </section>
@@ -204,7 +211,6 @@ export function SettingsView({
         <div className="flex flex-col gap-5">
           <SettingsSection
             title="Profile"
-            description="How you appear in the app."
             index={0}
           >
             <FormField
@@ -215,13 +221,12 @@ export function SettingsView({
               placeholder="Your name"
               maxLength={60}
               error={nameError}
-              hint="Shown in the app. Up to 60 characters."
+              hint="Up to 60 characters."
             />
           </SettingsSection>
 
           <SettingsSection
             title="Preferences"
-            description="Units and formatting across the app."
             index={1}
           >
             <div className="space-y-2">
@@ -291,7 +296,6 @@ export function SettingsView({
 
           <SettingsSection
             title="Your data"
-            description="Download everything Tappet holds about you."
             index={2}
           >
             <Button
