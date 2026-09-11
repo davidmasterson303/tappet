@@ -1394,6 +1394,45 @@ Vehicle plate runs under the status bar, so its top-right cut has nowhere to
 live — which corner, if any, the Vehicle plate cuts is one sentence from
 David.
 
+### 6.10 The loop stopped at round 23 — 8 of 9 lines ✅, B9 on a build, 11 Sep
+
+Scores after the rebuild: 6 → 7 → 8 → 7. Round 23 marked **B2 ✅** (the cut
+measured present at native resolution, 24px legs at 45° — see
+`critique-22.md`'s footnote) and everything else ✅ except **B9 🟡**, and said
+`Continue: no`: *"the only open line (B9) closes with a viewfinder frame,
+not another design round."* That frame needs `expo-camera` (§6.9). So the
+loop stops on the critic's own rule, one line short of the 9 David asked
+for, and the line it is short by is a build rather than a design.
+
+⚠ The 8 → 7 step is the critic's variance, not a regression: round 23's
+checklist is strictly better than round 22's (B2 moved 🟡 → ✅, nothing moved
+the other way), and its three gaps are all things round 22 had graded
+without raising. They are recorded, not built:
+
+- **Garage's recalls chip vs. Vehicle's band.** Two treatments of one fact.
+  The critic wants Garage's NEXT SERVICE and OPEN RECALLS as two hairline
+  band rows with the triangle beside the count, and the chip deleted (B5, B7).
+- **Garage's plate crop.** The band's `cover` shows the car's flank and the
+  dissolve under the name covers the road; the critic wants the crop biased
+  toward the asphalt, or ~60pt more plate (B2). ⚠ This is the fixture's
+  square photograph as much as the layout — a 3:4 phone snapshot crops
+  differently — and `focal_point_x/y` on `vehicles` is the honest lever.
+- **Service's search field** is a second full-width slab under SCAN INVOICE;
+  the critic wants a hairline band row (magnifier, placeholder, rule, no
+  fill) so the primary is the only slab (B9).
+
+**Parking lot, consolidated across rounds 20–23**, for David and not applied:
+MILEAGE · AVG · RELIABILITY vs. the strip's MILEAGE · TRIM · USE; which corner
+the Vehicle plate cuts, if any, given it runs under the status bar; whether
+Plan's empty state should carry the brief's "one button" (it says "See what
+we already know" with a button below — the critic read the copy as pressable
+and found nothing); whether the garage's empty bottom third should carry
+"What's driving this score" the way web's dial band does; whether ACCOUNT
+needs a home other than all four root headers; and whether the T mark's
+corners, if rounded, should take the 45° cut. Two cut items the critic
+raised and this loop did not take: the `sliders` icon on "What is driving
+this score", and the search field's fill (the third gap above).
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
