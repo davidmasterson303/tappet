@@ -14,12 +14,12 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import Button from '../components/Button';
 import AlertBanner from '../components/AlertBanner';
 import Chip from '../components/Chip';
-import Icon from '../components/Icon';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
 import GarageBay from '../components/GarageBay';
 import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
+import RootScreen from '../components/RootScreen';
 import { SkeletonCard } from '../components/Skeleton';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
 import { PushPrimer } from '../notifications/PushPrimer';
@@ -35,7 +35,6 @@ import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-st
 import { getHealthBandJudgement } from '@tappet/core/health-band';
 import { normaliseRecalls } from '@tappet/core/recalls';
 import { localToday } from '@tappet/core/garage-next-service';
-import { interFace } from '../theme/fonts';
 
 import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
 import { rememberGarageSize } from '../navigation/last-vehicle';
@@ -487,73 +486,76 @@ export function GarageScreen({
 
     So the header and the account modal are hoisted above the branch, and only
     the body below them changes with the state.
+
+    11 Sep · B8: the header is now `RootScreen`'s band — the mark and the name
+    on its row, the `+` at its trailing edge — and every state below renders
+    *inside* it, so the guarantee holds by construction rather than by each
+    branch remembering to spread `{header}`. The band collapses into the mono
+    nav title once the bays have scrolled.
   */
-  const header = (
-    <View style={styles.header}>
-      <View style={styles.headingRow}>
-        {/* 22px — the small cut, switched inside the component. This is the
-            root screen, so the nav header carries the mark alone. */}
-        {/*
-          ── 30 Aug · the plate replaces the dial ──────────────────────────
+  /*
+    ── 30 Aug · the plate replaces the dial ──────────────────────────────────
 
-          The icon reduction, not the lockup: at nav height the plate's own
-          name would be under the type floor, and Design's rule is a different
-          drawing rather than smaller type. The screen title beside it already
-          says where you are.
-        */}
-        <BrandLockup width={26} variant="icon" />
-        <Text style={styles.heading}>Garage</Text>
-      </View>
-      <View style={styles.headerActions}>
-        {/*
-          "Add a car" lives here, not only in the empty state.
+    The icon reduction, not the lockup: at nav height the plate's own name
+    would be under the type floor, and Design's rule is a different drawing
+    rather than smaller type. The screen title beside it already says where
+    you are.
+  */
+  const mark = <BrandLockup width={26} variant="icon" />;
 
-          It used to exist solely inside `ListEmptyComponent`, which meant that
-          **once you owned one car there was no way on the phone to add a
-          second.** Fine while the web was where you became a user; a hole in
-          the product once the phone is the product.
+  /*
+    "Add a car" lives here, not only in the empty state.
 
-          This is the same rule `mobile-account-reachable.test.ts` holds for
-          account deletion, and it was broken the same way — an affordance
-          placed in one branch of a screen that renders several. The header
-          renders in every state this screen has, which is why both live in it.
-        */}
-        {/*
-          ⚠ No `hitSlop`. These two sat in a `space.lg` row each carrying
-          `hitSlop={12}`, so their targets overlapped by **8pt** — 12 + 12 into
-          a 16pt gap — and a tap in the overlap went to whichever painted last.
+    It used to exist solely inside `ListEmptyComponent`, which meant that
+    **once you owned one car there was no way on the phone to add a
+    second.** Fine while the web was where you became a user; a hole in
+    the product once the phone is the product.
 
-          The floor names this exception itself: hitSlop is not a substitute in
-          a wrapped row. Both already clear 44 vertically through `minHeight`
-          and `lineHeight`, and both clear it horizontally on their own text, so
-          the slop was buying nothing and paying for it with a collision.
-        */}
-        {/*
-          ── R22 · a `+`, and only a `+` ──────────────────────────────────────
+    This is the same rule `mobile-account-reachable.test.ts` holds for
+    account deletion, and it was broken the same way — an affordance
+    placed in one branch of a screen that renders several. The band
+    renders in every state this screen has, which is why it lives there.
+  */
+  /*
+    ⚠ No `hitSlop`. These two sat in a `space.lg` row each carrying
+    `hitSlop={12}`, so their targets overlapped by **8pt** — 12 + 12 into
+    a 16pt gap — and a tap in the overlap went to whichever painted last.
 
-          Two plain text links of equal weight sat here — `Add car` and
-          `Account` — and only one of them was consequential. Text links in a
-          header are the weakest affordance the platform has, and giving the two
-          the same one said they were the same kind of thing.
+    The floor names this exception itself: hitSlop is not a substitute in
+    a wrapped row. Both already clear 44 vertically through `minHeight`
+    and `lineHeight`, and both clear it horizontally on their own text, so
+    the slop was buying nothing and paying for it with a collision.
+  */
+  /*
+    ── R22 · a `+`, and only a `+` — then a word, 11 Sep ────────────────
 
-          `Account` is **gone from here entirely**, because R13 landed: it is a
-          tab, reachable from every screen rather than from this one. That is
-          also what makes App Store 5.1.1(v) structural instead of something
-          this screen has to remember on every return path — see
-          `mobile-account-reachable.test.ts`, which now checks the bar.
+    Two plain text links of equal weight sat here — `Add car` and
+    `Account` — and only one of them was consequential. Text links in a
+    header are the weakest affordance the platform has, and giving the two
+    the same one said they were the same kind of thing.
 
-          What is left is the one control this header owns, as a glyph on a 44pt
-          square. It is named, because a `+` alone is a shape.
-        */}
-        <Pressable
-          onPress={onAddVehicle}
-          accessibilityRole="button"
-          accessibilityLabel="Add a car"
-          style={styles.headerAction}
-        >
-          <Icon name="plus" size={22} color={text.primary} />
-        </Pressable>
-      </View>
+    `Account` is **gone from here entirely**, because R13 landed: it is
+    reachable from every root through `AccountControl`, a sibling of the
+    navigator. That is also what makes App Store 5.1.1(v) structural instead
+    of something this screen has to remember on every return path — see
+    `mobile-account-reachable.test.ts`.
+
+    What is left is the one control this header owns. R22 drew it as a `+`
+    on a 44pt square; the critique on 11 Sep read it beside ACCOUNT and asked
+    why one piece of chrome is a glyph when every other is a mono caps word.
+    Fair — B1 gives chrome that voice, and `AccountControl` already speaks it.
+    So it says ADD CAR, in the same face, and is still named for the reader.
+  */
+  const addCar = (
+    <View style={styles.headerActions}>
+      <Pressable
+        onPress={onAddVehicle}
+        accessibilityRole="button"
+        accessibilityLabel="Add a car"
+        style={styles.headerAction}
+      >
+        <Text style={styles.headerActionLabel}>Add car</Text>
+      </Pressable>
     </View>
   );
 
@@ -564,179 +566,184 @@ export function GarageScreen({
 
   if (state.status === 'loading') {
     return (
-      <View style={styles.stateScreen}>
-        {header}
-        {/*
-          Shaped like the cards that are coming, not a spinner in the middle of
-          an empty screen. A blank second on a cold fetch is indistinguishable
-          from broken, and this is the first screen a reviewer opens.
+      <RootScreen title="Garage" leading={mark} trailing={addCar}>
+        <View style={styles.stateScreen}>
+          {/*
+            Shaped like the cards that are coming, not a spinner in the middle of
+            an empty screen. A blank second on a cold fetch is indistinguishable
+            from broken, and this is the first screen a reviewer opens.
 
-          Two, because one reads as "a card is loading" and the list is a list.
-        */}
-        <View style={styles.loadingList}>
-          <SkeletonCard lines={2} />
-          <SkeletonCard lines={2} />
-        </View>
+            Two, because one reads as "a card is loading" and the list is a list.
+          */}
+          <View style={styles.loadingList}>
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={2} />
+          </View>
           {primer}
-      </View>
+        </View>
+      </RootScreen>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <View style={styles.stateScreen}>
-        {header}
-        <View style={styles.centred}>
-          <Text style={styles.errorTitle}>
-            {state.unauthorized ? 'Signed out' : 'Could not load your garage'}
-          </Text>
-          <Text style={styles.errorBody}>
-            {state.unauthorized ? 'Your session has expired. Sign in again.' : state.message}
-          </Text>
-          {/*
-            `secondary`, not `primary`. Recovering from an error is the only
-            thing to do on this screen, but filling the button in brand colour
-            makes a failure state look like a call to action.
-          */}
-          <Button
-            label={state.unauthorized ? 'Sign in' : 'Try again'}
-            variant="outline"
-            onPress={() => (state.unauthorized ? onSignOut() : void load())}
-            style={styles.stateAction}
-          />
+      <RootScreen title="Garage" leading={mark} trailing={addCar}>
+        <View style={styles.stateScreen}>
+          <View style={styles.centred}>
+            <Text style={styles.errorTitle}>
+              {state.unauthorized ? 'Signed out' : 'Could not load your garage'}
+            </Text>
+            <Text style={styles.errorBody}>
+              {state.unauthorized ? 'Your session has expired. Sign in again.' : state.message}
+            </Text>
+            {/*
+              `secondary`, not `primary`. Recovering from an error is the only
+              thing to do on this screen, but filling the button in brand colour
+              makes a failure state look like a call to action.
+            */}
+            <Button
+              label={state.unauthorized ? 'Sign in' : 'Try again'}
+              variant="outline"
+              onPress={() => (state.unauthorized ? onSignOut() : void load())}
+              style={styles.stateAction}
+            />
+          </View>
+          {primer}
         </View>
-        {primer}
-      </View>
+      </RootScreen>
     );
   }
 
   return (
-    <>
-      {deletedNotice && (
-        /*
-        Apple asks for confirmation that deletion actually happened, and this
-        is the last thing the account's owner will ever see from the app — the
-        session is cleared the moment they dismiss it, so there is nothing left
-        to inspect afterwards. It names what went, rather than saying "done".
-      */
-        <View style={styles.deletedNotice}>
-          <Text style={styles.deletedNoticeText}>{deletedNotice}</Text>
-        </View>
-      )}
-      {/*
-        ── The garage is a row of bays, swiped between ──────────────────────────
-
-        A **vertical** scroller carrying the header and pull-to-refresh, with a
-        **horizontal** paged scroller of bays inside it. Both directions are
-        needed and a single list cannot give them: a horizontal `FlatList` puts
-        its `ListHeaderComponent` to the *left* of the first item rather than
-        above it, and `RefreshControl` only works on a vertical scroller.
-
-        A paged `ScrollView` rather than a horizontal `FlatList`, deliberately.
-        A garage is a handful of cars — virtualisation buys nothing at that size
-        and costs the thing that matters here, which is that every bay is
-        mounted and only the focused one animates. `active` is what gates the
-        door and the needle; a virtualised list would instead have bays igniting
-        as they scrolled into the window, which is three intros for one glance.
-      */}
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void load(true)}
-            tintColor={text.muted}
-          />
-        }
-        contentContainerStyle={styles.page}
-      >
-        {header}
-
-        {state.vehicles.length === 0 ? (
-          /*
-            An empty garage has two readings, and they want different screens.
-
-            Somebody who has never had a car here needs to be told what this is
-            before being asked for one. Somebody who has used it and sold the
-            car needs no introduction — greeting them with "Start with one car"
-            would be the product forgetting them. `shouldShowFirstRun` decides,
-            and `@tappet/core/first-run` carries the argument for why the
-            stored fact is "ever had a vehicle" rather than "seen onboarding".
-
-            ⚠ `undefined` renders nothing rather than guessing. The answer is
-            read off storage asynchronously, and either default would flash the
-            wrong opening screen for a frame — the bare empty state ahead of the
-            explanation, or the explanation at a year-old account.
+    <RootScreen title="Garage" leading={mark} trailing={addCar}>
+      {(scroll) => (
+        <>
+          {deletedNotice && (
+            /*
+            Apple asks for confirmation that deletion actually happened, and this
+            is the last thing the account's owner will ever see from the app — the
+            session is cleared the moment they dismiss it, so there is nothing left
+            to inspect afterwards. It names what went, rather than saying "done".
           */
-          hadVehicle === undefined ? null : shouldShowFirstRun({
-            everHadVehicle: hadVehicle,
-            vehicleCount: state.vehicles.length,
-          }) ? (
-            /*
-              It replaces the body and not the screen. The header above carries
-              Account, and hiding that from a brand-new user who wants to sign
-              out — or delete the account they just made — is exactly the
-              failure this screen's own header comment warns about: "an
-              affordance placed in one branch of a screen that renders several".
-            */
-            <FirstRun onAddVehicle={onAddVehicle} />
-          ) : (
-            /*
-              The returning case, and the copy is kept verbatim. It read "Add a
-              car on the web and it will appear here" until 8 Aug — the
-              mobile-first problem in one sentence, sending a new user to a
-              different product to become a user at all, which a reviewer would
-              hit before anything else.
+            <View style={styles.deletedNotice}>
+              <Text style={styles.deletedNoticeText}>{deletedNotice}</Text>
+            </View>
+          )}
+          {/*
+            ── The garage is a row of bays, swiped between ──────────────────────────
 
-              The action keeps its own spoken name because the header carries an
-              "Add a car" control too, and two controls with the same name on
-              one screen are ambiguous to a screen reader in a way they are not
-              to the eye, which has position to go on.
-            */
-            <EmptyState
-              headline="No vehicles yet"
-              body="Add your first car and Tappet gets to work on it."
-              actionLabel="Add a car"
-              actionAccessibilityLabel="Add your first car"
-              onAction={onAddVehicle}
-            />
-          )
-        ) : (
+            A **vertical** scroller carrying the header and pull-to-refresh, with a
+            **horizontal** paged scroller of bays inside it. Both directions are
+            needed and a single list cannot give them: a horizontal `FlatList` puts
+            its `ListHeaderComponent` to the *left* of the first item rather than
+            above it, and `RefreshControl` only works on a vertical scroller.
+
+            A paged `ScrollView` rather than a horizontal `FlatList`, deliberately.
+            A garage is a handful of cars — virtualisation buys nothing at that size
+            and costs the thing that matters here, which is that every bay is
+            mounted and only the focused one animates. `active` is what gates the
+            door and the needle; a virtualised list would instead have bays igniting
+            as they scrolled into the window, which is three intros for one glance.
+          */}
           <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            /*
-              Momentum, not `onScroll`. The batten reads "BAY 02 · 2 of 3", and
-              updating it mid-drag would have it flicker through every bay the
-              finger passes rather than naming the one that was landed on.
-            */
-            onMomentumScrollEnd={(event) =>
-              setBayIndex(Math.round(event.nativeEvent.contentOffset.x / width))
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void load(true)}
+                tintColor={text.muted}
+              />
             }
+            contentContainerStyle={styles.page}
+            {...scroll}
           >
-            {state.vehicles.map((vehicle, index) => (
-              <View key={vehicle.id} style={{ width }}>
-                <VehicleBay
-                  vehicle={vehicle}
-                  index={index}
-                  total={state.vehicles.length}
-                  active={index === bayIndex}
-                  onOpen={() => onOpenVehicle(vehicle.id, bayTitle(vehicle))}
-                  /* R21. The next-service row leads to what is due. */
-                  onOpenService={
-                    onOpenService
-                      ? () => onOpenService(vehicle.id, bayTitle(vehicle))
-                      : undefined
-                  }
-                />
-              </View>
-            ))}
-          </ScrollView>
-        )}
+            {state.vehicles.length === 0 ? (
+              /*
+                An empty garage has two readings, and they want different screens.
 
-      </ScrollView>
-      {primer}
-    </>
+                Somebody who has never had a car here needs to be told what this is
+                before being asked for one. Somebody who has used it and sold the
+                car needs no introduction — greeting them with "Start with one car"
+                would be the product forgetting them. `shouldShowFirstRun` decides,
+                and `@tappet/core/first-run` carries the argument for why the
+                stored fact is "ever had a vehicle" rather than "seen onboarding".
+
+                ⚠ `undefined` renders nothing rather than guessing. The answer is
+                read off storage asynchronously, and either default would flash the
+                wrong opening screen for a frame — the bare empty state ahead of the
+                explanation, or the explanation at a year-old account.
+              */
+              hadVehicle === undefined ? null : shouldShowFirstRun({
+                everHadVehicle: hadVehicle,
+                vehicleCount: state.vehicles.length,
+              }) ? (
+                /*
+                  It replaces the body and not the screen. The header above carries
+                  Account, and hiding that from a brand-new user who wants to sign
+                  out — or delete the account they just made — is exactly the
+                  failure this screen's own header comment warns about: "an
+                  affordance placed in one branch of a screen that renders several".
+                */
+                <FirstRun onAddVehicle={onAddVehicle} />
+              ) : (
+                /*
+                  The returning case, and the copy is kept verbatim. It read "Add a
+                  car on the web and it will appear here" until 8 Aug — the
+                  mobile-first problem in one sentence, sending a new user to a
+                  different product to become a user at all, which a reviewer would
+                  hit before anything else.
+
+                  The action keeps its own spoken name because the header carries an
+                  "Add a car" control too, and two controls with the same name on
+                  one screen are ambiguous to a screen reader in a way they are not
+                  to the eye, which has position to go on.
+                */
+                <EmptyState
+                  headline="No vehicles yet"
+                  body="Add your first car and Tappet gets to work on it."
+                  actionLabel="Add a car"
+                  actionAccessibilityLabel="Add your first car"
+                  onAction={onAddVehicle}
+                />
+              )
+            ) : (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                /*
+                  Momentum, not `onScroll`. The batten reads "BAY 02 · 2 of 3", and
+                  updating it mid-drag would have it flicker through every bay the
+                  finger passes rather than naming the one that was landed on.
+                */
+                onMomentumScrollEnd={(event) =>
+                  setBayIndex(Math.round(event.nativeEvent.contentOffset.x / width))
+                }
+              >
+                {state.vehicles.map((vehicle, index) => (
+                  <View key={vehicle.id} style={{ width }}>
+                    <VehicleBay
+                      vehicle={vehicle}
+                      index={index}
+                      total={state.vehicles.length}
+                      active={index === bayIndex}
+                      onOpen={() => onOpenVehicle(vehicle.id, bayTitle(vehicle))}
+                      /* R21. The next-service row leads to what is due. */
+                      onOpenService={
+                        onOpenService
+                          ? () => onOpenService(vehicle.id, bayTitle(vehicle))
+                          : undefined
+                      }
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+          </ScrollView>
+          {primer}
+        </>
+      )}
+    </RootScreen>
   );
 }
 
@@ -753,38 +760,23 @@ const styles = StyleSheet.create({
    * width or the paging lands off-centre, so the inset lives inside each bay
    * instead. `flexGrow` is what lets the empty state centre itself.
    */
-  page: { paddingTop: 68, paddingBottom: space.lg, gap: space.md, flexGrow: 1 },
+  /*
+    No top inset any more: the band above carries the status bar's, and the
+    `68` this used to hard-code was that inset plus the title's air, guessed for
+    one device. The first gap is the batten's own.
+  */
+  page: { paddingBottom: space.lg, gap: space.md, flexGrow: 1 },
   /* R19. Full width above the dial; the chip keeps its own intrinsic width. */
   bayAlert: { paddingHorizontal: space.lg, flexDirection: 'row' },
   loadingList: { gap: space.md },
-  /* Loading and error draw the same header as the list, at the same inset. */
-  stateScreen: { flex: 1, padding: space.lg, paddingTop: 68 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: space.lg,
-    /*
-      The header carries its own inset now. The page it sits on cannot: a paged
-      horizontal scroller's pages have to be exactly the screen width, so the
-      padding that used to live on the list's content container moved into the
-      header and into each bay.
-    */
-    paddingHorizontal: space.lg,
-  },
+  /* Loading and error sit under the same band as the list. */
+  stateScreen: { flex: 1, padding: space.lg, paddingTop: 0 },
   /*
-    ⚠ The serif came off this title on 6 Sep. Locked brief B1: *"No serif except
+    ⚠ The serif came off the title on 6 Sep. Locked brief B1: *"No serif except
     the WK mark; condensed-grotesk caps for titles, model names and section
-    heads."*
-
-    `type.editorial` is still the right token for the wordmark and wrong for
-    everything else — the lockup beside this string is the one serif the screen
-    is allowed. The `letterSpacing: -0.6` went with it: that was a serif's
-    negative tracking, and `type.display` sets its own positive figure because
-    caps need opening up rather than closing.
+    heads."* `RootScreen` sets it in `type.display`; the lockup beside it is the
+    one serif the screen is allowed.
   */
-  heading: { ...type.display, color: text.primary },
-  headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -804,13 +796,15 @@ const styles = StyleSheet.create({
     `lineHeight` alone — see the note at the call site for why `hitSlop` was
     removed rather than reduced.
   */
-  headerAction: {
-    color: text.secondary,
-    ...type.value,
-    fontFamily: interFace('600'), fontWeight: '600',
-    minHeight: TARGET_MIN,
-    lineHeight: TARGET_MIN,
-  },
+  /*
+    Top-aligned inside its 44pt target, with the label's top on the account
+    control's — that control floats at the collapsed band's centre (see
+    `AccountControl`), 6pt below this row's top, and two words of chrome on
+    one row share a baseline or read as two rows.
+  */
+  headerAction: { minHeight: TARGET_MIN, paddingTop: 6 },
+  /* The same voice as ACCOUNT beside it — chrome speaks mono caps. */
+  headerActionLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
   deletedNotice: {
     position: 'absolute',
     top: 60,

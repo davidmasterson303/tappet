@@ -169,49 +169,153 @@ describe('subscribeToNotificationTaps', () => {
  *
  * @jest-environment node
  *
- * Without `initialRouteName`, a link opened from a **cold start** produces a
+ * Without an `initialRouteName`, a link opened from a **cold start** produces a
  * stack with exactly one route: no back button, the edge-swipe gesture does
- * nothing, `goBack()` is a no-op, and there is no tab bar underneath. The only
- * exit is force-quitting.
+ * nothing, `goBack()` is a no-op. The only exit is force-quitting.
  *
  * That is the flagship path. A recall notification says *"Tap to see what it
  * means"*, and this product delivered its first real ones on 16 Aug — so the
  * journey most likely to be somebody's first was the one with no way out.
  *
+ * ── ⚠ 11 Sep · two levels, and the seed has to be at the right one ──────────
+ *
+ * The navigator is a tree now — a root stack over four tabs, each with a
+ * stack — and the linking config mirrors it. So there are two seeds and each
+ * does one job: `initialRouteName: 'Tabs'` on the root config, so `account`
+ * opens over the tabs; and `initialRouteName: 'Garage'` on the **garage tab's**
+ * config, so a link to a car or its recalls has the garage beneath it.
+ *
+ * ⚠ The second is the one that can be got wrong silently. Moved up to the root
+ * config it names a route the root stack does not have, type-checks anyway,
+ * and seeds nothing — and the first version of this guard, which asked only
+ * that the string appear before `screens: {`, would have kept passing. It is
+ * pinned instead to the object that registers `vehicle/:vehicleId`.
+ *
  * A source scan because there is no React Native runtime on this side of the
  * workspace, and because what regressed is one declarative line in a config
  * object rather than anything a render would reach.
  */
+
+/**
+ * The object literal `levels` braces out from `at` — `1` is the object the
+ * position sits in, `2` its parent, and so on. Text from its `{` to its
+ * matching `}`.
+ *
+ * A path lives inside a `screens: { … }` map, so the config object that owns
+ * that map is two levels out.
+ */
+function enclosingObject(source: string, at: number, levels: number): string {
+  let open = at;
+
+  for (let level = 0; level < levels; level += 1) {
+    let depth = 0;
+    let found = -1;
+
+    for (let i = open - 1; i >= 0; i -= 1) {
+      const character = source[i];
+      if (character === '}') depth += 1;
+      else if (character === '{') {
+        if (depth === 0) {
+          found = i;
+          break;
+        }
+        depth -= 1;
+      }
+    }
+
+    if (found === -1) return '';
+    open = found;
+  }
+
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    const character = source[i];
+    if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(open, i + 1);
+    }
+  }
+
+  return '';
+}
+
+/** The config object that registers `path`, or `''` when nothing does. */
+function configRegistering(source: string, path: string): string {
+  const at = source.indexOf(`'${path}'`);
+  return at === -1 ? '' : enclosingObject(source, at, 2);
+}
+
+/** The whole linking declaration, from the first per-tab config to `subscribe`. */
+function linkingRegion(source: string): string {
+  const start = source.indexOf('const garageLinks');
+  const end = source.indexOf('subscribe(listener)', start);
+  return start === -1 || end === -1 ? '' : source.slice(start, end);
+}
+
 describe('the linking config seeds a stack', () => {
   const navigator = readFileSync(
     join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'navigation', 'RootNavigator.tsx'),
     'utf8'
   );
+  const region = linkingRegion(navigator);
 
-  it('names an initial route on the linking config', () => {
-    const configAt = navigator.indexOf('const linking: LinkingOptions');
-    expect(configAt).toBeGreaterThan(-1);
-
-    /*
-      Scoped to the linking object rather than the whole file, so a
-      `initialRouteName` on some unrelated navigator would not satisfy this.
-      Bounded by the `subscribe` member, which closes the object.
-    */
-    const config = navigator.slice(configAt, navigator.indexOf('subscribe(listener)', configAt));
-
-    expect(config).toMatch(/initialRouteName: 'Garage'/);
+  it('finds the linking declaration at all', () => {
+    // The anti-vacuous half for the cases below: an empty region satisfies
+    // nothing, but it also proves nothing.
+    expect(region.length).toBeGreaterThan(0);
+    expect(region).toContain("prefixes: ['tappet://']");
   });
 
-  it('puts it on the config, not inside the screens map', () => {
-    /*
-      ⚠ A real way to get this wrong. `initialRouteName` inside `screens` is a
-      *nested navigator's* initial route and does nothing at the top level —
-      it type-checks, it looks right, and the user is still trapped.
-    */
-    const screensAt = navigator.indexOf('screens: {');
-    const initialAt = navigator.indexOf("initialRouteName: 'Garage'");
+  it('seeds the tabs under a cold-started account link', () => {
+    const config = region.slice(region.indexOf('config: {'));
 
-    expect(initialAt).toBeGreaterThan(-1);
-    expect(initialAt).toBeLessThan(screensAt);
+    expect(config).toMatch(/initialRouteName: 'Tabs'/);
+    // On the root config itself — before its screens map, not inside a tab's.
+    expect(config.indexOf("initialRouteName: 'Tabs'")).toBeLessThan(config.indexOf('screens: {'));
+  });
+
+  it('seeds the garage under a cold-started car or recall link', () => {
+    /*
+      ⚠ Pinned to the object that owns the path, not to a position in the file.
+      Both notification paths — the car and its recalls — live in the garage
+      tab's config, and that config is the one that must name the garage.
+    */
+    const garage = configRegistering(region, 'vehicle/:vehicleId');
+    const recalls = configRegistering(region, 'vehicle/:vehicleId/recalls');
+
+    expect(garage.length).toBeGreaterThan(0);
+    expect(garage).toMatch(/initialRouteName: 'Garage'/);
+    expect(recalls).toBe(garage);
+  });
+
+  it('can still detect the seed at the wrong level', () => {
+    /*
+      A config shaped like the real one with the garage's seed hoisted to the
+      root — which is what the old position-based check could not see.
+    */
+    const hoisted = `
+      const linking = {
+        config: {
+          initialRouteName: 'Garage',
+          screens: {
+            Tabs: {
+              screens: {
+                GarageTab: {
+                  screens: {
+                    Garage: 'garage',
+                    VehicleDetail: 'vehicle/:vehicleId',
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+    `;
+
+    const garage = configRegistering(hoisted, 'vehicle/:vehicleId');
+    expect(garage.length).toBeGreaterThan(0);
+    expect(garage).not.toMatch(/initialRouteName/);
   });
 });

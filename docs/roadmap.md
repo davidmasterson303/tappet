@@ -31,17 +31,22 @@
 > | dossier (dashboard + advisor) | 17 | 8/10, blind-ranked 1st of 4 from 4th | finished — "nine was asked for and not reached", recorded honestly |
 > | vehicle info | 5 | 7/10, plateau | finished, `50942e8` |
 > | logo / identity | 3 | 9→8 on a corrected cap constant, 9 of 9 met | finished, shipped `8938170`; drift §12 |
-> | iOS | 19 | 7/10 screens, 9/10 specimen | **left off** — `82b3b10` fixed three gaps from the 7/10 round and was never re-judged |
+> | iOS | 23 | 7/10 screens (peak 8 at round 22), 8 of 9 lines, 9/10 specimen | finished 11 Sep on `Continue: no` — B9 (viewfinder + haptic) needs `expo-camera`/`expo-haptics`, i.e. an EAS build; drift §6.10 |
+> | signed-in web (`/garage` `/settings` `/onboard`) | 4 | 8/10, 9 of 10 lines, garage blind-ranked 1st of 6 | finished 11 Sep on `Continue: no` — judged via `/dev/*` fixture routes, `1b8e6bc`; drift §13 |
 >
 > Then 8 Sep was a different critique — an **IA review**, not a visual one — which
 > produced the nav rename (Dashboard · Service · Advisor · Plan), the Due tab that
 > computes instead of listing, and "Needs" for the list the phone already called
 > Needs. `9e74a9b` cites "a critique of the rebuilt pages"; nothing follows it.
 >
-> Still open from the loops: `/garage`, `/settings`, `/onboard` **never judged**
-> (they 307 without a session — the dev account in `apps/mobile/.env` is the
-> session); and four rulings waiting on David in `docs/design-system-drift.md`
-> **§6.1, §6.4, §6.7a, §6.7b**, two of which pin brief lines against shipped guards.
+> Still open from the loops: two rulings waiting on David in
+> `docs/design-system-drift.md`, **§6.1** (Archivo Narrow standing in for the
+> `wdth` axis) and **§6.4** (the dial's band colour). ⚠ **§6.7 is not one of
+> them** — it said "blocked" for five days after the same session resolved both
+> halves in `c509f35`; marked superseded 11 Sep. And ⚠ the dev account in
+> `apps/mobile/.env` is **not a session**: its password returns `400 Invalid
+> login credentials` (checked 11 Sep; the phone has run on fixtures since 5 Aug,
+> so the rotation went unnoticed). The three pages were judged anyway — see below.
 >
 > #### The 6 Sep Cowork list, item by item
 >
@@ -90,14 +95,66 @@
 >   `apiBaseUrl = tappet.southmoordigital.com` exists is readable only from the
 >   Expo dashboard. `app.json` has it; a build is what ships it.
 >
-> #### In flight from the 11 Sep session
+> #### What landed 11 Sep, after the block above was written
 >
-> David's plan, in his order, with sequencing left to the session: push and
-> promote (done above); **rebuild the iOS tab navigator** (drift §6.6, brief B8 —
-> `createBottomTabNavigator` appears nowhere, there is one native stack with a
-> `TabBar` drawn over it) and then **run the critic loop over the phone with a
-> goal of 9, not 8**; and **judge the three unjudged web pages** with a signed-in
-> capture. The critic is trusted without consultation on this pass.
+> David's plan, executed with the critic trusted and not consulted; two agents
+> in one working tree, disjoint lanes, pathspec commits.
+>
+> - **Pushed and promoted.** `web-live` → `367a92b6`, `demo-live` → `0986d15c`,
+>   both read from `/api/version`. ⚠ **The demo gate cried wolf on its first
+>   real run**: `promote-demo` passed an 8-char SHA and the shared waiter
+>   compared it `===` against the full one, so it printed `still 0986d15c` —
+>   the commit it wanted — for six minutes and declared the deploy missing.
+>   Fixed in `87017cd`, prefix match with a 7-char floor, test proven against
+>   the old comparison.
+> - **The iOS tab navigation is rebuilt** (`5078c95`, drift §6.8):
+>   `@react-navigation/bottom-tabs` — JS only, no build — four roots with their
+>   own stacks, `backBehavior="none"` so no root grows a chevron, `RootScreen`
+>   collapse, the 5.1.1(v) account control still a sibling of the navigator.
+>   Then four graded rounds, `e203c47` `dd4d71e` `5551336`: **6 → 7 → 8 → 7**,
+>   stopped by the critic with 8 of 9 lines ✅. The 8→7 is the plateau
+>   variance `b5e30ea` records; round 23's checklist is strictly better than
+>   22's. **9 is not reachable without a build** — B9's viewfinder brackets and
+>   capture haptic are `expo-camera` and `expo-haptics`, neither in the dev
+>   client. ⚠ The dev client on the simulator still registers `crewchief://`,
+>   so deep links cannot be exercised there until the next build.
+> - **The three unjudged pages, judged.** `/garage` and `/settings` split into
+>   data wrapper + view, and `/dev/garage` (the demo garage's real rows,
+>   `?state=empty|error|loading`), `/dev/settings` (fixture, inert actions),
+>   `/dev/onboard` (the real form) render them with no session, behind the
+>   SEC-10 gate; `dev-surfaces-render-the-real-views.test.tsx` pins that they
+>   render the *same* components. Four rounds, `0991bb8` `22ffc47` `1631c12`
+>   `464b44c`: **4 → 5 → 7 → 8 → 8**, 9 of 10 lines, garage blind-ranked 1st
+>   of 6 above the landing and the north-star board. New shared chrome:
+>   `SignedInShell`, `PageOpener`, `FleetStrip`, `GhostVehicleSlot`. US$0.40 of
+>   image spend (the onboarding plate; provenance in `public/design/CREDITS.md`).
+>   The one 🟡 — the card's hover chip says OPTIONS, not the brief's ADD PHOTO —
+>   was declined three times because that menu is the only route to
+>   `deleteVehicle`.
+> - **Guards re-pointed, none relaxed**, each keeping its anti-vacuous case:
+>   `onboarding-guard`, `vehicle-embed`, `account-deletion` (now asserts both
+>   that the view renders the dialog *and* that the page renders the view),
+>   `mobile-account-reachable`, `mobile-push-routing`, `push-notification-links`,
+>   `viewport-floors` (fired on an 11px chip and was right). New:
+>   `await-deploy`, `dev-surfaces-render-the-real-views`, `mobile-tab-roots`,
+>   `RootScreen`, `tab-target`, `image-weight-budget`.
+> - **Closing numbers:** 195 web suites / 3371 tests, 29 mobile / 496, both
+>   typechecks clean, everything pushed.
+>
+> #### Open, and David's
+>
+> - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
+>   is deleted or merged on that answer.
+> - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
+> - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
+>   cover the loop, a real signed-in shot is still the fidelity check.
+> - **The next EAS build** carries three things at once: `apiBaseUrl` on the
+>   Tappet hostname, the `tappet://` scheme, and — if added first — `expo-camera`
+>   + `expo-haptics` for B9. One build, not three (CLAUDE.md §9).
+> - Rulings: drift §6.1, §6.4; Design to read §6.7's superseded note, §12, §13.
+> - Parking lots, both loops, consolidated in drift §6.10 and §13 — ideas, not
+>   applied. The two that recur: the web strip prints an em dash where the
+>   landing omits the cell (§13.1–13.2), and settings sits 720 wide at 1440.
 >
 > ---
 >

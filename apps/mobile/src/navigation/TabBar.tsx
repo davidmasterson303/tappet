@@ -1,8 +1,12 @@
+import { CommonActions, type NavigationState } from '@react-navigation/native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon, { type IconName } from '../components/Icon';
 import { TARGET_MIN, border, brand, space, surface, text, type } from '../theme';
+import { lastVehicle } from './last-vehicle';
+import { tabTarget, type TabName } from './tab-target';
 
 /*
   ── ⚠ 7 Sep · Account left the bar, Plan took its place ─────────────────────
@@ -20,34 +24,22 @@ import { TARGET_MIN, border, brand, space, surface, text, type } from '../theme'
   `Account` is not that kind of thing. It is the app's own settings, visited
   rarely and never as part of looking after a car, and it was spending a quarter
   of the most valuable chrome in the product. It moves to a control on the
-  roots — see `ScreenTitle`'s trailing slot.
+  roots — see `AccountControl`.
 */
-export type TabName = 'Garage' | 'History' | 'Advisor' | 'Plan';
 
 /**
- * ── ⚠ Four, and the first one is a car rather than the garage ──────────────
+ * What each tab is called and what it is drawn with, keyed by its route.
  *
- * David, 30 Aug: *"garage link in bottom nav should be replaced with car detail
- * view, not to garage view. There's no reason people need to go back to garage
- * so often."* He is right about the traffic — most owners have one car, and a
- * list of one is a step between somebody and the thing they opened the app for.
- *
- * So the first tab keeps its name and changes its destination: it opens the car
- * you were last looking at, and falls back to the garage when there is not one.
- * The garage is still reachable, from the car's own header — see
- * `VehicleDetailScreen`. It became a place you visit, rather than the lobby you
- * pass through.
- *
- * **History is new and is the invoices**, not the service log. `Service →
- * History` still lists every record; this lists what came off a photographed
- * document, and carries the control that starts a new scan.
+ * ⚠ The **order** is not here. It is the navigator's — `state.routes` below —
+ * so the bar cannot disagree with the tree it navigates. `tab-target.ts` carries
+ * the argument for that order and for the first root being the garage.
  *
  * ⚠ Four tabs at 375pt is 93pt each, comfortably past the 44pt floor. Five
  * would be 75pt and the bar would start reading as a toolbar; that is the
- * reason the garage did not simply become a fifth entry.
+ * reason the account did not simply become a fifth entry.
  */
-const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
-  { name: 'Garage', label: 'Car', icon: 'car' },
+const TABS: Record<TabName, { label: string; icon: IconName }> = {
+  GarageTab: { label: 'Garage', icon: 'car' },
   /*
     ⚠ 7 Sep: labelled "Service", not "History".
 
@@ -57,8 +49,7 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
     and the deep-link target that shipped notifications carry; the bar now agrees
     with all three.
   */
-  { name: 'History', label: 'Service', icon: 'wrench' },
-  { name: 'Advisor', label: 'Advisor', icon: 'message-square' },
+  ServiceTab: { label: 'Service', icon: 'wrench' },
   /*
     ⚠ `clock`, and the wrench went to Service.
 
@@ -71,11 +62,28 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
     (this tab, the Account tab, and the "What is driving this score" row) and is
     now on none of them.
   */
-  { name: 'Plan', label: 'Plan', icon: 'clock' },
-];
+  PlanTab: { label: 'Plan', icon: 'clock' },
+  AdvisorTab: { label: 'Advisor', icon: 'message-square' },
+};
 
 /**
- * ── R13 · three destinations, always in reach ───────────────────────────────
+ * The vehicle a mounted tab is already about, read off its stack's root.
+ *
+ * `undefined` until the tab has been opened once, and for the garage, which is
+ * about all of them. Read from the nested state first and from pending nested
+ * params second — a tab navigated to with `{ screen, params }` carries the car
+ * in its params until its stack mounts and takes them.
+ */
+function mountedVehicle(route: NavigationState['routes'][number]): string | undefined {
+  const root = route.state?.routes[0]?.params as { vehicleId?: string } | undefined;
+  if (root?.vehicleId) return root.vehicleId;
+
+  const pending = (route.params as { params?: { vehicleId?: string } } | undefined)?.params;
+  return pending?.vehicleId;
+}
+
+/**
+ * ── R13 · the destinations, always in reach ─────────────────────────────────
  *
  * **The advisor is the product.** "AI auto-ownership consultant" is what this
  * app is, and it shipped as a *leaf screen pushed off a car* — so asking a
@@ -83,27 +91,30 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
  * pressing a button. Three navigations to reach the thing the product is named
  * for.
  *
- * **Account was a text link in the garage header**, and account deletion is
- * required by App Store 5.1.1(v) to be reachable — which
- * `mobile-account-reachable.test.ts` had already caught being lost in a loading
- * state once. On the bar it is reachable by construction rather than by
- * remembering to render it.
+ * ── ⚠ 11 Sep · this is `@react-navigation/bottom-tabs`' bar now ─────────────
  *
- * ── ⚠ Why this is not `@react-navigation/bottom-tabs` ───────────────────────
+ * Until today the bar was drawn over a single native stack and `reset` the
+ * whole stack on every press — the observable half of B8, built while the
+ * structural half was open (drift §6.6). The package is installed now; it is
+ * pure JS over `react-native-screens` and `react-native-safe-area-context`,
+ * both already in the dev client, so it cost no EAS build. The workspace
+ * install it needed is what `package.json`'s jest pins exist to make safe, and
+ * `git diff package-lock.json` shows JS packages only.
  *
- * That package is JS-only, so it would cost no EAS build — but installing it
- * runs an install across this workspace, and `package.json`'s own notes record
- * what that has cost here before: a full workspace install hoists `apps/mobile`'s
- * jest 29 to the root and splits the web app's jest 30 across two trees, which
- * killed **every** web suite before its first test with a `TypeError` nobody
- * could place. The pins exist to stop that by construction.
+ * What it buys is **per-tab stacks**: each tab remembers its own history, a
+ * root can never grow a chevron pointing sideways at another tab, and the bar
+ * is rendered by the navigator itself — outside every screen by construction,
+ * which is the structure `mobile-account-reachable.test.ts` exists to keep.
  *
- * What bottom-tabs buys over this is **per-tab stacks**: each tab remembering
- * its own history. That is real, and it is not what R13 is about — the finding
- * is that the advisor and the account are unreachable, and a bar that navigates
- * on one stack fixes that completely. When a tab genuinely needs its own
- * history, that is the moment to spend the install and verify it with
- * `rm -rf node_modules && npm ci`.
+ * This component is the `tabBar` prop: the navigator hands it the tab state
+ * and its helpers, and it draws exactly what it drew before.
+ *
+ * ── ⚠ The press is emitted before it navigates ──────────────────────────────
+ *
+ * `tabPress` is what a focused tab's stack listens for to pop itself to the
+ * top — the native re-tap behaviour lives in `native-stack`, keyed on that
+ * event. A bar that navigated without emitting it would leave a re-tap doing
+ * nothing three screens deep.
  *
  * ── It is in the layout, not over it ────────────────────────────────────────
  *
@@ -112,14 +123,7 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: IconName }> = [
  * button. It takes its 49pt out of the frame instead, which the review costed
  * explicitly against the pinned hero and judged worth it.
  */
-export default function TabBar({
-  current,
-  onSelect,
-}: {
-  /** The route the stack is currently showing, so the bar can mark itself. */
-  current: TabName;
-  onSelect: (tab: TabName) => void;
-}) {
+export default function TabBar({ state, navigation }: Pick<BottomTabBarProps, 'state' | 'navigation'>) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -128,13 +132,35 @@ export default function TabBar({
       accessibilityRole="tablist"
       accessibilityLabel="Main"
     >
-      {TABS.map((tab) => {
-        const selected = tab.name === current;
+      {state.routes.map((route, index) => {
+        const tab = TABS[route.name as TabName];
+        const selected = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          /*
+            A focused tab's own stack answers the re-tap (see above); the bar
+            only moves between tabs.
+          */
+          if (selected || event.defaultPrevented) return;
+
+          const target = tabTarget(route.name as TabName, mountedVehicle(route), lastVehicle());
+
+          navigation.dispatch({
+            ...CommonActions.navigate(target.name, target.params),
+            target: state.key,
+          });
+        };
 
         return (
           <Pressable
-            key={tab.name}
-            onPress={() => onSelect(tab.name)}
+            key={route.key}
+            onPress={onPress}
             accessibilityRole="tab"
             /*
               ⚠ `selected` is announced; the tint alone is not. A bar whose

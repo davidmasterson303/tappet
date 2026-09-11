@@ -1,7 +1,9 @@
 import { StyleSheet } from 'react-native';
-import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { bay, hero } from '../theme';
+import NightPlate from './NightPlate';
+
+import { hero } from '../theme';
 
 /**
  * What the vehicle hero's photograph sits under, and what stands in for it.
@@ -72,39 +74,15 @@ export function HeroBed() {
 }
 
 /**
- * The hero with no photograph — a designed state, not a gap.
+ * What stands in for the photograph on the vehicle hero.
  *
- * `.ph-empty`'s radial, the same one the garage bay's room uses:
- * `radial-gradient(130% 110% at 50% 18%, #2a2724, #111214 72%)`. **Never a grey
- * box and never a broken-image glyph** — a garage carries unphotographed
- * vehicles for weeks, and this is what most owners see for their first fortnight.
- *
- * ⚠ The ellipse ratio is restored with `gradientTransform` because SVG radials
- * take one radius, exactly as `BayRoom` does. Scaling the `Rect` instead would
- * scale whatever is drawn on top of it.
+ * ⚠ 11 Sep · the empty hero was a lit-room gradient — the same graphite radial
+ * as the bay's — and the critique named the pair "a graphite gradient with
+ * 'BMW' centred in it" as B2's whole gap. It is the house plate now, the same
+ * night the garage bay stands in, so the car's two screens agree about where
+ * the car is when there is no photograph of it. `NightPlate` carries the
+ * argument.
  */
 export function HeroEmpty() {
-  return (
-    <Svg
-      style={StyleSheet.absoluteFill}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <Defs>
-        <RadialGradient
-          id="heroEmpty"
-          cx="0.5"
-          cy="0.18"
-          r="0.62"
-          gradientTransform="translate(0.5 0.18) scale(2.1 1.78) translate(-0.5 -0.18)"
-        >
-          <Stop offset="0" stopColor={bay.roomNear} />
-          <Stop offset="0.72" stopColor={bay.roomFar} />
-          <Stop offset="1" stopColor={bay.roomFar} />
-        </RadialGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroEmpty)" />
-    </Svg>
-  );
+  return <NightPlate />;
 }

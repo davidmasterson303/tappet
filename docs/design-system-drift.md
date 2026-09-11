@@ -1252,7 +1252,7 @@ Brief B8 asks for four tab roots with their own stacks and no back chevron.
 navigation rebuild rather than a styling change and is the one checklist line
 that is not a design edit.
 
-### 6.7 Two brief lines collide with shipped guards — **blocked, needs a ruling**
+### 6.7 Two brief lines collide with shipped guards — **superseded the same day, see the note at the end of this section**
 
 Attempted on 6 Sep, reverted the same session. Both are real conflicts between
 the locked iOS brief and decisions this codebase already enforces in tests, and
@@ -1288,6 +1288,171 @@ design port.
 
 Until both are ruled on, buttons keep `brand.primary`, `radius.pill` at 0 (so
 square, not capsule) and their existing ink.
+
+> **⚠ Superseded, 6 Sep, by the session that wrote it — found 11 Sep.** Both
+> halves were resolved later the same day in `c509f35` and this section was
+> never updated, so for five days it said the opposite of the code (CLAUDE.md
+> §1). What is true:
+>
+> - **(a) is done, not blocked.** `primitives.test.tsx › Button — one filled
+>   treatment › wears the off-white fill, and still never pure white` now asserts
+>   the reversal by name: the fill is `text.primary` used as a ground, the ink is
+>   `surface.page`, `#FFFFFF` and the retired `inverse` tokens stay banned. The
+>   guard's own comment records why the 23 Aug decision moved. Design's blessing
+>   is still wanted; the code did not wait for it.
+> - **(b) is done, not blocked.** `Button.tsx` draws the fill in a `CutSurface`
+>   that **wraps** the label rather than sitting behind it, because
+>   `test-support/contrast.ts` composites down the ancestor chain — an
+>   absolutely-positioned sibling is invisible to it and every label measured at
+>   1.00:1 against the page. The audit was not taught anything; the tree was
+>   shaped so the ground is where the walk looks. `ghost` gets the same wrapper
+>   and paints nothing with it, so every variant has the same ancestor path.
+>
+> Nothing here needs a ruling any more. It needs Design to read (a).
+
+### 6.8 ✅ §6.6 closed — the tab navigation is rebuilt, 11 Sep
+
+`@react-navigation/bottom-tabs` is installed (JS only — it sits on
+`react-native-screens` and `react-native-safe-area-context`, both already in
+the dev client, so no EAS build) and `RootNavigator` is a tree: a root native
+stack holding the tabs and `Account`, four tabs in the order the last graded
+round used — **Garage, Service, Plan, Advisor** — each with its own native
+stack. The dossier (Garage → Vehicle → Health / Service / Plan / scan) lives
+under the first tab, as the brief's studio paragraph says. `backBehavior="none"`
+is what keeps a root chevron-less: with the library default, `canGoBack()`
+answers yes on every tab but the first and the roots would have grown a header
+pointing sideways at the garage. `lib/__tests__/mobile-tab-roots.test.ts` pins
+the three things that fail silently there.
+
+⚠ **The first tab is labelled GARAGE, not CAR.** David's 30 Aug instruction
+("the garage link in bottom nav should be replaced with car detail view") was
+made against a garage that was a list of cards; the locked brief's garage *is*
+the car — the dossier header re-stacked, plate and dial included — so the tab
+and its root now agree on a name, the way the critique made Service agree with
+its screen. The traffic argument survives as structure: a tab keeps its own
+stack, so leaving the car for Service and coming back lands on the car.
+
+⚠ **B8's collapse is the screen's own, not UIKit's.** `ScreenTitle`'s docblock
+records why `headerLargeTitle` could not be used (it draws over the pinned
+rail, search field and context line three roots carry above their scroller).
+`RootScreen` now holds both titles in one band and animates the band between
+the 34pt condensed height and the 44pt mono nav height once the content has
+scrolled past a threshold — a threshold rather than a scroll-tracked height,
+because a band above the scroller that shrinks under the finger moves the
+content at twice the finger's speed. The pushed instance of a root (Service
+and Plan reached from the hub) draws no large title; the native header's mono
+title names it instead, so one screen carries one name in either position.
+
+⚠ **`headerTitleAlign: 'left'` does nothing on iOS**, and the navigator's own
+comment claimed otherwise. native-stack's types: *"Not supported on iOS. It's
+always `center`."* Pushed screens keep UIKit's centred mono title; a
+left-aligned one would need a custom `headerLeft` carrying the title beside
+the back control. Recorded here rather than built, since it is not on the
+five graded screens.
+
+**Guards re-pointed, claims kept:** `mobile-account-reachable` (the bar is the
+tab navigator's own `tabBar` — its old "after `</Stack.Navigator>`" assertion
+was passing against the first of five closing tags), `mobile-push-routing`
+(the cold-start seed is pinned to the object registering `vehicle/:vehicleId`,
+inside the garage tab's config, where a hoisted one would type-check and seed
+nothing), `push-notification-links` (reads the nested config tree). A
+`tests-test-real-code` registry entry was added for the new scan.
+
+⚠ **Two things the loop's own instructions had wrong.** `apps/mobile/.env`
+carried `EXPO_PUBLIC_DESIGN_FIXTURES=0`, not `1`; since `.env*` is not the
+implementer's to edit, `.claude/launch.json` gained an `expo-mobile-fixtures`
+configuration that sets the flag in the process environment (which `@expo/env`
+never overrides). And the installed dev client registers `crewchief://`, not
+`tappet://`, so deep links cannot be exercised on the simulator until the next
+EAS build — the linking config is covered by the source guards instead.
+
+### 6.9 The design loop, rounds 20–22 — what closed, and what is blocked, 11 Sep
+
+Three graded rounds after the rebuild (`critique-20.md` … in `design-loop/`,
+which is gitignored; the commits are the record): 6 → 7 → the round after
+this note. What closed: **B2**'s plate is the house image — a rendered night
+street, `apps/mobile/scripts/render-night-plate.mjs`, committed as a JPEG —
+with the 8pt cut now painted *through* the image (`CutSurface`'s `ground`,
+opt-in, the plate only); the vehicle's recall box became the spec-table band
+(**B5**, **B7**); the recollection row gave back its sodium (**B7**); the
+service summary is one label and one numeral on one baseline (**B6**); the
+empty states on Plan, Advisor and the record are top-aligned under their
+rails (R54/R57 superseded on the roots, where a title and a rail sit above
+the content and the void the centring left was what the critique named as
+the score's ceiling); a stale health verdict no longer prints "Based on 5
+recorded services" beneath a sentence saying it read none of them — that one
+is in `packages/core/health-claims.ts`, and the design fixture that had been
+storing the app's own stale sentence *as* the stored summary is fixed to hold
+a real one with the dates that make it stale.
+
+**B9 — owner photos are graded ✅; the viewfinder and the capture haptic are
+blocked on a build.** `PhotoGrade` lays the house grade over an owner's
+photograph as four blended layers (lifted blacks, sodium→cyan split tone,
+vignette, the plate's own grain), which the new architecture composites
+natively — no image pipeline, no native module. ⚠ The layers must be
+*siblings* of the image, not children of a wrapper: Core Animation blends a
+layer within its group, and a wrapper turned the first version into an opaque
+near-black rectangle over the car. The viewfinder ("hairline corner brackets
+and a mono readout") and the "one firm haptic on capture" both need native
+modules the dev client does not carry — `expo-camera` and `expo-haptics`;
+today the scan opens the system camera through `expo-image-picker`, which is
+the viewfinder iOS provides. Each is one EAS build (CLAUDE.md §9); logged here
+rather than built, the same way §3.23 logged the camera-first scan. Until
+then B9 grades 🟡 whatever the loop does.
+
+⚠ **The fixtures launch config carries a design photo.** `expo-mobile-fixtures`
+also sets `EXPO_PUBLIC_DESIGN_PHOTO_URL` to a file Metro serves from the
+gitignored `design-loop/mobile-ios/owner-photo.jpg` (a square crop of the
+north star's own frame — the only car photograph the repository is entitled
+to show). With the file absent the bay shows a dark plate, not the house one,
+because a `photo` prop that fails to load is still a photo to the component;
+regenerate the crop from `north-star.png` before running the loop.
+
+**Two parking-lot items for David, from the critic.** The stat strip reads
+MILEAGE · TRIM · USE where the studio paragraph says MILEAGE · AVG ·
+RELIABILITY (do AVG and RELIABILITY exist on the phone's payload?); and the
+Vehicle plate runs under the status bar, so its top-right cut has nowhere to
+live — which corner, if any, the Vehicle plate cuts is one sentence from
+David.
+
+### 6.10 The loop stopped at round 23 — 8 of 9 lines ✅, B9 on a build, 11 Sep
+
+Scores after the rebuild: 6 → 7 → 8 → 7. Round 23 marked **B2 ✅** (the cut
+measured present at native resolution, 24px legs at 45° — see
+`critique-22.md`'s footnote) and everything else ✅ except **B9 🟡**, and said
+`Continue: no`: *"the only open line (B9) closes with a viewfinder frame,
+not another design round."* That frame needs `expo-camera` (§6.9). So the
+loop stops on the critic's own rule, one line short of the 9 David asked
+for, and the line it is short by is a build rather than a design.
+
+⚠ The 8 → 7 step is the critic's variance, not a regression: round 23's
+checklist is strictly better than round 22's (B2 moved 🟡 → ✅, nothing moved
+the other way), and its three gaps are all things round 22 had graded
+without raising. They are recorded, not built:
+
+- **Garage's recalls chip vs. Vehicle's band.** Two treatments of one fact.
+  The critic wants Garage's NEXT SERVICE and OPEN RECALLS as two hairline
+  band rows with the triangle beside the count, and the chip deleted (B5, B7).
+- **Garage's plate crop.** The band's `cover` shows the car's flank and the
+  dissolve under the name covers the road; the critic wants the crop biased
+  toward the asphalt, or ~60pt more plate (B2). ⚠ This is the fixture's
+  square photograph as much as the layout — a 3:4 phone snapshot crops
+  differently — and `focal_point_x/y` on `vehicles` is the honest lever.
+- **Service's search field** is a second full-width slab under SCAN INVOICE;
+  the critic wants a hairline band row (magnifier, placeholder, rule, no
+  fill) so the primary is the only slab (B9).
+
+**Parking lot, consolidated across rounds 20–23**, for David and not applied:
+MILEAGE · AVG · RELIABILITY vs. the strip's MILEAGE · TRIM · USE; which corner
+the Vehicle plate cuts, if any, given it runs under the status bar; whether
+Plan's empty state should carry the brief's "one button" (it says "See what
+we already know" with a button below — the critic read the copy as pressable
+and found nothing); whether the garage's empty bottom third should carry
+"What's driving this score" the way web's dial band does; whether ACCOUNT
+needs a home other than all four root headers; and whether the T mark's
+corners, if rounded, should take the 45° cut. Two cut items the critic
+raised and this loop did not take: the `sliders` icon on "What is driving
+this score", and the search field's fill (the third gap above).
 
 ---
 
@@ -1444,3 +1609,130 @@ Not deviations — drift being *closed*, listed so Design can see the whole pass
 - **`CLEAR_SPACE` changed meaning.** It was 48 grid units on a 280-unit lockup;
   it is now one mark height, stated against `LOCKUP.mark` so it survives a grid
   change instead of needing re-derivation.
+
+---
+
+## 13. The three signed-in pages join the system — 11 Sep 2026
+
+Raised by `design-loop/signed-in/` (gitignored). `/garage`, `/settings` and
+`/onboard` sit behind the middleware, so through two locked briefs and 27
+graded rounds no critic ever saw them. On 11 Sep the pages were split into a
+data wrapper and a view, `/dev/garage`, `/dev/settings` and `/dev/onboard`
+render the views with no session (`dev-surfaces-render-the-real-views`
+pins that they are the same components), and an independent critic wrote a
+brief in BRIEF mode against the frozen north-star, the two reference pages
+(`/` and `/check`) and the settled-system paragraph. Locked without review —
+David delegated the pass. Baseline **4/10**, blind-ranked 4th, 5th and 6th of
+six; closing **8/10**, nine of ten lines met, the garage blind-ranked **1st of
+six** above both references and the north-star board. Four commits, each
+carrying its critique score.
+
+Everything here is drift being *closed* — three pages that had stayed on the
+pre-4-Sep register while the components inside them moved. Three items are
+new and Design should rule on them.
+
+### 13.1 Two shared pieces the landing does not yet use ⚠ needs a ruling
+
+`components/PageOpener.tsx` (mono eyebrow, condensed uppercase headline at
+the 62% masthead width, one quiet line) and `components/FleetStrip.tsx` (the
+IN THE GARAGE / AVERAGE HEALTH / OPEN RECALLS strip) are `app/page.tsx`'s
+inline patterns extracted as components so the three signed-in pages cannot
+drift from each other. **The landing still carries its inline copies** — it
+is graded on its own loop and was outside this pass's lane — so the product
+now has one pattern spelled twice. Adopting the components on the landing is
+a mechanical change; the one behavioural difference is below.
+
+### 13.2 The strip prints an em dash where the landing omits the cell ⚠ needs a ruling
+
+The landing's strip *omits* AVERAGE HEALTH when nothing is scored and OPEN
+RECALLS when the count is zero. The signed-in strip prints **—** in both
+cases, with "not known" for a screen reader — the locked brief's words are
+"em dash where the data cannot say", and the dash is doing §10's job: a
+non-reading rendered as one. The refusal is identical (a zero recall count
+may mean the lookup never ran, and the garage query does not select
+`lookup_status`); only the typography differs. One of the two should win
+when 13.1 is taken up.
+
+### 13.3 `.field` has an `lg` step ✅ closed, with a note
+
+`input.tsx` said "there is no `lg` — nothing in the app asked for one, and an
+unused size is a decision nobody has made yet." The add-a-vehicle brief made
+the VIN field the largest element on its page: 64px tall, 24px type, in
+`.field-lg` beside the other two steps, with an override inside the
+coarse-pointer block so the 16px anti-zoom rule cannot pull it back down.
+Mono is not part of the step — the caller asks for it.
+
+### 13.4 The card's hover is one chip, and it is not the chip the brief names ⚠ needs a ruling
+
+Brief B10: *"Card hover: hairline brightens, one chip; no lift, no second
+affordance."* `VehicleCard` — shared with the landing — lost its `card-lift`
+transform and its two hover controls became one: a mono cut chip on the
+plate's corner reading OPTIONS, which is the vehicle menu. The critic asked
+three times for it to read ADD PHOTO and do only that, and it was declined
+each time for the same reason: **`deleteVehicle` has exactly one call site,
+this menu.** Naming a menu after one of its items would tell someone hovering
+a photographed car that the chip adds a photo. If deleting a vehicle ever
+moves to the dashboard, the chip can become the single verb the brief wants.
+
+Two things found by measurement on the way, both real on the landing too:
+
+- The old trigger was `MoveVertical as MoreVertical` — a ↕ arrow renamed to
+  look like a ⋮ glyph, drawn in a circle with no label. The critic read it as
+  a "reorder handle" because that is what it was drawn as.
+- The first placement of the new chip, hidden with opacity in the header row,
+  still occupied 92px of the row and pushed every dial to 52% of the card's
+  width at rest. Moved onto the plate's corner, re-measured at 80%.
+
+### 13.5 The VIN plate photograph is contained, and it is capped ✅ closed
+
+`/onboard` carries a generated night plate of a VIN tag beside the form
+(`public/design/onboard-vin-plate-{800,1400}.webp`, provenance and prompt in
+`public/design/CREDITS.md`, US$0.40 of Gemini spend in `cost-log.jsonl`).
+Contained, not a background — CC-142 §5 removed photographic page
+*backgrounds* and this page still draws its room. `image-weight-budget`
+caps the heaviest derivative at 96 KB, the same shape as `/check`'s
+exemption. ⚠ Of the three candidates, one rendered a **legible VIN-like
+string** on the tag and was rejected: a fake number beside the field that
+asks for a real one is precision this product does not invent.
+
+### 13.6 The room's seam is exposed on short pages — for Design
+
+`.service-bay`'s wall/floor seam — one 1px line at 64% of the viewport,
+kept deliberately as "geometry, not texture" when the panel joins were cut —
+sits behind cards on the landing and behind nothing on `/settings` and
+`/onboard`, where two critiques read it as a hard horizontal artefact. It is
+the landing's plate exactly, which is what brief B1 asks for, so it was not
+touched here. Whether the seam should feather, or the short pages should
+cover it, is a system question.
+
+### 13.7 Recorded deviations from the critic's brief
+
+- The garage eyebrow reads SIGNED IN AS and the **profile's display name**,
+  fetched through `getProfile` under `['profile', userId]` with a
+  five-minute stale window and invalidated by a settings save. Round one said
+  only SIGNED IN; round three tried the session email and the critic read a
+  lowercase address inside a tracked uppercase line as the wrong register.
+  This is the first place the display name is shown outside the field that
+  sets it.
+- The add-a-vehicle header omits "Add vehicle" — the page is the action. The
+  critic graded B1 met "as a contextual omission" and parked whether David
+  wants it literal.
+- Not applied from the closing critique, and recorded because they reverse
+  earlier grades on unchanged code: setting the DELETE ACCOUNT headline
+  off-white (B3 passed it in sodium in round two), cutting "Up to 60
+  characters." (endorsed as "the whole message" in round two), and an 11px
+  three-across mobile strip (under `viewport-floors`' 12px floor).
+
+### Not design-system changes, listed so Design can see the whole pass
+
+The delete button, the settings shield, the `FormField` error line, the
+onboarding alert and the garage's failed state were all `text-red-400` —
+`#F87171`, the retired critical red, spelled as a utility class where
+`retired-palette-literals` scans hex · the account chip, the Distance pills,
+the photo pill, the options disc, the delete dialog's icon disc and the
+settings panels were the last radii on the signed-in surface · the empty
+garage no longer pitches the product to someone who has bought it · the
+three settings sub-descriptions and the delete panel's restated one are gone,
+as are both icon tiles and the duplicate "Go to Garage" link · Save is grey
+until something is dirty · the delete dialog uses the primitive's destructive
+variant instead of `bg-red-500 … disabled:opacity-40`.

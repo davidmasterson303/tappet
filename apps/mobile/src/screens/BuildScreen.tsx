@@ -18,6 +18,7 @@ import Chip from '../components/Chip';
 import ProgressionLadder from '../components/ProgressionLadder';
 import SectionHeader from '../components/SectionHeader';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import { useRootScroll } from '../components/RootScreen';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { buildPosition } from '@tappet/core/build-progress';
 import {
@@ -144,6 +145,11 @@ export function BuildScreen({
   onSignOut: () => void;
   onOpenWishlist: () => void;
 }) {
+  /*
+    B8 · the root's scroll contract. `null` when this screen is pushed with a
+    native header or mounted on its own, and spreads to nothing there.
+  */
+  const rootScroll = useRootScroll();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [declined, setDeclined] = useState<string[]>([]);
@@ -396,6 +402,7 @@ export function BuildScreen({
   return (
     <ScrollView
       contentContainerStyle={styles.body}
+      {...rootScroll}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

@@ -22,7 +22,6 @@ import {
   describeRemoval,
   formatRecordDate,
   groupIntoVisits,
-  isRecollection,
   recordSourceLabel,
   totalRecorded,
   type ServiceRecord,
@@ -32,7 +31,8 @@ import { formatCurrency } from '@tappet/core/formatting-utils';
 import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
-import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { useRootScroll } from '../components/RootScreen';
+import { border, cut, FIELD_FONT_MIN, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -124,6 +124,11 @@ function visitStamp(visit: ServiceVisit): string | null {
 }
 
 export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut }: Props) {
+  /*
+    B8 · the root's scroll contract. `null` when this screen is pushed with a
+    native header or mounted on its own, and spreads to nothing there.
+  */
+  const rootScroll = useRootScroll();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('');
@@ -380,9 +385,15 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       )}
 
       <ScrollView
-        /* R37 / R57. Centred while there is nothing on file; top-aligned after. */
-        contentContainerStyle={[styles.body, state.records.length === 0 && OPTICAL_CENTRE]}
+        /*
+          R37 / R57 centred this while there was nothing on file. 11 Sep: top-
+          aligned in every state, for the reason `WishlistScreen` gives — under
+          a title, a rail, a primary and a search field the caption is never
+          the first thing on the page, and the centring left a void above it.
+        */
+        contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
+        {...rootScroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={text.muted} />
         }
@@ -397,6 +408,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
           reword around the gap.
         */
         <EmptyState
+          inset={false}
           headline="Nothing recorded yet"
           body="Scan an invoice, or mark something done on the wishlist, and it will appear here."
           actionLabel="Scan an invoice"
@@ -405,31 +417,41 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       ) : (
         <>
           {/*
-            ── R35 · a label above a value, not a word after a figure ────────
+            ── R35 · a label, not a word after a figure ─────────────────────
 
             It read `5 services   $1,461 recorded`, and "recorded" trailing a
             currency figure parses as a **unit** — the way "miles" does after a
-            number. The word is doing real work (it names what the total covers,
-            which is the misreading this line exists to prevent), so it moves
-            above the figure into the slot the system already has for naming a
-            value.
+            number. The word does real work (it names what the total covers,
+            which is the misreading this line exists to prevent), so it lives in
+            the label.
+
+            ── ⚠ 11 Sep · B6: one label, one numeral, one baseline ────────────
+
+            The label then sat *above* the figure, right-aligned, beside a
+            lowercase "5 services" on the left — the critique counted "three
+            voices on one row". A spec-table row is a mono-caps label on the
+            left and a numeral on the right, so the count and the scope join
+            into one label, with `$1,313` on the same baseline. The caps are
+            the style's, so the words stay findable as words.
+
+            ⚠ "Recorded across 4 of 5" then read as an unfinished sentence —
+            *"five of what?"* — and the critique was right. `4 PRICED` says the
+            same thing in one word: the total covers the four rows that carry a
+            cost, and a recollection carries none. The count beside it already
+            says five.
           */}
           <View style={styles.summary}>
-            <Text style={styles.summaryCount}>
-              {query
-                ? `${shown.length} of ${state.records.length}`
-                : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`}
+            <Text style={styles.summaryLabel} numberOfLines={1}>
+              {[
+                query
+                  ? `${shown.length} of ${state.records.length} shown`
+                  : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`,
+                counted > 0 && counted !== state.records.length ? `${counted} priced` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
-            {counted > 0 && (
-              <View style={styles.summaryTotal}>
-                <Text style={styles.summaryScope}>
-                  {counted === state.records.length
-                    ? 'Recorded'
-                    : `Recorded across ${counted} of ${state.records.length}`}
-                </Text>
-                <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>
-              </View>
-            )}
+            {counted > 0 && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
           </View>
 
           {shown.length === 0 && (
@@ -601,15 +623,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 it is attached to.
               */}
               <View style={styles.foot}>
-                <Text
-                  style={[
-                    styles.provenance,
-                    visit.records.some((record) => isRecollection(record.source)) &&
-                      styles.recollection,
-                  ]}
-                >
-                  {visitProvenance(visit)}
-                </Text>
+                <Text style={styles.provenance}>{visitProvenance(visit)}</Text>
               </View>
             </Card>
           ))}
@@ -722,11 +736,14 @@ const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
-  summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  summaryCount: { ...type.mono, color: text.secondary },
-  summaryTotal: { alignItems: 'flex-end', gap: 2 },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
+  summaryLabel: { ...type.monoLabel, color: text.muted, flexShrink: 1 },
   summaryCost: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
-  summaryScope: { ...type.monoLabel, color: text.muted },
 
   /**
    * The card, on the ladder rather than beside it.
@@ -812,26 +829,18 @@ const styles = StyleSheet.create({
   /* R9. Quiet. The destructive colour appears only in the confirm `remove` raises. */
   removeText: { ...type.label, letterSpacing: 0, color: text.muted },
   /*
-    ── ⚠ 7 Sep · B7: the sodium moves from the ink to a rule ─────────────────
+    ── ⚠ 11 Sep · B7: the recollection carries no sodium at all ──────────────
 
-    The note here argued the tint carries meaning rather than decoration, and it
-    is right: *"the label already says 'what you told us at sign-up'; the colour
-    is what survives someone skimming, and skimming is what a list invites."*
-    A recollection is not a scanned document and §10 does not let the list
-    pretend otherwise.
-
-    B7 spends sodium as a **line**, though, not as ink. The critique proposed the
-    resolution rather than the removal — "a sodium hairline on the band's left
-    edge with the text staying grey" — which keeps exactly what the note was
-    protecting. A rule down the edge of a row survives skimming better than a
-    tint on a caption does, because it reads at the width of the row rather than
-    the width of a word.
+    This row's provenance was tinted sodium on 6 Sep and given a sodium rule
+    down its edge on 7 Sep, each time on the argument that the colour "is what
+    survives someone skimming". The next critique, reading the screen cold,
+    called the rule what it is under the locked brief: *"the sodium bar spends
+    the warning hue on provenance"*. B7 is unambiguous — sodium only on genuine
+    warnings — and a recollection is not a warning, it is a source. Web sets
+    the same caption in quiet grey with nothing beside it, so the phone now
+    does too; the words still say "what you told us at sign-up", and §10 is
+    satisfied by the words. Sodium on the service record now means one thing.
   */
-  recollection: {
-    borderLeftWidth: 2,
-    borderLeftColor: status.attention,
-    paddingLeft: space.sm,
-  },
 
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },

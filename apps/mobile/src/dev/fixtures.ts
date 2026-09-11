@@ -52,10 +52,27 @@ const M235I = {
    * Refresh it by signing the object again — it expires.
    */
   photo_url: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null,
+  /*
+    ── ⚠ 11 Sep · the reading is genuinely stale, not a sentence pretending ──
+
+    This carried the app's own *stale* sentence — "This reading was taken
+    before your 5 service records were filed…" — as if the model had written
+    it. It had not: that sentence is what `healthVerdict` composes when a
+    stored summary predates the record, and storing it here as the summary
+    meant the verdict came out `current`, and printed "Based on 5 recorded
+    services" under a sentence saying the opposite. The critique caught the
+    contradiction twice before anyone noticed the fixture was the liar.
+
+    So the fixture now holds what the table holds: the model's sentence and
+    the moment it was written — the M235i pair `health-claims.test.ts` was
+    written around — and the rows below carry `created_at` after it, so the
+    verdict is stale for the reason a real one is.
+  */
   vehicle_health_summary: {
     health_score: 70,
     summary:
-      'This reading was taken before your 5 service records were filed, so it does not account for them.',
+      "Based on your provided service history, the vehicle's health is highly uncertain due to a complete lack of documented maintenance.",
+    last_generated: '2026-07-30T01:05:47.583+00:00',
   },
   /*
     ⚠ Real NHTSA field names. The same note in `GarageScreen.test.tsx` explains
@@ -99,6 +116,7 @@ const MAINTENANCE = [
     mileage_at_service: 61_400,
     source: 'vision',
     source_document_id: 'doc-1',
+    created_at: '2026-08-06T02:43:11.903661+00:00',
   },
   {
     id: 'm2',
@@ -109,6 +127,7 @@ const MAINTENANCE = [
     mileage_at_service: 61_400,
     source: 'vision',
     source_document_id: 'doc-1',
+    created_at: '2026-08-06T02:43:11.903661+00:00',
   },
   {
     id: 'm3',
@@ -119,6 +138,7 @@ const MAINTENANCE = [
     mileage_at_service: 61_400,
     source: 'vision',
     source_document_id: 'doc-1',
+    created_at: '2026-08-06T02:43:11.903661+00:00',
   },
   {
     id: 'm4',
@@ -129,6 +149,7 @@ const MAINTENANCE = [
     mileage_at_service: 61_400,
     source: 'vision',
     source_document_id: 'doc-1',
+    created_at: '2026-08-06T02:43:11.903661+00:00',
   },
   {
     id: 'm5',
@@ -137,6 +158,7 @@ const MAINTENANCE = [
     total_cost: null,
     mileage_at_service: 48_000,
     source: 'owner-onboarding',
+    created_at: '2026-08-01T15:02:00.000+00:00',
   },
 ];
 

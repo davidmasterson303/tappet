@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import Button from '../components/Button';
-import ScreenTitle from '../components/ScreenTitle';
+import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
 import { ServiceHistoryScreen } from './ServiceHistoryScreen';
 import type { ServiceVisit } from '@tappet/core/service-record';
 import { ServiceMilestoneScreen } from './ServiceMilestoneScreen';
-import { PAGE_BODY, space, surface } from '../theme';
+import { PAGE_BODY, space } from '../theme';
 
 export type ServiceSegment = 'due' | 'history';
 
@@ -91,10 +91,17 @@ export function ServiceScreen({
     setSegment(initialSegment);
   }, [initialSegment]);
 
-  return (
-    <View style={styles.screen}>
-      {/* B8: the root's own name, in the condensed grotesk. See `ScreenTitle`. */}
-      <ScreenTitle>Service</ScreenTitle>
+  /*
+    ── ⚠ 11 Sep · B8: the root's name collapses, the rail and the primary stay ──
+
+    `RootScreen` draws the condensed title and turns it into the mono nav title
+    once the list beneath has scrolled. The rail and the scan control are
+    `pinned`: they move up with the collapsing band and never scroll away, which
+    is the rule the switcher's own note already states. Each segment's scroller
+    signs the scroll contract with `useRootScroll()`.
+  */
+  const pinned = (
+    <>
       <View style={styles.switcher}>
         <Segmented
           accessibilityLabel="Service"
@@ -127,7 +134,11 @@ export function ServiceScreen({
       <View style={styles.scan}>
         <Button label="Scan invoice" onPress={onScan} />
       </View>
+    </>
+  );
 
+  return (
+    <RootScreen title="Service" pinned={pinned}>
       {segment === 'due' ? (
         <ServiceMilestoneScreen vehicleId={vehicleId} onSignOut={onSignOut} />
       ) : (
@@ -138,12 +149,11 @@ export function ServiceScreen({
           onSignOut={onSignOut}
         />
       )}
-    </View>
+    </RootScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: surface.page },
   /* Full-bleed to the page gutter; the control's own cut is its only edge. */
   scan: { paddingHorizontal: space.lg, paddingBottom: space.md },
   /*

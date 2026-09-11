@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import Svg, {
   Defs,
   Ellipse,
@@ -9,9 +9,10 @@ import Svg, {
 } from 'react-native-svg';
 
 import CutSurface from './CutSurface';
+import NightPlate from './NightPlate';
+import PhotoGrade from './PhotoGrade';
 
-import { bay, border, cut, radius, space, surface, TARGET_MIN, text, type } from '../theme';
-import { interFace } from '../theme/fonts';
+import { bay, cut, surface } from '../theme';
 
 /**
  * The lit room a car stands in.
@@ -149,14 +150,14 @@ export default function BayRoom({
   height?: number;
 }) {
   /*
-    The wordmark, and it is the make alone.
+    ── ⚠ 11 Sep · the wordmark is gone; the night is the empty state ─────────
 
-    Not the model, and not the full name — those sit directly beneath the room
-    in their own lockup, and repeating them inside it would be the card body's
-    duplication problem moved one screen along. At 0.2em tracking a make reads
-    as signage on the back wall, which is the whole idea.
+    This drew the make alone, at 0.2em tracking, as "signage on the back wall"
+    when there was no photograph. Under the locked brief that was the one
+    AI tell left on the phone — a sans wordmark doing an image's job, and
+    repeating the make the model name already carries — and B2 asks for the
+    image. `NightPlate` is it; see that file.
   */
-  const wordmark = (make ?? '').trim().toUpperCase();
 
   return (
     /*
@@ -178,6 +179,14 @@ export default function BayRoom({
       cut={['topRight']}
       size={cut.plate}
       fill={bay.roomFar}
+      /*
+        ⚠ 11 Sep · B2: the cut has to be *seen*. `CutSurface` draws its shape
+        behind its children and the plate fills the box, so the notch was in
+        the path and not on the screen — the critique found it "not legible"
+        twice. `ground` paints the page back over the corner, above the image.
+        Honest here and only here: the plate sits on the page, always.
+      */
+      ground={surface.page}
     >
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
@@ -242,12 +251,12 @@ export default function BayRoom({
             accessibilityRole="image"
             accessibilityLabel={make ? `${make} photo` : 'Vehicle photo'}
           />
+          {/* B9: the owner's photograph passes through the house grade. */}
+          <PhotoGrade />
         </>
-      ) : wordmark ? (
-        <Text style={[styles.wordmark, { marginBottom: SHARP_INSET }]} numberOfLines={1}>
-          {wordmark}
-        </Text>
-      ) : null}
+      ) : (
+        <NightPlate />
+      )}
 
       {/*
         The dissolve. Drawn over the photograph and under the controls, so the
@@ -317,26 +326,4 @@ const styles = StyleSheet.create({
   /** Held clear of the fade, so a contained car keeps its wheels. */
   sharp: { bottom: SHARP_INSET },
   fade: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  /**
-   * 28/800 at 0.2em tracking, in the muted ink.
-   *
-   * Quiet on purpose. It is the back wall of the room, not a heading — the
-   * car's actual name is directly below in the editorial role, and two loud
-   * pieces of type stacked would fight. It did **not** grow with the hero for
-   * that reason: a bigger room is more air around the signage, not bigger
-   * signage.
-   */
-  wordmark: {
-    fontSize: 28,
-    /*
-      ⚠ One line, and it has to be. `mobile-font-faces.test.ts` matches the face
-      and the weight adjacently — RN does not synthesise weights, so a bare
-      `fontWeight: '800'` renders San Francisco rather than Inter black, and a
-      half-applied typeface reads as a design choice rather than a bug.
-    */
-    fontFamily: interFace('800'), fontWeight: '800',
-    letterSpacing: 5.6,
-    color: text.muted,
-    paddingLeft: 5.6,
-  },
 });
