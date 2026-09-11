@@ -14,7 +14,6 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import Button from '../components/Button';
 import AlertBanner from '../components/AlertBanner';
 import Chip from '../components/Chip';
-import Icon from '../components/Icon';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
 import GarageBay from '../components/GarageBay';
@@ -36,7 +35,6 @@ import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-st
 import { getHealthBandJudgement } from '@tappet/core/health-band';
 import { normaliseRecalls } from '@tappet/core/recalls';
 import { localToday } from '@tappet/core/garage-next-service';
-import { interFace } from '../theme/fonts';
 
 import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
 import { rememberGarageSize } from '../navigation/last-vehicle';
@@ -529,7 +527,7 @@ export function GarageScreen({
     the slop was buying nothing and paying for it with a collision.
   */
   /*
-    ── R22 · a `+`, and only a `+` ──────────────────────────────────────
+    ── R22 · a `+`, and only a `+` — then a word, 11 Sep ────────────────
 
     Two plain text links of equal weight sat here — `Add car` and
     `Account` — and only one of them was consequential. Text links in a
@@ -542,8 +540,11 @@ export function GarageScreen({
     of something this screen has to remember on every return path — see
     `mobile-account-reachable.test.ts`.
 
-    What is left is the one control this header owns, as a glyph on a 44pt
-    square. It is named, because a `+` alone is a shape.
+    What is left is the one control this header owns. R22 drew it as a `+`
+    on a 44pt square; the critique on 11 Sep read it beside ACCOUNT and asked
+    why one piece of chrome is a glyph when every other is a mono caps word.
+    Fair — B1 gives chrome that voice, and `AccountControl` already speaks it.
+    So it says ADD CAR, in the same face, and is still named for the reader.
   */
   const addCar = (
     <View style={styles.headerActions}>
@@ -553,7 +554,7 @@ export function GarageScreen({
         accessibilityLabel="Add a car"
         style={styles.headerAction}
       >
-        <Icon name="plus" size={22} color={text.primary} />
+        <Text style={styles.headerActionLabel}>Add car</Text>
       </Pressable>
     </View>
   );
@@ -795,13 +796,15 @@ const styles = StyleSheet.create({
     `lineHeight` alone — see the note at the call site for why `hitSlop` was
     removed rather than reduced.
   */
-  headerAction: {
-    color: text.secondary,
-    ...type.value,
-    fontFamily: interFace('600'), fontWeight: '600',
-    minHeight: TARGET_MIN,
-    lineHeight: TARGET_MIN,
-  },
+  /*
+    Top-aligned inside its 44pt target, with the label's top on the account
+    control's — that control floats at the collapsed band's centre (see
+    `AccountControl`), 6pt below this row's top, and two words of chrome on
+    one row share a baseline or read as two rows.
+  */
+  headerAction: { minHeight: TARGET_MIN, paddingTop: 6 },
+  /* The same voice as ACCOUNT beside it — chrome speaks mono caps. */
+  headerActionLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
   deletedNotice: {
     position: 'absolute',
     top: 60,

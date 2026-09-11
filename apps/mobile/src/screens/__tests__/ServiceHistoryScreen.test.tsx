@@ -212,7 +212,13 @@ describe('the total', () => {
     respondWith([INVOICE_ROW, RECOLLECTION_ROW]);
     const view = await mount();
 
-    expect(await view.findByText(/across 1 of 2/)).toBeTruthy();
+    /*
+      ⚠ Re-pointed 11 Sep from "across 1 of 2". The qualifier is one word now —
+      "1 priced" beside "2 services" — because "recorded across 1 of 2" read as
+      an unfinished sentence. The claim is the same: a total over some rows is
+      never read as a total over all of them.
+    */
+    expect(await view.findByText(/2 services · 1 priced/)).toBeTruthy();
   });
 
   it('does not qualify a total that covers everything', async () => {
@@ -220,7 +226,7 @@ describe('the total', () => {
     const view = await mount();
 
     await view.findByText(/Front brake pads/);
-    expect(view.queryByText(/across/)).toBeNull();
+    expect(view.queryByText(/priced/)).toBeNull();
   });
 });
 

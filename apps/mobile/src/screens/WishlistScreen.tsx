@@ -425,6 +425,8 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
           state, rather than one control per screen.
         */
         <EmptyState
+          inset={false}
+          rule={false}
           headline="Nothing on the list yet"
           body="See what we already know this car needs — its known issues, its schedule, and the usual modifications. You can add anything of your own too."
           actionLabel="See suggestions"

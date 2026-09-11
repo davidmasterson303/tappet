@@ -408,6 +408,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
           reword around the gap.
         */
         <EmptyState
+          inset={false}
           headline="Nothing recorded yet"
           body="Scan an invoice, or mark something done on the wishlist, and it will appear here."
           actionLabel="Scan an invoice"
@@ -430,9 +431,14 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
             lowercase "5 services" on the left — the critique counted "three
             voices on one row". A spec-table row is a mono-caps label on the
             left and a numeral on the right, so the count and the scope join
-            into one label: `5 SERVICES · RECORDED ACROSS 4 OF 5`, with `$1,313`
-            on the same baseline. The caps are the style's, so the words stay
-            findable as words.
+            into one label, with `$1,313` on the same baseline. The caps are
+            the style's, so the words stay findable as words.
+
+            ⚠ "Recorded across 4 of 5" then read as an unfinished sentence —
+            *"five of what?"* — and the critique was right. `4 PRICED` says the
+            same thing in one word: the total covers the four rows that carry a
+            cost, and a recollection carries none. The count beside it already
+            says five.
           */}
           <View style={styles.summary}>
             <Text style={styles.summaryLabel} numberOfLines={1}>
@@ -440,11 +446,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 query
                   ? `${shown.length} of ${state.records.length} shown`
                   : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`,
-                counted > 0
-                  ? counted === state.records.length
-                    ? 'recorded'
-                    : `recorded across ${counted} of ${state.records.length}`
-                  : null,
+                counted > 0 && counted !== state.records.length ? `${counted} priced` : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}

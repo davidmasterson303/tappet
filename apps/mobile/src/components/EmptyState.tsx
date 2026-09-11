@@ -32,8 +32,29 @@ export default function EmptyState({
   actionAccessibilityLabel,
   onAction,
   align = 'center',
+  inset = true,
+  rule = true,
   children,
 }: {
+  /**
+   * Whether the block pads to the page gutter itself.
+   *
+   * ── ⚠ 11 Sep · B5: one margin, not three ──────────────────────────────────
+   *
+   * Every body this sits in already pads to `rhythm.page`, and this padded
+   * again — so the caption began 32pt in while the title above it began at
+   * 16. The critique read the result as "invisible cards": three left edges
+   * on one surface. `false` inside a padded body; `true` only where the block
+   * is the thing providing the gutter (the garage's paged scroller, which
+   * cannot pad).
+   */
+  inset?: boolean;
+  /**
+   * The top rule — B5's band edge. `false` when the element above already
+   * draws one (a segment rail), so the two do not stack as a pair of hairlines
+   * with nothing between them.
+   */
+  rule?: boolean;
   headline: string;
   /** Why it is empty, in plain words. Not an apology. */
   body: string;
@@ -72,7 +93,14 @@ export default function EmptyState({
   children?: React.ReactNode;
 }) {
   return (
-    <View style={[styles.wrap, align === 'start' && styles.wrapStart]}>
+    <View
+      style={[
+        styles.wrap,
+        align === 'start' && styles.wrapStart,
+        !inset && styles.flush,
+        !rule && styles.unruled,
+      ]}
+    >
       <Text style={[styles.headline, align === 'start' && styles.alignStart]}>{headline}</Text>
       <Text style={[styles.body, align === 'start' && styles.alignStart]}>{body}</Text>
       {children}
@@ -124,6 +152,8 @@ const styles = StyleSheet.create({
     borderTopColor: border.panel,
   },
   wrapStart: {},
+  flush: { paddingHorizontal: 0 },
+  unruled: { borderTopWidth: 0 },
   /* B1: the headline is a section head — condensed grotesk caps. */
   /*
     ⚠ 6 Sep · B1: a mono caps caption, because the brief names one.

@@ -707,6 +707,7 @@ function AdvisorEmptyState({ onPick }: { onPick: (question: string) => void }) {
   return (
     <View style={styles.emptyWrap}>
       <EmptyState
+        inset={false}
         align="start"
         headline="Ask about this car"
         body="The advisor already knows its service history, open issues, recalls and mods. You do not need to explain them."
@@ -851,7 +852,12 @@ const styles = StyleSheet.create({
     */
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,
-    paddingHorizontal: space.md,
+    /*
+      ⚠ 11 Sep · B5: no horizontal padding of its own. The transcript already
+      pads to the page gutter, and 12pt more put these questions on a third
+      left edge between the title's and the empty state's — "invisible cards".
+      The pressed fill spans the padded width, which is the band's width here.
+    */
     /* Comfortably over the 44pt floor at one line, and grows with two. */
     paddingVertical: space.md,
     minHeight: TARGET_MIN,
