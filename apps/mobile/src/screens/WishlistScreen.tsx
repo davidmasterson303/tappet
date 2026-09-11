@@ -23,7 +23,6 @@ import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
 import {
-  OPTICAL_CENTRE,
   PAGE_BODY,
   TABULAR,
   border,
@@ -362,13 +361,19 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
   return (
     <ScrollView
       /*
-        R37 / R57. Optically centred when the list is empty, top-aligned the
-        moment there is anything to read. `OPTICAL_CENTRE` only has slack to
-        distribute when the content is shorter than the display, so this is one
-        rule rather than a branch — the flag is here only because the empty
-        state is short *and* the list can be too on a tall phone.
+        ── ⚠ 11 Sep · the empty state is top-aligned; R57 no longer applies ──
+
+        R37 / R57 centred the empty state optically, and the rule was right for
+        the screen it was written on: a single block "at the very top of a
+        black field reads as a page that failed to finish loading". This list
+        is not that screen any more. As a tab root it opens under a 34pt title
+        and a segment rail, so its content is never the first thing on the
+        page — and centring it left "a ruled void" a third of the screen tall
+        between the rail and the caption, which the critique named as the one
+        thing keeping the round off an 8. A list ends at its foot; the void
+        belongs there.
       */
-      contentContainerStyle={[styles.body, empty && OPTICAL_CENTRE]}
+      contentContainerStyle={styles.body}
       keyboardShouldPersistTaps="handled"
       {...rootScroll}
       refreshControl={

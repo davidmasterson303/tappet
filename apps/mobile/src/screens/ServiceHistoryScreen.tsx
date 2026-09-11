@@ -32,7 +32,7 @@ import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
 import { useRootScroll } from '../components/RootScreen';
-import { border, cut, FIELD_FONT_MIN, OPTICAL_CENTRE, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { border, cut, FIELD_FONT_MIN, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -385,8 +385,13 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       )}
 
       <ScrollView
-        /* R37 / R57. Centred while there is nothing on file; top-aligned after. */
-        contentContainerStyle={[styles.body, state.records.length === 0 && OPTICAL_CENTRE]}
+        /*
+          R37 / R57 centred this while there was nothing on file. 11 Sep: top-
+          aligned in every state, for the reason `WishlistScreen` gives — under
+          a title, a rail, a primary and a search field the caption is never
+          the first thing on the page, and the centring left a void above it.
+        */
+        contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
         {...rootScroll}
         refreshControl={
@@ -411,31 +416,40 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
       ) : (
         <>
           {/*
-            ── R35 · a label above a value, not a word after a figure ────────
+            ── R35 · a label, not a word after a figure ─────────────────────
 
             It read `5 services   $1,461 recorded`, and "recorded" trailing a
             currency figure parses as a **unit** — the way "miles" does after a
-            number. The word is doing real work (it names what the total covers,
-            which is the misreading this line exists to prevent), so it moves
-            above the figure into the slot the system already has for naming a
-            value.
+            number. The word does real work (it names what the total covers,
+            which is the misreading this line exists to prevent), so it lives in
+            the label.
+
+            ── ⚠ 11 Sep · B6: one label, one numeral, one baseline ────────────
+
+            The label then sat *above* the figure, right-aligned, beside a
+            lowercase "5 services" on the left — the critique counted "three
+            voices on one row". A spec-table row is a mono-caps label on the
+            left and a numeral on the right, so the count and the scope join
+            into one label: `5 SERVICES · RECORDED ACROSS 4 OF 5`, with `$1,313`
+            on the same baseline. The caps are the style's, so the words stay
+            findable as words.
           */}
           <View style={styles.summary}>
-            <Text style={styles.summaryCount}>
-              {query
-                ? `${shown.length} of ${state.records.length}`
-                : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`}
+            <Text style={styles.summaryLabel} numberOfLines={1}>
+              {[
+                query
+                  ? `${shown.length} of ${state.records.length} shown`
+                  : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`,
+                counted > 0
+                  ? counted === state.records.length
+                    ? 'recorded'
+                    : `recorded across ${counted} of ${state.records.length}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
-            {counted > 0 && (
-              <View style={styles.summaryTotal}>
-                <Text style={styles.summaryScope}>
-                  {counted === state.records.length
-                    ? 'Recorded'
-                    : `Recorded across ${counted} of ${state.records.length}`}
-                </Text>
-                <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>
-              </View>
-            )}
+            {counted > 0 && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
           </View>
 
           {shown.length === 0 && (
@@ -720,11 +734,14 @@ const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
-  summary: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  summaryCount: { ...type.mono, color: text.secondary },
-  summaryTotal: { alignItems: 'flex-end', gap: 2 },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
+  summaryLabel: { ...type.monoLabel, color: text.muted, flexShrink: 1 },
   summaryCost: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
-  summaryScope: { ...type.monoLabel, color: text.muted },
 
   /**
    * The card, on the ladder rather than beside it.

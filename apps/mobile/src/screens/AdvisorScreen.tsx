@@ -816,12 +816,18 @@ const styles = StyleSheet.create({
   /* ── R50 · the starter block ──────────────────────────────────────────── */
   emptyWrap: {
     /*
-      R54. `flex: 1` inside a `flexGrow: 1` content container, pushing the block
-      to the foot of the list — header → starters → composer within a thumb,
-      rather than at the top of a 60%-empty screen with the composer far below.
+      ── ⚠ 11 Sep · the block sits at the head of the transcript, not its foot ─
+
+      R54 pushed it to the foot — "header → starters → composer within a
+      thumb" — with `flex: 1` and `justifyContent: 'flex-end'`, and on the
+      screen it was written for that was the right trade. Two rounds of the
+      critique read the result as a defect on the root: "a ruled void before
+      the empty state", a third of the screen of nothing under the ABOUT line
+      with a hairline below it. A transcript reads from the top, the caption's
+      hairline is the band's own edge and belongs under the context line, and
+      the starters are three taps a person makes once. The thumb argument
+      loses to the void.
     */
-    flex: 1,
-    justifyContent: 'flex-end',
     gap: space.lg,
   },
   starters: { gap: space.sm },

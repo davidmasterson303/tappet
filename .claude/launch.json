@@ -55,6 +55,7 @@
       "runtimeExecutable": "env",
       "runtimeArgs": [
         "EXPO_PUBLIC_DESIGN_FIXTURES=1",
+        "EXPO_PUBLIC_DESIGN_PHOTO_URL=http://localhost:8081/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg",
         "npx",
         "expo",
         "start"

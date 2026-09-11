@@ -1345,6 +1345,55 @@ never overrides). And the installed dev client registers `crewchief://`, not
 `tappet://`, so deep links cannot be exercised on the simulator until the next
 EAS build — the linking config is covered by the source guards instead.
 
+### 6.9 The design loop, rounds 20–22 — what closed, and what is blocked, 11 Sep
+
+Three graded rounds after the rebuild (`critique-20.md` … in `design-loop/`,
+which is gitignored; the commits are the record): 6 → 7 → the round after
+this note. What closed: **B2**'s plate is the house image — a rendered night
+street, `apps/mobile/scripts/render-night-plate.mjs`, committed as a JPEG —
+with the 8pt cut now painted *through* the image (`CutSurface`'s `ground`,
+opt-in, the plate only); the vehicle's recall box became the spec-table band
+(**B5**, **B7**); the recollection row gave back its sodium (**B7**); the
+service summary is one label and one numeral on one baseline (**B6**); the
+empty states on Plan, Advisor and the record are top-aligned under their
+rails (R54/R57 superseded on the roots, where a title and a rail sit above
+the content and the void the centring left was what the critique named as
+the score's ceiling); a stale health verdict no longer prints "Based on 5
+recorded services" beneath a sentence saying it read none of them — that one
+is in `packages/core/health-claims.ts`, and the design fixture that had been
+storing the app's own stale sentence *as* the stored summary is fixed to hold
+a real one with the dates that make it stale.
+
+**B9 — owner photos are graded ✅; the viewfinder and the capture haptic are
+blocked on a build.** `PhotoGrade` lays the house grade over an owner's
+photograph as four blended layers (lifted blacks, sodium→cyan split tone,
+vignette, the plate's own grain), which the new architecture composites
+natively — no image pipeline, no native module. ⚠ The layers must be
+*siblings* of the image, not children of a wrapper: Core Animation blends a
+layer within its group, and a wrapper turned the first version into an opaque
+near-black rectangle over the car. The viewfinder ("hairline corner brackets
+and a mono readout") and the "one firm haptic on capture" both need native
+modules the dev client does not carry — `expo-camera` and `expo-haptics`;
+today the scan opens the system camera through `expo-image-picker`, which is
+the viewfinder iOS provides. Each is one EAS build (CLAUDE.md §9); logged here
+rather than built, the same way §3.23 logged the camera-first scan. Until
+then B9 grades 🟡 whatever the loop does.
+
+⚠ **The fixtures launch config carries a design photo.** `expo-mobile-fixtures`
+also sets `EXPO_PUBLIC_DESIGN_PHOTO_URL` to a file Metro serves from the
+gitignored `design-loop/mobile-ios/owner-photo.jpg` (a square crop of the
+north star's own frame — the only car photograph the repository is entitled
+to show). With the file absent the bay shows a dark plate, not the house one,
+because a `photo` prop that fails to load is still a photo to the component;
+regenerate the crop from `north-star.png` before running the loop.
+
+**Two parking-lot items for David, from the critic.** The stat strip reads
+MILEAGE · TRIM · USE where the studio paragraph says MILEAGE · AVG ·
+RELIABILITY (do AVG and RELIABILITY exist on the phone's payload?); and the
+Vehicle plate runs under the status bar, so its top-right cut has nowhere to
+live — which corner, if any, the Vehicle plate cuts is one sentence from
+David.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

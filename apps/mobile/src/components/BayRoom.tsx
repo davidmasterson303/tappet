@@ -10,6 +10,7 @@ import Svg, {
 
 import CutSurface from './CutSurface';
 import NightPlate from './NightPlate';
+import PhotoGrade from './PhotoGrade';
 
 import { bay, cut, surface } from '../theme';
 
@@ -178,6 +179,14 @@ export default function BayRoom({
       cut={['topRight']}
       size={cut.plate}
       fill={bay.roomFar}
+      /*
+        ⚠ 11 Sep · B2: the cut has to be *seen*. `CutSurface` draws its shape
+        behind its children and the plate fills the box, so the notch was in
+        the path and not on the screen — the critique found it "not legible"
+        twice. `ground` paints the page back over the corner, above the image.
+        Honest here and only here: the plate sits on the page, always.
+      */
+      ground={surface.page}
     >
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
@@ -242,6 +251,8 @@ export default function BayRoom({
             accessibilityRole="image"
             accessibilityLabel={make ? `${make} photo` : 'Vehicle photo'}
           />
+          {/* B9: the owner's photograph passes through the house grade. */}
+          <PhotoGrade />
         </>
       ) : (
         <NightPlate />

@@ -391,10 +391,33 @@ const image = sharp(out, { raw: { width: W, height: H, channels: 3 } });
 const jpeg = await image.clone().jpeg({ quality: 90, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
 writeFileSync(join(assets, 'night-plate.jpg'), jpeg);
 
+/*
+  ── The grain tile, for `PhotoGrade` ────────────────────────────────────────
+
+  The plate carries its own grain; an owner's photograph needs it laid over.
+  A 256 px tile of the same monochrome grain, mid-grey so an `overlay` blend
+  leaves the average tone alone and only adds the texture. Tiled by `Image`'s
+  `repeat`, so the file stays small whatever the plate's size.
+*/
+const GRAIN = 256;
+const grain = Buffer.alloc(GRAIN * GRAIN);
+for (let py = 0; py < GRAIN; py += 1) {
+  for (let px = 0; px < GRAIN; px += 1) {
+    const gn = (hash(px, py, 71) + hash(px, py, 73) + hash(px, py, 79)) / 3 - 0.5;
+    grain[py * GRAIN + px] = Math.max(0, Math.min(255, Math.round(128 + gn * 110)));
+  }
+}
+const grainPng = await sharp(grain, { raw: { width: GRAIN, height: GRAIN, channels: 1 } })
+  .png({ compressionLevel: 9 })
+  .toBuffer();
+writeFileSync(join(assets, 'grain.png'), grainPng);
+
 const previewPath = process.argv[2];
 if (previewPath) {
   const preview = await image.clone().resize({ width: 402 }).png().toBuffer();
   writeFileSync(previewPath, preview);
 }
 
-console.log(`night-plate.jpg ${W}×${H}, ${(jpeg.length / 1024).toFixed(0)} KB`);
+console.log(
+  `night-plate.jpg ${W}×${H}, ${(jpeg.length / 1024).toFixed(0)} KB · grain.png ${GRAIN}×${GRAIN}, ${(grainPng.length / 1024).toFixed(0)} KB`
+);

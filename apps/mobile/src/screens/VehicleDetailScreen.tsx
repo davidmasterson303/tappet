@@ -29,6 +29,7 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
+import PhotoGrade from '../components/PhotoGrade';
 import { type HealthReading } from '../components/HealthHistory';
 import ProvenanceRow from '../components/ProvenanceRow';
 import Icon from '../components/Icon';
@@ -852,6 +853,12 @@ export function VehicleDetailScreen({
         ) : (
           <HeroEmpty />
         )}
+        {/*
+          B9: the owner's photograph passes through the house grade. Over the
+          image and under the dim and the bed, so the grade is the photograph's
+          and the contrast floor stays the floor.
+        */}
+        {vehicle.photo_url ? <PhotoGrade /> : null}
 
         {/* The bay light going down as the floor comes up — shadow, not chrome. */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
