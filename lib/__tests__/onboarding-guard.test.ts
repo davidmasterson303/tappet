@@ -75,10 +75,23 @@ describe('adding a second vehicle still works', () => {
   it('every /onboard link in the garage carries the marker', () => {
     // If someone adds a third Add-vehicle button without `?from=garage`, that
     // button silently becomes a redirect to the page it was clicked from.
-    const source = readFileSync(join(ROOT, 'app/garage/page.tsx'), 'utf8');
+    // The screen lives in GarageView.tsx since 11 Sep; page.tsx is the data
+    // wrapper and links to nothing. The header's "Add vehicle" moved into
+    // `components/SignedInShell.tsx` the same day, when the three signed-in
+    // pages took one shared header — so that file is read too, and the
+    // literal must stay spelled out there rather than composed. All three
+    // are read so a link added to any of them is seen, and the `> 0` below
+    // is what keeps this from passing on a page that no longer contains the
+    // markup at all.
+    const source =
+      readFileSync(join(ROOT, 'app/garage/page.tsx'), 'utf8') +
+      readFileSync(join(ROOT, 'app/garage/GarageView.tsx'), 'utf8') +
+      readFileSync(join(ROOT, 'components/SignedInShell.tsx'), 'utf8');
     const links = source.match(/href="\/onboard[^"]*"/g) ?? [];
 
-    expect(links.length).toBeGreaterThan(0);
+    // Two sites, not one: the header action and the empty garage's ghost
+    // slot. Fewer means one of them lost its literal to composition.
+    expect(links.length).toBeGreaterThanOrEqual(2);
     for (const link of links) {
       expect(link).toBe('href="/onboard?from=garage"');
     }

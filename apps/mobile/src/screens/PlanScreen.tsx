@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import ScreenTitle from '../components/ScreenTitle';
+import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
 import { BuildScreen } from './BuildScreen';
 import { WishlistScreen } from './WishlistScreen';
-import { PAGE_BODY, space, surface } from '../theme';
+import { PAGE_BODY, space } from '../theme';
 
 export type PlanSegment = 'needs' | 'mods';
 
@@ -55,30 +55,32 @@ export function PlanScreen({
 }) {
   const [segment, setSegment] = useState<PlanSegment>(showsMods ? initialSegment : 'needs');
 
+  /*
+    ⚠ 7 Sep · B8: the root's own name, in the condensed grotesk, like every
+    other root. `Plan` was reached only by a push until it became a tab, so it
+    had been living with a pushed screen's header — the nav bar's sentence-case
+    label and no title of its own.
+
+    11 Sep: `RootScreen` draws it and collapses it into the mono nav title once
+    the list has scrolled; the rail is `pinned` under the band. Each segment's
+    scroller signs the scroll contract with `useRootScroll()`.
+  */
+  const pinned = showsMods ? (
+    <View style={styles.switcher}>
+      <Segmented
+        accessibilityLabel="Plan"
+        value={segment}
+        onChange={setSegment}
+        options={[
+          { value: 'needs', label: 'Needs' },
+          { value: 'mods', label: 'Mods' },
+        ]}
+      />
+    </View>
+  ) : null;
+
   return (
-    <View style={styles.screen}>
-      {/*
-        ⚠ 7 Sep · B8: the root's own name, in the condensed grotesk, like every
-        other root. `Plan` was reached only by a push until it became a tab, so
-        it had been living with a pushed screen's header — the nav bar's
-        sentence-case label and no title of its own.
-      */}
-      <ScreenTitle>Plan</ScreenTitle>
-
-      {showsMods ? (
-        <View style={styles.switcher}>
-          <Segmented
-            accessibilityLabel="Plan"
-            value={segment}
-            onChange={setSegment}
-            options={[
-              { value: 'needs', label: 'Needs' },
-              { value: 'mods', label: 'Mods' },
-            ]}
-          />
-        </View>
-      ) : null}
-
+    <RootScreen title="Plan" pinned={pinned}>
       {segment === 'mods' && showsMods ? (
         <BuildScreen
           vehicleId={vehicleId}
@@ -94,12 +96,11 @@ export function PlanScreen({
       ) : (
         <WishlistScreen vehicleId={vehicleId} onSignOut={onSignOut} onAdd={onAdd} />
       )}
-    </View>
+    </RootScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: surface.page },
   switcher: {
     paddingHorizontal: PAGE_BODY.paddingHorizontal,
     paddingTop: space.md,

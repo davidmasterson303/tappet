@@ -189,8 +189,14 @@ describe('deletion is reachable — Guideline 5.1.1(v) discoverability', () => {
   });
 
   it('settings renders the delete dialog', () => {
-    const settings = read('app/settings/page.tsx');
-    expect(settings).toContain('DeleteAccountDialog');
+    // Since 11 Sep the screen is SettingsView.tsx and page.tsx is the data
+    // wrapper. Both halves are asserted: the view must render the dialog, and
+    // the page must render the view — a view nothing routes to would put
+    // deletion back where it started, implemented and unreachable.
+    const view = read('app/settings/SettingsView.tsx');
+    expect(view).toContain('DeleteAccountDialog');
+    const page = read('app/settings/page.tsx');
+    expect(page).toMatch(/<SettingsView\b/);
   });
 
   it('the dialog calls the real deletion action, not a deactivation', () => {

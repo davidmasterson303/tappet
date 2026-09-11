@@ -191,3 +191,57 @@ plate at 70 KB, so the exemption is bounded rather than open. `app/page.tsx`
 >
 > Anamorphic bokeh, heavy defocus, fine film grain, restrained teal-and-orange
 > grade. No text, no logos.
+
+---
+
+## `onboard-vin-plate-{800,1400}.webp`
+
+| | |
+|---|---|
+| **Role** | Product-in-context plate beside the VIN form on `/onboard` (`app/onboard/OnboardVinForm.tsx`). Signed-in brief line B9. Contained, not a page background — CC-142 §5 still holds on this route. |
+| **Generated** | 11 Sep 2026, `~/Developer/design-loop/scripts/gen-image.mjs` |
+| **Model** | `gemini-3-pro-image-preview`, `--n 3`, `--aspect 3:2` |
+| **Styled to** | `design-loop/signed-in/north-star.png` via `--ref` |
+| **Source** | `design-loop/signed-in/img/vin-plate-3.png` — 2528×1696 |
+| **Chosen** | 3 of 3. Candidate 2 was **rejected for rendering a legible VIN-like string** on the tag — a fake number beside the field that asks for a real one is precision this product does not invent. Candidate 1 was almost entirely cyan; 3 carries both temperatures, sodium bokeh upper right and cyan on the wet road, and its stamped characters are texture rather than text at any size. The rejects are in `design-loop/signed-in/rejects/`. |
+| **Weight** | 800px 29.8 KB, 1400px 63.6 KB. `image-weight-budget.test.ts` caps the heaviest at 96 KB. |
+
+Derivatives, run once with the same recipe as the specimen hero:
+
+```
+node -e 'const sharp=require("sharp"); for (const w of [800,1400])
+  sharp("design-loop/signed-in/img/vin-plate-3.png")
+    .resize({width:w}).webp({quality:72})
+    .toFile(`public/design/onboard-vin-plate-${w}.webp`)'
+```
+
+The intrinsic ratio is **1.4906**, a 3:2 request that came back 2528×1696; the
+`width`/`height` attributes at the call site state those numbers.
+
+### The prompt, verbatim
+
+> Product-in-context photograph for the 'add a vehicle' page of a
+> car-ownership app. Role: a contained plate beside a form, not a full-bleed
+> background.
+>
+> Subject: a close, low-angle view of a car's VIN plate — the small stamped
+> metal tag at the base of the windscreen on the driver's side, seen through
+> the bottom corner of the glass — at night, on wet asphalt. Modern ordinary
+> car, dark paint, no badges visible. The stamped characters catch the light as
+> texture but are NOT legible: shallow focus and reflection make them
+> unreadable, so the image carries no actual number.
+>
+> Composition: the plate and the windscreen edge fill the lower-left
+> two-thirds; the upper right dissolves into dark bokeh of a wet street. Camera
+> close, lens near the glass. Nothing bright in the upper right where the image
+> meets a dark page.
+>
+> Lighting: one warm sodium streetlamp raking across the stamped metal from the
+> left, throwing an orange highlight along the plate's edge and a soft
+> reflection in the glass; cold cyan spill from the far right catching the wet
+> bonnet and the standing water. Both temperatures clearly present. Deep
+> warm-graphite shadows.
+>
+> Anamorphic, shallow depth of field, visible fine film grain, filmic
+> teal-and-orange grade held restrained. No text, no logos, no people, no neon
+> signage, no underglow, no light trails, no chrome.

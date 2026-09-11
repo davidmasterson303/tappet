@@ -1,8 +1,8 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-import CutSurface, { cutPath, type CutCorner } from '../CutSurface';
+import CutSurface, { cornerCovers, cutPath, type CutCorner } from '../CutSurface';
 import { auditText, belowFloor } from '../../test-support/contrast';
 
 /**
@@ -213,5 +213,85 @@ describe('a cut surface still announces itself', () => {
     );
 
     expect(view.queryByLabelText('Health score 70 out of 100')).toBeNull();
+  });
+});
+
+/**
+ * The ground cover — what makes a cut visible on a surface whose children
+ * fill it (the plate).
+ *
+ * The shape is painted behind the children, so on the bay the notch existed in
+ * the path and nowhere on screen for four days; the critique found it "not
+ * legible" twice before anyone measured. `ground` paints the page back over
+ * each cut corner, above the children, and these cases hold its geometry to
+ * the same 45° the cut itself is held to.
+ */
+describe('the ground cover over a cut corner', () => {
+  it('covers exactly the cut corners, and nothing when none are cut', () => {
+    expect(cornerCovers(120, 80, 16, [])).toEqual([]);
+    expect(cornerCovers(120, 80, 16, ['topRight'])).toHaveLength(1);
+    expect(cornerCovers(120, 80, 16, ['topRight', 'bottomLeft'])).toHaveLength(2);
+  });
+
+  it.each<CutCorner>(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'])(
+    'covers %s with a right isoceles triangle — equal legs, so the notch stays 45°',
+    (corner) => {
+      const [cover] = cornerCovers(120, 80, 16, [corner]);
+      const points = pointsOf(cover);
+      expect(points).toHaveLength(3);
+
+      const [apex, a, b] = points;
+      const legA = Math.hypot(a[0] - apex[0], a[1] - apex[1]);
+      const legB = Math.hypot(b[0] - apex[0], b[1] - apex[1]);
+      expect(legA).toBe(16);
+      expect(legB).toBe(16);
+      /* The apex is the box's own corner. */
+      expect([0, 120]).toContain(apex[0]);
+      expect([0, 80]).toContain(apex[1]);
+    }
+  );
+
+  it('clamps like the cut does, so the two cannot disagree on a small box', () => {
+    const [cover] = cornerCovers(10, 10, 16, ['topRight']);
+    const [, a, b] = pointsOf(cover);
+    expect(Math.hypot(a[0] - 10, a[1])).toBe(5);
+    expect(Math.hypot(b[0] - 10, b[1])).toBe(5);
+  });
+
+  it('paints the cover above the children only when a ground is given', async () => {
+    const mount = async (ground?: string) => {
+      const view = await render(
+        React.createElement(
+          CutSurface,
+          { fill: '#201D19', ground, cut: ['topRight'], testID: 'surface' },
+          React.createElement(Text, null, 'plate')
+        )
+      );
+      /* The path waits for a measured box, so the layout is delivered by hand. */
+      await fireEvent(view.getByTestId('surface'), 'layout', {
+        nativeEvent: { layout: { width: 100, height: 60 } },
+      });
+      return view.toJSON();
+    };
+
+    const svgs = (tree: unknown): number => {
+      let count = 0;
+      const walk = (node: unknown) => {
+        if (!node || typeof node !== 'object') return;
+        const host = node as { type?: unknown; children?: unknown[] };
+        if (host.type === 'RNSVGSvgView') count += 1;
+        for (const child of host.children ?? []) walk(child);
+      };
+      walk(tree);
+      return count;
+    };
+
+    /*
+      One SVG is the cut behind the children; a second, after them, is the
+      cover. The count is the whole claim — the geometry is held above — and
+      the without-ground case is what keeps it from being vacuous.
+    */
+    expect(svgs(await mount('#100F0D'))).toBe(2);
+    expect(svgs(await mount())).toBe(1);
   });
 });

@@ -1,11 +1,14 @@
 import { render, userEvent } from '@testing-library/react-native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import TabBar from '../TabBar';
+import { rememberGarageSize, rememberVehicle } from '../last-vehicle';
+import { TAB_NAMES, type TabName } from '../tab-target';
 import { withSafeArea } from '../../test-support/safe-area';
 
 /**
- * The bar is how the app is navigated, and one of its four destinations is a
- * compliance requirement.
+ * The bar is how the app is navigated, and where the account's way in sits
+ * beside it is a compliance requirement.
  *
  * ── What App Store 5.1.1(v) needs from this file ────────────────────────────
  *
@@ -15,95 +18,203 @@ import { withSafeArea } from '../../test-support/safe-area';
  * states still rendered it — a guarantee held together by vigilance, and one
  * that had already been lost when the loading and error states returned early.
  *
- * As a tab it cannot be lost that way: the bar is a sibling of the navigator,
- * not a child of any screen. What is left to check is that the control is
- * there, that it is named, and that it announces which position is current —
- * because a bar whose state is carried entirely by a tint is unusable to anyone
- * who cannot separate the two, and this bar is the app's navigation.
+ * ⚠ 11 Sep: the bar is `@react-navigation/bottom-tabs`' own `tabBar` now,
+ * rendered by the navigator outside every screen; the account control floats
+ * beside it as a sibling of the root navigator. `mobile-account-reachable.test.ts`
+ * holds both of those structural facts. What is left to check *here* is that the
+ * bar offers the four roots by name, announces which is current, and moves
+ * between them the way the navigator expects — emitting `tabPress` first, so a
+ * focused tab's own stack can answer a re-tap, and carrying the last car to a
+ * tab that is not yet about it.
  */
+
+/** A tab navigator's state, at `index`, with whatever nested state each tab has. */
+function tabState(
+  index: number,
+  nested: Partial<Record<TabName, { vehicleId?: string }>> = {}
+): BottomTabBarProps['state'] {
+  return {
+    key: 'tabs',
+    index,
+    type: 'tab',
+    stale: false,
+    routeNames: [...TAB_NAMES],
+    history: [],
+    preloadedRouteKeys: [],
+    routes: TAB_NAMES.map((name) => ({
+      key: `${name}-key`,
+      name,
+      ...(nested[name]
+        ? {
+            state: {
+              routes: [{ name: name.replace('Tab', ''), params: nested[name] }],
+            },
+          }
+        : {}),
+    })),
+  } as BottomTabBarProps['state'];
+}
+
+/** The navigator's helpers, as far as the bar uses them. */
+function helpers(prevent = false) {
+  const dispatch = jest.fn();
+  const emit = jest.fn(() => ({ defaultPrevented: prevent }));
+  return {
+    dispatch,
+    emit,
+    navigation: { dispatch, emit } as unknown as BottomTabBarProps['navigation'],
+  };
+}
+
+beforeEach(() => {
+  rememberGarageSize([]);
+});
+
 describe('the tab bar', () => {
-  it('offers all four destinations, by name', async () => {
-    const view = await render(withSafeArea(<TabBar current="Garage" onSelect={jest.fn()} />));
+  it('offers all four destinations, by name, in the navigator’s order', async () => {
+    const view = await render(
+      withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
+    );
 
     /*
-      ⚠ 7 Sep: `Account` → `Plan`. The account left the bar so `Plan` — R15's
-      merged Wishlist and Build — could take the slot, and moved to
-      `AccountControl`, still a sibling of the navigator so App Store 5.1.1(v)
-      keeps its structural guarantee rather than going back to vigilance.
+      ⚠ 11 Sep: Garage, Service, Plan, Advisor. The order is the navigator's,
+      not this file's — `tab-target.ts` carries the argument. Asserted in order
+      because the last graded round was judged against exactly this sequence,
+      and a bar that read the table rather than the state could reorder itself
+      without anything else going red.
     */
-    for (const label of ['Car', 'Service', 'Advisor', 'Plan']) {
-      expect(view.getByLabelText(label)).toBeTruthy();
-    }
+    const tabs = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
+    expect(tabs).toEqual(['Garage', 'Service', 'Plan', 'Advisor']);
   });
 
-  it('names the first tab for the car, not the garage', async () => {
+  it('names the first tab for the garage, which is the car now', async () => {
     /*
-      ⚠ 30 Aug. The tab is still called `Garage` internally — the route name and
-      the fallback both are — but it reads "Car", because it now opens the
-      vehicle you were last looking at rather than the list. David: *"there's no
-      reason people need to go back to garage so often."*
-
-      Asserted rather than left to the label, because the name and the
-      destination disagreeing is exactly the sort of thing that gets "corrected"
-      back to `Garage` by somebody tidying up.
+      ⚠ Re-pointed 11 Sep. This asserted "Car", not "Garage", on David's 30 Aug
+      reasoning that the tab opened the vehicle rather than the list. The locked
+      brief settles it the other way — *"Garage is the web dossier header
+      re-stacked"* — the garage root **is** the car, plate and dial included, and
+      the tab agrees with its screen the way the critique made Service agree with
+      its own. The traffic argument survives as structure: a tab keeps its own
+      stack, so leaving the car and coming back lands on the car.
     */
-    const view = await render(withSafeArea(<TabBar current="Garage" onSelect={jest.fn()} />));
+    const view = await render(
+      withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
+    );
 
-    expect(view.queryByLabelText('Garage')).toBeNull();
-    expect(view.getByLabelText('Car')).toBeTruthy();
-  });
-
-  it('reports the second tab by its route name, not its label', async () => {
-    /*
-      The bar hands back a `TabName`; the navigator switches on it. A label
-      leaking into that contract would route nowhere.
-
-      ⚠ 7 Sep: this tab's label became "Service" while its route stayed
-      `History`, which makes the case *stronger* than when it was written — the
-      two now differ, so a label leaking into the contract would actually fail
-      rather than coincidentally pass. The same is true of `Garage`/"Car" above.
-    */
-    const onSelect = jest.fn();
-    const view = await render(withSafeArea(<TabBar current="Garage" onSelect={onSelect} />));
-
-    await userEvent.press(view.getByLabelText('Service'));
-    expect(onSelect).toHaveBeenCalledWith('History');
+    expect(view.queryByLabelText('Car')).toBeNull();
+    expect(view.getByLabelText('Garage')).toBeTruthy();
   });
 
   it('announces which one is current, not only tints it', async () => {
-    const view = await render(withSafeArea(<TabBar current="Advisor" onSelect={jest.fn()} />));
+    const view = await render(
+      withSafeArea(<TabBar state={tabState(3)} navigation={helpers().navigation} />)
+    );
 
     expect(view.getByLabelText('Advisor').props.accessibilityState).toMatchObject({
       selected: true,
     });
-    expect(view.getByLabelText('Car').props.accessibilityState).toMatchObject({
+    expect(view.getByLabelText('Garage').props.accessibilityState).toMatchObject({
       selected: false,
     });
   });
 
-  it('reports the tab that was pressed', async () => {
-    const onSelect = jest.fn();
-    const view = await render(withSafeArea(<TabBar current="Garage" onSelect={onSelect} />));
+  it('emits tabPress first, then navigates to the pressed tab', async () => {
+    const { navigation, emit, dispatch } = helpers();
+    const view = await render(withSafeArea(<TabBar state={tabState(0)} navigation={navigation} />));
 
     await userEvent.press(view.getByLabelText('Plan'));
-    expect(onSelect).toHaveBeenCalledWith('Plan');
+
+    /*
+      The order is the contract. A focused tab's stack pops itself to the top
+      on `tabPress`; a bar that navigated first would move the tabs before the
+      event the stacks listen for had been raised.
+    */
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'tabPress', target: 'PlanTab-key', canPreventDefault: true })
+    );
+    expect(emit.mock.invocationCallOrder[0]).toBeLessThan(dispatch.mock.invocationCallOrder[0]);
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'NAVIGATE',
+        payload: expect.objectContaining({ name: 'PlanTab' }),
+        target: 'tabs',
+      })
+    );
+  });
+
+  it('carries the last car to a tab that is not yet about it', async () => {
+    /*
+      Three tabs are about one car and the bar has none — `lastVehicle()` is
+      the car most recently on screen, or the garage's only one. The target
+      pops the tab's stack to its root and re-keys it, which is what makes a
+      thread about car A stop when car B is opened.
+    */
+    rememberVehicle('car-b', '2015 BMW M235i');
+    const { navigation, dispatch } = helpers();
+    const view = await render(withSafeArea(<TabBar state={tabState(0)} navigation={navigation} />));
+
+    await userEvent.press(view.getByLabelText('Service'));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: {
+          name: 'ServiceTab',
+          params: {
+            screen: 'Service',
+            params: { vehicleId: 'car-b', title: '2015 BMW M235i', segment: 'history' },
+            pop: true,
+          },
+        },
+      })
+    );
+  });
+
+  it('leaves a tab’s own history alone when it is already about that car', async () => {
+    rememberVehicle('car-a');
+    const { navigation, dispatch } = helpers();
+    const view = await render(
+      withSafeArea(
+        <TabBar state={tabState(0, { ServiceTab: { vehicleId: 'car-a' } })} navigation={navigation} />
+      )
+    );
+
+    await userEvent.press(view.getByLabelText('Service'));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: { name: 'ServiceTab' } })
+    );
+  });
+
+  it('does not navigate on the focused tab — its stack answers the re-tap', async () => {
+    const { navigation, emit, dispatch } = helpers();
+    const view = await render(withSafeArea(<TabBar state={tabState(1)} navigation={navigation} />));
+
+    await userEvent.press(view.getByLabelText('Service'));
+
+    expect(emit).toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('respects a listener that prevents the press', async () => {
+    const { navigation, dispatch } = helpers(true);
+    const view = await render(withSafeArea(<TabBar state={tabState(0)} navigation={navigation} />));
+
+    await userEvent.press(view.getByLabelText('Advisor'));
+
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it('is reachable from every position, including its own', async () => {
     /*
-      The anti-vacuous half of the compliance claim: a bar that hid the current
-      tab's own control would pass both cases above and would strand somebody on
-      the tab they are already looking at.
+      The anti-vacuous half: a bar that hid the current tab's own control would
+      pass the cases above and would strand somebody on the tab they are
+      already looking at.
     */
-    /*
-      ⚠ Re-pointed 7 Sep from `Account`, which is no longer a tab — it moved to a
-      root's trailing control so `Plan` could take the slot. The claim is
-      unchanged and still the anti-vacuous half: a bar that hid the *current*
-      tab's own control would pass both cases above and strand whoever is on it.
-    */
-    const view = await render(withSafeArea(<TabBar current="Plan" onSelect={jest.fn()} />));
+    const view = await render(
+      withSafeArea(<TabBar state={tabState(2)} navigation={helpers().navigation} />)
+    );
 
     expect(view.getByLabelText('Plan')).toBeTruthy();
-    expect(view.getByLabelText('Car')).toBeTruthy();
+    expect(view.getByLabelText('Garage')).toBeTruthy();
   });
 });

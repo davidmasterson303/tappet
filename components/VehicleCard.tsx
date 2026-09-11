@@ -38,7 +38,6 @@ import {
   ArrowRight,
   Pencil,
   Camera,
-  MoveVertical as MoreVertical,
   Car,
   Gauge,
   Clock,
@@ -315,7 +314,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
   ) : null;
 
   return (
-    <div className="group card-lift cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light hover:border-[color:var(--border-field-hover)]">
+    <div className="group cut-panel relative border overflow-hidden bg-[hsl(var(--card))]/95 backdrop-blur-sm h-full flex flex-col shadow-lg shadow-black/50 edge-light transition-colors duration-[var(--duration-fast)] hover:border-white/40">
       {/*
         The 3:2 identity plate, and it renders unconditionally — CC-142 §2.
 
@@ -356,23 +355,119 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           and hands them a file picker. It also obscured the one thing the hover
           should be showing off — the car.
 
-          The control is not lost. It sits at the corner, quiet until hover, so
-          the photograph stays visible and the card's own lift remains the
-          "open me" signal. The dialog below is unchanged, as is the menu that
-          already carries the management actions.
+          ── 11 Sep — and then the corner pill went too ────────────────────
+
+          The signed-in brief (B10) allows the hover **one** chip and no lift.
+          Two revealed controls — this pill and the options trigger in the
+          header row — read as a management toolbar on a card whose hover is
+          supposed to mean "open me". The photo action is not lost: it is the
+          first item of the options menu, labelled by state, and that menu is
+          now the one chip. The lift went with it — the hairline brightening is
+          the whole hover, as the brief asks and as `.cut-panel` reads best.
         */}
-        <div className="above-stretch absolute bottom-2 right-2 reveal-on-hover">
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowPhotoDialog(true); }}
-            className="tap-target-44 flex items-center gap-1.5 px-2.5 py-1.5 bg-black/55 hover:bg-black/75 border border-white/15 rounded-full text-white/80 hover:text-white text-xs font-medium transition-all backdrop-blur-sm"
-            aria-label={photoUrl ? 'Change vehicle photo' : 'Add a photo of this car'}
-          >
-            <Camera className="h-3.5 w-3.5" />
-            {photoUrl ? 'Change' : 'Add photo'}
-          </button>
-        </div>
 
         <div className="absolute top-2 left-2">{nicknameChip}</div>
+
+        {/*
+          ── The options menu, back on the plate — 11 Sep ──────────────────
+
+          It moved off the plate once, when the plate was conditional: with no
+          photograph there was no plate, and delete, change-photo and
+          update-mileage were unreachable on exactly the car most likely to
+          need "Change Photo". CC-142 §2 removed that premise — the plate
+          renders unconditionally now — and the header row is the wrong home
+          for a control that only appears on hover: hidden with opacity, it
+          still occupied 92px of the row and pushed every dial to 52% of the
+          card's width (measured), on the landing as well as here.
+
+          So it sits in the plate's top-right corner, out of the flow.
+          `top-3 right-3`, not `top-2`: the card's 18px cut removes the
+          triangle where x + y < 18 from that corner, and an 8px inset put the
+          chip's own corner inside it.
+        */}
+        <div className="above-stretch absolute top-3 right-3">
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DropdownMenu>
+              {/*
+                The one chip a hover reveals — brief B10 — and the card's whole
+                management surface: photo, mileage, delete. Mono, cut, and not
+                a circle. ⚠ The old trigger was `MoveVertical as MoreVertical`
+                — a ↕ arrow renamed to look like a ⋮ glyph, drawn in a circle
+                with no label — which is why the critique read it as a "reorder
+                handle": it was drawn as one. It is a word now, and only a word;
+                the round-two critique asked for the glyph to go too.
+
+                ⚠ It is not labelled ADD PHOTO, which is the label the brief's
+                studio paragraph gives the chip. This chip is a menu, and it is
+                the only route in the product to deleting a vehicle — naming a
+                menu after one of its items would tell someone hovering a
+                photographed car that the chip adds a photo. The checklist line
+                asks for one chip and no lift; both hold.
+
+                ⚠ The cut is on the inner span, not the button. `clip-path`
+                clips hit-testing, and `.tap-target-44` extends the target
+                through a pseudo-element *outside* the box — clipping the
+                button would silently shrink a 44px target to the chip's 26px
+                on every phone. The button keeps the target, the focus ring and
+                the reveal; the span is what you see.
+              */}
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="reveal-on-hover tap-target-44 group/options flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  aria-label="Vehicle options"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="chamfer-sm mono flex items-center px-2.5 py-1.5 border border-white/15 bg-black/60 text-white/70 text-xs uppercase tracking-[0.12em] transition-colors group-hover/options:border-white/30 group-hover/options:text-white backdrop-blur-sm"
+                  >
+                    Options
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)] min-w-[160px]">
+                <DropdownMenuItem
+                  onClick={(e) => { e.stopPropagation(); setShowPhotoDialog(true); }}
+                  className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
+                >
+                  <Camera className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
+                  {photoUrl ? 'Change photo' : 'Add photo'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => { e.stopPropagation(); setShowMileageDialog(true); }}
+                  className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
+                >
+                  <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
+                  Update Mileage
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem
+                    className="text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)] cursor-pointer"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Vehicle
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
+                <AlertDialogDescription className="text-white/60">
+                  Are you sure you want to remove {vehicle.year} {vehicle.make} {vehicle.model} from your garage?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
 
       {/*
         Conditions, on the plate's bottom edge.
@@ -564,68 +659,6 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           */}
           {healthSummary && <HealthRing score={healthSummary.health_score ?? null} />}
 
-          {/*
-            The options menu used to live inside the photo plate. With the strip
-            now conditional, that put delete, change-photo and update-mileage
-            behind having a photograph — so the vehicle most likely to need
-            "Change Photo" was the one that could not reach it. It is a flex
-            child of the header row instead, which exists unconditionally.
-          */}
-          <div className="above-stretch relative flex-shrink-0">
-          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <button
-                  className="tap-target-44 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-black/80 border border-white/15 rounded-full text-white/60 hover:text-white transition-all backdrop-blur-sm reveal-on-hover"
-                  aria-label="Vehicle options"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)] min-w-[160px]">
-                <DropdownMenuItem
-                  onClick={(e) => { e.stopPropagation(); setShowPhotoDialog(true); }}
-                  className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
-                >
-                  <Camera className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
-                  Change Photo
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => { e.stopPropagation(); setShowMileageDialog(true); }}
-                  className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
-                >
-                  <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
-                  Update Mileage
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-white/10" />
-                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenuItem
-                    className="text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)] cursor-pointer"
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Vehicle
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
-                <AlertDialogDescription className="text-white/60">
-                  Are you sure you want to remove {vehicle.year} {vehicle.make} {vehicle.model} from your garage?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          </div>
         </div>
 
         {/*

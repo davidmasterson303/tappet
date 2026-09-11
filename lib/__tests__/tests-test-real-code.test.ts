@@ -204,6 +204,13 @@ const STATIC_ANALYSIS_SUITES = [
   // load, and what regressed is declarative — whether a `Stack.Screen` carries
   // a title — rather than anything a render would reach.
   'mobile-back-labels.test.ts',
+  // Reads RootNavigator off disk to prove the tab roots are a bottom-tab
+  // navigator with `backBehavior="none"`, four roots in the graded order and a
+  // stack each — locked iOS brief B8. Same constraint as the scan above: the
+  // subject is React Native source this runner cannot load, and every one of
+  // the three things it checks is a prop or an order that fails without a
+  // symptom (a root growing a chevron reads as a design choice).
+  'mobile-tab-roots.test.ts',
   // Reads apps/mobile's screens for a section label built out of a car — the
   // build screen's `NEXT STEPS FOR 2015 BMW M235I`, where uppercasing a model
   // designation names a car that does not exist. React Native source this

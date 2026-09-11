@@ -85,12 +85,36 @@ export function cutPath(width: number, height: number, size: number, corners: Cu
   return `${points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ')} Z`;
 }
 
+/**
+ * The triangles the cut removes, one per cut corner — what `ground` paints.
+ *
+ * Exported for `cut-geometry.test.tsx`, which asserts each triangle's legs are
+ * equal and that an uncut corner yields nothing: a cover that quietly grew a
+ * leg would show as an off-angle notch and read as deliberate.
+ */
+export function cornerCovers(
+  width: number,
+  height: number,
+  size: number,
+  corners: CutCorner[]
+): string[] {
+  const c = Math.max(0, Math.min(size, Math.min(width, height) / 2));
+  const cover: Record<CutCorner, string> = {
+    topLeft: `M0 0 L${c} 0 L0 ${c} Z`,
+    topRight: `M${width} 0 L${width} ${c} L${width - c} 0 Z`,
+    bottomRight: `M${width} ${height} L${width - c} ${height} L${width} ${height - c} Z`,
+    bottomLeft: `M0 ${height} L0 ${height - c} L${c} ${height} Z`,
+  };
+  return corners.map((corner) => cover[corner]);
+}
+
 export default function CutSurface({
   cut = ['bottomRight'],
   size = 12,
   fill,
   stroke,
   strokeWidth = 1,
+  ground,
   style,
   children,
   ...rest
@@ -104,6 +128,25 @@ export default function CutSurface({
   /** The hairline. Omit for a fill-only shape. */
   stroke?: string;
   strokeWidth?: number;
+  /**
+   * The colour of whatever this surface sits on, painted back over each cut
+   * corner **above** the children.
+   *
+   * ── ⚠ 11 Sep · B2: the plate's cut was drawn and invisible ────────────────
+   *
+   * The shape here is painted *behind* the children, so a child that fills the
+   * box — the bay's photograph, the house plate — paints the corner straight
+   * back in. The plate had carried `cut={['topRight']}` since 7 Sep and the
+   * critique found it "not legible" for exactly that reason: the notch existed
+   * in the path and nowhere on screen. A silent one, CLAUDE.md §6's shape.
+   *
+   * This is the rotated-square trick the docblock above rejects, and the
+   * rejection stands *in general*: a cover lies the moment what is behind the
+   * surface is not the colour it was told. It is offered only as an opt-in for
+   * the surfaces whose ground is known and flat — the plate sits on the page,
+   * and nothing else. A control on a photograph must not take it.
+   */
+  ground?: string;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
   /*
@@ -160,6 +203,18 @@ export default function CutSurface({
         </Svg>
       ) : null}
       {children}
+      {ground && box && box.width > 0 && box.height > 0 ? (
+        <Svg
+          width={box.width}
+          height={box.height}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          {cornerCovers(box.width, box.height, size, cut).map((d) => (
+            <Path key={d} d={d} fill={ground} />
+          ))}
+        </Svg>
+      ) : null}
     </View>
   );
 }

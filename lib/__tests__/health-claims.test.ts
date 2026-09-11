@@ -216,6 +216,12 @@ describe('healthVerdict', () => {
     // The sentence itself is what is wrong; it must not survive as a caption.
     expect(verdict.text).not.toContain('complete lack');
     expect(verdict.text).toContain('5 service records');
+    /*
+      And it claims no basis. "Based on 5 recorded services" under "taken
+      before your 5 service records were filed" is the contradiction the
+      design critique found twice; a stale reading read none of them.
+    */
+    expect(verdict.inputs).toEqual([]);
   });
 
   it('names what it read, so the contradiction is visible', () => {

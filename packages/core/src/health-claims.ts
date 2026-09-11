@@ -290,10 +290,20 @@ export function healthVerdict(params: {
         ? plural(params.serviceCount, 'service record', 'service records')
         : 'service records';
 
+    /*
+      ⚠ `inputs` is empty here, deliberately — 11 Sep. The screen prints them
+      as "Based on 5 recorded services · 2 open recalls", and under a sentence
+      that says the reading was taken *before* those records were filed, that
+      is a contradiction on one screen: the design critique caught it twice.
+      A stale reading read none of what is on file now, and `inputs` is "what
+      the screen knows was read", so the honest list is no list. What is on
+      file is still on the screen — in the record itself, and in the recalls
+      band — where it is a fact rather than a claimed basis.
+    */
     return {
       state: 'stale',
       text: `This reading was taken before your ${missed} were filed, so it does not account for them.`,
-      inputs,
+      inputs: [],
     };
   }
 

@@ -588,18 +588,23 @@ describe('GarageBay', () => {
     view.getByText('2 of 3');
   });
 
-  it('puts the make on the back wall and the car under it, never twice', async () => {
+  it('names the car once, under the plate, and never on it', async () => {
     /*
-      The wordmark is the make alone. The lockup below carries the full name, so
-      a room that also spelled out "2018 Subaru WRX" would be the garage card's
-      duplication problem moved one screen along.
+      ⚠ Re-pointed 11 Sep. This asserted the make on the back wall as a
+      wordmark — the room's signage when there was no photograph. B2 replaced
+      that with the house plate (`NightPlate`), and the critique had named the
+      wordmark as the last AI tell on the phone: a sans word doing an image's
+      job, repeating the make the lockup below already carries. The claim that
+      survives is the one the case was always protecting — the car is named
+      once — plus the new fact: nothing is printed on the plate.
     */
     const view = await render(
       <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
     );
 
-    view.getByText('SUBARU');
     view.getByText('2018 Subaru WRX');
+    expect(view.queryByText('SUBARU')).toBeNull();
+    expect(view.queryAllByText(/subaru/i)).toHaveLength(1);
   });
 
   it('holds the needle behind a closed door', async () => {

@@ -8,6 +8,19 @@ import Plinth from '../../components/Plinth';
 import { AA_NORMAL, auditText, belowFloor, contrastRatio } from '../../test-support/contrast';
 import { bay, surface, text } from '../../theme';
 
+/** Every host `Image` in a rendered tree, as its props. */
+function hostImages(tree: unknown): Array<Record<string, unknown>> {
+  const found: Array<Record<string, unknown>> = [];
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return;
+    const host = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
+    if (host.type === 'Image' && host.props) found.push(host.props);
+    for (const child of host.children ?? []) walk(child);
+  };
+  walk(tree);
+  return found;
+}
+
 /**
  * Contrast for the surfaces that are **not** the page.
  *
@@ -56,14 +69,28 @@ describe('surfaces that are not the page', () => {
     throws rather than returning `[]` when it is handed nothing.
   */
 
-  it('keeps the bay wordmark legible against the lit end of the room', async () => {
+  it('puts no ink on the bay at all when there is no photograph', async () => {
     /*
-      `bay.roomNear` is the gradient's lightest stop and therefore the worst
-      case for white ink — the far end only gets darker, which only helps.
+      ── ⚠ Re-pointed 11 Sep, and the claim changed shape ──────────────────
+
+      This measured the make wordmark against `bay.roomNear`, the gradient's
+      lightest stop. The wordmark is gone — B2 gives the no-photo plate the
+      house image (`NightPlate`), and a sans wordmark doing an image's job was
+      the last AI tell the critique could find — so there is no ink on the
+      room to measure. What is asserted instead is exactly that: the bay draws
+      the plate and no text, because a string over a photograph is a string
+      whose contrast depends on the photograph, which `HeroBed`'s docblock
+      says nothing on this phone is allowed to be.
     */
     const view = await render(<BayRoom make="Subaru" />);
 
-    expect(belowFloor(auditText(view, bay.roomNear))).toEqual([]);
+    expect(view.queryAllByText(/./, { includeHiddenElements: true })).toHaveLength(0);
+
+    const plates = hostImages(view.toJSON()).filter((props) =>
+      String((props.source as { testUri?: string } | undefined)?.testUri ?? '').includes('night-plate')
+    );
+    expect(plates).toHaveLength(1);
+    expect(plates[0].resizeMode).toBe('cover');
   });
 
   /*
