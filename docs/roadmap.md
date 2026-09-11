@@ -13,6 +13,94 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ START HERE — 11 Sep 2026, five threads reconciled
+>
+> Written at the start of the 11 Sep session, after a week in which nothing was
+> written here. Every claim below was checked against the artefact on 11 Sep
+> (CLAUDE.md §1); the 5–8 Sep work is documented only in commit bodies, and the
+> ones worth reading first are `b5e30ea` (the web loops' own summary) and the six
+> commits of 8 Sep (`ffc7ad2`…`9e74a9b`, the IA pass).
+>
+> #### The design-critic loops — five, not one
+>
+> `design-loop/` is **gitignored**, so the commits are the only durable record.
+>
+> | loop | rounds | closed at | state |
+> |---|---|---|---|
+> | web design system (specimen + landing + check) | 10 | 8/10, plateau, 9 of 10 brief lines | finished, `b5e30ea` |
+> | dossier (dashboard + advisor) | 17 | 8/10, blind-ranked 1st of 4 from 4th | finished — "nine was asked for and not reached", recorded honestly |
+> | vehicle info | 5 | 7/10, plateau | finished, `50942e8` |
+> | logo / identity | 3 | 9→8 on a corrected cap constant, 9 of 9 met | finished, shipped `8938170`; drift §12 |
+> | iOS | 19 | 7/10 screens, 9/10 specimen | **left off** — `82b3b10` fixed three gaps from the 7/10 round and was never re-judged |
+>
+> Then 8 Sep was a different critique — an **IA review**, not a visual one — which
+> produced the nav rename (Dashboard · Service · Advisor · Plan), the Due tab that
+> computes instead of listing, and "Needs" for the list the phone already called
+> Needs. `9e74a9b` cites "a critique of the rebuilt pages"; nothing follows it.
+>
+> Still open from the loops: `/garage`, `/settings`, `/onboard` **never judged**
+> (they 307 without a session — the dev account in `apps/mobile/.env` is the
+> session); and four rulings waiting on David in `docs/design-system-drift.md`
+> **§6.1, §6.4, §6.7a, §6.7b**, two of which pin brief lines against shipped guards.
+>
+> #### The 6 Sep Cowork list, item by item
+>
+> | | item | 11 Sep |
+> |---|---|---|
+> | 1 | repoint both demo CNAMEs | **done** — all three demo hosts return JSON, `branch: demo-live` |
+> | 2 | the SQL trip | **done** — `check-migrations`: 52 applied · 0 pending · 2 superseded (= the 54) |
+> | 3 | mail-delivery test to `support@southmoordigital.com` | unknown from the repo — David's |
+> | 4 | Gemini billing → prepay | unknown from the repo — David's; must be live on submission day |
+> | 5 | promote | **done 7 Sep** (`c9d9577`), and again 11 Sep from this session — read `/api/version` |
+>
+> #### Verified 11 Sep, before anything was changed
+>
+> ```
+> web      192 suites / 3327 tests          mobile   27 suites / 473 tests
+> tsc      both scopes clean                 build    next build clean
+> hosts    six hostnames, JSON on /api/version, no redirect on any
+> sweep    sweep_runs: ran 11 Sep 17:00 UTC, ok, 2 vehicles, nothing to send
+> canary   ai_usage_events surface=canary, rows every 5–8 h through 11 Sep
+> 8 Sep    rendered from the production bundle: nav, Due ordering, basis lines,
+>          `unknown` sunk to the bottom, Plan says Needs and nowhere says Wishlist
+> ```
+>
+> ⚠ **The mobile suite fails six suites when run beside `tsc`.** One 5 s timeout in
+> `AddVehicleScreen.test.tsx` under CPU load, and the act-scope guard in
+> `jest.setup.js` then fails five later suites by design. Alone it is clean. Re-run
+> alone before diagnosing, and expect it on a small CI runner.
+>
+> #### Found, and not on any board
+>
+> - **Six commits of 8 Sep were on one laptop.** Local `main` was six ahead of
+>   `origin/main` — the whole IA pass, verified only by the session that wrote it.
+>   Pushed 11 Sep.
+> - **`prepare/revert-operator-to-individual`** (6 Sep, one commit, "⛔ PREPARED,
+>   NOT DEPLOYED") exists because Southmoor Digital LLC was **not in the Colorado
+>   registry** while the live privacy page names it as operator. David is forming
+>   the LLC with Cowork (11 Sep, "a few more days"); if that lands the branch is
+>   deleted, if not it is merged. Everything App-Store-facing waits on it.
+> - `origin/web-live` and `origin/demo-live` still carried the `ignore =` key
+>   until the 11 Sep promote; `main` deleted it in `ea2f0de`. Netlify reads the
+>   config from the commit it builds, so the promote that carries the deletion is
+>   the one it protects.
+> - Worktrees: four under `.claude/worktrees/`, all clean, branches merged (two
+>   carry one August commit each that was re-landed on `main`). Nothing stranded.
+> - `eas-cli` is not installed here, so whether an iOS build carrying
+>   `apiBaseUrl = tappet.southmoordigital.com` exists is readable only from the
+>   Expo dashboard. `app.json` has it; a build is what ships it.
+>
+> #### In flight from the 11 Sep session
+>
+> David's plan, in his order, with sequencing left to the session: push and
+> promote (done above); **rebuild the iOS tab navigator** (drift §6.6, brief B8 —
+> `createBottomTabNavigator` appears nowhere, there is one native stack with a
+> `TabBar` drawn over it) and then **run the critic loop over the phone with a
+> goal of 9, not 8**; and **judge the three unjudged web pages** with a signed-in
+> capture. The critic is trusted without consultation on this pass.
+>
+> ---
+>
 > ### ⚠ START HERE — 4 Sep 2026, the design pass
 >
 > Two days of a design-critic loop: each page screenshotted at 390px and 1440px, handed
