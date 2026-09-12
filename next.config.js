@@ -108,6 +108,16 @@ const nextConfig = {
   },
   experimental: {
     serverActions: true,
+    /*
+      `jimp` (11 Sep, the generation plates' resizer) ships an ESM build whose
+      re-exports of Node built-ins webpack 5 cannot rewrite — `next build`
+      fails with "Cannot get final name for export 'existsSync'". It is only
+      ever needed server-side, in `lib/plate-image.ts`, so it is left out of
+      the server bundle and resolved from node_modules at runtime; output file
+      tracing still carries it into the deploy. Found by the promote gate, on
+      the first build after the package landed.
+    */
+    serverComponentsExternalPackages: ['jimp'],
   },
   /*
     Netlify sets COMMIT_REF, BRANCH and HEAD during the **build** and does not
