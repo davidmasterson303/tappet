@@ -28,6 +28,17 @@
 
 module.exports = {
   preset: 'jest-expo/ios',
+  /*
+    ── ⚠ 15 s per test, for the same reason as the root config (11 Sep) ──────
+
+    `AddVehicleScreen.test.tsx` and then `GarageScreen.test.tsx` each hit the
+    5 s default when another jest pool, a build or a Metro shared the
+    machine, and the act-scope guard in jest.setup.js then fails every later
+    render in the file by design — six suites red for one starved test. Alone
+    the same tests take 10–350 ms. A hanging test still fails, three times
+    slower; a starved one no longer takes the suite with it.
+  */
+  testTimeout: 15_000,
 
   /*
     React Native and the Expo packages ship untranspiled ESM, so the default
