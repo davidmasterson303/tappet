@@ -130,17 +130,26 @@ export async function GET(request: NextRequest): Promise<Response> {
       return caller.response;
     }
 
-    const { data, error } = await caller.client
-      .from('vehicles')
-      .select(GARAGE_COLUMNS)
-      // Explicit, not left to RLS alone — see requireCaller. This filter is
-      // also what proves ownership of every row below.
-      .eq('user_id', caller.userId)
-      .eq('is_demo', false)
-      // Ascending, matching useMyVehicles. Two garages listing the same cars in
-      // opposite orders is the disagreement this codebase keeps paying for, and
-      // nothing consumed the old descending order.
-      .order('created_at', { ascending: true });
+    /*
+      `plate_key` is asked for and, on `42703`, asked without: the column
+      arrives with a migration David applies by hand, and PostgREST rejects
+      the whole query for one unknown column (CLAUDE.md §1). Same shape as
+      `selectGarage` in hooks/useVehicles.ts; delete once the table is live.
+    */
+    const selectGarage = (columns: string) =>
+      caller.client
+        .from('vehicles')
+        .select(columns)
+        // Explicit, not left to RLS alone — see requireCaller. This filter is
+        // also what proves ownership of every row below.
+        .eq('user_id', caller.userId)
+        .eq('is_demo', false)
+        // Ascending, matching useMyVehicles. Two garages listing the same cars in
+        // opposite orders is the disagreement this codebase keeps paying for, and
+        // nothing consumed the old descending order.
+        .order('created_at', { ascending: true });
+    let { data, error } = await selectGarage(GARAGE_COLUMNS + ',plate_key');
+    if (error?.code === '42703') ({ data, error } = await selectGarage(GARAGE_COLUMNS));
 
     if (error) {
       logger.error('API:GET_VEHICLES', new Error(error.message));

@@ -6,6 +6,7 @@ import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,4 +143,41 @@ export async function POST(request: NextRequest): Promise<Response> {
       { status: 500 }
     );
   }
+}
+
+/**
+ * `DELETE /api/v1/upload-photo` — the phone removes the owner's photograph.
+ *
+ * Body `{ vehicleId }`. The web has had Remove in its photo dialog for weeks;
+ * the phone had no way to take a photo back off a car, so a car with an
+ * upload could never fall back to its plate (David, 11 Sep). Same gate as the
+ * upload — write intent on the vehicle, rate-limited first — and the same
+ * body as the web action, through `clearVehiclePhoto`.
+ */
+export async function DELETE(request: NextRequest): Promise<Response> {
+  const identifier = getClientIdentifier(request, 'upload');
+  const rateLimit = await checkRateLimit(identifier, 'upload');
+  if (!rateLimit.allowed) {
+    logger.warn('API:REMOVE_PHOTO', 'Rate limit exceeded', { identifier });
+    return rateLimitResponse(rateLimit);
+  }
+  let vehicleId = '';
+  try {
+    vehicleId = String(((await request.json()) as { vehicleId?: unknown }).vehicleId ?? '');
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, { status: 400 });
+  }
+  if (!vehicleId) {
+    return NextResponse.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, { status: 400 });
+  }
+  const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
+  if (!access.ok) {
+    return access.response;
+  }
+  const result = await clearVehiclePhoto(access.client, vehicleId);
+  if (!result.success) {
+    return NextResponse.json({ success: false, error: result.error } as ApiResponse, { status: 500 });
+  }
+  logger.info('API:REMOVE_PHOTO', 'Vehicle photo removed', { vehicleId });
+  return NextResponse.json({ success: true } as ApiResponse);
 }
