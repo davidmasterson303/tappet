@@ -141,11 +141,68 @@
 > - **Closing numbers:** 195 web suites / 3371 tests, 29 mobile / 496, both
 >   typechecks clean, everything pushed.
 >
+> #### The evening of 11 Sep — David's walk through the demo, and the plates
+>
+> Live feedback, each fixed and promoted the same evening (`web-live` and
+> `demo-live` both moved twice; read `/api/version`):
+>
+> - **"Add a service record" lands on Plan › Needs with "Add to Needs" open**
+>   (`4b06099`) — the by-hand path to a record is Needs → Mark as Complete;
+>   `lib/plan-entry.ts` is the URL contract both tabs share.
+> - **The modifications switch survives its own use** (`714cb45`) — it lived
+>   inside the section it hides, so the tab stayed selected over an empty
+>   panel and, after a reload, the way back was gone. The Plan page owns it
+>   now, in both states; the choice was already persisted per car.
+> - **Zip code says "required"**; **tooltips escape dialogs** (`714cb45`) —
+>   the "z-index" clip was a containing block: the dialog's centring transform
+>   contained the popper and the table's `overflow-hidden` cut it. Portaled.
+> - **`/plan` joins the protected routes** (`14c1110`) — three days after the
+>   tab shipped, nothing had added it; anonymous visitors spun forever on a
+>   car they could not read. The guard now reads the per-vehicle sections off
+>   disk so the next tab cannot be forgotten.
+> - **Rename and delete chats** (`99d9be8` `7d304b6`) — a ⋯ chip per row,
+>   inline rename capped at 80, one confirm on delete, through the same
+>   vehicle-scoped gate as the reads; the demo refuses client-side.
+> - **The gate no longer cries wolf on a busy machine** (`2311dab`) — three
+>   concurrent jest pools took a 2.9 s suite to 64–81 s; timeouts raised, and
+>   both promote scripts retry *only the failed suites* once and say so.
+>
+> ⚠ **The generation plates** (`02194a1` `e442165` `416f205` `95ef1e2`) —
+> David's decision, quoted in `packages/core/src/plates.ts`: every car without
+> an owner photograph stands on a generated night plate, **keyed by model
+> generation**, from **one library**, **colour not honoured**, drawn in the
+> background **from the moment the VIN decodes** so the first owner of a
+> generation never waits. The card and the dashboard band say "Drawing this
+> car's plate" while it does; capped at 25 a day (~US$3.35); one real frame
+> drawn to prove the pipeline (a 2015 2 Series coupe, 21.6 s, US$0.134). A
+> Netlify background function does the long call — the app's routes cannot —
+> and `jimp` cuts the derivatives because `sharp` is a dev dependency and this
+> project's Supabase plan has no image transforms.
+>
+> ⚠ **Dormant until David runs `20260912010000_…generations_plate.sql`** in
+> the SQL editor (`check-migrations --pending` shows it as the one pending
+> item). Then `POST /api/internal/plates/backfill` with `x-cron-secret`, again
+> until `scanned` is 0, gives every existing photo-less car its plate. The
+> garage query asks for `plate_key` with a 42703 fallback so a deploy before
+> the migration empties nothing — delete that retry once the table is live.
+> **The phone does not resolve `plate_key` yet** — queued behind the mobile
+> loop, whose lane it is. The rights posture is recorded in
+> `public/vehicles/CREDITS.md`; the prompt asks badges away and the model does
+> not always oblige.
+>
+> **Also that evening, in agent worktrees:** every mobile tab root got a
+> masthead plate and the critic loop ran again from round 24; and the loading
+> states became one instrument — the dial's ignition sweep held until the work
+> is done, real stages only, the un-analysed mod card an empty state instead of
+> skeleton bars — with its own short loop. Results in the commits and in drift
+> §6 / §14 once merged.
+>
 > #### Open, and David's
 >
 > - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
 >   is deleted or merged on that answer.
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
+> - **Run the plates migration** (above), then the backfill.
 > - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
 >   cover the loop, a real signed-in shot is still the fidelity check.
 > - **The next EAS build** carries three things at once: `apiBaseUrl` on the
