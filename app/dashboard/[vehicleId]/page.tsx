@@ -20,7 +20,8 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardSkeleton } from '@/components/Skeletons';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VehicleResearchStatus } from '@/components/VehicleResearchStatus';
-import { useVehicleImage } from '@/hooks/useSignedUrl';
+import { useVehicleImage, useVehiclePlateStatus } from '@/hooks/useSignedUrl';
+import { plateStatusLine } from '@tappet/core/plates';
 import { VehiclePhotoUploadDialog } from '@/components/VehiclePhotoUploadDialog';
 import { getHealthBand } from '@/hooks/use-health-band';
 
@@ -158,6 +159,8 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
   // Before the loading and error branches: this is a hook, and it has to run
   // on every render regardless of which one this render takes.
   const vehicleImage = useVehicleImage(data?.vehicle);
+  // The band says the plate is drawing while it is, and nothing once it is on screen.
+  const plateStatus = useVehiclePlateStatus(data?.vehicle);
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
 
   /*
@@ -254,6 +257,7 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
           */}
           <DiagnosticHero
             photo={vehicleImage}
+            emptyLine={plateStatusLine(plateStatus)}
             vehicleName={`${data.vehicle.year} ${data.vehicle.make} ${data.vehicle.model}`}
             year={data.vehicle.year}
             make={data.vehicle.make}

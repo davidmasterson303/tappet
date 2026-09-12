@@ -6,13 +6,31 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader as Loader2, Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy } from 'lucide-react';
+import { Loader as Loader2, Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy, Ellipsis, Pencil, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { logger } from '@tappet/core/logger';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { ADVISOR_NAME } from '@tappet/core/prompts';
 import { refusalCopy } from '@tappet/core/access';
 import { demoQuestionsFor } from '@tappet/core/demo-answers';
 import { isDemoMode } from '@/lib/demo-mode';
+import { CONSULTANT_TITLE_MAX, normalizeConsultantTitle } from '@/lib/consultant-title';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   sendConsultantMessage,
@@ -20,11 +38,14 @@ import {
   generateSessionTitle,
   getConsultantSession,
   getConsultantSessions,
+  renameConsultantSession,
+  deleteConsultantSession,
   recordQuotePullClick,
 } from '@/app/actions';
 import { QuoteRequestDialogV2 } from './QuoteRequestDialogV2';
 import { toast } from 'sonner';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
+import { queryClient } from '@tappet/core/query-client';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
 import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
 import { AnswerRuns } from '@/components/AnswerLine';
@@ -426,6 +447,142 @@ export default function ConsultantChat({
     setShowFollowUps(false);
   };
 
+  /*
+   * ── Rename and delete — David, walking the demo, 11 Sep ───────────────────
+   *
+   * *"i need options to rename and delete chats."* Each row now carries a
+   * quiet menu; the handlers below are what its two items do.
+   *
+   * ── ⚠ The list has a second copy, and it outlives this component ─────────
+   *
+   * The page loads `sessions` through TanStack under `['consultant', id]`
+   * with a five-minute stale window, and this component copies the prop into
+   * state once on mount. A change written to the state alone is therefore
+   * undone by the next visit: leave for the dashboard, come back inside five
+   * minutes, and the cache re-seeds the rail with the old title — or with the
+   * row that was just deleted. The create path in `handleSend` had this
+   * defect already; a new chat vanished from the rail on the way back.
+   *
+   * So the cache follows the state, structurally: every write to `sessions`
+   * reaches it through this effect rather than through discipline at each
+   * call site. An updater returning `undefined` is a no-op in TanStack v5, so
+   * a cache that has nothing for this vehicle yet is left alone.
+   */
+  useEffect(() => {
+    queryClient.setQueryData(['consultant', vehicleId], (cached: any) =>
+      cached ? { ...cached, sessions } : undefined
+    );
+  }, [sessions, vehicleId]);
+
+  /*
+   * The rename is inline: the row becomes a field holding the current title.
+   * Enter saves, Escape discards, and **blur saves** — the typed name is on
+   * screen and has been read; losing it to a click elsewhere is the surprise,
+   * while a wrong name costs one more rename. Escape is the explicit discard.
+   *
+   * The ref mirrors the state so a commit is idempotent: Enter and the blur
+   * that can follow it both arrive here, and the second finds nothing to do.
+   */
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
+  const renameRef = useRef<{ id: string; draft: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<any | null>(null);
+
+  const beginRename = (session: any) => {
+    const edit = { id: session.id, draft: session.title ?? '' };
+    renameRef.current = edit;
+    setRenaming(edit);
+  };
+
+  const updateRenameDraft = (draft: string) => {
+    if (!renameRef.current) return;
+    const edit = { id: renameRef.current.id, draft };
+    renameRef.current = edit;
+    setRenaming(edit);
+  };
+
+  const finishRename = async (outcome: 'commit' | 'cancel') => {
+    const edit = renameRef.current;
+    if (!edit) return;
+    renameRef.current = null;
+    setRenaming(null);
+    if (outcome === 'cancel') return;
+
+    const previous = sessions.find((s) => s.id === edit.id)?.title ?? '';
+    const normalized = normalizeConsultantTitle(edit.draft);
+    /*
+      An emptied field is a change of mind, not a request — Finder's rule. The
+      over-length refusal cannot fire from the field, which caps at the same
+      number, but the check is the shared one so a paste that somehow beat
+      `maxLength` is refused in the same words the server would use.
+    */
+    if (!normalized.ok) {
+      if (edit.draft.trim().length > 0) toast.error(normalized.error);
+      return;
+    }
+    if (normalized.title === previous) return;
+
+    /*
+      The same refusal the server gives, said before the row flickers. The
+      server is still the gate — `renameConsultantSession` asks for write
+      access and a demo vehicle never has it — and `isDemoVehicleId` is the
+      function it asks with, so the two cannot disagree about which cars are
+      the demo's.
+    */
+    if (isDemoVehicleId(vehicleId)) {
+      toast.info(refusalCopy('demo', 'write-own-records'));
+      return;
+    }
+
+    setSessions((prev) => prev.map((s) => (s.id === edit.id ? { ...s, title: normalized.title } : s)));
+
+    const result = await renameConsultantSession(edit.id, normalized.title);
+    if (!result.success) {
+      setSessions((prev) => prev.map((s) => (s.id === edit.id ? { ...s, title: previous } : s)));
+      toast.error(result.error || 'Could not rename this conversation');
+    }
+  };
+
+  /*
+   * Delete asks once, through the dialog below, and then goes optimistically:
+   * the row leaves the rail before the server answers and comes back, in its
+   * place, if the server says no.
+   *
+   * When the deleted thread is the one open, the rail lands on the next most
+   * recent — the same choice the page makes on load (`sessions[0]`) — and on
+   * the empty state when none remain. A failure restores the selection too,
+   * so the revert is the whole state and not just the row.
+   */
+  const handleDeleteSession = async (session: any) => {
+    setPendingDelete(null);
+
+    if (isDemoVehicleId(vehicleId)) {
+      toast.info(refusalCopy('demo', 'write-own-records'));
+      return;
+    }
+
+    const wasActive = activeSessionId === session.id;
+    const remaining = sessions.filter((s) => s.id !== session.id);
+    setSessions(remaining);
+    if (wasActive) {
+      if (remaining.length > 0) {
+        handleSessionClick(remaining[0].id);
+      } else {
+        handleNewChat();
+      }
+    }
+
+    const result = await deleteConsultantSession(session.id);
+    if (!result.success) {
+      setSessions((prev) =>
+        [...prev.filter((s) => s.id !== session.id), session].sort(
+          (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )
+      );
+      if (wasActive) handleSessionClick(session.id);
+      toast.error(result.error || 'Could not delete this conversation');
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter((file) => {
@@ -757,36 +914,187 @@ export default function ConsultantChat({
             </div>
           ) : (
             <div className="space-y-1">
-              {filteredSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => handleSessionClick(session.id)}
-                  /* ⚠ A left rule, not a filled card — dossier B6. The active
-                     row was a tinted box inside a bordered panel inside a
-                     bordered frame; the critique counted the nesting and asked
-                     for "the cyan hairline, not a grey card". A rule marks a
-                     position without adding a container. */
-                  /* ⚠ No fill on the active row. B10 of the system brief
-                     reserves large fills for hover and critical, and a resting
-                     selection is neither — the cyan hairline plus off-white
-                     title is the whole active state. Hover keeps its wash,
-                     which is exactly the case a fill is for. */
-                  className={`w-full text-left p-3 border-l-2 transition-colors ${
-                    activeSessionId === session.id
-                      ? 'border-[color:var(--info)]'
-                      : 'border-transparent hover:bg-white/4'
-                  }`}
-                >
-                  <p className={`text-xs font-medium line-clamp-2 leading-snug ${
-                    activeSessionId === session.id ? 'text-[color:var(--text-primary)]' : 'text-white/80'
-                  }`}>
-                    {session.title}
-                  </p>
-                  <p className="mono text-xs text-white/50 mt-1">
-                    {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                </button>
-              ))}
+              {filteredSessions.map((session) => {
+                const isActive = activeSessionId === session.id;
+
+                if (renaming && renaming.id === session.id) {
+                  /*
+                    The row in its editing state: the same left rule it had,
+                    with a field where the title was. Not a dialog — the name
+                    is being changed where it is read, and a modal for eleven
+                    characters would be the heaviest thing on the screen.
+                    `maxLength` is the shared cap, so the field cannot offer
+                    a name the server would refuse.
+                  */
+                  return (
+                    <div
+                      key={session.id}
+                      className={`border-l-2 p-2 pl-3 ${isActive ? 'border-[color:var(--info)]' : 'border-transparent'}`}
+                    >
+                      <Input
+                        fieldSize="sm"
+                        aria-label="Conversation name"
+                        value={renaming.draft}
+                        maxLength={CONSULTANT_TITLE_MAX}
+                        autoFocus
+                        onFocus={(e) => e.currentTarget.select()}
+                        onChange={(e) => updateRenameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void finishRename('commit');
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            void finishRename('cancel');
+                          }
+                        }}
+                        onBlur={() => void finishRename('commit')}
+                        className="text-xs"
+                      />
+                    </div>
+                  );
+                }
+
+                return (
+                  /*
+                    `group`, so the row's hover reveals the menu chip — that is
+                    the selector `.reveal-on-hover` listens for. `relative`
+                    because the chip is taken out of the flow: as a flex sibling
+                    it would hold 28px of every row whether or not it was
+                    painted, which is the mistake §13.4 measured on the garage
+                    card.
+
+                    ⚠ Two buttons side by side, not one inside the other. The
+                    row was a single `<button>`; a menu trigger nested in it
+                    would be interactive content inside a button, which HTML
+                    forbids and React warns about, and the click would land on
+                    both.
+                  */
+                  <div key={session.id} className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => handleSessionClick(session.id)}
+                      /* ⚠ A left rule, not a filled card — dossier B6. The active
+                         row was a tinted box inside a bordered panel inside a
+                         bordered frame; the critique counted the nesting and asked
+                         for "the cyan hairline, not a grey card". A rule marks a
+                         position without adding a container. */
+                      /* ⚠ No fill on the active row. B10 of the system brief
+                         reserves large fills for hover and critical, and a resting
+                         selection is neither — the cyan hairline plus off-white
+                         title is the whole active state. Hover keeps its wash,
+                         which is exactly the case a fill is for. */
+                      /* `pr-9` keeps two lines of title clear of the chip's column. */
+                      className={`w-full text-left p-3 pr-9 border-l-2 transition-colors ${
+                        isActive
+                          ? 'border-[color:var(--info)]'
+                          : 'border-transparent hover:bg-white/4'
+                      }`}
+                    >
+                      <p className={`text-xs font-medium line-clamp-2 leading-snug ${
+                        isActive ? 'text-[color:var(--text-primary)]' : 'text-white/80'
+                      }`}>
+                        {session.title}
+                      </p>
+                      <p className="mono text-xs text-white/50 mt-1">
+                        {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
+                    </button>
+
+                    {/*
+                      ⚠ The wrapper is what is positioned, not the button.
+                      `.tap-target-44` sets `position: relative` and wins over
+                      Tailwind's `absolute` in the cascade — measured: with
+                      both on the button it fell into the flow *below* the row
+                      at x=49, y=509, outside the row's box, while every class
+                      read as though it sat in the corner. VehicleCard carries
+                      the same shape for the same reason.
+                    */}
+                    <div className="absolute right-2 top-2.5">
+                      <DropdownMenu>
+                        {/*
+                          Quiet at rest and always reachable: `.reveal-on-hover`
+                          paints it on the row's hover, on its own focus, and
+                          unconditionally where there is no hover to reveal it
+                          (touch). It stays painted while its menu is open —
+                          Radix marks the trigger `data-state="open"` — because
+                          the pointer leaves the row to reach the menu, and a
+                          chip that faded under an open menu read as broken.
+
+                          ⚠ The cut is on the inner span, not the button — the
+                          rule AccountMenu and VehicleCard both carry. `clip-path`
+                          clips hit-testing, and `.tap-target-44` draws the
+                          44px target through a pseudo-element outside the box;
+                          clipping the button would shrink the target to the
+                          chip on every phone, silently.
+
+                          The glyph is a horizontal ellipsis inside a hairline
+                          cut chip, not the word the garage card uses: this rail
+                          is 256px wide and OPTIONS beside a two-line title is
+                          not quiet. ⚠ And not the ↕ arrow that once stood in
+                          for it there, which a critique read as a reorder handle
+                          because that is what it was drawn as.
+                        */}
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`Options for ${session.title}`}
+                            disabled={loading}
+                            className="reveal-on-hover tap-target-44 group/options flex h-7 w-7 items-center justify-center text-white/60 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-[state=open]:opacity-100 data-[state=open]:text-white disabled:cursor-not-allowed"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="chamfer-sm flex h-6 w-6 items-center justify-center border border-white/15 bg-[hsl(var(--card))] transition-colors group-hover/options:border-white/30 group-data-[state=open]/options:border-white/30"
+                            >
+                              <Ellipsis className="h-3.5 w-3.5" />
+                            </span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        {/*
+                          No `onCloseAutoFocus` here, and it was tried. Radix
+                          returns focus to the trigger as a menu closes, which
+                          looked certain to blur the rename field in the tick it
+                          mounted. It does not: the return runs in a
+                          `setTimeout(0)` against the trigger's ref, and by then
+                          the row has re-rendered as the field and React has
+                          nulled that ref — Radix's own handler then
+                          `preventDefault`s, so nothing falls back to `body`
+                          either. Measured in the browser on 11 Sep with the
+                          guard removed: `document.activeElement` was the field.
+                          A guard against a failure that cannot occur is a claim
+                          the next reader has to disprove again.
+                        */}
+                        <DropdownMenuContent
+                          align="end"
+                          className="min-w-[160px] bg-[hsl(var(--popover))] border-[color:var(--border)] text-[color:var(--text-primary)]"
+                        >
+                          <DropdownMenuItem
+                            onSelect={() => beginRename(session)}
+                            className="cursor-pointer text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8"
+                          >
+                            <Pencil className="mr-2 h-4 w-4 text-white/60" aria-hidden="true" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-white/10" />
+                          {/*
+                            Critical ink on the one item that cannot be taken
+                            back, and on nothing else in this menu — the brief's
+                            rule that the red-sodium family is an alarm, not a
+                            colour.
+                          */}
+                          <DropdownMenuItem
+                            onSelect={() => setPendingDelete(session)}
+                            className="cursor-pointer text-[color:var(--critical)] hover:text-[color:var(--critical)] focus:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] focus:bg-[color:var(--critical-wash)]"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1477,6 +1785,51 @@ export default function ConsultantChat({
           toast.success('Quote request saved!');
         }}
       />
+
+      {/*
+        One dialog for whichever row is pending, outside the rail and its
+        menus. Delete asks exactly once — the menu item opens this, and the
+        row goes on confirm, not before.
+
+        The conversation is named, for the reason WishlistSection gives about
+        its own confirm: the person who reached this by accident was aiming at
+        something else and needs to see *which* thread is about to go, not
+        merely that one is. The two sentences after it are the whole of what
+        is true — the messages are a column on the row, so they go with it,
+        and there is no undo.
+
+        Only the confirming action wears the critical fill. Cancel is the
+        primitive's outline, off-white ink, which is what "everything else"
+        means on this surface.
+      */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Delete this conversation?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              <span className="block text-foreground/85 mb-1">{pendingDelete?.title}</span>
+              Its messages go with it. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border">Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hoverable:bg-destructive/90"
+              onClick={() => {
+                const session = pendingDelete;
+                if (session) void handleDeleteSession(session);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

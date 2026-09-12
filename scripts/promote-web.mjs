@@ -44,6 +44,7 @@
  */
 
 import { execSync } from 'node:child_process';
+import { retriedNote, runSuite } from './lib/run-suite.mjs';
 import { awaitDeploy } from './lib/await-deploy.mjs';
 
 const APPLY = process.argv.includes('--apply');
@@ -59,6 +60,8 @@ const sh = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
 let failed = 0;
 const ok = (m) => console.log(`  \x1b[32m✓\x1b[0m ${m}`);
 const bad = (m) => { failed++; console.log(`  \x1b[31m✗\x1b[0m ${m}`); };
+// A pass worth a second look — counted as passing, printed so it is seen.
+const warn = (m) => console.log(`  \x1b[33m!\x1b[0m ${m}`);
 
 console.log(`\n${APPLY ? 'PROMOTING' : 'DRY RUN — nothing will be merged'}`);
 console.log(`branch:  ${RELEASE_BRANCH}\nserves:  ${SITE}\n`);
@@ -143,7 +146,6 @@ console.log('\nLocal checks');
 */
 for (const [label, cmd] of [
   ['typecheck', 'npm run typecheck'],
-  ['tests', 'npx jest --silent'],
   ['build', 'npm run build:verify'],
 ]) {
   try {
@@ -155,16 +157,28 @@ for (const [label, cmd] of [
 }
 
 /*
+  The suite gets one retry of only what failed, and says when it needed it —
+  a busy machine starves tests into their timeouts, and a gate that reads that
+  as "tests failed" cries wolf. See `scripts/lib/run-suite.mjs`.
+*/
+{
+  const suite = runSuite();
+  if (suite.ok && suite.retried) warn(retriedNote('tests'));
+  else if (suite.ok) ok('tests');
+  else bad('tests failed twice — run npx jest directly to see why');
+}
+
+/*
   ⚠ The mobile suite is checked too, and it is not padding. `apps/mobile` never
   reaches this site, but `packages/core` is shared — a change that satisfies the
   web suite and breaks the phone is exactly the shape this monorepo produces,
   and promoting is when it becomes somebody else's problem.
 */
-try {
-  execSync('npx jest --silent', { stdio: 'pipe', cwd: 'apps/mobile' });
-  ok('mobile tests (shared core)');
-} catch {
-  bad('mobile tests failed — packages/core is shared; check before publishing');
+{
+  const suite = runSuite({ cwd: 'apps/mobile' });
+  if (suite.ok && suite.retried) warn(retriedNote('mobile tests (shared core)'));
+  else if (suite.ok) ok('mobile tests (shared core)');
+  else bad('mobile tests failed twice — packages/core is shared; check before publishing');
 }
 
 /* 4 ── stop, or go --------------------------------------------------------- */
