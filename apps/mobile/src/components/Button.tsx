@@ -1,7 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { TARGET_MIN, cut, space, status, surface, text, type } from '../theme';
+import { TARGET_MIN, border, cut, register, space, status, surface, text, type } from '../theme';
+import { monoFace } from '../theme/fonts';
 import CutSurface from './CutSurface';
+import { WorkingMark } from './Working';
 
 /*
   ── ⚠ 6 Sep · `quiet` is gone, and B4's list is why ─────────────────────────
@@ -80,12 +82,39 @@ export type ButtonSize = 'small' | 'large';
  * WCAG 1.4.3 exempts inactive controls, which is why `text.disabled` may sit
  * below the floor. A deliberate exemption, not an oversight.
  *
- * ── The accessible name survives the spinner ────────────────────────────────
+ * ── The accessible name survives the busy form ──────────────────────────────
  *
- * The `<Text>` naming a button is swapped for an `ActivityIndicator` while it
- * works, so a control named by its child goes anonymous at exactly the moment
- * it has something to say. Enforced repo-wide by
- * `lib/__tests__/mobile-busy-controls-named.test.ts`.
+ * The `<Text>` naming a button is hidden while it works, so a control named by
+ * its child would go anonymous at exactly the moment it has something to say.
+ * The name is set on the `Pressable` itself and survives every state; enforced
+ * repo-wide by `lib/__tests__/mobile-busy-controls-named.test.ts`.
+ *
+ * ── ⚠ 12 Sep · the busy form is the wait instrument's — brief B7 ────────────
+ *
+ * This swapped the label for an `ActivityIndicator` — the platform spinner,
+ * in a colour chosen per variant so it stayed legible on the fill. It was the
+ * right pattern for an app with no wait instrument, and that app is gone: web
+ * settled one family for every wait on 11 Sep (`components/Working.tsx`,
+ * graded 9/10) and the phone joins it. A busy button now drops to its
+ * outlined form at its rest width and says what it is doing in the state
+ * voice: the 14pt wait mark and a mono, uppercase status beside it, both in
+ * the lit info blue.
+ *
+ * Two things the web measured, kept here:
+ *
+ *   - **The rest label sets the width; the status is painted over it.** The
+ *     label stays in flow at opacity 0 and the status is absolutely positioned
+ *     over the whole control, so the busy form is exactly the rest form's
+ *     measured width, never a minimum — nothing beside it shifts. A status
+ *     longer than the control clips rather than grows, which is a defect the
+ *     eye sees rather than a shift nobody does; so `busyLabel` on a fitted
+ *     control is one word, and an icon-only control passes `''` for the bare
+ *     mark.
+ *   - **Not the disabled fill.** `surface.disabled` under the outline would
+ *     read as the control switching itself off under the finger. The busy
+ *     form is transparent inside a `border.field` hairline — the same edge a
+ *     field at rest wears — and the ink is `register.accentStrong`, web's
+ *     `--info-strong`.
  */
 export default function Button({
   label,
@@ -93,6 +122,7 @@ export default function Button({
   variant = 'primary',
   size = 'large',
   busy = false,
+  busyLabel,
   disabled = false,
   accessibilityLabel,
   style,
@@ -101,8 +131,14 @@ export default function Button({
   onPress: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Shows the spinner and blocks presses. The label stays the accessible name. */
+  /** Drops to the busy form and blocks presses. The label stays the accessible name. */
   busy?: boolean;
+  /**
+   * What it is doing, present tense — "Saving", "Decoding the VIN". Rendered
+   * as the mono status beside the mark; defaults to the label. `''` draws the
+   * bare mark, for a control too narrow to carry a word.
+   */
+  busyLabel?: string;
   disabled?: boolean;
   /**
    * Override the spoken name when the visible text is ambiguous *on this
@@ -152,20 +188,37 @@ export default function Button({
           style={[styles.surface, styles[size]]}
           cut={['bottomRight']}
           size={cut.control}
-          fill={inert ? surface.disabled : FILL[variant]?.[pressed ? 1 : 0]}
-          stroke={inert ? undefined : STROKE[variant]}
+          fill={busy ? undefined : inert ? surface.disabled : FILL[variant]?.[pressed ? 1 : 0]}
+          stroke={busy ? border.field : inert ? undefined : STROKE[variant]}
         >
           {busy ? (
-            /*
-              The spinner has to be legible on the fill it spins on. `SPINNER`
-              carries the exception per variant and `text.primary` is the
-              default — the case this was written for was the retired white
-              control, where the platform default and `text.primary` were both
-              white on white, giving a control that looks empty at exactly the
-              moment it is working. The off-white primary re-creates that
-              hazard, which is why `SPINNER.primary` is graphite.
-            */
-            <ActivityIndicator color={SPINNER[variant] ?? text.primary} />
+            <>
+              {/*
+                The rest label, held in flow and invisible, so the width is
+                the rest width. Hidden from assistive technology too: the
+                `Pressable` carries the name, and `accessibilityState.busy`
+                carries the state.
+              */}
+              <Text
+                style={[
+                  styles[`${size}Label` as const],
+                  styles[`${variant}Label` as const],
+                  styles.restLabel,
+                ]}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                {label}
+              </Text>
+              <View style={styles.status} pointerEvents="none">
+                <WorkingMark />
+                {(busyLabel ?? label) !== '' ? (
+                  <Text style={styles.statusLabel} numberOfLines={1}>
+                    {busyLabel ?? label}
+                  </Text>
+                ) : null}
+              </View>
+            </>
           ) : (
             <Text
               style={[
@@ -182,23 +235,6 @@ export default function Button({
     </Pressable>
   );
 }
-
-/**
- * The spinner's ink per variant, where the default is wrong.
- *
- * Only the brand fill needs naming — its ink is `text.onPrimary`, not white.
- * Everything else spins in `text.primary` against a dark or absent fill.
- */
-const SPINNER: Partial<Record<ButtonVariant, string>> = {
-  /*
-    ⚠ 6 Sep: the primary's ink is graphite now. The original note here was
-    written for the *retired* white control and warned its spinner went
-    white-on-white — the exact hazard the off-white fill re-creates, so the
-    exception is re-pointed rather than removed.
-  */
-  primary: surface.page,
-  delete: status.dangerText,
-};
 
 /**
  * ── ⚠ 6 Sep · B7: the filled primary is off-white, not the brand cyan ───────
@@ -292,4 +328,40 @@ const styles = StyleSheet.create({
     button disabling itself under the finger.
   */
   inertLabel: { color: text.disabled },
+
+  /*
+    ── The busy form — brief B7 ──────────────────────────────────────────────
+
+    The rest label at opacity 0 holds the width (the contrast audit skips fully
+    transparent text rather than measuring it at 1:1 — `test-support/
+    contrast.ts`). The status sits over the whole control, centred, and clips
+    rather than grows.
+  */
+  restLabel: { opacity: 0 },
+  status: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: space.xs,
+    overflow: 'hidden',
+  },
+  /*
+    12pt mono caps at 0.06em, in the lit info blue — the ledger's voice, at
+    the ledger's size, which is what fits inside a control's rest width.
+  */
+  statusLabel: {
+    /* One line, for `mobile-font-faces`' line-by-line scan — see `Working`. */
+    fontFamily: monoFace('500'), fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: register.accentStrong,
+  },
 });

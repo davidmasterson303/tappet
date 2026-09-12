@@ -10,7 +10,17 @@ import Field from '../Field';
 import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
-import { FIELD_FONT_MIN, SPEC_ROW, TARGET_MIN, TYPE_MIN, brand, status, surface, text } from '../../theme';
+import {
+  FIELD_FONT_MIN,
+  SPEC_ROW,
+  TARGET_MIN,
+  TYPE_MIN,
+  brand,
+  register,
+  status,
+  surface,
+  text,
+} from '../../theme';
 
 /**
  * The primitive set's invariants.
@@ -389,50 +399,78 @@ describe('Button — one filled treatment', () => {
   });
 
   it('keeps its accessible name while working', async () => {
-    // The label is swapped for a spinner, so a control named by its child goes
-    // anonymous exactly when it has something to say.
+    // The label is hidden behind the busy form, so a control named by its
+    // child would go anonymous exactly when it has something to say.
     const view = await render(<Button label="Create account" busy onPress={jest.fn()} />);
 
     const control = view.getByLabelText('Create account');
     expect(control.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
   });
 
-  it('spins in ink that is visible on the fill it spins on', async () => {
-    const view = await render(<Button label="Sign in" busy onPress={jest.fn()} />);
+  /*
+    ── 12 Sep · the busy form is the wait instrument's — brief B7 ────────────
 
-    /*
-      Walked out of the rendered tree rather than queried: RNTL v14 has no
-      type query, and a spinner has no accessible name to find it by — which
-      is the whole reason the *button* has to carry one.
-    */
-    const spinners: Array<Record<string, unknown>> = [];
-    const walk = (node: unknown) => {
-      if (!node || typeof node !== 'object') return;
-      const host = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
-      if (typeof host.type === 'string' && host.type.includes('ActivityIndicator') && host.props) {
-        spinners.push(host.props);
-      }
-      for (const child of host.children ?? []) walk(child);
-    };
-    walk(view.toJSON());
+    This case used to find exactly one `ActivityIndicator` and check its ink
+    against the fill. There is no spinner any more: a busy button drops to the
+    outlined form at its rest width and says what it is doing in the state
+    voice — the 14pt wait mark and a mono status, both in the lit info blue.
+    The claims that survive: the control paints no fill while busy (so the
+    disabled grey cannot read as "switched off under the finger"), the status
+    is in the token web sets it in, the rest label is still in the tree
+    holding the width, and the mark is drawn.
+  */
+  it('drops to the outlined form and says what it is doing, in the state voice', async () => {
+    const view = await render(
+      <Button label="Add to my garage" busy busyLabel="Saving your car" onPress={jest.fn()} />
+    );
 
-    expect(spinners).toHaveLength(1);
+    // No fill — the outline is the busy form's whole surface.
+    expect(groundOf(view.toJSON())).toBeUndefined();
 
-    /*
-      ⚠ Graphite now, not `text.onPrimary`. The hazard this case exists for is
-      unchanged and the fill it applies to is inverted: the spinner has to be
-      legible on whatever the primary is filled with, and the primary went from
-      cyan to off-white on 6 Sep. `text.onPrimary` is a near-white — on an
-      off-white fill it is the "control that looks empty at exactly the moment
-      it is working" this test was written to prevent, just from the other side.
+    // The status, in mono caps and the lit info blue.
+    const status = view.getByText('Saving your car');
+    const statusStyle = flat(status.props.style);
+    expect(statusStyle.color).toBe(register.accentStrong);
+    expect(statusStyle.textTransform).toBe('uppercase');
+    expect(String(statusStyle.fontFamily)).toMatch(/JetBrainsMono/);
 
-      Asserted against the ground the button actually declares, so the two
-      cannot drift apart silently.
-    */
-    expect(spinners[0].color).toBe(surface.page);
-    expect(spinners[0].color).not.toBe(groundOf(view.toJSON()));
+    // The rest label holds the width, invisibly — and is hidden from
+    // assistive technology, which is why the query has to be told to look.
+    const rest = view.getByText('Add to my garage', { includeHiddenElements: true });
+    expect(flat(rest.props.style).opacity).toBe(0);
+    expect(view.queryByText('Add to my garage')).toBeNull();
+
+    // The mark: the instrument's two paths — track and pip — and no spinner.
+    const paths = hostTypes(view.toJSON()).filter((type) => type === 'RNSVGPath');
+    expect(paths).toHaveLength(2);
+    expect(hostTypes(view.toJSON()).some((type) => type.includes('ActivityIndicator'))).toBe(false);
+  });
+
+  it('carries the bare mark when the status is empty, for a control too narrow for a word', async () => {
+    const view = await render(<Button label="Ask" busy busyLabel="" onPress={jest.fn()} />);
+
+    expect(view.getByLabelText('Ask').props.accessibilityState).toMatchObject({ busy: true });
+    expect(hostTypes(view.toJSON()).filter((type) => type === 'RNSVGPath')).toHaveLength(2);
+    // Only the rest label is in the tree — no second, empty status string.
+    expect(view.getAllByText(/./, { includeHiddenElements: true })).toHaveLength(1);
+  });
+
+  it('defaults the status to the label', async () => {
+    const view = await render(<Button label="Save" busy onPress={jest.fn()} />);
+    // Both: the invisible rest label and the visible status.
+    expect(view.getAllByText('Save', { includeHiddenElements: true })).toHaveLength(2);
+    expect(view.getAllByText('Save')).toHaveLength(1);
   });
 });
+
+/** Every host node type in a rendered tree, in document order. */
+function hostTypes(node: unknown, acc: string[] = []): string[] {
+  if (!node || typeof node !== 'object') return acc;
+  const host = node as { type?: unknown; children?: unknown[] };
+  if (typeof host.type === 'string') acc.push(host.type);
+  for (const child of host.children ?? []) hostTypes(child, acc);
+  return acc;
+}
 
 describe('EmptyState', () => {
   /*

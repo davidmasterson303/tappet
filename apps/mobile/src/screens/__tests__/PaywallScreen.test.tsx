@@ -188,7 +188,9 @@ describe('states before anything can be bought', () => {
   it('names what it is waiting for rather than showing a bare spinner', async () => {
     await setup({ options: null });
 
-    expect(screen.getByText(/loading prices from the app store/i)).toBeTruthy();
+    // The compact wait instrument: a mono line and the one known fact.
+    expect(screen.getByText('Loading prices')).toBeTruthy();
+    expect(screen.getByText(/from the app store/i)).toBeTruthy();
     expect(screen.queryByText('£7.99 / month')).toBeNull();
   });
 

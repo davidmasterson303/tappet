@@ -187,6 +187,23 @@ export const brand = {
 export const register = {
   /** Web `--register-accent` in the default register — `--info`. */
   accent: '#7EC8DC',
+  /**
+   * Web `--info-strong` — the lit step of the same hue.
+   *
+   * ── 12 Sep · added with the wait instrument, and for nothing else ─────────
+   *
+   * `components/Working.tsx` is the web's ignition sweep on the phone, and the
+   * web draws it in two steps of one hue: the pip in `--info`, and the terminal
+   * dot flashing `--info-strong` as the pip touches it (brief B5). The phone had
+   * the first and not the second, so the flash would have had to borrow
+   * `brand.accent` — a different cyan, and a second opinion about what "lit"
+   * looks like on an instrument the two clients are meant to share.
+   *
+   * Read off `app/globals.css`, not chosen. Two readers: the terminal flash,
+   * and the busy control's mono status (`Button`, brief B7), which the web sets
+   * in the same token.
+   */
+  accentStrong: '#A5DCEC',
 } as const;
 
 /**

@@ -4,6 +4,7 @@ import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'r
 import AlertBanner, { type AlertTone } from '../components/AlertBanner';
 import Button from '../components/Button';
 import Well from '../components/Well';
+import Working from '../components/Working';
 import { API_BASE_URL } from '../config';
 import { border, radius, space, surface, text, type } from '../theme';
 import type { PurchaseResolution } from '@tappet/core/purchase-flow';
@@ -193,11 +194,14 @@ export default function PaywallScreen({
             </Well>
           ) : options === null ? (
             /*
-              A named waiting state rather than a bare spinner. Somebody on a
-              slow connection should be told what is being waited for.
+              A named waiting state, and since 12 Sep the wait instrument's
+              compact face: somebody on a slow connection should be told what
+              is being waited for, and every wait in the app says it the same
+              way now (brief B8: waits always carry the arc). The sentence
+              names the source, which is the one fact known about this call.
             */
             <Well style={styles.notice}>
-              <Text style={styles.noticeText}>Loading prices from the App Store…</Text>
+              <Working variant="compact" line="Loading prices" detail="From the App Store." />
             </Well>
           ) : options.length === 0 ? (
             <Well style={styles.notice}>
@@ -214,6 +218,8 @@ export default function PaywallScreen({
                   accessibilityLabel={`Subscribe, ${option.displayPrice} per ${option.period}`}
                   variant={option.period === 'year' ? 'primary' : 'outline'}
                   busy={busyId === option.productId}
+                  busyLabel="Subscribing"
+
                   disabled={working && busyId !== option.productId}
                   onPress={() => {
                     void run(
@@ -231,6 +237,8 @@ export default function PaywallScreen({
             label="Restore purchases"
             variant="ghost"
             busy={restoring}
+            busyLabel="Restoring"
+
             disabled={working && !restoring}
             onPress={() => {
               void run(onRestore, () => setRestoring(true), () => setRestoring(false));

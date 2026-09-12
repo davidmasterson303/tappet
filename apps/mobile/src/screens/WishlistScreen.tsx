@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -17,7 +16,7 @@ import Card from '../components/Card';
 import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
@@ -345,12 +344,10 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
   );
 
   if (state.kind === 'loading') {
-    // Three cards, because that is what a wishlist resolves into.
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={2} />
+        <Working delay line="Opening the list" />
       </ScrollView>
     );
   }

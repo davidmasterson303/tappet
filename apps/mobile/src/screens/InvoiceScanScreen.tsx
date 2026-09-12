@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   uploadInvoice,
@@ -9,6 +9,8 @@ import {
   type InvoiceFile,
 } from '../api/documents';
 import Button from '../components/Button';
+import Working from '../components/Working';
+import { scanLine, scanStages, type ScanPhase } from '../components/working-stages';
 import { ApiRequestError } from '../api/client';
 import { OPTICAL_CENTRE, PAGE_BODY, border, radius, space, surface, text, type } from '../theme';
 import AiConsentSheet from '../components/AiConsentSheet';
@@ -57,9 +59,21 @@ import { interFace } from '../theme/fonts';
  * cost; re-photographing one you have already thrown away is not.
  */
 
+/*
+  ── 12 Sep · the wait carries its phase, not a sentence ─────────────────────
+
+  `working` held a `note` — "Opening the camera…", "Reading the invoice…",
+  "Filing it against this car…" — three boundaries this screen genuinely
+  observes, written as three loose strings. They are a `ScanPhase` now, so the
+  wait instrument can draw them as a ledger (`working-stages.ts` says which
+  phases exist and why the third is only sometimes drawn) and the line and the
+  ledger come from one mapping rather than two spellings.
+*/
+type ScanSource = 'camera' | 'library';
+
 type State =
   | { status: 'idle' }
-  | { status: 'working'; note: string }
+  | { status: 'working'; phase: ScanPhase; source: ScanSource }
   | { status: 'done'; itemsExtracted: number }
   | {
       status: 'mismatch';
@@ -146,15 +160,26 @@ export function InvoiceScanScreen({
     };
   }, []);
   const [file, setFile] = useState<InvoiceFile | null>(null);
+  /*
+    Where the file came from, for the ledger's first row. A ref rather than
+    state: it is read inside `send`, which "Try again" and "Yes, file it here"
+    both call without a source in scope, and it never needs to redraw anything
+    on its own.
+  */
+  const source = useRef<ScanSource>('library');
 
   const send = useCallback(
     async (chosen: InvoiceFile, confirmVehicle: boolean) => {
+      /*
+        Two different waits, and the second is the long one — the model is
+        reading the document. `filing` is the confirm path only: the file is
+        being sent again with the vehicle check overridden, after the question
+        the first send came back with. See `scanStages`.
+      */
       setState({
         status: 'working',
-        // Two different waits, and the second is the long one — the model is
-        // reading the document. Saying so is the difference between "slow" and
-        // "stuck".
-        note: confirmVehicle ? 'Filing it against this car…' : 'Reading the invoice…',
+        phase: confirmVehicle ? 'filing' : 'reading',
+        source: source.current,
       });
 
       try {
@@ -224,14 +249,12 @@ export function InvoiceScanScreen({
    * work means accepting continues into the thing the person was doing, which
    * is the difference between a question and an obstacle.
    */
-  const openPicker = useCallback(async (source: 'camera' | 'library') => {
-    setState({
-      status: 'working',
-      note: source === 'camera' ? 'Opening the camera…' : 'Opening your photos…',
-    });
+  const openPicker = useCallback(async (from: ScanSource) => {
+    source.current = from;
+    setState({ status: 'working', phase: 'picking', source: from });
 
     try {
-      const chosen = await pickImage(source);
+      const chosen = await pickImage(from);
       if (!chosen) {
         // Dismissing the picker is not a failure and must not read as one.
         setState({ status: 'idle' });
@@ -398,10 +421,27 @@ export function InvoiceScanScreen({
       )}
 
       {state.status === 'working' && (
-        <View style={styles.centred}>
-          <ActivityIndicator color={text.muted} />
-          <Text style={styles.note}>{state.note}</Text>
-        </View>
+        /*
+          ── 12 Sep · the full instrument with a ledger ──────────────────────
+
+          Web's scanner is the one wait with a stage list, because it is the
+          one wait with two real awaits; the phone's has two as well — the
+          picker, then the upload — and a third on the confirm path. Every
+          mark comes from this screen's own state, never from a timer. The
+          line beneath is the file's name — a value, so mono (B1) — which is
+          a fact the screen was handed; it is not printed while the picker is
+          still open, because there is no file yet.
+
+          Not `delay`ed: this wait was started by a press and wants its
+          feedback at once. Left-anchored on the page's own gutter rather than
+          centred (brief B3), which is what `OPTICAL_CENTRE` still leaves room
+          for above.
+        */
+        <Working
+          line={scanLine(state.phase, state.source)}
+          value={state.phase === 'picking' ? undefined : file?.name}
+          stages={scanStages(state.phase, state.source)}
+        />
       )}
 
       {state.status === 'done' && (
@@ -545,12 +585,6 @@ const styles = StyleSheet.create({
     Quieter than the lead — it is a caveat, not the offer — and above the floor.
   */
   expectation: { ...type.value, color: text.muted, marginTop: space.xs },
-
-  centred: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  note: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 14 },
-
-
 
   /* Monospace so an elapsed figure is scannable; dev builds only. */
   diagnostic: {

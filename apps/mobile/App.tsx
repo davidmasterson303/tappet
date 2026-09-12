@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { Session } from '@supabase/supabase-js';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 
-import { surface, text } from './src/theme';
+import { COMPACT_SIZE, WorkingMark } from './src/components/Working';
+import { register, surface } from './src/theme';
 import { FONT_ASSETS } from './src/theme/font-assets';
 
 import { onSessionChange, signOut, startSessionAutoRefresh } from './src/auth/session';
@@ -116,8 +117,20 @@ export default function App() {
     <SafeAreaProvider>
       <View style={styles.root}>
         {session === undefined || !fontsReady ? (
+          /*
+            ── 12 Sep · the gate's wait is the instrument's bare mark ─────────
+
+            This was the platform spinner. Every other wait in the app is now
+            `Working` — the dial's ignition sweep with a mono line saying what
+            is happening — and this one cannot carry the line: it is waiting on
+            the fonts the line would be set in, and a status painted in San
+            Francisco that reflows into JetBrains Mono a frame later is the
+            defect the gate exists to prevent. So it is the mark alone, at the
+            compact size, and `delay`ed: a warm Keychain read and cached fonts
+            resolve inside the 350ms hold and nothing paints at all.
+          */
           <View style={styles.loading}>
-            <ActivityIndicator color={text.muted} />
+            <WorkingMark delay size={COMPACT_SIZE} ink={register.accent} />
           </View>
         ) : SHOW_FIXTURES ? (
           <RootNavigator

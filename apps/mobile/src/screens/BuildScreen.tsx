@@ -17,7 +17,7 @@ import Card from '../components/Card';
 import Chip from '../components/Chip';
 import ProgressionLadder from '../components/ProgressionLadder';
 import SectionHeader from '../components/SectionHeader';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { buildPosition } from '@tappet/core/build-progress';
@@ -348,11 +348,10 @@ export function BuildScreen({
   );
 
   if (state.kind === 'loading') {
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <Skeleton height={180} />
-        <SkeletonCard lines={3} />
-        <SkeletonCard lines={3} />
+        <Working delay line="Opening the build" />
       </ScrollView>
     );
   }
@@ -549,6 +548,8 @@ export function BuildScreen({
                         label="Add to wishlist"
                         variant="outline"
                         busy={working}
+                        busyLabel="Adding"
+
                         onPress={() => void addToWishlist(rung)}
                         style={styles.action}
                       />

@@ -1,13 +1,7 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type TextInputProps,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View, type TextInputProps } from 'react-native';
 
 import Field from './Field';
+import Working from './Working';
 import { TARGET_MIN, border, radius, space, surface, text, type } from '../theme';
 
 /**
@@ -126,9 +120,13 @@ export default function Suggest({
       {showing ? (
         <View style={styles.panel}>
           {loading ? (
+            /*
+              12 Sep: the compact wait instrument, not a platform spinner
+              beside a sentence. The lookup is one vPIC call; the line is the
+              state voice and there is nothing else true to say about it.
+            */
             <View style={styles.note}>
-              <ActivityIndicator color={text.muted} />
-              <Text style={styles.noteText}>Looking these up…</Text>
+              <Working variant="compact" line="Looking these up" />
             </View>
           ) : suggestions.length > 0 ? (
             suggestions.map((suggestion) => (

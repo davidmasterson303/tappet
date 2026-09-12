@@ -14,7 +14,7 @@ import Button from '../components/Button';
 import Field from '../components/Field';
 import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
-import { SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
 import {
@@ -233,10 +233,10 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
   }, [state, answers, saving, vehicleId, onSaved, onSignOut]);
 
   if (state.kind === 'loading') {
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={3} />
+        <Working delay line="Opening your answers" />
       </ScrollView>
     );
   }
@@ -351,7 +351,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
           style={styles.objective}
         />
 
-        <Button label="Save" onPress={() => void save()} busy={saving} />
+        <Button label="Save" onPress={() => void save()} busy={saving} busyLabel="Saving" />
       </ScrollView>
     </KeyboardAvoidingView>
   );

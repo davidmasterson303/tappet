@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -191,6 +190,7 @@ export function SignInScreen() {
           onPress={handleSubmit}
           disabled={!canSubmit}
           busy={busy}
+          busyLabel={isNew ? 'Creating your account' : 'Signing in'}
         />
 
         {/*

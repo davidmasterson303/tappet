@@ -14,6 +14,8 @@ import { getHealthBandJudgement } from '@tappet/core/health-band';
 
 import BayRoom, { bayHeroHeight } from './BayRoom';
 import ClusterGauge from './ClusterGauge';
+import PlateStatusLine from './PlateStatusLine';
+import type { PlateStatus } from '@tappet/core/plates';
 import {
   UNKNOWN_TIMING,
   describeNextService,
@@ -71,6 +73,12 @@ export interface BayVehicle {
   model?: string | null;
   trim?: string | null;
   photo_url?: string | null;
+  /**
+   * Whether the car's generation plate is still being drawn — `/vehicles`
+   * carries it beside `photo_url` since 12 Sep, `null` when there is nothing
+   * to say. See `PlateStatusLine`.
+   */
+  plate_status?: PlateStatus | null;
   current_mileage?: number | null;
   vehicle_status?: string | null;
   /**
@@ -348,6 +356,13 @@ export default function GarageBay({
             Vehicle is the one the brief describes, so Garage moves to it.
           */}
           <View style={styles.identity}>
+            {/*
+              12 Sep: while the car's plate is being drawn, the night says so —
+              the state voice over the name, on the fade's contrast floor.
+              Never over a photograph: the route nulls the status under one,
+              and this guards it again.
+            */}
+            {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
             <Text style={styles.name} numberOfLines={1}>
               {name || 'Vehicle'}
             </Text>
