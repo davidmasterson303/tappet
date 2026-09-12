@@ -23,10 +23,10 @@ import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-his
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
+  CONTROL_HEIGHT,
   PAGE_BODY,
   SPEC_ROW,
   TABULAR,
-  TARGET_MIN,
   border,
   radius,
   space,
@@ -812,7 +812,12 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     gap: space.sm,
   },
-  confirmLead: { ...type.body, color: text.primary },
+  /*
+    UI size, not body: at 16 the question read at the section head's scale
+    beside 63,000 SERVICE (round 33), and it is a control's question — the
+    label of the field beneath it, one step above the sentence that follows.
+  */
+  confirmLead: { ...type.ui, color: text.primary },
   confirmBody: { ...type.value, color: text.muted },
   /*
     Bottoms aligned: the field carries its label above the input, so the row's
@@ -905,11 +910,12 @@ const styles = StyleSheet.create({
     paddingLeft: 22 + space.md,
   },
   /*
-    The control clears 44 through `Button`'s own floor and pulls that height
-    back into the 16pt line so the row does not grow around it; the label's
-    own padding is pulled back too, so the word ends where the numerals do.
+    The control clears the floor through `Button`'s own height and pulls that
+    height back into the 16pt line so the row does not grow around it; the
+    label's own padding is pulled back too, so the word ends where the
+    numerals do.
   */
-  action: { marginVertical: -(TARGET_MIN - 16) / 2, marginRight: -space.md },
+  action: { marginVertical: -(CONTROL_HEIGHT - 16) / 2, marginRight: -space.md },
   addedText: { ...type.monoLabel, color: text.muted },
   /*
     The record's provenance voice: the quiet sans, under the name and clear of

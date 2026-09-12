@@ -3,7 +3,7 @@ import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-na
 
 import CutSurface from './CutSurface';
 
-import { FIELD_FONT_MIN, border, brand, cut, space, status, surface, text, type } from '../theme';
+import { CONTROL_HEIGHT, FIELD_FONT_MIN, border, brand, cut, space, status, surface, text, type } from '../theme';
 
 /**
  * A labelled text input.
@@ -195,7 +195,8 @@ const styles = StyleSheet.create({
     */
     backgroundColor: 'transparent',
     paddingHorizontal: space.md,
-    minHeight: 48,
+    /* The control height, shared with the small button that sits beside a field. */
+    minHeight: CONTROL_HEIGHT,
     color: text.primary,
     /*
       ⚠ Mono, to match the label above it and the strip it mirrors. B1 gives

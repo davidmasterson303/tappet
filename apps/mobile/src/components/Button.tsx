@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { TARGET_MIN, border, cut, register, space, status, surface, text, type } from '../theme';
+import { CONTROL_HEIGHT, border, cut, register, space, status, surface, text, type } from '../theme';
 import { monoFace } from '../theme/fonts';
 import CutSurface from './CutSurface';
 import { WorkingMark } from './Working';
@@ -314,8 +314,14 @@ const styles = StyleSheet.create({
     has a floor it has cleared since August, and lowering a shipped control to
     match a number in a paragraph would be a regression dressed as compliance.
     52 satisfies "at least 48" and every existing screen's measurements.
+
+    ⚠ 12 Sep · `small` is `CONTROL_HEIGHT`, the brief's 48 and the `Field`'s.
+    It was `TARGET_MIN`, and beside a field — the odometer gate's THAT IS
+    RIGHT — the two sat bottom-aligned with their tops 4pt apart, which the
+    critique measured on the frame. A small control and a field share one
+    edge now wherever they meet; nothing that cleared 44 clears it by less.
   */
-  small: { minHeight: TARGET_MIN, paddingHorizontal: space.md },
+  small: { minHeight: CONTROL_HEIGHT, paddingHorizontal: space.md },
   large: { minHeight: 52, paddingHorizontal: space.xl },
 
   /*

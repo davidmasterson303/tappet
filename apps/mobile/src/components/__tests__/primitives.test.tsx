@@ -11,6 +11,7 @@ import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
 import {
+  CONTROL_HEIGHT,
   FIELD_FONT_MIN,
   SPEC_ROW,
   TARGET_MIN,
@@ -105,6 +106,20 @@ describe('Button', () => {
 
     expect(style.opacity).toBeUndefined();
     expect(groundOf(view.toJSON())).toBe(surface.disabled);
+  });
+
+  it('gives the small size the field\u2019s own height, so the two share an edge', async () => {
+    /*
+      12 Sep. Beside a field the small control sat 4pt shorter, bottoms
+      aligned, tops apart — measured on the frame and in the source. The
+      brief's 48 is a field's height and a button's; `large` keeps its 52.
+    */
+    const button = await render(<Button label="That is right" size="small" onPress={jest.fn()} />);
+    const field = await render(<Field label="Odometer" value="66000" />);
+
+    expect(boxStyleOf(button.toJSON())?.minHeight).toBe(CONTROL_HEIGHT);
+    expect(flat(field.getByLabelText('Odometer').props.style).minHeight).toBe(CONTROL_HEIGHT);
+    expect(CONTROL_HEIGHT).toBeGreaterThanOrEqual(TARGET_MIN);
   });
 
   it('keeps the small size on the 44pt floor', async () => {
