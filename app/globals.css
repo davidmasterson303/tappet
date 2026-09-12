@@ -2596,6 +2596,40 @@ nav {
 }
 
 /*
+ * ── The terminal flashes as the pip touches it — brief B5 ─────────────────
+ *
+ * The pip's timeline is 1300ms per traverse, alternating, so it is at the
+ * foot at 0ms, 2600ms, 5200ms… and at the head at 1300ms, 3900ms… Each
+ * terminal runs its own 2600ms loop on the same clock — the two animations
+ * start on the same frame, in the same render — and goes cyan at the
+ * moment the pip arrives, decaying back to off-white over 12% of the loop:
+ * 312ms, long enough to read as an event rather than an overlap. Linear,
+ * because the decay is the whole animation and an ease would front-load it.
+ *
+ * The sibling combinator is what binds the flash to the live sweep: the
+ * terminals follow the pip in document order, and neither the frozen face
+ * nor a reduced-motion visitor's face has a `.is-live` pip to follow, so on
+ * those faces the dots simply hold off-white.
+ */
+@keyframes workingTouchFoot {
+  0%, 4%   { stroke: var(--info-strong); }
+  16%      { stroke: #EDE7DF; }
+  100%     { stroke: #EDE7DF; }
+}
+@keyframes workingTouchHead {
+  0%, 49%  { stroke: #EDE7DF; }
+  50%, 54% { stroke: var(--info-strong); }
+  66%      { stroke: #EDE7DF; }
+  100%     { stroke: #EDE7DF; }
+}
+.working-sweep.is-live ~ .working-terminal[data-end='foot'] {
+  animation: workingTouchFoot 2600ms linear infinite;
+}
+.working-sweep.is-live ~ .working-terminal[data-end='head'] {
+  animation: workingTouchHead 2600ms linear infinite;
+}
+
+/*
  * The same sweep held still — the specimen and the design loop's screenshots.
  *
  * ⚠ Not the `.skeleton-shimmer-frame` trick. The first draft held the
@@ -2840,6 +2874,9 @@ html[data-intro='play'] .garage-door {
     delay is not motion, it is not painting a dial for a hold that ends first.
   */
   .working-sweep.is-live {
+    animation: none;
+  }
+  .working-terminal {
     animation: none;
   }
 

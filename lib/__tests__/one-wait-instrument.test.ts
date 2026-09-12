@@ -173,6 +173,20 @@ describe('one wait instrument', () => {
     const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
     expect(reduced).toMatch(/\.working-sweep\.is-live\s*\{\s*animation:\s*none/);
 
+    /*
+      The terminal flash (brief B5) is a second pair of CSS animations on the
+      pip's clock — a 2600ms loop against the 1300ms alternating traverse, so
+      the foot lights at 0% and the head at 50%. Both must exist, both must
+      be bound to a live sweep and nothing else, and both must stop under
+      reduced motion with the sweep.
+    */
+    expect(css).toMatch(/@keyframes workingTouchFoot/);
+    expect(css).toMatch(/@keyframes workingTouchHead/);
+    expect(css).toMatch(/\.working-sweep\.is-live\s*~\s*\.working-terminal\[data-end='foot'\]\s*\{\s*animation:\s*workingTouchFoot 2600ms/);
+    expect(css).toMatch(/\.working-sweep\.is-live\s*~\s*\.working-terminal\[data-end='head'\]\s*\{\s*animation:\s*workingTouchHead 2600ms/);
+    expect(css).toMatch(/\.working-sweep\.is-live\s*\{\s*animation:\s*workingSweep 1300ms/);
+    expect(reduced).toMatch(/\.working-terminal\s*\{\s*animation:\s*none/);
+
     const component = stripComments(readFileSync(join(ROOT, 'components', 'Working.tsx'), 'utf8'));
     expect(component).not.toMatch(/requestAnimationFrame|setInterval|setTimeout/);
     expect(component).toMatch(/is-live/);
