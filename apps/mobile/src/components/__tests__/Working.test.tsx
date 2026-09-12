@@ -8,6 +8,7 @@ import Working, {
   PIP_FOOT,
   PIP_HEAD,
   SEGMENT,
+  TRAVERSE_MS,
   WorkingMark,
 } from '../Working';
 import PlateStatusLine from '../PlateStatusLine';
@@ -25,6 +26,8 @@ import { register, status, text } from '../../theme';
  *     does not fill — a growing dash is a progress bar);
  *   - the dash is in user units against the real arc length, because
  *     `react-native-svg` drops `pathLength` silently;
+ *   - live, the pip swings terminal to terminal and every pass begins at one
+ *     (`Animated.loop`'s default reset began each at the centre — 12 Sep);
  *   - reduced motion and `frozen` are the same designed still, twelve o'clock;
  *   - a page-level wait holds invisible before it paints;
  *   - the ledger's marks come from the stage list and nowhere else.
@@ -130,23 +133,80 @@ describe('the still frame', () => {
     expect(flashes.map((props) => props.opacity)).toEqual([0, 0]);
   });
 
-  it('leaves the centre when live — it is an instrument, not a still', async () => {
+  it('swings terminal to terminal when live — it is an instrument, not a still', async () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 
-    const view = await render(<Working line="Opening this car" />);
-    await act(async () => {});
-    await view.rerender(<Working line="Opening this car" />);
-
     /*
-      The sweep starts at the foot and traverses to the head; a re-render a few
-      milliseconds in reads a value on that leg, never the rest frame. If the
-      loop silently never started, the value would still be `PIP_CENTRE` —
-      which is what this refuses.
+      ── Why the clock is faked ─────────────────────────────────────────────
+
+      The sweep is `Animated.loop` frames on `requestAnimationFrame`, and the
+      pip's position is a function of the milliseconds since `start()`. So a
+      wall-clock sample says nothing about the loop, and this case used to
+      take one: it read the offset after an act tick and refused the centre
+      to three places. On 12 Sep the sample landed 1ms in and read 0.0003
+      from the centre — and that number was a finding, not noise. The first
+      leg began *at* the centre: `Animated.loop`'s default reset restores the
+      value's construction frame over the `setValue(PIP_FOOT)`, so on a
+      device the pip left twelve o'clock at half speed and snapped back to
+      it every pass. `useSweep` records the fix; this is its guard.
+
+      `TimingAnimation` reads `Date.now()` per frame and the runner's
+      `requestAnimationFrame` is a zero-delay timeout, so under fake timers
+      `advanceTimersByTime(n)` lands the pip at the eased position for n ms
+      exactly, and the terminals and the flashes are exact by construction.
+
+      ⚠ `advanceTimersByTime`, never `runAllTimers`: the loop is infinite.
     */
-    const offset = Number(pipOf(view.toJSON()).strokeDashoffset);
-    expect(offset).not.toBeCloseTo(PIP_CENTRE, 3);
-    expect(offset).toBeLessThanOrEqual(PIP_FOOT);
-    expect(offset).toBeGreaterThanOrEqual(PIP_HEAD);
+    jest.useFakeTimers();
+    try {
+      const view = await render(<Working line="Opening this car" />);
+
+      /** The pip's offset and the two flashes' opacities, `ms` further on. */
+      const after = async (ms: number) => {
+        await act(async () => {
+          jest.advanceTimersByTime(ms);
+        });
+        await view.rerender(<Working line="Opening this car" />);
+        const tree = view.toJSON();
+        const [foot, head] = hostNodes(tree, 'RNSVGCircle')
+          .slice(2)
+          .map((props) => Number(props.opacity));
+        return { pip: Number(pipOf(tree).strokeDashoffset), foot, head };
+      };
+
+      // Switched on: at the foot, not the rest frame, and the foot's terminal lit.
+      const start = await after(0);
+      expect(start.pip).toBeCloseTo(PIP_FOOT, 6);
+      expect(start).toMatchObject({ foot: 1, head: 0 });
+
+      // A quarter of the way along the first leg: off the foot, short of twelve o'clock.
+      const quarter = await after(TRAVERSE_MS / 4);
+      expect(quarter.pip).toBeLessThan(PIP_FOOT);
+      expect(quarter.pip).toBeGreaterThan(PIP_CENTRE);
+
+      // Three quarters is the mirror of one quarter: the same curve in both halves.
+      const threeQuarters = await after(TRAVERSE_MS / 2);
+      expect(threeQuarters.pip).toBeLessThan(PIP_CENTRE);
+      expect(quarter.pip + threeQuarters.pip).toBeCloseTo(PIP_FOOT + PIP_HEAD, 6);
+
+      // Arrival: the head exactly, its terminal lit, the foot's flash decayed.
+      const head = await after(TRAVERSE_MS / 4);
+      expect(head.pip).toBeCloseTo(PIP_HEAD, 6);
+      expect(head).toMatchObject({ foot: 0, head: 1 });
+
+      // The return leg ends at the foot exactly, and lights it.
+      const foot = await after(TRAVERSE_MS);
+      expect(foot.pip).toBeCloseTo(PIP_FOOT, 6);
+      expect(foot).toMatchObject({ foot: 1, head: 0 });
+
+      // The second pass retraces the first from the foot: no snap to the centre.
+      const secondQuarter = await after(TRAVERSE_MS / 4);
+      expect(secondQuarter.pip).toBeCloseTo(quarter.pip, 6);
+
+      await view.unmount();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('is the same frame under reduced motion — a designed still, not a stopped sweep', async () => {
