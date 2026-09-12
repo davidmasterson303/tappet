@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { logger } from '@tappet/core/logger';
 
@@ -203,15 +202,8 @@ export function MarkCompleteDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <WorkingMark className="h-4 w-4 mr-2" />
-                  Saving...
-                </>
-              ) : (
-                'Mark as Complete'
-              )}
+            <Button type="submit" busy={loading} busyLabel="Saving">
+              Mark as Complete
             </Button>
           </DialogFooter>
         </form>

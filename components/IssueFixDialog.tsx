@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { WorkingMark } from '@/components/Working';
 
 interface IssueFixDialogProps {
   open: boolean;
@@ -123,7 +122,6 @@ export default function IssueFixDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
       /*
         ── ⚠ UI-01 · white on cyan is 1.81:1 ─────────────────────────────────
 
@@ -150,15 +148,9 @@ export default function IssueFixDialog({
         missed, it is **unrepresentable**; and the scan has no concept of a
         background, so white-on-cyan and white-on-black are the same input.
       */
+              busy={isLoading} busyLabel="Saving"
             >
-              {isLoading ? (
-                <>
-                  <WorkingMark className="h-4 w-4 mr-2" />
-                  Saving
-                </>
-              ) : (
-                'Mark Fixed'
-              )}
+              Mark Fixed
             </Button>
           </div>
         </form>

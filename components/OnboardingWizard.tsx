@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, X, Upload, Image as ImageIcon } from 'lucide-react';
-import { Working, WorkingMark } from '@/components/Working';
+import { Working } from '@/components/Working';
 import { BrandWordmark } from '@/components/brand/BrandLockup';
 import { logger } from '@tappet/core/logger';
 import { queryClient } from '@tappet/core/query-client';
@@ -913,55 +913,37 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                 onClick={handleNext}
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
                 disabled={loading || (step === 1 && !powertrainReady)}
+                busy={step === 1 && !powertrainReady} busyLabel="Checking configurations"
               >
-                {step === 1 && !powertrainReady ? (
-                  <span className="flex items-center gap-2">
-                    <WorkingMark className="h-4 w-4" />
-                    Checking configurations
-                  </span>
-                ) : (
-                  'Continue'
-                )}
+                Continue
               </Button>
             ) : step === performanceStep ? (
               <Button
                 type="button"
                 onClick={handleSubmit}
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                disabled={loading || !formData.ownership_objective}
+                disabled={!formData.ownership_objective}
+                busy={loading}
+                /*
+                  ⚠ "Researching Vehicle..." was the label here, and it has
+                  not been true since onboarding stopped blocking on the
+                  research call: `createVehicle` saves the row, attaches
+                  the plate and returns, and the dossier is researched from
+                  the dashboard by `VehicleResearchStatus`. The button says
+                  what the call does.
+                */
+                busyLabel="Saving your car"
               >
-                {loading ? (
-                  /*
-                    ⚠ "Researching Vehicle..." was the label here, and it has
-                    not been true since onboarding stopped blocking on the
-                    research call: `createVehicle` saves the row, attaches
-                    the plate and returns, and the dossier is researched from
-                    the dashboard by `VehicleResearchStatus`. The button says
-                    what the call does.
-                  */
-                  <span className="flex items-center gap-2">
-                    <WorkingMark className="h-4 w-4" />
-                    Saving your car
-                  </span>
-                ) : (
-                  'Complete Setup'
-                )}
+                Complete Setup
               </Button>
             ) : (
               <Button
                 type="button"
                 onClick={handleClarificationSubmit}
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                disabled={loading}
+                busy={loading} busyLabel="Saving the specifications"
               >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <WorkingMark className="h-4 w-4" />
-                    Saving the specifications
-                  </span>
-                ) : (
-                  'Confirm & Continue'
-                )}
+                Confirm & Continue
               </Button>
             )}
           </div>

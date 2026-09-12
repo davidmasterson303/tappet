@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Eye, EyeOff, CircleCheck as CheckCircle2 } from 'lucide-react';
-import { Working, WorkingMark } from '@/components/Working';
+import { Working } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -218,10 +218,10 @@ export default function ResetPasswordPage() {
 
             <Button
               type="submit"
-              disabled={loading}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
+              busy={loading}
             >
-              {loading ? <WorkingMark className="h-4 w-4" /> : 'Update Password'}
+              Update Password
             </Button>
           </form>
         </div>

@@ -2530,35 +2530,40 @@ nav {
  *
  * The full face is 160px on desktop and 128px on a phone, a CSS width; the
  * strokes that keep a 1px track and a 2px pip at both sizes are therefore CSS
- * too, in viewBox units per face and per breakpoint. 200 viewBox units over
- * 160px is 1.25 units to the pixel; over 128px, 1.5625. The compact face is
- * 172 units over 20px (8.6 to the pixel) and the mark 172 over 14 (12.3).
- * The terminal is a round cap on a zero-length path, so its diameter is a
- * stroke width and the same mechanism sizes it: 4px.
+ * too, in viewBox units per face and per breakpoint. The frame is the arc's
+ * own 140-unit width (see `ARC_BOX` in Working.tsx), so 140 units over 160px
+ * is 0.875 units to the pixel; over 128px, 1.09375. The compact face is 140
+ * over 20px (7 to the pixel) and the mark 140 over 14 (10). The terminal is
+ * a round cap on a zero-length path, so its diameter is a stroke width and
+ * the same mechanism sizes it: 4px.
+ *
+ * ⚠ These numbers were 1.25 / 1.5625 / 8.6 / 12.3 while the frame was the
+ * reading dial's 200-unit viewBox. Re-derived when the frame became the arc
+ * (iteration 02); a stroke width is only a pixel width relative to its frame.
  *
  * ⚠ Not `vector-effect: non-scaling-stroke`, which would do this for free and
  * also unscale the dash pattern — and the pip is a dash pattern.
  */
 .working-dial[data-face='full'] {
-  --wk-track: 1.25;
-  --wk-pip: 2.5;
-  --wk-dot: 5;
+  --wk-track: 0.875;
+  --wk-pip: 1.75;
+  --wk-dot: 3.5;
 }
 @media (max-width: 639px) {
   .working-dial[data-face='full'] {
-    --wk-track: 1.5625;
-    --wk-pip: 3.125;
-    --wk-dot: 6.25;
+    --wk-track: 1.09375;
+    --wk-pip: 2.1875;
+    --wk-dot: 4.375;
   }
 }
 .working-dial[data-face='compact'] {
-  --wk-track: 8.6;
-  --wk-pip: 17.2;
-  --wk-dot: 25.8;
+  --wk-track: 7;
+  --wk-pip: 14;
+  --wk-dot: 21;
 }
 .working-dial[data-face='mark'] {
-  --wk-track: 12.3;
-  --wk-pip: 24.6;
+  --wk-track: 10;
+  --wk-pip: 20;
 }
 
 .working-track {

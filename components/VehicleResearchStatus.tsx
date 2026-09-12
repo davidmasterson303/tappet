@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CircleAlert as AlertCircle, RefreshCw } from 'lucide-react';
-import { Working, WorkingMark } from '@/components/Working';
+import { Working } from '@/components/Working';
 import { Button } from '@/components/ui/button';
 import { enrichVehicle, getResearchStatus } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
@@ -217,13 +217,9 @@ export function VehicleResearchStatus({
             </p>
           </div>
         </div>
-        <Button size="sm" onClick={run} disabled={running} className="flex-shrink-0">
-          {running ? (
-            <WorkingMark className="mr-2 h-3.5 w-3.5" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          {running ? 'Retrying…' : 'Retry'}
+        <Button size="sm" onClick={run} busy={running} busyLabel="Retrying" className="flex-shrink-0">
+          <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+          Retry
         </Button>
       </div>
     );

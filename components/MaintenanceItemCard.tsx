@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Heart } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import { useWishlist } from '@/hooks/useWishlist';
 /**
  * What this card needs from a schedule row.
@@ -191,19 +190,12 @@ export default function MaintenanceItemCard({
               : 'h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90'
           }
           onClick={toggleWishlist}
-          disabled={wishlistLoading || loading}
+          disabled={loading}
+          busy={wishlistLoading}
+          busyLabel={isSaved ? 'Removing' : 'Adding'}
         >
-          {wishlistLoading ? (
-            <>
-              <WorkingMark className="h-3 w-3 mr-1" />
-              {isSaved ? 'Removing' : 'Adding'}
-            </>
-          ) : (
-            <>
-              <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
-              {isSaved ? 'Remove from Needs' : 'Add to Needs'}
-            </>
-          )}
+          <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
+          {isSaved ? 'Remove from Needs' : 'Add to Needs'}
         </Button>
       </div>
     </div>

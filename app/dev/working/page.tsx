@@ -143,31 +143,52 @@ const states: Array<{
           className="absolute pointer-events-none chamfer-sm border border-white/8"
           style={{ inset: 12 }}
         />
-        <div className="absolute inset-0 flex items-center justify-center px-4">
+        <div className="absolute inset-0 flex items-center justify-start px-7">
           <Working variant="compact" frozen={frozen} line="Drawing this car’s plate" />
         </div>
       </div>
     ),
   },
   {
-    title: 'Mark — inside a control',
+    title: 'Mark — the button that started the work',
     note:
-      'The sweep at 14px in the button’s own ink. The label carries the state; the mark is ' +
-      'hidden from assistive tech. One-for-one replacement for the old spinning glyph.',
+      'A busy button drops to its outlined form at its rest width and says what it is doing in ' +
+      'the state voice: the 14px mark and a cyan mono status. The rest label is held invisibly ' +
+      'in the same cell, so nothing beside it shifts. Each pair below is the same control at ' +
+      'rest and busy.',
     render: (frozen) => (
-      <div className="flex flex-wrap gap-3">
-        <Button disabled className="font-semibold">
-          <WorkingMark className="mr-2 h-3.5 w-3.5" frozen={frozen} />
-          Decoding the VIN
-        </Button>
-        <Button size="sm" variant="outline" disabled>
-          <WorkingMark className="mr-1.5 h-3.5 w-3.5" frozen={frozen} />
-          Analyzing
-        </Button>
-        <Button size="sm" variant="ghost" disabled className="text-white/60">
-          <WorkingMark className="mr-1.5 h-3.5 w-3.5" frozen={frozen} />
-          Saving
-        </Button>
+      <div className="space-y-4">
+        {/*
+          The VIN form's Continue, full width as it ships: the one busy label
+          longer than its rest label, and the width cannot move because the
+          width is the form's. ⚠ Measured: a busy label wider than a
+          non-full-width rest label grows the button to fit it — the cell
+          holds the wider of the two, never the narrower — so busy labels on
+          fitted buttons stay to one word.
+        */}
+        <div className="grid max-w-sm gap-3">
+          <Button className="w-full font-semibold">Continue</Button>
+          <Button className="w-full font-semibold" busy busyLabel="Decoding the VIN">
+            Continue
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="sm">Analyze Mod</Button>
+          <Button size="sm" busy busyLabel="Analyzing">
+            Analyze Mod
+          </Button>
+          <Button size="sm" variant="outline">
+            Save changes
+          </Button>
+          <Button size="sm" variant="outline" busy busyLabel="Saving">
+            Save changes
+          </Button>
+          {/* The bare mark, for an icon-only control: the aria-label carries the state. */}
+          <span className="inline-flex items-center gap-2 mono text-xs uppercase tracking-[0.08em] text-white/55">
+            <WorkingMark className="h-3.5 w-3.5" frozen={frozen} />
+            bare mark
+          </span>
+        </div>
       </div>
     ),
   },

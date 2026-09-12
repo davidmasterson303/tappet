@@ -30,6 +30,7 @@ import { act, render, screen } from '@testing-library/react';
 import { Working, WorkingMark } from '@/components/Working';
 import { scanStages } from '@/lib/working';
 import ModificationDetailsCard from '@/components/ModificationDetailsCard';
+import { Button } from '@/components/ui/button';
 
 jest.mock('@/app/actions', () => ({
   generateModificationDetails: jest.fn(),
@@ -154,6 +155,62 @@ describe('the wait instrument renders every state', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe('a busy button keeps its name, its width and its manners', () => {
+  beforeEach(() => preferReducedMotion(false));
+
+  it('drops to the outline, says what it is doing in the state voice, and holds the rest label', () => {
+    /*
+      Brief B7: the button that started the work drops to its outlined form at
+      constant width, with the cyan mono status beside the mark. The rest
+      label stays in the cell, invisible, which is what holds the width — and
+      it is `aria-hidden`, so the control's accessible name is the status.
+    */
+    const onClick = jest.fn();
+    render(
+      <Button busy busyLabel="Decoding the VIN" onClick={onClick}>
+        Continue
+      </Button>
+    );
+    const button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(button.className).toMatch(/border-\[color:var\(--border-field\)\]/);
+    expect(button.className).not.toMatch(/bg-primary/);
+    expect(button.querySelector('svg.working-mark')).not.toBeNull();
+    expect(screen.getByText('Decoding the VIN').className).toMatch(/mono/);
+    expect(screen.getByText('Decoding the VIN').className).toMatch(/--info-strong/);
+    const held = screen.getByText('Continue');
+    expect(held).toHaveAttribute('aria-hidden', 'true');
+    expect(held.className).toMatch(/invisible/);
+  });
+
+  it('swallows the click while busy, so a double press cannot fire twice', () => {
+    const onClick = jest.fn();
+    render(
+      <Button busy busyLabel="Saving" onClick={onClick}>
+        Save
+      </Button>
+    );
+    screen.getByRole('button').click();
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('is an ordinary button when it is not busy — the anti-vacuous half', () => {
+    const onClick = jest.fn();
+    render(
+      <Button busyLabel="Saving" onClick={onClick}>
+        Save
+      </Button>
+    );
+    const button = screen.getByRole('button', { name: 'Save' });
+    expect(button).not.toHaveAttribute('aria-busy');
+    expect(button.querySelector('svg.working-mark')).toBeNull();
+    button.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
 

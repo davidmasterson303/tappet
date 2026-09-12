@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Move } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { uploadVehiclePhoto, removeVehiclePhoto } from '@/app/actions';
 import { downscaleImage } from '@/lib/image-downscale';
@@ -302,14 +301,10 @@ export function VehiclePhotoUploadDialog({
                     variant="destructive"
                     size="sm"
                     onClick={handleRemovePhoto}
-                    disabled={isRemoving}
                     className="w-full bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/25"
+                    busy={isRemoving} busyLabel="Removing"
                   >
-                    {isRemoving ? (
-                      <><WorkingMark className="h-4 w-4 mr-2" />Removing...</>
-                    ) : (
-                      <><X className="h-4 w-4 mr-2" />Remove Custom Photo</>
-                    )}
+                    <><X className="h-4 w-4 mr-2" />Remove Custom Photo</>
                   </Button>
                 </div>
               )}
@@ -444,14 +439,10 @@ export function VehiclePhotoUploadDialog({
                 </Button>
                 <Button
                   onClick={handleUpload}
-                  disabled={isUploading}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+                  busy={isUploading} busyLabel="Uploading"
                 >
-                  {isUploading ? (
-                    <><WorkingMark className="h-4 w-4 mr-2" />Uploading...</>
-                  ) : (
-                    <><Upload className="h-4 w-4 mr-2" />Save Photo</>
-                  )}
+                  <><Upload className="h-4 w-4 mr-2" />Save Photo</>
                 </Button>
               </div>
             </>

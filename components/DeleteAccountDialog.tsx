@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TriangleAlert } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import {
   Dialog,
   DialogContent,
@@ -207,15 +206,8 @@ export function DeleteAccountDialog({
             disabled:opacity-40` — a third hue, and an alpha the contrast guard
             cannot composite.
           */}
-          <Button variant="destructive" onClick={handleDelete} disabled={!confirmed || deleting}>
-            {deleting ? (
-              <>
-                <WorkingMark className="mr-2 h-4 w-4" />
-                Deleting…
-              </>
-            ) : (
-              'Delete my account'
-            )}
+          <Button variant="destructive" onClick={handleDelete} disabled={!confirmed} busy={deleting} busyLabel="Deleting">
+            Delete my account
           </Button>
         </DialogFooter>
       </DialogContent>

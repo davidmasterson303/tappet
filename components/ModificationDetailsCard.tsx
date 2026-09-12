@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, Zap, ChartBar as BarChart3, DollarSign, Wrench, CircleAlert as AlertCircle, Plus } from 'lucide-react';
-import { Working, WorkingMark } from '@/components/Working';
+import { Working } from '@/components/Working';
 import { generateModificationDetails, addModificationToWishlist } from '@/app/actions';
 import { toast } from 'sonner';
 
@@ -113,17 +113,11 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
           <Button
             size="sm"
             onClick={() => handleGenerateDetails(false)}
-            disabled={analyzing}
+            busy={analyzing}
+            busyLabel="Analyzing"
             className="whitespace-nowrap transition-colors flex-shrink-0"
           >
-            {analyzing ? (
-              <>
-                <WorkingMark className="h-3 w-3 mr-1" />
-                Analyzing
-              </>
-            ) : (
-              'Analyze Mod'
-            )}
+            Analyze Mod
           </Button>
         </div>
       </div>
@@ -222,20 +216,12 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
               <Button
                 size="sm"
                 onClick={handleAddToWishlist}
-                disabled={isAddingToWishlist}
+                busy={isAddingToWishlist}
+                busyLabel="Adding"
                 className="w-full h-8 transition-colors"
               >
-                {isAddingToWishlist ? (
-                  <>
-                    <WorkingMark className="h-3 w-3 mr-1" />
-                    Adding
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add to Needs
-                  </>
-                )}
+                <Plus className="h-3 w-3 mr-1" />
+                Add to Needs
               </Button>
             )}
           </div>

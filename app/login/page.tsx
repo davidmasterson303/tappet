@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
@@ -116,10 +115,10 @@ function LoginForm() {
 
       <Button
         type="submit"
-        disabled={loading}
         className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
+        busy={loading}
       >
-        {loading ? <WorkingMark className="h-4 w-4" /> : 'Sign In'}
+        Sign In
       </Button>
     </form>
   );

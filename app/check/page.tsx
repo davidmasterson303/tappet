@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Camera } from 'lucide-react';
-import { Working, WorkingMark } from '@/components/Working';
+import { Working } from '@/components/Working';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 
 /**
@@ -199,17 +199,11 @@ export default function CheckPage() {
 
             <Button
               onClick={submit}
-              disabled={busy || (!file && !text.trim())}
+              disabled={(!file && !text.trim())}
               className="w-full mt-4 text-base font-semibold"
+              busy={busy} busyLabel="Checking"
             >
-              {busy ? (
-                <>
-                  <WorkingMark className="mr-2 h-4 w-4" />
-                  Checking…
-                </>
-              ) : (
-                'Check this quote'
-              )}
+              Check this quote
             </Button>
 
             {busy && <ParseProgress />}

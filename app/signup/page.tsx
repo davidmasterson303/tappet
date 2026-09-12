@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
@@ -147,17 +146,10 @@ export default function SignupPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleResend}
-                    disabled={resendState === 'sending'}
                     className="border-white/15 text-white/80 hover:text-white"
+                    busy={resendState === 'sending'} busyLabel="Sending"
                   >
-                    {resendState === 'sending' ? (
-                      <>
-                        <WorkingMark className="h-3.5 w-3.5 mr-2" />
-                        Sending…
-                      </>
-                    ) : (
-                      'Resend confirmation email'
-                    )}
+                    Resend confirmation email
                   </Button>
                 </>
               )}
@@ -305,10 +297,10 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              disabled={loading}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
+              busy={loading}
             >
-              {loading ? <WorkingMark className="h-4 w-4" /> : 'Create Account'}
+              Create Account
             </Button>
           </form>
 

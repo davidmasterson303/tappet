@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { R, TRACK, VIEW_H, VIEW_W, pointAt } from '@tappet/core/cluster-geometry';
+import { R, TRACK, pointAt } from '@tappet/core/cluster-geometry';
 import { prefersReducedMotion } from '@/hooks/use-reduced-motion';
 import type { WorkingStage } from '@/lib/working';
 
@@ -39,15 +39,18 @@ import type { WorkingStage } from '@/lib/working';
  * between the two ends of the scale, which carries no claim about how much is
  * left. `globals.css` holds the keyframes and the argument in full.
  *
- * ── The three sizes ─────────────────────────────────────────────────────────
+ * ── The three sizes (brief B2) ──────────────────────────────────────────────
  *
- *   full     a page-level wait: the dial at 96px with the mono line beneath,
- *            an optional quiet sentence, an optional stage list, and whatever
- *            facts the caller has (the items being priced, the file name).
- *   compact  a card or a row: the dial at 28px beside the line.
- *   mark     `WorkingMark` — the same sweep at button scale in `currentColor`,
- *            for the control that started the work. The button's own label
- *            carries the state; the mark is `aria-hidden`.
+ *   full     a page-level wait: the dial at 160px (128 on a phone) in its own
+ *            panel, the mono status on the arc's centre line, one quiet
+ *            sentence beneath, an optional ledger of real stages, and whatever
+ *            facts the caller has (a real count, the items being priced).
+ *   compact  a card or a row: the dial at 20px beside the line, no panel.
+ *   mark     `WorkingMark` — the same sweep at 14px in `currentColor`. Inside
+ *            a control it is rendered by `Button`'s `busy` form (brief B7),
+ *            which drops to the outline at its rest width and puts the cyan
+ *            mono status beside the mark; the bare mark is for icon-only
+ *            controls whose `aria-label` carries the state. `aria-hidden`.
  *
  * ── Reduced motion, and screenshots ─────────────────────────────────────────
  *
@@ -110,11 +113,28 @@ interface WorkingProps {
 const SEGMENT = 9;
 
 /**
- * The card face's square window onto the dial, from `ClusterGauge`: centred
- * on the pivot. The full face keeps the hero's 178-tall crop so the dial does
- * not float above its line.
+ * The window onto the dial: exactly the arc's bounding box — brief B2.
+ *
+ * ── ⚠ The first draft drew the ring a third smaller than its box ──────────
+ *
+ * It used the reading dial's viewBoxes (`0 0 200 178` and the card's square
+ * crop), which hold a 70-unit radius inside a 200-unit frame so the hero has
+ * room for ticks and a readout line. This dial has neither, so at a 160px box
+ * the visible ring was 112px — the critic measured "roughly 110px" from the
+ * capture, and the arithmetic agrees. The frame is now the arc itself: x from
+ * 30 to 170 (R=70 about x=100), y from the top of the arc at 30 to its feet at
+ * 149.5, so a 160px box is a 160px ring. Strokes overflow the frame by half
+ * their width, which `overflow="visible"` paints.
+ *
+ * `ARC_H / ARC_W` is what places the arc's centre line: 70 units below the
+ * frame's top edge, of 120 — the number the text column aligns its status
+ * baseline to.
  */
-const SQUARE = '14 14 172 172';
+const ARC_X = 30;
+const ARC_Y = 30;
+const ARC_W = 140;
+const ARC_H = 120;
+const ARC_BOX = `${ARC_X} ${ARC_Y} ${ARC_W} ${ARC_H}`;
 
 /**
  * Does this visitor want the instrument still?
@@ -156,7 +176,6 @@ type Face = 'full' | 'compact' | 'mark';
  * which the same custom property can set. Same dot, one mechanism.
  */
 function Dial({ face, live, frozen }: { face: Face; live: boolean; frozen: boolean }) {
-  const viewBox = face === 'full' ? `0 0 ${VIEW_W} ${VIEW_H}` : SQUARE;
   const foot = pointAt(0, R);
   const head = pointAt(100, R);
   const sweepClass = `working-sweep ${frozen ? 'is-frozen' : live ? 'is-live' : ''}`.trim();
@@ -170,16 +189,15 @@ function Dial({ face, live, frozen }: { face: Face; live: boolean; frozen: boole
   */
   const terminals = face !== 'mark';
 
-  const sizeClass =
-    face === 'full'
-      ? 'w-32 sm:w-40'
-      : face === 'compact'
-        ? 'w-5 h-5'
-        : '';
+  /*
+    Widths only; the height follows the frame's 140:120 aspect. 160 and 128
+    are the brief's full sizes (desktop / phone), 20 the compact.
+  */
+  const sizeClass = face === 'full' ? 'w-32 sm:w-40' : face === 'compact' ? 'w-5' : '';
 
   return (
     <svg
-      viewBox={viewBox}
+      viewBox={ARC_BOX}
       className={`working-dial flex-shrink-0 ${sizeClass}`.trim()}
       data-face={face}
       aria-hidden="true"
@@ -359,9 +377,21 @@ export function Working({
         panel ? 'cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-6 sm:p-8' : ''
       } text-left ${enter} ${className}`.trim()}
     >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+      {/*
+        ── The status sits on the arc's centre line — brief B3 ────────────────
+
+        Top-aligned, not centred: centring the status-plus-sentence block on
+        the arc put the status 25px above the centre line (critique 01,
+        measured from the capture and confirmed here). The arc's centre is 70
+        of the frame's 120 units below its top edge — 80px of a 137px-tall dial
+        at 160 wide — and a 14px mono line in a 20px line box has its baseline
+        about 15px down, so the column starts 65px below the dial's top and
+        the status baseline lands on the centre line. On a phone the dial
+        stacks above the text and the offset is not wanted.
+      */}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-8">
         <Dial face="full" live={live} frozen={frozen} />
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-2 sm:pt-[65px]">
           <p className="mono text-sm uppercase tracking-[0.08em] text-[color:var(--text-primary)]">
             {line}
           </p>
@@ -401,7 +431,7 @@ export function WorkingMark({
 
   return (
     <svg
-      viewBox={SQUARE}
+      viewBox={ARC_BOX}
       className={`working-dial working-mark inline-block flex-shrink-0 ${className}`}
       data-face="mark"
       aria-hidden="true"

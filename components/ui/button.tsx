@@ -3,6 +3,7 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@tappet/core/utils';
+import { WorkingMark } from '@/components/Working';
 
 /**
  * The button primitive — v8 §8a.
@@ -157,17 +158,72 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /**
+   * The control started work and is waiting on it — the wait instrument's
+   * brief, line B7 (11 Sep).
+   *
+   * ── What a busy button is, and is not ─────────────────────────────────────
+   *
+   * Every busy control in the app used to swap its label for a spinning
+   * glyph and its own label — `{loading ? <><Loader2/>Saving</> : 'Save'}` —
+   * which changed the button's width mid-press and left the state in the
+   * button's ordinary voice. A busy button now drops to the outlined form at
+   * its rest width, and says what it is doing in the system's state voice:
+   * the wait mark and a mono, uppercase, cyan status beside it.
+   *
+   * ⚠ Not `disabled`. A control that becomes `disabled` mid-press loses
+   * keyboard focus, and its `disabled:` styles would paint the grey fill over
+   * the outline. `aria-busy` and `aria-disabled` say the same thing to
+   * assistive tech, the click is swallowed here, and pointer events are off —
+   * so a double press cannot fire twice and focus stays where it was. Callers
+   * should pass `busy`, not `disabled={loading}`.
+   *
+   * The rest label is kept in the same grid cell, invisible, so the button
+   * is exactly as wide as its widest state and nothing beside it shifts.
+   */
+  busy?: boolean;
+  /** What it is doing, present tense. Defaults to the children. */
+  busyLabel?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, busy = false, busyLabel, children, onClick, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+
+    if (busy && !asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant: 'outline', size, className }), 'pointer-events-none')}
+          ref={ref}
+          aria-busy="true"
+          aria-disabled="true"
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault()}
+          {...props}
+        >
+          <span className="grid place-items-center">
+            {/* The rest label, holding the width; not for anyone to read. */}
+            <span aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center">
+              {children}
+            </span>
+            <span className="col-start-1 row-start-1 inline-flex items-center gap-2 mono text-xs uppercase tracking-[0.08em] text-[color:var(--info-strong)]">
+              <WorkingMark className="h-3.5 w-3.5" />
+              {busyLabel ?? children}
+            </span>
+          </span>
+        </Comp>
+      );
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        onClick={onClick}
+        disabled={disabled}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     );
   }
 );

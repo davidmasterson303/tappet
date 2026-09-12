@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Heart } from 'lucide-react';
-import { WorkingMark } from '@/components/Working';
 import { useWishlist } from '@/hooks/useWishlist';
 
 interface ModWishlistButtonProps {
@@ -53,19 +52,12 @@ export default function ModWishlistButton({
         isSaved ? 'h-7 text-xs hover:border-red-600 hover:text-red-600' : 'h-7 text-xs'
       }
       onClick={toggleWishlist}
-      disabled={wishlistLoading || loading}
+      disabled={loading}
+      busy={wishlistLoading}
+      busyLabel={isSaved ? 'Removing' : 'Adding'}
     >
-      {wishlistLoading ? (
-        <>
-          <WorkingMark className="h-3 w-3 mr-1" />
-          {isSaved ? 'Removing' : 'Adding'}
-        </>
-      ) : (
-        <>
-          <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
-          {isSaved ? 'Remove from Needs' : 'Add to Needs'}
-        </>
-      )}
+      <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
+      {isSaved ? 'Remove from Needs' : 'Add to Needs'}
     </Button>
   );
 }

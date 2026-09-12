@@ -597,7 +597,20 @@ export function VehicleIdentity({
             standing beside the instrument rather than a band above it — they
             stack as before.
           */}
-          <div className="absolute inset-0 flex flex-row items-center justify-center gap-3 px-4 sm:flex-col sm:gap-4">
+          {/*
+            While the plate is being drawn the cluster is left-anchored to the
+            inset frame's padding edge rather than centred — the wait
+            instrument's brief (B3), which reads a centred cluster as a modal.
+            The absence states keep the centred line the dashboard critique
+            asked for; only the wait moves.
+          */}
+          <div
+            className={
+              emptyWorking && emptyLine
+                ? 'absolute inset-0 flex flex-row items-center justify-start gap-3 px-7'
+                : 'absolute inset-0 flex flex-row items-center justify-center gap-3 px-4 sm:flex-col sm:gap-4'
+            }
+          >
             {/*
               ── ⚠ Visible on every viewport, and the tracking is why ─────────
 
