@@ -381,6 +381,7 @@ export function AdvisorScreen({
       */}
       <RootScreen
         title="Advisor"
+        plate="advisor"
         pinned={
           vehicleTitle ? (
             <View style={styles.context}>

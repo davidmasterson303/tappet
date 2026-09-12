@@ -52,16 +52,13 @@
     },
     {
       "name": "expo-mobile-fixtures",
-      "runtimeExecutable": "env",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "EXPO_PUBLIC_DESIGN_FIXTURES=1",
-        "EXPO_PUBLIC_DESIGN_PHOTO_URL=http://localhost:8081/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg",
-        "npx",
-        "expo",
-        "start"
+        "-c",
+        "EXPO_PUBLIC_DESIGN_FIXTURES=1 EXPO_PUBLIC_DESIGN_PHOTO_URL=\"http://localhost:$PORT/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg\" exec npx expo start --port \"$PORT\""
       ],
       "cwd": "apps/mobile",
-      "port": 8081
+      "autoPort": true
     }
   ]
 }

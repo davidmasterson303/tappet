@@ -1454,6 +1454,76 @@ corners, if rounded, should take the 45° cut. Two cut items the critic
 raised and this loop did not take: the `sliders` icon on "What is driving
 this score", and the search field's fill (the third gap above).
 
+### 6.11 Every root opens on the night — the masthead plates, 11 Sep
+
+David, looking at the phone after round 23: *"the tabs with images look
+dramatically better right now … let's add images"* — Garage and Vehicle carry
+the plate, Service, Plan and Advisor opened on graphite. The direction agrees
+with him: the film is *"carried by imagery and colour grade while the
+interface itself stays flat"*, and a root with no imagery had nothing carrying
+it. So the three roots' title band takes a plate (`MastheadPlate`): the night
+runs under the status bar to the band's bottom edge, the root's name sits over
+its lower third in condensed caps — the grammar B2 gives the model name on
+the garage's plate — with one 8pt 45° cut, and the plate fades out with the
+large title as the band collapses, so the mono nav title lands on graphite
+like the native header a pushed Service arrives under. The band's height and
+every screen's layout are unchanged; the night is *added* as the title's
+ground.
+
+**The frames** are three generated 21:9 stills — the closed workshop's wet
+apron (Service), the road ahead under receding lamps (Plan), the street's
+lights through a rain-covered windscreen from the driver's seat (Advisor) —
+one shared prompt in the brief's vocabulary, the mobile north star as the
+reference, US$0.80 for six candidates (`design-loop/cost-log.jsonl`). None
+holds a car, a badge, a person or a word, so the trademark question
+`public/vehicles/CREDITS.md` raises about the demo cars does not arise.
+`apps/mobile/scripts/build-mastheads.mjs` records the prompt, the crop and
+the grade; the three committed JPEGs are 1206 × 351 and 50–70 KB each, and
+are the artefact — the frames stay in the gitignored loop folder.
+
+⚠ **Type is printed straight onto these plates, and that is a deliberate
+reading of a rule, not a breach of it.** `HeroBed`'s docblock: the rule was
+never "no type on photographs" but *"no type whose contrast depends on the
+photograph"*. The vehicle hero satisfies it with an opaque bed because its
+photograph is the owner's and unknown; a masthead is a *known* file, so it is
+made to carry the floor itself — a multiply ramp baked into the lower half by
+the build script — and `lib/__tests__/mobile-masthead-plates.test.ts` decodes
+the shipped pixels under the title and under ACCOUNT and measures the ink
+against them (≥ 4.5:1 for both, held to the normal floor rather than the
+large-text one). Neither rendered contrast suite can see this: an `Image` has
+no `backgroundColor`, so the title measures against the page there and would
+pass at a ratio it does not achieve. A scrim was rejected because it would
+dissolve the plate's edge and the cut that round 22 fought to make visible.
+
+⚠ **The masthead's cut is bottom-right, and this answers half of a
+parking-lot question.** The garage plate cuts top-right (B2's words); a
+masthead's top edge *is* the screen's, so its only corners on the page are
+the bottom two, and bottom-right is the corner every control cuts. The
+Vehicle plate — the other half of the question, "which corner, if any, given
+it runs under the status bar" — is unchanged and still for David.
+
+⚠ **Why the band did not grow.** A taller plate was tried on paper and
+rejected for two structural reasons: `AccountControl` floats on the nav row
+from *outside* the navigator, so air added above the title would leave
+ACCOUNT alone in the plate's lit upper half; and the collapse is a threshold
+flip, so every point added to the band is a point the content jumps by on
+the first scroll (`RootScreen`'s docblock says why it cannot track the
+finger). At 117pt on the 16 Pro the image is a masthead strip; the lamps sit
+behind the status bar the way the vehicle plate's bokeh does.
+
+**Two things the loop's tooling had wrong, fixed in passing.** An agent's
+worktree links `node_modules` and `design-loop` into the main checkout, and
+Metro refused the first import (`Unable to resolve "expo"`) because the real
+paths fell outside its one watch folder — `metro.config.js` now watches the
+real path of each link when it differs, which in the main tree adds nothing.
+And `expo-mobile-fixtures` in `.claude/launch.json` hard-coded port 8081 —
+David's phone's Metro — in both its port and the owner-photo URL; it is
+`autoPort` now, with the photo URL following `$PORT`.
+
+⚠ **Seen and not taken:** Service's *Due* segment opens on a bordered card
+("Still around 66,000 miles?") — B5 says cards become hairline bands. It is
+not in the five graded frames, which shoot History; it is for the next loop.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
