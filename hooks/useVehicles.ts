@@ -30,37 +30,18 @@ export interface GarageVehicle {
 const GARAGE_COLUMNS = `
   id,year,make,model,trim,color,current_mileage,image_url,custom_image_url,
   performance_mindedness,ownership_objective,created_at,
-  vehicle_status,avg_miles_per_month,focal_point_x,focal_point_y,
+  vehicle_status,avg_miles_per_month,focal_point_x,focal_point_y,plate_key,
   nhtsa_data(recalls),
   vehicle_health_summary(health_score,summary,red_flags)
 `;
 
-/**
- * `GARAGE_COLUMNS` plus the generation plate's key — asked for once, and
- * without it if the database refuses.
- *
- * ── ⚠ The window between a deploy and a migration ────────────────────────
- *
- * `vehicles.plate_key` arrives with `20260912010000`, which David applies by
- * hand. PostgREST rejects the *whole* query for one unknown column (`42703`)
- * — CLAUDE.md §1 records the dashboard that never showed a recall for exactly
- * this reason — so naming the column in `GARAGE_COLUMNS` would empty both
- * garages on every deploy that lands before the migration does. The column
- * is asked for here instead, and on `42703` the query is re-run without it:
- * the cards render, the plate is simply not there yet. Same shape as
- * `lib/nhtsa-row.ts`. Delete the retry once the migration is confirmed live
- * (`node scripts/check-migrations.mjs --pending`).
- */
-const PLATE_COLUMN = ',plate_key';
-
-async function selectGarage(
-  build: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>,
-) {
-  const withPlate = await build(GARAGE_COLUMNS + PLATE_COLUMN);
-  if (withPlate.error?.code !== '42703') return withPlate;
-  return build(GARAGE_COLUMNS);
-}
-
+/*
+  `plate_key` is in the column list since 12 Sep. It was asked for with a
+  42703 fallback while `20260912010000` waited on the SQL editor — PostgREST
+  rejects the whole query for one unknown column (CLAUDE.md §1) — and the
+  retry was deleted the day the migration was confirmed live, as its note
+  said to.
+*/
 /**
  * The three seeded demo vehicles.
  *
@@ -77,13 +58,11 @@ export function useDemoVehicles() {
   return useQuery({
     queryKey: ['vehicles', 'demo'],
     queryFn: async () => {
-      const { data, error } = await selectGarage((columns) =>
-        supabase
-          .from('vehicles')
-          .select(columns)
-          .eq('is_demo', true)
-          .order('created_at', { ascending: true }),
-      );
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select(GARAGE_COLUMNS)
+        .eq('is_demo', true)
+        .order('created_at', { ascending: true });
 
       if (error) throw new Error(error.message);
       return (data || []) as unknown as GarageVehicle[];
@@ -119,14 +98,12 @@ export function useMyVehicles() {
     // fires with no user on first paint and caches an empty garage.
     enabled: !loading && !!user?.id,
     queryFn: async () => {
-      const { data, error } = await selectGarage((columns) =>
-        supabase
-          .from('vehicles')
-          .select(columns)
-          .eq('user_id', user!.id)
-          .eq('is_demo', false)
-          .order('created_at', { ascending: true }),
-      );
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select(GARAGE_COLUMNS)
+        .eq('user_id', user!.id)
+        .eq('is_demo', false)
+        .order('created_at', { ascending: true });
 
       if (error) throw new Error(error.message);
       return (data || []) as unknown as GarageVehicle[];
