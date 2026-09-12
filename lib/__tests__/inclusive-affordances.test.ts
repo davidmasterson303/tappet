@@ -36,6 +36,7 @@ import { join } from 'node:path';
 const ROOT = join(__dirname, '..', '..');
 const CSS = readFileSync(join(ROOT, 'app', 'globals.css'), 'utf8');
 const GAUGE = readFileSync(join(ROOT, 'components', 'ClusterGauge.tsx'), 'utf8');
+const WORKING = readFileSync(join(ROOT, 'components', 'Working.tsx'), 'utf8');
 
 /** The block the gauge's high-contrast behaviour lives in. */
 function forcedColorsBlock(): string {
@@ -85,6 +86,29 @@ describe('the gauge survives a palette the user chose', () => {
       (part) => CSS.includes(`.${part}`) && !GAUGE.includes(part)
     );
 
+    expect(orphaned).toEqual([]);
+  });
+
+  it('restates the wait instrument too, in classes it actually renders', () => {
+    /*
+      The wait instrument (components/Working.tsx, 11 Sep) borrows the dial's
+      geometry and inherits its failure: under forced colours a cyan sweep and
+      a grey dashed track flatten to one CanvasText, which is a full ring with
+      a bite out of it and nothing to say which part is moving. Same fix, same
+      guard — the block must restate the parts, and the parts it names must be
+      classes the component still renders.
+
+      ⚠ The anti-vacuous half is the first assertion. If the `.working-` rules
+      were deleted from the stylesheet, the orphan scan below would find no
+      orphans and pass — so the block has to name the parts before their
+      pairing is checked.
+    */
+    const block = forcedColorsBlock();
+    const parts = ['working-track', 'working-sweep', 'working-terminal', 'working-stage-mark'];
+
+    for (const part of parts) expect(block).toContain(`.${part}`);
+
+    const orphaned = parts.filter((part) => CSS.includes(`.${part}`) && !WORKING.includes(part));
     expect(orphaned).toEqual([]);
   });
 

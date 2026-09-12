@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { vehicleField } from '@tappet/core/vehicle-identity';
 import { vehicleBlurData } from '@tappet/core/vehicle-blur';
 import { cardSlotSource } from '@tappet/core/photo-slots';
+import { Working } from '@/components/Working';
 
 /**
  * What a vehicle looks like — one component, two variants.
@@ -96,6 +97,13 @@ interface VehicleIdentityProps {
    * the default line.
    */
   emptyLine?: string | null;
+  /**
+   * The empty line is a wait, not an absence: the plate is being drawn right
+   * now, and the card is polling for it. Renders `emptyLine` inside the wait
+   * instrument so the plate reads as alive rather than as missing. Off for
+   * `failed`, which is an absence again, and for the default line.
+   */
+  emptyWorking?: boolean;
   className?: string;
 }
 
@@ -146,6 +154,7 @@ export function VehicleIdentity({
   emptyHeight,
   emptyAction,
   emptyLine = null,
+  emptyWorking = false,
   className = '',
 }: VehicleIdentityProps) {
   /*
@@ -588,7 +597,20 @@ export function VehicleIdentity({
             standing beside the instrument rather than a band above it — they
             stack as before.
           */}
-          <div className="absolute inset-0 flex flex-row items-center justify-center gap-3 px-4 sm:flex-col sm:gap-4">
+          {/*
+            While the plate is being drawn the cluster is left-anchored to the
+            inset frame's padding edge rather than centred — the wait
+            instrument's brief (B3), which reads a centred cluster as a modal.
+            The absence states keep the centred line the dashboard critique
+            asked for; only the wait moves.
+          */}
+          <div
+            className={
+              emptyWorking && emptyLine
+                ? 'absolute inset-0 flex flex-row items-center justify-start gap-3 px-7'
+                : 'absolute inset-0 flex flex-row items-center justify-center gap-3 px-4 sm:flex-col sm:gap-4'
+            }
+          >
             {/*
               ── ⚠ Visible on every viewport, and the tracking is why ─────────
 
@@ -604,12 +626,22 @@ export function VehicleIdentity({
               both wrapped. Tracked at 0.08em they fit on one line together,
               which is what the compact row was always supposed to be.
             */}
-            <p
-              className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55"
-              aria-live={emptyLine ? 'polite' : undefined}
-            >
-              {emptyLine ?? 'No photograph yet'}
-            </p>
+            {emptyWorking && emptyLine ? (
+              /*
+                The plate is being drawn (11 Sep): the same mono line, inside
+                the wait instrument, so an empty plate that is about to fill
+                does not read as one that never will. `Working` carries the
+                live region itself.
+              */
+              <Working variant="compact" line={emptyLine} />
+            ) : (
+              <p
+                className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55"
+                aria-live={emptyLine ? 'polite' : undefined}
+              >
+                {emptyLine ?? 'No photograph yet'}
+              </p>
+            )}
             {emptyAction}
           </div>
 

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
 
 interface MaintenanceHistoryDialogProps {
   open: boolean;
@@ -143,7 +142,6 @@ export default function MaintenanceHistoryDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
       /*
         ── ⚠ UI-01 · white on cyan is 1.81:1 ─────────────────────────────────
 
@@ -170,15 +168,9 @@ export default function MaintenanceHistoryDialog({
         missed, it is **unrepresentable**; and the scan has no concept of a
         background, so white-on-cyan and white-on-black are the same input.
       */
+              busy={isLoading} busyLabel="Adding"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding
-                </>
-              ) : (
-                'Add to History'
-              )}
+              Add to History
             </Button>
           </div>
         </form>

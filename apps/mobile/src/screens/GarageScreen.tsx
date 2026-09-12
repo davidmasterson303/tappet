@@ -13,7 +13,6 @@ import {
 import { apiRequest, ApiRequestError } from '../api/client';
 import Button from '../components/Button';
 import AlertBanner from '../components/AlertBanner';
-import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
 import GarageBay from '../components/GarageBay';
@@ -229,28 +228,18 @@ function VehicleBay({
       active={active}
       onOpen={onOpen}
       onOpenService={onOpenService}
-      alert={
-        recallCount > 0 ? (
-          /*
-            Recalls stay on the bay rather than moving to the detail screen.
-            They are the one thing on this payload that can be time-critical,
-            and a garage that shows a car's condition but not its open safety
-            defect is showing the reassuring half.
+      /*
+        Recalls stay on the bay rather than moving to the detail screen. They
+        are the one thing on this payload that can be time-critical, and a
+        garage that shows a car's condition but not its open safety defect is
+        showing the reassuring half.
 
-            ⚠ **R19: `alert`, not `footer`, as of 23 Aug.** This was a 22pt chip
-            under a 110pt dial. A full-width critical row above the instrument
-            is the correction, and it is a hierarchy fix rather than a styling
-            one — the dial goes back to being the resting state of a car with
-            nothing wrong.
-          */
-          <View style={styles.bayAlert}>
-            <Chip
-              label={`${recallCount} open recall${recallCount === 1 ? '' : 's'}`}
-              tone="critical"
-            />
-          </View>
-        ) : null
-      }
+        ⚠ 11 Sep: a count, where a chip used to be handed in. R19 (23 Aug) put
+        a sodium-outlined chip above the instrument; the locked brief runs
+        strip → dial, and the bay draws the recall as a hairline spec row under
+        the dial now. `GarageBay` carries the argument.
+      */
+      recallCount={recallCount}
     />
   );
 }
@@ -766,8 +755,6 @@ const styles = StyleSheet.create({
     one device. The first gap is the batten's own.
   */
   page: { paddingBottom: space.lg, gap: space.md, flexGrow: 1 },
-  /* R19. Full width above the dial; the chip keeps its own intrinsic width. */
-  bayAlert: { paddingHorizontal: space.lg, flexDirection: 'row' },
   loadingList: { gap: space.md },
   /* Loading and error sit under the same band as the list. */
   stateScreen: { flex: 1, padding: space.lg, paddingTop: 0 },

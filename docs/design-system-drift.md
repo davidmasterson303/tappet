@@ -1454,6 +1454,202 @@ corners, if rounded, should take the 45° cut. Two cut items the critic
 raised and this loop did not take: the `sliders` icon on "What is driving
 this score", and the search field's fill (the third gap above).
 
+### 6.11 Every root opens on the night — the masthead plates, 11 Sep
+
+David, looking at the phone after round 23: *"the tabs with images look
+dramatically better right now … let's add images"* — Garage and Vehicle carry
+the plate, Service, Plan and Advisor opened on graphite. The direction agrees
+with him: the film is *"carried by imagery and colour grade while the
+interface itself stays flat"*, and a root with no imagery had nothing carrying
+it. So the three roots' title band takes a plate (`MastheadPlate`): the night
+runs under the status bar to the band's bottom edge, the root's name sits over
+its lower third in condensed caps — the grammar B2 gives the model name on
+the garage's plate — with one 8pt 45° cut, and the plate fades out with the
+large title as the band collapses, so the mono nav title lands on graphite
+like the native header a pushed Service arrives under. The band's height and
+every screen's layout are unchanged; the night is *added* as the title's
+ground.
+
+**The frames** are three generated 21:9 stills — the closed workshop's wet
+apron (Service), the road ahead under receding lamps (Plan), the street's
+lights through a rain-covered windscreen from the driver's seat (Advisor) —
+one shared prompt in the brief's vocabulary, the mobile north star as the
+reference, US$0.80 for six candidates (`design-loop/cost-log.jsonl`). None
+holds a car, a badge, a person or a word, so the trademark question
+`public/vehicles/CREDITS.md` raises about the demo cars does not arise.
+`apps/mobile/scripts/build-mastheads.mjs` records the prompt, the crop and
+the grade; the three committed JPEGs are 1206 × 351 and 50–70 KB each, and
+are the artefact — the frames stay in the gitignored loop folder.
+
+⚠ **Type is printed straight onto these plates, and that is a deliberate
+reading of a rule, not a breach of it.** `HeroBed`'s docblock: the rule was
+never "no type on photographs" but *"no type whose contrast depends on the
+photograph"*. The vehicle hero satisfies it with an opaque bed because its
+photograph is the owner's and unknown; a masthead is a *known* file, so it is
+made to carry the floor itself — a multiply ramp baked into the lower half by
+the build script — and `lib/__tests__/mobile-masthead-plates.test.ts` decodes
+the shipped pixels under the title and under ACCOUNT and measures the ink
+against them (≥ 4.5:1 for both, held to the normal floor rather than the
+large-text one). Neither rendered contrast suite can see this: an `Image` has
+no `backgroundColor`, so the title measures against the page there and would
+pass at a ratio it does not achieve. A scrim was rejected because it would
+dissolve the plate's edge and the cut that round 22 fought to make visible.
+
+⚠ **The masthead's cut is bottom-right, and this answers half of a
+parking-lot question.** The garage plate cuts top-right (B2's words); a
+masthead's top edge *is* the screen's, so its only corners on the page are
+the bottom two, and bottom-right is the corner every control cuts. The
+Vehicle plate — the other half of the question, "which corner, if any, given
+it runs under the status bar" — is unchanged and still for David.
+
+⚠ **Why the band did not grow.** A taller plate was tried on paper and
+rejected for two structural reasons: `AccountControl` floats on the nav row
+from *outside* the navigator, so air added above the title would leave
+ACCOUNT alone in the plate's lit upper half; and the collapse is a threshold
+flip, so every point added to the band is a point the content jumps by on
+the first scroll (`RootScreen`'s docblock says why it cannot track the
+finger). At 117pt on the 16 Pro the image is a masthead strip; the lamps sit
+behind the status bar the way the vehicle plate's bokeh does.
+
+**Two things the loop's tooling had wrong, fixed in passing.** An agent's
+worktree links `node_modules` and `design-loop` into the main checkout, and
+Metro refused the first import (`Unable to resolve "expo"`) because the real
+paths fell outside its one watch folder — `metro.config.js` now watches the
+real path of each link when it differs, which in the main tree adds nothing.
+And `expo-mobile-fixtures` in `.claude/launch.json` hard-coded port 8081 —
+David's phone's Metro — in both its port and the owner-photo URL; it is
+`autoPort` now, with the photo URL following `$PORT`.
+
+⚠ **Seen and not taken:** Service's *Due* segment opens on a bordered card
+("Still around 66,000 miles?") — B5 says cards become hairline bands. It is
+not in the five graded frames, which shoot History; it is for the next loop.
+
+### 6.12 The loop over the mastheads — round 24 onward, 11 Sep
+
+**Round 24 — 7/10, 4 ✅ / 5 🟡 / 0 ❌, `Continue: yes`.** The critic took the
+mastheads without objection — *"Service (one lit door) and Advisor (a wet
+windscreen) have a light source and a reason"* — and named the Plan frame the
+one AI tell left: an open road with sodium down one side and cyan down the
+other *"reads as a grade swatch, not a place"*. It asked for *"one night place
+with one light source (underpass, forecourt canopy)"*, which is what the Plan
+plate is now: the road entering an underpass under one sodium lamp, the exit
+a cyan haze — two more candidates, US$0.27, US$1.07 in all. The four 🟡 lines
+are frames the five screens cannot show (draw-in, factors, the collapse, the
+viewfinder) and the plate's cut *"not resolvable at this scale"*, which round
+22 already measured at native resolution; round 23 had marked the same lines
+✅ with the same caveats. Critic variance, recorded rather than chased.
+
+**Taken, with measurements first:**
+
+- **Garage runs strip → dial → readings** (gap 1, `[B2][B3][B6]`). NEXT
+  SERVICE and the recalls chip sat between the strip and the dial and ~140pt
+  of graphite sat under FAIR. The dial now comes straight off the strip, as
+  the studio paragraph writes it, and the two facts sit beneath it as a
+  two-row spec table — mono label left, value right, hairline per row, the
+  sodium `△` beside OPEN RECALLS, the count in the numeral column; the chip
+  is gone. ⚠ **This supersedes R19's placement** (23 Aug: *"an open airbag
+  recall outranks a fair score"*, so the alert went above the instrument).
+  R19 was written against a 22pt chip under a 110pt dial; what it argued for
+  — the recall seen, full width, above the fold — survives, and what it
+  argued *with* — a position above the dial — gives way to the locked brief.
+  `GarageScreen.test.tsx`'s hierarchy case is re-pointed to the new order and
+  now also holds the mark beside the row and nowhere else.
+- **Spec rows are 56pt** (gap 4, `[B6]`, measured). The service record's lines
+  measured 44 — `TARGET_MIN` plus the paddings they carried, in a card with a
+  12pt gap. They sit in their own container now, each row `SPEC_ROW` tall
+  with the text centred. `SPEC_ROW` lives beside `TARGET_MIN`, not in
+  `rhythm`: `theme-backdrop.test.tsx` holds every rhythm slot to the 4pt
+  scale and fired on 56, and it was right — a row height is not a gap.
+- **The numeral was measured and left alone** (gap 4). The bay dial's reading
+  is `0.34 ×` the dial's width — 56pt on the 164pt bay dial — which is the
+  north star's own ratio (its 68 sits at ~0.32 of its arc). The studio
+  paragraph's *"88pt"* was written against the web hero dial; on a 164pt dial
+  88pt would nearly touch the arc. B3's checklist line says *dominant*, and
+  the reading is the largest thing on the screen. Not changed.
+
+**A real defect the screenshots found.** After the second visit to Plan or
+Service the list sat ~60pt low under its rail, with nothing in the gap.
+`useRefetchOnFocus` passed the caller's `load` straight to
+`addListener('focus', …)`, so the focus *event* arrived as `load(isRefresh)`
+and every return to a tab ran as a pull-to-refresh; with a response that
+resolved in the same frame — the fixtures do, a cached answer would — iOS's
+refresh control began and ended before drawing and left its inset behind.
+Fixed in the hook (`() => reload()`), guarded in
+`screens-refetch-on-focus.test.ts`. It survived four graded rounds because
+each tab was shot on its first visit.
+
+**Parking lot — for David, with the facts the loop found:**
+
+- *The strip: MILEAGE · AVG · RELIABILITY* (gap 2, asked in four rounds).
+  `avg_miles_per_month` **is** on both the garage and the vehicle payloads;
+  `reliability_score` is on the vehicle payload only (`load-vehicle` selects
+  the whole knowledge-base row) and not on the garage list, and it is the
+  researcher's 1–10 with a `.default(5)` — a guessed value §10 would not
+  print. Web's mobile dossier shows the trim **in the model name** ("ACCORD
+  SPORT 1.5T") and the strip as MILEAGE · AVG · RELIABILITY with DAILY DRIVER
+  as a chip. Moving TRIM off the phone's strip therefore means moving it into
+  the name line, and RELIABILITY needs `GARAGE_COLUMNS` to embed the
+  knowledge base — an API change that must promote before a build can rely
+  on it (CLAUDE.md §8). Two decisions, neither the loop's.
+- *The Vehicle plate's height* (gap 3). Round 23 praised the tall crop;
+  round 24 called it *"the poster the direction warns against"* and asked
+  for the garage's height. The hero mirrors web's `--hero-h: clamp(400,
+  62svh, 560)` and carries the pullback's whole motion design; the
+  web-reference *mobile* dossier, though, places a contained plate under the
+  identity rather than a 62svh hero. Which of the two the phone follows is a
+  design call; both critics cannot be satisfied by a number.
+- *The sliders icon on "What is driving this score"* — cut twice (rounds 23
+  and 24). `NavRow` makes `icon` required for a stated reason (an optional
+  icon gets omitted under deadline; a lone bare row reads as a fault), so
+  dropping it there is a contract change, not a deletion.
+- *ABOUT 2015 BMW M235I on Advisor* — cut once. R52 argued it in: the line
+  names what the thread is about, which matters in a two-car garage.
+- *Whether three tabs need three stills* — the critic's own question, and
+  David's to answer; the loop built what he asked for.
+- *Which screen owns the dial* — the reading appears on Garage as the dial
+  and on Vehicle as `70 FAIR`; the critic asks which is the instrument.
+
+**Round 25 — 7/10, 3 ✅ / 6 🟡 / 0 ❌, `Continue: yes`.** Flat, and the loop's
+own rule says two flat rounds stop it. It ran one more, deliberately: the
+critic's top gap was not taste but a measurement it asked for and this
+implementer had refused the round before — *"the dial is under-scaled … the
+web dial fills about two-thirds of the phone width … measure, do not
+eyeball"* — and the critic said one more round *"should close rather than
+drift"*. Measured against `web-reference/dossier-dashboard-mobile.png`, it
+was right: the web dial on a phone-width viewport spans ~62% of the width
+(~240pt) with a numeral of 48 in a 200-unit viewBox (~86pt), and the bay's
+dial was 164pt with a 56pt reading — the same *ratio* as the north star, at
+two-thirds of the web's *size*. §6.12's earlier note ("left alone") had
+measured the ratio and not the dial. `BAY_DIAL` is 240 and
+`ClusterGauge.HERO_NUMERAL` is `88 / 240`, so the reading is the brief's 88
+on the dial the web draws; the cyan `BayLightPool` under it is gone (B7
+lists cyan's three jobs and a decorative pool is not one; on every graded
+frame it was invisible air), and the readings table lost its own top margin.
+On the 16 Pro the second reading row still ends 40pt above the tab bar; on a
+4.7″ display the dial is whole above the fold and the two rows scroll.
+
+The two cuts the critic could not resolve were measured at native resolution
+from `25-screens/`: the garage plate's top-right notch recedes one page-
+coloured pixel per row over 24px (8pt at 3×), and the search field's
+bottom-right is a 36px diagonal (12pt) carrying its hairline stroke. Both
+present; nothing changed. The collapsed mono nav title was shot as an extra
+frame for round 26 (`03b-service-collapsed.png`, Service scrolled to its
+foot: SERVICE in mono on graphite, the plate gone with the large title, the
+rail and the primary risen with the band). The factors table cannot be shown
+from the fixtures (the health summary carries no drivers), the viewfinder is
+a build, and pull-to-refresh is a gesture; three frames the loop cannot
+supply, recorded rather than staged.
+
+Gap 3 — *"grotesk label, mono value"* for the two rows under the Vehicle
+plate, and one slot for OPEN RECALLS on both screens — was checked against
+the web reference and not taken: web's own spec table (`vehicle-record.png`)
+labels its rows in **mono** caps with mono values right, which is exactly
+what Garage's readings are; round 24 asked for that, round 25 reads B6's
+"grotesk label" the other way. The Vehicle hub's `NavRow`s are a different
+object (sans label, icon, chevron) and are where the mismatch actually
+lives; it joins the parking lot with the sliders glyph rather than being
+re-voiced on the strength of one reading.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

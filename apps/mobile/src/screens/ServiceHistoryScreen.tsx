@@ -32,7 +32,7 @@ import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
 import { useRootScroll } from '../components/RootScreen';
-import { border, cut, FIELD_FONT_MIN, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { border, cut, FIELD_FONT_MIN, PAGE_BODY, radius, SPEC_ROW, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -495,7 +495,14 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
               {/*
                 The line items, nested. The divider is between them rather than
                 around each, because they are parts of one thing.
+
+                ⚠ 11 Sep · B6: in a container of their own, with no gap, so a
+                row is `SPEC_ROW` from rule to rule. Laid out as siblings
+                of the head they took the card's 12pt gap on top of their own
+                padding and measured 44 — `TARGET_MIN` by accident, not the
+                table's 56 — which critique 24 measured against the brief.
               */}
+              <View style={styles.lines}>
               {visit.records.map((record, index) => {
                 /*
                   ⚠ Neither the shop nor the date: both are the visit heading
@@ -614,6 +621,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                   </SwipeToRemove>
                 );
               })}
+              </View>
 
               {/*
                 ── R17 · provenance once, on the parent, where it is true ────
@@ -770,7 +778,15 @@ const styles = StyleSheet.create({
   visitTotal: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
 
   /* ── the line items, nested inside it ───────────────────────────────────── */
-  line: { gap: 4 },
+  /*
+    ⚠ 11 Sep · B6: *"hairline per 56pt row"*. The lines sit in their own
+    container with no gap, and each row is `SPEC_ROW` tall with its text
+    centred — 18 above the rule, 18 below — rather than 12 of padding plus the
+    card's 12 of gap, which is how the table came to measure 44. A second line
+    of meta grows the row; it never shrinks it.
+  */
+  lines: {},
+  line: { gap: 4, minHeight: SPEC_ROW, justifyContent: 'center', paddingVertical: space.lg },
   /*
     Between lines, not around each: they are parts of one object. Inset to the
     card's own padding so the rule reads as a seam rather than a slice.
@@ -786,7 +802,6 @@ const styles = StyleSheet.create({
   lineDivided: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,
-    paddingTop: space.md,
   },
 
   /*

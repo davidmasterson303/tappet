@@ -14,7 +14,9 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, CircleCheck as CheckCircle, Wrench, TriangleAlert as AlertTriangle, Sparkles, Loader as Loader2, FileText, History, Eye, ListChecks } from 'lucide-react';
+import { Plus, Trash2, CircleCheck as CheckCircle, Wrench, TriangleAlert as AlertTriangle, Sparkles, FileText, History, Eye, ListChecks } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { getQuoteRequestHistory } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
@@ -176,15 +178,21 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
   }, 0);
 
   if (loading) {
+    /*
+      A layout hold, not a wait: the list comes from one cached query and the
+      shape of what is arriving is known. So the quiet skeleton — the system's
+      shimmer band — and not the instrument, which is for a person who is
+      actually waiting on work.
+    */
     return (
-      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 sm:p-6">
+      <div className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-5">
-          <div className="h-6 w-24 bg-white/8 rounded-lg animate-pulse" />
-          <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-8 w-24" />
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
+            <Skeleton key={i} className="h-20" />
           ))}
         </div>
       </div>
@@ -338,7 +346,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                           aria-label="Remove item"
                         >
                           {deletingId === item.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <WorkingMark className="h-3.5 w-3.5" />
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
@@ -402,8 +410,8 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
 
           <div className="space-y-2 mt-2">
             {loadingQuotes ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-info" />
+              <div className="flex items-center justify-center py-10">
+                <Working panel={false} line="Loading past quotes" />
               </div>
             ) : quoteHistory.length === 0 ? (
               <div className="text-center py-12">

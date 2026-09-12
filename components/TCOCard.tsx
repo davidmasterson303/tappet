@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, TrendingDown, Fuel, Wrench, ShieldCheck, ChevronRight, ToggleLeft, ToggleRight, Info, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { calculateTCO } from '@tappet/core/tco-calculator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TCOCardProps {
   vehicle: any;
@@ -198,9 +199,9 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
     return (
       <Card className="bg-slate-900/60 border-white/10">
         <CardContent className="pt-6 pb-6">
-          <div className="flex items-center gap-3 animate-pulse">
-            <div className="w-8 h-8 bg-white/10 rounded-lg" />
-            <div className="h-5 bg-white/10 rounded w-48" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-8 h-8" />
+            <Skeleton className="h-5 w-48" />
           </div>
         </CardContent>
       </Card>

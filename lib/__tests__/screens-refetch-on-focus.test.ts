@@ -101,4 +101,29 @@ describe('screens whose data can change while they are backgrounded', () => {
 
     expect(code).not.toMatch(/useFocusEffect/);
   });
+
+  it('the hook calls the loader with no arguments, not with the focus event', () => {
+    /*
+      ⚠ Every caller's `load` is `load(isRefresh = false)`. A listener receives
+      the focus event, so `addListener('focus', reload)` runs every return to a
+      tab as a pull-to-refresh — and a refresh that begins and ends in one
+      frame leaves iOS's refresh control inset behind with no spinner in it, a
+      60pt void under the rail that appeared on the second visit only. Found
+      11 Sep from the screenshots, four rounds after it shipped.
+    */
+    const hook = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'navigation', 'useRefetchOnFocus.ts'),
+      'utf8'
+    );
+    const code = hook
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('/*'))
+      .join('\n');
+
+    expect(code).toMatch(/addListener\('focus', \(\) => reload\(\)\)/);
+    expect(code).not.toMatch(/addListener\('focus', reload\)/);
+
+    /* The anti-vacuous half: the pattern that is banned really is a pattern this reader sees. */
+    expect("navigation.addListener('focus', reload)").toMatch(/addListener\('focus', reload\)/);
+  });
 });

@@ -13,6 +13,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { Button } from '@/components/ui/button';
 import RegisterSwitch from '@/components/RegisterSwitch';
+import { Working } from '@/components/Working';
 
 export type { PlanSegment };
 
@@ -133,10 +134,12 @@ function PlanPageInner({ params }: { params: { vehicleId: string } }) {
         {error ? (
           <p className="text-sm text-white/50">Could not load this car&apos;s plan.</p>
         ) : (
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
-            <p className="text-sm text-white/50">Loading plan…</p>
-          </div>
+          /*
+            `delay`: a plan served from the query cache resolves in well under
+            350ms, and the instrument never paints for it. A cold load shows
+            the dial after that, which is the wait a person actually notices.
+          */
+          <Working delay line="Opening the plan" />
         )}
       </div>
     );

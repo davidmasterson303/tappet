@@ -13,7 +13,7 @@
  * not exist yet and therefore cannot complain.
  */
 
-import { resolveVehiclePhoto, resolveVehiclePhotos } from '../vehicle-photo';
+import { clearVehiclePhoto, resolveVehiclePhoto, resolveVehiclePhotos } from '../vehicle-photo';
 import { STORED_URL_SCHEME, storedUrl } from '@tappet/core/storage-paths';
 import { DEMO_UNPHOTOGRAPHED_VEHICLE_IDS } from '@tappet/core/demo';
 
@@ -318,5 +318,132 @@ describe('resolveVehiclePhotos', () => {
 
       expect(batch.get(VEHICLE_ID)).toBe(single);
     }
+  });
+});
+
+/*
+  ── The generation plate, and taking a photograph back off a car (11 Sep) ───
+
+  The plate ranks last, after the owner's photograph and the stock image —
+  the same precedence `useVehicleImage` keeps on the web — and only a `ready`
+  row resolves; a drawing or failed one leaves the car on its fallback. Two
+  cars on one key cost one query. `clearVehiclePhoto` is the body the web
+  action and the phone's DELETE share: object first, then the three columns.
+*/
+const PLATE_KEY = 'bmw/2-series/f22';
+const PLATE_URL = 'https://x.supabase.co/storage/v1/object/public/garage-images/plates/bmw/2-series/f22/hero-3x2.jpg';
+
+function clientWithPlates(rows: Array<{ key: string; status: string; hero_path: string | null }>) {
+  const calls: string[] = [];
+  const client = {
+    calls,
+    storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: 'signed' }, error: null }), createSignedUrls: async () => ({ data: [], error: null }) }) },
+    from: (table: string) => {
+      calls.push(table);
+      const filters: Array<[string, unknown]> = [];
+      const builder = {
+        select: () => builder,
+        in: (col: string, vals: string[]) => { filters.push([col, vals]); return builder; },
+        eq: (col: string, val: unknown) => { filters.push([col, val]); return builder; },
+        then: (resolve: (v: unknown) => unknown) => {
+          const keys = (filters.find(([c]) => c === 'key')?.[1] as string[]) ?? [];
+          const status = filters.find(([c]) => c === 'status')?.[1];
+          const data = rows.filter((r) => keys.includes(r.key) && (!status || r.status === status));
+          return Promise.resolve({ data, error: null }).then(resolve);
+        },
+      };
+      return builder;
+    },
+  };
+  return client as unknown as import('@supabase/supabase-js').SupabaseClient & { calls: string[] };
+}
+
+describe('the generation plate', () => {
+  const env = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  beforeAll(() => { process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://x.supabase.co'; });
+  afterAll(() => { process.env.NEXT_PUBLIC_SUPABASE_URL = env; });
+
+  it('resolves a ready plate to its public hero for a car with no photograph', async () => {
+    const client = clientWithPlates([{ key: PLATE_KEY, status: 'ready', hero_path: 'plates/bmw/2-series/f22/hero-3x2.jpg' }]);
+    await expect(resolveVehiclePhoto(VEHICLE_ID, { plate_key: PLATE_KEY }, client)).resolves.toBe(PLATE_URL);
+  });
+
+  it('leaves the car on nothing while the plate draws or after it failed', async () => {
+    const drawing = clientWithPlates([{ key: PLATE_KEY, status: 'generating', hero_path: null }]);
+    await expect(resolveVehiclePhoto(VEHICLE_ID, { plate_key: PLATE_KEY }, drawing)).resolves.toBeNull();
+    const failed = clientWithPlates([{ key: PLATE_KEY, status: 'failed', hero_path: null }]);
+    await expect(resolveVehiclePhoto(VEHICLE_ID, { plate_key: PLATE_KEY }, failed)).resolves.toBeNull();
+  });
+
+  it('ranks last: an owner photo or a stock image wins, and the plate is never asked for', async () => {
+    const client = clientWithPlates([{ key: PLATE_KEY, status: 'ready', hero_path: 'plates/bmw/2-series/f22/hero-3x2.jpg' }]);
+    await expect(resolveVehiclePhoto(VEHICLE_ID, { image_url: '/vehicles/m3/hero-3x2.jpg', plate_key: PLATE_KEY }, client)).resolves.toBe('/vehicles/m3/hero-3x2.jpg');
+    await expect(resolveVehiclePhoto(VEHICLE_ID, { custom_image_url: storedUrl(`${VEHICLE_ID}/photos/a.webp`), plate_key: PLATE_KEY }, client)).resolves.toBe('signed');
+    expect(client.calls.filter((t) => t === 'vehicle_plates')).toHaveLength(0);
+  });
+
+  it('asks once for a garage of cars on the same plate', async () => {
+    const client = clientWithPlates([{ key: PLATE_KEY, status: 'ready', hero_path: 'plates/bmw/2-series/f22/hero-3x2.jpg' }]);
+    const resolved = await resolveVehiclePhotos(
+      [
+        { id: 'a', plate_key: PLATE_KEY },
+        { id: 'b', plate_key: PLATE_KEY },
+        { id: 'c', image_url: '/vehicles/m3/hero-3x2.jpg' },
+      ],
+      client,
+    );
+    expect(resolved.get('a')).toBe(PLATE_URL);
+    expect(resolved.get('b')).toBe(PLATE_URL);
+    expect(resolved.get('c')).toBe('/vehicles/m3/hero-3x2.jpg');
+    expect(client.calls.filter((t) => t === 'vehicle_plates')).toHaveLength(1);
+  });
+});
+
+describe('clearVehiclePhoto', () => {
+  function clientForRemoval(opts: { path: string | null; removeError?: string; updateError?: string }) {
+    const log: string[] = [];
+    const client = {
+      log,
+      storage: {
+        from: () => ({
+          remove: async (paths: string[]) => {
+            log.push(`remove:${paths.join(',')}`);
+            return { error: opts.removeError ? { message: opts.removeError } : null };
+          },
+        }),
+      },
+      from: () => ({
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { custom_image_storage_path: opts.path }, error: null }) }) }),
+        update: (patch: Record<string, unknown>) => ({
+          eq: async () => {
+            log.push(`update:${Object.keys(patch).sort().join(',')}`);
+            return { error: opts.updateError ? { message: opts.updateError } : null };
+          },
+        }),
+      }),
+    };
+    return client as unknown as import('@supabase/supabase-js').SupabaseClient & { log: string[] };
+  }
+
+  it('deletes the object first, then nulls the three columns', async () => {
+    const client = clientForRemoval({ path: `${VEHICLE_ID}/photos/a.webp` });
+    await expect(clearVehiclePhoto(client, VEHICLE_ID)).resolves.toEqual({ success: true });
+    expect(client.log).toEqual([
+      `remove:${VEHICLE_ID}/photos/a.webp`,
+      'update:custom_image_storage_path,custom_image_uploaded_at,custom_image_url',
+    ]);
+  });
+
+  it('skips the object when there is none, and still clears the columns', async () => {
+    const client = clientForRemoval({ path: null });
+    await expect(clearVehiclePhoto(client, VEHICLE_ID)).resolves.toEqual({ success: true });
+    expect(client.log).toEqual(['update:custom_image_storage_path,custom_image_uploaded_at,custom_image_url']);
+  });
+
+  it('a failed object delete is not fatal; a failed row update is', async () => {
+    const tolerated = clientForRemoval({ path: 'p', removeError: 'gone already' });
+    await expect(clearVehiclePhoto(tolerated, VEHICLE_ID)).resolves.toEqual({ success: true });
+    const fatal = clientForRemoval({ path: 'p', updateError: 'rls' });
+    await expect(clearVehiclePhoto(fatal, VEHICLE_ID)).resolves.toEqual({ success: false, error: 'Failed to remove photo' });
   });
 });

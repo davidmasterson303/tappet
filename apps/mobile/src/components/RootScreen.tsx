@@ -24,6 +24,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useReducedMotion } from '../motion/reduced-motion';
 import { border, space, surface, text, type } from '../theme';
+import MastheadPlate, { MASTHEADS, type MastheadKey } from './MastheadPlate';
 import { TITLE_BAND } from './ScreenTitle';
 
 /**
@@ -73,6 +74,18 @@ import { TITLE_BAND } from './ScreenTitle';
  * screen. `canGoBack()` is the same question `rootTitle` asks, and the pushed
  * instance renders only the pinned block and the content.
  *
+ * ── ⚠ 11 Sep · the band is a plate on three roots ───────────────────────────
+ *
+ * Service, Plan and Advisor name a `plate`, and the band draws that night
+ * behind the large title — full-bleed under the status bar, the name over its
+ * lower third, one 8pt cut bottom-right — and takes it away with the title as
+ * the band collapses, so the mono nav title sits on graphite like a native
+ * header's. `MastheadPlate` carries the argument, the frames and the rule that
+ * lets a title be printed on a photograph here. The band's *height* does not
+ * change for a plate: `AccountControl` floats on the nav row from outside the
+ * navigator, and air added above the title would leave ACCOUNT alone in the
+ * plate's lit upper half.
+ *
  * ── Outside a navigator ─────────────────────────────────────────────────────
  *
  * Every screen suite mounts its screen bare. Both context reads return nothing
@@ -115,6 +128,7 @@ export type RootScrollProps = RootScroll | null;
 
 export default function RootScreen({
   title,
+  plate,
   leading,
   trailing,
   pinned,
@@ -123,6 +137,14 @@ export default function RootScreen({
 }: {
   /** The root's name. Caps are applied here — the same rule as `ScreenTitle`. */
   title: string;
+  /**
+   * The night behind the name — see `MastheadPlate`.
+   *
+   * ⚠ Named, not passed as a source, so the guard can hold that each image
+   * root opens on its own plate. Omitted on the garage, whose plate is the
+   * car's: a masthead over the bay would be two nights on one screen.
+   */
+  plate?: MastheadKey;
   /** Sits before the large title on its row — the garage's mark. */
   leading?: ReactNode;
   /** Sits at the row's trailing edge — the garage's `+`. Collapses with the title. */
@@ -215,6 +237,23 @@ export default function RootScreen({
       <View style={[styles.screen, style]}>
         {hasHeader ? null : (
           <Animated.View style={[styles.band, { height }]}>
+            {/*
+              ── ⚠ 11 Sep · the night is the large title's ground ───────────
+
+              Drawn first, so the titles sit on it; faded with the large title,
+              so the collapsed band is graphite like the native header a pushed
+              instance arrives under. The band clips, so the plate's cut corner
+              — painted at the expanded height — slides away with the name
+              rather than surviving on the nav row.
+            */}
+            {plate ? (
+              <Animated.View
+                style={[StyleSheet.absoluteFill, { opacity: largeOpacity }]}
+                pointerEvents="none"
+              >
+                <MastheadPlate source={MASTHEADS[plate]} height={expanded} />
+              </Animated.View>
+            ) : null}
             <Animated.View
               style={[styles.large, { top: top + space.sm, opacity: largeOpacity }]}
               pointerEvents={collapsed ? 'none' : 'auto'}

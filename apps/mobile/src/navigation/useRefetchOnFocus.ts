@@ -55,7 +55,21 @@ export function useRefetchOnFocus(
       The listener is added rather than the effect firing on mount: every caller
       already loads in its own mount effect, and doing it twice on open is a
       duplicated GET for nothing.
+
+      ── ⚠ 11 Sep · `() => reload()`, never `reload` itself ───────────────────
+
+      Every caller's `load` is `load(isRefresh = false)`, and a listener is
+      handed the focus **event**. Passing `reload` straight through made that
+      event the first argument, so every return to a tab ran as a
+      pull-to-refresh: `setRefreshing(true)`, the request, `setRefreshing(false)`
+      — and when the request resolved inside the same frame (the design
+      fixtures do; a cached answer would) iOS's refresh control was told to
+      begin and end before it had drawn, and left its ~60pt content inset
+      behind with no spinner in it. On the phone that read as a void under the
+      rail on the second visit to Plan or Service and on no first visit, which
+      is how it survived four graded rounds. Nothing threw; the list was simply
+      lower than it had been, which reads as layout.
     */
-    return navigation.addListener('focus', reload);
+    return navigation.addListener('focus', () => reload());
   }, [navigation, reload, enabled]);
 }

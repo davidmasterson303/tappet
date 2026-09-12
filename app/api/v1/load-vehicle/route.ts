@@ -158,7 +158,17 @@ export async function GET(request: NextRequest): Promise<Response> {
     */
     const [vehicleResult, knowledgeResult, historyResult, healthHistoryResult] =
       await Promise.all([
-      supabase.from('vehicles').select(VEHICLE_COLUMNS).eq('id', vehicleId).maybeSingle(),
+      // `plate_key` with a 42703 fallback — see the same note in `vehicles/route.ts`.
+      supabase
+        .from('vehicles')
+        .select(VEHICLE_COLUMNS + ',plate_key')
+        .eq('id', vehicleId)
+        .maybeSingle()
+        .then((result) =>
+          result.error?.code === '42703'
+            ? supabase.from('vehicles').select(VEHICLE_COLUMNS).eq('id', vehicleId).maybeSingle()
+            : result,
+        ),
       supabase.from('vehicle_knowledge_base').select('*').eq('vehicle_id', vehicleId).maybeSingle(),
       supabase
         .from('maintenance_line_items')

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Heart, Loader2 } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 
 interface ModWishlistButtonProps {
@@ -30,7 +30,14 @@ export default function ModWishlistButton({
   return (
     <Button
       size={size}
-      variant={isSaved ? 'outline' : 'default'}
+      /*
+        Outlined in both states — the wait instrument's critique (02, Cut),
+        11 Sep: on the mods list each card carried two filled off-white
+        buttons, six on the page, and the one that starts the work — Analyze
+        Mod — had nothing to distinguish it. The filled form is that
+        control's; this one is a secondary action and reads as one.
+      */
+      variant="outline"
       /*
         ── ⚠ UI-01 / UI-03 · both halves of this were unreadable ─────────────
 
@@ -52,19 +59,12 @@ export default function ModWishlistButton({
         isSaved ? 'h-7 text-xs hover:border-red-600 hover:text-red-600' : 'h-7 text-xs'
       }
       onClick={toggleWishlist}
-      disabled={wishlistLoading || loading}
+      disabled={loading}
+      busy={wishlistLoading}
+      busyLabel={isSaved ? 'Removing' : 'Adding'}
     >
-      {wishlistLoading ? (
-        <>
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          {isSaved ? 'Removing' : 'Adding'}
-        </>
-      ) : (
-        <>
-          <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
-          {isSaved ? 'Remove from Needs' : 'Add to Needs'}
-        </>
-      )}
+      <Heart className={`h-3 w-3 mr-1 ${isSaved ? 'fill-current' : ''}`} />
+      {isSaved ? 'Remove from Needs' : 'Add to Needs'}
     </Button>
   );
 }

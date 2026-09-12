@@ -3,6 +3,7 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@tappet/core/utils';
+import { WorkingMark } from '@/components/Working';
 
 /**
  * The button primitive — v8 §8a.
@@ -157,17 +158,96 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /**
+   * The control started work and is waiting on it — the wait instrument's
+   * brief, line B7 (11 Sep).
+   *
+   * ── What a busy button is, and is not ─────────────────────────────────────
+   *
+   * Every busy control in the app used to swap its label for a spinning
+   * glyph and its own label — `{loading ? <><Loader2/>Saving</> : 'Save'}` —
+   * which changed the button's width mid-press and left the state in the
+   * button's ordinary voice. A busy button now drops to the outlined form at
+   * its rest width, and says what it is doing in the system's state voice:
+   * the wait mark and a mono, uppercase, cyan status beside it.
+   *
+   * ⚠ Not `disabled`. A control that becomes `disabled` mid-press loses
+   * keyboard focus, and its `disabled:` styles would paint the grey fill over
+   * the outline. `aria-busy` and `aria-disabled` say the same thing to
+   * assistive tech, the click is swallowed here, and pointer events are off —
+   * so a double press cannot fire twice and focus stays where it was. Callers
+   * should pass `busy`, not `disabled={loading}`.
+   *
+   * The rest label is kept in the same grid cell, invisible, so the button
+   * is exactly as wide as its widest state and nothing beside it shifts.
+   */
+  busy?: boolean;
+  /** What it is doing, present tense. Defaults to the children. */
+  busyLabel?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, busy = false, busyLabel, children, onClick, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+
+    if (busy && !asChild) {
+      return (
+        <Comp
+          /*
+            ⚠ The rest variant's classes, not `outline`'s. A fitted default
+            button has no border; swapping to the outline variant adds 1px a
+            side and the busy form comes out 2px wider — measured on the
+            specimen after the first fix. So the box model is the rest
+            variant's, and the outlined look is painted with an inset CSS
+            `outline`, which takes no layout: transparent fill, the field
+            border colour, drawn 1px inside the edge where a real border
+            would be. On the outline variant it lands on the border pixel.
+          */
+          className={cn(
+            buttonVariants({ variant, size, className }),
+            'relative pointer-events-none !bg-transparent text-[color:var(--info-strong)]',
+            'outline outline-1 -outline-offset-1 outline-[color:var(--border-field)]'
+          )}
+          ref={ref}
+          aria-busy="true"
+          aria-disabled="true"
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault()}
+          {...props}
+        >
+          {/*
+            ── The rest label sets the width; the status is painted over it ──
+
+            The first form put both labels in one grid cell, which holds the
+            wider of the two — so "Analyze Mod" grew by a tenth when it read
+            ANALYZING (critique 02, and the DOM agreed). Now only the rest
+            label is in flow, invisible, and the status is absolutely
+            positioned over the whole control: the busy form is the rest
+            form's measured width, never a minimum. A status longer than the
+            control clips rather than grows, which is a defect the specimen
+            shows instead of a shift nobody sees — so busy labels on fitted
+            buttons are one word, at the ledger's 12px mono.
+          */}
+          <span aria-hidden="true" className="invisible inline-flex items-center">
+            {children}
+          </span>
+          <span className="absolute inset-0 flex items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap px-1 mono text-xs uppercase tracking-[0.06em] text-[color:var(--info-strong)]">
+            <WorkingMark className="h-3.5 w-3.5" />
+            {busyLabel ?? children}
+          </span>
+        </Comp>
+      );
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        onClick={onClick}
+        disabled={disabled}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     );
   }
 );

@@ -6,6 +6,7 @@ import {
   vehicleIdFromStoragePath,
 } from '@tappet/core/storage-paths';
 import { isUnphotographedDemoVehicle } from '@tappet/core/demo';
+import { platePublicUrl } from '@tappet/core/plates';
 
 /** Matches the web's signed-URL lifetime (app/actions.ts). */
 export const SIGNED_URL_TTL_SECONDS = 3600;
@@ -13,7 +14,11 @@ export const SIGNED_URL_TTL_SECONDS = 3600;
 export interface VehiclePhotoColumns {
   image_url?: string | null;
   custom_image_url?: string | null;
+  /** The generation plate the car stands on with neither of the above (11 Sep). */
+  plate_key?: string | null;
 }
+
+export const VEHICLE_PHOTO_BUCKET = 'vehicle-documents';
 
 /**
  * Turn a vehicle's stored image columns into one renderable URL.
@@ -43,10 +48,14 @@ export async function resolveVehiclePhoto(
   const plan = planVehiclePhoto(vehicleId, vehicle);
 
   if (plan.kind === 'resolved') return plan.url;
+  if (plan.kind === 'plate') {
+    const plates = await readyPlateUrls([plan.key], client);
+    return plates.get(plan.key) ?? plan.fallback;
+  }
 
   try {
     const { data, error } = await client.storage
-      .from('vehicle-documents')
+      .from(VEHICLE_PHOTO_BUCKET)
       .createSignedUrl(plan.path, SIGNED_URL_TTL_SECONDS);
 
     if (error || !data) {
@@ -82,18 +91,26 @@ export async function resolveVehiclePhotos(
 ): Promise<Map<string, string | null>> {
   const resolved = new Map<string, string | null>();
   const toSign: { id: string; path: string; fallback: string | null }[] = [];
+  const onPlates: { id: string; key: string; fallback: string | null }[] = [];
 
   for (const vehicle of vehicles) {
     const plan = planVehiclePhoto(vehicle.id, vehicle);
     if (plan.kind === 'resolved') resolved.set(vehicle.id, plan.url);
+    else if (plan.kind === 'plate') onPlates.push({ id: vehicle.id, key: plan.key, fallback: plan.fallback });
     else toSign.push({ id: vehicle.id, path: plan.path, fallback: plan.fallback });
+  }
+
+  // One round trip for every car on a plate, however many share a key.
+  if (onPlates.length > 0) {
+    const plates = await readyPlateUrls(onPlates.map((entry) => entry.key), client);
+    for (const entry of onPlates) resolved.set(entry.id, plates.get(entry.key) ?? entry.fallback);
   }
 
   if (toSign.length === 0) return resolved;
 
   try {
     const { data, error } = await client.storage
-      .from('vehicle-documents')
+      .from(VEHICLE_PHOTO_BUCKET)
       .createSignedUrls(
         toSign.map((entry) => entry.path),
         SIGNED_URL_TTL_SECONDS
@@ -128,7 +145,41 @@ export async function resolveVehiclePhotos(
 
 type PhotoPlan =
   | { kind: 'resolved'; url: string | null }
-  | { kind: 'sign'; path: string; fallback: string | null };
+  | { kind: 'sign'; path: string; fallback: string | null }
+  | { kind: 'plate'; key: string; fallback: string | null };
+
+/**
+ * The public hero URL of every `ready` plate among `keys`, in one query.
+ *
+ * `vehicle_plates` is readable by every role, so whichever client the caller
+ * holds can ask. A plate that is still drawing, or failed, is simply absent
+ * from the map and the car keeps its fallback — the house plate on the phone,
+ * exactly as the web's `useVehicleImage` resolves it. Never throws.
+ */
+async function readyPlateUrls(keys: string[], client: SupabaseClient): Promise<Map<string, string>> {
+  const urls = new Map<string, string>();
+  const unique = Array.from(new Set(keys));
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (unique.length === 0 || !base) return urls;
+  try {
+    const { data, error } = await client
+      .from('vehicle_plates')
+      .select('key,status,hero_path')
+      .in('key', unique)
+      .eq('status', 'ready');
+    if (error) {
+      // The table arrives with a migration; before it, every car keeps its fallback.
+      logger.warn('VEHICLE_PHOTO', 'Could not read plates', { error: error.message });
+      return urls;
+    }
+    for (const row of (data ?? []) as Array<{ key: string; hero_path: string | null }>) {
+      if (row.hero_path) urls.set(row.key, platePublicUrl(base, row.hero_path));
+    }
+  } catch (error) {
+    logger.warn('VEHICLE_PHOTO', 'Plate read threw', { error });
+  }
+  return urls;
+}
 
 /**
  * Decide what a vehicle's photo should be, without doing any I/O.
@@ -154,8 +205,17 @@ function planVehiclePhoto(vehicleId: string, vehicle: VehiclePhotoColumns): Phot
     */
     const isMalformedStored = vehicle.custom_image_url?.startsWith(STORED_URL_SCHEME);
     const passthrough = isMalformedStored ? null : vehicle.custom_image_url;
+    const url = passthrough || vehicle.image_url || null;
 
-    return { kind: 'resolved', url: passthrough || vehicle.image_url || null };
+    /*
+      The generation plate ranks last (11 Sep), after the owner's photograph
+      and the stock image, and is the same precedence `useVehicleImage` keeps
+      on the web. The plan names the key; the resolvers look it up, because
+      whether it is ready is a database fact and this function does no I/O.
+    */
+    if (!url && vehicle.plate_key) return { kind: 'plate', key: vehicle.plate_key, fallback: null };
+
+    return { kind: 'resolved', url };
   }
 
   /*
@@ -173,4 +233,57 @@ function planVehiclePhoto(vehicleId: string, vehicle: VehiclePhotoColumns): Phot
   }
 
   return { kind: 'sign', path: storedPath, fallback: vehicle.image_url || null };
+}
+
+/**
+ * Remove the owner's photograph — one implementation for both clients.
+ *
+ * ── ⚠ Why this is here (11 Sep) ─────────────────────────────────────────────
+ *
+ * David, on the phone: *"i can't delete the image i uploaded on the app, so i
+ * can't revert to seeing the new default images for my car."* The web has had
+ * `removeVehiclePhoto` since the photo dialog gained its Remove button; the
+ * phone had no way to remove at all, and its API had no route for one. The
+ * body of the web action lives here so `DELETE /api/v1/upload-photo` and the
+ * action do exactly the same three things and cannot drift: delete the
+ * storage object, then null the three columns that describe it.
+ *
+ * ⚠ Order matters and is kept: the object first, the row second. If the row
+ * were cleared first and the delete failed, the object would be orphaned with
+ * nothing pointing at it; this way a failed delete leaves the row intact and
+ * the photo still shows, which is the honest state. A storage delete that
+ * fails is logged and not fatal — the columns are what every surface reads.
+ *
+ * The caller authorises. This trusts the client it is handed, which is the
+ * vehicle-scoped client `authorizeVehicleAccess` returns.
+ */
+export async function clearVehiclePhoto(
+  client: SupabaseClient,
+  vehicleId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const { data: vehicle, error: vehicleError } = await client
+    .from('vehicles')
+    .select('custom_image_storage_path')
+    .eq('id', vehicleId)
+    .maybeSingle();
+  if (vehicleError) {
+    logger.error('PHOTO:REMOVE_FETCH', new Error(vehicleError.message), { vehicleId });
+    return { success: false, error: 'Failed to fetch vehicle' };
+  }
+  const path = (vehicle as { custom_image_storage_path?: string | null } | null)?.custom_image_storage_path;
+  if (path) {
+    const { error: deleteError } = await client.storage.from(VEHICLE_PHOTO_BUCKET).remove([path]);
+    if (deleteError) {
+      logger.warn('PHOTO:REMOVE_OBJECT', 'Failed to delete storage file', { vehicleId, error: deleteError.message });
+    }
+  }
+  const { error: updateError } = await client
+    .from('vehicles')
+    .update({ custom_image_url: null, custom_image_storage_path: null, custom_image_uploaded_at: null })
+    .eq('id', vehicleId);
+  if (updateError) {
+    logger.error('PHOTO:REMOVE_UPDATE', new Error(updateError.message), { vehicleId });
+    return { success: false, error: 'Failed to remove photo' };
+  }
+  return { success: true };
 }

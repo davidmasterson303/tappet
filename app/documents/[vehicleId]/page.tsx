@@ -7,6 +7,7 @@ import ServiceDueList from '@/components/ServiceDueList';
 import { useWishlistData } from '@/hooks/useWishlistData';
 import { useQueryClient as useQC } from '@tanstack/react-query';
 import { FileText, CircleCheck as CheckCircle2, MessageSquare, Plus } from 'lucide-react';
+import { Working } from '@/components/Working';
 import { formatDate } from '@tappet/core/formatting-utils';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -222,7 +223,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
     if (isLoading) {
       return (
         <div className="min-h-screen bg-[#080808] flex items-center justify-center">
-          <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
+          <Working delay line="Opening the service record" />
         </div>
       );
     }
@@ -412,7 +413,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
 
         {loadingHistory && !visits && (
           <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-info-border border-t-info rounded-full animate-spin" />
+            <Working delay line="Reading the service record" />
           </div>
         )}
 

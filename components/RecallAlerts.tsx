@@ -3,7 +3,8 @@
 import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check, Loader as Loader2 } from 'lucide-react';
+import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -188,7 +189,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                         className="tap-target-44 self-start flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/12 hover:bg-white/20 border border-white/25 hover:border-white/40 text-white text-xs font-semibold transition-all disabled:opacity-50"
                       >
                         {isAddressing ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <WorkingMark className="h-3.5 w-3.5" />
                         ) : (
                           <Check className="h-3.5 w-3.5" />
                         )}

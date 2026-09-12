@@ -80,7 +80,7 @@ export function PlanScreen({
   ) : null;
 
   return (
-    <RootScreen title="Plan" pinned={pinned}>
+    <RootScreen title="Plan" plate="plan" pinned={pinned}>
       {segment === 'mods' && showsMods ? (
         <BuildScreen
           vehicleId={vehicleId}

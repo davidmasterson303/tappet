@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader as Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -300,15 +300,8 @@ export function SettingsView({
                 `bg-primary` was already the default variant's fill, so the whole
                 override said nothing except "and make the hover unreadable".
               */}
-              <Button onClick={handleSave} disabled={saving || !dirty || Boolean(nameError)}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
-                    Saving…
-                  </>
-                ) : (
-                  'Save changes'
-                )}
+              <Button onClick={handleSave} disabled={!dirty || Boolean(nameError)} busy={saving} busyLabel="Saving">
+                Save changes
               </Button>
             </div>
 
@@ -319,17 +312,10 @@ export function SettingsView({
               <Button
                 variant="outline"
                 onClick={handleExport}
-                disabled={exporting}
                 className="border-border"
+                busy={exporting} busyLabel="Preparing"
               >
-                {exporting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
-                    Preparing…
-                  </>
-                ) : (
-                  'Export my data'
-                )}
+                Export my data
               </Button>
             </SettingsSection>
 

@@ -395,6 +395,14 @@ const STATIC_ANALYSIS_SUITES = [
   // while being wrong, consulted precisely when nobody has time to re-derive the
   // facts.
   'identifiers-match-the-register.test.ts',
+  // Reads app/, components/ and hooks/ for the markers every replaced wait
+  // indicator was built from — Tailwind's spin/pulse/bounce, Lucide's Loader2,
+  // the hand-rolled ring, a framer infinite loop — and requires each hit to be
+  // on an allow-list with a reason. Nothing to import: the subject is which
+  // class names a file still carries, and importing the instrument that
+  // replaced them tells you nothing about who did not adopt it. The failure it
+  // pins is silent in the ordinary way: a twenty-first spinner renders fine.
+  'one-wait-instrument.test.ts',
 ];
 
 /**
