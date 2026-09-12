@@ -190,12 +190,29 @@
 > `public/vehicles/CREDITS.md`; the prompt asks badges away and the model does
 > not always oblige.
 >
-> **Also that evening, in agent worktrees:** every mobile tab root got a
-> masthead plate and the critic loop ran again from round 24; and the loading
-> states became one instrument — the dial's ignition sweep held until the work
-> is done, real stages only, the un-analysed mod card an empty state instead of
-> skeleton bars — with its own short loop. Results in the commits and in drift
-> §6 / §14 once merged.
+> **Overnight into 12 Sep, in agent worktrees, merged and promoted:**
+>
+> - **The wait instrument** (`292b31d`…`49e403c`, drift §14) — every wait on
+>   the web is one instrument: the dial's ignition sweep, held until the work
+>   is done; a mono state line; real stages only where the process reports
+>   them (the scanner's two, the upload queue's "File 2 of 3"); never a
+>   percentage. The un-analysed mod card is an empty state, not a wait. Critic
+>   **5 → 7 → 8 → 8 → 9, 9 of 9 lines** — the first surface to reach 9. The
+>   advisor's five-stage `setInterval` "thinking" list became two real stages
+>   (uploading, then answering); the page shell's last two rings went on
+>   12 Sep (`b20dec6`) and `one-wait-instrument.test.ts`'s allow-list is
+>   empty. ⚠ The phone has not adopted it; §14 lists its nine skeleton loads
+>   and the `ActivityIndicator` sites, with the `react-native-svg` note for
+>   the pip (`ClusterGauge.tsx` already records there is no `pathLength`).
+> - **Mobile mastheads** (`1b10a02`…`fee512c`, drift §6.11–§6.12) — every tab
+>   root opens on the night; the critic accepted them (B5 ✅ on all five) and
+>   held at 7 with four lines 🟡 for states never in frame. A second agent is
+>   continuing from round 26, capturing those states, and building **Remove
+>   photo** on the Vehicle screen.
+> - **The phone's photograph and plate** (`c876ad2`) — `DELETE
+>   /api/v1/upload-photo` shares one body with the web's Remove; the phone's
+>   API resolves a ready plate server-side, so plates reach the phone with no
+>   mobile code. Metro was restarted for a merged `metro.config.js`.
 >
 > #### Open, and David's
 >
