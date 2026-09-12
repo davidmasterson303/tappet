@@ -93,7 +93,43 @@ export default function OnboardVinForm() {
       return;
     }
 
-    setVehicleData(result.vehicle);
+    /*
+      ── The plate starts here, not at save (11 Sep) ─────────────────────────
+
+      Year, make and model are known the moment the VIN decodes, and that is
+      all a generation plate needs. Asking now — before the form, ahead of the
+      research call — is what keeps the first owner of a generation from ever
+      waiting on it: the image draws behind the twenty-odd seconds the wizard
+      and the research already take. Not awaited, and its failure is nothing
+      the form needs to know about; the car stands on the house plate until
+      the library answers. `keepalive` so a fast Continue does not cancel it.
+    */
+    const decoded = result.vehicle;
+    if (!decoded) {
+      setError('Failed to decode VIN');
+      return;
+    }
+    let plateKey: string | null = null;
+    const ensure = fetch('/api/v1/plates/ensure', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        year: decoded.year,
+        make: decoded.make,
+        model: decoded.model,
+        trim: decoded.trim,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        plateKey = json?.data?.key ?? null;
+        setVehicleData((current: any) => (current ? { ...current, plateKey } : current));
+      })
+      .catch(() => undefined);
+    void ensure;
+
+    setVehicleData({ ...decoded, plateKey });
     setShowWizard(true);
   };
 

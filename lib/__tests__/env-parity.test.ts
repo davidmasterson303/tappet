@@ -33,6 +33,10 @@ const SOURCE_FILES = ['middleware.ts'];
  */
 const PLATFORM_PROVIDED = new Set([
   'NODE_ENV',
+  // Netlify's own deploy-time variable for the site's primary address; read
+  // by `lib/plates.ts` to reach the background function, exactly as
+  // `netlify/functions/notify-sweep.mts` reads it. Never set by hand.
+  'URL',
   'BRANCH',
   'COMMIT_REF',
   'HEAD',

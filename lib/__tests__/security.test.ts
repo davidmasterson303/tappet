@@ -232,4 +232,34 @@ describe('Middleware: route protection', () => {
       expect(middlewareConfig.matcher.some((m) => m.startsWith('/demo'))).toBe(false);
     });
   });
+
+  describe('every per-vehicle section is protected', () => {
+    /*
+      The inverse of "covers every protected route", and the half that was
+      missing. `/plan` shipped on 8 Sep as `app/plan/[vehicleId]` and nothing
+      added it to PROTECTED_ROUTES, so for three days an anonymous visitor
+      could open any car's plan and, for one they could not read, sit on a
+      spinner for good. The list of sections is read from disk rather than
+      written here, so the next tab is caught the day it is created.
+    */
+    const fs = require('node:fs') as typeof import('node:fs');
+    const path = require('node:path') as typeof import('node:path');
+    const appDir = path.join(__dirname, '..', '..', 'app');
+    const sections = fs
+      .readdirSync(appDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, '[vehicleId]')))
+      .map((d) => `/${d.name}`);
+
+    it('finds the per-vehicle sections on disk — the anti-vacuous case', () => {
+      expect(sections).toEqual(expect.arrayContaining(['/dashboard', '/plan']));
+    });
+
+    it.each(sections)('%s is in PROTECTED_ROUTES', (section) => {
+      expect(PROTECTED_ROUTES).toContain(section);
+    });
+
+    it.each(sections)('%s stays open for the demo cars', (section) => {
+      expect(isProtectedRoute(`${section}/a1000000-0000-0000-0000-000000000001`)).toBe(false);
+    });
+  });
 });

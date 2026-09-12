@@ -1,4 +1,5 @@
 import { logger } from '@tappet/core/logger';
+import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
@@ -491,6 +492,26 @@ export async function POST(request: NextRequest): Promise<Response> {
     already triggers research when it sees that status, so the dossier fills in
     on first view rather than blocking this request for ~23 seconds.
   */
+  /*
+    The generation plate (11 Sep). The phone has no VIN-decode step of its own
+    to ask early from, so it is asked here, once the row exists: one short
+    text call and one upsert, and the image draws behind the research the
+    phone is about to wait on anyway. Never fatal to the save.
+  */
+  try {
+    const plate = await ensurePlate({
+      year: vehicle.year,
+      make: vehicle.make,
+      model: vehicle.model,
+    });
+    if (plate.key) await attachPlateToVehicle(vehicle.id, plate.key);
+  } catch (error) {
+    logger.warn('API:CREATE_VEHICLE', 'Could not attach a generation plate', {
+      vehicleId: vehicle.id,
+      error: (error as Error).message,
+    });
+  }
+
   const { error: kbError } = await client
     .from('vehicle_knowledge_base')
     .insert({ vehicle_id: vehicle.id, research_status: 'pending' });
