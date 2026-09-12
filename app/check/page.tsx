@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Camera, Loader2 } from 'lucide-react';
+import { ArrowRight, Camera } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 
 /**
@@ -22,28 +23,29 @@ import { formatCurrency } from '@tappet/core/formatting-utils';
  *
  * The honest constraint: this is one Gemini call, so there is no real token
  * stream to show — inventing fake line items resolving would be a lie about
- * work being done. What *is* true is which stage the request is in and roughly
- * how long each takes, so the stages advance on a timer that is calibrated to
- * the real distribution and **never claims to have finished a stage it cannot
- * observe.** The last stage holds until the response actually lands.
+ * work being done.
+ *
+ * ── ⚠ The timed stages are gone — 11 Sep ────────────────────────────────────
+ *
+ * The first answer to D2 was a four-stage list advancing on `setTimeout`s at
+ * 2.2s, 4s and 6s, "calibrated to the real distribution", with the last stage
+ * holding until the response landed. It never claimed to have *finished* the
+ * request, which was the argument for it — but it claimed to have finished
+ * "Reading the estimate" at 2.2 seconds and "Picking out the line items" at
+ * 4, and the client cannot observe either. Those are the boundaries
+ * `scan-progress.ts` refuses to draw for the signed-in scanner, and
+ * `b1e2baa` removed the same shape from the quote panel on 30 Aug: a stage
+ * ticked by a timer is a claim about work, made by a clock.
+ *
+ * D2's goal stands — a stranger must not be left on a spinner. What answers
+ * it now is the wait instrument the whole product uses: visibly alive for as
+ * long as the call runs, with one line that is true for the whole of it.
  *
  * ── B3 is enforced upstream, not here ───────────────────────────────────────
  *
  * The sentence is composed by `describeQuote` on the server so this component
  * cannot drift into writing its own copy. It renders what it is given.
  */
-
-type Stage = 0 | 1 | 2 | 3;
-
-const STAGES = [
-  'Reading the estimate',
-  'Picking out the line items',
-  'Comparing against typical prices',
-  'Putting it together',
-] as const;
-
-/** Calibrated to a 5–30s parse: early stages move, the last one waits. */
-const STAGE_MS = [2200, 4000, 6000] as const;
 
 interface Answer {
   job: string;
@@ -58,7 +60,6 @@ export default function CheckPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [stage, setStage] = useState<Stage>(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,16 +73,9 @@ export default function CheckPage() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  useEffect(() => {
-    if (!busy) return;
-    const timers = STAGE_MS.map((ms, i) => setTimeout(() => setStage((i + 1) as Stage), ms));
-    return () => timers.forEach(clearTimeout);
-  }, [busy]);
-
   const submit = useCallback(async () => {
     if (!file && !text.trim()) return;
     setBusy(true);
-    setStage(0);
     setError(null);
     setAnswer(null);
 
@@ -210,7 +204,7 @@ export default function CheckPage() {
             >
               {busy ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  <WorkingMark className="mr-2 h-4 w-4" />
                   Checking…
                 </>
               ) : (
@@ -218,7 +212,7 @@ export default function CheckPage() {
               )}
             </Button>
 
-            {busy && <ParseProgress stage={stage} />}
+            {busy && <ParseProgress />}
 
             {error && (
               <p role="alert" className="mt-4 text-[15px] text-[color:var(--attention)] leading-relaxed">
@@ -240,34 +234,18 @@ export default function CheckPage() {
 }
 
 /**
- * Advisory D2. Shows which stage the request is in, and never claims to have
- * finished one it cannot observe — the final stage holds until the response
- * lands, however long that takes.
+ * Advisory D2, answered without a clock. One call, one true sentence for the
+ * whole of it, and the instrument to show the call is alive. What the answer
+ * contains is knowable and is named; how far along the call is, is not.
  */
-function ParseProgress({ stage }: { stage: Stage }) {
+function ParseProgress() {
   return (
-    <ul className="mt-5 space-y-2" aria-live="polite">
-      {STAGES.map((label, i) => {
-        const done = i < stage;
-        const active = i === stage;
-        return (
-          <li
-            key={label}
-            className={`flex items-center gap-3 text-sm transition-colors ${
-              done ? 'text-[color:var(--text-muted)]' : active ? 'text-[color:var(--info-strong)]' : 'text-[color:var(--text-muted)]'
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                done ? 'bg-white/40' : active ? 'bg-[color:var(--info)] animate-pulse' : 'bg-white/15'
-              }`}
-              aria-hidden
-            />
-            {label}
-          </li>
-        );
-      })}
-    </ul>
+    <div className="mt-6">
+      <Working
+        line="Reading the estimate"
+        detail="The model reads the whole estimate in one pass and compares the job against typical prices. You will get a range and a plain answer."
+      />
+    </div>
   );
 }
 

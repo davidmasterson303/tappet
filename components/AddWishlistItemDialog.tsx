@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader as Loader2 } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { logger } from '@tappet/core/logger';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
@@ -255,7 +255,7 @@ export function AddWishlistItemDialog({
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <WorkingMark className="h-4 w-4 mr-2" />
                   Adding...
                 </>
               ) : (

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Heart, Loader2 } from 'lucide-react';
+import { Heart } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { useWishlist } from '@/hooks/useWishlist';
 
 interface ModWishlistButtonProps {
@@ -56,7 +57,7 @@ export default function ModWishlistButton({
     >
       {wishlistLoading ? (
         <>
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          <WorkingMark className="h-3 w-3 mr-1" />
           {isSaved ? 'Removing' : 'Adding'}
         </>
       ) : (

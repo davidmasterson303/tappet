@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader as Loader2 } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { generateVehicleDossier } from '@/app/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -71,7 +71,7 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
     >
       {isResearching ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <WorkingMark className="mr-2 h-4 w-4" />
           Researching...
         </>
       ) : (

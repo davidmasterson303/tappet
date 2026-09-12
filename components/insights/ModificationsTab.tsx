@@ -10,6 +10,7 @@ import { buildPosition, buildSummary } from '@tappet/core/build-progress';
 import { BuildGauge } from '@/components/BuildGauge';
 import ModificationDetailsCard from '@/components/ModificationDetailsCard';
 import ModWishlistButton from '@/components/ModWishlistButton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Mod {
   name: string;
@@ -177,7 +178,7 @@ export default function ModificationsTab({
       {loadingModNames && activeMods.length === 0 ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-white/5 rounded-lg animate-pulse" />
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
       ) : activeMods.length === 0 && doneMods.length === 0 ? (

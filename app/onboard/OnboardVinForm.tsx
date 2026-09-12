@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader as Loader2, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { decodeVIN } from '../actions';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { PageOpener } from '@/components/PageOpener';
@@ -222,7 +223,7 @@ export default function OnboardVinForm() {
               <Button type="submit" className="w-full font-semibold" disabled={loading || vin.length !== 17}>
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    <WorkingMark className="mr-2 h-4 w-4" />
                     Decoding VIN…
                   </>
                 ) : (

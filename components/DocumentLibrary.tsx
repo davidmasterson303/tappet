@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Receipt, Image, FileIcon, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { FileText, Receipt, Image, FileIcon, ChevronDown, ChevronRight } from 'lucide-react';
+import { Working } from '@/components/Working';
 import type { ConsultantDocument, InvoiceLineItem } from '@tappet/core/types';
 import { getClientSupabase } from '@/lib/supabase';
 
@@ -77,8 +78,8 @@ export default function DocumentLibrary({ vehicleId }: DocumentLibraryProps) {
           <CardTitle>Document Library</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+          <div className="flex items-center justify-center py-10">
+            <Working delay line="Loading documents" />
           </div>
         </CardContent>
       </Card>

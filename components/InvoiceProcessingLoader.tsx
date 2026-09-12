@@ -1,6 +1,5 @@
 'use client';
 
-import { CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import {
   hasScanDetailToNarrate,
   scanExtractedLine,
@@ -8,6 +7,8 @@ import {
   scanStageLabel,
   type ScanProgress,
 } from '@tappet/core/scan-progress';
+import { Working } from '@/components/Working';
+import { scanStages } from '@/lib/working';
 
 /**
  * What the invoice scanner is doing, while it does it.
@@ -68,92 +69,58 @@ export default function InvoiceProcessingLoader({
   const position = scanFilePosition(progress);
   const extracted = scanExtractedLine(progress);
 
+  /*
+    The wait instrument, with the scanner's two real stages beneath it — 11 Sep.
+
+    Both marks come from `progress.stage`, the state the upload loop actually
+    holds, so a stage is done when the loop moved past it and never because a
+    timer ran out. The file name and the queue position are the facts the
+    dialog was already keeping; the line-item count lands as files come back.
+    `Working` carries `role="status"` and `aria-live` itself, on the container,
+    so the stage and the count are read as one update rather than two — which
+    is what this component's own `aria-live` note asked for.
+
+    What went: the pulsing wash behind a document glyph and the spinning
+    glyph beside the stage. Neither said anything the instrument does not.
+  */
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 sm:px-6">
-      <div className="mb-8">
-        <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-          <div className="absolute inset-0 bg-info-wash rounded-full animate-pulse blur-xl" />
-          {/*
-            The document mark stays — it says what kind of thing is being worked
-            on, which is true. What is gone is the pair of counter-rotating rings
-            and the orbiting dot: they depicted a machine working through stages,
-            and the stages were fictional. An indeterminate spinner claims only
-            that something is in progress.
-          */}
-          <FileText className="h-12 w-12 text-info relative" aria-hidden="true" />
-        </div>
-      </div>
-
-      <div className="max-w-md w-full space-y-4">
-        {/*
-          `aria-live="polite"` rather than a silent visual. The old component
-          announced nothing at all to a screen reader — its steps were divs that
-          changed colour — so a blind user got a spinner and no account of it.
-          Polite so it does not interrupt, and on the container so the stage and
-          the count are read as one update rather than two.
-        */}
-        <div
-          className="rounded-lg border border-info-border bg-info-wash p-4 space-y-2"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2.5">
-            <Loader2 className="h-4 w-4 text-info animate-spin flex-shrink-0" aria-hidden="true" />
-            <p className="text-sm font-semibold text-info">{scanStageLabel(progress)}</p>
-          </div>
-
-          {progress.fileName && (
-            <div className="flex items-center gap-2 min-w-0">
-              <FileText className="h-3.5 w-3.5 text-white/50 flex-shrink-0" aria-hidden="true" />
-              <p className="text-sm text-white/70 truncate">{progress.fileName}</p>
-            </div>
-          )}
-        </div>
-
+    <div className="flex flex-col items-center justify-center py-10 px-4 sm:px-6">
+      <Working
+        line={scanStageLabel(progress)}
+        detail={
+          progress.fileName
+            ? position
+              ? `${progress.fileName} · ${position}`
+              : progress.fileName
+            : position ?? undefined
+        }
+        stages={scanStages(progress)}
+      >
         {/*
           ⚠ Rendered only when there is something true to put in it — handoff
           §1.4, "show nothing rather than a timer". A single file with nothing
-          back yet has exactly one true thing to say, and it is already said
-          above; this block stays absent rather than holding open a slot for
-          figures that do not exist.
+          back yet has exactly one true thing to say, and the line above says
+          it; this stays absent rather than holding open a slot for a count
+          that does not exist yet. Once a file has come back, 0 is a result
+          and is said. Off-white ink, not green: a fact, not a verdict.
         */}
-        {hasScanDetailToNarrate(progress) && (
-          <div className="space-y-2">
-            {position && (
-              <div className="flex items-center gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/8">
-                <span className="text-sm text-white/60">{position}</span>
-              </div>
-            )}
-
-            {extracted && (
-              <div className="flex items-center gap-2.5 p-3 rounded-lg bg-green-400/5 border border-green-400/20">
-                {/*
-                  The one green tick in this component, and it marks a fact: at
-                  least one file has come back with an answer. The old ticks
-                  marked timer expiries.
-                */}
-                <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-green-300">{extracted}</span>
-              </div>
-            )}
-          </div>
+        {hasScanDetailToNarrate(progress) && extracted && (
+          <p className="mono text-xs uppercase tracking-[0.14em] text-[color:var(--text-primary)]">
+            {extracted}
+          </p>
         )}
 
         {/*
-          ⚠ `/50`, not `/40`. `text-contrast-floor.test.ts` caught this on the
-          first draft: 40% white does not clear AA against this background, and
-          the fact that it is a quiet reassurance line is not a licence — it is
+          ⚠ No estimate. "A few seconds" was the closest this line ever came to
+          a number, and nobody here has measured a scan; the honest shape of a
+          wait whose length is unknown is to say what it is and ask for the tab.
+          `/50` is the floor `text-contrast-floor.test.ts` holds, and this is
           the line somebody stares at while they wait.
         */}
         <p className="text-xs text-white/50 text-center">
-          {/*
-            ⚠ No estimate. "This may take a moment" is the honest shape of a
-            wait whose length nobody here knows; "about 10 seconds" would be the
-            old defect stated in prose.
-          */}
-          Reading an invoice takes a few seconds. Leave this open.
+          The model reads the whole document at once. Leave this open.
         </p>
-      </div>
+      </Working>
     </div>
   );
 }

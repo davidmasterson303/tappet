@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Heart, Loader as Loader2 } from 'lucide-react';
+import { Clock, Heart } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { useWishlist } from '@/hooks/useWishlist';
 /**
  * What this card needs from a schedule row.
@@ -194,7 +195,7 @@ export default function MaintenanceItemCard({
         >
           {wishlistLoading ? (
             <>
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              <WorkingMark className="h-3 w-3 mr-1" />
               {isSaved ? 'Removing' : 'Adding'}
             </>
           ) : (

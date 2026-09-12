@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader as Loader2, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
 import { BrandWordmark } from '@/components/brand/BrandLockup';
 import { logger } from '@tappet/core/logger';
 import { queryClient } from '@tappet/core/query-client';
@@ -548,10 +549,18 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
               </div>
 
               {!powertrainReady && (
-                <div className="flex items-center gap-3 p-3.5 bg-info-wash border border-info-border rounded-xl">
-                  <div className="w-4 h-4 border-2 border-info-border border-t-info rounded-full animate-spin flex-shrink-0" />
-                  <p className="text-sm text-info/80">Checking available configurations...</p>
-                </div>
+                /*
+                  `fetchPowertrainOptions` is one model call, so this is the
+                  wait instrument with the facts the wizard holds and nothing
+                  else — the decode gave it the car, and the answer is a list
+                  of engines, transmissions and drivetrains.
+                */
+                <Working
+                  variant="compact"
+                  className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-3.5"
+                  line="Checking factory configurations"
+                  detail={`Engine, transmission and drivetrain options for a ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}.`}
+                />
               )}
 
               {powertrainReady && powertrainSkipped && (
@@ -907,8 +916,8 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
               >
                 {step === 1 && !powertrainReady ? (
                   <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Loading...
+                    <WorkingMark className="h-4 w-4" />
+                    Checking configurations
                   </span>
                 ) : (
                   'Continue'
@@ -922,9 +931,17 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                 disabled={loading || !formData.ownership_objective}
               >
                 {loading ? (
+                  /*
+                    ⚠ "Researching Vehicle..." was the label here, and it has
+                    not been true since onboarding stopped blocking on the
+                    research call: `createVehicle` saves the row, attaches
+                    the plate and returns, and the dossier is researched from
+                    the dashboard by `VehicleResearchStatus`. The button says
+                    what the call does.
+                  */
                   <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Researching Vehicle...
+                    <WorkingMark className="h-4 w-4" />
+                    Saving your car
                   </span>
                 ) : (
                   'Complete Setup'
@@ -939,8 +956,8 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Updating Specifications...
+                    <WorkingMark className="h-4 w-4" />
+                    Saving the specifications
                   </span>
                 ) : (
                   'Confirm & Continue'

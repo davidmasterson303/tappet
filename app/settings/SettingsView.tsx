@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader as Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -303,7 +304,7 @@ export function SettingsView({
               <Button onClick={handleSave} disabled={saving || !dirty || Boolean(nameError)}>
                 {saving ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
+                    <WorkingMark className="mr-2 h-4 w-4" />
                     Saving…
                   </>
                 ) : (
@@ -324,7 +325,7 @@ export function SettingsView({
               >
                 {exporting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
+                    <WorkingMark className="mr-2 h-4 w-4" />
                     Preparing…
                   </>
                 ) : (

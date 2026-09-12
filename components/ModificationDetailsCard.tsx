@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader as Loader2, ChevronDown, ChevronUp, Zap, ChartBar as BarChart3, DollarSign, Target, Wrench, CircleAlert as AlertCircle, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Zap, ChartBar as BarChart3, DollarSign, Wrench, CircleAlert as AlertCircle, Plus } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
 import { generateModificationDetails, addModificationToWishlist } from '@/app/actions';
 import { toast } from 'sonner';
 
@@ -69,43 +70,61 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
   };
 
   if (!details) {
+    const analyzing = isAutoLoading || isManualLoading;
+
+    /*
+      ── An absence is not a wait — 11 Sep ──────────────────────────────────
+
+      This branch drew two grey skeleton bars under the mod's name and, beneath
+      them, "No analysis yet". Nothing was loading. The bars pulsed for as long
+      as the card was on screen, which for a mod nobody had asked about was
+      forever — an empty state wearing loading's clothes, and the screenshot
+      David sent when he asked for waits that buy patience.
+
+      So the two states stop sharing a drawing. Not analysed: the system's
+      empty treatment — one mono line, the action beside it, nothing that
+      moves. Analysing: the wait instrument, with the facts this card was
+      handed. The button carries its own mark while it is the thing pressed,
+      and the card body says what the call is doing.
+    */
     return (
-      <div className="bg-white/5 border border-white/10 rounded-lg p-4 relative overflow-hidden">
-        {isAutoLoading && (
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse pointer-events-none" />
-        )}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
+      <div className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <h4 className="font-semibold text-white text-sm">{modName}</h4>
-            <div className="mt-2 space-y-2">
-              <div className="h-3 bg-white/10 rounded w-3/4 animate-pulse" />
-              <div className="h-3 bg-white/10 rounded w-1/2 animate-pulse" />
-            </div>
-            <p className="text-white/50 text-xs mt-3 flex items-center gap-1">
-              {isAutoLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-              {isAutoLoading ? 'Generating detailed analysis...' : 'No analysis yet'}
-            </p>
+            {analyzing ? (
+              <Working
+                variant="compact"
+                className="mt-3"
+                line="Analyzing this mod"
+                /*
+                  Every word here is a fact the card holds: the mod, the car,
+                  and the five sections the answer always has. No stages — one
+                  call — and no duration, because nobody has measured one.
+                */
+                detail={`${modName} on a ${vehicle.year} ${vehicle.make} ${vehicle.model}. Performance, reliability, cost and fitment come back together.`}
+              />
+            ) : (
+              <p className="mono mt-1.5 text-xs uppercase tracking-[0.14em] text-white/55">
+                Not analyzed yet
+              </p>
+            )}
           </div>
-          {!isAutoLoading && (
-            <Button
-              size="sm"
-              onClick={() => handleGenerateDetails(false)}
-              disabled={isManualLoading}
-              className="whitespace-nowrap transition-colors"
-            >
-              {isManualLoading ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Analyzing
-                </>
-              ) : (
-                'Analyze Mod'
-              )}
-            </Button>
-          )}
-          {isAutoLoading && (
-            <Loader2 className="h-4 w-4 animate-spin text-white/50" />
-          )}
+          <Button
+            size="sm"
+            onClick={() => handleGenerateDetails(false)}
+            disabled={analyzing}
+            className="whitespace-nowrap transition-colors flex-shrink-0"
+          >
+            {analyzing ? (
+              <>
+                <WorkingMark className="h-3 w-3 mr-1" />
+                Analyzing
+              </>
+            ) : (
+              'Analyze Mod'
+            )}
+          </Button>
         </div>
       </div>
     );
@@ -134,7 +153,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             ) : (
               <>
                 <span className="mr-2 text-xs">See Details</span>
-                <ChevronDown className="h-4 w-4 animate-bounce" />
+                <ChevronDown className="h-4 w-4" />
               </>
             )}
           </Button>
@@ -208,7 +227,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
               >
                 {isAddingToWishlist ? (
                   <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    <WorkingMark className="h-3 w-3 mr-1" />
                     Adding
                   </>
                 ) : (

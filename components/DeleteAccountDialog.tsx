@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TriangleAlert, Loader as Loader2 } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import {
   Dialog,
   DialogContent,
@@ -209,7 +210,7 @@ export function DeleteAccountDialog({
           <Button variant="destructive" onClick={handleDelete} disabled={!confirmed || deleting}>
             {deleting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                <WorkingMark className="mr-2 h-4 w-4" />
                 Deleting…
               </>
             ) : (

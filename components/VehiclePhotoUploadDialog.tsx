@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, X, Loader as Loader2, Move } from 'lucide-react';
+import { Upload, X, Move } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { uploadVehiclePhoto, removeVehiclePhoto } from '@/app/actions';
 import { downscaleImage } from '@/lib/image-downscale';
@@ -305,7 +306,7 @@ export function VehiclePhotoUploadDialog({
                     className="w-full bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/25"
                   >
                     {isRemoving ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Removing...</>
+                      <><WorkingMark className="h-4 w-4 mr-2" />Removing...</>
                     ) : (
                       <><X className="h-4 w-4 mr-2" />Remove Custom Photo</>
                     )}
@@ -447,7 +448,7 @@ export function VehiclePhotoUploadDialog({
                   className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
                 >
                   {isUploading ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading...</>
+                    <><WorkingMark className="h-4 w-4 mr-2" />Uploading...</>
                   ) : (
                     <><Upload className="h-4 w-4 mr-2" />Save Photo</>
                   )}

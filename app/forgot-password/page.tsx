@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Loader as Loader2, ArrowLeft, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,7 +104,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Reset Link'}
+              {loading ? <WorkingMark className="h-4 w-4" /> : 'Send Reset Link'}
             </Button>
           </form>
 

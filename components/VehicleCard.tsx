@@ -353,6 +353,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           model={vehicle.model}
           trim={vehicle.trim}
           emptyLine={plateStatusLine(plateStatus)}
+          emptyWorking={plateStatus === 'pending' || plateStatus === 'generating'}
         />
 
         {/*

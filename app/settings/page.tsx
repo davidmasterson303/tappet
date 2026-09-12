@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader as Loader2 } from 'lucide-react';
+import { Working } from '@/components/Working';
 import { getProfile, updateProfile, exportAccountData } from '@/app/account-actions';
 import { SettingsView, type SettingsInitial } from './SettingsView';
 
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   if (!initial) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-info" aria-hidden={true} />
+        <Working delay line="Opening settings" />
       </div>
     );
   }

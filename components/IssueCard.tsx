@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CircleCheck as CheckCircle, X, Check, Heart, Loader as Loader2, TriangleAlert, Wrench, Info } from 'lucide-react';
+import { CircleCheck as CheckCircle, X, Check, Heart, TriangleAlert, Wrench, Info } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { useWishlist } from '@/hooks/useWishlist';
 
 interface IssueCardProps {
@@ -116,7 +117,7 @@ export default function IssueCard({
           >
             {wishlistLoading ? (
               <>
-                <Loader2 className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1 animate-spin`} />
+                <WorkingMark className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />
                 {isSaved ? 'Removing' : 'Adding'}
               </>
             ) : (

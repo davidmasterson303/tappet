@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, Loader as Loader2, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,8 +148,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center p-4 service-bay service-bay-dim">
         <div className="w-full max-w-md text-center">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
-            <Loader2 className="h-10 w-10 text-info mx-auto mb-5 animate-spin" />
-            <p className="text-white/55 text-sm">Verifying reset link...</p>
+            <Working className="mb-5" line="Verifying the reset link" />
             <p className="text-white/50 text-xs mt-3">
               If this takes too long,{' '}
               <Link href="/forgot-password" className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white/60">
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update Password'}
+              {loading ? <WorkingMark className="h-4 w-4" /> : 'Update Password'}
             </Button>
           </form>
         </div>

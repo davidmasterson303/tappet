@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader as Loader2, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { logger } from '@tappet/core/logger';
 
@@ -205,7 +206,7 @@ export function MarkCompleteDialog({
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <WorkingMark className="h-4 w-4 mr-2" />
                   Saving...
                 </>
               ) : (

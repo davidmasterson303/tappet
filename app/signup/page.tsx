@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader as Loader2, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
+import { Eye, EyeOff, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
@@ -151,7 +152,7 @@ export default function SignupPage() {
                   >
                     {resendState === 'sending' ? (
                       <>
-                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" aria-hidden="true" />
+                        <WorkingMark className="h-3.5 w-3.5 mr-2" />
                         Sending…
                       </>
                     ) : (
@@ -307,7 +308,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Account'}
+              {loading ? <WorkingMark className="h-4 w-4" /> : 'Create Account'}
             </Button>
           </form>
 

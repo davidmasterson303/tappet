@@ -4,7 +4,8 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader as Loader2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
@@ -118,7 +119,7 @@ function LoginForm() {
         disabled={loading}
         className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign In'}
+        {loading ? <WorkingMark className="h-4 w-4" /> : 'Sign In'}
       </Button>
     </form>
   );
