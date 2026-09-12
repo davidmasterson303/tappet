@@ -12,7 +12,7 @@ import {
 import StatStrip, { type Stat } from './StatStrip';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
 
-import BayRoom, { BayLightPool, bayHeroHeight } from './BayRoom';
+import BayRoom, { bayHeroHeight } from './BayRoom';
 import ClusterGauge from './ClusterGauge';
 import {
   UNKNOWN_TIMING,
@@ -34,16 +34,24 @@ import { interFace } from '../theme/fonts';
  * which is why this and the plinth were deferred out of step 3 rather than
  * built around a placeholder and then built again.
  *
- * ── The size the board actually uses ────────────────────────────────────────
+ * ── The size the board actually uses — and the size the brief does ──────────
  *
- * ⚠ **164, not `HERO_SIZE`.** The instruments card specifies the hero at 184pt;
- * the bay screen passes `size="164"`. Both are the board's, and the screen is
- * the more specific claim — 184 is the dial's own design size, 164 is what fits
- * a bay with a room, an identity lockup and a service row above the fold. The
- * component default is untouched; the caller chooses, which is exactly how the
- * board expresses it too.
+ * ⚠ **164, not `HERO_SIZE`**, was the board's figure: the instruments card
+ * specifies the hero at 184pt and the bay screen passed 164, *"what fits a bay
+ * with a room, an identity lockup and a service row above the fold"*.
+ *
+ * ⚠ **240 since 11 Sep.** Locked brief B3: *"the dial is the web dial … 88pt
+ * grotesk numeral"*, and two rounds of the critique measured the 164 dial's
+ * 56pt reading against that. The web dial on a phone-width viewport spans
+ * ~62% of the width — about 240pt — so 240 is the web dial at the web's own
+ * size, and `ClusterGauge`'s `HERO_NUMERAL` puts 88 on it. What made 164 fit
+ * no longer applies: the service row and the recall are a table *under* the
+ * dial now, not rows between the plate and it, and the pool of light is gone
+ * (see the instrument below). On the 16 Pro the second reading row still ends
+ * above the tab bar; on a 4.7″ display the dial is whole above the fold and
+ * the rows scroll, which is the order the brief puts them in.
  */
-const BAY_DIAL = 164;
+const BAY_DIAL = 240;
 
 /** Door lift, then lights, then the needle. The order is the sentence. */
 const DOOR_MS = 460;
@@ -362,15 +370,19 @@ export default function GarageBay({
       */}
       <View style={styles.instrument}>
         {band && typeof score === 'number' ? (
-          <>
-            {/*
-              `active` is the door, not the bay. The needle waits for the room
-              to be visible — a sweep that ran behind a closed shutter would be
-              the animation this screen exists to stage, spent on nothing.
-            */}
-            <ClusterGauge score={score} size={BAY_DIAL} active={open} />
-            <BayLightPool />
-          </>
+          /*
+            `active` is the door, not the bay. The needle waits for the room
+            to be visible — a sweep that ran behind a closed shutter would be
+            the animation this screen exists to stage, spent on nothing.
+
+            ⚠ 11 Sep: no `BayLightPool` under it any more. The pool was a cyan
+            radial at 14% hung from the dial's foot — "lit glass" on the board.
+            Under B7 cyan is *"focus, active rule and refresh ramp"* and
+            nothing else, and on every graded frame the pool was invisible
+            anyway: 22pt of gap that read as air. The export stays for the
+            board's record; the bay does not draw it.
+          */
+          <ClusterGauge score={score} size={BAY_DIAL} active={open} />
         ) : (
           /*
             No score is not a zero, and it is not an empty dial either. A dial
@@ -492,7 +504,8 @@ const styles = StyleSheet.create({
     label is the mono caps eyebrow and the value sits at the right edge, which
     is the row every record list on the phone uses.
   */
-  readings: { marginTop: space.md },
+  /* The bay's own gap separates it from the dial; no air of its own. */
+  readings: {},
   row: {
     flexDirection: 'row',
     alignItems: 'center',

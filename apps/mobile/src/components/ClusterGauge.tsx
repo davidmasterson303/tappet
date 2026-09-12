@@ -85,6 +85,23 @@ const HAIRLINE = 2;
  */
 const TERMINALS = [0, 100];
 
+/**
+ * The hero readout, as a fraction of the dial's width.
+ *
+ * ── ⚠ 11 Sep · B3's "88pt grotesk numeral", measured against web ───────────
+ *
+ * This was `0.34` — 56pt on the garage's 164pt dial — and two rounds of the
+ * critique read the numeral as under the paragraph's figure. Measured rather
+ * than argued: the web dial on a phone-width viewport
+ * (`web-reference/dossier-dashboard-mobile.png`) spans ~62% of the width, about
+ * 240pt, and its numeral is 48 of a 200-unit viewBox — ~86pt — so the web's
+ * own ratio is ~0.36. The garage draws the dial at 240 now (`BAY_DIAL`), and
+ * this ratio puts the brief's 88 on it exactly. The ratio, not the point size,
+ * is what is kept, so a smaller dial on a shorter phone keeps the web's
+ * proportion rather than the web's number.
+ */
+const HERO_NUMERAL = 88 / 240;
+
 /** The ignition sweep: 0 → 100 → settle, ~900ms. Split as the web dial splits it. */
 const SWEEP_UP = 420;
 const SETTLE = 480;
@@ -283,7 +300,7 @@ export default function ClusterGauge({
     needle now, so the constraint that pushed it down is gone and the reading
     sits in the middle of its own arc.
   */
-  const readoutSize = Math.round(width * (isCard ? 60 / 172 : 0.34));
+  const readoutSize = Math.round(width * (isCard ? 60 / 172 : HERO_NUMERAL));
   const readoutLine = Math.round(readoutSize * 1.02);
   const readoutTop = 0.5 * width - readoutLine / 2;
 

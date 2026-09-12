@@ -1609,6 +1609,47 @@ each tab was shot on its first visit.
 - *Which screen owns the dial* — the reading appears on Garage as the dial
   and on Vehicle as `70 FAIR`; the critic asks which is the instrument.
 
+**Round 25 — 7/10, 3 ✅ / 6 🟡 / 0 ❌, `Continue: yes`.** Flat, and the loop's
+own rule says two flat rounds stop it. It ran one more, deliberately: the
+critic's top gap was not taste but a measurement it asked for and this
+implementer had refused the round before — *"the dial is under-scaled … the
+web dial fills about two-thirds of the phone width … measure, do not
+eyeball"* — and the critic said one more round *"should close rather than
+drift"*. Measured against `web-reference/dossier-dashboard-mobile.png`, it
+was right: the web dial on a phone-width viewport spans ~62% of the width
+(~240pt) with a numeral of 48 in a 200-unit viewBox (~86pt), and the bay's
+dial was 164pt with a 56pt reading — the same *ratio* as the north star, at
+two-thirds of the web's *size*. §6.12's earlier note ("left alone") had
+measured the ratio and not the dial. `BAY_DIAL` is 240 and
+`ClusterGauge.HERO_NUMERAL` is `88 / 240`, so the reading is the brief's 88
+on the dial the web draws; the cyan `BayLightPool` under it is gone (B7
+lists cyan's three jobs and a decorative pool is not one; on every graded
+frame it was invisible air), and the readings table lost its own top margin.
+On the 16 Pro the second reading row still ends 40pt above the tab bar; on a
+4.7″ display the dial is whole above the fold and the two rows scroll.
+
+The two cuts the critic could not resolve were measured at native resolution
+from `25-screens/`: the garage plate's top-right notch recedes one page-
+coloured pixel per row over 24px (8pt at 3×), and the search field's
+bottom-right is a 36px diagonal (12pt) carrying its hairline stroke. Both
+present; nothing changed. The collapsed mono nav title was shot as an extra
+frame for round 26 (`03b-service-collapsed.png`, Service scrolled to its
+foot: SERVICE in mono on graphite, the plate gone with the large title, the
+rail and the primary risen with the band). The factors table cannot be shown
+from the fixtures (the health summary carries no drivers), the viewfinder is
+a build, and pull-to-refresh is a gesture; three frames the loop cannot
+supply, recorded rather than staged.
+
+Gap 3 — *"grotesk label, mono value"* for the two rows under the Vehicle
+plate, and one slot for OPEN RECALLS on both screens — was checked against
+the web reference and not taken: web's own spec table (`vehicle-record.png`)
+labels its rows in **mono** caps with mono values right, which is exactly
+what Garage's readings are; round 24 asked for that, round 25 reads B6's
+"grotesk label" the other way. The Vehicle hub's `NavRow`s are a different
+object (sans label, icon, chevron) and are where the mismatch actually
+lives; it joins the parking lot with the sliders glyph rather than being
+re-voiced on the strength of one reading.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
