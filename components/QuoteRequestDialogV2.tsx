@@ -393,6 +393,14 @@ export function QuoteRequestDialogV2({
                 <label htmlFor="zipCode" className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
                   Zip Code
+                  {/*
+                    11 Sep, David: "if zip code is required, then UI should
+                    indicate its required." The two fields below it say
+                    "optional" in this exact voice; the one field that stops
+                    the form said nothing, and only the error after the fact
+                    told you. Same word slot, same styling, opposite word.
+                  */}
+                  <span className="text-white/50 font-normal normal-case tracking-normal">required</span>
                 </label>
                 <Input
                   id="zipCode"
@@ -400,6 +408,9 @@ export function QuoteRequestDialogV2({
                   value={state.zipCode}
                   onChange={(e) => dispatch({ type: 'SET_ZIP_CODE', zipCode: e.target.value })}
                   maxLength={5}
+                  required
+                  aria-required="true"
+                  inputMode="numeric"
                 />
                 <p className="text-xs text-white/50">Used to estimate regional labor rates</p>
               </div>

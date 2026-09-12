@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { planHref } from '@/lib/plan-entry';
 import DashboardLayout from '@/components/DashboardLayout';
 import ServiceDueList from '@/components/ServiceDueList';
 import { useWishlistData } from '@/hooks/useWishlistData';
@@ -373,14 +374,23 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
               stops whispering.
             */
             className="h-auto self-start p-0 text-sm font-semibold text-white underline decoration-white/35 underline-offset-4 hover:bg-transparent hover:decoration-white"
-            onClick={() => router.push(`/consultant/${params.vehicleId}`)}
+            onClick={() => router.push(planHref(params.vehicleId, { openAdd: true }))}
           >
             {/*
-              ⚠ The glyph matches the destination. This was a speech bubble on
+              ⚠ 11 Sep — the destination is the Needs list, with its dialog
+              open. David, on the live demo: "clicking add service record takes
+              me to advisor tab. it should take me to needs subtab on plan tab
+              with add to needs modal open." The by-hand path to a record here
+              is Needs → Mark as Complete, which is what files the date, shop
+              and cost; this button lands on the first step of that path. The
+              invoice path is still the advisor, and the empty state below
+              still says so with its own button. `lib/plan-entry.ts` holds the
+              hand-off so the two tabs cannot drift on its spelling.
+
+              ⚠ The glyph matches the outcome. This was a speech bubble on
               a button labelled "Upload Invoice" — a critique called it "the
-              wrong icon entirely, that's a chat glyph". It is not wrong about
-              where the button goes: uploading an invoice happens in the
-              consultant, by sending it.
+              wrong icon entirely, that's a chat glyph". At the time it went to
+              the consultant, where uploading an invoice happens by sending it.
 
               ⚠ Third wording, and the last two were both half right. "Upload
               Invoice" with a speech-bubble glyph was called the wrong icon;
