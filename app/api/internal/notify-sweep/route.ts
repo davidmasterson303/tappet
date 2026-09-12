@@ -5,6 +5,7 @@ import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getServiceRoleClient } from '@/lib/supabase';
+import { backfillPlates } from '@/lib/plates';
 import { sendToAccount } from '@/lib/push-send';
 import { normaliseRecalls } from '@tappet/core/recalls';
 import { recallNotification, serviceDueNotification } from '@tappet/core/notifications';
@@ -507,7 +508,30 @@ export async function POST(request: NextRequest) {
 
   await recordSweepRun(client, summary);
 
-  return Response.json({ success: true, ...summary });
+  /*
+    ── The plates that waited, once a night (12 Sep) ──────────────────────
+
+    A generation plate left `pending` by the daily cap, `failed` by the image
+    model, or claimed by a job that died, has no other retry: the next car of
+    the same generation would trigger it, or somebody would run the backfill
+    by hand. Neither is a plan. So the sweep, which already runs once a night
+    with the service role, asks the library to try again — a few at a time,
+    under the same cap, and only on a real run. Failure-tolerant like the
+    heartbeat: a plate that cannot be drawn must not take the sweep with it.
+    Reported in the response and the log, not in `sweep_runs` — the table's
+    columns are the sweep's own decisions, and this is the library's.
+  */
+  let plates: Awaited<ReturnType<typeof backfillPlates>> | null = null;
+  if (!summary.dryRun) {
+    try {
+      plates = await backfillPlates({ limit: 5, client });
+      logger.info('CRON:SWEEP', 'Plate backfill after sweep', { ...plates });
+    } catch (error) {
+      logger.warn('CRON:SWEEP', 'Plate backfill after sweep failed', { error: (error as Error).message });
+    }
+  }
+
+  return Response.json({ success: true, ...summary, plates });
 }
 
 /**

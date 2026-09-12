@@ -70,9 +70,25 @@ export function isDemoVehicleId(vehicleId: string): boolean {
  * is `DEMO_SMOKE_EXPECTATIONS.dashboard`, and the WRX is
  * `CONSULTANT_ROUND_TRIP` (its Stage 1 seed data is what the gate asks about).
  */
-export const DEMO_UNPHOTOGRAPHED_VEHICLE_IDS = [
-  'a3000000-0000-0000-0000-000000000003',
-] as const;
+/*
+  ── ⚠ Empty since 12 Sep, and the list stays ─────────────────────────────
+
+  The M3 stood unphotographed so the demo showed "what their own car will
+  look like before they upload anything". Then every car without a
+  photograph got a generated plate keyed by its model generation
+  (`packages/core/src/plates.ts`), drawn in the background from the moment
+  the VIN decodes — so what a real user sees before uploading is a plate,
+  and for a few seconds "Drawing this car's plate". The bare bay is no longer
+  anyone's home state; it is a wait, and the wait is shown on `/dev/garage`
+  and `/dev/working` where design work looks at it.
+
+  So the M3 shows its own committed night plate, one film with the other two
+  (`public/vehicles/CREDITS.md`). The list and `isUnphotographedDemoVehicle`
+  stay, because every surface still asks the question through them and a
+  future demo may want a car in the bare state again — the day it does, an
+  id goes back here and nothing else moves. David: "run with that plan".
+*/
+export const DEMO_UNPHOTOGRAPHED_VEHICLE_IDS = [] as const;
 
 /** Whether a demo vehicle is one of the deliberately unphotographed ones. */
 export function isUnphotographedDemoVehicle(id: string): boolean {

@@ -28,7 +28,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const DEMO_VEHICLE_ID = 'a1000000-0000-0000-0000-000000000001';
 // Mirrors DEMO_UNPHOTOGRAPHED_VEHICLE_IDS in packages/core/src/demo.ts, and
 // demo-availability.test.ts fails if the two drift apart.
-const DEMO_UNPHOTOGRAPHED_VEHICLE_IDS = ['a3000000-0000-0000-0000-000000000003'];
+const DEMO_UNPHOTOGRAPHED_VEHICLE_IDS = []; // empty since 12 Sep — see packages/core/src/demo.ts
 const REQUIRED_ANON_TABLES = [
   'vehicles',
   'vehicle_health_summary',

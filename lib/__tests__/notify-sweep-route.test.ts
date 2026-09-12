@@ -345,3 +345,28 @@ describe('the scheduler', () => {
     expect(scheduler).not.toMatch(/nextUrl|req\.headers|request\.headers/);
   });
 });
+
+describe('the plates that waited (12 Sep)', () => {
+  /*
+    A generation plate left pending by the cap, failed by the model, or held
+    by a job that died has no retry of its own. The sweep, already running
+    once a night with the service role, asks the library to try again — a
+    few at a time, only on a real run, after the heartbeat is written, and
+    failure-tolerant like the heartbeat itself. `backfillPlates`'s own rules
+    (what it touches, the cap at the claim) are pinned in plates-library.test.ts.
+  */
+  it('asks the library to retry, bounded, and only on a real run', () => {
+    expect(route).toMatch(/import \{ backfillPlates \} from '@\/lib\/plates'/);
+    expect(route).toMatch(/if \(!summary\.dryRun\) \{[\s\S]*?backfillPlates\(\{ limit: 5, client \}\)/);
+  });
+
+  it('runs after the heartbeat, and cannot take the sweep down with it', () => {
+    const heartbeat = route.indexOf('await recordSweepRun(client, summary);');
+    const retry = route.indexOf('backfillPlates({ limit: 5, client })');
+    expect(heartbeat).toBeGreaterThan(-1);
+    expect(retry).toBeGreaterThan(heartbeat);
+    // Wrapped: a thrown backfill is logged, not surfaced as the sweep's failure.
+    const around = route.slice(retry - 120, retry + 400);
+    expect(around).toMatch(/try \{[\s\S]*backfillPlates[\s\S]*\} catch/);
+  });
+});

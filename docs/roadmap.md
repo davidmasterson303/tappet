@@ -219,14 +219,42 @@
 >   API resolves a ready plate server-side, so plates reach the phone with no
 >   mobile code. Metro was restarted for a merged `metro.config.js`.
 >
+> #### 12 Sep, daytime — the plates are live
+>
+> David ran `20260912010000` in the SQL editor (`53 applied · 0 pending`).
+> The backfill ran from this machine — the live route refused the local
+> `CRON_SECRET`, which is not Netlify's (§7) — and named both photo-less cars'
+> generations correctly (**F22 2014–2021**, **Accord 7th 2003–2007**), drew
+> both in ~25 s, US$0.27. David's M235i stands on its plate on the phone and
+> the web. The three 42703 retries are deleted (`86c573d`); the nightly sweep
+> now re-tries any plate left `pending`/`failed` (`aa3661a`); the demo M3
+> shows its plate — the bare bay is a wait, not a home (`55cedf1`). On the
+> phone: the Plan root and the *pushed* Plan both carry **Add** (`b8e2d59`),
+> an uncosted list no longer says $0, and every wait is the dial.
+>
+> ⚠ Metro does not register files that arrive through `git merge` — after
+> the instrument merge every rebuild failed on a new component and the phone
+> silently kept the last good bundle. Restart Metro after any merge that
+> adds files. And dead agents leave dev servers behind: three orphans took the
+> load average to 43; check `ps` for `expo start --port 809x` / `next dev -p`.
+>
 > #### Open, and David's
 >
+> - **The next EAS build**, once, interactively (`cd apps/mobile && npx
+>   eas-cli build --platform ios --profile preview`): it creates the Apple
+>   credentials for `com.southmoordigital.tappet` and should carry the
+>   `tappet://` scheme, the hostname, and B9's `expo-camera` + `expo-haptics`
+>   together. Until then the phone runs Expo Go and the simulator's dev client
+>   cannot load the viewfinder.
+> - **Ruling: the landing's stat strip** omits a cell it cannot fill; the
+>   shared `FleetStrip` prints an em dash. Deduping `app/page.tsx` means
+>   picking one — the dash is the recommendation (a visitor cannot see a
+>   missing cell; "—" says "we cannot say").
 > - A fresh `MOBILE_TEST_TOKEN` + `MOBILE_TEST_VEHICLE_ID` — the contract
 >   script's credentialed half has not run since 2 Aug.
 > - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
 >   is deleted or merged on that answer.
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
-> - **Run the plates migration** (above), then the backfill.
 > - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
 >   cover the loop, a real signed-in shot is still the fidelity check.
 > - **The next EAS build** carries three things at once: `apiBaseUrl` on the
