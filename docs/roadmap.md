@@ -327,7 +327,7 @@
 > `packages/core/src/apple-subscription.ts`; the adapter reads them from
 > there, so a naming decision is one edit.
 >
-> #### 12 Sep — the old hostnames redirect, on the next promote-demo; ask David first
+> #### 12 Sep — the old hostnames redirect, on the next promote-demo — David said yes
 >
 > Cowork's handoff (`Claude outputs/claude-code-prompt-hostname-redirects.md`,
 > gitignored): David opened the demo and the address bar said CrewChief.
@@ -341,9 +341,10 @@
 > (CLAUDE.md §8), and `hostname-redirects.test.ts` pins the rules, the
 > no-loop property, and that nothing here still names a redirected host.
 >
-> ⚠ **It goes live on the next `promote-demo`, and David asked to be asked
-> first** — `crewchief-demo.davidmasterson.co` is the link recruiters hold.
-> Verify after the deploy, not the merge:
+> ✅ **David, 12 Sep: "yes, promote the demo redirect when the loop lands"** —
+> so the promote that carries the Service tab loop's merge carries this. It
+> was asked because `crewchief-demo.davidmasterson.co` is the link recruiters
+> hold. Verify after the deploy, not the merge:
 >
 > ```
 > for h in crewchief-demo.davidmasterson.co wellkept-demo.davidmasterson.co; do
