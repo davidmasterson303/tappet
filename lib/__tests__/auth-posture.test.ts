@@ -319,6 +319,7 @@ const ROUTE_POSTURE: Record<
   'app/api/internal/plates/claim/route.ts': 'secret-gated',
   'app/api/internal/plates/store/route.ts': 'secret-gated',
   'app/api/internal/plates/fail/route.ts': 'secret-gated',
+  'app/api/internal/plates/backfill/route.ts': 'secret-gated',
   'app/api/v1/plates/ensure/route.ts': 'session',
   /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini

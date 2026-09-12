@@ -37,6 +37,7 @@ import { recomputePerformanceStats } from '@/lib/performance-stats';
 import { recordAiUsageInBackground } from '@/lib/ai-usage';
 import { downloadStoredFile } from '@/lib/storage-objects';
 import { loadConsultantContext, loadedContextKinds } from '@/lib/consultant-context';
+import { normalizeConsultantTitle } from '@/lib/consultant-title';
 import {
   authorizeVehicleAccess,
   authorizeVehicleScopedRow,
@@ -978,6 +979,135 @@ export async function generateSessionTitle(message: string) {
     return title || 'New Chat';
   } catch (error) {
     return 'New Chat';
+  }
+}
+
+/**
+ * Rename a conversation — David, walking the demo on 11 Sep: *"i need options
+ * to rename and delete chats."*
+ *
+ * Authorised from the row, the same way `getConsultantSession` reads it: a
+ * caller names a conversation id, never the vehicle, so the parent vehicle is
+ * resolved server-side and a valid id belonging to someone else's car comes
+ * back as the same 404 as a missing one. `intent: 'write'` is what turns a
+ * demo vehicle away — anonymous demo visitors get "Demo vehicles are
+ * read-only", said out loud, rather than a rename that silently did nothing.
+ *
+ * The title rule is `normalizeConsultantTitle`, shared with the rail's field;
+ * the reasoning for the cap and the whitespace collapse is in that module.
+ * It runs *before* the row lookup because it is pure — a refusal that does
+ * not depend on the row cannot be used to learn whether the row exists.
+ *
+ * ⚠ `updated_at` is deliberately not touched. The rail orders by it and
+ * prints it under every title as the date; it means "when this was last
+ * spoken in", and a rename is housekeeping, not a turn. Bumping it would
+ * float a two-month-old thread to the top of the list wearing today's date.
+ */
+export async function renameConsultantSession(sessionId: string, title: string) {
+  try {
+    const normalized = normalizeConsultantTitle(title);
+    if (!normalized.ok) {
+      return { success: false, error: normalized.error };
+    }
+
+    const access = await authorizeVehicleScopedRow('consultant_conversations', sessionId, { intent: 'write' });
+    if (!access.ok) {
+      return { success: false, error: access.error };
+    }
+
+    const client = getServiceRoleClient();
+    const { error } = await client
+      .from('consultant_conversations')
+      .update({ title: normalized.title })
+      .eq('id', sessionId)
+      // Belt and braces: the row was authorised through this vehicle, so the
+      // write is scoped to it too. Same reasoning as the explicit `user_id`
+      // filter `requireCaller` asks for — a regression shows up as one failed
+      // rename, not as a write to somebody else's row.
+      .eq('vehicle_id', access.vehicleId);
+
+    if (error) {
+      logger.error('CONSULTANT:RENAME', new Error(error.message), { sessionId });
+      return { success: false, error: 'Could not rename this conversation' };
+    }
+
+    return { success: true, title: normalized.title };
+  } catch (error) {
+    logger.error('CONSULTANT:RENAME', error as Error, { sessionId });
+    return { success: false, error: 'Could not rename this conversation' };
+  }
+}
+
+/**
+ * Delete a conversation. Same gate as the rename, and the same refusal on the
+ * demo.
+ *
+ * ── What the row owns, and what goes with it ────────────────────────────────
+ *
+ * The messages are `message_history`, a column *on* the row — there is no
+ * messages table — so deleting the row deletes the thread. The documents
+ * uploaded into it are rows in `consultant_documents` keyed by `session_id`,
+ * and they are removed here explicitly rather than left to the cascade the
+ * migration file declares. ⚠ Not because the cascade is doubted, exactly:
+ * `session_id` is a live foreign key (checked through PostgREST on 11 Sep),
+ * but its ON DELETE action is not visible from outside the SQL editor, and
+ * this database has disagreed with its migration files four times. An
+ * explicit delete is correct under every reading — with a cascade it is
+ * redundant, without one it is what stops the row delete failing on the
+ * constraint.
+ *
+ * ── ⚠ The storage objects are deliberately left alone ──────────────────────
+ *
+ * Each `consultant_documents.file_url` points at an object in the private
+ * `vehicle-documents` bucket, and it looks like the row's to remove. It is
+ * not only the row's: when the advisor recognises an attachment as an
+ * invoice, `processConsultantInvoiceToMaintenance` records **the same path**
+ * on a `vehicle_documents` row — the garage's copy of that invoice. Removing
+ * the file here would leave that record pointing at nothing, and the failure
+ * is silent until the owner opens it. Account deletion already sweeps the
+ * bucket by vehicle prefix (`lib/account-data.ts`), so an orphaned attachment
+ * costs storage until then; a deleted invoice costs the record. Live on
+ * 11 Sep: zero `consultant_documents` rows exist, so nothing is orphaned by
+ * this decision today.
+ *
+ * Both deletes are scoped to the authorised vehicle as well as the id, for
+ * the reason given on the rename.
+ */
+export async function deleteConsultantSession(sessionId: string) {
+  try {
+    const access = await authorizeVehicleScopedRow('consultant_conversations', sessionId, { intent: 'write' });
+    if (!access.ok) {
+      return { success: false, error: access.error };
+    }
+
+    const client = getServiceRoleClient();
+
+    const { error: documentsError } = await client
+      .from('consultant_documents')
+      .delete()
+      .eq('session_id', sessionId)
+      .eq('vehicle_id', access.vehicleId);
+
+    if (documentsError) {
+      logger.error('CONSULTANT:DELETE_DOCUMENTS', new Error(documentsError.message), { sessionId });
+      return { success: false, error: 'Could not delete this conversation' };
+    }
+
+    const { error } = await client
+      .from('consultant_conversations')
+      .delete()
+      .eq('id', sessionId)
+      .eq('vehicle_id', access.vehicleId);
+
+    if (error) {
+      logger.error('CONSULTANT:DELETE', new Error(error.message), { sessionId });
+      return { success: false, error: 'Could not delete this conversation' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error('CONSULTANT:DELETE', error as Error, { sessionId });
+    return { success: false, error: 'Could not delete this conversation' };
   }
 }
 
