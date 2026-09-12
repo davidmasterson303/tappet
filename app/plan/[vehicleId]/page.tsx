@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { readPlanEntry, type PlanSegment } from '@/lib/plan-entry';
 import DashboardLayout from '@/components/DashboardLayout';
 import VehicleInsights from '@/components/VehicleInsights';
 import { WishlistSection } from '@/components/WishlistSection';
@@ -10,8 +12,9 @@ import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { Button } from '@/components/ui/button';
+import RegisterSwitch from '@/components/RegisterSwitch';
 
-export type PlanSegment = 'needs' | 'mods';
+export type { PlanSegment };
 
 /**
  * Plan: what this car needs, and what you want to do to it.
@@ -48,8 +51,47 @@ export type PlanSegment = 'needs' | 'mods';
  * control, so when mods are hidden the segmented control is not rendered at all
  * rather than rendered with a single button.
  */
-export default function PlanPage({ params }: { params: { vehicleId: string } }) {
-  const [segment, setSegment] = useState<PlanSegment>('needs');
+/*
+  ── ⚠ The URL can choose the segment and open the Needs dialog ──────────────
+
+  `/plan/<id>?segment=needs&add=1` is what the Service tab's "Add a service
+  record" pushes (11 Sep, David's ask; the contract is `lib/plan-entry.ts`).
+  `useSearchParams` needs a Suspense boundary above it or Next de-opts the
+  whole route into client rendering with a build warning — same reason
+  `app/onboard/page.tsx` wraps its form. The page is split accordingly.
+*/
+export default function PlanPage(props: { params: { vehicleId: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <PlanPageInner {...props} />
+    </Suspense>
+  );
+}
+
+function PlanPageInner({ params }: { params: { vehicleId: string } }) {
+  const entry = readPlanEntry(useSearchParams());
+  const [segment, setSegment] = useState<PlanSegment>(entry.segment);
+  const queryClient = useQueryClient();
+  /*
+    ── ⚠ The page owns the modifications switch, in both states (11 Sep) ────
+
+    It used to live inside `VehicleInsights section="mods"`, which hides with
+    the surface it switches. Two things followed, and David hit both on the
+    live demo: hiding left this page's cached `showsMods` stale, so the MODS
+    tab stayed selected over an empty panel; and after a reload the tab was
+    gone *and so was the switch* — the section that rendered it no longer
+    rendered. "Not now" had become "never" on this page, which is the exact
+    thing `RegisterSwitch`'s docblock says must not happen.
+
+    So the switch renders here, beside the segmented control when the surface
+    is shown and alone when it is hidden, and applying it does three things at
+    once: flips the local override so the strip reacts immediately, writes the
+    same value into the plan query's cache so a remount agrees without a
+    refetch, and steps off the tab that is about to disappear. The server
+    action inside `RegisterSwitch` is what persists it, per car; a refusal
+    calls back with the previous value and all three undo together.
+  */
+  const [visibleOverride, setVisibleOverride] = useState<boolean | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['plan', params.vehicleId],
@@ -68,8 +110,22 @@ export default function PlanPage({ params }: { params: { vehicleId: string } }) 
   });
 
   const vehicleImage = useVehicleImage(data?.vehicle);
-  const showsMods = showsModifications(data?.vehicle?.performance_mindedness);
+  const showsMods = visibleOverride ?? showsModifications(data?.vehicle?.performance_mindedness);
   const active = showsMods ? segment : 'needs';
+
+  function applyModsVisible(next: boolean) {
+    setVisibleOverride(next);
+    queryClient.setQueryData(['plan', params.vehicleId], (old: typeof data) =>
+      old
+        ? {
+            ...old,
+            // The same value `setModificationsVisible` writes, so cache and row agree.
+            vehicle: { ...old.vehicle, performance_mindedness: next ? 'mild' : 'stock' },
+          }
+        : old,
+    );
+    if (!next && segment === 'mods') setSegment('needs');
+  }
 
   if (isLoading || error || !data) {
     return (
@@ -90,6 +146,7 @@ export default function PlanPage({ params }: { params: { vehicleId: string } }) 
     <ErrorBoundary>
       <DashboardLayout vehicle={data.vehicle} knowledge={data.knowledge} currentPage="plan" vehicleImage={vehicleImage}>
         <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           {showsMods ? (
             <div
               role="tablist"
@@ -115,11 +172,19 @@ export default function PlanPage({ params }: { params: { vehicleId: string } }) 
               })}
             </div>
           ) : null}
+            {/* The way back, in both states — see the note on `visibleOverride`. */}
+            <RegisterSwitch vehicleId={data.vehicle.id} visible={showsMods} onApply={applyModsVisible} />
+          </div>
 
           {active === 'needs' ? (
-            <WishlistSection vehicleId={data.vehicle.id} />
+            <WishlistSection vehicleId={data.vehicle.id} openAdd={entry.openAdd} />
           ) : (
-            <VehicleInsights vehicle={data.vehicle} knowledge={data.knowledge} section="mods" />
+            <VehicleInsights
+              vehicle={data.vehicle}
+              knowledge={data.knowledge}
+              section="mods"
+              switchOwner="page"
+            />
           )}
         </div>
       </DashboardLayout>

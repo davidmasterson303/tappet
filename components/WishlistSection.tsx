@@ -44,14 +44,21 @@ interface WishlistItem {
 
 interface WishlistSectionProps {
   vehicleId: string;
+  /**
+   * Arrive with "Add to Needs" already open. The Service tab's "Add a service
+   * record" lands here this way (11 Sep) — see `lib/plan-entry.ts`. Initial
+   * state only: closing the dialog closes it, and nothing reopens it until
+   * the page is entered again.
+   */
+  openAdd?: boolean;
 }
 
-export function WishlistSection({ vehicleId }: WishlistSectionProps) {
+export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionProps) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
   const [showMarkComplete, setShowMarkComplete] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(openAdd);
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
   const [showQuoteHistoryDialog, setShowQuoteHistoryDialog] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
