@@ -254,8 +254,19 @@ export default function Button({
  * system's own ink used as a ground. Logged in `docs/design-system-drift.md`
  * §6.7.
  */
-const FILL: Partial<Record<ButtonVariant, [string, string]>> = {
+/*
+  ── 12 Sep · `ghost` presses to `raised`, as the pressed-states guard says ──
+
+  `mobile-pressed-states.test.ts` has described `surface.raised` as "what
+  `ListRow` and `Button`'s `ghost` press to" since August, and the map below
+  had no `ghost` entry — so a ghost gave no feedback at all under the finger,
+  and the guard's own sentence was the only place the rule existed. Nothing
+  at rest (the variant paints no surface), `raised` while pressed: the fill
+  swap every other variant makes, and the same one `ListRow` makes.
+*/
+const FILL: Partial<Record<ButtonVariant, [string | undefined, string]>> = {
   primary: [text.primary, text.secondary],
+  ghost: [undefined, surface.raised],
   delete: [surface.page, surface.raised],
 };
 
@@ -317,7 +328,17 @@ const styles = StyleSheet.create({
   /* B7: graphite ink on the off-white fill. */
   primaryLabel: { color: surface.page },
   outlineLabel: { color: text.primary },
-  ghostLabel: { color: text.primary },
+  /*
+    ── 12 Sep · a ghost is the roots' text chrome, and speaks in its ink ──────
+
+    The roots set their text controls — ADD CAR, ADD, ACCOUNT — in
+    `text.secondary`; a ghost was the same object at full ink, and on the Due
+    table eight of them down the right edge outweighed the numerals they sat
+    under (round 32: *"compete with the values column"*). The third rung of
+    the ladder is quieter than the second: the same mono caps, one step of
+    ink down. Still 4.5:1 with room on every surface it sits on.
+  */
+  ghostLabel: { color: text.secondary },
   deleteLabel: { color: status.dangerText },
 
   /*

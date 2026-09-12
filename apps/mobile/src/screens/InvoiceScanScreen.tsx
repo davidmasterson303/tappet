@@ -392,10 +392,6 @@ export function InvoiceScanScreen({
           <Text style={styles.caption} accessibilityRole="header">
             Photograph the invoice
           </Text>
-          <Text style={styles.lead}>
-            Its line items are read and added to this car's history.
-          </Text>
-
           {/*
             ── R49 · what happens next, stated before it happens ─────────────
 
@@ -409,10 +405,19 @@ export function InvoiceScanScreen({
             are written by `uploadInvoice` as soon as extraction succeeds; the
             only thing held back for confirmation is a vehicle mismatch. What is
             promised is what actually happens.
+
+            ⚠ 12 Sep · one paragraph, and it stays *before* the photograph.
+            The critique asked for the caveat to move to "the post-capture
+            review, where the lines are actually shown" — there is no such
+            review (see above: the lines are filed as they are read), and
+            R49's point is that consent to a model reading a document is
+            given before the document is photographed, not after. The two
+            paragraphs became one sentence pair, which is the half of the cut
+            that was right.
           */}
-          <Text style={styles.expectation}>
-            The reading is done by a model, so check the lines afterwards. If the invoice looks
-            like a different car, we ask before filing it.
+          <Text style={styles.lead}>
+            Its line items are read by a model and added to this car's history, so check them
+            afterwards. If the invoice looks like a different car, we ask before filing it.
           </Text>
           {/*
             ── ⚠ LEG-02 · declining means "no AI features", never "no app" ────
@@ -451,7 +456,16 @@ export function InvoiceScanScreen({
           <Button
             label="Choose from library"
             variant="ghost"
+            size="small"
             onPress={() => void choose('library')}
+            /*
+              Left, on the page's own margin: a centred word under a
+              left-aligned caption and body was the one thing on the screen
+              not reading from the margin (round 32's AI-tell list). The
+              small size's 12pt of padding is pulled back so the word starts
+              where the sentences do.
+            */
+            style={styles.library}
           />
             </>
           )}
@@ -618,13 +632,9 @@ const styles = StyleSheet.create({
     fontSize: 15, lineHeight: 22 },
   /* B1: the mono caption the brief gives a screen with one thing to do. */
   caption: { ...type.monoLabel, color: text.primary },
+  library: { alignSelf: 'flex-start', marginLeft: -space.md },
   /* The one line that says what this screen is for. A step above the rest. */
   lead: { ...type.body, fontSize: 15, lineHeight: 22, color: text.secondary },
-  /*
-    R49. What the model does with the photograph, and where the result lands.
-    Quieter than the lead — it is a caveat, not the offer — and above the floor.
-  */
-  expectation: { ...type.value, color: text.muted, marginTop: space.xs },
 
   /* Monospace so an elapsed figure is scannable; dev builds only. */
   diagnostic: {

@@ -427,6 +427,43 @@ describe('the spec table', () => {
     expect(view.getByText('—', { includeHiddenElements: true })).toBeTruthy();
   });
 
+  it('ends the head line on the numeral, with the action on the line beneath', async () => {
+    /*
+      12 Sep. Round 31 gave the action a column beside the position, and the
+      critique measured what it cost: every numeral stopped inboard of the
+      rule by the column's width. B6's numerals end at the rule, so the
+      position is the last thing on its line and the verb sits on the next.
+    */
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await view.findByText('Drive belt, inspect');
+
+    type Host = { props?: Record<string, unknown>; children?: unknown[] };
+    const textOf = (node: unknown): string =>
+      typeof node === 'string'
+        ? node
+        : ((node as Host)?.children ?? []).map(textOf).join('');
+    const lines: string[][] = [];
+    const walk = (node: unknown) => {
+      const host = node as Host;
+      if (!host || typeof host !== 'object') return;
+      const style = Object.assign({}, ...[host.props?.style].flat(Infinity).filter(Boolean));
+      if (style.flexDirection === 'row') {
+        lines.push((host.children ?? []).map(textOf).map((t) => t.trim()).filter(Boolean));
+      }
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(view.toJSON());
+
+    const head = lines.find((line) => line.includes('−3,000 MI'));
+    expect(head).toBeDefined();
+    expect(head?.[head.length - 1]).toBe('−3,000 MI');
+    expect(head).not.toContain('Add');
+
+    const foot = lines.find((line) => line.includes('Add') && line.some((t) => /Every 15,000 mi/.test(t)));
+    expect(foot).toBeDefined();
+  });
+
   it('marks the overdue row with the sodium triangle, and no other', async () => {
     // B7: sodium only beside a genuine warning. One service is past due; the
     // other two are coming up or unplaceable, and neither is a warning.

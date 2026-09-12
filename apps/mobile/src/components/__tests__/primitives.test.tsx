@@ -125,6 +125,23 @@ describe('Button', () => {
   });
 });
 
+describe('Button — the ghost', () => {
+  it('speaks in the roots\u2019 chrome ink and paints no surface at rest', async () => {
+    /*
+      12 Sep. A ghost is the third rung — the mono caps word the roots use for
+      ADD CAR and ACCOUNT — and those are set in `text.secondary`. Eight ghosts
+      at full ink down the Due table's right edge outweighed the numerals they
+      sat under; one step of ink down is the whole difference between a verb
+      and a value.
+    */
+    const view = await render(<Button label="Add" variant="ghost" onPress={jest.fn()} />);
+    const label = flat(view.getByText('Add').props.style);
+
+    expect(label.color).toBe(text.secondary);
+    expect(groundOf(view.toJSON())).toBeUndefined();
+  });
+});
+
 describe('Chip', () => {
   it('cannot render below the type floor', async () => {
     /*

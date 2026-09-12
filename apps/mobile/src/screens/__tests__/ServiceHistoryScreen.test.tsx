@@ -152,12 +152,14 @@ describe('provenance', () => {
     expect(view.getAllByText('Blackmarket Motorsports')).toHaveLength(1);
 
     /*
-      The visit's total is summed over its three lines. Two nodes carry it here
-      and both are right: the screen's summary covers the whole history, and
-      with one visit on file the two scopes happen to agree. The line items
+      The visit's total is summed over its three lines. One node carries it:
+      the visit head. Until 12 Sep the screen's summary carried it too — with
+      one visit on file the two scopes agree, so the same figure sat twice, one
+      band apart, and the critique cut it. The summary sums visits; with one
+      there is nothing to sum that the head does not say. The line items
       themselves must still show their own figures.
     */
-    expect(view.getAllByText('$1,124')).toHaveLength(2);
+    expect(view.getAllByText('$1,124')).toHaveLength(1);
     view.getByText('$678');
     view.getByText('$152');
     view.getByText('$294');
@@ -218,7 +220,24 @@ describe('the total', () => {
       an unfinished sentence. The claim is the same: a total over some rows is
       never read as a total over all of them.
     */
-    expect(await view.findByText(/2 services · 1 priced/)).toBeTruthy();
+    /*
+      ⚠ Re-pointed again 12 Sep: with the recollection unpriced the summary
+      has one figure to sum, which is the invoice head's own, so the numeral
+      and its qualifier wait for a second priced visit. A second invoice
+      makes the total a sum, and the qualifier says what it covers.
+    */
+    respondWith([
+      INVOICE_ROW,
+      { ...INVOICE_ROW, id: 'm3', source_document_id: 'doc-2', service_date: '2026-03-01', item_description: 'Oil change', total_cost: 152 },
+      RECOLLECTION_ROW,
+    ]);
+    const second = await mount();
+    expect(await second.findByText(/3 services · 2 priced/)).toBeTruthy();
+    expect(second.getByText('$830')).toBeTruthy();
+    // And the anti-vacuous half: one priced visit beside a recollection
+    // carries no summary figure at all.
+    await view.findByText(/2 services/);
+    expect(view.queryByText(/priced/)).toBeNull();
   });
 
   it('does not qualify a total that covers everything', async () => {
@@ -227,6 +246,79 @@ describe('the total', () => {
 
     await view.findByText(/Front brake pads/);
     expect(view.queryByText(/priced/)).toBeNull();
+  });
+
+  /*
+    ── 12 Sep · the numeral describes the rows beneath it ─────────────────────
+
+    Two states in which the summary's total was true of the record and false
+    of the screen, both from the round-31 critique: a search narrowing five
+    rows to one under "$1,313 · 4 PRICED", and a single visit whose head
+    already carried the figure one band up.
+  */
+  it('drops the total while a search is active, because the rows beneath no longer add up to it', async () => {
+    const user = userEvent.setup();
+    respondWith([
+      INVOICE_ROW,
+      { ...INVOICE_ROW, id: 'm2', item_description: 'Oil change', total_cost: 152 },
+      { ...RECOLLECTION_ROW, id: 'm3', total_cost: 40 },
+    ]);
+    const view = await mount();
+    // Two visits, so the summary carries a total to begin with (anti-vacuous).
+    expect(await view.findByText('$870')).toBeTruthy();
+
+    await user.type(view.getByLabelText('Search this service history'), 'brake');
+
+    await waitFor(() => expect(view.queryByText('$870')).toBeNull());
+    expect(view.getByText(/1 of 3 shown/)).toBeTruthy();
+    expect(view.queryByText(/priced/)).toBeNull();
+    // The visit head still totals what is on screen — the head and the one
+    // line beneath it, and nothing else, carry the figure.
+    expect(view.getAllByText('$678')).toHaveLength(2);
+  });
+
+  it('keeps the total once there are two priced visits to sum', async () => {
+    respondWith([INVOICE_ROW, { ...RECOLLECTION_ROW, total_cost: 40 }]);
+    const view = await mount();
+
+    // $678 on the invoice, $40 on the recollection: the summary is the only
+    // place the two are added, so it earns its numeral.
+    expect(await view.findByText('$718')).toBeTruthy();
+  });
+
+  it('carries no figure while only one visit is priced, even beside an unpriced one', async () => {
+    respondWith([INVOICE_ROW, RECOLLECTION_ROW]);
+    const view = await mount();
+
+    await view.findByText(/Timing belt/);
+    // The invoice head says $678; a summary saying $678 one band up would say
+    // it twice.
+    expect(view.getAllByText('$678')).toHaveLength(2);
+    expect(view.queryByText(/priced/)).toBeNull();
+  });
+});
+
+describe('the provenance line under a search', () => {
+  it('counts the lines on the invoice, not the lines that matched', async () => {
+    /*
+      A four-line invoice narrowed to one match read "Read from a 1-line
+      invoice you scanned" — the caption describes the document, and the
+      filter was making it describe the query.
+    */
+    const user = userEvent.setup();
+    respondWith([
+      INVOICE_ROW,
+      { ...INVOICE_ROW, id: 'm2', item_description: 'Oil change', total_cost: 152 },
+      { ...INVOICE_ROW, id: 'm3', item_description: 'Spark plugs', total_cost: 294 },
+    ]);
+    const view = await mount();
+    await view.findByText('Read from a 3-line invoice you scanned');
+
+    await user.type(view.getByLabelText('Search this service history'), 'brake');
+
+    await waitFor(() => expect(view.queryByText(/Oil change/)).toBeNull());
+    expect(view.getByText('Read from a 3-line invoice you scanned')).toBeTruthy();
+    expect(view.queryByText(/1-line invoice/)).toBeNull();
   });
 });
 

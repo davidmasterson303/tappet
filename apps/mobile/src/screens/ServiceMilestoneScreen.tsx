@@ -493,9 +493,13 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
       <Text style={styles.confirmLead}>Still around {miles.format(state.mileage)} miles?</Text>
-      <Text style={styles.confirmBody}>
-        What is due depends on the odometer. The list below is worked out from this reading.
-      </Text>
+      {/*
+        One sentence. "What is due depends on the odometer" said the same
+        thing as the line that follows it, and the critique's Cut list said
+        keep one; this is the one the §10 test holds — the list is computed
+        from the reading, and the screen says so.
+      */}
+      <Text style={styles.confirmBody}>The list below is worked out from this reading.</Text>
 
       {/* The field and its verb on one line — it is one question, not a form. */}
       <View style={styles.confirmRow}>
@@ -671,11 +675,27 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
  *
  * "Add to wishlist" was a full-width graphite button under every row — the
  * critique's *"list-item-with-CTA templating"*, three of them outweighing the
- * three lines they served. It is a mono caps word at the row's right edge
- * now, the voice the roots give their chrome (ADD CAR, ADD, ACCOUNT), in a
- * column of its own so the numerals beside it still line up. Once added it
- * becomes its state — ADDED, in the state ink, no longer pressable — because
- * the outcome the control wanted is the thing to show, not a disabled verb.
+ * three lines they served. It is a mono caps word now, the voice the roots
+ * give their chrome (ADD CAR, ADD, ACCOUNT). Once added it becomes its state
+ * — ADDED, in the state ink, no longer pressable — because the outcome the
+ * control wanted is the thing to show, not a disabled verb.
+ *
+ * ⚠ 12 Sep · **on the meta line, so the numeral reaches the rule.** Round 31
+ * put the word in a column of its own beside the position, and the critique
+ * measured what that cost: every numeral stopped inboard of the rule by the
+ * column's width, and the longest name wrapped to an orphaned "inspect". A
+ * spec table's numerals end at the rule (B6; the History rows do), so the
+ * head line is index, name, mark, position — the record row exactly — and
+ * the action sits at the end of the second line, beside the rule it was
+ * computed from. Its 44pt target is centred on that 16pt line and reaches
+ * into the head line above it; the row does not grow around it.
+ *
+ * ⚠ The row itself is deliberately **not** the affordance, which is what the
+ * critique proposed instead. A tap that writes a row to Needs, with no
+ * visible verb, is a write on a mis-scroll; `WishlistAddScreen` made the same
+ * call for its own rows (R39: *"the card itself is deliberately not the
+ * affordance"*), and the History row's tap *opens* something rather than
+ * writing. The verb stays visible; it moves off the numeral's line.
  *
  * ⚠ The name is in the accessible label: "ADD" alone is unambiguous to an eye
  * that can see the row it sits in, and ambiguous to a reader that hears
@@ -738,38 +758,40 @@ function DueRow({
             —
           </Text>
         )}
-
-        <View style={styles.actionColumn}>
-          {added ? (
-            <Text style={styles.addedText} accessibilityLabel={`${service.service} is on Needs`}>
-              Added
-            </Text>
-          ) : (
-            <Button
-              label="Add"
-              variant="ghost"
-              size="small"
-              busy={adding}
-              busyLabel=""
-              accessibilityLabel={`Add ${service.service} to Needs`}
-              onPress={onAdd}
-              style={styles.action}
-            />
-          )}
-        </View>
       </View>
 
-      {interval || basis ? (
-        <Text style={styles.meta}>
-          {interval}
-          {interval && basis ? ' · ' : null}
-          {/*
-            Its own node, so the claim is findable as the sentence core wrote
-            — the provenance tests look for `SERVICE_BASIS_LABELS[...]` whole.
-          */}
-          {basis ? <Text style={styles.meta}>{basis}</Text> : null}
-        </Text>
-      ) : null}
+      <View style={styles.rowFoot}>
+        {interval || basis ? (
+          <Text style={styles.meta}>
+            {interval}
+            {interval && basis ? ' · ' : null}
+            {/*
+              Its own node, so the claim is findable as the sentence core wrote
+              — the provenance tests look for `SERVICE_BASIS_LABELS[...]` whole.
+            */}
+            {basis ? <Text style={styles.metaBasis}>{basis}</Text> : null}
+          </Text>
+        ) : (
+          <View style={styles.metaSpacer} />
+        )}
+
+        {added ? (
+          <Text style={styles.addedText} accessibilityLabel={`${service.service} is on Needs`}>
+            Added
+          </Text>
+        ) : (
+          <Button
+            label="Add"
+            variant="ghost"
+            size="small"
+            busy={adding}
+            busyLabel=""
+            accessibilityLabel={`Add ${service.service} to Needs`}
+            onPress={onAdd}
+            style={styles.action}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -833,7 +855,13 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,
   },
-  groupLabel: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
+  /*
+    ⚠ 12 Sep · the token's own size. At 15 the condensed face was read as
+    "bold body-sans caps" (round 32) — the misread drift §6.13 records at
+    12pt, one size up — and the web sets its section heads (SPECIFICATION,
+    PERFORMANCE) at the size the token carries, as do the hub's rows.
+  */
+  groupLabel: { ...type.displaySection, color: text.primary },
   groupDetail: { ...type.value, color: text.secondary },
 
   /*
@@ -867,21 +895,32 @@ const styles = StyleSheet.create({
   position: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
   positionNone: { ...type.mono, color: text.muted, textAlign: 'right', lineHeight: 20 },
   /*
-    A fixed column, so the numerals to its left share an edge whatever the
-    word in it — ADD, ADDED, or the bare mark while the request is out. The
-    control clears 44 through `Button`'s own floor and pulls that height back
-    into the 20pt line so the row does not grow around it.
+    The second line: the meta, then the action at the rule. The meta takes
+    the width and wraps within it; the word keeps its own.
   */
-  actionColumn: { width: 52, alignItems: 'flex-end', height: 20, justifyContent: 'center' },
-  action: { marginVertical: -(TARGET_MIN - 20) / 2, marginRight: -space.md },
-  addedText: { ...type.monoLabel, color: text.muted, lineHeight: 20 },
+  rowFoot: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+    paddingLeft: 22 + space.md,
+  },
+  /*
+    The control clears 44 through `Button`'s own floor and pulls that height
+    back into the 16pt line so the row does not grow around it; the label's
+    own padding is pulled back too, so the word ends where the numerals do.
+  */
+  action: { marginVertical: -(TARGET_MIN - 16) / 2, marginRight: -space.md },
+  addedText: { ...type.monoLabel, color: text.muted },
   /*
     The record's provenance voice: the quiet sans, under the name and clear of
     the index column. A sentence, so not the mono (B1 gives the mono to
     values; "Every 5,000 mi" is a rule stated in words, and "From your service
     records" is a claim).
   */
-  meta: { ...type.label, letterSpacing: 0, color: text.muted, paddingLeft: 22 + space.md },
+  meta: { ...type.label, letterSpacing: 0, color: text.muted, flex: 1 },
+  metaBasis: { ...type.label, letterSpacing: 0, color: text.muted },
+  /* Holds the action at the rule on a row with nothing to say beneath its name. */
+  metaSpacer: { flex: 1 },
 
   footnote: { ...type.label, letterSpacing: 0, color: text.muted },
 

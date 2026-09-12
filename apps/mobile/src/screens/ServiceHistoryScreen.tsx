@@ -327,6 +327,40 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   const visits = groupIntoVisits(shown);
 
   /*
+    ── ⚠ 12 Sep · the record's own line count, whatever the search shows ─────
+
+    The provenance line said "Read from a 1-line invoice you scanned" the
+    moment a search narrowed a four-line invoice to one match: the visit was
+    grouped from the filtered list, so its `records.length` was the number of
+    *matches*, and the caption — which describes the document, not the
+    query — was made to lie by the filter. The critique caught it in the
+    search frame (round 31). So the count comes from the unfiltered
+    grouping, keyed by the visit the filtered one is a subset of.
+  */
+  const linesOnRecord = new Map(
+    groupIntoVisits(state.records).map((visit) => [visit.key, visit.records.length])
+  );
+
+  /*
+    ── ⚠ 12 Sep · the summary's numeral describes the rows beneath it ────────
+
+    "1 OF 5 SHOWN · 4 PRICED   $1,313" above a single $678 row: the label said
+    one row was showing and the numeral summed all five. B6's column has one
+    job — the number that the rows beneath add up to — so while a search is
+    active the summary is the count and nothing else; the visit head carries
+    the total of what is actually on screen.
+
+    And with **one priced** visit the summary's total is that visit head's
+    total, one band apart — the critique's Cut list. The summary sums visits;
+    until two of them carry a figure there is nothing for it to sum that a
+    head does not already say (a recollection with no cost is a visit, not a
+    figure), so the numeral, and the "N priced" that qualifies it, appear
+    only once there are two.
+  */
+  const summarises =
+    !query && counted > 0 && visits.filter((visit) => visit.counted > 0).length > 1;
+
+  /*
     ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
     a hand-rolled search box rather than the `Field` primitive — giving
     `Field` the cut left this one square, which is how the critique kept
@@ -461,12 +495,12 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 query
                   ? `${shown.length} of ${state.records.length} shown`
                   : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`,
-                counted > 0 && counted !== state.records.length ? `${counted} priced` : null,
+                summarises && counted !== state.records.length ? `${counted} priced` : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
-            {counted > 0 && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
+            {summarises && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
           </View>
 
           {shown.length === 0 && (
@@ -646,7 +680,9 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 it is attached to.
               */}
               <View style={styles.foot}>
-                <Text style={styles.provenance}>{visitProvenance(visit)}</Text>
+                <Text style={styles.provenance}>
+                  {visitProvenance(visit, linesOnRecord.get(visit.key) ?? visit.records.length)}
+                </Text>
               </View>
             </Card>
           ))}
@@ -704,10 +740,11 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
  * later added a line to by hand — and the honest wording is the general one
  * rather than picking whichever source came first.
  */
-function visitProvenance(visit: ServiceVisit): string {
+function visitProvenance(visit: ServiceVisit, linesOnRecord: number): string {
   if (visit.scanned) {
-    const lines = visit.records.length;
-    return `Read from a ${lines}-line invoice you scanned`;
+    // The document's line count, not the visit's — a search can narrow the
+    // visit to a subset of the invoice it was read from.
+    return `Read from a ${linesOnRecord}-line invoice you scanned`;
   }
 
   const sources = new Set(
@@ -784,7 +821,8 @@ const styles = StyleSheet.create({
   /* ── R17 · the visit's head ─────────────────────────────────────────────── */
   visitHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   visitIdentity: { flexShrink: 1, gap: 2 },
-  visitShop: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
+  /* 12 Sep: the token's size, not 15 — see `ServiceMilestoneScreen`'s `groupLabel`. */
+  visitShop: { ...type.displaySection, color: text.primary },
   /* R11. A date is data. */
   visitDate: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* R11. The visit's total, and the biggest figure on the card. */
