@@ -314,6 +314,53 @@
 > stays until a sandbox purchase has been through Restore.
 > `PAID_FEATURES_ENFORCED` stays off; flipping it is the launch, not a
 > config change (`paid-features.ts`).
+
+> ⚠ **Two calibrations from Cowork on the same day, both to plan around:**
+> the App Store Connect record cannot be created until the Apple account
+> moves Individual → Organization, which needs a D-U-N-S, which needs the LLC
+> filed — so "tested once App Store Connect has products" is weeks out, and
+> the adapter is built without planning to test it soon. And IAP product ids
+> are **permanent** (the immutable-identifier family of the bundle id and the
+> Expo slug — FACTS hazard 12): they get named once, Cowork brings the naming
+> before anything is created, and nothing may create them incidentally. In
+> code the ids live in one place, `PRODUCT_TIERS` in
+> `packages/core/src/apple-subscription.ts`; the adapter reads them from
+> there, so a naming decision is one edit.
+>
+> #### 12 Sep — the old hostnames redirect, on the next promote-demo; ask David first
+>
+> Cowork's handoff (`Claude outputs/claude-code-prompt-hostname-redirects.md`,
+> gitignored): David opened the demo and the address bar said CrewChief.
+> Cowork flipped both projects' primary domains to the Tappet hostnames and
+> measured nothing — Netlify redirects apex↔`www` only, never between
+> subdomains, so the primary setting is inert and the earlier caution that a
+> flip "would 301 the recruiter-facing demo" was wrong. The redirect is
+> `netlify.toml`'s, and the **demo pair is on `main`**: both old demo hosts
+> → `tappet-demo.davidmasterson.co`, 301, `force = true`; the canary
+> workflow and the README moved off the old host in the same commit
+> (CLAUDE.md §8), and `hostname-redirects.test.ts` pins the rules, the
+> no-loop property, and that nothing here still names a redirected host.
+>
+> ⚠ **It goes live on the next `promote-demo`, and David asked to be asked
+> first** — `crewchief-demo.davidmasterson.co` is the link recruiters hold.
+> Verify after the deploy, not the merge:
+>
+> ```
+> for h in crewchief-demo.davidmasterson.co wellkept-demo.davidmasterson.co; do
+>   printf '%-34s ' "$h"; curl -sI "https://$h/" | awk 'NR==1{printf "%s ", $2} tolower($1)=="location:"{print "-> " $2}'; done
+> ```
+>
+> expects `301 -> https://tappet-demo.davidmasterson.co/` for both, and
+> `tappet-demo.davidmasterson.co` itself still `200`. The **product pair is
+> second**, in its own commit after that reads right: that host takes the
+> app's API writes and a 301 downgrades POST to GET. The check Cowork asked
+> for is done — the only device build ever made (22 Aug, `f7969888`,
+> `co.davidmasterson.crewchief`, profile `device`) is a development client
+> that takes `apiBaseUrl` from Metro's manifest, and the fallback in
+> `apps/mobile/src/config.ts` is `tappet.southmoordigital.com`; nothing
+> installed calls the old product host. The App Store listing still names
+> `crewchief.davidmasterson.co` — Cowork's, and the redirect must not make
+> it look done.
 >
 > ---
 >

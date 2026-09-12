@@ -127,3 +127,46 @@ for = "/*"
 for = "/_next/static/*"
   [headers.values]
   X-Content-Type-Options = "nosniff"
+
+# ── 12 Sep · the old hostnames redirect, and only this file can make them ─────
+#
+# The 7 Sep rename added the Tappet hostnames as aliases and retired nothing,
+# so six hostnames served two sites and the address bar still said CrewChief
+# on the demo David opened. Cowork flipped both projects' primary domains on
+# 12 Sep and measured: nothing redirected. Netlify's own docs say why —
+# it redirects between the apex and `www` and "we don't do this for any
+# other subdomains". Every hostname here is a subdomain, so the primary
+# setting is inert for redirects and the earlier caution that a flip "would
+# 301 the recruiter-facing demo" was an assumption. The rules below are the
+# redirect; each `from` is host-scoped and each host resolves to exactly one
+# project, so the demo rules are inert on `web-live` and vice versa.
+#
+# `force = true` because a host-level rule always has a file at the path.
+# `301` because the rename is permanent; a 301 is sticky in browser caches,
+# which is the intended direction.
+#
+# ⚠ The product pair (`crewchief.davidmasterson.co`, `wellkept.southmoordigital.com`
+# → `tappet.southmoordigital.com`) is deliberately not here yet. A 301
+# downgrades POST to GET, and that host takes the app's API writes. The demo
+# host carries no API traffic, ships first, and is verified live before the
+# product rules follow (CLAUDE.md §8). The check that no installed build
+# still calls the old product host is done: the only device build ever made
+# (22 Aug, `co.davidmasterson.crewchief`) is a development client that takes
+# its `apiBaseUrl` from Metro's manifest, and `apps/mobile/src/config.ts`'s
+# fallback is the new host.
+#
+# Verify after deploy, not after merge — `lib/__tests__/hostname-redirects.test.ts`
+# proves the file says this; `curl -sI` on each old host is what proves the
+# deploy did.
+
+[[redirects]]
+  from = "https://crewchief-demo.davidmasterson.co/*"
+  to = "https://tappet-demo.davidmasterson.co/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://wellkept-demo.davidmasterson.co/*"
+  to = "https://tappet-demo.davidmasterson.co/:splat"
+  status = 301
+  force = true

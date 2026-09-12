@@ -24,7 +24,7 @@ const nextConfig = {
     Test Drive" button pointing at a near-copy of the page it sat on.
 
     / is the demo now, and /demo redirects to it. The redirect is not optional
-    housekeeping — README.md advertises https://crewchief-demo.davidmasterson.co
+    housekeeping — README.md advertises https://tappet-demo.davidmasterson.co
     and davidmasterson.co/ai-work.html links to the demo, so the path has to keep
     resolving. `packages/core/src/demo-contract.ts` still lists /demo among the
     routes an anonymous visitor must be able to reach, and scripts/verify-demo.mjs

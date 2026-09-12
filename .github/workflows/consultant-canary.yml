@@ -101,7 +101,7 @@ jobs:
         # is the whole point and must survive into the alert.
         continue-on-error: true
         run: |
-          node scripts/consultant-canary.mjs https://crewchief-demo.davidmasterson.co
+          node scripts/consultant-canary.mjs https://tappet-demo.davidmasterson.co
           echo "exit=$?" >> "$GITHUB_OUTPUT"
 
       - name: Interpret the result

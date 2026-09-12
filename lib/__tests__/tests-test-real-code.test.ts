@@ -403,6 +403,15 @@ const STATIC_ANALYSIS_SUITES = [
   // replaced them tells you nothing about who did not adopt it. The failure it
   // pins is silent in the ordinary way: a twenty-first spinner renders fine.
   'one-wait-instrument.test.ts',
+  // Reads netlify.toml's `[[redirects]]` tables, the canary workflow and the
+  // README, and proves the retired hostnames redirect to the right primary
+  // without a loop and that nothing here still names a host that redirects.
+  // Nothing to import: the subject is a deploy configuration Netlify reads and
+  // no runtime here evaluates. The failure it pins is the one CLAUDE.md §8
+  // records — a redirect that reads right and is only found wrong after the
+  // deploy, on the recruiter-facing host, or a canary POSTing into a 301 and
+  // turning CI red.
+  'hostname-redirects.test.ts',
 ];
 
 /**
