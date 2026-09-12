@@ -116,7 +116,17 @@ function renderGarage(
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('the recall chip counts what is still open', () => {
+/**
+ * The recall row, as it is read: "1 open recall. Opens the car." is the row's
+ * accessible name, and the visible row is the mono label OPEN RECALL(S) with
+ * the count in the numeral column — so the count is asserted through the
+ * label rather than as a string the row no longer prints in one piece.
+ */
+function openRecalls(view: Awaited<ReturnType<typeof renderGarage>>) {
+  return view.queryByLabelText(/^\d+ open recalls?\. Opens the car\.$/);
+}
+
+describe('the recall row counts what is still open', () => {
   /*
     ── Two corrections, and both are silent ────────────────────────────────
 
@@ -125,6 +135,9 @@ describe('the recall chip counts what is still open', () => {
     already dealt with. The second was not even a bug until 23 Aug, because
     there was no way to mark one — and a badge that can never go down stops
     being read, which is the whole reason `/api/v1/recalls` exists.
+
+    ⚠ 11 Sep: the chip became a hairline row under the dial (`GarageBay`), and
+    these cases read the count off the row's accessible name.
   */
   it('does not count a record with nothing to say', async () => {
     request.mockResolvedValue({
@@ -146,7 +159,7 @@ describe('the recall chip counts what is still open', () => {
     const view = await renderGarage();
     await view.findByText('2015 BMW M235i');
 
-    expect(view.getByText('1 open recall')).toBeTruthy();
+    expect(openRecalls(view)?.props.accessibilityLabel).toBe('1 open recall. Opens the car.');
   });
 
   it('subtracts what the owner has marked repaired', async () => {
@@ -157,11 +170,11 @@ describe('the recall chip counts what is still open', () => {
     const view = await renderGarage();
     await view.findByText('2015 BMW M235i');
 
-    // Two on record, one marked — and the chip is the count of what is left.
-    expect(view.getByText('1 open recall')).toBeTruthy();
+    // Two on record, one marked — and the row is the count of what is left.
+    expect(openRecalls(view)?.props.accessibilityLabel).toBe('1 open recall. Opens the car.');
   });
 
-  it('shows no chip once every recall has been marked', async () => {
+  it('shows no row once every recall has been marked', async () => {
     request.mockResolvedValue({
       vehicles: [
         {
@@ -174,7 +187,8 @@ describe('the recall chip counts what is still open', () => {
     const view = await renderGarage();
     await view.findByText('2015 BMW M235i');
 
-    expect(view.queryByText(/recall/)).toBeNull();
+    expect(view.queryByText(/recall/i)).toBeNull();
+    expect(openRecalls(view)).toBeNull();
   });
 
   it('treats unreadable marks as nothing marked, never as everything', async () => {
@@ -188,7 +202,7 @@ describe('the recall chip counts what is still open', () => {
     const view = await renderGarage();
     await view.findByText('2015 BMW M235i');
 
-    expect(view.getByText('2 open recalls')).toBeTruthy();
+    expect(openRecalls(view)?.props.accessibilityLabel).toBe('2 open recalls. Opens the car.');
   });
 });
 
@@ -237,7 +251,8 @@ describe('the garage', () => {
 
     // Recalls stay on the bay. A garage that shows condition but not an open
     // safety defect is showing the reassuring half.
-    expect(view.getByText('2 open recalls')).toBeTruthy();
+    expect(openRecalls(view)?.props.accessibilityLabel).toBe('2 open recalls. Opens the car.');
+    expect(view.getByText('OPEN RECALLS')).toBeTruthy();
   });
 });
 
@@ -397,7 +412,20 @@ describe('adding a car', () => {
  * one.
  */
 describe('the bay’s hierarchy', () => {
-  it('puts an open recall above the dial, not under it', async () => {
+  /*
+    ── ⚠ 11 Sep · re-pointed: the recall follows the dial now, and stays full width ─
+
+    This asserted the recall *above* the dial — R19, against a 22pt chip that
+    had been sitting under a 110pt instrument. The locked brief runs strip →
+    dial, and two critiques read the chip between them as the one card left on
+    the screen; so the dial comes off the strip and the recall is the first
+    reading under it, a hairline row with the sodium mark (`GarageBay` carries
+    the argument). What this case keeps of R19 is the half that was about
+    being *seen*: the recall is in the two-row table straight under the
+    instrument, full width, carrying its warning mark — not a chip that merely
+    got bigger somewhere further down.
+  */
+  it('puts an open recall in the readings under the dial, marked, in the brief’s order', async () => {
     request.mockResolvedValue({
       vehicles: [
         {
@@ -413,7 +441,7 @@ describe('the bay’s hierarchy', () => {
     });
 
     const view = await renderGarage();
-    const chip = await view.findByText('1 open recall');
+    const row = await view.findByLabelText('1 open recall. Opens the car.');
 
     /*
       ⚠ Wait for the dial to *land* before snapshotting the tree.
@@ -445,13 +473,21 @@ describe('the bay’s hierarchy', () => {
     };
     walk(order);
 
-    const recallAt = flat.findIndex((line) => line.includes('open recall'));
+    const recallAt = flat.findIndex((line) => /^OPEN RECALLS?$/.test(line));
+    const markAt = flat.findIndex((line) => line === '△');
     const dialAt = flat.findIndex((line) => line === '70');
+    const nextServiceAt = flat.findIndex((line) => line === 'NEXT SERVICE');
 
-    expect(chip).toBeTruthy();
+    expect(row).toBeTruthy();
     expect(recallAt).toBeGreaterThan(-1);
     expect(dialAt).toBeGreaterThan(-1);
-    expect(recallAt).toBeLessThan(dialAt);
+    expect(nextServiceAt).toBeGreaterThan(-1);
+    /* The brief's order: the dial straight off the strip, the readings under it. */
+    expect(dialAt).toBeLessThan(nextServiceAt);
+    expect(nextServiceAt).toBeLessThan(recallAt);
+    /* B7: the sodium triangle sits beside the warning, and nowhere else on the bay. */
+    expect(markAt).toBe(recallAt - 1);
+    expect(flat.filter((line) => line === '△')).toHaveLength(1);
   });
 
   it('does not page a garage of one', async () => {

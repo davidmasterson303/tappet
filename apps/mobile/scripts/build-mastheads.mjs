@@ -19,18 +19,21 @@
  *   service  the wet concrete apron outside a workshop at night, seen low from
  *            the kerb — a sodium work lamp over a closed ribbed roller shutter,
  *            a cold cyan street lamp beyond; no car, the bay closed.
- *   plan     an empty wet two-lane road receding to its vanishing point from
- *            kerb height — sodium lamps receding along one side, cyan far off
- *            on the other, a dashed centre line catching faint cyan; no car.
+ *   plan     the road ahead, entering a low concrete underpass at night from
+ *            kerb height — one sodium lamp on the underpass wall across the
+ *            wet asphalt, the far exit a faint cold cyan haze, a dashed
+ *            centre line running away; no car. (A second prompt, after
+ *            round 24 — see the `PLATES` note; the first was an open road
+ *            with lamps down both sides.)
  *   advisor  the driver's seat of a parked car at night, looking out through a
  *            rain-covered windscreen — the street out of focus, a sodium bloom
  *            one side and a cyan bloom the other, the dark unlit dash below;
  *            no dashboard lights, gauges, screens or hands.
  *
- * Two candidates per subject, US$0.80 in all, logged in
- * `design-loop/cost-log.jsonl`. None of the six holds a car, a badge, a person
- * or a word, so the trademark question `public/vehicles/CREDITS.md` raises
- * about the demo cars does not arise here. The frames themselves live in
+ * Two candidates per subject, plus two for the second Plan prompt — US$1.07 in
+ * all, logged in `design-loop/cost-log.jsonl`. None of the eight holds a car,
+ * a badge, a person or a word, so the trademark question
+ * `public/vehicles/CREDITS.md` raises about the demo cars does not arise here. The frames themselves live in
  * `design-loop/mobile-ios/img/`, which is gitignored like the rest of the
  * loop; **the committed JPEG is the artefact**, and this script is the record
  * of how it was cut. It re-cuts when the frames are present and says so when
@@ -97,8 +100,17 @@ const H = 351;
 const PLATES = {
   /* The top of the frame: both lamps and both shutters, the ground under the name. */
   service: { frame: 'masthead-service-1.png', top: 0, bedFrom: 0.42, bedFloor: 0.34 },
-  /* Just under the top edge, so the receding lamps stay and the near asphalt is the floor. */
-  plan: { frame: 'masthead-plan-2.png', top: 150, bedFrom: 0.42, bedFloor: 0.34 },
+  /*
+    Just under the top edge, so the lamp on the wall stays and the near
+    asphalt is the floor. ⚠ Round 24's frame was `masthead-plan-2.png` — an
+    open road with sodium lamps down one side and cyan down the other — and
+    the critique named it the one AI tell left: *"splits sodium-left /
+    cyan-right so evenly it reads as a grade swatch, not a place"*, asking for
+    *"one night place with one light source (underpass, forecourt canopy)"*.
+    The underpass frame is that: one sodium lamp on the wall, the exit a cyan
+    haze, and the road still the subject.
+  */
+  plan: { frame: 'masthead-plan-underpass-2.png', top: 60, bedFrom: 0.42, bedFloor: 0.34 },
   /*
     The foot of the frame: the street's bokeh under the status bar, the wet
     bonnet across the middle, and the unlit dash — the darkest ground of the

@@ -35,8 +35,10 @@ import { cut, surface } from '../theme';
  *
  *   - **Service** — the wet apron outside a closed workshop, a sodium work
  *     lamp over the roller shutter, a cyan street lamp beyond.
- *   - **Plan** — the road ahead: an empty wet two-lane road running to its
- *     vanishing point under receding lamps, sodium one side and cyan the other.
+ *   - **Plan** — the road ahead: an empty wet road entering a concrete
+ *     underpass, one sodium lamp on its wall, the exit a cold cyan haze. (It
+ *     was an open road with lamps down both sides for one round; the critique
+ *     read that as a colour split rather than a place, and it was.)
  *   - **Advisor** — the driver's seat of a parked car at night, the street's
  *     lights as soft bokeh through a rain-covered windscreen.
  *

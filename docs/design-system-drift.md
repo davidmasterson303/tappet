@@ -1524,6 +1524,91 @@ David's phone's Metro — in both its port and the owner-photo URL; it is
 ("Still around 66,000 miles?") — B5 says cards become hairline bands. It is
 not in the five graded frames, which shoot History; it is for the next loop.
 
+### 6.12 The loop over the mastheads — round 24 onward, 11 Sep
+
+**Round 24 — 7/10, 4 ✅ / 5 🟡 / 0 ❌, `Continue: yes`.** The critic took the
+mastheads without objection — *"Service (one lit door) and Advisor (a wet
+windscreen) have a light source and a reason"* — and named the Plan frame the
+one AI tell left: an open road with sodium down one side and cyan down the
+other *"reads as a grade swatch, not a place"*. It asked for *"one night place
+with one light source (underpass, forecourt canopy)"*, which is what the Plan
+plate is now: the road entering an underpass under one sodium lamp, the exit
+a cyan haze — two more candidates, US$0.27, US$1.07 in all. The four 🟡 lines
+are frames the five screens cannot show (draw-in, factors, the collapse, the
+viewfinder) and the plate's cut *"not resolvable at this scale"*, which round
+22 already measured at native resolution; round 23 had marked the same lines
+✅ with the same caveats. Critic variance, recorded rather than chased.
+
+**Taken, with measurements first:**
+
+- **Garage runs strip → dial → readings** (gap 1, `[B2][B3][B6]`). NEXT
+  SERVICE and the recalls chip sat between the strip and the dial and ~140pt
+  of graphite sat under FAIR. The dial now comes straight off the strip, as
+  the studio paragraph writes it, and the two facts sit beneath it as a
+  two-row spec table — mono label left, value right, hairline per row, the
+  sodium `△` beside OPEN RECALLS, the count in the numeral column; the chip
+  is gone. ⚠ **This supersedes R19's placement** (23 Aug: *"an open airbag
+  recall outranks a fair score"*, so the alert went above the instrument).
+  R19 was written against a 22pt chip under a 110pt dial; what it argued for
+  — the recall seen, full width, above the fold — survives, and what it
+  argued *with* — a position above the dial — gives way to the locked brief.
+  `GarageScreen.test.tsx`'s hierarchy case is re-pointed to the new order and
+  now also holds the mark beside the row and nowhere else.
+- **Spec rows are 56pt** (gap 4, `[B6]`, measured). The service record's lines
+  measured 44 — `TARGET_MIN` plus the paddings they carried, in a card with a
+  12pt gap. They sit in their own container now, each row `SPEC_ROW` tall
+  with the text centred. `SPEC_ROW` lives beside `TARGET_MIN`, not in
+  `rhythm`: `theme-backdrop.test.tsx` holds every rhythm slot to the 4pt
+  scale and fired on 56, and it was right — a row height is not a gap.
+- **The numeral was measured and left alone** (gap 4). The bay dial's reading
+  is `0.34 ×` the dial's width — 56pt on the 164pt bay dial — which is the
+  north star's own ratio (its 68 sits at ~0.32 of its arc). The studio
+  paragraph's *"88pt"* was written against the web hero dial; on a 164pt dial
+  88pt would nearly touch the arc. B3's checklist line says *dominant*, and
+  the reading is the largest thing on the screen. Not changed.
+
+**A real defect the screenshots found.** After the second visit to Plan or
+Service the list sat ~60pt low under its rail, with nothing in the gap.
+`useRefetchOnFocus` passed the caller's `load` straight to
+`addListener('focus', …)`, so the focus *event* arrived as `load(isRefresh)`
+and every return to a tab ran as a pull-to-refresh; with a response that
+resolved in the same frame — the fixtures do, a cached answer would — iOS's
+refresh control began and ended before drawing and left its inset behind.
+Fixed in the hook (`() => reload()`), guarded in
+`screens-refetch-on-focus.test.ts`. It survived four graded rounds because
+each tab was shot on its first visit.
+
+**Parking lot — for David, with the facts the loop found:**
+
+- *The strip: MILEAGE · AVG · RELIABILITY* (gap 2, asked in four rounds).
+  `avg_miles_per_month` **is** on both the garage and the vehicle payloads;
+  `reliability_score` is on the vehicle payload only (`load-vehicle` selects
+  the whole knowledge-base row) and not on the garage list, and it is the
+  researcher's 1–10 with a `.default(5)` — a guessed value §10 would not
+  print. Web's mobile dossier shows the trim **in the model name** ("ACCORD
+  SPORT 1.5T") and the strip as MILEAGE · AVG · RELIABILITY with DAILY DRIVER
+  as a chip. Moving TRIM off the phone's strip therefore means moving it into
+  the name line, and RELIABILITY needs `GARAGE_COLUMNS` to embed the
+  knowledge base — an API change that must promote before a build can rely
+  on it (CLAUDE.md §8). Two decisions, neither the loop's.
+- *The Vehicle plate's height* (gap 3). Round 23 praised the tall crop;
+  round 24 called it *"the poster the direction warns against"* and asked
+  for the garage's height. The hero mirrors web's `--hero-h: clamp(400,
+  62svh, 560)` and carries the pullback's whole motion design; the
+  web-reference *mobile* dossier, though, places a contained plate under the
+  identity rather than a 62svh hero. Which of the two the phone follows is a
+  design call; both critics cannot be satisfied by a number.
+- *The sliders icon on "What is driving this score"* — cut twice (rounds 23
+  and 24). `NavRow` makes `icon` required for a stated reason (an optional
+  icon gets omitted under deadline; a lone bare row reads as a fault), so
+  dropping it there is a contract change, not a deletion.
+- *ABOUT 2015 BMW M235I on Advisor* — cut once. R52 argued it in: the line
+  names what the thread is about, which matters in a two-car garage.
+- *Whether three tabs need three stills* — the critic's own question, and
+  David's to answer; the loop built what he asked for.
+- *Which screen owns the dial* — the reading appears on Garage as the dial
+  and on Vehicle as `70 FAIR`; the critic asks which is the instrument.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
