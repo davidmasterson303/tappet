@@ -9,6 +9,12 @@ import { useCountUp } from '@/hooks/use-count-up';
 interface DiagnosticHeroProps {
   /** A renderable photo URL, already signed by the caller. Null is expected. */
   photo?: string | null;
+  /**
+   * What the empty plate says instead of "No photograph yet" — the car's
+   * generation plate drawing, or having failed (11 Sep). From
+   * `plateStatusLine`; null keeps the default. Only read when `photo` is null.
+   */
+  emptyLine?: string | null;
   vehicleName: string;
   year?: number | string | null;
   make?: string | null;
@@ -99,6 +105,7 @@ interface DiagnosticHeroProps {
  */
 export default function DiagnosticHero({
   photo,
+  emptyLine = null,
   vehicleName,
   year,
   make,
@@ -271,6 +278,7 @@ export default function DiagnosticHero({
         <VehicleIdentity
           variant="band"
           photo={photo ?? null}
+          emptyLine={emptyLine}
           year={year}
           make={make}
           model={model}

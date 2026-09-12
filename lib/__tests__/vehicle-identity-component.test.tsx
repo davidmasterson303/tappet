@@ -294,3 +294,40 @@ describe('one answer to "what does a vehicle look like"', () => {
     expect(plate(photographed).style.height).toBe('400px');
   });
 });
+
+describe('the plate that is still drawing (11 Sep)', () => {
+  /*
+    A car's generation plate draws in the background after VIN decode. While
+    it does, the empty plate says so in place of "No photograph yet" — the
+    wait is real and named, never a percentage — and says nothing at all once
+    a photograph is on screen. `emptyLine` is the only way in; the wording is
+    `plateStatusLine` in core, tested there.
+  */
+  it('replaces the default line on both variants, and reads as live', () => {
+    const { container: card } = render(
+      <VehicleIdentity variant="card" emptyLine="Drawing this car's plate" {...M235i} />,
+    );
+    expect(card.textContent).toContain("Drawing this car's plate");
+    expect(card.textContent).not.toContain('No photograph yet');
+    expect(card.querySelector('[aria-live="polite"]')?.textContent).toBe("Drawing this car's plate");
+
+    const { container: band } = render(
+      <VehicleIdentity variant="band" emptyLine="Drawing this car's plate" {...M235i} />,
+    );
+    expect(band.textContent).toContain("Drawing this car's plate");
+  });
+
+  it('keeps the default when there is nothing to say — the anti-vacuous half', () => {
+    const { container } = render(<VehicleIdentity variant="card" emptyLine={null} {...M235i} />);
+    expect(container.textContent).toContain('No photograph yet');
+    expect(container.querySelector('[aria-live]')).toBeNull();
+  });
+
+  it('prints nothing over a photograph, whatever the line says', () => {
+    const { container } = render(
+      <VehicleIdentity variant="card" photo="https://example.test/car.jpg" emptyLine="Drawing this car's plate" {...M235i} />,
+    );
+    expect(container.textContent).not.toContain("Drawing this car's plate");
+    expect(container.textContent).not.toContain('No photograph yet');
+  });
+});
