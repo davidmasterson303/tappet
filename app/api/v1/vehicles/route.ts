@@ -8,7 +8,7 @@ import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
-import { resolveVehiclePhotos } from '@/lib/vehicle-photo';
+import { platePresence, resolveVehiclePhotos } from '@/lib/vehicle-photo';
 
 export const dynamic = 'force-dynamic';
 
@@ -178,10 +178,17 @@ export async function GET(request: NextRequest): Promise<Response> {
       One round trip for the whole garage, not one per car.
     */
     const photos = await resolveVehiclePhotos(rows, getServiceRoleClient());
+    // Added 12 Sep, with the plate: the library status for cars with no
+    // photograph, one query for the garage, so the phone can say a plate is
+    // drawing. Additive to the contract; `null` means nothing to say.
+    const plates = await platePresence(
+      rows.map((row) => ({ id: row.id, photo_url: photos.get(row.id) ?? null, plate_key: (row.plate_key as string | null | undefined) ?? null })),
+      getServiceRoleClient(),
+    );
 
     const vehicles = rows.map((row) => {
       const { custom_image_url, ...vehicle } = row;
-      return { ...vehicle, photo_url: photos.get(row.id) ?? null };
+      return { ...vehicle, photo_url: photos.get(row.id) ?? null, plate_status: plates.get(row.id) ?? null };
     });
 
     logger.info('API:GET_VEHICLES', 'Vehicles fetched successfully', {

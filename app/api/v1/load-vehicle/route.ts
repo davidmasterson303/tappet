@@ -3,7 +3,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { resolveVehiclePhoto } from '@/lib/vehicle-photo';
+import { platePresence, resolveVehiclePhoto } from '@/lib/vehicle-photo';
 import { driversForVehicle } from '@tappet/core/health-drivers';
 
 export const dynamic = 'force-dynamic';
@@ -222,9 +222,27 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const photo_url = await resolveVehiclePhoto(
       vehicleId,
-      { image_url: vehicle.image_url as string | null, custom_image_url },
+      {
+        image_url: vehicle.image_url as string | null,
+        custom_image_url,
+        // The plate ranks last; without it here the detail screen and the
+        // garage list resolved different fallbacks for the same car (found
+        // by the mobile loop on 12 Sep, the night the plate reached the API).
+        plate_key: (vehicle.plate_key as string | null | undefined) ?? null,
+      },
       supabase
     );
+    /*
+      Added 12 Sep, with the plate. `null` whenever there is a photograph to
+      show or no plate was asked for; otherwise the library row's status, so
+      the phone's empty plate can say the plate is drawing rather than
+      "No photograph yet". Additive to the contract.
+    */
+    const plate_status =
+      (await platePresence(
+        [{ id: vehicleId, photo_url, plate_key: (vehicle.plate_key as string | null | undefined) ?? null }],
+        supabase,
+      )).get(vehicleId) ?? null;
 
     /*
       ── The drivers, and how each one fails ────────────────────────────────
@@ -270,7 +288,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     return Response.json({
       success: true,
-      vehicle: { ...vehicle, photo_url },
+      vehicle: { ...vehicle, photo_url, plate_status },
       knowledge: knowledgeData,
       /*
         Top level rather than folded into `vehicle`. These are *derived* and the
