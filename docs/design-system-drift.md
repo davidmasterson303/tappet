@@ -1932,3 +1932,100 @@ three settings sub-descriptions and the delete panel's restated one are gone,
 as are both icon tiles and the duplicate "Go to Garage" link · Save is grey
 until something is dirty · the delete dialog uses the primitive's destructive
 variant instead of `bg-red-500 … disabled:opacity-40`.
+
+## 14. The wait instrument — 11–12 Sep 2026
+
+Raised by `design-loop/working/` (gitignored). David, walking the live demo on
+11 Sep: *"i want more engaging loading states than just simple skeleton loader.
+something engaging will buy patience from user."* The screenshot was the
+Plan → Mods card — two pulsing skeleton bars under a mod nobody had asked
+about, an absence drawn as a wait that never ends. The product boundary
+(§10 of CLAUDE.md, `advice-range.ts`) rules out the usual answer: no
+percentage, no bar that fills, no stage a timer advanced, no duration nobody
+measured. So "engaging" became an instrument that is visibly alive and copy
+that is true for the whole of the wait: `components/Working.tsx`, the health
+dial's ignition sweep kept going — a 24° cyan pip hunting terminal to terminal
+on a hairline arc with an empty centre where the numeral would be — at three
+sizes (160/128 full, 20 compact, 14 mark), with a ledger only where a process
+emits real stages, and `Button`'s `busy` form for the control that started
+the work. Twenty-two `Loader2` spinners, four hand-rolled rings, five pulsing
+skeletons, a framer glow and one stage list on a clock are gone, and
+`one-wait-instrument.test.ts` refuses the next one.
+
+An independent critic wrote the brief in BRIEF mode against the frozen
+north-star and the settled-system paragraph; locked without review — David
+delegated the pass. Trajectory **5 → 7 → 8 → 8 → 9** of ten; **0 → 6 → 8 → 8 →
+9** of nine brief lines; closed at round 04 on three stop rules at once
+(score ≥ 9, `Continue: no`, every line ✅). Two commits built it (`292b31d`,
+`8a78ac4`), three carry their round's score (`ac84cbc`, `4f76d9c`, `b82cfb7`),
+and `56cc61c` built round 04's terminal flash ungraded — the session ended
+between the change and the shot; the 12 Sep pass shot and graded it.
+Everything below is either a ruling Design owes, or a deviation recorded so
+it is not mistaken for an accident.
+
+### 14.1 B7 and B9 pull against each other on a card ⚠ needs a ruling
+
+The brief's B7 puts a cyan mono status beside the mark on the originating
+button; B9 says one moving instrument per panel and cyan only on pip,
+terminal and active stage. The critic flagged the tension itself (critique
+01, parking lot) and graded B7 as written. On the Plan → Mods card the two
+collide: while a mod is analysed the card body draws the compact instrument
+*and* Analyze Mod drops to its busy form, so one card carries two pips. The
+critic never saw that state — it needs a model call, which the loop does not
+spend — and passed B9 on the empty cards. The advisor (14.8) was built so the
+two pips sit in two panels, thread and composer. Design should say whether a
+card's button or its body carries the motion, not both.
+
+### 14.2 The compact face's terminals are 3px, not 4 — for Design
+
+The brief's composition names 4px terminal dots; that is the full face. At
+20px the compact face draws 1px track, 2px pip, **3px** dots (measured in
+the DOM at both viewports; the 14px mark draws no terminals at all). The
+critic held its last point on "if the dots are still 4px at those sizes,
+take them to 2px — measure first". They are 3px, so the condition did not
+hold and nothing was changed; whether a 20px arc wants 3px or 2px dots is a
+judgement for a capture at that scale.
+
+### 14.3 The full panel's padding is 24px on a phone, 32 on desktop — recorded
+
+`p-6 sm:p-8`. The brief says 32 without distinguishing viewports; the critic
+read the phone capture as "nearer 16" and parked it. Measured 24.
+
+### 14.4 The plate slot's frame is a solid hairline, and the critic read it as dashed — recorded
+
+`VehicleIdentity`'s no-photo plate draws a hairline inset 12px inside the
+4:3 box, and the specimen copies it exactly. Two critiques read the frame as
+dashed at capture scale and parked "the system's container is a solid
+hairline with the 45° cut". It is solid; the cut is the open question, and
+it is `VehicleIdentity`'s, not this pass's.
+
+### 14.5 The Stock gauge on Plan → Mods is a second arc idiom ⚠ needs a ruling
+
+Every critique parked it: `ModificationsTab`'s build dial — thick stroke,
+needle, sodium gradient tail, "Stock" caption — sits above cards whose wait
+arc is a hairline with dot terminals, and it is an empty state that carries
+an arc. Outside the brief and untouched. The loudest object on that page.
+
+### 14.6 The onboarding VIN panel's border is the strongest edge on its screen — for Design
+
+Critique 03: the panel wears a bright off-white border where the north-star's
+panels use a hairline. Outside the brief; recorded.
+
+### 14.7 A failure state would make sodium's absence on waits mean something — for Design
+
+Critique 00's parking lot: a wait whose call fails could stop the pip and turn
+the status sodium, which is the one hue the brief keeps off every wait. Not
+built; every caller unmounts the instrument on failure and says what
+happened in its own voice. Worth a decision rather than a drift.
+
+### 14.8 Recorded deviations from the critic's brief
+
+- The specimen's section heading reads "the un-analysed mod" in the repo's
+  British prose voice while the state label beneath it reads NOT ANALYZED YET
+  in the product's. The critic read the heading as the label in round 04 and
+  held a point for it; the label matches the product, and dev-only prose
+  keeps the prose voice.
+- "Usually under a minute" on vehicle research is the one duration printed on
+  any wait, and it stays: measured on 22 Aug (`VehicleResearchStatus`), which
+  the brief records so it is not relitigated. Nothing else prints a number,
+  because `ai_usage_events` carries no latency column.
