@@ -178,8 +178,11 @@ describe('a busy button keeps its name, its width and its manners', () => {
     expect(button).toHaveAttribute('aria-busy', 'true');
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).not.toBeDisabled();
-    expect(button.className).toMatch(/border-\[color:var\(--border-field\)\]/);
-    expect(button.className).not.toMatch(/bg-primary/);
+    // The outlined look is an inset CSS outline over the rest variant's box —
+    // a real border would add 2px to a fitted button (measured).
+    expect(button.className).toMatch(/outline-\[color:var\(--border-field\)\]/);
+    expect(button.className).toMatch(/-outline-offset-1/);
+    expect(button.className).toMatch(/!bg-transparent/);
     expect(button.querySelector('svg.working-mark')).not.toBeNull();
     expect(screen.getByText('Decoding the VIN').className).toMatch(/mono/);
     expect(screen.getByText('Decoding the VIN').className).toMatch(/--info-strong/);

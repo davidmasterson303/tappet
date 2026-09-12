@@ -3,6 +3,7 @@
 import { Working, WorkingMark } from '@/components/Working';
 import { Button } from '@/components/ui/button';
 import { scanStages } from '@/lib/working';
+import { RefreshCw } from 'lucide-react';
 
 /*
  * Every state of the wait instrument, live and frozen. Development only.
@@ -157,37 +158,53 @@ const states: Array<{
       'in the same cell, so nothing beside it shifts. Each pair below is the same control at ' +
       'rest and busy.',
     render: (frozen) => (
-      <div className="space-y-4">
-        {/*
-          The VIN form's Continue, full width as it ships: the one busy label
-          longer than its rest label, and the width cannot move because the
-          width is the form's. ⚠ Measured: a busy label wider than a
-          non-full-width rest label grows the button to fit it — the cell
-          holds the wider of the two, never the narrower — so busy labels on
-          fitted buttons stay to one word.
-        */}
-        <div className="grid max-w-sm gap-3">
+      /*
+        Each pair is the same control at rest and busy, stacked on one left
+        edge so constant width is verifiable by eye — and it is measured in
+        the DOM too: the busy form paints its status over the rest label
+        rather than beside it, so the rest width is the width, not a floor.
+      */
+      <div className="flex flex-wrap items-start gap-8">
+        <div className="grid w-64 gap-3">
           <Button className="w-full font-semibold">Continue</Button>
           <Button className="w-full font-semibold" busy busyLabel="Decoding the VIN">
             Continue
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid justify-items-start gap-3">
           <Button size="sm">Analyze Mod</Button>
           <Button size="sm" busy busyLabel="Analyzing">
             Analyze Mod
           </Button>
+        </div>
+        <div className="grid justify-items-start gap-3">
           <Button size="sm" variant="outline">
             Save changes
           </Button>
           <Button size="sm" variant="outline" busy busyLabel="Saving">
             Save changes
           </Button>
-          {/* The bare mark, for an icon-only control: the aria-label carries the state. */}
-          <span className="inline-flex items-center gap-2 mono text-xs uppercase tracking-[0.08em] text-white/55">
-            <WorkingMark className="h-3.5 w-3.5" frozen={frozen} />
-            bare mark
-          </span>
+        </div>
+        {/*
+          An icon-only control — the health summary's refresh — carries the
+          bare mark, and its `aria-label` carries the state.
+        */}
+        <div className="grid justify-items-start gap-3">
+          <button
+            type="button"
+            aria-label="Refresh health summary"
+            className="chamfer-sm p-1.5 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Refreshing the health summary"
+            aria-busy="true"
+            className="chamfer-sm p-1.5 text-[color:var(--info-strong)]"
+          >
+            <WorkingMark className="h-4 w-4" frozen={frozen} />
+          </button>
         </div>
       </div>
     ),

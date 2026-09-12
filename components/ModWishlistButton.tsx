@@ -30,7 +30,14 @@ export default function ModWishlistButton({
   return (
     <Button
       size={size}
-      variant={isSaved ? 'outline' : 'default'}
+      /*
+        Outlined in both states — the wait instrument's critique (02, Cut),
+        11 Sep: on the mods list each card carried two filled off-white
+        buttons, six on the page, and the one that starts the work — Analyze
+        Mod — had nothing to distinguish it. The filled form is that
+        control's; this one is a secondary action and reads as one.
+      */
+      variant="outline"
       /*
         ── ⚠ UI-01 / UI-03 · both halves of this were unreadable ─────────────
 

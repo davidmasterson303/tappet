@@ -193,22 +193,46 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     if (busy && !asChild) {
       return (
         <Comp
-          className={cn(buttonVariants({ variant: 'outline', size, className }), 'pointer-events-none')}
+          /*
+            ⚠ The rest variant's classes, not `outline`'s. A fitted default
+            button has no border; swapping to the outline variant adds 1px a
+            side and the busy form comes out 2px wider — measured on the
+            specimen after the first fix. So the box model is the rest
+            variant's, and the outlined look is painted with an inset CSS
+            `outline`, which takes no layout: transparent fill, the field
+            border colour, drawn 1px inside the edge where a real border
+            would be. On the outline variant it lands on the border pixel.
+          */
+          className={cn(
+            buttonVariants({ variant, size, className }),
+            'relative pointer-events-none !bg-transparent text-[color:var(--info-strong)]',
+            'outline outline-1 -outline-offset-1 outline-[color:var(--border-field)]'
+          )}
           ref={ref}
           aria-busy="true"
           aria-disabled="true"
           onClick={(event: React.MouseEvent<HTMLButtonElement>) => event.preventDefault()}
           {...props}
         >
-          <span className="grid place-items-center">
-            {/* The rest label, holding the width; not for anyone to read. */}
-            <span aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center">
-              {children}
-            </span>
-            <span className="col-start-1 row-start-1 inline-flex items-center gap-2 mono text-xs uppercase tracking-[0.08em] text-[color:var(--info-strong)]">
-              <WorkingMark className="h-3.5 w-3.5" />
-              {busyLabel ?? children}
-            </span>
+          {/*
+            ── The rest label sets the width; the status is painted over it ──
+
+            The first form put both labels in one grid cell, which holds the
+            wider of the two — so "Analyze Mod" grew by a tenth when it read
+            ANALYZING (critique 02, and the DOM agreed). Now only the rest
+            label is in flow, invisible, and the status is absolutely
+            positioned over the whole control: the busy form is the rest
+            form's measured width, never a minimum. A status longer than the
+            control clips rather than grows, which is a defect the specimen
+            shows instead of a shift nobody sees — so busy labels on fitted
+            buttons are one word, at the ledger's 12px mono.
+          */}
+          <span aria-hidden="true" className="invisible inline-flex items-center">
+            {children}
+          </span>
+          <span className="absolute inset-0 flex items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap px-1 mono text-xs uppercase tracking-[0.06em] text-[color:var(--info-strong)]">
+            <WorkingMark className="h-3.5 w-3.5" />
+            {busyLabel ?? children}
           </span>
         </Comp>
       );
