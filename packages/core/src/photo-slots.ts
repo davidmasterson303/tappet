@@ -31,5 +31,13 @@
 export function cardSlotSource(src: string | null | undefined): string | null {
   if (!src) return null;
   const match = src.match(/^(\/vehicles\/[^/]+\/)hero-3x2\.jpe?g$/i);
-  return match ? `${match[1]}card-800.jpg` : src;
+  if (match) return `${match[1]}card-800.jpg`;
+  /*
+    The generation plates (11 Sep) keep the same two names under
+    `plates/<make>/<family>/<generation>/` in the public bucket, so the same
+    rule applies to their absolute URL. Anchored on `/plates/` so an owner's
+    signed upload — which can carry any path — is still left alone.
+  */
+  const plate = src.match(/^(https?:\/\/[^?#]*\/plates\/[^?#]+\/)hero-3x2\.jpe?g$/i);
+  return plate ? `${plate[1]}card-800.jpg` : src;
 }

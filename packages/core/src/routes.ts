@@ -20,6 +20,15 @@ export const PROTECTED_ROUTES = [
   '/consultant',
   '/documents',
   '/vehicle-info',
+  /*
+    ⚠ Added 11 Sep, three days after the route was. The Plan tab arrived with
+    the 8 Sep navigation rename and nothing put it here, so an anonymous
+    visitor could open `/plan/<any id>`; for a car they cannot read the query
+    returns nothing and the page sat on "Loading plan…" for good, while every
+    sibling tab redirected to sign-in. `security.test.ts` now derives the
+    per-vehicle sections from `app/` so the next tab cannot be forgotten.
+  */
+  '/plan',
   '/onboard',
   '/settings',
 ] as const;

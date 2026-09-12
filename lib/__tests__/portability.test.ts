@@ -192,6 +192,15 @@ const PORTABLE: string[] = [
     string, and nothing outside the web app asks this question.
   */
   'lib/plan-entry.ts',
+  /*
+    Added 11 Sep. The image half of a generation plate: one REST call and a
+    resize with `jimp`, no repo imports at all, because the Netlify background
+    function bundles this file and knows none of the app's aliases. Portable
+    by the rule — nothing here is Next, Supabase or a Node built-in — and
+    staying in lib/: a plate generator has no place in the phone's bundle,
+    and `jimp` would be a megabyte of it.
+  */
+  'lib/plate-image.ts',
 ];
 
 /**
@@ -232,6 +241,8 @@ const NOT_PORTABLE: Record<string, string> = {
   */
   'lib/entitlement-store.ts': 'writes with the service role — reaches Supabase through lib/supabase',
   'lib/supabase.ts': 'constructs Supabase clients',
+  'lib/plates.ts': 'builds a service-role Supabase client for the plate library',
+  'lib/internal-secret.ts': 'node:crypto timingSafeEqual — the internal routes\' gate, server-only',
   'lib/api-auth.ts': 'Supabase, and reads next/headers',
   'lib/account-data.ts': 'reaches Supabase through lib/supabase',
   'lib/performance-stats.ts': 'Supabase types, and calls Gemini',

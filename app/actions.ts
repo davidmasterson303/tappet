@@ -1,6 +1,7 @@
 'use server';
 
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
+import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import {
   genAI,
   flashStructuredConfig,
@@ -285,6 +286,13 @@ export async function createVehicle(vehicleData: {
   avg_miles_per_month: number;
   performance_mindedness: 'stock' | 'mild' | 'aggressive';
   driving_style: string;
+  /**
+   * The generation plate the VIN step already asked for (11 Sep). A key and
+   * nothing else — it is looked up, never trusted to describe the car — and
+   * absent when the library had not answered by the time the form was sent,
+   * in which case the plate is asked for here instead.
+   */
+  plateKey?: string | null;
   // No user_id. Ownership comes from the session below and never from the
   // caller — a client-supplied user_id on a server action reads as
   // authoritative even when the body ignores it, which is one careless edit
@@ -346,6 +354,32 @@ export async function createVehicle(vehicleData: {
       vehicleId: vehicle.id,
       msSinceStart: Date.now() - createStartedAt,
     });
+
+    /*
+      The car's plate, attached now that the row exists. The VIN step asked
+      the library first; if it had answered, `plateKey` is that answer and
+      this is one UPDATE. If it had not, ask here — one short text call — so
+      no car misses its plate for having been saved quickly. Neither path can
+      fail the save: `attachPlateToVehicle` and `ensurePlate` log and return.
+    */
+    try {
+      const key =
+        vehicleData.plateKey ??
+        (
+          await ensurePlate({
+            year: vehicleData.year,
+            make: vehicleData.make,
+            model: vehicleData.model,
+            trim: vehicleData.trim,
+          })
+        ).key;
+      if (key) await attachPlateToVehicle(vehicle.id, key);
+    } catch (error) {
+      logger.warn('VEHICLE:PLATE_SKIPPED', 'Could not attach a generation plate', {
+        vehicleId: vehicle.id,
+        error: (error as Error).message,
+      });
+    }
 
     try {
       /*

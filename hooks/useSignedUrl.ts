@@ -1,7 +1,10 @@
 'use client';
 
+import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getSignedStorageUrl } from '@/app/actions';
+import { getClientSupabase } from '@/lib/supabase';
+import { platePublicUrl, type PlateStatus } from '@tappet/core/plates';
 import { storagePathFromStoredUrl } from '@tappet/core/storage-paths';
 import { isUnphotographedDemoVehicle } from '@tappet/core/demo';
 
@@ -80,6 +83,62 @@ interface VehicleImageFields {
   custom_image_url?: string | null;
   /** The stock photo — a local `/vehicles/…` asset, already renderable. */
   image_url?: string | null;
+  /** The generation plate the car stands on when it has neither (11 Sep). */
+  plate_key?: string | null;
+}
+
+/** The columns the card reads off a `vehicle_plates` row. */
+export interface PlateStatusRow {
+  key: string;
+  status: PlateStatus;
+  hero_path: string | null;
+}
+
+/**
+ * The library row for a plate key, read anonymously and re-read while it is
+ * still drawing.
+ *
+ * ── Why the card polls, and how it stops ────────────────────────────────────
+ *
+ * A plate is asked for at VIN decode and drawn in the background; the card
+ * that shows the car may mount before it is ready. Polling every five seconds
+ * while the row says `pending`/`generating` is what lets the photograph
+ * arrive without a reload — the same fade `VehicleIdentity` already uses for
+ * a signed URL. It stops the moment the row is `ready` or `failed`, and after
+ * three minutes it drops to a lazy thirty seconds so a stuck job never keeps
+ * a tab busy. Keyed on the plate, so a garage of two of the same generation
+ * asks once.
+ */
+export function usePlate(plateKey: string | null | undefined) {
+  const startedAt = useRef(Date.now());
+  return useQuery({
+    queryKey: ['plate', plateKey ?? null],
+    enabled: Boolean(plateKey),
+    staleTime: 60 * 60 * 1000,
+    queryFn: async (): Promise<PlateStatusRow | null> => {
+      const supabase = getClientSupabase();
+      const { data, error } = await supabase
+        .from('vehicle_plates')
+        .select('key,status,hero_path')
+        .eq('key', plateKey as string)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as PlateStatusRow | null) ?? null;
+    },
+    refetchInterval: (query) => {
+      const row = query.state.data;
+      if (!row || row.status === 'ready' || row.status === 'failed') return false;
+      return Date.now() - startedAt.current < 3 * 60 * 1000 ? 5_000 : 30_000;
+    },
+  });
+}
+
+/** The public URL of a ready plate's hero, or null. */
+export function platePhotoUrl(row: PlateStatusRow | null | undefined): string | null {
+  if (!row || row.status !== 'ready' || !row.hero_path) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  return platePublicUrl(base, row.hero_path);
 }
 
 /**
@@ -110,8 +169,33 @@ export function useVehicleImage(
     Five screens resolve a vehicle photo through this hook. This is the only
     place all five agree.
   */
+  /*
+    The generation plate ranks last (11 Sep): after the owner's photograph
+    and after a stock `image_url`, which only the demo cars carry. A car
+    with none of the three stands on the house plate, exactly as before.
+  */
+  const plate = usePlate(
+    vehicle?.custom_image_url || vehicle?.image_url ? null : vehicle?.plate_key,
+  );
+
   if (vehicle?.id && isUnphotographedDemoVehicle(vehicle.id)) return undefined;
 
   if (vehicle?.custom_image_url) return signed;
-  return vehicle?.image_url ?? undefined;
+  if (vehicle?.image_url) return vehicle.image_url;
+  return platePhotoUrl(plate.data) ?? undefined;
+}
+
+/**
+ * What the card may say about a plate that is not showing yet. Null when
+ * there is nothing honest to add — no plate asked for, a photograph already
+ * on screen, or a plate that is ready (the photograph speaks).
+ */
+export function useVehiclePlateStatus(
+  vehicle: VehicleImageFields | null | undefined
+): PlateStatus | null {
+  const plate = usePlate(
+    vehicle?.custom_image_url || vehicle?.image_url ? null : vehicle?.plate_key,
+  );
+  const status = plate.data?.status ?? null;
+  return status === 'ready' ? null : status;
 }

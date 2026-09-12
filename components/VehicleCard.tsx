@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usageProfileChip } from '@tappet/core/usage-profile';
-import { useVehicleImage } from '@/hooks/useSignedUrl';
+import { useVehicleImage, useVehiclePlateStatus } from '@/hooks/useSignedUrl';
+import { plateStatusLine } from '@tappet/core/plates';
 import { VehicleIdentity } from '@/components/VehicleIdentity';
 import { ClusterGauge } from '@/components/ClusterGauge';
 import { Button } from '@/components/ui/button';
@@ -229,6 +230,13 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
    * signing and must not wait on one.
    */
   const resolvedImageUrl = useVehicleImage(vehicle);
+  /*
+    While the car's generation plate draws (11 Sep), the empty plate says so
+    in one mono line instead of "No photograph yet" — the wait is real and
+    named, never a percentage. `useVehiclePlateStatus` is null the moment a
+    photograph of any kind is on screen, so nothing is printed over one.
+  */
+  const plateStatus = useVehiclePlateStatus(vehicle);
 
   /*
     One source of truth now: whatever `useVehicleImage` resolves from the row.
@@ -344,6 +352,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
           make={vehicle.make}
           model={vehicle.model}
           trim={vehicle.trim}
+          emptyLine={plateStatusLine(plateStatus)}
         />
 
         {/*

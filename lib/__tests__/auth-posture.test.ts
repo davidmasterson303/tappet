@@ -309,6 +309,18 @@ const ROUTE_POSTURE: Record<
   */
   'app/api/internal/notify-sweep/route.ts': 'secret-gated',
   /*
+    The generation-plate library (11 Sep). The three internal routes are the
+    background function's only way to claim, store and fail a row; they gate
+    through `requireInternalSecret` in `lib/internal-secret.ts`, the sweep's
+    check lifted into one place, and the assertion below follows them there.
+    `ensure` is the signed-in front door: it starts a paid image call, so it
+    is never anonymous.
+  */
+  'app/api/internal/plates/claim/route.ts': 'secret-gated',
+  'app/api/internal/plates/store/route.ts': 'secret-gated',
+  'app/api/internal/plates/fail/route.ts': 'secret-gated',
+  'app/api/v1/plates/ensure/route.ts': 'session',
+  /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini
     tokens on request, from an unauthenticated caller, on an uploaded image.
 
@@ -434,7 +446,18 @@ describe('API routes', () => {
       last one matters most — an unset secret meaning "open" on a route that
       spends Gemini tokens would be worse than having no gate.
     */
-    const source = readFileSync(join(ROOT, route), 'utf8');
+    let source = readFileSync(join(ROOT, route), 'utf8');
+
+    /*
+      A route may gate through the shared helper instead of inlining the
+      check (11 Sep, the plate routes). Then the helper is what has to earn
+      the name, and it is read in the route's place — the route must call it
+      before anything else, which the next line pins.
+    */
+    if (/requireInternalSecret\(/.test(source)) {
+      expect(source).toMatch(/const refused = requireInternalSecret\(request\);\s*if \(refused\) return refused;/);
+      source = readFileSync(join(ROOT, 'lib/internal-secret.ts'), 'utf8');
+    }
 
     expect(source).toMatch(/process\.env\.[A-Z_]*SECRET/);
     expect(source).toMatch(/headers\.get\(/);

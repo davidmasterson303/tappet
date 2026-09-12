@@ -19,6 +19,33 @@ the risk: "the one thing not to do is leave the instruction standing".
 
 ---
 
+## The library of generation plates — 11 Sep 2026
+
+Nothing under this directory is the library. From 11 Sep every car whose owner
+has not photographed it stands on a **generated night plate keyed by its model
+generation** — David's decision, with the posture he set out: usable, not ours
+to claim; per generation rather than per year; colour not honoured; one shared
+library so two owners of the same generation share one frame.
+
+Those plates are made at runtime and live in the public `garage-images`
+bucket under `plates/<make>/<family>/<generation>/`, and their provenance is
+kept where the files are: the `vehicle_plates` row carries the **prompt
+verbatim**, the model, the attempt count and the estimated cost, which is the
+same record this file keeps by hand for the three cars above. The prompt is
+`platePrompt` in `packages/core/src/plates.ts` — the demo cars' prompt with
+three changes: colour fixed to dark graphite, "stock and unmodified", and
+badges asked away. ⚠ The model does not always oblige on the badges; the
+first probe drew a legible roundel. The trademark note below applies to the
+library exactly as it applies to the three files here, and the day store
+assets are finalised is still the day to look at it.
+
+Spend is bounded by `PLATE_DAILY_CAP`, and a car beyond the cap stands on the
+house plate until the next day. See the migration
+`20260912010000_a_car_without_a_photograph_stands_on_its_generations_plate.sql`
+for the table, and `lib/plates.ts` for the pipeline.
+
+---
+
 ## ⚠ The three shipped demo cars are AI-generated as of 5 Sep 2026
 
 **Read this before the Pexels section below, which now describes superseded

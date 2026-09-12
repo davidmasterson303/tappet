@@ -89,6 +89,13 @@ interface VehicleIdentityProps {
    * surrounding product does about it.
    */
   emptyAction?: ReactNode;
+  /**
+   * What the empty plate says instead of "No photograph yet" while the
+   * car's generation plate is being drawn, or after that failed (11 Sep).
+   * `plateStatusLine` in core is the only source of the wording; null keeps
+   * the default line.
+   */
+  emptyLine?: string | null;
   className?: string;
 }
 
@@ -138,6 +145,7 @@ export function VehicleIdentity({
   height = 400,
   emptyHeight,
   emptyAction,
+  emptyLine = null,
   className = '',
 }: VehicleIdentityProps) {
   /*
@@ -596,8 +604,11 @@ export function VehicleIdentity({
               both wrapped. Tracked at 0.08em they fit on one line together,
               which is what the compact row was always supposed to be.
             */}
-            <p className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55">
-              No photograph yet
+            <p
+              className="mono text-xs uppercase tracking-[0.08em] sm:tracking-[0.2em] text-white/55"
+              aria-live={emptyLine ? 'polite' : undefined}
+            >
+              {emptyLine ?? 'No photograph yet'}
             </p>
             {emptyAction}
           </div>
