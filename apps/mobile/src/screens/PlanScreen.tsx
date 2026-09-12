@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useContext, useLayoutEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { NavigationContext } from '@react-navigation/native';
 
 import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
@@ -105,8 +106,26 @@ export function PlanScreen({
       </View>
     ) : null;
 
+  /*
+    ── ⚠ Plan is a root *and* a pushed screen, and the control must be on both ──
+
+    The car's hub pushes this same screen (THIS CAR → PLAN) with a native
+    header, and `RootScreen` draws no band there — so the `trailing` slot
+    never renders and the first fix (12 Sep, morning) left the pushed Plan
+    with no way to add. David hit exactly that within the hour. When pushed,
+    the control goes into the native header's right slot instead: the same
+    word, the same chrome. `NavigationContext` is read the way `RootScreen`
+    reads it, so a screen mounted bare in a test still renders.
+  */
+  const navigation = useContext(NavigationContext);
+  const pushed = navigation?.canGoBack() ?? false;
+  useLayoutEffect(() => {
+    if (!pushed || !navigation) return;
+    navigation.setOptions({ headerRight: add ? () => add : undefined });
+  }, [pushed, navigation, add]);
+
   return (
-    <RootScreen title="Plan" plate="plan" pinned={pinned} trailing={add}>
+    <RootScreen title="Plan" plate="plan" pinned={pinned} trailing={pushed ? null : add}>
       {segment === 'mods' && showsMods ? (
         <BuildScreen
           vehicleId={vehicleId}

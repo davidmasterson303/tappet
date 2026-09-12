@@ -91,7 +91,7 @@ function embedded<T>(value: unknown): T | undefined {
 const VEHICLE_COLUMNS =
   'id,year,make,model,trim,color,vin,current_mileage,avg_miles_per_month,' +
   'image_url,custom_image_url,performance_mindedness,ownership_objective,' +
-  'vehicle_status,focal_point_x,focal_point_y,created_at,updated_at,' +
+  'vehicle_status,focal_point_x,focal_point_y,created_at,updated_at,plate_key,' +
   'next_service_label,next_service_at_miles,next_service_due_on,' +
   'nhtsa_data(recalls),' +
   'recall_actions(campaign_number,addressed_at),' +
@@ -158,17 +158,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     */
     const [vehicleResult, knowledgeResult, historyResult, healthHistoryResult] =
       await Promise.all([
-      // `plate_key` with a 42703 fallback — see the same note in `vehicles/route.ts`.
-      supabase
-        .from('vehicles')
-        .select(VEHICLE_COLUMNS + ',plate_key')
-        .eq('id', vehicleId)
-        .maybeSingle()
-        .then((result) =>
-          result.error?.code === '42703'
-            ? supabase.from('vehicles').select(VEHICLE_COLUMNS).eq('id', vehicleId).maybeSingle()
-            : result,
-        ),
+      supabase.from('vehicles').select(VEHICLE_COLUMNS).eq('id', vehicleId).maybeSingle(),
       supabase.from('vehicle_knowledge_base').select('*').eq('vehicle_id', vehicleId).maybeSingle(),
       supabase
         .from('maintenance_line_items')
