@@ -144,9 +144,20 @@ function estimate(item: WishlistItem): string | null {
  * Rows with no estimate contribute 0 and still count as a row — which is
  * honest: it is a real item nobody has costed, and the summary says
  * "estimated" for exactly that reason.
+ *
+ * ⚠ And when *no* row is costed there is no estimate to state, and the
+ * summary must not say "$0". A missing number is "we cannot say", never a
+ * reading (CLAUDE.md §6); David's list of one uncosted oil change read
+ * "1 ITEM · ESTIMATED $0" on 12 Sep and he called it wrong, because it was.
+ * `listTotal` returns null for that case and the line drops the figure, the
+ * way the web's card does.
  */
-function listTotal(items: readonly WishlistItem[]): number {
-  return items.reduce(
+function listTotal(items: readonly WishlistItem[]): number | null {
+  const costed = items.filter(
+    (item) => (item.estimated_cost_parts ?? 0) + (item.estimated_cost_labor ?? 0) > 0
+  );
+  if (costed.length === 0) return null;
+  return costed.reduce(
     (sum, item) => sum + (item.estimated_cost_parts ?? 0) + (item.estimated_cost_labor ?? 0),
     0
   );
@@ -399,14 +410,20 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
         is a floor, and calling it an estimate is the honest framing §10 asks
         for.
       */}
-      {state.items.length > 0 && (
-        <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>
-            {state.items.length} {state.items.length === 1 ? 'ITEM' : 'ITEMS'} · ESTIMATED
-          </Text>
-          <Text style={styles.summaryTotal}>{formatCurrency(listTotal(state.items))}</Text>
-        </View>
-      )}
+      {state.items.length > 0 && (() => {
+        const total = listTotal(state.items);
+        return (
+          <View style={styles.summary}>
+            <Text style={styles.summaryLabel}>
+              {state.items.length} {state.items.length === 1 ? 'ITEM' : 'ITEMS'}
+              {total !== null ? ' · ESTIMATED' : ''}
+            </Text>
+            {total !== null ? (
+              <Text style={styles.summaryTotal}>{formatCurrency(total)}</Text>
+            ) : null}
+          </View>
+        );
+      })()}
 
       {state.items.length === 0 ? (
         /*
