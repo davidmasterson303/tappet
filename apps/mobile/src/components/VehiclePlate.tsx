@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { vehicleFieldStops } from '@tappet/core/vehicle-identity';
 
 import { TARGET_MIN, border, radius, space, surface, text, type } from '../theme';
+import { WorkingMark } from './Working';
 
 /**
  * The identity plate — the phone's version of CC-142.
@@ -260,10 +261,16 @@ export default function VehiclePlate({
           hitSlop={space.sm}
           accessibilityRole="button"
           accessibilityState={{ busy, disabled: busy }}
-          accessibilityLabel={showPhoto ? 'Change photo' : 'Add photo'}
+          accessibilityLabel={busy ? 'Uploading the photo' : showPhoto ? 'Change photo' : 'Add photo'}
         >
           {busy ? (
-            <ActivityIndicator size="small" color={text.primary} />
+            /*
+              12 Sep: the wait instrument's bare mark, in the control's own
+              ink — the same form web's icon-only controls take. There is no
+              room on a 44pt chip for a status beside it, so the accessible
+              name carries the state instead.
+            */
+            <WorkingMark ink={text.primary} />
           ) : (
             <Text style={styles.actionLabel}>{showPhoto ? 'Change photo' : 'Add photo'}</Text>
           )}

@@ -12,6 +12,9 @@ import HealthDrivers from '../components/HealthDrivers';
 import ScreenTitle from '../components/ScreenTitle';
 import Segmented from '../components/Segmented';
 import StatStrip from '../components/StatStrip';
+import PlateStatusLine from '../components/PlateStatusLine';
+import Working from '../components/Working';
+import { scanLine, scanStages } from '../components/working-stages';
 
 import { space, surface, text, type } from '../theme';
 import type { HealthDriver } from '@tappet/core/health-drivers';
@@ -136,6 +139,54 @@ export default function DesignSpecimen() {
 
       <Block title="B6 · spec table">
         <HealthDrivers drivers={DRIVERS} />
+      </Block>
+
+      {/*
+        ── 12 Sep · the wait instrument, every state, frozen ──────────────────
+
+        Web's `/dev/working` exists because the only other way to see a wait is
+        to spend the call it is waiting on and watch. Same here: the full face
+        alone, the full face with the scanner's real ledger, the compact face,
+        a busy control's B7 form, and the plate line. `frozen` holds the pip on
+        its twelve-o'clock frame — the reduced-motion frame — so a capture of
+        this sheet is the still the design loop grades. Nothing here is fed by
+        a timer, and every sentence is one a call site prints.
+      */}
+      <Block title="Working · full, one opaque call">
+        <Working frozen rule={false} line="Opening this car" />
+      </Block>
+
+      <Block title="Working · full, the scanner's ledger">
+        <Working
+          frozen
+          rule={false}
+          line={scanLine('reading', 'camera')}
+          value="IMG_4471.jpg"
+          stages={scanStages('reading', 'camera')}
+        />
+      </Block>
+
+      <Block title="Working · compact">
+        <Working
+          frozen
+          variant="compact"
+          line="Answering"
+          detail="Your 2015 BMW M235i’s records go to the model with the question."
+        />
+      </Block>
+
+      <Block title="Working · B7, the control that started it">
+        <View style={styles.stack}>
+          <Button label="Add to my garage" onPress={() => {}} busy busyLabel="Saving your car" />
+          <Button label="Mark as repaired" variant="outline" onPress={() => {}} busy busyLabel="Marking" />
+        </View>
+      </Block>
+
+      <Block title="Working · the plate, drawing and not drawn">
+        <View style={styles.stack}>
+          <PlateStatusLine status="generating" frozen />
+          <PlateStatusLine status="failed" />
+        </View>
       </Block>
 
       <Block title="B7 · alerts — critical, attention, confirm">

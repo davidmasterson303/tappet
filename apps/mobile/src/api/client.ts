@@ -146,7 +146,7 @@ interface RequestOptions {
 /** Reads are quick or something is wrong. */
 const DEFAULT_TIMEOUT_MS = 20_000;
 
-import { fixtureFor } from '../dev/fixtures';
+import { fixtureFor, fixtureHolds } from '../dev/fixtures';
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, allowAnonymous = false, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
@@ -178,6 +178,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     workspace, which is why the mobile-scoped run stayed green.
   */
   if (typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1') {
+    /*
+      A held path never answers — the design loop's way of photographing a
+      wait without making the call it waits on. See `fixtureHolds`.
+    */
+    if (fixtureHolds(path)) return new Promise<T>(() => {});
     const canned = fixtureFor(path);
     if (canned !== undefined) return canned as T;
   }

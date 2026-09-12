@@ -143,9 +143,11 @@ export function InvoiceDetailScreen({
       {visit.scanned && documentId && (
         <View style={styles.docBlock}>
           <Button
-            label={opening ? 'Opening…' : 'Open the original invoice'}
+            label="Open the original invoice"
             onPress={() => void open()}
             busy={opening}
+            busyLabel="Opening"
+
             variant="outline"
             accessibilityLabel="Open the original invoice document"
           />

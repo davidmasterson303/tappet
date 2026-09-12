@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -16,7 +15,7 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import {
   describeRecord,
   describeRemoval,
@@ -259,15 +258,10 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   );
 
   if (state.kind === 'loading') {
-    /*
-      A summary line then records — the shape this screen actually resolves
-      into, rather than three identical cards.
-    */
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <Skeleton width="45%" height={18} />
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={2} />
+        <Working delay line="Opening the history" />
       </ScrollView>
     );
   }

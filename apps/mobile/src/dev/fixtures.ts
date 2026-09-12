@@ -30,6 +30,27 @@
  */
 
 import { driversForVehicle } from '@tappet/core/health-drivers';
+import type { PlateStatus } from '@tappet/core/plates';
+
+/**
+ * The plate's status on the fixture car, from the environment.
+ *
+ * ── 12 Sep · so the loop can shoot the plate being drawn ────────────────────
+ *
+ * Both mobile routes carry `plate_status` beside `photo_url` — `pending` |
+ * `generating` | `ready` | `failed` | `null` — and the empty plate says
+ * "Drawing this car's plate" on the first two (`PlateStatusLine`). That state
+ * lasts as long as a generation does, which is not a thing to sit and wait
+ * for with a simulator, so the fixture reads it from
+ * `EXPO_PUBLIC_DESIGN_PLATE_STATUS`: unset or anything the API would never
+ * send is `null`, which is the route's own "nothing to say". The shape is the
+ * route's; only the value is chosen.
+ */
+const PLATE_STATUSES: readonly PlateStatus[] = ['pending', 'generating', 'ready', 'failed'];
+const DESIGN_PLATE_STATUS: PlateStatus | null = (() => {
+  const raw = process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS;
+  return PLATE_STATUSES.find((status) => status === raw) ?? null;
+})();
 
 /** The car the design loop has been grading since the first iteration. */
 const M235I = {
@@ -54,6 +75,8 @@ const M235I = {
    * Refresh it by signing the object again — it expires.
    */
   photo_url: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null,
+  /* `null` under a photograph, as the route does it — the plate is not showing. */
+  plate_status: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ? null : DESIGN_PLATE_STATUS,
   /*
     ── ⚠ 11 Sep · the reading is genuinely stale, not a sentence pretending ──
 
@@ -163,6 +186,34 @@ const MAINTENANCE = [
     created_at: '2026-08-01T15:02:00.000+00:00',
   },
 ];
+
+/**
+ * Whether a path should be held open forever, so its wait can be seen.
+ *
+ * ── 12 Sep · the only way to photograph a wait without spending the call ────
+ *
+ * Web's `/dev/working` exists because the only other way to see a loading
+ * state is to make the request it waits on and watch. The phone's fixtures
+ * answer in the same frame — which is right for every graded screen and
+ * useless for the one state this pass adds to all of them. So
+ * `EXPO_PUBLIC_DESIGN_HOLD` names path prefixes, comma-separated, whose
+ * requests never resolve: `/consultant` holds the advisor on ANSWERING,
+ * `/upload-document` holds the scanner on READING THE INVOICE, `/vehicles`
+ * holds the garage on its page load. The screen draws exactly what it would
+ * draw for a slow network, and no model is called.
+ *
+ * Same double gate as everything in this file, read by `api/client.ts` after
+ * `fixtureFor` — a held path is held whether or not it has a canned answer.
+ */
+export function fixtureHolds(path: string): boolean {
+  const raw = process.env.EXPO_PUBLIC_DESIGN_HOLD;
+  if (!raw) return false;
+  return raw
+    .split(',')
+    .map((prefix: string) => prefix.trim())
+    .filter(Boolean)
+    .some((prefix: string) => path.startsWith(prefix));
+}
 
 /**
  * The canned response for a path, or `undefined` when nothing matches.

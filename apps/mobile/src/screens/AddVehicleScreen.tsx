@@ -467,6 +467,8 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
               onPress={() => void lookUpVin()}
               disabled={vin.length !== VIN_LENGTH || busy}
               busy={vinBusy}
+              busyLabel="Decoding the VIN"
+
             />
             {vinNote ? (
               /*
@@ -705,6 +707,7 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
           onPress={() => void submit()}
           disabled={!canSubmit}
           busy={busy}
+          busyLabel="Saving your car"
         />
 
         {/*

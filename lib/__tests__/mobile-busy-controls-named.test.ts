@@ -1,9 +1,9 @@
 /**
- * A control that swaps its label for a spinner still has a name.
+ * A control that swaps its label for a busy mark still has a name.
  *
  * @jest-environment node
  *
- * The pattern is everywhere in this app and it is the right pattern:
+ * The pattern was everywhere in this app and it was the right pattern:
  *
  *     <Pressable onPress={submit}>
  *       {busy ? <ActivityIndicator /> : <Text>Create account</Text>}
@@ -14,6 +14,13 @@
  * announced as "Create account" — right up until it is pressed, at which point
  * the `<Text>` is replaced by a spinner and **the control becomes an unnamed
  * button.** VoiceOver reads it as just "button".
+ *
+ * ⚠ 12 Sep: the spinner is gone and the rule is not. Every wait is the wait
+ * instrument now (`components/Working.tsx`), and a busy control carries its
+ * 14pt mark — `<WorkingMark>` — beside a mono status, with the rest label
+ * hidden. The hazard is identical: a hand-rolled `Pressable` that swaps its
+ * text for the mark is exactly as anonymous as one that swapped it for a
+ * spinner. So the scan looks for both.
  *
  * That is the wrong moment to lose the name. Someone who cannot see the
  * spinner has no other signal that anything is happening, and the one control
@@ -51,10 +58,13 @@ function screenFiles(): string[] {
  *
  * Deliberately crude — it takes everything up to the next `</Pressable>` — and
  * that is safe in the direction that matters. Over-reading the block can only
- * make this scan *more* likely to find an `ActivityIndicator` and demand a
- * label; it cannot hide one. A guard whose parser errs toward false positives
- * is one that gets fixed; the other kind is one that gets trusted.
+ * make this scan *more* likely to find a busy mark and demand a label; it
+ * cannot hide one. A guard whose parser errs toward false positives is one
+ * that gets fixed; the other kind is one that gets trusted.
  */
+/** The two things a hand-rolled control could swap its label for. */
+const BUSY_MARK = /<ActivityIndicator|<WorkingMark/;
+
 function pressables(source: string): Array<{ line: number; block: string }> {
   const found: Array<{ line: number; block: string }> = [];
   let index = source.indexOf('<Pressable');
@@ -73,7 +83,7 @@ const offenders = screenFiles().flatMap((file) => {
   const source = readFileSync(join(SCREENS, file), 'utf8');
 
   return pressables(source)
-    .filter(({ block }) => block.includes('<ActivityIndicator'))
+    .filter(({ block }) => BUSY_MARK.test(block))
     .filter(({ block }) => !block.includes('accessibilityLabel'))
     .map(({ line }) => `${file}:${line}`);
 });
@@ -102,13 +112,13 @@ describe('a busy control keeps its name', () => {
     A count is a bad guard when the correct answer is none.
   */
   it('no screen hand-rolls a busy control any more', () => {
-    const spinners = screenFiles().flatMap((file) =>
+    const marks = screenFiles().flatMap((file) =>
       pressables(readFileSync(join(SCREENS, file), 'utf8'))
-        .filter(({ block }) => block.includes('<ActivityIndicator'))
+        .filter(({ block }) => BUSY_MARK.test(block))
         .map(({ line }) => `${file}:${line}`)
     );
 
-    expect(spinners).toEqual([]);
+    expect(marks).toEqual([]);
   });
 
   it('keeps the behaviour in the primitive, which is where it went', () => {
@@ -116,13 +126,18 @@ describe('a busy control keeps its name', () => {
       With the count at zero the scan alone proves nothing — an app with no
       busy controls would pass it. This is the half that says the capability
       still exists and still carries its name.
+
+      ⚠ 12 Sep: the primitive's busy form is the wait instrument's mark, not
+      the platform spinner — brief B7. The two accessibility props are the
+      rule; the mark is the evidence the busy form still exists to need them.
     */
     const button = readFileSync(
       join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'Button.tsx'),
       'utf8'
     );
 
-    expect(button).toMatch(/<ActivityIndicator/);
+    expect(button).toMatch(/<WorkingMark/);
+    expect(button).not.toMatch(/<ActivityIndicator/);
     expect(button).toMatch(/accessibilityLabel=\{accessibilityLabel \?\? label\}/);
     expect(button).toMatch(/accessibilityState=\{\{ disabled: inert, busy \}\}/);
   });
@@ -130,30 +145,35 @@ describe('a busy control keeps its name', () => {
   it('can still detect one, so a new hand-rolled control would fail', () => {
     /*
       Guards the guard on a fixture rather than on live offenders — which is
-      the only way left, now that there are none. If the walk or the
-      `<ActivityIndicator` match silently stopped working, the rule above would
-      be trivially true forever.
+      the only way left, now that there are none. If the walk or the mark
+      match silently stopped working, the rule above would be trivially true
+      forever. Both spellings, because both are the same defect.
     */
-    const offender = `
+    const spinner = `
       <Pressable onPress={save}>
         {busy ? <ActivityIndicator /> : <Text>Save</Text>}
       </Pressable>
     `;
+    const mark = `
+      <Pressable onPress={save}>
+        {busy ? <WorkingMark /> : <Text>Save</Text>}
+      </Pressable>
+    `;
 
-    const found = pressables(offender).filter(({ block }) =>
-      block.includes('<ActivityIndicator')
-    );
-
-    expect(found).toHaveLength(1);
-    expect(found[0].block).not.toMatch(/accessibilityLabel/);
+    for (const offender of [spinner, mark]) {
+      const found = pressables(offender).filter(({ block }) => BUSY_MARK.test(block));
+      expect(found).toHaveLength(1);
+      expect(found[0].block).not.toMatch(/accessibilityLabel/);
+    }
   });
 
   it('every Pressable that can show a spinner carries an accessibilityLabel', () => {
     /*
-      To fix one: add `accessibilityLabel` naming the action — the same words
-      the `<Text>` uses — and put `busy` in `accessibilityState`. Do not remove
-      the spinner; it is the right affordance for everyone who can see it. The
-      label is what makes it work for everyone who cannot.
+      To fix one: use `Button` with `busy` — or, if it truly cannot be one, add
+      `accessibilityLabel` naming the action and put `busy` in
+      `accessibilityState`. Do not remove the mark; it is the right affordance
+      for everyone who can see it. The label is what makes it work for
+      everyone who cannot.
     */
     expect(offenders).toEqual([]);
   });

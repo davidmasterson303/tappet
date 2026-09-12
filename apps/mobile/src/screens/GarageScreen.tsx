@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,7 +18,8 @@ import GarageBay from '../components/GarageBay';
 import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
 import RootScreen from '../components/RootScreen';
-import { SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
+import type { PlateStatus } from '@tappet/core/plates';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
 import { PushPrimer } from '../notifications/PushPrimer';
 import {
@@ -85,6 +85,8 @@ interface Vehicle {
   current_mileage?: number | null;
   vehicle_status?: string | null;
   photo_url?: string | null;
+  /** Beside `photo_url` since 12 Sep; `null` is nothing to say. See `PlateStatusLine`. */
+  plate_status?: PlateStatus | null;
   /*
     PostgREST returns an embedded one-to-one as an object, and an embedded
     one-to-many as an array. These two are declared one-to-one in the select but
@@ -558,16 +560,18 @@ export function GarageScreen({
       <RootScreen title="Garage" leading={mark} trailing={addCar}>
         <View style={styles.stateScreen}>
           {/*
-            Shaped like the cards that are coming, not a spinner in the middle of
-            an empty screen. A blank second on a cold fetch is indistinguishable
-            from broken, and this is the first screen a reviewer opens.
+            ── 12 Sep · a page load is the delayed full instrument ────────────
 
-            Two, because one reads as "a card is loading" and the list is a list.
+            This drew two pulsing card skeletons — shaped like content, for a
+            screen whose content is a bay, not a card — on every open and on
+            every return to the tab. The rule the web settled on 11 Sep, which
+            the phone joins: a page-level load takes the full wait instrument
+            with `delay`, so it holds invisible for 350ms and a fetch that
+            answers sooner never paints anything at all. A blank second on a
+            cold fetch is still not blank: the masthead is up, and the
+            instrument arrives under it saying what it is doing.
           */}
-          <View style={styles.loadingList}>
-            <SkeletonCard lines={2} />
-            <SkeletonCard lines={2} />
-          </View>
+          <Working delay line="Opening the garage" />
           {primer}
         </View>
       </RootScreen>
@@ -755,7 +759,6 @@ const styles = StyleSheet.create({
     one device. The first gap is the batten's own.
   */
   page: { paddingBottom: space.lg, gap: space.md, flexGrow: 1 },
-  loadingList: { gap: space.md },
   /* Loading and error sit under the same band as the list. */
   stateScreen: { flex: 1, padding: space.lg, paddingTop: 0 },
   /*

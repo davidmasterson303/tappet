@@ -475,23 +475,25 @@ describe('what this screen leads to stays reachable', () => {
   });
 });
 
-describe('the first load stands in for the dossier', () => {
-  it('shows a shaped placeholder rather than a dot in an empty field', async () => {
+describe('the first load is the wait instrument', () => {
+  it('says what it is opening rather than showing a dot in an empty field', async () => {
     /*
       This is the densest screen in the app and the one a recall notification
       opens, so it is the most likely to be met cold. It showed a centred
-      `ActivityIndicator` until 16 Aug, while the primitive built for exactly
-      this had sat unused since 14 Aug.
+      `ActivityIndicator` until 16 Aug, then two card skeletons until 12 Sep,
+      when every page load became the delayed full instrument (`Working`) — a
+      mono line saying what is happening, announced once as one thing.
 
-      `SkeletonCard` announces itself once for the group — eight identical
-      "loading" bars read aloud is worse than silence — so the accessible name
-      is what proves it rendered.
+      ⚠ Held at opacity 0: the instrument waits 350ms before it paints so a
+      fetch that answers sooner never shows a dial. The query has to be told
+      to look through that, which is the same fact as the delay.
     */
     request.mockImplementation(() => new Promise(() => {}));
 
     const { view } = await mount();
 
-    expect(view.getAllByLabelText('Loading').length).toBeGreaterThan(0);
+    const wait = view.getByLabelText('Opening this car', { includeHiddenElements: true });
+    expect(wait.props.accessibilityRole).toBe('progressbar');
     expect(view.queryByText(/2018 Honda Accord/)).toBeNull();
   });
 });

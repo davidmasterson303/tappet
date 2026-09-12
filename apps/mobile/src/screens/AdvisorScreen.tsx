@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -22,7 +21,7 @@ import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
-import { Skeleton } from '../components/Skeleton';
+import Working from '../components/Working';
 import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
 import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
 import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
@@ -416,20 +415,28 @@ export function AdvisorScreen({
             {busy ? (
               <View style={styles.thinking}>
                 {/*
-                  A stage label plus bars shaped like the answer that is coming —
-                  not a centred spinner. An advisor reply is three or four lines of
-                  prose, so that is what waits in its place; a spinner says only
-                  "something is happening somewhere".
+                  ── 12 Sep · the wait is the instrument, and it says one true thing ─
 
-                  The label is the honest part: it names the stage rather than
-                  implying progress nobody is measuring.
+                  This was "Reading this car's history…" over three pulsing bars
+                  shaped like an answer. The bars were a wait drawn as content that
+                  had not arrived, and the label named a stage the client cannot
+                  see: `askAdvisor` is one call, and nothing on this side knows
+                  when the model has finished reading and started writing. Web
+                  retired the same thing on 12 Sep — five "thinking" stages on a
+                  1.8s timer — for the compact instrument and the one sentence
+                  that is true for the whole call (`components/AdvisorWait.tsx`).
+
+                  No upload stage: the phone's advisor attaches nothing, so there
+                  is only the answer. The sentence names the car when the screen
+                  was told it, and the mono line is the state voice — ANSWERING —
+                  which the composer's busy Ask control does not repeat (B9: two
+                  panels, two pips; one status).
                 */}
-                <Text style={styles.thinkingText}>Reading this car's history…</Text>
-                <View style={styles.thinkingBars}>
-                  <Skeleton width="100%" />
-                  <Skeleton width="92%" />
-                  <Skeleton width="60%" />
-                </View>
+                <Working
+                  variant="compact"
+                  line="Answering"
+                  detail={`${vehicleTitle ? `Your ${vehicleTitle}’s` : 'The car’s'} records go to the model with the question.`}
+                />
               </View>
             ) : null}
 
@@ -492,12 +499,21 @@ export function AdvisorScreen({
                 `small` rather than `large`: it sits beside the composer's input, and
                 the size names the type weight, never the height. Both clear 44.
               */}
+              {/*
+                12 Sep · B7: while a question is with the model the control takes
+                the primitive's busy form with an empty status — the outline at
+                its rest width and the bare mark, because a 44pt "Ask" has no
+                room beside the mark for a word, and the thread above it is
+                already saying ANSWERING. The accessible name carries the state.
+              */}
               <Button
                 label="Ask"
                 variant="primary"
                 size="small"
                 onPress={() => void send()}
                 disabled={!canSend}
+                busy={busy}
+                busyLabel=""
                 accessibilityLabel="Send question to the advisor"
               />
             </CutSurface>
@@ -777,9 +793,8 @@ const styles = StyleSheet.create({
 
 
 
-  thinking: { gap: space.sm, paddingHorizontal: space.lg },
-  thinkingBars: { gap: space.sm },
-  thinkingText: { ...type.value, color: text.muted },
+  /* The wait sits where the answer will: the transcript's own gutter. */
+  thinking: { paddingHorizontal: space.lg, paddingVertical: space.sm },
 
   /* #f87171 — the same red SignInScreen uses, and above the AA floor on `surface.page`. */
   error: { ...type.value, color: status.dangerText, paddingHorizontal: space.lg, paddingTop: space.sm },

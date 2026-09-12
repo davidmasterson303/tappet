@@ -260,3 +260,33 @@ describe('marking an item done', () => {
     expect(await resolved.findByText(/mark it as DIY/i)).toBeTruthy();
   });
 });
+
+describe('the summary line', () => {
+  /*
+    12 Sep, David's phone: one uncosted oil change read "1 ITEM · ESTIMATED
+    $0". A missing estimate is not a zero (CLAUDE.md §6) — the figure is
+    dropped when no row is costed, stated when any row is, and the count is
+    always there. The last case is the anti-vacuous half: a costed row makes
+    the figure appear, so a screen that never printed a total could not pass.
+  */
+  it('states the count and no figure when nothing on the list is costed', async () => {
+    listReturns([item({ estimated_cost_parts: null, estimated_cost_labor: null })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+    expect(view.getByText('1 ITEM')).toBeTruthy();
+    expect(view.queryByText(/ESTIMATED/)).toBeNull();
+    expect(view.queryByText(/\$0\b/)).toBeNull();
+  });
+
+  it('states the estimate once any row carries one, as a floor over the uncosted rows', async () => {
+    listReturns([
+      item({ id: 'w1', estimated_cost_parts: 200, estimated_cost_labor: 90 }),
+      item({ id: 'w2', item_name: 'Cabin filter', estimated_cost_parts: null, estimated_cost_labor: null }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Cabin filter');
+    expect(view.getByText('2 ITEMS · ESTIMATED')).toBeTruthy();
+    // Once in the summary, once on the row that carries it.
+    expect(view.getAllByText('$290')).toHaveLength(2);
+  });
+});

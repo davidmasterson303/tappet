@@ -1841,6 +1841,120 @@ optimistic removal with its revert. Nothing was relaxed; `GarageScreen`'s
 hierarchy case and the hero suite were untouched by the hub change because
 they pin order and photographs, not row components.
 
+### 6.14 The phone adopts the wait instrument — round 29, 12 Sep
+
+Web settled one wait instrument on 11 Sep (§14: `components/Working.tsx`,
+the health dial's ignition sweep held until the work is done, critic 9/10,
+nine of nine lines). The phone joins it: `apps/mobile/src/components/
+Working.tsx` is the same instrument — the same 270° track from
+`@tappet/core/cluster-geometry`, a 24° pip in the info blue hunting terminal
+to terminal at ~1.3s a traverse, the terminal flashing the lit step on
+touch, an empty centre where the numeral would be — at the web brief's three
+sizes (128 full on a phone, 20 compact, 14 mark), with a ledger only where
+a process emits real stages, and `Button`'s busy form for the control that
+started the work (B7 of the instrument's brief). What it replaced, and what
+each site became:
+
+- The advisor's "Reading this car's history…" over three pulsing bars — a
+  stage the client cannot see, over a wait dressed as content — is the
+  compact face saying ANSWERING with the one sentence true for the whole
+  call, and Ask takes the busy form with the bare mark (B9: two panels, two
+  pips, one status). No upload stage: the phone's advisor attaches nothing.
+- `Button`'s `ActivityIndicator` is the outlined form at the rest width,
+  the 14pt mark and a mono status in `register.accentStrong` — the rest
+  label held in flow at opacity 0 so nothing beside it shifts. Sixteen
+  call sites gained a present-tense `busyLabel`; the two too narrow for a
+  word (Ask, Undo, the wishlist row's Add) carry the bare mark.
+- `Suggest`'s spinner beside "Looking these up…" is the compact face;
+  `VehiclePlate`'s photo action carries the bare mark with the state as its
+  accessible name; the paywall's text-only "Loading prices from the App
+  Store…" is the compact face (B8: waits always carry the arc).
+- The invoice scanner's three loose sentences are a `ScanPhase` and a
+  ledger: opening the camera / your photos → reading the invoice, and a
+  third row — filing it against this car — **only on the confirm path**,
+  where the second send is a boundary the client started. `working-
+  stages.ts` carries why the ordinary flow has two rows and not three.
+- Ten page loads (Garage, Vehicle, Health, History, Due, Needs, the
+  suggestions, What you told us, the recalls, Build) take the full face
+  with `delay`: invisible for 350ms so a fetch that answers sooner never
+  paints a dial. The embedded recalls section under Health takes the
+  compact face, delayed, because it is a section of a page already up.
+  `Skeleton.tsx` is deleted with its test rather than left dead. The app's
+  root gate — waiting on the Keychain and the fonts — is the bare mark at
+  the compact size, delayed, because it cannot set a line in the mono it is
+  waiting for.
+- Seven dead `ActivityIndicator` imports are gone, and
+  `lib/__tests__/mobile-one-wait-instrument.test.ts` refuses the next
+  spinner, skeleton, loop or clock outside an allow-list whose one entry is
+  the instrument's own `Animated.loop`. `mobile-busy-controls-named` and
+  `mobile-loading-shape` were re-pointed at the mark and the delayed
+  instrument, neither relaxed, both keeping their anti-vacuous cases.
+
+**The plate says it is drawing.** Both mobile routes carry `plate_status`
+beside `photo_url` since c134bb6, and `PlateStatusLine` prints
+`plateStatusLine` from `@tappet/core/plates` over the model name on the
+empty plate — "Drawing this car's plate" with the bare mark on `pending` /
+`generating`, "Plate not drawn yet" quietly and without an arc on `failed`,
+nothing on `ready` or `null`. `fixtures.ts` reads the status from
+`EXPO_PUBLIC_DESIGN_PLATE_STATUS` so the loop can shoot it, and
+`EXPO_PUBLIC_DESIGN_HOLD` names paths whose requests never answer, so a wait
+can be photographed without spending the call it waits on — the phone's
+`/dev/working`.
+
+**Health says what Vehicle says.** §6.13's spawned task: `HealthScreen`
+printed the stored sentence raw where the vehicle screen ran it through
+`healthVerdict`. Both read `screens/verdict-inputs.ts` now — the newest
+filing date and the open-recall count, computed once — and Health prints
+`verdict.text` with the provenance row, so on the fixture car both screens
+say "taken before your 5 service records were filed".
+
+**Round 29 — 7/10, five ✅ / four 🟡, `Continue: yes`.** One round by
+instruction. Gap 1 (B3, Health's dial at 184 against the garage's 240) was
+taken. Gap 2's file name in Inter was taken — `Working` has a `value` slot
+in the mono beside the `detail` sentence, because the phone's B1 gives
+every value to the mono where the web's instrument puts file names in its
+one grey sentence. The rest of gap 2 is round 28's misread again ("WHAT IS
+DRIVING IT" is `type.displayLabel`; §6.13) and §6.13's standing garage-row
+item. Gap 3 is below.
+
+**Recorded deviations, and two rulings Design owes:**
+
+- **The full face is a band, not a panel.** The web brief's B3 draws the
+  full face in its own graphite panel with the 45° cut; the phone's B5 is
+  *"one graphite surface; cards become hairline-ruled bands; no nested
+  cards"*. On the phone the full face is a hairline rule and the cluster on
+  the page, stacked arc-over-text on one left edge — which is what the web
+  brief already says the phone-width composition does. 24pt above and
+  below (§14.3's phone padding).
+- ⚠ **The ledger's active ink — the phone's B7 against the instrument's
+  B4.** The critic's round-29 gap 3 asks for off-white ink on the active
+  stage under the phone's B7 ("cyan only as focus, active rule and refresh
+  ramp"). The instrument's own locked brief says the opposite — B4: *"active
+  = cyan ring and cyan label"*; B9: *"cyan only on pip, terminal, active
+  stage"* — and the web closed at 9/10 with that ink. The phone draws the
+  web's ledger. Design should say which brief the ledger answers to; until
+  then the two clients draw one ledger.
+- **The compact face's dot is 3pt** (§14.2), and the mark draws no
+  terminals — the web's measurements, kept.
+- **No "quiet skeleton" on the phone.** The web rule keeps a still band for
+  sub-second layout holds; the phone has no layout hold — every wait here is
+  a fetch — so the pulse is retired with its last caller rather than left
+  as a primitive nothing reads. The day a layout hold appears it is a still
+  band on the cut, never a pulse; the scanner refuses the loop.
+- **`register.accentStrong` (`#A5DCEC`) is new to the phone's theme** —
+  web's `--info-strong`, read off `globals.css` for the terminal flash and
+  the busy status. The phone had `--info` and not its lit step.
+- **The plate line sits over the name, on the night.** The identity block's
+  eyebrow, in `monoLabel` off-white with the mark in `register.accent` — on
+  the garage it lands above the fade's start, as the name already does.
+- **`MarkDoneSheet`'s "Saving…" text swap is the one wait left without the
+  arc.** Its CTA is the retired cyan `brand.primary` fill on a sheet the
+  port has not reached; making it a `Button` is that sheet's port, not this
+  pass. Recorded so it is not mistaken for a decision.
+- **The critic's Cut list** asks for the full face's rule and headline to
+  go on the scanner. The rule is the band's edge (B5) and the headline is
+  the instrument's status line (the web brief's B3); both stay.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
