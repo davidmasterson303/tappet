@@ -933,6 +933,30 @@ nav {
     .gauge-arc {
       filter: none !important;
     }
+
+    /* The wait instrument, same treatment as the dial it is borrowed from —
+       see components/Working.tsx. Forced colours flatten the cyan sweep and
+       the grey track to one CanvasText, which leaves a full dashed ring with a
+       solid bite out of it and no way to tell which part is moving. Track to
+       GrayText, sweep to Highlight, and the glow off for the reason the
+       dial's is. `inclusive-affordances.test.ts` checks these class names are
+       still the ones the component renders. */
+    .working-track {
+      stroke: GrayText;
+    }
+    .working-sweep {
+      stroke: Highlight;
+      filter: none !important;
+    }
+    .working-terminal {
+      stroke: GrayText;
+    }
+    .working-stage-mark {
+      border-color: CanvasText;
+    }
+    .working-stage[data-state='done'] .working-stage-mark {
+      background: CanvasText;
+    }
   }
 
   /* A photograph painted as a background, in the best format the browser takes.
@@ -2462,6 +2486,102 @@ nav {
 }
 
 /*
+ * ── The ignition sweep, held — components/Working.tsx ──────────────────────
+ *
+ * The wait instrument is the health dial's own "coming alive" motion, kept
+ * going for as long as the work runs. `ClusterGauge` draws its arc in cyan and
+ * settles it off-white once there is a reading; here there is no reading yet,
+ * so the cyan segment never settles — it swings between the two ends of the
+ * scale like a needle that has not found its number.
+ *
+ * ⚠ It swings, it does not fill. An arc that draws from 0 to 100 and starts
+ * again is a progress bar wearing the dial's clothes — it has a denominator,
+ * and `b1e2baa` removed the last indicator that invented one. A segment of
+ * fixed length carries no claim about how much is left. That is the whole
+ * design, and it is why the keyframes animate `stroke-dashoffset` between two
+ * positions rather than `stroke-dasharray` between two lengths.
+ *
+ * The geometry is `pathLength="100"` on the track path from
+ * `@tappet/core/cluster-geometry`, so the numbers below are percentages of the
+ * arc: the segment is 18 long, so `0` parks it at the scale's foot and `-82`
+ * at its head. The base declaration is `-41` — the segment centred at the top
+ * of the dial — and it is the base rather than a keyframe on purpose: it is
+ * what shows when the animation is not running, which is both the reduced-
+ * motion state and the specimen's still frame. A reader who has asked for
+ * less motion still sees an instrument that is switched on.
+ *
+ * `alternate` with a symmetric ease, so the sweep decelerates into each end
+ * and turns rather than snapping back to the start — a needle, not a marquee.
+ *
+ * ⚠ Not the house `--ease-standard`. That curve is an aggressive ease-out for
+ * reveals, and `alternate` plays a timing function backwards on the return
+ * leg — so the sweep would arrive at the head slowly and leave it slowly, then
+ * *snap* into the foot. Measured on the specimen: at half a cycle the house
+ * ease is 97% of the way along, not 50%. A swing wants the same curve in both
+ * directions, which is what `ease-in-out` is.
+ */
+@keyframes workingSweep {
+  0%   { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -82; }
+}
+
+.working-sweep {
+  stroke-dashoffset: -41;
+}
+
+.working-sweep.is-live {
+  animation: workingSweep 1400ms ease-in-out infinite alternate;
+}
+
+/*
+ * The same sweep held still — the specimen and the design loop's screenshots.
+ *
+ * ⚠ Not the `.skeleton-shimmer-frame` trick. The first draft held the
+ * animation paused at a negative delay of half a cycle, on the assumption
+ * that half the time is half the distance; with the house ease it was 97% of
+ * the distance, and the "centre" frame sat at the head of the scale. The
+ * frame worth showing is the base declaration above, so the still is simply
+ * the base: no animation, and nothing to be wrong about. Deliberately outside
+ * `prefers-reduced-motion` for the reason `.skeleton-shimmer-frame` gives — a
+ * still is not a motion effect.
+ */
+.working-sweep.is-frozen {
+  animation: none;
+}
+
+/*
+ * Page-level waits arrive late on purpose. Most first paints resolve in a few
+ * hundred milliseconds from a warm cache, and a dial that flashes for one
+ * frame before the content lands reads as a glitch rather than as patience.
+ * So the instrument holds at opacity 0 for 350ms and only then fades in: a
+ * hold that ends sooner never paints it at all. Opt-in per call site — a wait
+ * somebody just started by pressing a button wants its feedback at once.
+ */
+@keyframes workingEnter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.working-enter {
+  opacity: 0;
+  animation: workingEnter var(--duration-fast) var(--ease-standard) 350ms forwards;
+}
+
+/*
+ * The active stage's mark breathes; the sweep already says "alive", so this
+ * is a quiet echo rather than a second instrument. Done marks are off-white
+ * ink — good news carries no hue — and pending marks are a hairline ring.
+ */
+@keyframes workingBreathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.working-stage[data-state='active'] .working-stage-mark {
+  animation: workingBreathe 1400ms ease-in-out infinite;
+}
+
+/*
  * The garage door — the first-load intro curtain. See components/GarageDoor.tsx.
  *
  * The slats are drawn, not photographed. The version this replaces used a
@@ -2661,6 +2781,21 @@ html[data-intro='play'] .garage-door {
   .scroll-reveal {
     opacity: 1;
     transform: none;
+  }
+
+  /*
+    The wait instrument stops at its base position rather than running its
+    1400ms sweep in a millisecond. The blanket rule above would already do
+    that — one iteration at 0.001ms with no fill mode reverts to the base
+    declaration — but the still state is a designed state, not a side effect,
+    so it is stated. The enter fade keeps its 350ms delay: the point of the
+    delay is not motion, it is not painting a dial for a hold that ends first.
+  */
+  .working-sweep.is-live {
+    animation: none;
+  }
+  .working-stage[data-state='active'] .working-stage-mark {
+    animation: none;
   }
 
   /*
