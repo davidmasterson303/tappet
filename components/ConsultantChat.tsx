@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader as Loader2, Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy, Ellipsis, Pencil, Trash2 } from 'lucide-react';
+import { Send, Plus, Search, MessageSquare, Paperclip, X, FileText, ExternalLink, Heart, Check, Wrench, TriangleAlert, Sparkles, PanelLeft, Copy, Ellipsis, Pencil, Trash2 } from 'lucide-react';
+import { Working, WorkingMark } from '@/components/Working';
+import { AdvisorWait, type AdvisorUpload } from '@/components/AdvisorWait';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,14 +124,6 @@ function AttachmentLink({ doc, className }: { doc: any; className: string }) {
   );
 }
 
-const THINKING_STAGES = [
-  'Reviewing vehicle profile...',
-  'Checking service history...',
-  'Analyzing maintenance records...',
-  'Consulting knowledge base...',
-  'Preparing response...',
-];
-
 const FOLLOW_UP_SUGGESTIONS: Record<string, string[]> = {
   default: [
     'What are the most common issues for this engine?',
@@ -224,11 +218,32 @@ export default function ConsultantChat({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedTurn, setCopiedTurn] = useState<number | null>(null);
-  const [thinkingStage, setThinkingStage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
+  /*
+    ── The wait says what it is waiting on, and only that — 12 Sep ──────────
+
+    This was a boolean `uploadingFiles` beside a `thinkingStage` index that a
+    1.8s `setInterval` advanced through five invented stages with a wrapping
+    modulo. The stages are gone (`components/AdvisorWait.tsx` carries the
+    account); what remains is the one fact the composer holds while it
+    uploads — which file, and where in the queue — and `loading`, which
+    covers the whole send. The thread draws the wait instrument from those
+    two, and nothing in this component owns a clock.
+  */
+  const [uploading, setUploading] = useState<AdvisorUpload | null>(null);
+  const uploadingFiles = uploading !== null;
+  /*
+    Which conversation is being fetched, while it is. The thread shows the
+    instrument rather than the greeting for it — a conversation with history
+    is not the un-answered state, and the greeting used to paint for the
+    length of the fetch on every first load — and the ref is what a late
+    response is checked against, so switching threads twice cannot land the
+    first thread's messages under the second thread's rail row.
+  */
+  const [openingSessionId, setOpeningSessionId] = useState<string | null>(initialSessionId || null);
+  const openingRef = useRef<string | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
   /*
     Phase 2.98a. This was a `Set` of `name-type` keys, which was all the "✓
@@ -249,7 +264,6 @@ export default function ConsultantChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const thinkingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   /*
@@ -310,32 +324,23 @@ export default function ConsultantChat({
     }
   }, [messages]);
 
-  useEffect(() => {
-    return () => {
-      if (thinkingIntervalRef.current) clearInterval(thinkingIntervalRef.current);
-    };
-  }, []);
-
-  const startThinkingAnimation = () => {
-    setThinkingStage(0);
-    thinkingIntervalRef.current = setInterval(() => {
-      setThinkingStage(prev => (prev + 1) % THINKING_STAGES.length);
-    }, 1800);
-  };
-
-  const stopThinkingAnimation = () => {
-    if (thinkingIntervalRef.current) {
-      clearInterval(thinkingIntervalRef.current);
-      thinkingIntervalRef.current = null;
-    }
-  };
-
   const loadSession = async (sessionId: string) => {
     setSidebarOpen(false);
-    const result = await getConsultantSession(sessionId);
-    if (result.success && result.data) {
-      setMessages(result.data.message_history || []);
-      setShowFollowUps(false);
+    openingRef.current = sessionId;
+    setOpeningSessionId(sessionId);
+    try {
+      const result = await getConsultantSession(sessionId);
+      // A later click has moved on; this thread's messages are not wanted.
+      if (openingRef.current !== sessionId) return;
+      if (result.success && result.data) {
+        setMessages(result.data.message_history || []);
+        setShowFollowUps(false);
+      }
+    } finally {
+      if (openingRef.current === sessionId) {
+        openingRef.current = null;
+        setOpeningSessionId(null);
+      }
     }
   };
 
@@ -432,6 +437,9 @@ export default function ConsultantChat({
   };
 
   const handleNewChat = () => {
+    // A conversation still being fetched must not land in the new, empty thread.
+    openingRef.current = null;
+    setOpeningSessionId(null);
     setActiveSessionId(null);
     setMessages([]);
     setInput('');
@@ -611,11 +619,13 @@ export default function ConsultantChat({
   const uploadFiles = async (sessionId: string) => {
     if (selectedFiles.length === 0) return [];
 
-    setUploadingFiles(true);
     const uploadedDocs: any[] = [];
 
     try {
-      for (const file of selectedFiles) {
+      for (let index = 0; index < selectedFiles.length; index++) {
+        const file = selectedFiles[index];
+        // The thread's first stage: this file, at this place in the queue.
+        setUploading({ fileName: file.name, fileIndex: index + 1, fileCount: selectedFiles.length });
         const formData = new FormData();
         formData.append('file', file);
         formData.append('vehicleId', vehicleId);
@@ -648,7 +658,7 @@ export default function ConsultantChat({
       toast.error('Failed to upload files');
       return [];
     } finally {
-      setUploadingFiles(false);
+      setUploading(null);
     }
   };
 
@@ -660,7 +670,6 @@ export default function ConsultantChat({
     setInput('');
     setShowFollowUps(false);
     setLoading(true);
-    startThinkingAnimation();
 
     const demo = isDemoMode() || isDemoVehicleId(vehicleId);
 
@@ -673,7 +682,6 @@ export default function ConsultantChat({
       if (!createResult.success || !createResult.sessionId) {
         toast.error('Failed to create session');
         setLoading(false);
-        stopThinkingAnimation();
         return;
       }
 
@@ -689,7 +697,6 @@ export default function ConsultantChat({
     if (!currentSessionId && !demo) {
       toast.error('Failed to create session');
       setLoading(false);
-      stopThinkingAnimation();
       return;
     }
 
@@ -723,7 +730,6 @@ export default function ConsultantChat({
       attachedDocuments: uploadedDocs,
     });
 
-    stopThinkingAnimation();
     setLoading(false);
 
     if (result.success) {
@@ -1118,7 +1124,28 @@ export default function ConsultantChat({
             composer out of the shell — the same symptom R4 set out to fix,
             arriving by a different route. */}
         <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5">
-          {messages.length === 0 ? (
+          {openingSessionId ? (
+            /*
+              A conversation being fetched is a wait, and it used to wear the
+              greeting below — "Hey, Jay here" and four prompts, for as long as
+              `getConsultantSession` took on every first load, over a thread
+              that was about to fill with history. The empty thread is the
+              un-answered state and keeps the greeting; this is not that.
+              `delay` holds the instrument invisible for 350ms so a fetch that
+              lands sooner paints nothing at all.
+            */
+            <div className="h-full flex items-center justify-center">
+              <Working variant="compact" delay line="Opening this conversation" />
+            </div>
+          ) : messages.length === 0 && !loading ? (
+            /*
+              `!loading`: the greeting is the un-answered state, and it ends
+              the moment a question is sent — not the moment the question's
+              optimistic turn lands, which with files attached is after the
+              upload. The wait below is drawn in the thread branch, so a first
+              question with a file used to upload behind the greeting and four
+              prompts inviting a second one.
+            */
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md animate-fade-in">
                 <div className="w-14 h-14 chamfer-sm bg-info-wash border border-info-border flex items-center justify-center mx-auto mb-5">
@@ -1351,14 +1378,24 @@ export default function ConsultantChat({
                               key={actionIdx}
                               onClick={() => handleAddToWishlist(action)}
                               disabled={isAdded || isAdding}
+                              aria-busy={isAdding || undefined}
                               className={`flex items-center gap-2 w-full text-left p-2.5 chamfer-sm text-sm transition-all ${
                                 isAdded
                                   ? 'bg-white/6 border border-[color:var(--confirm)]/25 text-[color:var(--confirm)] cursor-default'
                                   : 'bg-info-wash border border-info-border text-info hover:bg-[color:var(--info)]/15 hover:border-[color:var(--info-border)]/40'
                               }`}
                             >
+                              {/*
+                                The wait mark takes the heart's place while the
+                                row is being written, in the control's own ink,
+                                and "+ Add" — the action — gives way to the state
+                                in the state voice. Not the primitive's `busy`
+                                form: this control is a row with three cells, not
+                                a label, and the mark plus the mono status are
+                                what that form would paint.
+                              */}
                               {isAdding ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+                                <WorkingMark className="h-3.5 w-3.5 flex-shrink-0" />
                               ) : isAdded ? (
                                 <Check className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--confirm)]" />
                               ) : (
@@ -1378,6 +1415,11 @@ export default function ConsultantChat({
                               >
                                 {action.type}
                               </span>
+                              {isAdding && (
+                                <span className="mono text-xs uppercase tracking-[0.06em] text-[color:var(--info-strong)]">
+                                  Adding
+                                </span>
+                              )}
                               {!isAdded && !isAdding && <span className="text-xs text-[color:var(--info-strong)] font-semibold">+ Add</span>}
                             </button>
                           );
@@ -1533,18 +1575,20 @@ export default function ConsultantChat({
                 </div>
               ))}
 
-              {/* The same label row as a real turn, with the indicator inline.
-                  It was a third avatar+bubble, which made "thinking" look like
-                  a message that had arrived. */}
+              {/*
+                The turn being written, where it will land. It was a spinner
+                beside five stages on a 1.8s timer; it is the wait instrument
+                now, saying which of the two real stages is running —
+                `AdvisorWait` carries the argument. No byline while the
+                composer is still uploading, because that is not Jay's work.
+              */}
               {loading && (
-                <div className="animate-fade-in flex flex-col items-start">
-                  <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
-                    <span>{ADVISOR_NAME}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-info flex-shrink-0" />
-                    <span className="text-sm text-white/50">{THINKING_STAGES[thinkingStage]}</span>
-                  </div>
+                <div className="animate-fade-in">
+                  <AdvisorWait
+                    vehicle={vehicle}
+                    demo={isDemoMode() || isDemoVehicleId(vehicleId)}
+                    uploading={uploading}
+                  />
                 </div>
               )}
 
@@ -1689,18 +1733,28 @@ export default function ConsultantChat({
                 {openItemCount > 0 && ` · ${openItemCount} open item${openItemCount === 1 ? '' : 's'}`}
               </span>
 
+              {/*
+                The control that started the work drops to the primitive's
+                busy form — outline, the wait mark, its rest width held. It is
+                icon-only, so there is no room for the mono status the form
+                would paint beside the mark: the label is empty and the state
+                is the accessible name instead, which is the form
+                `components/Working.tsx` gives icon-only controls. `busy`, not
+                `disabled={loading}`: the primitive swallows the click and
+                keeps focus where it was, and the send is one press.
+              */}
               <Button
                 onClick={() => handleSend()}
-                disabled={loading || uploadingFiles || (!input.trim() && selectedFiles.length === 0)}
+                busy={loading}
+                busyLabel=""
+                disabled={!loading && !input.trim() && selectedFiles.length === 0}
                 size="sm"
-                aria-label="Send"
+                aria-label={
+                  !loading ? 'Send' : !uploading ? 'Answering' : uploading.fileCount > 1 ? 'Uploading the files' : 'Uploading the file'
+                }
                 className="tap-target-44 h-8 bg-primary hover:bg-primary/90 text-primary-foreground border-0 transition-all disabled:opacity-40"
               >
-                {uploadingFiles ? (
-                  <Loader2 className="h-[15px] w-[15px] animate-spin" />
-                ) : (
-                  <Send className="h-[15px] w-[15px]" />
-                )}
+                <Send className="h-[15px] w-[15px]" />
               </Button>
             </div>
           </div>
