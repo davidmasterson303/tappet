@@ -52,16 +52,13 @@ const MARKERS: Array<{ name: string; re: RegExp }> = [
  * ⚠ A reason is not a licence. The list held two files owned by another
  * worktree on 11 Sep; `components/ConsultantChat.tsx` came out on 12 Sep when
  * the advisor adopted the instrument (see the case below, which now refuses
- * a leftover in that file). The one entry left names a file outside that
- * pass's lane; the day it is fixed, the entry comes out and this list is
- * empty. Nothing in the app the web team owns belongs here.
+ * a leftover in that file), and `app/consultant/[vehicleId]/page.tsx` — the
+ * last two hand-rolled rings, on the page shell — came out the same day.
+ * The list is empty, and that is the state it is meant to stay in: a new
+ * entry needs a reason a reader would accept, and the anti-vacuous case
+ * below keeps the scanner honest while it has nothing to allow.
  */
-const ALLOWED: Record<string, string> = {
-  'app/consultant/[vehicleId]/page.tsx':
-    'outside the 12 Sep pass’s lane (app/consultant/**). Two hand-rolled rings on the page ' +
-    'load, "Loading consultant..."; should become <Working delay line="Opening the advisor" /> ' +
-    'like /plan and /vehicle-info, and then this entry comes out.',
-};
+const ALLOWED: Record<string, string> = {};
 
 /**
  * Comments blanked, newlines kept, opener anchored — the same three lessons
