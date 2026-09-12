@@ -12,7 +12,7 @@ import Button from '../components/Button';
 import Working from '../components/Working';
 import { scanLine, scanStages, type ScanPhase } from '../components/working-stages';
 import { ApiRequestError } from '../api/client';
-import { OPTICAL_CENTRE, PAGE_BODY, border, radius, space, surface, text, type } from '../theme';
+import { PAGE_BODY, space, text, type } from '../theme';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
@@ -331,12 +331,22 @@ export function InvoiceScanScreen({
 
     <ScrollView
       /*
-        R57. `OPTICAL_CENTRE` only has slack to distribute when the content is
-        shorter than the display, which is every state on this screen — so the
-        block sits a little above centre rather than pinned to the top of a
-        black field. A long error keeps its natural top alignment for free.
+        ── ⚠ 12 Sep · top-aligned; R57's optical centre is superseded here ────
+
+        R57 centred every state of this screen (*"a single-question screen with
+        its question at the very top of a black field reads as a page that
+        failed to finish loading"*), and it was right about the screen it
+        graded — a bold sans H1 and two pill buttons floating on black. Under
+        the locked brief the screen is a band on one graphite surface, read
+        from the left margin like every other, and the critique of round 30
+        named the centring's remainder for what it had become: *"copy floating
+        mid-screen above dead black — a placeholder layout"*, with 40% of the
+        display empty above the first word. The roots superseded R57 on 11 Sep
+        for the same reason (`docs/design-system-drift.md` §6.9); this screen
+        joins them. One rule for every state, so the block does not jump
+        between the first frame and the wait.
       */
-      contentContainerStyle={[styles.body, OPTICAL_CENTRE]}
+      contentContainerStyle={styles.body}
     >
       {state.status === 'idle' && (
         <View style={styles.block}>
@@ -360,9 +370,30 @@ export function InvoiceScanScreen({
             another native module, another cloud build — so it waits for the
             next one rather than costing its own.
           */}
+          {/*
+            ── ⚠ 12 Sep · the brief's empty-state grammar, B1 and B9 ─────────
+
+            *"Empty states left-aligned: mono caption, sans body, one button."*
+            The first frame of the scan is not an empty state, but it is the
+            same shape — a screen with nothing on it yet and one thing to do —
+            and it was set as two sans paragraphs over two equal buttons. The
+            caption now names the act in the mono, the body says what the
+            model does with it, and the library is a text control beneath the
+            one primary rather than a second box the same size.
+
+            ⚠ What this frame still is not: B9's viewfinder. *"Hairline corner
+            brackets and a mono readout"* need the camera feed behind them,
+            and the dev client opens the *system* camera through
+            `expo-image-picker`; drawing brackets over graphite here would be a
+            picture of a viewfinder, which the critique would (rightly) call a
+            placeholder doing an image's job. That frame is `expo-camera`, an
+            EAS build (`CLAUDE.md` §9) — logged in drift §6.9, not faked here.
+          */}
+          <Text style={styles.caption} accessibilityRole="header">
+            Photograph the invoice
+          </Text>
           <Text style={styles.lead}>
-            Photograph a service invoice and its line items are read and added to this car's
-            history.
+            Its line items are read and added to this car's history.
           </Text>
 
           {/*
@@ -409,10 +440,17 @@ export function InvoiceScanScreen({
             photo taken days ago — and the simulator has no camera at all, so a
             camera-only flow could never be exercised on the machine this is
             developed on.
+
+            ⚠ 12 Sep: `ghost`, not `outline`. Two boxes of one size under one
+            paragraph read as two equal offers, and B9 makes the camera the
+            headline act; the library is the way in for a bill that is already
+            a photograph, and a mono caps word beneath the primary is how this
+            system writes a secondary that must not compete (the roots' own
+            chrome). It is still 44pt and still named for the reader.
           */}
           <Button
             label="Choose from library"
-            variant="outline"
+            variant="ghost"
             onPress={() => void choose('library')}
           />
             </>
@@ -578,6 +616,8 @@ const styles = StyleSheet.create({
   /* `body_` because `body` is the container above. */
   body_: { color: text.muted, fontFamily: interFace('400'),
     fontSize: 15, lineHeight: 22 },
+  /* B1: the mono caption the brief gives a screen with one thing to do. */
+  caption: { ...type.monoLabel, color: text.primary },
   /* The one line that says what this screen is for. A step above the rest. */
   lead: { ...type.body, fontSize: 15, lineHeight: 22, color: text.secondary },
   /*

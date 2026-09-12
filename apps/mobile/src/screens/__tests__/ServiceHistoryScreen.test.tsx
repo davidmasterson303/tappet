@@ -375,3 +375,45 @@ describe('finding something in the record', () => {
     expect(view.getByText(/Timing belt/)).toBeTruthy();
   });
 });
+
+/**
+ * ── 12 Sep · the search is the list's, and the scan is the root's ───────────
+ *
+ * Two things the round-30 critique cut, held here so they do not creep back:
+ * the field was pinned above the scroller with the rail and the primary
+ * (~220pt of chrome under the nav), and the empty state offered a second SCAN
+ * AN INVOICE 400px under the pinned one.
+ */
+describe('what the list carries, and what the root does', () => {
+  it('scrolls the search away with the list, rather than pinning it', async () => {
+    respondWith([INVOICE_ROW, RECOLLECTION_ROW]);
+    const view = await mount();
+    await view.findByText(/Front brake pads/);
+
+    /*
+      The input is a descendant of the scroller in the host tree. Pinned, it
+      sat beside the scroller as a sibling — which is what this walk refuses.
+    */
+    const inside = (node: unknown, within: boolean): boolean => {
+      if (!node || typeof node !== 'object') return false;
+      const host = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
+      if (host.props?.accessibilityLabel === 'Search this service history') return within;
+      const scroller = within || host.type === 'RCTScrollView';
+      return (host.children ?? []).some((child) => inside(child, scroller));
+    };
+
+    expect(inside(view.toJSON(), false)).toBe(true);
+  });
+
+  it('offers one scan control per screen — the empty state carries none of its own', async () => {
+    respondWith([]);
+    const view = await mount();
+
+    await view.findByText('Nothing recorded yet');
+    // The pinned primary on the Service root is the door; a second button
+    // with the same label is a screen that cannot decide.
+    expect(view.queryByRole('button', { name: /scan/i })).toBeNull();
+    // The body still names the way in — words, not a second control.
+    expect(view.getByText(/Scan an invoice, or mark something done/)).toBeTruthy();
+  });
+});

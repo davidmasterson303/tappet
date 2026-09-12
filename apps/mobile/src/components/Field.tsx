@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import CutSurface from './CutSurface';
 
-import { FIELD_FONT_MIN, border, cut, space, status, surface, text, type } from '../theme';
+import { FIELD_FONT_MIN, border, brand, cut, space, status, surface, text, type } from '../theme';
 
 /**
  * A labelled text input.
@@ -33,12 +34,31 @@ import { FIELD_FONT_MIN, border, cut, space, status, surface, text, type } from 
  *
  * The red edge is the second signal, never the only one. A colour-blind user
  * gets the sentence; everyone gets `accessibilityInvalid`.
+ *
+ * ── ⚠ 12 Sep · focus is cyan, and so is the caret ───────────────────────────
+ *
+ * The brief's studio paragraph: *"Fields share the geometry, cyan hairline on
+ * focus."* B7 gives cyan three jobs — *"focus, active rule and refresh ramp"*
+ * — and ends *"no system blue"*. A field here had no focus state at all, and
+ * the one thing that did change when it took focus was the caret, which iOS
+ * draws in **system blue** unless told otherwise. So the only focus signal on
+ * the phone was the one hue the brief bans, and the critique saw it on the
+ * service history's search field (round 30).
+ *
+ * `selectionColor` is the caret *and* the selection on iOS (`cursorColor` is
+ * Android's, and is set too so neither platform falls back to its own blue);
+ * the stroke steps to `brand.accent` while the input has focus, and back to
+ * the hairline on blur. A problem outranks focus: a field that is both wrong
+ * and being edited keeps its sodium edge, because that is the signal the
+ * sentence beneath it is about.
  */
 export default function Field({
   label,
   hint,
   problem,
   style,
+  onFocus,
+  onBlur,
   ...input
 }: {
   label: string;
@@ -48,6 +68,7 @@ export default function Field({
   problem?: string;
 } & Omit<TextInputProps, 'style' | 'placeholderTextColor'> & { style?: TextInputProps['style'] }) {
   const invalid = Boolean(problem);
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrap}>
@@ -74,10 +95,20 @@ export default function Field({
         cut={['bottomRight']}
         size={cut.control}
         fill={surface.well}
-        stroke={invalid ? status.dangerBorder : border.field}
+        stroke={invalid ? status.dangerBorder : focused ? brand.accent : border.field}
       >
       <TextInput
         {...input}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
+        selectionColor={brand.accent}
+        cursorColor={brand.accent}
         /*
           The hint is part of the name, not decoration beside it.
 
