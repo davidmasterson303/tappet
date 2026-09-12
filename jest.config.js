@@ -7,6 +7,22 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  /*
+    ── ⚠ The timeout is for correctness, not speed (11 Sep) ──────────────────
+
+    Jest's default is 5 s per test. On 11 Sep the promote gate failed twice
+    on "tests failed" while three other jest runs shared the machine, and the
+    same suite passed every time it ran alone. Reproduced deliberately: three
+    concurrent `npx jest` processes — each with its own full worker pool —
+    took `consultant-rail-rename-delete.test.tsx` from 2.9 s to 64–71 s and
+    tripped the 5 s wall on tests that take 100 ms unloaded. The mobile suite
+    has the same shape (`AddVehicleScreen.test.tsx`, recorded the same day).
+
+    A test that hangs still fails — three times slower to say so. A gate that
+    fails on a busy machine reports success as "tests failed", and CLAUDE.md
+    §5 says what happens to a guard that cries wolf: it gets made to pass.
+  */
+  testTimeout: 15_000,
   moduleNameMapper: {
     // Order matters: the scoped alias must be tried before the '@/' catch-all.
     '^@tappet/core/(.*)$': '<rootDir>/packages/core/src/$1',
