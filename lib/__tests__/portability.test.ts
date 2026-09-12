@@ -201,6 +201,16 @@ const PORTABLE: string[] = [
     and `jimp` would be a megabyte of it.
   */
   'lib/plate-image.ts',
+  /*
+    Added 11 Sep with the rail's rename. The rule for what a conversation may
+    be called — the cap and the whitespace collapse — read by the server action
+    that refuses with it and the field that caps with it. No imports at all,
+    so it qualifies mechanically. It stays in lib/ for the ordinary reason:
+    only the web rail renames today. ⚠ When the phone gains rename it belongs
+    in core, and should move rather than be copied — two caps is the drift
+    `lib/account-data.ts` records for the storage prefixes.
+  */
+  'lib/consultant-title.ts',
 ];
 
 /**
