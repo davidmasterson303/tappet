@@ -48,3 +48,49 @@ describe('the Plan root', () => {
     expect(view.queryByLabelText('Add something this car needs')).toBeNull();
   });
 });
+
+describe('the pushed Plan (the car\'s hub → PLAN)', () => {
+  /*
+    The same screen under a native header, where `RootScreen` draws no band
+    and the trailing slot never renders — the case the first fix missed. The
+    control goes into the header's right slot; the mock navigation is what
+    `NavigationContext` hands a pushed screen.
+  */
+  const { NavigationContext } = jest.requireActual('@react-navigation/native');
+
+  function pushedNavigation() {
+    return {
+      canGoBack: () => true,
+      setOptions: jest.fn(),
+      navigate: jest.fn(),
+      addListener: jest.fn(() => () => {}),
+      isFocused: () => true,
+    };
+  }
+
+  it('puts Add in the native header on Needs, wired to the catalogue', async () => {
+    const onAdd = jest.fn();
+    const navigation = pushedNavigation();
+    await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <PlanScreen vehicleId="v1" showsMods onSignOut={jest.fn()} onAdd={onAdd} />
+      </NavigationContext.Provider>
+    );
+    const options = navigation.setOptions.mock.calls.at(-1)?.[0];
+    expect(typeof options?.headerRight).toBe('function');
+    const header = await render(options.headerRight());
+    await userEvent.setup().press(header.getByLabelText('Add something this car needs'));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the header slot on Mods', async () => {
+    const navigation = pushedNavigation();
+    await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <PlanScreen vehicleId="v1" showsMods initialSegment="mods" onSignOut={jest.fn()} onAdd={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    const options = navigation.setOptions.mock.calls.at(-1)?.[0];
+    expect(options).toEqual({ headerRight: undefined });
+  });
+});
