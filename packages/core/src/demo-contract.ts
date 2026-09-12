@@ -46,6 +46,8 @@ export const PUBLIC_DEMO_ROUTES = [
   `/consultant/${DEMO_VEHICLE_IDS[0]}`,
   `/documents/${DEMO_VEHICLE_IDS[0]}`,
   `/vehicle-info/${DEMO_VEHICLE_IDS[0]}`,
+  // The Plan tab, protected since 11 Sep; the demo car's must stay anonymous.
+  `/plan/${DEMO_VEHICLE_IDS[0]}`,
 ] as const;
 
 /**
