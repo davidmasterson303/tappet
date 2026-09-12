@@ -76,15 +76,21 @@ describe('resolveVehiclePhoto', () => {
     expect(result).toBeNull();
   });
 
-  it('honours the deliberately unphotographed demo car', async () => {
-    // That car still carries a seeded image_url; the carve-out has to win.
+  it('no demo car is carved out any more — the M3 resolves to its own plate (12 Sep)', async () => {
+    /*
+      The M3 stood bare so the demo showed the empty state. Now every car
+      without a photograph gets a generated plate, so the bare bay is a wait,
+      not a home — the list is empty and the carve-out resolves nothing. The
+      mechanism stays: the day an id goes back into the list, this is the case
+      that changes.
+    */
+    expect(DEMO_UNPHOTOGRAPHED_VEHICLE_IDS).toHaveLength(0);
     const result = await resolveVehiclePhoto(
-      DEMO_UNPHOTOGRAPHED_VEHICLE_IDS[0],
-      { custom_image_url: null, image_url: '/vehicles/m3.jpg' },
+      'a3000000-0000-0000-0000-000000000003',
+      { custom_image_url: null, image_url: '/vehicles/m3/hero-3x2.jpg' },
       clientThatSigns({ url: 'unused' })
     );
-
-    expect(result).toBeNull();
+    expect(result).toBe('/vehicles/m3/hero-3x2.jpg');
   });
 
   /*
