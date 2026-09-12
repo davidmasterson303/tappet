@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
   Animated,
   Pressable,
   RefreshControl,
@@ -15,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import { uploadVehiclePhoto } from '../api/photos';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { buildPosition } from '@tappet/core/build-progress';
@@ -394,7 +396,14 @@ export function VehicleDetailScreen({
   const [refreshing, setRefreshing] = useState(false);
 
   const [uploading, setUploading] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  /*
+    Two verbs, one banner. The headline names which of them failed — "not
+    saved" and "not removed" are different instructions to the owner, and a
+    banner that said "that photo failed" would leave them checking whether the
+    picture is now on the car or off it.
+  */
+  const [photoError, setPhotoError] = useState<{ headline: string; body: string } | null>(null);
 
   /*
     ── The scroll driver ─────────────────────────────────────────────────────
@@ -561,11 +570,144 @@ export function VehicleDetailScreen({
       await uploadVehiclePhoto(vehicleId, file);
       await load(true);
     } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : 'That photo could not be saved.');
+      setPhotoError({
+        headline: 'That photo was not saved',
+        body: error instanceof Error ? error.message : 'That photo could not be saved.',
+      });
     } finally {
       setUploading(false);
     }
   }, [pickPhoto, vehicleId, load]);
+
+  /**
+   * Take the photograph off the car.
+   *
+   * ── ⚠ Why this exists (11 Sep) ──────────────────────────────────────────
+   *
+   * David, on the phone: *"i can't delete the image i uploaded on the app, so
+   * i can't revert to seeing the new default images for my car."* The web has
+   * had Remove in its photo dialog for weeks; this screen could add a
+   * photograph and never take one away, so a car with an upload could not fall
+   * back to its plate. `removeVehiclePhoto` is the route built for it.
+   *
+   * ── Optimistic, with the revert written first ─────────────────────────────
+   *
+   * The plate is shown the moment the owner confirms, because what they are
+   * asking for is to *see* the plate — a spinner over the photograph they just
+   * asked to lose would answer the wrong question. The previous URL is held so
+   * a failure puts the picture back exactly as it was, with the banner naming
+   * the failure; the state the owner is left in is then the honest one on both
+   * paths. `clearVehiclePhoto` on the server keeps the same discipline (the
+   * row is cleared last, so a failed delete still shows the photograph).
+   *
+   * Reloads on success rather than trusting the null it just wrote, for the
+   * reason `onAddPhoto` gives: what stands on the car now — the stock image,
+   * the generation plate, or the house plate — is the API's decision, and a
+   * local guess is the disagreement `lib/vehicle-photo.ts` exists to prevent.
+   */
+  const onRemovePhoto = useCallback(async () => {
+    if (state.status !== 'ok') return;
+    /*
+      ⚠ Read from the closure, not inside the updater. An updater runs when
+      React renders, and a request that fails in a microtask — a mocked one, or
+      a refused one — reaches the `catch` before that render, which would
+      revert to a `previous` nobody had set yet.
+    */
+    const previous = state.vehicle.photo_url ?? null;
+    setPhotoError(null);
+    setState((current) =>
+      current.status === 'ok'
+        ? { ...current, vehicle: { ...current.vehicle, photo_url: null } }
+        : current,
+    );
+    setRemoving(true);
+
+    try {
+      await removeVehiclePhoto(vehicleId);
+      await load(true);
+    } catch (error) {
+      setState((current) =>
+        current.status === 'ok'
+          ? { ...current, vehicle: { ...current.vehicle, photo_url: previous } }
+          : current,
+      );
+      /*
+        ⚠ **MOB-08.** `isLocallySignedOut`, not any 401 — the device decided it
+        had no session and sent nothing, which is the one case where clearing
+        the session is right. A server 401 is shown, not acted on.
+      */
+      if (error instanceof ApiRequestError && error.isLocallySignedOut) {
+        onSignOut();
+        return;
+      }
+      setPhotoError({
+        headline: 'That photo was not removed',
+        body: error instanceof Error ? error.message : 'That photo could not be removed.',
+      });
+    } finally {
+      setRemoving(false);
+    }
+  }, [state, vehicleId, load, onSignOut]);
+
+  /**
+   * The photo control's one tap.
+   *
+   * ── ⚠ Why a sheet, not a second control ───────────────────────────────────
+   *
+   * The nav row over the photograph holds one control, and that is a decision
+   * with a history: the score chip was cut from this exact slot because chrome
+   * over the car crowds the title, and every round of the critique has read
+   * the row as *one* control beside "‹ GARAGE". A standing REMOVE beside it
+   * would put a second photo verb on the hero of a screen that is about the
+   * car — and if it took the system's destructive treatment it would spend
+   * sodium, which B7 reserves for genuine warnings, on a control that is
+   * present every time the car has a picture.
+   *
+   * So the control keeps its name and its place, and iOS does what iOS does
+   * for one control with two actions: an action sheet. It is also the web's
+   * own structure — its "Change Vehicle Photo" dialog holds Remove *inside*
+   * it — so the two clients agree on where Remove lives. The sheet and the
+   * confirm are UIKit's surfaces, like every `Alert.alert` in this app; the
+   * brief has nothing to grade there and the system spends no hue.
+   *
+   * ⚠ `ActionSheetIOS` is iOS-only and fails loudly where it is absent
+   * (`invariant` in RN). This is the iOS app — every EAS profile is iOS — and
+   * a silent `Alert` fallback for a platform nothing builds would be a branch
+   * nothing exercises.
+   *
+   * With no photograph there is one action, so there is no sheet: "Add photo"
+   * goes straight to the picker, as it always has.
+   */
+  const onPhotoControl = useCallback(() => {
+    const hasPhoto = state.status === 'ok' && Boolean(state.vehicle.photo_url);
+    if (!hasPhoto) {
+      void onAddPhoto();
+      return;
+    }
+
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Change photo', 'Remove photo', 'Cancel'],
+        destructiveButtonIndex: 1,
+        cancelButtonIndex: 2,
+        userInterfaceStyle: 'dark',
+      },
+      (index) => {
+        if (index === 0) void onAddPhoto();
+        if (index === 1) {
+          /*
+            One confirm, and it says what the owner gets rather than asking
+            "are you sure?". The car does not go blank — it stands on its
+            plate, which is the thing David wanted to see and could not.
+          */
+          Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+            { text: 'Keep', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
+          ]);
+        }
+      },
+    );
+  }, [state, onAddPhoto, onRemovePhoto]);
 
   if (state.status === 'loading') {
     /*
@@ -929,7 +1071,7 @@ export function VehicleDetailScreen({
 
           <View style={styles.body}>
             {photoError && (
-              <AlertBanner tone="critical" headline="That photo was not saved" body={photoError} />
+              <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
             )}
       {/*
         ⚠ The dial is **not** here any more — it is in the hero, on the plane
@@ -1208,12 +1350,19 @@ export function VehicleDetailScreen({
       */}
       <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
         <Animated.View style={{ opacity: identityFade }}>
+          {/*
+            One control, two verbs once a photograph exists — `onPhotoControl`
+            carries why the second verb is a sheet rather than a neighbour.
+            The label stays "Change photo": removing is a change, it is the
+            web dialog's own title, and it is the control anyone looking for
+            Remove will tap.
+          */}
           <Button
             label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
             variant="outline"
             size="small"
-            busy={uploading}
-            onPress={() => void onAddPhoto()}
+            busy={uploading || removing}
+            onPress={onPhotoControl}
             style={styles.pill}
           />
         </Animated.View>
