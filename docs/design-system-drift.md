@@ -2106,12 +2106,14 @@ B7."* Web's Service page is the one that has drifted from its own system
 
 **Recorded, not built — the next round's list, ungraded:**
 
-- *The odometer gate's field and verb* (round 33, gap 2, `[B4]`): the
-  `Field` is 48pt and a small `Button` is 44, bottoms aligned, so the tops
-  step by 4 — measured in the source, not only on the frame. The brief says
-  buttons are 48; `small` is 44 by the app's floor and `large` 52 by a
-  recorded decision. One height for a field and the control beside it is a
-  system change (`Button`'s sizes), not a screen's.
+- ~~*The odometer gate's field and verb*~~ (round 33, gap 2, `[B4]`) —
+  **taken after the stop, ungraded** (`dfcbfa9`): the `Field` was 48pt and a
+  small `Button` 44, bottoms aligned, tops 4pt apart — measured on the frame
+  by the critic and confirmed in the source. `CONTROL_HEIGHT = 48` (the
+  brief's figure for a button) now sits beside `TARGET_MIN` and `SPEC_ROW`;
+  `Field` and `Button`'s `small` both read it, `large` keeps its recorded
+  52, and the two strokes measure one edge at 3× (1052–1194px). The gate's
+  question stepped from body to UI size in the same change.
 - *One header treatment* (gap 3, `[B8]`): the collapsed root closes its mono
   title with a hairline; the pushed native header draws none.
 - *The scan screen's tab bar* (Cut): a full-screen headline act would hide
