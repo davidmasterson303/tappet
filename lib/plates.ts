@@ -382,3 +382,74 @@ export async function runPlateJob(key: string, deps: { client?: SupabaseClient }
     throw error;
   }
 }
+
+export interface BackfillResult {
+  /** Cars looked at this call. */
+  scanned: number;
+  /** Cars that now carry a key they did not have. */
+  attached: number;
+  /** Library rows that needed generation and were triggered. */
+  triggered: number;
+  /** Cars whose generation could not be named or whose row did not land. */
+  skipped: number;
+}
+
+/**
+ * Give every photo-less car a plate, a few at a time.
+ *
+ * ── Why a route and a limit, not a migration ────────────────────────────────
+ *
+ * The cars that existed before 11 Sep never went through the VIN step, so
+ * nothing ever asked for their plate. This walks them: any vehicle with no
+ * owner photograph, no stock photo and no key gets `ensurePlate` — one short
+ * text call each — and any library row that still needs generation (pending
+ * from the cap, failed, or a claim gone stale) is triggered again.
+ *
+ * ⚠ Bounded per call because every new generation is a paid image call and
+ * the cap is enforced downstream at the claim: a backfill of forty cars asks
+ * for forty plates and gets twenty-five today, fifteen tomorrow, by design.
+ * `limit` keeps one invocation short enough for a function's clock. Run it
+ * again until `scanned` is 0.
+ */
+export async function backfillPlates(
+  options: { limit?: number; client?: SupabaseClient } = {},
+): Promise<BackfillResult> {
+  const client = options.client ?? serviceClient();
+  const limit = Math.max(1, Math.min(options.limit ?? 20, 100));
+  const result: BackfillResult = { scanned: 0, attached: 0, triggered: 0, skipped: 0 };
+
+  const { data: cars, error } = await client
+    .from('vehicles')
+    .select('id,year,make,model,trim')
+    .is('custom_image_url', null)
+    .is('image_url', null)
+    .is('plate_key', null)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`backfill: ${error.message}`);
+
+  for (const car of (cars ?? []) as Array<{ id: string; year: number; make: string; model: string; trim: string | null }>) {
+    result.scanned += 1;
+    const plate = await ensurePlate({ year: car.year, make: car.make, model: car.model, trim: car.trim }, { client });
+    if (!plate.key) {
+      result.skipped += 1;
+      continue;
+    }
+    if (await attachPlateToVehicle(car.id, plate.key, { client })) result.attached += 1;
+  }
+
+  // Rows that still need a run: pending (the cap, or a trigger that never
+  // arrived), failed, or a claim gone stale. Bounded like the cars.
+  const { data: rows } = await client
+    .from('vehicle_plates')
+    .select('key,status,claimed_at')
+    .neq('status', 'ready')
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  for (const row of (rows ?? []) as Array<Pick<PlateRow, 'key' | 'status' | 'claimed_at'>>) {
+    if (!plateNeedsGeneration(row)) continue;
+    await triggerPlateJob(row.key);
+    result.triggered += 1;
+  }
+  return result;
+}

@@ -20,6 +20,7 @@
  */
 import {
   attachPlateToVehicle,
+  backfillPlates,
   claimPlate,
   ensurePlate,
   storePlate,
@@ -37,7 +38,7 @@ jest.mock('@/lib/plate-image', () => ({
 }));
 
 type Row = Record<string, unknown>;
-type Filter = { op: 'eq' | 'lte' | 'gte' | 'is'; col: string; val: unknown };
+type Filter = { op: 'eq' | 'lte' | 'gte' | 'is' | 'neq'; col: string; val: unknown };
 
 class FakeDb {
   tables: Record<string, Row[]> = { vehicle_plates: [], vehicles: [] };
@@ -60,7 +61,8 @@ class FakeDb {
       state.filters.every((f) => {
         const v = row[f.col];
         if (f.op === 'eq') return v === f.val;
-        if (f.op === 'is') return v === f.val;
+        if (f.op === 'is') return (v ?? null) === f.val;
+        if (f.op === 'neq') return v !== f.val;
         if (f.op === 'lte') return (v as number) <= (f.val as number);
         if (f.op === 'gte') return String(v ?? '') >= String(f.val);
         return false;
@@ -93,6 +95,8 @@ class FakeDb {
       lte(col: string, val: unknown) { state.filters.push({ op: 'lte', col, val }); return builder; },
       gte(col: string, val: unknown) { state.filters.push({ op: 'gte', col, val }); return builder; },
       is(col: string, val: unknown) { state.filters.push({ op: 'is', col, val }); return builder; },
+      neq(col: string, val: unknown) { state.filters.push({ op: 'neq', col, val }); return builder; },
+      order() { return builder; },
       limit(n: number) { state.limit = n; return builder; },
       maybeSingle() { state.single = true; return builder; },
       update(patch: Row) { state.op = 'update'; state.patch = patch; return builder; },
@@ -274,5 +278,46 @@ describe('storePlate and attachPlateToVehicle', () => {
       { id: 'v1', plate_key: 'bmw/2-series/f22' },
       { id: 'v2', plate_key: 'honda/accord/10th' },
     ]);
+  });
+});
+
+describe('backfillPlates', () => {
+  it('gives every photo-less car a key, leaves photographed cars alone, and re-triggers waiting rows', async () => {
+    process.env.URL = 'https://tappet.example';
+    process.env.CRON_SECRET = 's3cret';
+    db.tables.vehicles.push(
+      { id: 'bare', year: 2020, make: 'Honda', model: 'Accord', trim: null, custom_image_url: null, image_url: null, plate_key: null, created_at: '1' },
+      { id: 'owner-photo', year: 2015, make: 'BMW', model: 'M235i', trim: null, custom_image_url: 'p', image_url: null, plate_key: null, created_at: '2' },
+      { id: 'demo', year: 2019, make: 'BMW', model: 'M3', trim: null, custom_image_url: null, image_url: '/vehicles/m3/hero-3x2.jpg', plate_key: null, created_at: '3' },
+      { id: 'already', year: 2020, make: 'Honda', model: 'Accord', trim: null, custom_image_url: null, image_url: null, plate_key: 'honda/accord/10th', created_at: '4' },
+    );
+    // A row the cap left pending yesterday, and a ready one that must not be touched.
+    db.tables.vehicle_plates.push(
+      { key: 'ford/f-150/13th', make: 'ford', family: 'f-150', generation: '13th', year_from: 2015, year_to: 2020, status: 'pending', claimed_at: null, created_at: '0' },
+      { key: 'honda/accord/10th', make: 'honda', family: 'accord', generation: '10th', year_from: 2018, year_to: 2022, status: 'ready', claimed_at: null, created_at: '0' },
+    );
+    fetchMock.mockResolvedValue({ ok: true, status: 202 } as Response);
+
+    const result = await backfillPlates({ client: client() });
+
+    expect(result).toEqual({ scanned: 1, attached: 1, triggered: 1, skipped: 0 });
+    expect(db.tables.vehicles.find((v) => v.id === 'bare')).toMatchObject({ plate_key: 'honda/accord/10th' });
+    expect(db.tables.vehicles.find((v) => v.id === 'owner-photo')).toMatchObject({ plate_key: null });
+    expect(db.tables.vehicles.find((v) => v.id === 'demo')).toMatchObject({ plate_key: null });
+    // The Accord found the library row: no classifier call, no new row.
+    expect(db.tables.vehicle_plates).toHaveLength(2);
+    // Exactly one trigger, for the pending F-150 — never for the ready row.
+    const triggered = fetchMock.mock.calls.filter(([url]) => String(url).includes('plate-generate-background'));
+    expect(triggered).toHaveLength(1);
+    expect(triggered[0][1].body).toBe(JSON.stringify({ key: 'ford/f-150/13th' }));
+  });
+
+  it('counts a car whose generation could not be named as skipped, and stops at the limit', async () => {
+    db.tables.vehicles.push(
+      { id: 'a', year: 0, make: 'Nope', model: 'Nothing', trim: null, custom_image_url: null, image_url: null, plate_key: null, created_at: '1' },
+      { id: 'b', year: 0, make: 'Nope', model: 'Nothing', trim: null, custom_image_url: null, image_url: null, plate_key: null, created_at: '2' },
+    );
+    const result = await backfillPlates({ client: client(), limit: 1 });
+    expect(result).toEqual({ scanned: 1, attached: 0, triggered: 0, skipped: 1 });
   });
 });
