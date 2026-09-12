@@ -240,12 +240,14 @@
 >
 > #### Open, and David's
 >
-> - **The next EAS build**, once, interactively (`cd apps/mobile && npx
->   eas-cli build --platform ios --profile preview`): it creates the Apple
->   credentials for `com.southmoordigital.tappet` and should carry the
->   `tappet://` scheme, the hostname, and B9's `expo-camera` + `expo-haptics`
->   together. Until then the phone runs Expo Go and the simulator's dev client
->   cannot load the viewfinder.
+> - **The next EAS build**, once, interactively — `docs/runbook-eas-device-build.md`.
+>   Profile `device` (a dev client: Metro on 8081 keeps every later JS change
+>   free), personal team `P4873P8FQ9`, and it creates the Apple credentials for
+>   `com.southmoordigital.tappet`. ⚠ **Run it after B9 and the store adapter
+>   are on `main`** so it carries the scheme, the hostname, `expo-camera`,
+>   `expo-haptics` and `expo-iap` together — one build, not three (§9). Until
+>   then the phone runs Expo Go, which has the camera and haptics but not
+>   StoreKit.
 > - **Ruling: the landing's stat strip** omits a cell it cannot fill; the
 >   shared `FleetStrip` prints an em dash. Deduping `app/page.tsx` means
 >   picking one — the dash is the recommendation (a visitor cannot see a
@@ -257,13 +259,61 @@
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
 > - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
 >   cover the loop, a real signed-in shot is still the fidelity check.
-> - **The next EAS build** carries three things at once: `apiBaseUrl` on the
->   Tappet hostname, the `tappet://` scheme, and — if added first — `expo-camera`
->   + `expo-haptics` for B9. One build, not three (CLAUDE.md §9).
 > - Rulings: drift §6.1, §6.4; Design to read §6.7's superseded note, §12, §13.
 > - Parking lots, both loops, consolidated in drift §6.10 and §13 — ideas, not
 >   applied. The two that recur: the web strip prints an em dash where the
 >   landing omits the cell (§13.1–13.2), and settings sits 720 wide at 1440.
+
+> #### 12 Sep — the last of E8, and what was checked before writing it down
+>
+> The mobile lane runs in order: the Service tab's critic loop → **B9** (the
+> viewfinder + capture haptic, `expo-camera` + `expo-haptics`, testable in
+> Expo Go) → **the store adapter** → the one device build above. The adapter
+> is `expo-iap` **5.6.0**, and these are facts read from the unpacked package
+> today, not its README:
+>
+> - It resolves the native module **lazily** through a Proxy, so `import`
+>   does not throw in Expo Go — the first call (`initConnection`) throws
+>   `Cannot find native module 'ExpoIap'`. The adapter must ask
+>   `requireOptionalNativeModule('ExpoIap')` first and report "this build
+>   cannot buy" as a state, not an error. That is also the honest state of
+>   the device build until App Store Connect has products.
+> - On iOS the signed transaction is **`purchase.purchaseToken`** ("unified
+>   purchase token — iOS JWS"); that is the string `verifyPurchase()` in
+>   `apps/mobile/src/api/purchases.ts` already sends as `jwsRepresentation`.
+> - Subscriptions come back from `fetchProducts({ skus, type: 'subs' })` with
+>   Apple's `displayPrice`, which is what `PaywallScreen` renders verbatim;
+>   `requestPurchase({ type: 'subs', request: { apple: { sku } } })`;
+>   `finishTransaction({ purchase })` **after** the server says `entitled`
+>   or `recorded-not-entitled`, never before — an unfinished transaction is
+>   re-delivered on next launch, which is the safe direction. `restorePurchases()`
+>   then `getAvailablePurchases()`; an empty list is `nothing-to-restore`.
+> - Error codes `user-cancelled`, `deferred-payment`/`pending`, `already-owned`
+>   map one-to-one onto `StoreOutcome` in `packages/core/src/purchase-flow.ts`.
+> - Its config plugin is for Android and alternative billing; `expo install`
+>   adds it to `app.json` and on iOS it is inert. The pod pulls `openiap`; it
+>   is a native module and rides the device build (§9).
+>
+> **Pre-flight for that build is done and committed**: `expo-camera`,
+> `expo-haptics`, `expo-iap` and `expo-splash-screen` are installed (108
+> lockfile lines, nothing else moved), `expo-doctor`'s schema check passes,
+> and the two failures left are the ones `df2ac25` recorded as the monorepo's
+> shape. ⚠ The top-level `splash` key was back — `b943419` restored it two
+> days after `df2ac25` removed it as a build hazard, for the white flash —
+> and it configured nothing: SDK 57 draws the launch screen from the
+> `expo-splash-screen` plugin, and the package was not installed. The guard
+> in `mobile-native-build-inputs.test.ts` read the dead key and was green.
+> It now reads the plugin entry, requires the dependency, and refuses the
+> old key. So the first thing a reviewer sees is graphite, on this build.
+>
+> **E6 rides with it, off.** The gate's refusal is prose today
+> (`featureRefusal` → a sentence); the app needs a machine-readable
+> `code: 'needs-subscription'` beside it to open the paywall, and the budget
+> message may offer an upgrade only once there is one — `ai-budget.test.ts`
+> "does not offer an upgrade that does not exist yet" is the guard, and it
+> stays until a sandbox purchase has been through Restore.
+> `PAID_FEATURES_ENFORCED` stays off; flipping it is the launch, not a
+> config change (`paid-features.ts`).
 >
 > ---
 >
