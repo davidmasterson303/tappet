@@ -142,3 +142,89 @@ describe('B8 — the tab roots', () => {
     expect(tabScreens(swapped)).toHaveLength(4);
   });
 });
+
+/**
+ * ── B1 / B8 · one back control, on every screen that has one ────────────────
+ *
+ * 12 Sep. The vehicle screen has always drawn its own way back — a hairline
+ * chevron and a `monoNav` label — because its header is hidden under the
+ * hero. Every screen pushed *from* it used native-stack's default button:
+ * UIKit's heavy chevron, and a label that `headerBackTitleStyle` could put in
+ * the mono face but never in caps, because the native label ignores
+ * `textTransform`. The first graded frame of a pushed screen read the seam at
+ * once. `screenOptions.headerLeft` now renders `BackControl` on every pushed
+ * screen, and the vehicle screen renders the same component, so the way back
+ * is one file.
+ *
+ * Source scan, for the reason the block above gives: what regresses is a
+ * property on an options object, and it regresses silently — native-stack
+ * simply draws its own button again.
+ */
+const VEHICLE_SCREEN = join(
+  __dirname,
+  '..',
+  '..',
+  'apps',
+  'mobile',
+  'src',
+  'screens',
+  'VehicleDetailScreen.tsx'
+);
+
+/** The `screenOptions = { … } as const` block, brace-counted. */
+function screenOptionsBlock(source: string): string {
+  const at = source.indexOf('const screenOptions = {');
+  if (at === -1) return '';
+  let depth = 0;
+  for (let i = source.indexOf('{', at); i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    else if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(at, i + 1);
+    }
+  }
+  return source.slice(at);
+}
+
+/** Whether every pushed screen's header renders the app's own back control. */
+function pushedScreensDrawBackControl(source: string): boolean {
+  const options = screenOptionsBlock(source);
+  if (!/headerLeft:/.test(options)) return false;
+  // The option hands off to a component; that component must render BackControl.
+  const renderer = /headerLeft:[^]*?<(\w+)\b/.exec(options)?.[1];
+  if (!renderer) return false;
+  if (renderer === 'BackControl') return true;
+  const start = source.indexOf(`function ${renderer}(`);
+  if (start === -1) return false;
+  const definition = source.slice(start);
+  return /<BackControl\b/.test(definition.slice(0, definition.indexOf('\n}')));
+}
+
+describe('B1 / B8 — the way back is one control', () => {
+  const vehicleScreen = readFileSync(VEHICLE_SCREEN, 'utf8');
+
+  it('hands every pushed screen the app’s back control, not UIKit’s', () => {
+    expect(pushedScreensDrawBackControl(navigator)).toBe(true);
+    expect(navigator).toMatch(/import BackControl from '\.\.\/components\/BackControl'/);
+  });
+
+  it('draws the same control on the vehicle screen’s own nav', () => {
+    // The screen with the hidden header is the one that started the seam; it
+    // must not keep a private copy of the chevron and the label.
+    expect(vehicleScreen).toMatch(/import BackControl from '\.\.\/components\/BackControl'/);
+    expect(vehicleScreen).toMatch(/<BackControl\b[^>]*label="Garage"/);
+    expect(vehicleScreen).not.toMatch(/<Icon name="chevron-left"/);
+  });
+
+  it('can still detect the native button coming back', () => {
+    // Anti-vacuous: the two shapes that regress silently — the option gone,
+    // and the option present but rendering something else.
+    const without = navigator.replace(/\n\s*headerLeft:[^\n]*\n[^\n]*\n/, '\n');
+    expect(without).not.toBe(navigator);
+    expect(pushedScreensDrawBackControl(without)).toBe(false);
+
+    const other = navigator.replace('<HeaderBack label=', '<Text>{');
+    expect(other).not.toBe(navigator);
+    expect(pushedScreensDrawBackControl(other)).toBe(false);
+  });
+});

@@ -6,7 +6,7 @@ import {
   vehicleIdFromStoragePath,
 } from '@tappet/core/storage-paths';
 import { isUnphotographedDemoVehicle } from '@tappet/core/demo';
-import { platePublicUrl } from '@tappet/core/plates';
+import { platePublicUrl, type PlateStatus } from '@tappet/core/plates';
 
 /** Matches the web's signed-URL lifetime (app/actions.ts). */
 export const SIGNED_URL_TTL_SECONDS = 3600;
@@ -286,4 +286,38 @@ export async function clearVehiclePhoto(
     return { success: false, error: 'Failed to remove photo' };
   }
   return { success: true };
+}
+
+/**
+ * The library status of each car's plate, for the ones with no photograph.
+ *
+ * The phone's empty plate wants to say "Drawing this car's plate" the way the
+ * web card does, and the status is a database fact. One query for the whole
+ * garage, keyed by plate key; a car with a photograph, no key, or a key the
+ * table does not know gets `null`. Never throws — before the migration the
+ * table is absent and every car reads `null`, which is "nothing to say".
+ */
+export async function platePresence(
+  vehicles: Array<{ id: string; photo_url: string | null; plate_key?: string | null }>,
+  client: SupabaseClient,
+): Promise<Map<string, PlateStatus | null>> {
+  const statuses = new Map<string, PlateStatus | null>();
+  const keys = Array.from(
+    new Set(vehicles.filter((v) => !v.photo_url && v.plate_key).map((v) => v.plate_key as string)),
+  );
+  const byKey = new Map<string, PlateStatus>();
+  if (keys.length > 0) {
+    try {
+      const { data, error } = await client.from('vehicle_plates').select('key,status').in('key', keys);
+      if (!error) {
+        for (const row of (data ?? []) as Array<{ key: string; status: PlateStatus }>) byKey.set(row.key, row.status);
+      }
+    } catch (error) {
+      logger.warn('VEHICLE_PHOTO', 'Plate status read threw', { error });
+    }
+  }
+  for (const v of vehicles) {
+    statuses.set(v.id, !v.photo_url && v.plate_key ? byKey.get(v.plate_key) ?? null : null);
+  }
+  return statuses;
 }

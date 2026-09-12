@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
-  ActivityIndicator,
+  ActionSheetIOS,
+  Alert,
   Animated,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import { uploadVehiclePhoto } from '../api/photos';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { buildPosition } from '@tappet/core/build-progress';
@@ -24,6 +24,8 @@ import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/ga
 import { componentPlainName, normaliseRecalls } from '@tappet/core/recalls';
 import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
+import BackControl from '../components/BackControl';
+import BandRow from '../components/BandRow';
 import RecallBand from '../components/RecallBand';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -32,10 +34,7 @@ import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PhotoGrade from '../components/PhotoGrade';
 import { type HealthReading } from '../components/HealthHistory';
 import ProvenanceRow from '../components/ProvenanceRow';
-import Icon from '../components/Icon';
 import StatStrip, { type Stat } from '../components/StatStrip';
-import ListGroup from '../components/ListGroup';
-import NavRow from '../components/NavRow';
 import SectionHeader from '../components/SectionHeader';
 import {
   HERO_DIM_MAX,
@@ -250,7 +249,7 @@ interface Knowledge {
  *
  * ── ⚠ Every field is nullable, and `null` means "we could not ask" ──────────
  *
- * Not zero. `NavRow` renders nothing for a missing count and *something* for a
+ * Not zero. `BandRow` renders nothing for a missing count and *something* for a
  * present one, and the difference is a claim: "Wishlist" with nothing beside it
  * is a place, "Wishlist 0" says the place is empty. A failed request must never
  * be able to make the second statement.
@@ -394,7 +393,14 @@ export function VehicleDetailScreen({
   const [refreshing, setRefreshing] = useState(false);
 
   const [uploading, setUploading] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  /*
+    Two verbs, one banner. The headline names which of them failed — "not
+    saved" and "not removed" are different instructions to the owner, and a
+    banner that said "that photo failed" would leave them checking whether the
+    picture is now on the car or off it.
+  */
+  const [photoError, setPhotoError] = useState<{ headline: string; body: string } | null>(null);
 
   /*
     ── The scroll driver ─────────────────────────────────────────────────────
@@ -561,11 +567,144 @@ export function VehicleDetailScreen({
       await uploadVehiclePhoto(vehicleId, file);
       await load(true);
     } catch (error) {
-      setPhotoError(error instanceof Error ? error.message : 'That photo could not be saved.');
+      setPhotoError({
+        headline: 'That photo was not saved',
+        body: error instanceof Error ? error.message : 'That photo could not be saved.',
+      });
     } finally {
       setUploading(false);
     }
   }, [pickPhoto, vehicleId, load]);
+
+  /**
+   * Take the photograph off the car.
+   *
+   * ── ⚠ Why this exists (11 Sep) ──────────────────────────────────────────
+   *
+   * David, on the phone: *"i can't delete the image i uploaded on the app, so
+   * i can't revert to seeing the new default images for my car."* The web has
+   * had Remove in its photo dialog for weeks; this screen could add a
+   * photograph and never take one away, so a car with an upload could not fall
+   * back to its plate. `removeVehiclePhoto` is the route built for it.
+   *
+   * ── Optimistic, with the revert written first ─────────────────────────────
+   *
+   * The plate is shown the moment the owner confirms, because what they are
+   * asking for is to *see* the plate — a spinner over the photograph they just
+   * asked to lose would answer the wrong question. The previous URL is held so
+   * a failure puts the picture back exactly as it was, with the banner naming
+   * the failure; the state the owner is left in is then the honest one on both
+   * paths. `clearVehiclePhoto` on the server keeps the same discipline (the
+   * row is cleared last, so a failed delete still shows the photograph).
+   *
+   * Reloads on success rather than trusting the null it just wrote, for the
+   * reason `onAddPhoto` gives: what stands on the car now — the stock image,
+   * the generation plate, or the house plate — is the API's decision, and a
+   * local guess is the disagreement `lib/vehicle-photo.ts` exists to prevent.
+   */
+  const onRemovePhoto = useCallback(async () => {
+    if (state.status !== 'ok') return;
+    /*
+      ⚠ Read from the closure, not inside the updater. An updater runs when
+      React renders, and a request that fails in a microtask — a mocked one, or
+      a refused one — reaches the `catch` before that render, which would
+      revert to a `previous` nobody had set yet.
+    */
+    const previous = state.vehicle.photo_url ?? null;
+    setPhotoError(null);
+    setState((current) =>
+      current.status === 'ok'
+        ? { ...current, vehicle: { ...current.vehicle, photo_url: null } }
+        : current,
+    );
+    setRemoving(true);
+
+    try {
+      await removeVehiclePhoto(vehicleId);
+      await load(true);
+    } catch (error) {
+      setState((current) =>
+        current.status === 'ok'
+          ? { ...current, vehicle: { ...current.vehicle, photo_url: previous } }
+          : current,
+      );
+      /*
+        ⚠ **MOB-08.** `isLocallySignedOut`, not any 401 — the device decided it
+        had no session and sent nothing, which is the one case where clearing
+        the session is right. A server 401 is shown, not acted on.
+      */
+      if (error instanceof ApiRequestError && error.isLocallySignedOut) {
+        onSignOut();
+        return;
+      }
+      setPhotoError({
+        headline: 'That photo was not removed',
+        body: error instanceof Error ? error.message : 'That photo could not be removed.',
+      });
+    } finally {
+      setRemoving(false);
+    }
+  }, [state, vehicleId, load, onSignOut]);
+
+  /**
+   * The photo control's one tap.
+   *
+   * ── ⚠ Why a sheet, not a second control ───────────────────────────────────
+   *
+   * The nav row over the photograph holds one control, and that is a decision
+   * with a history: the score chip was cut from this exact slot because chrome
+   * over the car crowds the title, and every round of the critique has read
+   * the row as *one* control beside "‹ GARAGE". A standing REMOVE beside it
+   * would put a second photo verb on the hero of a screen that is about the
+   * car — and if it took the system's destructive treatment it would spend
+   * sodium, which B7 reserves for genuine warnings, on a control that is
+   * present every time the car has a picture.
+   *
+   * So the control keeps its name and its place, and iOS does what iOS does
+   * for one control with two actions: an action sheet. It is also the web's
+   * own structure — its "Change Vehicle Photo" dialog holds Remove *inside*
+   * it — so the two clients agree on where Remove lives. The sheet and the
+   * confirm are UIKit's surfaces, like every `Alert.alert` in this app; the
+   * brief has nothing to grade there and the system spends no hue.
+   *
+   * ⚠ `ActionSheetIOS` is iOS-only and fails loudly where it is absent
+   * (`invariant` in RN). This is the iOS app — every EAS profile is iOS — and
+   * a silent `Alert` fallback for a platform nothing builds would be a branch
+   * nothing exercises.
+   *
+   * With no photograph there is one action, so there is no sheet: "Add photo"
+   * goes straight to the picker, as it always has.
+   */
+  const onPhotoControl = useCallback(() => {
+    const hasPhoto = state.status === 'ok' && Boolean(state.vehicle.photo_url);
+    if (!hasPhoto) {
+      void onAddPhoto();
+      return;
+    }
+
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Change photo', 'Remove photo', 'Cancel'],
+        destructiveButtonIndex: 1,
+        cancelButtonIndex: 2,
+        userInterfaceStyle: 'dark',
+      },
+      (index) => {
+        if (index === 0) void onAddPhoto();
+        if (index === 1) {
+          /*
+            One confirm, and it says what the owner gets rather than asking
+            "are you sure?". The car does not go blank — it stands on its
+            plate, which is the thing David wanted to see and could not.
+          */
+          Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+            { text: 'Keep', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
+          ]);
+        }
+      },
+    );
+  }, [state, onAddPhoto, onRemovePhoto]);
 
   if (state.status === 'loading') {
     /*
@@ -741,7 +880,7 @@ export function VehicleDetailScreen({
   /*
     ── What each row says is behind it ───────────────────────────────────────
 
-    ⚠ `null` where the count could not be fetched, and `NavRow` renders nothing
+    ⚠ `null` where the count could not be fetched, and `BandRow` renders nothing
     for it. Never "0": a row reading "Wishlist 0" claims the list is empty,
     which is a statement a failed request has not earned. See `HubCounts`.
   */
@@ -929,7 +1068,7 @@ export function VehicleDetailScreen({
 
           <View style={styles.body}>
             {photoError && (
-              <AlertBanner tone="critical" headline="That photo was not saved" body={photoError} />
+              <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
             )}
       {/*
         ⚠ The dial is **not** here any more — it is in the hero, on the plane
@@ -992,38 +1131,42 @@ export function VehicleDetailScreen({
             the service history and compare.
           */}
           <ProvenanceRow kinds={verdict.inputs} />
-
-          {/*
-            ── R24 · a list row, not a link floating in a paragraph ──────────
-
-            `NavRow` with `last` draws no divider, so this chevron row sat
-            directly under the provenance line with nothing separating them —
-            it read as a link inside the text block rather than as the card's
-            way out. The rule it now follows is the one `ListGroup` uses: a row
-            is separated from what it is not part of.
-
-            The whole card is deliberately **not** the target. It carries the
-            score, the verdict and the provenance, and three different things to
-            read do not make one thing to press.
-          */}
-          <View style={styles.cardExit}>
-            {/*
-              ⚠ 6 Sep: `sliders`, not `gauge`. The critique put this on its Cut
-              list twice and the second time named why: *"the brief removed the
-              needle from the dial; it has returned as an icon."* B3 deletes the
-              needle, the scale and the gauge glyph from the instrument, and
-              reintroducing that exact drawing at 20pt beside a row label puts
-              the retired object back on screen with a caption.
-
-              The icon is **swapped rather than dropped**: its five sibling rows
-              in this hub all carry one, and a single row without would read as a
-              rendering fault rather than as restraint. `sliders` says the same
-              thing this row means — the inputs behind a reading.
-            */}
-            <NavRow icon="sliders" label="What is driving this score" onPress={onOpenHealth} last />
-          </View>
         </Card>
       )}
+
+      {/*
+        ── The two rows under the reading: one table ──────────────────────────
+
+        ⚠ 12 Sep · B1. The way into the account of the score sat *inside* the
+        card as a `NavRow` — a sliders glyph, a bold sentence-case sans label,
+        an inset divider — directly above OPEN RECALLS in condensed caps. The
+        critique named it four rounds running, the last time exactly: *"the
+        only bold sans sentence-case head in the app … while OPEN RECALLS
+        directly beneath it is condensed caps. One voice per level: set it
+        like its neighbour, drop the icon, keep the chevron."* The web's own
+        destination rows on the dossier (VEHICLE DOSSIER, WISHLIST) are that:
+        condensed caps and a chevron.
+
+        So the row is out of the card and beside the recall as a two-row spec
+        table — the same shape the garage draws under its dial — with one
+        hairline per row and the last row closing it. `BandRow` carries what
+        it replaced — `NavRow`, the iOS grouped-table row with the glyphs
+        David asked for on 23 Aug — and why the hub below followed it into the
+        same table one round later.
+
+        The card is still deliberately **not** the target. It carries the
+        score, the verdict and the provenance, and three different things to
+        read do not make one thing to press.
+      */}
+      {(score !== null && band) || openRecalls > 0 ? (
+        <View>
+          {score !== null && band && (
+            <BandRow
+              label="What is driving this score"
+              onPress={onOpenHealth}
+              last={openRecalls === 0}
+            />
+          )}
 
       {/*
         ── The recall ─────────────────────────────────────────────────────────
@@ -1050,21 +1193,25 @@ export function VehicleDetailScreen({
         that still had a box. The `AlertBanner` tones stay for the states that
         are alerts.
       */}
-      {openRecalls > 0 && (
-        <RecallBand
-          count={openRecalls}
-          worst={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
-          onPress={onViewRecalls}
-        />
-      )}
+          {openRecalls > 0 && (
+            <RecallBand
+              count={openRecalls}
+              worst={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
+              onPress={onViewRecalls}
+              last
+            />
+          )}
+        </View>
+      ) : null}
 
       {/*
         ── The hub ────────────────────────────────────────────────────────────
 
-        Six places to go, as `NavRow`s rather than as `ListRow`s with an empty
-        value. That swap is the whole of David's *"it's not clear that these are
-        buttons I could tap"* — `NavRow`'s docblock carries the three signals
-        that were pointing the wrong way.
+        Six places to go, as rows with a chevron rather than as `ListRow`s with
+        an empty value. That swap is the whole of David's *"it's not clear that
+        these are buttons I could tap"*: a `ListRow` is a fact (muted label,
+        primary value) and a destination is the reverse — the label is the
+        payload and the chevron says it goes somewhere.
 
         Each row carries what is behind it where the screen knows: 18 services,
         a wishlist total, the next service. Where it does not know, it carries
@@ -1085,17 +1232,46 @@ export function VehicleDetailScreen({
         that is the countable fact; `Plan` shows the needs count and total,
         which is the number an owner is actually tracking.
       */}
-      <ListGroup label="This car">
-        <NavRow icon="clock" label="Service" count={serviceDue} onPress={onOpenMilestone} />
-        <NavRow icon="wrench" label="History" count={historyCount} onPress={onOpenHistory} />
-        <NavRow icon="heart" label="Plan" count={wishlistCount} onPress={onOpenWishlist} />
+      {/*
+        ── ⚠ 12 Sep · B1 and B5: the hub is a spec table, not a settings list ─
+
+        These were `NavRow`s in a `ListGroup`: a Lucide glyph, a sans
+        title-case label, a sans count, an inset seam — the iOS grouped table.
+        That form was David's own correction on 23 Aug (*"ugly and uninviting
+        to engage with"*), made against a hub of four bare sans words in a
+        card, and the glyphs were its answer. The locked brief came after it,
+        and the first frame of this screen scrolled past the recall showed the
+        cost: the one iOS-settings block in an app that is otherwise the spec
+        table, with values ("No schedule yet", "5", "Daily Driver") in sans
+        where the garage and the strip set the same strings in mono — and the
+        clock and wrench meaning Plan and Service in the tab bar while meaning
+        Service and History here.
+
+        So the rows are `BandRow`s under a condensed eyebrow: full-width
+        hairlines, condensed caps label, mono value at the right, every
+        chevron on the right edge, no glyph — the web dossier's own
+        destination rows (VEHICLE DOSSIER, WISHLIST). What David asked for
+        survives as structure: the label sits outside the group, the rows are
+        56pt and countable, and each carries what is behind it. Logged in
+        `docs/design-system-drift.md` §6.13 as a supersession of the 23 Aug
+        decision, for him to overrule.
+
+        Each row carries what is behind it where the screen knows: a count, a
+        total, a timing. Where it does not know, it carries **nothing** —
+        never a zero, which would claim the place is empty (see `HubCounts`).
+      */}
+      <View>
+        <SectionHeader title="This car" />
+        <BandRow label="Service" count={serviceDue} onPress={onOpenMilestone} />
+        <BandRow label="History" count={historyCount} onPress={onOpenHistory} />
+        <BandRow label="Plan" count={wishlistCount} onPress={onOpenWishlist} />
         {/*
-          No `detail` line any more. The spec's rows are one line each, and a
-          two-line row in a group of one-liners is the row that looks broken —
-          "Scan an invoice" already says what it does.
+          No `detail` line. The rows are one line each, and a two-line row in a
+          table of one-liners is the row that looks broken — "Scan an invoice"
+          already says what it does.
         */}
-        <NavRow icon="file-text" label="Scan an invoice" onPress={onScanInvoice} last />
-      </ListGroup>
+        <BandRow label="Scan an invoice" onPress={onScanInvoice} last />
+      </View>
 
       {/*
         ── The one filled primary ─────────────────────────────────────────────
@@ -1120,15 +1296,21 @@ export function VehicleDetailScreen({
         whole surface on and off — `stock` hides the Build route — and that
         deserves a deliberate save rather than happening under a finger.
       */}
-      <ListGroup label="What you told us">
-        <NavRow
-          icon="sliders"
-          label="How you use this car"
+      <View>
+        <SectionHeader title="What you told us" />
+        {/*
+          "How you use it", not "How you use this car": at the section head's
+          size the longer label and its value overran the row and the label
+          truncated to "HOW YOU USE THIS…" — the one thing a destination's
+          name must not do. The screen is the car; "it" is not ambiguous here.
+        */}
+        <BandRow
+          label="How you use it"
           count={vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null}
           onPress={onOpenProfile}
           last
         />
-      </ListGroup>
+      </View>
           </View>
         </Animated.View>
       </Animated.ScrollView>
@@ -1140,29 +1322,17 @@ export function VehicleDetailScreen({
       />
 
       <View style={[styles.navRow, { top: insets.top }]} pointerEvents="box-none">
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back to the garage"
-          /*
-            ── ⚠ R25 · 36pt drawn, 44pt tappable ──────────────────────────────
+        {/*
+          ── ⚠ R25 · 36pt drawn, 44pt tappable — and, 12 Sep, one component ──
 
-            The pill is 36 tall because that is what reads correctly over a
-            photograph — a 44pt glass slab is a bar, not a pill. `hitSlop` is
-            React Native's version of the `.tap-target-44` pseudo-element: the
-            drawn size is unchanged and the target grows around it.
-
-            Legal here for the same reason the pseudo-element is: these are
-            **standalone** targets at opposite ends of the nav row, so the
-            expanded areas cannot overlap each other or anything else. Inside a
-            dense list it would not be.
-          */
-          hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
-          style={({ pressed }) => [styles.pill, styles.backPill, pressed && styles.pillPressed]}
-        >
-          <Icon name="chevron-left" size={16} color={text.primary} />
-          <Text style={styles.backLabel}>Garage</Text>
-        </Pressable>
+          The control is 36 tall because that is what reads correctly over a
+          photograph — a 44pt slab is a bar. `BackControl` carries the
+          `hitSlop` that grows the target to the floor (legal here because it
+          stands alone at the row's end), and it is the same component the
+          navigator hands every pushed screen as `headerLeft`, so the way back
+          reads identically on this screen and on the ones it opens.
+        */}
+        <BackControl label="Garage" onPress={onBack} accessibilityLabel="Back to the garage" />
 
         {/*
           ⚠ The title is laid out in the flow, not absolutely centred.
@@ -1208,12 +1378,19 @@ export function VehicleDetailScreen({
       */}
       <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
         <Animated.View style={{ opacity: identityFade }}>
+          {/*
+            One control, two verbs once a photograph exists — `onPhotoControl`
+            carries why the second verb is a sheet rather than a neighbour.
+            The label stays "Change photo": removing is a change, it is the
+            web dialog's own title, and it is the control anyone looking for
+            Remove will tap.
+          */}
           <Button
             label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
             variant="outline"
             size="small"
-            busy={uploading}
-            onPress={() => void onAddPhoto()}
+            busy={uploading || removing}
+            onPress={onPhotoControl}
             style={styles.pill}
           />
         </Animated.View>
@@ -1304,15 +1481,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     justifyContent: 'center',
   },
-  pillPressed: { backgroundColor: surface.raised },
-  pillLabel: { ...type.monoLabel, color: text.primary },
-  backPill: { paddingLeft: space.sm },
   /*
-    ⚠ B7: cyan is "focus, active rule and refresh ramp" — never ink. A back
-    label drawn in the accent made the most-pressed control on the screen the
-    same colour as the system's information signal.
+    The back control's own styles — its pressed fill, its label in `monoNav`
+    and never the accent (B7) — live in `BackControl` since 12 Sep, where the
+    navigator's pushed screens read the same ones.
   */
-  backLabel: { ...type.monoNav, color: text.primary },
 
   /* ── z2 · the sheet ───────────────────────────────────────────────────── */
   scroller: { flex: 1 },
@@ -1360,18 +1533,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  /** `flex: 1` and it truncates — see the ⚠ at the call site. */
-  navTitle: { ...type.uiStrong, color: text.primary, flex: 1, textAlign: 'center' },
+  /**
+   * `flex: 1` and it truncates — see the ⚠ at the call site.
+   *
+   * ⚠ 12 Sep · B8: mono, not `type.uiStrong`. The roots collapse their
+   * condensed titles into `monoNav`, and this screen's plate name is the same
+   * kind of title — but its collapsed form was Inter semibold in sentence
+   * case, beside a "‹ GARAGE" already set in `monoNav`. Two voices on one nav
+   * row, and the only one the loop never saw because no graded frame had
+   * scrolled the car. Same token as the roots and the back control now.
+   */
+  navTitle: { ...type.monoNav, color: text.primary, flex: 1, textAlign: 'center' },
   navChipSlot: { width: DIAL_CHIP_SLOT },
 
   /* ── z7 · the score chip ──────────────────────────────────────────────── */
   dialChip: { position: 'absolute', right: space.lg, alignItems: 'flex-end' },
-  /* R24. The rule that separates a card's exit from its content. */
-  cardExit: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: border.panel,
-    marginTop: space.sm,
-  },
+  /*
+    `cardExit` — R24's rule between a card's content and its way out — is gone
+    with the row it separated (12 Sep). The way out is a row of the table
+    beneath the card now, and the table draws its own rules.
+  */
 
   /*
     The reading, at the value size rather than the instrument's. Tabular so it

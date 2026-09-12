@@ -1,4 +1,4 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
@@ -122,7 +122,10 @@ function respond(over: Record<string, unknown> = {}, { asArray = false } = {}) {
  * assertion would silently exercise the regular one. That is exactly the shape
  * of vacuous test §5 warns about, and it happened here on the first draft.
  */
-async function mount(metrics = REFERENCE) {
+async function mount(
+  metrics = REFERENCE,
+  extra: Partial<Parameters<typeof VehicleDetailScreen>[0]> = {},
+) {
   /*
     `Dimensions.get('window')`, not the `useWindowDimensions` export: RN's hook
     seeds its state from `Dimensions.get` on first render, and the module's own
@@ -147,6 +150,7 @@ async function mount(metrics = REFERENCE) {
     onOpenHealth: jest.fn(),
     onOpenMilestone: jest.fn(),
     onOpenProfile: jest.fn(),
+    ...extra,
   };
   return { props, view: await render(withSafeArea(<VehicleDetailScreen {...props} />, metrics)) };
 }
@@ -769,5 +773,210 @@ describe('the hero’s nav, as controls', () => {
       // 36 drawn + 4 top + 4 bottom clears 44; anything less does not.
       expect(slop.top + slop.bottom).toBeGreaterThanOrEqual(8);
     }
+  });
+});
+
+/**
+ * ── Taking the photograph back off the car ──────────────────────────────────
+ *
+ * David, 11 Sep: *"i can't delete the image i uploaded on the app, so i can't
+ * revert to seeing the new default images for my car."* The screen could add
+ * a photograph and never remove one. What is pinned here is the shape of the
+ * way out — one control, a sheet, one confirm — and the two promises the
+ * removal makes: the plate is shown at once, and a failure puts the picture
+ * back rather than leaving the car blank with an apology.
+ *
+ * The sheet and the confirm are UIKit's own surfaces, so they are driven the
+ * way `WishlistScreen.test.tsx` drives its confirm: out of the spied call's
+ * own argument list, which is the only way past a native dialog in a test.
+ */
+describe('taking the photograph back off the car', () => {
+  const PHOTO = 'https://signed.test/car.jpg';
+
+  let sheet: jest.SpyInstance;
+  let alert: jest.SpyInstance;
+
+  beforeEach(() => {
+    sheet = jest.spyOn(RN.ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation(() => {});
+    alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
+  });
+
+  /** The `Image` nodes drawing the owner's photograph — one, or none. */
+  const photographs = (view: { root: unknown }) =>
+    hostNodes(view.root, 'Image').filter(
+      (props) => (props.source as { uri?: string } | undefined)?.uri === PHOTO,
+    );
+
+  const requests = (predicate: (path: string, init?: { method?: string }) => boolean) =>
+    request.mock.calls.filter(([path, init]) => predicate(String(path), init as { method?: string }));
+  const deletes = () => requests((_, init) => init?.method === 'DELETE');
+  const loads = () => requests((path) => path.startsWith('/load-vehicle'));
+
+  /**
+   * The vehicle with a photograph, and whatever the DELETE should do.
+   *
+   * Per-URL, because the removal and the reload are different requests and
+   * the test has to see them separately: a mock that answered everything with
+   * one body could not tell "refetched after success" from "never asked".
+   */
+  function respondWithPhoto(onDelete: () => Promise<unknown>) {
+    request.mockImplementation((path: string, init?: { method?: string }) => {
+      if (init?.method === 'DELETE') return onDelete() as never;
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1',
+          year: 2018,
+          make: 'Honda',
+          model: 'Accord',
+          photo_url: PHOTO,
+          vehicle_health_summary: { health_score: 61, summary: 'Fair.' },
+        },
+      }) as never;
+    });
+  }
+
+  /** Pick an option out of the sheet the screen opened. */
+  async function chooseFromSheet(label: string) {
+    const [options, callback] = sheet.mock.calls[0] as [
+      { options: string[] },
+      (index: number) => void,
+    ];
+    const index = options.options.indexOf(label);
+    expect(index).toBeGreaterThan(-1);
+    await act(async () => callback(index));
+  }
+
+  /** Press the destructive button in the confirm the screen raised. */
+  async function confirmRemoval() {
+    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
+    const remove = buttons.find((button) => button.text === 'Remove');
+    expect(remove).toBeDefined();
+    // `act`, because the optimistic write lands synchronously in the press.
+    await act(async () => remove!.onPress?.());
+  }
+
+  it('offers Remove beside Change from the one control, and sends nothing for it', async () => {
+    /*
+      One control over the photograph, not two — the docblock on
+      `onPhotoControl` carries why. The sheet is where the second verb lives,
+      as it does inside the web's own photo dialog.
+    */
+    const user = userEvent.setup();
+    respondWithPhoto(() => Promise.resolve({ success: true }));
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await user.press(view.getByLabelText('Change photo'));
+
+    expect(sheet).toHaveBeenCalledTimes(1);
+    const [options] = sheet.mock.calls[0] as [
+      { options: string[]; destructiveButtonIndex: number; cancelButtonIndex: number },
+    ];
+    expect(options.options).toEqual(['Change photo', 'Remove photo', 'Cancel']);
+    expect(options.options[options.destructiveButtonIndex]).toBe('Remove photo');
+    expect(options.options[options.cancelButtonIndex]).toBe('Cancel');
+
+    // Opening the sheet is not a decision.
+    expect(deletes()).toHaveLength(0);
+    expect(photographs(view)).toHaveLength(1);
+  });
+
+  it('asks once, in words that say what the car will show, before it removes', async () => {
+    const user = userEvent.setup();
+    respondWithPhoto(() => Promise.resolve({ success: true }));
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await user.press(view.getByLabelText('Change photo'));
+    await chooseFromSheet('Remove photo');
+
+    // Not "are you sure?" — what the owner gets: the plate, not a blank.
+    expect(alert).toHaveBeenCalledWith(
+      'Remove this photo?',
+      'The car will stand on its plate.',
+      expect.any(Array),
+    );
+    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; style?: string }>;
+    expect(buttons.map((button) => button.text)).toEqual(['Keep', 'Remove']);
+    expect(buttons.find((button) => button.text === 'Remove')?.style).toBe('destructive');
+
+    // Choosing Remove in the sheet is still not a decision.
+    expect(deletes()).toHaveLength(0);
+    expect(photographs(view)).toHaveLength(1);
+  });
+
+  it('shows the plate at once, then asks the API what stands on the car', async () => {
+    /*
+      Optimistic: the owner asked to see the plate, so it appears before the
+      round trip — the DELETE is held open here so that order is observable.
+      Then a reload, because what now stands on the car is the API's decision
+      (stock image, generation plate, house plate) and not this screen's guess.
+    */
+    const user = userEvent.setup();
+    let finishDelete: (value: unknown) => void = () => {};
+    respondWithPhoto(() => new Promise((resolve) => { finishDelete = resolve; }));
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    const loadsBefore = loads().length;
+
+    await user.press(view.getByLabelText('Change photo'));
+    await chooseFromSheet('Remove photo');
+    await confirmRemoval();
+
+    await waitFor(() => expect(deletes()).toHaveLength(1));
+    // The photograph is gone and the house plate stands, while the request is still open.
+    await waitFor(() => expect(photographs(view)).toHaveLength(0));
+    const plates = hostNodes(view.root, 'Image').filter((props) =>
+      String((props.source as { testUri?: string } | undefined)?.testUri ?? '').includes('night-plate'),
+    );
+    expect(plates).toHaveLength(1);
+    expect(loads()).toHaveLength(loadsBefore);
+
+    finishDelete({ success: true });
+
+    await waitFor(() => expect(loads().length).toBeGreaterThan(loadsBefore));
+  });
+
+  it('puts the photograph back and says so when the removal fails', async () => {
+    /*
+      The revert. A car left blank with an apology would be the app claiming
+      the photo is gone when the server says it is not — the row is still
+      intact server-side on a failed delete, so the honest screen shows it.
+    */
+    const user = userEvent.setup();
+    respondWithPhoto(() =>
+      Promise.reject(new ApiRequestError({ status: 500, message: 'Failed to remove photo' })),
+    );
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    const loadsBefore = loads().length;
+
+    await user.press(view.getByLabelText('Change photo'));
+    await chooseFromSheet('Remove photo');
+    await confirmRemoval();
+
+    await view.findByText('That photo was not removed');
+    view.getByText('Failed to remove photo');
+    expect(photographs(view)).toHaveLength(1);
+    // Nothing to refetch — the server did not change anything.
+    expect(loads()).toHaveLength(loadsBefore);
+    expect(props.onSignOut).not.toHaveBeenCalled();
+  });
+
+  it('goes straight to the picker when there is no photograph to remove', async () => {
+    // One action means no sheet. "Add photo" has always been a direct door.
+    const user = userEvent.setup();
+    respond({ photo_url: null });
+    const pickPhoto = jest.fn().mockResolvedValue(null);
+    const { view } = await mount(REFERENCE, { pickPhoto });
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await user.press(view.getByLabelText('Add photo'));
+
+    expect(pickPhoto).toHaveBeenCalledTimes(1);
+    expect(sheet).not.toHaveBeenCalled();
+    expect(alert).not.toHaveBeenCalled();
   });
 });

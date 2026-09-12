@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Working } from '@/components/Working';
 import DashboardLayout from '@/components/DashboardLayout';
 import ConsultantChat from '@/components/ConsultantChat';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -68,13 +69,17 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
   // are the same car, and a hook cannot be called per branch.
   const vehicleImage = useVehicleImage(shellVehicle);
 
+  /*
+    The page shell's own wait is the instrument (12 Sep), like every other
+    wait since `8a78ac4` — these two rings were the last hand-rolled ones,
+    left outside the wait loop's lane and recorded in drift §14. `delay`: an
+    advisor served from the query cache resolves in well under 350ms and the
+    dial never paints for it; a cold load shows it after that.
+  */
   if (isLoading && !shellVehicle) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
-          <p className="text-sm text-white/50">Loading consultant...</p>
-        </div>
+        <Working delay line="Opening the advisor" />
       </div>
     );
   }
@@ -83,10 +88,7 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
     return (
       <DashboardLayout vehicle={shellVehicle} currentPage="consultant" vehicleImage={vehicleImage}>
         <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
-            <p className="text-sm text-white/50">Loading consultant...</p>
-          </div>
+          <Working delay line="Opening the advisor" />
         </div>
       </DashboardLayout>
     );

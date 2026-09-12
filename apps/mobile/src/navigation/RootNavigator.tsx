@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import {
   NavigationContainer,
   getFocusedRouteNameFromRoute,
+  useNavigation,
   useNavigationContainerRef,
   type LinkingOptions,
   type NavigationState,
@@ -38,6 +39,7 @@ import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import AccountControl from './AccountControl';
+import BackControl from '../components/BackControl';
 import ChooseACar from '../components/ChooseACar';
 import { rememberVehicle } from './last-vehicle';
 import TabBar from './TabBar';
@@ -533,19 +535,50 @@ const screenOptions = {
     a heavy chevron and a sentence-case sans label. The critique found both in
     one stack and called it "two back affordances", which is what it was.
 
-    `headerBackTitleStyle` puts the label in the mono nav face. The chevron
-    itself stays native — `headerBackImageSource` would mean shipping a glyph
-    asset, and a hairline SVG chevron per screen is a bigger change than this
-    line; the label is the half that was speaking the wrong language.
+    `headerBackTitleStyle` put the label in the mono nav face, and the chevron
+    stayed native, on the reasoning that a hairline chevron per screen was a
+    bigger change than one line.
+
+    ── ⚠ 12 Sep · B1 and B8: the chevron follows the label ────────────────────
+
+    It was the bigger change, and it was still the gap: with the first frame
+    of a screen pushed *from* the car in front of it, the critique read a thin
+    "‹ GARAGE" on Vehicle and a heavy system chevron with "BMW M235i" in mixed
+    case on Health — the native label cannot be capitalised, because the
+    `UILabel` it becomes ignores `textTransform`. `headerLeft` replaces the
+    native button (native-stack hides its own when one is given) with the
+    component the vehicle screen already draws, so both screens read one
+    control from one file. `label` is the previous screen's `title`, exactly
+    what the native button would have shown; `BackControl` sets it in
+    `monoNav`, whose uppercase is honoured by a JS `Text`.
+
+    `headerBackTitleStyle` stays: it is what the interactive-pop gesture's
+    in-flight label and any screen that opts back into `headerBackVisible`
+    would draw, and it should still speak mono.
   */
   headerBackTitleStyle: {
     fontFamily: type.monoNav.fontFamily,
     fontSize: type.monoNav.fontSize,
     letterSpacing: type.monoNav.letterSpacing,
   },
+  headerLeft: ({ canGoBack, label }: { canGoBack?: boolean; label?: string }) =>
+    canGoBack ? <HeaderBack label={label ?? 'Back'} /> : null,
   headerShadowVisible: false,
   contentStyle: { backgroundColor: surface.page },
 } as const;
+
+/**
+ * The pushed screens' back control, bound to the stack it sits in.
+ *
+ * A component rather than an inline closure so `useNavigation` can find the
+ * screen's own navigator: `headerLeft` renders inside the screen's navigation
+ * context, and `goBack()` from there pops this stack — the tab's, or the root
+ * stack's for Account — which is the same pop the native button performed.
+ */
+function HeaderBack({ label }: { label: string }) {
+  const navigation = useNavigation();
+  return <BackControl label={label} onPress={() => navigation.goBack()} />;
+}
 
 /**
  * The label a pushed screen's back button carries.

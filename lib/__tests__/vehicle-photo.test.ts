@@ -13,7 +13,7 @@
  * not exist yet and therefore cannot complain.
  */
 
-import { clearVehiclePhoto, resolveVehiclePhoto, resolveVehiclePhotos } from '../vehicle-photo';
+import { clearVehiclePhoto, platePresence, resolveVehiclePhoto, resolveVehiclePhotos } from '../vehicle-photo';
 import { STORED_URL_SCHEME, storedUrl } from '@tappet/core/storage-paths';
 import { DEMO_UNPHOTOGRAPHED_VEHICLE_IDS } from '@tappet/core/demo';
 
@@ -445,5 +445,38 @@ describe('clearVehiclePhoto', () => {
     await expect(clearVehiclePhoto(tolerated, VEHICLE_ID)).resolves.toEqual({ success: true });
     const fatal = clientForRemoval({ path: 'p', updateError: 'rls' });
     await expect(clearVehiclePhoto(fatal, VEHICLE_ID)).resolves.toEqual({ success: false, error: 'Failed to remove photo' });
+  });
+});
+
+describe('platePresence — what the phone may say about a plate', () => {
+  it('reports the library status only for cars with no photograph and a key, in one query', async () => {
+    const client = clientWithPlates([
+      { key: PLATE_KEY, status: 'generating', hero_path: null },
+      { key: 'honda/accord/10th', status: 'failed', hero_path: null },
+    ]);
+    const presence = await platePresence(
+      [
+        { id: 'drawing', photo_url: null, plate_key: PLATE_KEY },
+        { id: 'failed', photo_url: null, plate_key: 'honda/accord/10th' },
+        { id: 'photographed', photo_url: 'https://x/signed', plate_key: PLATE_KEY },
+        { id: 'no-plate', photo_url: null, plate_key: null },
+        { id: 'unknown-key', photo_url: null, plate_key: 'ford/f-150/13th' },
+      ],
+      client,
+    );
+    expect(presence.get('drawing')).toBe('generating');
+    expect(presence.get('failed')).toBe('failed');
+    // A photograph on screen leaves nothing to say, whatever the plate is doing.
+    expect(presence.get('photographed')).toBeNull();
+    expect(presence.get('no-plate')).toBeNull();
+    expect(presence.get('unknown-key')).toBeNull();
+    expect(client.calls.filter((t) => t === 'vehicle_plates')).toHaveLength(1);
+  });
+
+  it('asks nothing when no car needs an answer', async () => {
+    const client = clientWithPlates([]);
+    const presence = await platePresence([{ id: 'p', photo_url: 'https://x/signed', plate_key: PLATE_KEY }], client);
+    expect(presence.get('p')).toBeNull();
+    expect(client.calls).toHaveLength(0);
   });
 });

@@ -29,6 +29,8 @@
  * worst failure this file could have, because every screen would look perfect.
  */
 
+import { driversForVehicle } from '@tappet/core/health-drivers';
+
 /** The car the design loop has been grading since the first iteration. */
 const M235I = {
   id: 'db143cdc-e68c-46f0-849e-69f7a1873f58',
@@ -172,10 +174,40 @@ const MAINTENANCE = [
  */
 export function fixtureFor(path: string): unknown | undefined {
   if (path.startsWith('/vehicles')) return { vehicles: [M235I] };
-  if (path.startsWith('/load-vehicle')) return { vehicle: M235I };
+  if (path.startsWith('/load-vehicle')) {
+    /*
+      ── 12 Sep · the drivers, computed rather than written ───────────────────
+
+      The loop could never show the factors table: this returned the vehicle
+      alone, so `HealthScreen` opened on a dial with nothing under it and the
+      critique marked B6 unconfirmed for want of a frame. The route derives
+      `health_drivers` at read from facts already on the response
+      (`load-vehicle/route.ts`, D10), and `driversForVehicle` is pure — so the
+      fixture calls the same function on its own facts. No schedule is on this
+      fixture, so Maintenance reports that and scores nothing; two recalls
+      score the recalls driver low; 66,000 miles on a 2015 car is a light
+      load. Every sentence on the frame is one the product would write.
+    */
+    return {
+      vehicle: M235I,
+      health_drivers: driversForVehicle({
+        schedule: undefined,
+        historyRows: MAINTENANCE,
+        recalls: M235I.nhtsa_data.recalls,
+        currentMileage: M235I.current_mileage,
+        year: M235I.year,
+      }),
+    };
+  }
   if (path.startsWith('/load-maintenance-data')) {
     return { lineItems: [], maintenanceLineItems: MAINTENANCE };
   }
-  if (path.startsWith('/wishlist')) return { items: [] };
+  /*
+    ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:
+    [] }`, a key no consumer reads, so the vehicle hub's PLAN row carried
+    nothing where the real API's empty list gives it a 0 — and the critique
+    called the row "valueless" on the strength of the fixture's lie.
+  */
+  if (path.startsWith('/wishlist')) return { wishlistItems: [] };
   return undefined;
 }
