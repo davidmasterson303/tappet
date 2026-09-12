@@ -2,13 +2,15 @@ import { Text } from 'react-native';
 import { render, userEvent } from '@testing-library/react-native';
 
 import AlertBanner from '../AlertBanner';
+import BandRow from '../BandRow';
 import Button from '../Button';
 import Chip from '../Chip';
 import EmptyState from '../EmptyState';
 import Field from '../Field';
 import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
-import { FIELD_FONT_MIN, TARGET_MIN, TYPE_MIN, brand, surface, text } from '../../theme';
+import RecallBand from '../RecallBand';
+import { FIELD_FONT_MIN, SPEC_ROW, TARGET_MIN, TYPE_MIN, brand, status, surface, text } from '../../theme';
 
 /**
  * The primitive set's invariants.
@@ -187,6 +189,71 @@ describe('ListRow', () => {
     );
 
     expect(view.getByLabelText('Mileage, 66,000 mi, Read 4 days ago')).toBeTruthy();
+  });
+});
+
+describe('BandRow', () => {
+  /*
+    The spec-table destination row — `RecallBand` with the recall taken out of
+    it (12 Sep). The invariants are the ones that separated it from the
+    `NavRow` it replaced:
+    the label is a section head in the condensed grotesk, the only glyph it
+    can carry is the warning, and a stack of them reads as one table.
+  */
+  it('sets the label as a condensed-grotesk section head, with a chevron and no glyph', async () => {
+    const view = await render(<BandRow label="What is driving this score" onPress={jest.fn()} />);
+
+    const label = flat(view.getByText('What is driving this score').props.style);
+    // B1: the section head slot, not the body sans the old `NavRow` used.
+    expect(label.textTransform).toBe('uppercase');
+    expect(String(label.fontFamily)).toMatch(/Archivo/i);
+    // The mark is hidden from the reader, so the query has to look past that
+    // — otherwise this passes on a row that draws the triangle everywhere.
+    expect(view.queryByText('△', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('draws the sodium triangle only for a warning', async () => {
+    // B7: sodium is a hairline triangle beside a genuine warning, and the row
+    // has no other glyph slot — `warning` is the one door, and it is a boolean.
+    const view = await render(<BandRow label="Open recalls" warning onPress={jest.fn()} />);
+
+    const mark = flat(view.getByText('△', { includeHiddenElements: true }).props.style);
+    expect(mark.color).toBe(status.attention);
+  });
+
+  it('closes the table under the last row and not under the others', async () => {
+    const last = await render(<BandRow label="Open recalls" onPress={jest.fn()} last />);
+    const middle = await render(<BandRow label="What is driving this score" onPress={jest.fn()} />);
+
+    const rule = (view: typeof last, label: string) => flat(view.getByLabelText(label).props.style);
+
+    expect(rule(last, 'Open recalls').borderBottomWidth).toBeGreaterThan(0);
+    expect(rule(middle, 'What is driving this score').borderBottomWidth).toBeUndefined();
+    // Every row rules its own top edge; B6's 56pt from rule to rule.
+    expect(rule(middle, 'What is driving this score').borderTopWidth).toBeGreaterThan(0);
+    expect(rule(middle, 'What is driving this score').minHeight).toBe(SPEC_ROW);
+  });
+
+  it('reads as one utterance, and lets a caller write the sentence', async () => {
+    const plain = await render(
+      <BandRow label="Open recalls" count="2" detail="Fuel system" onPress={jest.fn()} />
+    );
+    expect(plain.getByLabelText('Open recalls, 2, Fuel system')).toBeTruthy();
+
+    const recall = await render(<RecallBand count={1} worst="Airbags." onPress={jest.fn()} />);
+    // `RecallBand` owns the noun and the reader's sentence; the row draws.
+    expect(recall.getByLabelText('View 1 open recall. Airbags.')).toBeTruthy();
+    expect(recall.getByText('△', { includeHiddenElements: true })).toBeTruthy();
+    expect(recall.getByText('1')).toBeTruthy();
+  });
+
+  it('opens where it says it goes', async () => {
+    const onPress = jest.fn();
+    const view = await render(<BandRow label="What is driving this score" onPress={onPress} />);
+
+    await userEvent.setup().press(view.getByText('What is driving this score'));
+
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });
 

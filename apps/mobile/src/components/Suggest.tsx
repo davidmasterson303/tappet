@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
       B5 turns a card into a hairline-ruled band; B4 removes the radius. A
       suggestion is a row you can press, not a panel: the rule above it groups
       it with its neighbours and nothing else is needed to say it is tappable —
-      `NavRow`'s docblock already made that argument for the hub.
+      `BandRow`, the hub's row, makes the same argument.
     */
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,

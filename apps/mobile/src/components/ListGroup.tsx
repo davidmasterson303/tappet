@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { border, radius, space, surface, text, type } from '../theme';
+import { border, space, text, type } from '../theme';
 
 /**
  * A set of rows in one inset block, with its label outside it.
  *
  * ── Why this exists, which is a correction ──────────────────────────────────
  *
- * The vehicle hub's destinations were `NavRow`s inside a `Card` with a
+ * The vehicle hub's destinations were nav rows inside a `Card` with a
  * `SectionHeader` at the top of it. That is a *card with a title*, and it is
  * not what `specs/native-vehicle-detail.spec.html` draws. David's read on
  * 23 Aug, after the first attempt: *"'This car' section is still really bad UI
@@ -30,11 +30,25 @@ import { border, radius, space, surface, text, type } from '../theme';
  *
  * ── It is not a `Card`, and that is deliberate ──────────────────────────────
  *
- * `Card` is `surface.card` with a border and its own padding — a container for
- * *content*. This is a control surface: one step down the ladder, no border,
- * no inner padding of its own, because the rows own their insets so a pressed
- * row can fill the block's full width. Two different jobs, and collapsing them
- * is what produced the version David rejected.
+ * `Card` is a container for *content*. This is a control surface: no inner
+ * padding of its own, because the rows own their insets so a pressed row can
+ * fill the block's full width. Two different jobs, and collapsing them is what
+ * produced the version David rejected.
+ *
+ * ── ⚠ 12 Sep · B5: the block is a band now, not a box ──────────────────────
+ *
+ * It was `surface.raised` inside a hairline frame — a filled, outlined block
+ * on a screen whose every other section had become a hairline band. The
+ * vehicle screen was graded on its first fold for twenty-seven rounds and
+ * this sat under it; the first frame scrolled past the recall row showed two
+ * boxes on a page of bands. B5: *"One graphite surface; cards become
+ * hairline-ruled bands; no nested cards or shadows."* So the fill and the
+ * frame are gone: a hairline above the first row, one beneath the last, the
+ * rows' own inset dividers between — the spec-table grammar the readings
+ * under the garage dial and the two rows under the reading already use. The
+ * pressed fill on a row is unchanged (a fill swap on press is a state, not a
+ * surface). What the 23 Aug correction argued for — label outside, glyphs,
+ * inset seams, tight rows — is untouched; only the container went.
  */
 export default function ListGroup({
   label,
@@ -52,12 +66,6 @@ export default function ListGroup({
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label.toUpperCase()}</Text> : null}
-      {/*
-        `overflow: hidden` so a pressed row's fill is clipped to the rounded
-        corners. Without it the first and last rows paint square corners over
-        the block's radius on press, which is the kind of thing that only
-        appears under a finger and never in a screenshot.
-      */}
       <View style={styles.group}>{children}</View>
     </View>
   );
@@ -65,36 +73,27 @@ export default function ListGroup({
 
 const styles = StyleSheet.create({
   wrap: { gap: space.sm },
-  /**
-   * 12/600 at 0.6 tracking in the muted ink — the label role, and the floor.
-   *
-   * Indented to match the rows' own inset so the label sits over the column it
-   * names rather than over the block's edge.
-   */
-  label: { ...type.label, color: text.muted, paddingHorizontal: space.xs },
+  /*
+    ⚠ B1: the condensed eyebrow, not `type.label`. The same slip `SectionHeader`
+    carried until 6 Sep — the sans eyebrow the critique called "tracked grey
+    sans, neither condensed nor mono" — survived here because this label was
+    below the fold on the one screen that uses it with a name. Indented to the
+    rows' own inset so it sits over the column it names.
+  */
+  label: { ...type.displayLabel, color: text.muted, paddingHorizontal: space.xs },
+  /*
+    Two hairlines and nothing between them but the rows. No fill (B5's one
+    surface), no radius (B4's zero), no frame. Each row draws its own inset
+    seam under itself but the last, so the band reads as one object with its
+    rows countable — the property the 23 Aug rewrite was for.
+
+    ⚠ 12 Sep, later the same day: the vehicle hub left for `BandRow` (its
+    docblock says why), so the one screen this was written for no longer
+    uses it. `WishlistAddScreen` still groups its suggestions here.
+  */
   group: {
-    backgroundColor: surface.raised,
-    /**
-     * ⚠ `radius.button`, not `radius.card` — and `mobile-surface-ladder` is why.
-     *
-     * The first version paired the **bar** surface with the **card** radius,
-     * which is a container on two ladder steps at once. That guard exists
-     * because four screens once shipped a private card on `surface.raised`, and
-     * it caught this the same way. It was right to.
-     *
-     * The resolution is not an exemption, it is picking a lane: this is a stack
-     * of **controls**, so it takes the control surface and the control radius.
-     * A card would be `surface.card` with a border and its own padding, and
-     * that is the thing `Card` already is.
-     */
-    borderRadius: radius.button,
-    overflow: 'hidden',
-    /*
-      A hairline, not `border.field`. The block is a surface step above the
-      page and mostly separates itself; the edge is there to stop it dissolving
-      on the darkest step of the ladder rather than to draw a box.
-    */
-    borderWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: border.panel,
   },
 });

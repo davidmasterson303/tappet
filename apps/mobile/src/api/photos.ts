@@ -98,3 +98,45 @@ export async function uploadVehiclePhoto(
 
   return { photoUrl: typeof body.photoUrl === 'string' ? body.photoUrl : null };
 }
+
+/**
+ * Take the photograph back off the car.
+ *
+ * ── Why this exists (11 Sep) ────────────────────────────────────────────────
+ *
+ * David, on the phone: *"i can't delete the image i uploaded on the app, so i
+ * can't revert to seeing the new default images for my car."* The web has had
+ * Remove in its photo dialog for weeks; the phone could add a photograph and
+ * never take one away, so a car with an upload could not fall back to its
+ * plate. `DELETE /api/v1/upload-photo` is the route built for it, and it does
+ * exactly what the web action does — `clearVehiclePhoto` is one implementation
+ * shared by both — so "remove" cannot mean two things on two clients.
+ *
+ * ⚠ **Resolves to nothing on purpose.** The upload returns a signed URL so the
+ * screen can draw the picture it just sent; a removal's result is the *absence*
+ * of one, and what stands in its place — the stock image, the generation
+ * plate, or the house plate — is the API's decision on the next read. Returning
+ * a URL here would be this client guessing which of the three, which is the
+ * disagreement `lib/vehicle-photo.ts` exists to prevent. Callers refetch.
+ *
+ * Same body as the web action, `{ vehicleId }`, sent as JSON — the route reads
+ * `request.json()`, not a query string, so this is not the `recalls` shape.
+ */
+export async function removeVehiclePhoto(vehicleId: string): Promise<void> {
+  const body = await apiRequest<{ success?: unknown; error?: unknown }>('/upload-photo', {
+    method: 'DELETE',
+    body: { vehicleId },
+  });
+
+  /*
+    The same belt to the same braces as the upload: the route answers a real
+    status for every failure it owns, and this is for the 200-shaped one. The
+    server's sentence is preferred — "Failed to remove photo" is a storage
+    failure the owner can retry, which is more than a generic line says.
+  */
+  if (body.success === false) {
+    throw new VehiclePhotoError(
+      typeof body.error === 'string' ? body.error : 'That photo could not be removed.',
+    );
+  }
+}

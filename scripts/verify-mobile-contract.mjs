@@ -418,8 +418,19 @@ async function checkConsultant() {
         built from it, so an answer proved nothing about what the server knew.
         This is the assertion that context is server-derived.
       */
-      message:
-        'Reply with only these three values separated by commas and nothing else: my exact current mileage as digits, my trim, my reliability score out of 10.',
+      /*
+        ── ⚠ A canned question, since 30 Aug ────────────────────────────────
+
+        The demo makes no model call at all (`10a06a2`): an anonymous question
+        outside `DEMO_ANSWERS` is refused with "The demo answers a fixed set
+        of questions…", and the refusal travels as HTTP 502. This probe asked
+        a free-form question and read that refusal as an outage for twelve
+        days — a guard crying wolf (CLAUDE.md §5), found 12 Sep. It now asks
+        the demo Accord's first canned question, verbatim from
+        `packages/core/src/demo-answers.ts` (`accord-oil`), which is the
+        contract the demo actually keeps and the one a phone would hit.
+      */
+      message: 'What should I be doing at this mileage?',
     }),
   });
 
@@ -444,28 +455,22 @@ async function checkConsultant() {
   pass(`demo consultant answered anonymously — "${answer.slice(0, 70).replace(/\s+/g, ' ')}…"`);
 
   /*
-    The demo Accord's own values, from the seed. Checked as facts rather than
-    as a non-empty string, because a model that answered "I don't have your
-    mileage" would satisfy every assertion above.
+    The canned answer names the Accord's own mileage and engine. Checked as
+    facts rather than as a non-empty string, because a generic sentence would
+    satisfy every assertion above — and because these two are what prove the
+    answer came from the demo's own table for this car, not a fallback.
   */
   const facts = [
     ['mileage', /94[,.]?800/],
-    ['trim', /sport/i],
-    ['reliability score', /\b8\b/],
+    ['engine', /1\.5/],
   ];
 
   const missing = facts.filter(([, pattern]) => !pattern.test(answer)).map(([name]) => name);
 
   if (missing.length === 0) {
-    pass('the answer carries vehicle facts the request never supplied — context is server-derived');
+    pass('the canned answer is this car\'s — it names facts the request never supplied');
   } else {
-    /*
-      A model declining to state a fact is not the same as the server not
-      knowing it, so this reports rather than fails outright — but it reports
-      loudly, because it is the only end-to-end evidence that the context load
-      reaches the prompt.
-    */
-    fail(`the answer omitted ${missing.join(', ')} — either context is not reaching the prompt, or the model declined to state it. Read the answer above before dismissing this`);
+    fail(`the answer omitted ${missing.join(', ')} — the demo answered, but not from this car's own table. Read the answer above before dismissing this`);
   }
 }
 
