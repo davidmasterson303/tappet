@@ -183,6 +183,15 @@ const PORTABLE: string[] = [
     outside the web app asks the question yet.
   */
   'lib/site-role.ts',
+  /*
+    Added 11 Sep. The Plan tab's URL contract — which segment opens and
+    whether the Needs dialog opens on arrival — shared by the Service tab that
+    writes it and the Plan tab that reads it. No imports at all, so it
+    qualifies mechanically. It stays in lib/ because a URL is a web notion:
+    the phone hands the same intent across as screen params, not a query
+    string, and nothing outside the web app asks this question.
+  */
+  'lib/plan-entry.ts',
 ];
 
 /**

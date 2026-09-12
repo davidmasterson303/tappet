@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { readPlanEntry, type PlanSegment } from '@/lib/plan-entry';
 import DashboardLayout from '@/components/DashboardLayout';
 import VehicleInsights from '@/components/VehicleInsights';
 import { WishlistSection } from '@/components/WishlistSection';
@@ -11,7 +13,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { Button } from '@/components/ui/button';
 
-export type PlanSegment = 'needs' | 'mods';
+export type { PlanSegment };
 
 /**
  * Plan: what this car needs, and what you want to do to it.
@@ -48,8 +50,26 @@ export type PlanSegment = 'needs' | 'mods';
  * control, so when mods are hidden the segmented control is not rendered at all
  * rather than rendered with a single button.
  */
-export default function PlanPage({ params }: { params: { vehicleId: string } }) {
-  const [segment, setSegment] = useState<PlanSegment>('needs');
+/*
+  ── ⚠ The URL can choose the segment and open the Needs dialog ──────────────
+
+  `/plan/<id>?segment=needs&add=1` is what the Service tab's "Add a service
+  record" pushes (11 Sep, David's ask; the contract is `lib/plan-entry.ts`).
+  `useSearchParams` needs a Suspense boundary above it or Next de-opts the
+  whole route into client rendering with a build warning — same reason
+  `app/onboard/page.tsx` wraps its form. The page is split accordingly.
+*/
+export default function PlanPage(props: { params: { vehicleId: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <PlanPageInner {...props} />
+    </Suspense>
+  );
+}
+
+function PlanPageInner({ params }: { params: { vehicleId: string } }) {
+  const entry = readPlanEntry(useSearchParams());
+  const [segment, setSegment] = useState<PlanSegment>(entry.segment);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['plan', params.vehicleId],
@@ -117,7 +137,7 @@ export default function PlanPage({ params }: { params: { vehicleId: string } }) 
           ) : null}
 
           {active === 'needs' ? (
-            <WishlistSection vehicleId={data.vehicle.id} />
+            <WishlistSection vehicleId={data.vehicle.id} openAdd={entry.openAdd} />
           ) : (
             <VehicleInsights vehicle={data.vehicle} knowledge={data.knowledge} section="mods" />
           )}
