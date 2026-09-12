@@ -3,6 +3,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 import { ServiceMilestoneScreen } from '../ServiceMilestoneScreen';
 import { apiRequest } from '../../api/client';
 import { SERVICE_BASIS_LABELS } from '@tappet/core/service-provenance';
+import { status } from '../../theme';
 
 /**
  * Where a service notification lands.
@@ -51,9 +52,9 @@ const VEHICLE = {
  * Routes each call by path, because the screen fires both in parallel and
  * `mockResolvedValueOnce` would bind to whichever happened to settle first.
  */
-function respondWith(maintenanceLineItems: unknown[] | Error) {
+function respondWith(maintenanceLineItems: unknown[] | Error, vehicle: unknown = VEHICLE) {
   request.mockImplementation(async (path: string) => {
-    if (path.startsWith('/load-vehicle')) return VEHICLE as never;
+    if (path.startsWith('/load-vehicle')) return vehicle as never;
     if (path.startsWith('/load-maintenance-data')) {
       if (maintenanceLineItems instanceof Error) throw maintenanceLineItems;
       /*
@@ -119,6 +120,46 @@ describe('the odometer gate', () => {
 });
 
 describe('provenance', () => {
+  it('says where each row was counted from, not one claim for the visit', async () => {
+    /*
+      12 Sep. The milestone used to carry one line — the *weakest* claim its
+      services could jointly support — so a visit mixing an invoice with an
+      estimate said "estimated" over both. Web answers per row
+      (`ServiceDueList.tsx`) and `service-provenance.ts` argues the three
+      sources must never share a sentence; the phone joins that. Two services
+      in one visit, one with a record and one without: both labels, each on
+      its own row.
+    */
+    const user = userEvent.setup();
+    respondWith(
+      [
+        {
+          item_description: 'Oil change — full synthetic',
+          service_date: '2026-02-10',
+          mileage_at_service: 92_000,
+          source: 'vision',
+        },
+      ],
+      {
+        vehicle: { year: 2018, make: 'Honda', model: 'Accord', current_mileage: 99_200 },
+        knowledge: {
+          maintenance_schedule: [
+            { service: 'Engine oil and filter', interval_miles: 7_500, priority: 'Critical' },
+            { service: 'Tire rotation', interval_miles: 5_000, priority: 'Recommended' },
+          ],
+        },
+      }
+    );
+
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await passTheGate(user, view);
+
+    // Oil counts from the record at 92,000 → 99,500; the rotation has nothing
+    // to count from and takes the next boundary, 100,000. One visit, two claims.
+    expect(await view.findByText(SERVICE_BASIS_LABELS['service-history'])).toBeTruthy();
+    expect(view.getByText(SERVICE_BASIS_LABELS['mileage-estimate'])).toBeTruthy();
+  });
+
   it('says "estimated" when there is no history to count from', async () => {
     // The second-hand car with nothing recorded — the common case, and the one
     // that must not claim to be reading records.
@@ -132,7 +173,7 @@ describe('provenance', () => {
     expect(view.queryByText(SERVICE_BASIS_LABELS['service-history'])).toBeNull();
   });
 
-  it('claims service records only when every service in the visit has them', async () => {
+  it('claims service records on the row that has them', async () => {
     const user = userEvent.setup();
     respondWith([
       {
@@ -313,5 +354,174 @@ describe('the mileage confirm', () => {
     await user.press(await view.findByLabelText('That is right'));
 
     await waitFor(() => expect(view.queryByText(/Still around .* miles\?/)).toBeNull());
+  });
+});
+
+/**
+ * ── 12 Sep · the Due list is the spec table, and it lists the whole schedule ─
+ *
+ * Locked brief B6. The segment drew the next visit as prose with a slab under
+ * every row and nothing else; a car with a schedule and nothing due showed
+ * "Nothing due right now" over a blank. It is the History table now — index,
+ * name, right-aligned position, a hairline per row — and every evaluated
+ * service is on it under the head that says what it is.
+ */
+describe('the spec table', () => {
+  const FULL = {
+    vehicle: { year: 2015, make: 'BMW', model: 'M235i', current_mileage: 66_000 },
+    knowledge: {
+      maintenance_schedule: [
+        // Counts from the belt record below at 48,000 → 63,000: 3,000 overdue.
+        { service: 'Drive belt, inspect', interval_miles: 15_000, priority: 'Recommended' },
+        // No record: the next boundary above 66,000 is 90,000, and it is not
+        // part of the visit — it goes under COMING UP.
+        { service: 'Spark plugs', interval_miles: 30_000, priority: 'Recommended' },
+        // Time-only, no date: unknown, and said so.
+        { service: 'Brake fluid replacement', interval_months: 24, priority: 'Critical' },
+      ],
+    },
+  };
+  const BELT = {
+    item_description: 'Timing belt',
+    service_date: '2024-05-01',
+    mileage_at_service: 48_000,
+    source: 'owner-onboarding',
+  };
+
+  it('lists every evaluated service, indexed in order, not only the next visit', async () => {
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await view.findByText('Drive belt, inspect');
+    expect(view.getByText('Spark plugs')).toBeTruthy();
+    expect(view.getByText('Brake fluid replacement')).toBeTruthy();
+
+    // B6's index, running across the groups — it is the order to do them in.
+    const indices = ['01', '02', '03'].map(
+      (n) => view.getByText(n, { includeHiddenElements: true })
+    );
+    expect(indices).toHaveLength(3);
+    expect(view.queryByText('04', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('groups the visit, what comes after it, and what cannot be placed', async () => {
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    // The milestone is named for the anchor's reading and carries the
+    // notification's own sentence.
+    expect(await view.findByText('63,000 service')).toBeTruthy();
+    expect(view.getByText(/Drive belt, inspect is 3,000 miles overdue/)).toBeTruthy();
+    expect(view.getByText('Coming up')).toBeTruthy();
+    expect(view.getByText('Timed by date, not mileage')).toBeTruthy();
+  });
+
+  it('puts the position in the numeral column, signed, and a dash where there is none', async () => {
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    // Past due reads as a countdown gone through zero — the sign is kept.
+    expect(await view.findByText('−3,000 MI', { includeHiddenElements: true })).toBeTruthy();
+    expect(view.getByText('24,000 MI', { includeHiddenElements: true })).toBeTruthy();
+    // `null` is "we cannot say", never a number (CLAUDE.md §6).
+    expect(view.getByText('—', { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it('ends the head line on the numeral, with the action on the line beneath', async () => {
+    /*
+      12 Sep. Round 31 gave the action a column beside the position, and the
+      critique measured what it cost: every numeral stopped inboard of the
+      rule by the column's width. B6's numerals end at the rule, so the
+      position is the last thing on its line and the verb sits on the next.
+    */
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await view.findByText('Drive belt, inspect');
+
+    type Host = { props?: Record<string, unknown>; children?: unknown[] };
+    const textOf = (node: unknown): string =>
+      typeof node === 'string'
+        ? node
+        : ((node as Host)?.children ?? []).map(textOf).join('');
+    const lines: string[][] = [];
+    const walk = (node: unknown) => {
+      const host = node as Host;
+      if (!host || typeof host !== 'object') return;
+      const style = Object.assign({}, ...[host.props?.style].flat(Infinity).filter(Boolean));
+      if (style.flexDirection === 'row') {
+        lines.push((host.children ?? []).map(textOf).map((t) => t.trim()).filter(Boolean));
+      }
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(view.toJSON());
+
+    const head = lines.find((line) => line.includes('−3,000 MI'));
+    expect(head).toBeDefined();
+    expect(head?.[head.length - 1]).toBe('−3,000 MI');
+    expect(head).not.toContain('Add');
+
+    const foot = lines.find((line) => line.includes('Add') && line.some((t) => /Every 15,000 mi/.test(t)));
+    expect(foot).toBeDefined();
+  });
+
+  it('marks the overdue row with the sodium triangle, and no other', async () => {
+    // B7: sodium only beside a genuine warning. One service is past due; the
+    // other two are coming up or unplaceable, and neither is a warning.
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await view.findByText('Drive belt, inspect');
+    const marks = view.getAllByText('△', { includeHiddenElements: true });
+    expect(marks).toHaveLength(1);
+    const style = Object.assign({}, ...[marks[0].props.style].flat(Infinity).filter(Boolean));
+    expect(style.color).toBe(status.attention);
+  });
+
+  it('adds a row to Needs from the row, and then shows that it is there', async () => {
+    const user = userEvent.setup();
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await user.press(await view.findByLabelText('Add Spark plugs to Needs'));
+
+    expect(request).toHaveBeenCalledWith(
+      '/wishlist',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ vehicleId: 'v1', itemName: 'Spark plugs' }),
+      })
+    );
+    // The outcome the control wanted is what it shows — not a disabled verb.
+    expect(await view.findByLabelText('Spark plugs is on Needs')).toBeTruthy();
+    expect(view.queryByLabelText('Add Spark plugs to Needs')).toBeNull();
+  });
+
+  it('says there is no schedule, and asks nothing, when there is nothing to compute from', async () => {
+    /*
+      The odometer gate exists to qualify figures derived from the reading;
+      with no schedule there are none, and "Nothing due right now" would be
+      the claim `nextService` says is unsafe — a car whose every service is
+      unknown is "no schedule yet", never "nothing due".
+    */
+    respondWith([], {
+      vehicle: { year: 2018, make: 'Honda', model: 'Accord', current_mileage: 94_800 },
+      knowledge: { maintenance_schedule: [] },
+    });
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    expect(await view.findByText('No schedule yet')).toBeTruthy();
+    expect(view.queryByText(/Still around/)).toBeNull();
+    expect(view.queryByText(/Nothing due right now/)).toBeNull();
+    expect(view.queryByText(/AI-generated/)).toBeNull();
+  });
+
+  it('shows the confirmed reading as a row of the table', async () => {
+    const user = userEvent.setup();
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await passTheGate(user, view);
+
+    // B1: a value in the mono, with its unit — not "66,000 miles" in the sans.
+    expect(await view.findByText('66,000 MI')).toBeTruthy();
   });
 });

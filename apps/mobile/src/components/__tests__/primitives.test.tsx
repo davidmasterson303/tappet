@@ -1,5 +1,5 @@
-import { Text } from 'react-native';
-import { render, userEvent } from '@testing-library/react-native';
+import { Text, processColor } from 'react-native';
+import { fireEvent, render, userEvent } from '@testing-library/react-native';
 
 import AlertBanner from '../AlertBanner';
 import BandRow from '../BandRow';
@@ -11,10 +11,12 @@ import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
 import {
+  CONTROL_HEIGHT,
   FIELD_FONT_MIN,
   SPEC_ROW,
   TARGET_MIN,
   TYPE_MIN,
+  border,
   brand,
   register,
   status,
@@ -106,6 +108,20 @@ describe('Button', () => {
     expect(groundOf(view.toJSON())).toBe(surface.disabled);
   });
 
+  it('gives the small size the field\u2019s own height, so the two share an edge', async () => {
+    /*
+      12 Sep. Beside a field the small control sat 4pt shorter, bottoms
+      aligned, tops apart — measured on the frame and in the source. The
+      brief's 48 is a field's height and a button's; `large` keeps its 52.
+    */
+    const button = await render(<Button label="That is right" size="small" onPress={jest.fn()} />);
+    const field = await render(<Field label="Odometer" value="66000" />);
+
+    expect(boxStyleOf(button.toJSON())?.minHeight).toBe(CONTROL_HEIGHT);
+    expect(flat(field.getByLabelText('Odometer').props.style).minHeight).toBe(CONTROL_HEIGHT);
+    expect(CONTROL_HEIGHT).toBeGreaterThanOrEqual(TARGET_MIN);
+  });
+
   it('keeps the small size on the 44pt floor', async () => {
     // "Small" is narrower and lighter in type. It is not shorter — the floor is
     // a coarse-pointer target, not a style.
@@ -121,6 +137,23 @@ describe('Button', () => {
       const view = await render(<Button label={variant} variant={variant} onPress={jest.fn()} />);
       expect(view.getByLabelText(variant)).toBeTruthy();
     }
+  });
+});
+
+describe('Button — the ghost', () => {
+  it('speaks in the roots\u2019 chrome ink and paints no surface at rest', async () => {
+    /*
+      12 Sep. A ghost is the third rung — the mono caps word the roots use for
+      ADD CAR and ACCOUNT — and those are set in `text.secondary`. Eight ghosts
+      at full ink down the Due table's right edge outweighed the numerals they
+      sat under; one step of ink down is the whole difference between a verb
+      and a value.
+    */
+    const view = await render(<Button label="Add" variant="ghost" onPress={jest.fn()} />);
+    const label = flat(view.getByText('Add').props.style);
+
+    expect(label.color).toBe(text.secondary);
+    expect(groundOf(view.toJSON())).toBeUndefined();
   });
 });
 
@@ -165,6 +198,72 @@ describe('Field', () => {
 
     expect(view.getByText(/17 characters/)).toBeTruthy();
     expect(view.getByLabelText('VIN').props['aria-invalid']).toBe(true);
+  });
+
+  /*
+    ── 12 Sep · focus is cyan, and so is the caret — B7 ────────────────────
+
+    The brief: *"cyan hairline on focus"*, and *"no system blue"*. A field
+    had no focus state, and the caret — the one thing that did change on
+    focus — was iOS's blue. The stroke is read off the rendered `RNSVGPath`,
+    which only exists once the surface has measured itself, so the layout
+    event is fired by hand; the caret is the `TextInput`'s own prop.
+  */
+  const strokeOf = (view: Awaited<ReturnType<typeof render>>): number | null => {
+    const found: number[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== 'object') return;
+      const host = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
+      const stroke = host.props?.stroke as { payload?: unknown } | undefined;
+      if (host.type === 'RNSVGPath' && stroke && typeof stroke === 'object' && 'payload' in stroke) {
+        found.push(Number(stroke.payload));
+      }
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(view.toJSON());
+    return found[0] ?? null;
+  };
+
+  const measured = async (element: React.ReactElement, label: string) => {
+    const view = await render(element);
+    /*
+      The input carries no `onLayout`; `fireEvent` walks up to the first
+      ancestor that does, which is the `CutSurface` painting the field.
+    */
+    await fireEvent(view.getByLabelText(label), 'layout', {
+      nativeEvent: { layout: { width: 320, height: 48 } },
+    });
+    return view;
+  };
+
+  it('draws the hairline at rest and steps it to cyan while focused', async () => {
+    const view = await measured(<Field label="Odometer" value="66000" />, 'Odometer');
+
+    expect(strokeOf(view)).toBe(Number(processColor(border.field)));
+
+    await fireEvent(view.getByLabelText('Odometer'), 'focus');
+    expect(strokeOf(view)).toBe(Number(processColor(brand.accent)));
+
+    await fireEvent(view.getByLabelText('Odometer'), 'blur');
+    expect(strokeOf(view)).toBe(Number(processColor(border.field)));
+  });
+
+  it('keeps a problem sodium even under focus, because that is the signal the sentence is about', async () => {
+    const view = await measured(
+      <Field label="VIN" value="JF1" problem="A VIN is 17 characters." />,
+      'VIN'
+    );
+
+    await fireEvent(view.getByLabelText('VIN'), 'focus');
+    expect(strokeOf(view)).toBe(Number(processColor(status.dangerBorder)));
+  });
+
+  it('never leaves the caret to the system', async () => {
+    const view = await render(<Field label="Odometer" value="66000" />);
+    const input = view.getByLabelText('Odometer');
+
+    // Processed by the host, so both sides go through the same conversion.
+    expect(Number(processColor(input.props.selectionColor))).toBe(Number(processColor(brand.accent)));
   });
 });
 

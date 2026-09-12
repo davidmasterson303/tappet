@@ -115,14 +115,15 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
 ## 8. There are two Netlify projects, and the names invite the wrong guess
 
 ```
-tappet-web       deploys web-live   tappet.southmoordigital.com
-                 (was effulgent-    + wellkept.southmoordigital.com
-                 blancmange-6adfdf)  + crewchief.davidmasterson.co  [primary]
+tappet-web       deploys web-live   tappet.southmoordigital.com  [primary, 12 Sep]
+                 (was effulgent-    + wellkept.southmoordigital.com   (200, redirect pending)
+                 blancmange-6adfdf)  + crewchief.davidmasterson.co    (200, redirect pending)
                                     App Store URL + the app's API
 
-tappet-demo      deploys demo-live  tappet-demo.davidmasterson.co
-                 (was crewchief-    + wellkept-demo.davidmasterson.co
-                 demo-live)         + crewchief-demo.davidmasterson.co  [primary]
+tappet-demo      deploys demo-live  tappet-demo.davidmasterson.co  [primary, 12 Sep]
+                 (was crewchief-    + wellkept-demo.davidmasterson.co  (301 → primary*)
+                 demo-live)         + crewchief-demo.davidmasterson.co (301 → primary*)
+                                    * once demo-live carries the 12 Sep rules
 
 glowing-hotteok-d2e57e             davidmasterson.co (personal portfolio)
 crewchief-demo                     dead Bolt stub — ⚠ do not delete
@@ -130,8 +131,7 @@ luxuryphotoenhancer-demo           unrelated
 ```
 
 ⚠ **Both projects were renamed on 7 Sep and the old names are gone from the
-dashboard.** Three hostnames per site, all serving; the `crewchief*` pair are
-still the **primary** domains, which is why nothing 301s yet.
+dashboard.** Three hostnames per site, all answering.
 
 ⚠ **Five hostnames now serve the same two sites, and that is deliberate.**
 The 7 Sep rename to Tappet added `tappet.southmoordigital.com` and
@@ -148,20 +148,28 @@ POST           401, redirect_url empty        (a 301 downgrades POST to GET)
 GET            200, no redirect anywhere      (no primary has been flipped)
 ```
 
-⚠ **No primary domain has been flipped, and that ordering is load-bearing.**
-Netlify redirects non-primary domains to the primary, and a 301 downgrades a
-POST to a GET — so a primary flip before the app is repointed breaks API writes
-**silently**. Flip only after a build carrying the new `apiBaseUrl` is live and
-the installed apps have moved.
+⚠ **The primary-domain setting does not redirect, and this file said it
+did.** Cowork flipped both primaries to the Tappet hostnames on 12 Sep and
+measured: nothing 301'd. Netlify only redirects apex↔`www`, never between
+subdomains, and every hostname here is a subdomain. The redirect is the
+`[[redirects]]` rules in `netlify.toml`, host-scoped and `force = true`, and
+`lib/__tests__/hostname-redirects.test.ts` pins what they say. What *was*
+right survives: a 301 downgrades a POST to a GET, so the product pair — the
+host the app writes to — redirects only after the demo pair is verified live
+and no installed build calls the old host. That check is done once: the only
+device build ever made (22 Aug, `co.davidmasterson.crewchief`) is a dev
+client that takes `apiBaseUrl` from Metro's manifest, and
+`apps/mobile/src/config.ts` falls back to the new host. Verify a redirect
+with `curl -sI` on the old host after the deploy, never from the merge.
 
-⚠ **The canary hardcodes a hostname this rename will eventually retire.**
-`.github/workflows/consultant-canary.yml` passes
-`https://crewchief-demo.davidmasterson.co` explicitly, so it overrides the
+⚠ **The canary hardcodes its hostname.** `.github/workflows/consultant-canary.yml`
+passes `https://tappet-demo.davidmasterson.co` explicitly (moved off the
+retired host in the same change as its redirect, 12 Sep), overriding the
 script's default. It is running (rows every 5–8h in `ai_usage_events`, surface
 `canary`) and it fails **loudly** — exit 3, and the interpret step turns any
-non-success into `::error::` and `exit 1`. So retiring that hostname turns CI
-red rather than turning the monitor into good news; move the line in the same
-change that retires the host.
+non-success into `::error::` and `exit 1`. So retiring a hostname it names
+turns CI red rather than turning the monitor into good news; the redirect
+guard refuses a canary line that names a redirected host.
 
 **Nothing deploys from `main`.** Pushing to `main` costs nothing and publishes
 nothing; both product hostnames move only when someone merges into their
@@ -222,11 +230,9 @@ becomes the demo — it can, because that commit is already live on `web-live`.
 That second half matters: Netlify can accept a push and fail the build, and this
 branch's failure mode is a hostname silently frozen on its last good deploy.
 
-⚠ **The product hostname is gated behind `web-live`** — today that is
-`wellkept.southmoordigital.com`, and `tappet.southmoordigital.com` once Track B
-claims it. It is the App
-Store listing's privacy-policy URL and the origin the mobile app talks to
-(`app.json` → `extra.apiBaseUrl`). Before that, anything pushed to `main` was
+⚠ **The product hostname is gated behind `web-live`** — `tappet.southmoordigital.com`,
+the App Store listing's privacy-policy URL and the origin the mobile app talks
+to (`app.json` → `extra.apiBaseUrl`). Before that, anything pushed to `main` was
 instantly live at a URL App Review reads, and every push cost a build: 111
 builds in 17 days, 99% of a $34 bill.
 

@@ -1,6 +1,6 @@
 import { NavigationContext } from '@react-navigation/native';
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { ScrollView, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
 import RootScreen, { useRootScroll } from '../RootScreen';
 import { cornerCovers } from '../CutSurface';
@@ -152,6 +152,48 @@ describe('RootScreen', () => {
 
     await scrollTo(view, 0);
     expect(titles(view, 'Plan').band.props.accessibilityElementsHidden).toBe(true);
+  });
+
+  it('takes its ease with it when it unmounts', async () => {
+    /*
+      The band's ease is a JS timing that asks for frames until it is done.
+      Left running past the tree that owned it, those frames fire into a
+      torn-down jest environment — and on 12 Sep the mobile suite exited 1
+      with every test passing, from the one suite that mounts a root and
+      returns inside 180ms (`PlanScreen.test.tsx`). This suite's own fake
+      timers had hidden the leak from itself.
+
+      The ease is reached through `Animated.timing` so the contract can be
+      read directly: every ease the mount starts, the unmount stops. The
+      timer count is not the measure — a dozen unrelated timers survive an
+      unmount here — and this fails on the shape that leaked (started, never
+      stopped).
+    */
+    const realTiming = Animated.timing;
+    const eases: Array<{ stop: jest.SpyInstance }> = [];
+    const timing = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
+      const ease = realTiming(value, config);
+      eases.push({ stop: jest.spyOn(ease, 'stop') });
+      return ease;
+    });
+    try {
+      const view = await render(
+        withSafeArea(
+          <RootScreen title="Plan">
+            <Content />
+          </RootScreen>
+        )
+      );
+      expect(eases.length).toBeGreaterThan(0);
+      for (const ease of eases) expect(ease.stop).not.toHaveBeenCalled();
+
+      await act(async () => {
+        view.unmount();
+      });
+      for (const ease of eases) expect(ease.stop).toHaveBeenCalled();
+    } finally {
+      timing.mockRestore();
+    }
   });
 
   it('leaves a page that cannot scroll alone, even when it bounces', async () => {

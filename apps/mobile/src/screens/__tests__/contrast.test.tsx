@@ -284,10 +284,11 @@ describe('the invoice scanner', () => {
 
     /*
       ⚠ **R47.** The screen's H1 is gone — it repeated the nav title 40pt above
-      it — so this waits on the lead line instead. It still has to wait on
+      it — so this waits on the caption instead (12 Sep: the mono caption the
+      brief gives a screen with one thing to do). It still has to wait on
       *something*: an audit of an unmounted tree finds no text and passes.
     */
-    await view.findByText(/Photograph a service invoice/);
+    await view.findByText(/Photograph the invoice/);
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 });

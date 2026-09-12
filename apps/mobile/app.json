@@ -87,7 +87,17 @@
           "cameraPermission": "Tappet uses the camera so you can photograph a service invoice and have its line items read for you."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-iap",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#100F0D"
+        }
+      ]
     ],
     "android": {
       "package": "com.southmoordigital.tappet",
@@ -107,11 +117,6 @@
         "projectId": "a3f958b8-44f6-4164-9548-77971c68e435"
       }
     },
-    "owner": "masterson303",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#100F0D"
-    }
+    "owner": "masterson303"
   }
 }

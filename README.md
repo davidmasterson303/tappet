@@ -4,7 +4,7 @@ An AI auto-ownership consultant. Track the vehicles in your garage, pull real
 vehicle spec data, log maintenance and modifications, and ask an AI consultant
 questions about owning and maintaining your cars.
 
-**Live demo:** https://crewchief-demo.davidmasterson.co
+**Live demo:** https://tappet-demo.davidmasterson.co
 
 ## What it does
 

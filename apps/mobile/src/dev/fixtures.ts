@@ -61,6 +61,21 @@ const M235I = {
   trim: 'xDrive',
   current_mileage: 66_000,
   vehicle_status: 'daily_driver',
+  /*
+    ── 12 Sep · what the nightly sweep would have written ──────────────────
+
+    The garage's NEXT SERVICE row and the hub's SERVICE row read the three
+    `next_service_*` columns the sweep stores (`notify-sweep/route.ts`:
+    `nextService(services)` — the most urgent bookable service and the
+    reading it is due at), not the schedule. Without them both rows said "No
+    schedule yet" beside a Due segment listing eight services — the
+    two-screens-disagree shape. These are what that sweep computes from
+    `SCHEDULE` and `MAINTENANCE` below: the drive-belt check, counted from
+    the recollection at 48,000, due at 63,000. `GarageScreen.test.tsx` drives
+    the row with the same two fields.
+  */
+  next_service_label: 'Drive belt and tensioner, inspect',
+  next_service_at_miles: 63_000,
   /**
    * ⚠ Read from the environment, not hard-coded.
    *
@@ -188,6 +203,89 @@ const MAINTENANCE = [
 ];
 
 /**
+ * The typical schedule the knowledge base holds for this car.
+ *
+ * ── 12 Sep · so the Due segment can be shot with something to compute ───────
+ *
+ * `/load-vehicle` answered with the vehicle alone, so `ServiceMilestoneScreen`
+ * opened on "no structured service schedule yet" and the loop graded a Due
+ * segment that had never drawn a row. The shape is `ScheduleEntry`'s — the one
+ * `service-due.test.ts` and `ServiceMilestoneScreen.test.tsx` drive
+ * `evaluateSchedule` with: `service`, `interval_miles` and/or
+ * `interval_months`, `description`, `priority` — and the intervals are what a
+ * "typical schedule" for a turbocharged BMW would say, not what makes a good
+ * frame.
+ *
+ * ⚠ The positions are computed, never written. Against `MAINTENANCE` above
+ * and the 66,000 on the odometer: the oil and the brake inspection count
+ * from the invoice at 61,400 and come due at 66,400; the drive-belt check
+ * counts from the *recollection* at 48,000 — `categoryFor` puts "Timing belt"
+ * and "drive belt" in one category, which is the product's own matching rule
+ * — and is 3,000 miles past, so the frame carries one genuine warning resting
+ * on "what you told us at sign-up", which is exactly the claim the provenance
+ * line exists to qualify; the brake fluid has no date to count from and says
+ * so. Every sentence on the frame is one the product would write.
+ *
+ * ⚠ Fed to `driversForVehicle` as well, because the route feeds the same
+ * schedule to both: a fixture whose Health said "no schedule on record" while
+ * its Service listed eight rows would be two screens disagreeing about one
+ * car, which is the lie a fixture must not tell.
+ */
+const SCHEDULE = [
+  {
+    service: 'Engine oil and filter',
+    interval_miles: 5_000,
+    interval_months: 12,
+    description: 'Drain the oil, replace the filter, reset the service counter.',
+    priority: 'Critical',
+  },
+  {
+    service: 'Brake pads and rotors, inspect',
+    interval_miles: 5_000,
+    description: 'Measure pad depth and rotor thickness at all four corners.',
+    priority: 'Recommended',
+  },
+  {
+    service: 'Tire rotation',
+    interval_miles: 7_500,
+    description: 'Even out the wear, and check the pressures while it is up.',
+    priority: 'Recommended',
+  },
+  {
+    service: 'Drive belt and tensioner, inspect',
+    interval_miles: 15_000,
+    description: 'Look for cracks and glazing; a failed belt on this engine can be drawn into the crank seal.',
+    priority: 'Recommended',
+  },
+  {
+    service: 'Cabin air filter',
+    interval_miles: 15_000,
+    interval_months: 12,
+    description: 'Replace the pollen filter behind the glovebox.',
+    priority: 'Optional',
+  },
+  {
+    service: 'Spark plugs',
+    interval_miles: 30_000,
+    description: 'Six plugs; the turbocharged engine is hard on them.',
+    priority: 'Recommended',
+  },
+  {
+    service: 'Coolant flush',
+    interval_miles: 60_000,
+    interval_months: 48,
+    description: 'Drain, flush and refill with the BMW-spec coolant.',
+    priority: 'Recommended',
+  },
+  {
+    service: 'Brake fluid replacement',
+    interval_months: 24,
+    description: 'Bleed and replace; the fluid absorbs water whether the car is driven or not.',
+    priority: 'Critical',
+  },
+];
+
+/**
  * Whether a path should be held open forever, so its wait can be seen.
  *
  * ── 12 Sep · the only way to photograph a wait without spending the call ────
@@ -216,6 +314,32 @@ export function fixtureHolds(path: string): boolean {
 }
 
 /**
+ * Which stores the fixture car should answer *empty* for, from the environment.
+ *
+ * ── 12 Sep · the empty states are states too ────────────────────────────────
+ *
+ * The Service tab has two empties the loop grades — a history with nothing
+ * filed, a car with no schedule — and the only way to photograph them had
+ * been to edit this file and remember to put it back. `EXPO_PUBLIC_DESIGN_
+ * EMPTY` names them instead, comma-separated: `history` answers
+ * `/load-maintenance-data` with no rows, `schedule` answers `/load-vehicle`
+ * with no `maintenance_schedule` — each the shape the screens' own suites
+ * drive them with (`respondWith([])`; a `VEHICLE` without a schedule), so the
+ * frame is one the product would draw. Anything else in the list is ignored
+ * rather than guessed at, the way `DESIGN_PLATE_STATUS` treats a value the
+ * API would never send.
+ *
+ * The drivers are recomputed from the same emptiness, for the reason
+ * `SCHEDULE` gives: two screens must not disagree about one car.
+ */
+const DESIGN_EMPTY = new Set(
+  (process.env.EXPO_PUBLIC_DESIGN_EMPTY ?? '')
+    .split(',')
+    .map((store: string) => store.trim())
+    .filter(Boolean)
+);
+
+/**
  * The canned response for a path, or `undefined` when nothing matches.
  *
  * ⚠ Returning `undefined` rather than an empty object is deliberate: the caller
@@ -234,16 +358,24 @@ export function fixtureFor(path: string): unknown | undefined {
       critique marked B6 unconfirmed for want of a frame. The route derives
       `health_drivers` at read from facts already on the response
       (`load-vehicle/route.ts`, D10), and `driversForVehicle` is pure — so the
-      fixture calls the same function on its own facts. No schedule is on this
-      fixture, so Maintenance reports that and scores nothing; two recalls
-      score the recalls driver low; 66,000 miles on a 2015 car is a light
-      load. Every sentence on the frame is one the product would write.
+      fixture calls the same function on its own facts. The schedule is
+      `SCHEDULE` above (12 Sep; it was `undefined`, so Maintenance reported
+      no schedule and scored nothing); two recalls score the recalls driver
+      low; 66,000 miles on a 2015 car is a light load. Every sentence on the
+      frame is one the product would write.
     */
+    const schedule = DESIGN_EMPTY.has('schedule') ? [] : SCHEDULE;
     return {
       vehicle: M235I,
+      /*
+        ⚠ A top-level sibling of `vehicle`, as the route returns it — the
+        screen's own docblock records that reading it off the vehicle is
+        `undefined` forever with no error anywhere.
+      */
+      knowledge: { maintenance_schedule: schedule },
       health_drivers: driversForVehicle({
-        schedule: undefined,
-        historyRows: MAINTENANCE,
+        schedule,
+        historyRows: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
         recalls: M235I.nhtsa_data.recalls,
         currentMileage: M235I.current_mileage,
         year: M235I.year,
@@ -251,7 +383,10 @@ export function fixtureFor(path: string): unknown | undefined {
     };
   }
   if (path.startsWith('/load-maintenance-data')) {
-    return { lineItems: [], maintenanceLineItems: MAINTENANCE };
+    return {
+      lineItems: [],
+      maintenanceLineItems: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
+    };
   }
   /*
     ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:

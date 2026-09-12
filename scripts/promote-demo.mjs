@@ -53,6 +53,7 @@
 import { execSync } from 'node:child_process';
 import { retriedNote, runSuite } from './lib/run-suite.mjs';
 import { awaitDeploy } from './lib/await-deploy.mjs';
+import { retiredHostsFor, verifyHostRedirects } from './lib/host-redirects.mjs';
 import { readFileSync } from 'node:fs';
 
 import { demoSignals, siteFraming } from './lib/site-framing.mjs';
@@ -302,9 +303,22 @@ console.log('\nSite role (against the live demo)');
   variable is missing now, promoting is what makes it visible.
 */
 try {
-  const html = await fetch(DEMO, { headers: { 'user-agent': 'crewchief-promote' } }).then((r) =>
-    r.text()
-  );
+  const res = await fetch(DEMO, { headers: { 'user-agent': 'crewchief-promote' }, cache: 'no-store' });
+  const html = await res.text();
+
+  /*
+    ⚠ 12 Sep: the status is read on its own, because this host is now the
+    destination of the retired demo hostnames' 301s (`netlify.toml`), and a
+    301 is sticky in browser caches. The moment the redirect goes live, a
+    recruiter on the old link lands here and stays here — so the destination
+    has to be healthy *before* the promote makes the rule live, not just
+    after. Cowork asked for exactly this check.
+  */
+  if (res.status !== 200) {
+    bad(`the demo host answers ${res.status} — the redirect's destination must be serving before the rule goes live`);
+  } else {
+    ok('demo host answers 200 — the redirect destination is serving');
+  }
 
   /*
     Two independent signals, because either alone is brittle: the masthead is
@@ -483,8 +497,45 @@ returns to its previous build without touching main.
   process.exit(1);
 }
 
+/*
+  ── 12 Sep · the retired demo hostnames must now redirect ──────────────────
+
+  The rule lives in `netlify.toml` and rides this deploy. A rule in a file is
+  not a redirect on a host — Netlify's primary-domain flip proved that the
+  same day by redirecting nothing — so each retired host is asked what it
+  does, with `redirect: 'manual'` so a silent hop cannot pass as a 200 on the
+  old host. The list comes from the file, so a future rule is verified
+  without editing this script, and an empty list is said out loud rather
+  than counted as a pass.
+*/
+const toml = readFileSync(new URL('../netlify.toml', import.meta.url), 'utf8');
+if (retiredHostsFor(toml, DEMO).length === 0) {
+  warn('netlify.toml names no host that redirects to the demo — nothing to verify');
+} else {
+  const redirects = await verifyHostRedirects({ toml, primary: DEMO });
+  for (const c of redirects.checked) {
+    const line = `${c.host} → ${c.status}${c.location ? ` ${c.location}` : ''}`;
+    if (redirects.failures.some((f) => f.startsWith(c.host))) bad(line);
+    else ok(line);
+  }
+  if (redirects.failures.length > 0) {
+    console.log(`
+⚠ ${DEMO} is serving ${mergeShort}, but a retired hostname is not redirecting:
+
+${redirects.failures.map((f) => `  ${f}`).join('\n')}
+
+The page on the old host is still correct (it is the same site), so nothing
+is broken for a visitor — the address bar just still says the old name.
+Check that this deploy's \`netlify.toml\` carries the \`[[redirects]]\` rules
+(Netlify dashboard → tappet-demo → Deploys → the build log lists redirect
+rules it processed), and re-run \`curl -sI https://<old host>/\` by hand.
+`);
+    process.exit(1);
+  }
+}
+
 console.log(`
-${DEMO} is serving ${mergeShort}.
+${DEMO} is serving ${mergeShort}, and the retired demo hostnames redirect to it.
 
   node scripts/verify-demo.mjs
 

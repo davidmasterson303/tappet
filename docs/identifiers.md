@@ -111,9 +111,14 @@ how a guard gets switched off (CLAUDE.md §5).
 ⚠ Deliberately **not** banned, because each is still live and correct:
 `CREWCHIEF_DEMO_SITE` and `WELLKEPT_DEMO_SITE` (both fallback halves, until
 Netlify is renamed — see `lib/site-role.ts`), `crewchief-demo.davidmasterson.co`
-and `wellkept-demo.davidmasterson.co` (still serving, and the first is
-recruiter-facing while David is job hunting), `crewchief-demo.netlify.app` (the
-Bolt stub the demo CNAMEs still point at), and `wellkept.southmoordigital.com`
-and `wellkept-demo.davidmasterson.co`, **both still serving** — the new
-hostnames were added as aliases on 7 Sep and nothing was retired. A blanket ban
-on either dead name would fire on all of them and get switched off.
+and `wellkept-demo.davidmasterson.co` (both **301 to `tappet-demo.davidmasterson.co`**
+once the 12 Sep `netlify.toml` rules reach `demo-live` — the first is the link
+recruiters hold while David is job hunting, which is why it redirects rather
+than dies), `crewchief-demo.netlify.app` (the Bolt stub the demo CNAMEs still
+point at), and `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co`,
+**both still serving 200** — the product pair redirects second, after the demo
+pair is verified live, because that host takes the app's API writes and a 301
+turns a POST into a GET. Both projects' primary domains were flipped to the
+Tappet hostnames on 12 Sep; that setting is inert for redirects (Netlify only
+redirects apex↔`www`), so `netlify.toml` is the redirect. A blanket ban on
+either dead name would fire on all of them and get switched off.

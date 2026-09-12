@@ -1955,6 +1955,197 @@ item. Gap 3 is below.
   go on the scanner. The rule is the band's edge (B5) and the headline is
   the instrument's status line (the web brief's B3); both stay.
 
+### 6.15 The loop over the Service tab — rounds 30–33, 12 Sep
+
+David, on his phone: *"i want design critic loop over service tab. i'm not
+loving the ui, i don't think critic could possibly give that at least an
+8."* Round 30 shot the tab in every state it has (`30-service/`: Due with a
+schedule, History, collapsed, search, the scan's first frame, the pushed
+Service, both empties) and graded it **6/10** — seven lines at partial. The
+critic's sentence: *"History is committed … Due abandons that for sans-bold
+prose rows with a grey slab button under each and a bordered card on top, so
+the tab speaks two dialects and the weaker one is the landing segment. Scan,
+the headline act, opens on a void."* Its three gaps were the Due list (B6,
+B1, B4), the scan's first frame (B9) and the odometer card (B5, B4, B7); its
+Cut list was the empty History's second scan button, the empty Due's
+odometer card and schedule caption, and the pinned search field.
+
+**Round 31 — 7/10, 6 ✅ / 3 🟡 / 0 ❌, `Continue: yes`.** Blind rank: phone
+History, phone Due, web Service — *"an execution quality that betters the web
+sibling's own Service page."* Taken, and what each became:
+
+- **The Due segment is the spec table, and the whole schedule is on it**
+  (`[B6][B1][B4]`). `ServiceMilestoneScreen` drew the next visit as a card of
+  prose with a full-width "Add to wishlist" slab under every row, and nothing
+  else — a car with a schedule and nothing within 5,000 miles read "Nothing
+  due right now" over a blank while six services sat computed and unshown.
+  It is the History row now (mono index, grotesk label, right-aligned mono
+  *position* — "400 MI", "−3,000 MI", a dash where nothing can be counted
+  from — hairline per row) and every evaluated service is on it under three
+  condensed heads: the visit, named for its anchor and carrying
+  `milestoneReason`'s own sentence (the notification body; the two must
+  agree, so it is not re-voiced into caps); COMING UP; TIMED BY DATE, NOT
+  MILEAGE. Web's Due lists every row in urgency order (`ServiceDueList.tsx`)
+  and the phone joins that. ⚠ **Provenance is per row now, not per
+  milestone.** `milestoneBasis` reported the weakest claim a visit could
+  jointly support — honest, and it threw away a distinction the data holds;
+  each row's meta line carries its own `SERVICE_BASIS_LABELS` entry beside
+  the interval, which is what web does and what `service-provenance.ts`
+  argues for. The row's action is the mono caps word the roots give their
+  chrome (ADD, a `ghost` `Button`; ADDED once it is on Needs), in a column
+  of its own so the numerals share an edge. ⚠ The model's per-service
+  `description` is no longer printed on the row — B6's row has no slot for
+  prose — and still travels to Needs with the item.
+- **The odometer gate is a band with the `Field` primitive** (`[B5][B4][B7]`).
+  It was a bordered, tinted card holding a square Inter input beside a
+  second off-white primary. The question stays (R14: the gate is a banner,
+  not a screen; the test still asserts it is asked before anything is
+  asserted), the reading is the `Field` — mono, cut, ODOMETER in the label
+  slot — and THAT IS RIGHT is the secondary hairline so SCAN INVOICE is the
+  only off-white on the screen. After confirmation the reading is a row of
+  the table (ODOMETER · 66,000 MI), not the sans "66,000 miles" line.
+- ⚠ **Fields have a focus state, and the caret is not system blue** (`[B7]`).
+  `Field` had no focus treatment at all; the one thing that changed on focus
+  was the caret, which iOS draws in its own blue unless told otherwise — so
+  the only focus signal on the phone was the hue B7 bans, and the critique
+  saw it on the search field. The stroke steps to `brand.accent` while
+  focused (a `problem` outranks it and keeps sodium), `selectionColor` and
+  `cursorColor` are the accent, and the search field draws the same rule.
+  `primitives.test.tsx` reads the rendered `RNSVGPath` stroke through the
+  focus/blur cycle, so a regression to the default cannot pass silently.
+- **The search field scrolls with the list** (`[B9]`, the Cut list). It was
+  pinned under a note arguing the wishlist filter's case; by round 30 the
+  rail, SCAN INVOICE and the field held ~220pt under the nav with five
+  records scrolling beneath, and the critique named the pin in four rounds.
+  The rail and the primary are the root's; the field is the list's, and it
+  goes where a list's search goes on this platform — first in the list, gone
+  once you are reading. The old note is kept in the screen with the
+  supersession; `ServiceHistoryScreen.test.tsx` holds the field inside the
+  scroller.
+- **One scan control per screen.** The empty History offered SCAN AN INVOICE
+  400px under the pinned SCAN INVOICE; the empty state now has words and no
+  button. The empty Due lost the odometer card and the "Typical schedule …
+  AI-generated" line — nothing to compute from, no schedule to cite — and
+  says NO SCHEDULE YET, which is `nextService`'s own distinction: a car
+  whose every service is unknown is not "nothing due".
+- **The scan's first frame is top-aligned, in the brief's grammar** (`[B9]`,
+  partial). R57's optical centre put two sans paragraphs and two equal
+  buttons 40% down a black field; the critique called the remainder *"a
+  placeholder layout"*. It is a mono caption, one body, one primary and the
+  library as a `ghost` beneath, top-aligned in every state so the block does
+  not jump into the wait. ⚠ **R57 is superseded on this screen** as it was
+  on the roots (§6.9). What the frame still is not is B9's viewfinder —
+  hairline corner brackets over a live feed — which is `expo-camera`, an EAS
+  build (§6.9, §3.23); brackets drawn over graphite would be a picture of a
+  viewfinder, which the critic would rightly call a placeholder. B9 stays 🟡
+  on that build whatever this loop does, and round 31's gap 1 asks for the
+  viewfinder again.
+
+**The fixture grew, in shapes the suites already drive.** `fixtures.ts` now
+carries a typical schedule for the M235i (`SCHEDULE`, `ScheduleEntry`'s
+shape from `service-due.test.ts`), fed to both `knowledge.maintenance_
+schedule` and `driversForVehicle` because the route feeds both; the sweep's
+`next_service_label` / `next_service_at_miles` (the garage row's shape from
+`GarageScreen.test.tsx`) so the garage and the hub stop saying "No schedule
+yet" beside a Due segment listing eight services; and `EXPO_PUBLIC_DESIGN_
+EMPTY=history,schedule`, which answers the two stores empty so the two empty
+states can be shot without editing the file. ⚠ The frame's one warning rests
+on a recollection on purpose: the drive-belt check counts from the owner's
+"Timing belt" at 48,000 (one category in `categoryFor`, the product's own
+rule) and is 3,000 miles past, and the row says "Based on what you told us
+at sign-up" beside it — the claim the provenance line exists to qualify.
+
+**Not taken in round 31, and why:** B2 🟡 is the masthead plate's cut, which
+the critic itself marked *"do not act on this"* (§6.11: the cut is
+bottom-right on a plate whose top edge is the screen's); the strip it
+mentions is Garage's by the brief's own words.
+
+**Round 32 — 7/10, 6 ✅ / 3 🟡, `Continue: yes`.** Taken from round 31's
+gaps 2 and 3 and its Cut list: the History summary carries no total while a
+search is active (its label said "1 OF 5 SHOWN" while its numeral summed all
+five) and none while only one visit is priced (the head one band down
+already says it — `ServiceHistoryScreen.test.tsx` holds both); the
+provenance caption counts the invoice's lines rather than the matches ("a
+1-line invoice" was the filter describing the query); the Due row's numeral
+ends at the rule with ADD on the meta line beside it; the gate's body is
+one sentence; the scan's two paragraphs are one. ⚠ **The row itself is not
+the add affordance**, which the critic proposed in rounds 31, 32 and 33: a
+tap that writes to Needs with no visible verb is a write on a mis-scroll
+(`WishlistAddScreen`, R39, made the same call for its rows), and the History
+row's tap *opens* something one segment away. The verb stays. **For David
+to overrule.** B2 closed on a 4× crop of the masthead's corner, as round 27
+closed the garage's. The two new 🟡s were the implementer's: B7 was the Expo
+dev client's own "Refreshing…" banner across two frames shot seconds after a
+reload (dev chrome, not the app — the app's refresh is the system control
+in `text.muted`, and the brief's ramp is §6.13's unbuilt item), and B1 was
+the condensed face at 15pt read as bold Inter caps — §6.13's misread, one
+size up.
+
+**Round 33 — 7/10, 8 ✅ / 1 🟡, `Continue: yes` — and the loop stops.**
+Taken: the Due group heads and the History visit heads are
+`type.displaySection` at its own 20pt rather than a 15pt override (the web
+sets SPECIFICATION and PERFORMANCE at the token's size, as do the hub's
+rows); `Button`'s `ghost` speaks in `text.secondary` — the roots' chrome ink
+(ADD CAR, ACCOUNT) — because eight of them at full ink down the Due table's
+edge outweighed the numerals, and it **presses to `surface.raised`**, which
+`mobile-pressed-states.test.ts` had described since August while the `FILL`
+map carried no `ghost` entry (a ghost gave no feedback at all; the guard's
+sentence was the only place the rule lived); the air between SCAN INVOICE
+and the first rule is 24pt, not 32; CHOOSE FROM LIBRARY sits on the page
+margin; the empties were re-shot clean. B1, B2, B6 and B7 all ✅; the
+score did not move, and the critic said why: *"the viewfinder is a full
+point; everything else here is polish."* 6 → 7 → 7 → 7 is the loop's own
+two-flat-rounds stop, and the point it is short by is `expo-camera` — an
+EAS build (§6.9), not a design.
+
+**Blind rank, all three rounds:** phone History, phone Due, web Service. The
+critic on the sibling, unprompted: *"the web sibling still ships red
+'Critical' fills and a pill segment; the phone is now ahead of it on B4 and
+B7."* Web's Service page is the one that has drifted from its own system
+(§6.15 opened with the same observation in round 30's parking lot).
+
+**Recorded, not built — the next round's list, ungraded:**
+
+- ~~*The odometer gate's field and verb*~~ (round 33, gap 2, `[B4]`) —
+  **taken after the stop, ungraded** (`dfcbfa9`): the `Field` was 48pt and a
+  small `Button` 44, bottoms aligned, tops 4pt apart — measured on the frame
+  by the critic and confirmed in the source. `CONTROL_HEIGHT = 48` (the
+  brief's figure for a button) now sits beside `TARGET_MIN` and `SPEC_ROW`;
+  `Field` and `Button`'s `small` both read it, `large` keeps its recorded
+  52, and the two strokes measure one edge at 3× (1052–1194px). The gate's
+  question stepped from body to UI size in the same change.
+- *One header treatment* (gap 3, `[B8]`): the collapsed root closes its mono
+  title with a hairline; the pushed native header draws none.
+- *The scan screen's tab bar* (Cut): a full-screen headline act would hide
+  it — with the viewfinder, since the system camera already does.
+- *The pinned rail + primary* (Cut, rounds 31–33): a quarter of the viewport
+  once scrolled; the critic wants the primary to scroll with the list and
+  only the mono title pinned. Round 30's B9 reading made the scan a
+  first-class primary *in every state*; which of the two readings holds is
+  David's.
+- *"mark something done on Needs"* in the empty History: the critic read
+  "Needs" as this tab's Due segment. Needs is the Plan tab's list; the
+  sentence may want the tab's name.
+
+**Parking lot — for David:**
+
+- *SCAN INVOICE could open the camera directly.* The critic's B9 reading
+  across three rounds: the primary should land in the camera, not on a page
+  with a second primary. Without `expo-camera` the only camera is the
+  system's (`expo-image-picker`), which could be opened on push — one tap
+  fewer, and the library reachable after a cancel. That demotes the library
+  the file's own note refuses to demote (*"Not a fallback"*), and it is a
+  flow change, so it is here and not in the code.
+- *A filtered visit's total* (round 33): the head totals the lines on
+  screen ($678 of a $1,313 visit). The screen's docblock argues that is the
+  honest figure; the critic reads it as the visit's cost. One of the two
+  readings should be written down as the rule.
+- *Whether a Due row's tap should add to Needs* — declined three times above,
+  with the reason; the critic has not withdrawn it.
+- *The odometer field's formatting* ("66000" under "66,000 miles?"), the
+  search placeholder's size, and the empty Due naming how a schedule is
+  obtained — the critic's parking lot, unchanged.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

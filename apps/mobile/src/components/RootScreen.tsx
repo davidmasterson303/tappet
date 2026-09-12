@@ -173,13 +173,26 @@ export default function RootScreen({
       Height is a layout property, so this cannot run on the native driver —
       and does not need to: it is one 180ms ease per flip, not a value tracked
       per frame.
+
+      ⚠ Stopped on unmount, and it matters more than 180ms suggests. A JS
+      timing keeps asking for frames after the tree that owned it is gone;
+      under jest that is a `requestAnimationFrame` firing into a torn-down
+      environment, and a suite whose every test passed exited 1 on it
+      (`PlanScreen.test.tsx`, 12 Sep) — a green run read as red by every
+      script and as green by every person. The mount case is the one that
+      leaks: the first run eases from 0 to 0 and a test that reads one prop
+      and returns is finished long before the ease is.
     */
-    Animated.timing(progress, {
+    const ease = Animated.timing(progress, {
       toValue: collapsed ? 1 : 0,
       duration: reduced ? 0 : 180,
       easing: Easing.out(Easing.quad),
       useNativeDriver: false,
-    }).start();
+    });
+    ease.start();
+    return () => {
+      ease.stop();
+    };
   }, [collapsed, progress, reduced]);
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
