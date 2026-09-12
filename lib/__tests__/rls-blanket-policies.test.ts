@@ -256,6 +256,11 @@ export function key(policy: Policy): string {
  * is never, on its own, evidence that the database is open. That takes a
  * catalog read, and the header above has said so since the file was written.
  */
+/** Tables whose every row is public, with no ownership to scope. See the test below. */
+const PUBLIC_BY_DESIGN = new Set<string>([
+  'vehicle_plates:vehicle_plates are readable by everyone',
+]);
+
 const BLANKET_BASELINE = new Set<string>([
   'consultant_documents:Allow all operations on consultant_documents',
   'labor_bundles:Allow all operations on labor_bundles',
@@ -287,9 +292,36 @@ describe('blanket RLS policies, as a rebuild would declare them', () => {
   });
 
   it('introduces no NEW blanket policy reachable by an untrusted caller', () => {
-    const created = reachable.filter((k) => !BLANKET_BASELINE.has(k));
+    const created = reachable.filter((k) => !BLANKET_BASELINE.has(k) && !PUBLIC_BY_DESIGN.has(k));
 
     expect(created).toEqual([]);
+  });
+
+  /*
+    ── Public by design is not a hole, and it is not the baseline either ────
+
+    The argument at the top of this file is about tables with per-user rows:
+    a blanket policy ORs over every scoped one and the scoping is gone. A
+    table with **no** per-user rows has nothing to nullify — `vehicle_plates`
+    (11 Sep) is a library of generated night plates keyed by model generation,
+    read anonymously by the garage so a card can show its plate the moment it
+    is ready. Its `USING (true)` SELECT is the honest declaration, not a
+    rebuild hazard, and filing it in BLANKET_BASELINE would label it as one.
+
+    So it is allowed here under a condition the corpus can check: the table's
+    CREATE carries no ownership-shaped column. The day somebody adds a
+    `user_id` or `vehicle_id` to a public-by-design table, this fails and the
+    read has to be scoped like everything else's.
+  */
+  it.each(Array.from(PUBLIC_BY_DESIGN))('%s has no ownership-shaped column, which is what makes a public read honest', (entry) => {
+    const table = entry.split(':')[0];
+    const corpus = migrationFiles().map((f) => readFileSync(join(MIGRATIONS, f), 'utf8')).join('\n');
+    const create = corpus.match(new RegExp(`CREATE TABLE(?:\\s+IF NOT EXISTS)?\\s+(?:public\\.)?${table}\\s*\\(([\\s\\S]*?)\\n\\);`, 'i'));
+    expect(create).not.toBeNull();
+    const columns = (create as RegExpMatchArray)[1].replace(/--[^\n]*/g, '');
+    expect(columns).not.toMatch(/\b(user_id|owner_id|vehicle_id|requested_by|requested_for|account_id)\b/i);
+    // Anti-vacuous: the same check finds an owner column on a table that has one.
+    expect(corpus).toMatch(/CREATE TABLE(?:\s+IF NOT EXISTS)?\s+(?:public\.)?vehicles\b[\s\S]*?user_id/i);
   });
 
   it('keeps the baseline honest — no already-closed entries left behind', () => {

@@ -23,6 +23,8 @@ interface OnboardingWizardProps {
     make: string;
     model: string;
     trim: string;
+    /** The generation plate asked for at decode, if the library answered in time. */
+    plateKey?: string | null;
   };
 }
 
@@ -331,6 +333,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
       avg_miles_per_month: parseInt(formData.avg_miles_per_month) || 0,
       performance_mindedness: formData.performance_mindedness,
       driving_style: formData.driving_style,
+      plateKey: vehicleData.plateKey ?? null,
     });
 
     if (!result.success) {
