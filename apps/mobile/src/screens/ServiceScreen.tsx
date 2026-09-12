@@ -154,8 +154,15 @@ export function ServiceScreen({
 }
 
 const styles = StyleSheet.create({
-  /* Full-bleed to the page gutter; the control's own cut is its only edge. */
-  scan: { paddingHorizontal: space.lg, paddingBottom: space.md },
+  /*
+    Full-bleed to the page gutter; the control's own cut is its only edge.
+
+    ⚠ 12 Sep: 4 beneath, not 12. Each segment's body opens with `PAGE_BODY`'s
+    20 (nav → first element), so the primary sat 32pt above the first rule
+    on every frame — the critique's Cut list, *"the ~75px of air"*. 4 + 20 is
+    the band spacing the instrument uses (§14.3's 24), which is enough.
+  */
+  scan: { paddingHorizontal: space.lg, paddingBottom: space.xs },
   /*
     Pinned above the content, on the page's own surface. Same rule as the
     history screen's search field: a control whose job is to change what is

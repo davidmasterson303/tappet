@@ -31,7 +31,7 @@ import CutSurface from '../components/CutSurface';
 import SwipeToRemove from '../components/SwipeToRemove';
 import Icon from '../components/Icon';
 import { useRootScroll } from '../components/RootScreen';
-import { border, cut, FIELD_FONT_MIN, PAGE_BODY, radius, SPEC_ROW, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { border, brand, cut, FIELD_FONT_MIN, PAGE_BODY, radius, SPEC_ROW, space, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -131,6 +131,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('');
+  const [searching, setSearching] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -325,59 +326,109 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   */
   const visits = groupIntoVisits(shown);
 
+  /*
+    ── ⚠ 12 Sep · the record's own line count, whatever the search shows ─────
+
+    The provenance line said "Read from a 1-line invoice you scanned" the
+    moment a search narrowed a four-line invoice to one match: the visit was
+    grouped from the filtered list, so its `records.length` was the number of
+    *matches*, and the caption — which describes the document, not the
+    query — was made to lie by the filter. The critique caught it in the
+    search frame (round 31). So the count comes from the unfiltered
+    grouping, keyed by the visit the filtered one is a subset of.
+  */
+  const linesOnRecord = new Map(
+    groupIntoVisits(state.records).map((visit) => [visit.key, visit.records.length])
+  );
+
+  /*
+    ── ⚠ 12 Sep · the summary's numeral describes the rows beneath it ────────
+
+    "1 OF 5 SHOWN · 4 PRICED   $1,313" above a single $678 row: the label said
+    one row was showing and the numeral summed all five. B6's column has one
+    job — the number that the rows beneath add up to — so while a search is
+    active the summary is the count and nothing else; the visit head carries
+    the total of what is actually on screen.
+
+    And with **one priced** visit the summary's total is that visit head's
+    total, one band apart — the critique's Cut list. The summary sums visits;
+    until two of them carry a figure there is nothing for it to sum that a
+    head does not already say (a recollection with no cost is a visit, not a
+    figure), so the numeral, and the "N priced" that qualifies it, appear
+    only once there are two.
+  */
+  const summarises =
+    !query && counted > 0 && visits.filter((visit) => visit.counted > 0).length > 1;
+
+  /*
+    ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
+    a hand-rolled search box rather than the `Field` primitive — giving
+    `Field` the cut left this one square, which is how the critique kept
+    finding "the search field is square" after the fix had landed.
+
+    ⚠ 12 Sep · B7: the caret was system blue. iOS draws a `TextInput`'s caret
+    in its own tint unless told otherwise, so the one thing that changed when
+    this field took focus was the one hue the brief bans (*"no system
+    blue"*); the critique saw it in the search frame. `selectionColor` is the
+    caret and the selection on iOS, and the stroke steps to cyan for as long
+    as the field has focus — the brief's *"cyan hairline on focus"*, the same
+    rule `Field` now draws.
+  */
+  const search =
+    state.records.length > 0 ? (
+      <CutSurface
+        style={styles.search}
+        cut={['bottomRight']}
+        size={cut.control}
+        fill={surface.well}
+        stroke={searching ? brand.accent : border.field}
+      >
+        <Icon name="search" size={17} />
+        <TextInput
+          style={styles.searchInput}
+          value={filter}
+          onChangeText={setFilter}
+          onFocus={() => setSearching(true)}
+          onBlur={() => setSearching(false)}
+          selectionColor={brand.accent}
+          cursorColor={brand.accent}
+          placeholder="Search services"
+          placeholderTextColor={text.muted}
+          accessibilityLabel="Search this service history"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {filter.length > 0 && (
+          <Pressable
+            onPress={() => setFilter('')}
+            accessibilityRole="button"
+            accessibilityLabel="Clear the search"
+            style={styles.searchClear}
+          >
+            <Icon name="x" size={16} />
+          </Pressable>
+        )}
+      </CutSurface>
+    ) : null;
+
   return (
     /*
-      ── ⚠ The search is pinned, not scrolled ──────────────────────────────────
+      ── ⚠ The search scrolls with the list — it was pinned, 12 Sep ───────────
 
-      Same fix as the wishlist's filter, for the same reason: a control whose
-      job is to shorten a list must not scroll away with the list. By the time
-      you have scrolled far enough to want it, it is off screen — so you scroll
-      back up to reach the thing that would have saved you the scrolling.
-
-      Outside the scroller rather than `stickyHeaderIndices`, because sticky
-      headers on a `ScrollView` with `keyboardShouldPersistTaps` behave
-      inconsistently on Android once the keyboard resizes the frame, and this is
-      a text input.
+      It sat outside the scroller under a note arguing the wishlist filter's
+      case: *"a control whose job is to shorten a list must not scroll away
+      with the list. By the time you have scrolled far enough to want it, it
+      is off screen."* That was written when the field was the only chrome
+      above the record. By round 30 the rail, SCAN INVOICE and the field held
+      ~220pt under the nav — a third of the display — and five records
+      scrolled under them; the critique named the pin in three rounds and cut
+      it in the fourth. The rail and the primary are the root's (B8, B9); the
+      field is the list's, and it goes where a list's search goes on this
+      platform: first in the list, gone once you are reading, one flick back.
+      What the old note protected survives in the platform's own habit rather
+      than in a pin.
     */
     <View style={styles.screen}>
-      {/*
-        ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
-        a hand-rolled search box rather than the `Field` primitive — giving
-        `Field` the cut left this one square, which is how the critique kept
-        finding "the search field is square" after the fix had landed.
-      */}
-      {state.records.length > 0 && (
-        <CutSurface
-          style={[styles.search, styles.searchPinned]}
-          cut={['bottomRight']}
-          size={cut.control}
-          fill={surface.well}
-          stroke={border.field}
-        >
-          <Icon name="search" size={17} />
-          <TextInput
-            style={styles.searchInput}
-            value={filter}
-            onChangeText={setFilter}
-            placeholder="Search services"
-            placeholderTextColor={text.muted}
-            accessibilityLabel="Search this service history"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {filter.length > 0 && (
-            <Pressable
-              onPress={() => setFilter('')}
-              accessibilityRole="button"
-              accessibilityLabel="Clear the search"
-              style={styles.searchClear}
-            >
-              <Icon name="x" size={16} />
-            </Pressable>
-          )}
-        </CutSurface>
-      )}
-
       <ScrollView
         /*
           R37 / R57 centred this while there was nothing on file. 11 Sep: top-
@@ -396,20 +447,24 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
         /*
           ⚠ This used to carry no action, and said so: *"this screen has no
           navigation callbacks — only a vehicle id and a sign-out — so an
-          'action' here could not go anywhere."* It has one now. The note is
-          kept because it is the reason the copy read the way it did, and
-          because the fix was to give the screen the callback rather than to
-          reword around the gap.
+          'action' here could not go anywhere."* Then it had one, and then the
+          scan became the root's pinned primary (B9, 6 Sep), so the empty state
+          was offering a second SCAN AN INVOICE 400px under the first — the
+          critique's Cut list, round 30: *"one button, one label."* The body
+          still names the way in, and the way in is on screen in every state
+          of this tab; `onScan` stays a prop because the pinned control is the
+          root's, not this segment's, and a segment mounted somewhere without
+          it would need the door back.
         */
         <EmptyState
           inset={false}
           headline="Nothing recorded yet"
-          body="Scan an invoice, or mark something done on the wishlist, and it will appear here."
-          actionLabel="Scan an invoice"
-          onAction={onScan}
+          body="Scan an invoice, or mark something done on Needs, and it will appear here."
         />
       ) : (
         <>
+          {search}
+
           {/*
             ── R35 · a label, not a word after a figure ─────────────────────
 
@@ -440,12 +495,12 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 query
                   ? `${shown.length} of ${state.records.length} shown`
                   : `${state.records.length} ${state.records.length === 1 ? 'service' : 'services'}`,
-                counted > 0 && counted !== state.records.length ? `${counted} priced` : null,
+                summarises && counted !== state.records.length ? `${counted} priced` : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
-            {counted > 0 && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
+            {summarises && <Text style={styles.summaryCost}>{formatCurrency(total)}</Text>}
           </View>
 
           {shown.length === 0 && (
@@ -625,7 +680,9 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                 it is attached to.
               */}
               <View style={styles.foot}>
-                <Text style={styles.provenance}>{visitProvenance(visit)}</Text>
+                <Text style={styles.provenance}>
+                  {visitProvenance(visit, linesOnRecord.get(visit.key) ?? visit.records.length)}
+                </Text>
               </View>
             </Card>
           ))}
@@ -683,10 +740,11 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
  * later added a line to by hand — and the honest wording is the general one
  * rather than picking whichever source came first.
  */
-function visitProvenance(visit: ServiceVisit): string {
+function visitProvenance(visit: ServiceVisit, linesOnRecord: number): string {
   if (visit.scanned) {
-    const lines = visit.records.length;
-    return `Read from a ${lines}-line invoice you scanned`;
+    // The document's line count, not the visit's — a search can narrow the
+    // visit to a subset of the invoice it was read from.
+    return `Read from a ${linesOnRecord}-line invoice you scanned`;
   }
 
   const sources = new Set(
@@ -719,9 +777,8 @@ function visitProvenance(visit: ServiceVisit): string {
 */
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: surface.page },
-  /* Pinned above the scroller, on the page's own surface so nothing shows through. */
-  searchPinned: { marginHorizontal: space.lg, marginTop: space.lg, marginBottom: 0 },
   noMatch: { ...type.body, color: text.secondary, paddingVertical: space.md },
+  /* First in the list, at the page's gutter; the body's own gap separates it. */
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -729,7 +786,6 @@ const styles = StyleSheet.create({
     minHeight: TARGET_MIN,
     paddingHorizontal: space.md,
     /* ⚠ Ground and border are `CutSurface`'s now; a fill here squares the cut. */
-    marginBottom: space.sm,
   },
   /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
   searchInput: { flex: 1, color: text.primary, fontFamily: interFace('400'),
@@ -765,7 +821,8 @@ const styles = StyleSheet.create({
   /* ── R17 · the visit's head ─────────────────────────────────────────────── */
   visitHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   visitIdentity: { flexShrink: 1, gap: 2 },
-  visitShop: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
+  /* 12 Sep: the token's size, not 15 — see `ServiceMilestoneScreen`'s `groupLabel`. */
+  visitShop: { ...type.displaySection, color: text.primary },
   /* R11. A date is data. */
   visitDate: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* R11. The visit's total, and the biggest figure on the card. */

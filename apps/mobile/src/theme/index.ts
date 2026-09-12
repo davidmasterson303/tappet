@@ -845,6 +845,22 @@ export const OPTICAL_CENTRE = {
 export const TARGET_MIN = 44;
 
 /**
+ * A field, and the small control that sits beside one — the brief's 48.
+ *
+ * ── 12 Sep · one height for a field and its verb ────────────────────────────
+ *
+ * `Field` was 48 by its own literal and `Button`'s `small` was `TARGET_MIN`,
+ * so the odometer gate's field and its THAT IS RIGHT sat bottom-aligned with
+ * their tops 4pt apart — measured on the frame by the critic (round 33) and
+ * confirmed in the source. The brief's studio paragraph gives buttons 48 and
+ * says *"fields share the geometry"*; `large` keeps its recorded 52 (see
+ * `Button`), and `small` takes this, so a field and a small control share
+ * one edge wherever they meet. Beside `TARGET_MIN` for the reason `SPEC_ROW`
+ * is: a height, not a gap, and not a step of the spacing scale.
+ */
+export const CONTROL_HEIGHT = 48;
+
+/**
  * A spec-table row, rule to rule — B6's *"hairline per 56pt row"*.
  *
  * ⚠ 11 Sep: the service record's lines measured 44 — `TARGET_MIN` plus the

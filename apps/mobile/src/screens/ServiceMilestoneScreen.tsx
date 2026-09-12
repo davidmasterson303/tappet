@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import Card from '../components/Card';
 import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+import Field from '../components/Field';
 import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
@@ -18,21 +11,22 @@ import {
   evaluateSchedule,
   milestoneReason,
   nextMilestone,
-  type Milestone,
   type ScheduleEntry,
   type ServiceDue,
 } from '@tappet/core/service-due';
 import {
   SCHEDULE_BASIS_LABELS,
   SERVICE_BASIS_LABELS,
-  milestoneBasis,
+  serviceBasis,
 } from '@tappet/core/service-provenance';
 import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
-  OPTICAL_CENTRE,
+  CONTROL_HEIGHT,
   PAGE_BODY,
+  SPEC_ROW,
+  TABULAR,
   border,
   radius,
   space,
@@ -62,9 +56,9 @@ import { interFace } from '../theme/fonts';
  *
  * This app has shipped unsubstantiated provenance claims twice, and
  * `provenance-claims.test.ts` exists because of it. Every label here derives
- * from `evaluateSchedule`'s own `evidence` field, and a milestone takes the
- * weakest claim its services can jointly support — because a reader takes "from
- * your service records" as covering the lot.
+ * from `evaluateSchedule`'s own `evidence` field, and each row carries the
+ * claim its own evidence supports — because a reader takes "from your service
+ * records" as covering whatever it sits beside.
  *
  * Three rungs since Track A2a, not two: records, then what the owner told us at
  * sign-up, then a bare estimate. The middle one exists because an invoice is a
@@ -73,11 +67,42 @@ import { interFace } from '../theme/fonts';
  * would appear here without an edit — `isServiceBasis` is what stops an
  * unrecognised one drawing a blank chip.
  *
+ * ── ⚠ 12 Sep · per row, not per milestone ───────────────────────────────────
+ *
+ * The milestone used to carry one line — `milestoneBasis`, the *weakest* claim
+ * its services could jointly support — so a visit mixing an invoice with an
+ * estimate said "estimated" over both. Conservative, and true, but it threw
+ * away a distinction the data holds. Web's due list (`ServiceDueList.tsx`)
+ * answers per row, and `service-provenance.ts` argues at length why the three
+ * sources must never share a sentence; the phone joins that: every row that
+ * has a position says where the position came from, in its own line.
+ *
  * ── What is deliberately not here ───────────────────────────────────────────
  *
- * Nothing books an appointment. The wishlist is the action: it is what the
- * advisor prices, and adding a job to it is the step that actually leads
- * somewhere in this product.
+ * Nothing books an appointment. Needs — the Plan tab's list — is the action:
+ * it is what the advisor prices, and adding a job to it is the step that
+ * actually leads somewhere in this product.
+ *
+ * ── ⚠ 12 Sep · the list is the spec table, and the whole schedule is on it ──
+ *
+ * Locked brief B6: *"Factors, recommendations and every record list are a mono
+ * spec table with 01 indices, right-aligned numerals, hairline rows."* This
+ * segment was the one list on the phone that was not: bold sans heads, prose
+ * rows, and a full-width "Add to wishlist" slab under each of them, inside a
+ * bordered card. The critique's words (round 30): *"the tab speaks two
+ * dialects and the weaker one is the landing segment."*
+ *
+ * It is the History table now — the same row the record list draws, with the
+ * position where the price goes — and it lists **every** service the schedule
+ * evaluates, not only the next visit. The screen used to show the milestone
+ * and nothing else, so a car with a schedule and nothing due read "Nothing due
+ * right now" over a blank, and the six services coming up were invisible.
+ * Web's Due lists them all in urgency order (`ServiceDueList.tsx`, 8 Sep:
+ * *"Due computes what is due, instead of listing the schedule"*), and the
+ * phone joins that. The milestone is still the unit — it heads the table and
+ * carries the notification's own sentence — and what is not part of the visit
+ * sits under its own head beneath it, so the grouping `service-due.ts` argues
+ * for is visible rather than implied by omission.
  */
 
 interface Props {
@@ -146,6 +171,72 @@ type State =
 
 const miles = new Intl.NumberFormat('en-US');
 
+/**
+ * The numeral column: where this car stands against the interval.
+ *
+ * ⚠ The *position*, never the interval. "5,000 MI" in the value column of a
+ * row whose car is 400 miles from that service would be the reading the data
+ * does not support — the rule it was computed from is in the meta line, where
+ * a rule goes. Negative when the car is past it, and the sign is kept: a
+ * countdown that has gone through zero is the instrument reading, and the
+ * sodium mark beside the name is what says it is a warning (B7). A row with
+ * nothing to count from draws a dash rather than a number, because `null` is
+ * "we cannot say" (`CLAUDE.md` §6) and its group head says why.
+ */
+function positionLabel(service: ServiceDue): string | null {
+  if (service.status === 'unknown') return null;
+
+  if (service.drivenBy === 'time' && service.monthsRemaining !== null) {
+    const months = Math.round(Math.abs(service.monthsRemaining));
+    return `${service.monthsRemaining < 0 ? '−' : ''}${months} MO`;
+  }
+
+  if (service.milesRemaining !== null) {
+    const distance = miles.format(Math.abs(Math.round(service.milesRemaining)));
+    return `${service.milesRemaining < 0 ? '−' : ''}${distance} MI`;
+  }
+
+  return null;
+}
+
+/** The same position, as a sentence for the reader. */
+function positionSentence(service: ServiceDue): string | null {
+  if (service.status === 'unknown') return 'no date on record';
+
+  if (service.drivenBy === 'time' && service.monthsRemaining !== null) {
+    const months = Math.round(Math.abs(service.monthsRemaining));
+    const unit = months === 1 ? 'month' : 'months';
+    return service.monthsRemaining < 0 ? `${months} ${unit} overdue` : `due in ${months} ${unit}`;
+  }
+
+  if (service.milesRemaining !== null) {
+    const distance = miles.format(Math.abs(Math.round(service.milesRemaining)));
+    return service.milesRemaining < 0 ? `${distance} miles overdue` : `due in ${distance} miles`;
+  }
+
+  return null;
+}
+
+/**
+ * "Every 5,000 mi or 12 months", from whichever halves the entry carries.
+ *
+ * Web's `MaintenanceItemCard` words it the same way, and for the same reason
+ * returns nothing when neither half is present: `evaluateSchedule` has already
+ * dropped an entry with no usable interval, so a row here always has one, but
+ * a reader of this function should not have to know that.
+ */
+function intervalLabel(service: ServiceDue): string | null {
+  const byMiles = service.intervalMiles ? `${miles.format(service.intervalMiles)} mi` : null;
+  const byMonths = service.intervalMonths
+    ? `${service.intervalMonths} ${service.intervalMonths === 1 ? 'month' : 'months'}`
+    : null;
+
+  if (byMiles && byMonths) return `Every ${byMiles} or ${byMonths}`;
+  if (byMiles) return `Every ${byMiles}`;
+  if (byMonths) return `Every ${byMonths}`;
+  return null;
+}
+
 export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   /*
     B8 · the root's scroll contract. `null` when this screen is pushed with a
@@ -157,6 +248,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const [reading, setReading] = useState('');
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState<string[]>([]);
+  const [adding, setAdding] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -275,8 +367,9 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     }
   }, [state, reading, saving, vehicleId, onSignOut]);
 
-  const addToWishlist = useCallback(
+  const addToNeeds = useCallback(
     async (service: ServiceDue) => {
+      setAdding(service.service);
       try {
         await apiRequest('/wishlist', {
           method: 'POST',
@@ -309,6 +402,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
           return;
         }
         Alert.alert('Could not add that', apiError.message ?? 'Try again in a moment.');
+      } finally {
+        setAdding(null);
       }
     },
     [vehicleId, onSignOut]
@@ -336,6 +431,36 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   }
 
   /*
+    ── ⚠ 12 Sep · nothing to compute from is its own state ───────────────────
+
+    With no schedule there is nothing the odometer is *for* on this screen —
+    every figure below the gate is derived from the reading, and there are no
+    figures — so the gate, the "Nothing due right now" head and the "Typical
+    schedule…" line all went, on the critique's Cut list and on the sense of
+    it: a caption citing a schedule the car does not have, over a question
+    whose answer changes nothing. The honest words are `nextService`'s: a car
+    whose every service is unknown is *"no schedule yet"*, never *"nothing
+    due"* — those are different claims and only one of them is safe. The
+    odometer is still editable where it is a fact about the car, on What you
+    told us.
+
+    No action: SCAN INVOICE is pinned above every state of this tab, and the
+    history's empty state lost its second copy of the same button for the
+    same reason (one button, one label).
+  */
+  if (state.schedule.length === 0) {
+    return (
+      <ScrollView contentContainerStyle={styles.body} {...rootScroll}>
+        <EmptyState
+          inset={false}
+          headline="No schedule yet"
+          body="This car has no structured service schedule yet, so nothing can be worked out from its mileage."
+        />
+      </ScrollView>
+    );
+  }
+
+  /*
     ── ⚠ R14 / §5 · the gate is a banner, not a screen ───────────────────────
 
     This used to `return` here: the whole screen was one question, one field and
@@ -354,28 +479,50 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     everything below is derived from; a banner that could be waved away would
     leave a schedule quietly computed from a number nobody confirmed, with
     nothing on screen saying so.
+
+    ── ⚠ 12 Sep · a band, not a card; a field, not a box ─────────────────────
+
+    It was a bordered, tinted card (B5: *"cards become hairline-ruled bands"*)
+    holding a square sans input (B4, B1) and a second off-white primary 60pt
+    under SCAN INVOICE (one filled primary per screen — `Button`'s rule, and
+    the critique counted both). It is a band now: the question in the body
+    sans, the reading in the `Field` primitive — mono, cut, cyan hairline and
+    caret on focus — and THAT IS RIGHT stepped down to the secondary hairline,
+    so the scan is the only off-white on the screen.
   */
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
       <Text style={styles.confirmLead}>Still around {miles.format(state.mileage)} miles?</Text>
-      <Text style={styles.confirmBody}>
-        What is due depends on the odometer. The list below is worked out from this reading.
-      </Text>
+      {/*
+        One sentence. "What is due depends on the odometer" said the same
+        thing as the line that follows it, and the critique's Cut list said
+        keep one; this is the one the §10 test holds — the list is computed
+        from the reading, and the screen says so.
+      */}
+      <Text style={styles.confirmBody}>The list below is worked out from this reading.</Text>
 
+      {/* The field and its verb on one line — it is one question, not a form. */}
       <View style={styles.confirmRow}>
-        <TextInput
-          style={styles.input}
-          value={reading}
-          onChangeText={setReading}
-          keyboardType="number-pad"
-          accessibilityLabel="Current mileage"
-          returnKeyType="done"
-          onSubmitEditing={() => void confirm()}
-        />
+        <View style={styles.confirmField}>
+          {/*
+            No `hint`. "miles" sat in the label row's far corner — the field's,
+            not the band's, so mid-screen beside the verb — and the question
+            two lines up already names the unit. The strip and the reading row
+            below set the same value as "66,000 MI"; the field is where it is
+            typed, and a person typing an odometer is not in doubt about the
+            unit.
+          */}
+          <Field
+            label="Odometer"
+            value={reading}
+            onChangeText={setReading}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            onSubmitEditing={() => void confirm()}
+          />
+        </View>
 
         {/*
-          The filled primary, from the primitive.
-
           ⚠ It also closes a double-submit. This was a bare `Pressable` with no
           `disabled` — the label changed to "Saving…" and the control stayed
           live, so a second tap fired `confirm()` again mid-write. `Button`'s
@@ -385,11 +532,10 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         */}
         <Button
           label="That is right"
-          variant="primary"
+          variant="outline"
           size="small"
           busy={saving}
           busyLabel="Saving"
-
           onPress={() => void confirm()}
           style={styles.confirmAction}
         />
@@ -417,7 +563,53 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     ...historyLookups(state.history),
   });
   const milestone = nextMilestone(services, { horizonMiles: 5_000 });
+  const inMilestone = new Set(milestone?.services.map((service) => service.service) ?? []);
+  /*
+    Surfaced, not hidden. A time-based service with no recorded date cannot
+    be placed on the odometer — and dropping it silently is how brake fluid
+    went missing from every car in the product.
+  */
   const unknowns = services.filter((service) => service.status === 'unknown');
+  const later = services.filter(
+    (service) => service.status !== 'unknown' && !inMilestone.has(service.service)
+  );
+
+  /*
+    The groups, in the order a reader wants them: the visit to book, what comes
+    after it, what cannot be placed. `evaluateSchedule` already sorts by
+    urgency, so each group keeps that order, and the index runs across the
+    whole table — it is the order to do them in, and a number that restarted
+    under each head would read as three lists.
+  */
+  const groups: Array<{ key: string; label: string; detail: string | null; rows: ServiceDue[] }> =
+    [];
+  if (milestone) {
+    groups.push({
+      key: 'milestone',
+      label: milestone.mileage === null ? 'Next service' : `${miles.format(milestone.mileage)} service`,
+      detail: milestoneReason(milestone, state.mileage),
+      rows: milestone.services,
+    });
+  }
+  if (later.length > 0) {
+    groups.push({
+      key: 'later',
+      label: milestone ? 'Coming up' : 'Nothing due right now',
+      detail: milestone ? null : 'The next service is far enough out that it is not worth a trip.',
+      rows: later,
+    });
+  }
+  if (unknowns.length > 0) {
+    groups.push({
+      key: 'unknown',
+      label: 'Timed by date, not mileage',
+      detail:
+        'Nothing on record says when these were last done, so there is no due date to work out. Scanning the invoice would fix that.',
+      rows: unknowns,
+    });
+  }
+
+  let index = 0;
 
   return (
     <ScrollView
@@ -429,117 +621,178 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
 
       {/*
         R33, the other state. The nav carries the car; what this screen adds is
-        the reading everything below is derived from.
+        the reading everything below is derived from — a row of the table, in
+        the table's voice, rather than the sans line it was (B1, B6).
       */}
       {confirmed ? (
-        <Text style={styles.mileageLine}>{miles.format(state.mileage)} miles</Text>
+        <View style={styles.readingRow}>
+          <Text style={styles.readingLabel}>Odometer</Text>
+          <Text style={styles.readingValue}>{miles.format(state.mileage)} MI</Text>
+        </View>
       ) : null}
 
-      {milestone ? (
-        <MilestoneBlock
-          milestone={milestone}
-          currentMileage={state.mileage}
-          added={added}
-          onAdd={addToWishlist}
-        />
-      ) : (
-        <Card style={styles.cardGap}>
-          <Text style={styles.cardTitle}>Nothing due right now</Text>
-          <Text style={styles.body14}>
-            {services.length === 0
-              ? 'This car has no structured service schedule yet, so nothing can be worked out from its mileage.'
-              : 'The next service is far enough out that it is not worth a trip.'}
-          </Text>
-        </Card>
-      )}
+      <View style={styles.table}>
+        {groups.map((group) => (
+          <View key={group.key}>
+            <View style={styles.groupHead}>
+              <Text style={styles.groupLabel} accessibilityRole="header">
+                {group.label}
+              </Text>
+              {group.detail ? <Text style={styles.groupDetail}>{group.detail}</Text> : null}
+            </View>
 
-      {/*
-        Surfaced, not hidden. A time-based service with no recorded date cannot
-        be placed on the odometer — and dropping it silently is how brake fluid
-        went missing from every car in the product.
-      */}
-      {unknowns.length > 0 && (
-        <Card style={styles.cardGap}>
-          <Text style={styles.cardTitle}>Timed by date, not mileage</Text>
-          <Text style={styles.body14}>
-            Nothing on record says when these were last done, so there is no due date to work
-            out. Scanning the invoice would fix that.
-          </Text>
-          {unknowns.map((service) => (
-            <Text key={service.service} style={styles.unknownItem}>
-              · {service.service}
-              {service.intervalMonths ? ` — every ${service.intervalMonths} months` : ''}
-            </Text>
-          ))}
-        </Card>
-      )}
+            {group.rows.map((service) => {
+              index += 1;
+              return (
+                <DueRow
+                  key={service.service}
+                  index={index}
+                  service={service}
+                  added={added.includes(service.service)}
+                  adding={adding === service.service}
+                  onAdd={() => void addToNeeds(service)}
+                />
+              );
+            })}
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.footnote}>{SCHEDULE_BASIS_LABELS['generated-schedule']}</Text>
     </ScrollView>
   );
 }
 
-function MilestoneBlock({
-  milestone,
-  currentMileage,
+/**
+ * One service, as a row of the spec table.
+ *
+ * The History row's shape: the mono index, the grotesk label, the mono numeral
+ * right-aligned, a hairline per row (B6) — and beneath the label, in the quiet
+ * sans the record's provenance line uses, the rule the position was computed
+ * from and where the count started (`service-provenance.ts`).
+ *
+ * ── The action is a word in the row, not a slab under it ────────────────────
+ *
+ * "Add to wishlist" was a full-width graphite button under every row — the
+ * critique's *"list-item-with-CTA templating"*, three of them outweighing the
+ * three lines they served. It is a mono caps word now, the voice the roots
+ * give their chrome (ADD CAR, ADD, ACCOUNT). Once added it becomes its state
+ * — ADDED, in the state ink, no longer pressable — because the outcome the
+ * control wanted is the thing to show, not a disabled verb.
+ *
+ * ⚠ 12 Sep · **on the meta line, so the numeral reaches the rule.** Round 31
+ * put the word in a column of its own beside the position, and the critique
+ * measured what that cost: every numeral stopped inboard of the rule by the
+ * column's width, and the longest name wrapped to an orphaned "inspect". A
+ * spec table's numerals end at the rule (B6; the History rows do), so the
+ * head line is index, name, mark, position — the record row exactly — and
+ * the action sits at the end of the second line, beside the rule it was
+ * computed from. Its 44pt target is centred on that 16pt line and reaches
+ * into the head line above it; the row does not grow around it.
+ *
+ * ⚠ The row itself is deliberately **not** the affordance, which is what the
+ * critique proposed instead. A tap that writes a row to Needs, with no
+ * visible verb, is a write on a mis-scroll; `WishlistAddScreen` made the same
+ * call for its own rows (R39: *"the card itself is deliberately not the
+ * affordance"*), and the History row's tap *opens* something rather than
+ * writing. The verb stays visible; it moves off the numeral's line.
+ *
+ * ⚠ The name is in the accessible label: "ADD" alone is unambiguous to an eye
+ * that can see the row it sits in, and ambiguous to a reader that hears
+ * eight of them.
+ */
+function DueRow({
+  index,
+  service,
   added,
+  adding,
   onAdd,
 }: {
-  milestone: Milestone;
-  currentMileage: number;
-  added: string[];
-  onAdd: (service: ServiceDue) => void;
+  index: number;
+  service: ServiceDue;
+  added: boolean;
+  adding: boolean;
+  onAdd: () => void;
 }) {
-  const basis = milestoneBasis(milestone.services);
+  const overdue = service.status === 'overdue';
+  const position = positionLabel(service);
+  const basis = service.status === 'unknown' ? null : SERVICE_BASIS_LABELS[serviceBasis(service.evidence)];
+  const interval = intervalLabel(service);
+  const spoken = [service.service, positionSentence(service)].filter(Boolean).join(', ');
 
   return (
-    <Card style={styles.cardGap}>
-      <Text style={styles.cardTitle}>
-        {milestone.mileage === null
-          ? 'Next service'
-          : `The ${miles.format(milestone.mileage)} service`}
-      </Text>
-      <Text style={styles.reason}>{milestoneReason(milestone, currentMileage)}</Text>
+    <View style={styles.row}>
+      <View style={styles.rowHead}>
+        <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+          {String(index).padStart(2, '0')}
+        </Text>
 
-      {/*
-        The provenance claim, derived rather than asserted. `milestoneBasis`
-        reports the weaker of the two whenever the evidence is mixed.
-      */}
-      <Text style={styles.basis}>{SERVICE_BASIS_LABELS[basis]}</Text>
+        <Text style={styles.name} accessibilityLabel={spoken}>
+          {service.service}
+        </Text>
 
-      {milestone.services.map((service) => {
-        const isAdded = added.includes(service.service);
+        {overdue ? (
+          /*
+            ⚠ `△` (U+25B3) in sodium — B7's *"hairline triangle beside a
+            genuine warning"*, and a service the car has driven past is the
+            one genuine warning this table has. `due` and `soon` carry no
+            mark: the numeral says how close, and a triangle on every row that
+            is merely coming up is the amber-on-everything the chip family's
+            rule exists to prevent. Beside the *reading* rather than the name,
+            so every name in the table keeps the shared left edge a spec table
+            is — the garage puts it beside OPEN RECALLS because that row's
+            warning is its label; this row's warning is its number. Hidden
+            from the reader, whose sentence already says "overdue".
+          */
+          <Text style={styles.mark} accessibilityElementsHidden>
+            △
+          </Text>
+        ) : null}
 
-        return (
-          <View key={service.service} style={styles.service}>
-            <View style={styles.serviceHead}>
-              <Text style={styles.serviceName}>{service.service}</Text>
-              {service.status === 'overdue' && <Text style={styles.overdue}>Overdue</Text>}
-            </View>
+        {position ? (
+          <Text style={styles.position} accessibilityElementsHidden>
+            {position}
+          </Text>
+        ) : (
+          <Text style={styles.positionNone} accessibilityElementsHidden>
+            —
+          </Text>
+        )}
+      </View>
 
-            {service.description ? (
-              <Text style={styles.body14}>{service.description}</Text>
-            ) : null}
+      <View style={styles.rowFoot}>
+        {interval || basis ? (
+          <Text style={styles.meta}>
+            {interval}
+            {interval && basis ? ' · ' : null}
+            {/*
+              Its own node, so the claim is findable as the sentence core wrote
+              — the provenance tests look for `SERVICE_BASIS_LABELS[...]` whole.
+            */}
+            {basis ? <Text style={styles.metaBasis}>{basis}</Text> : null}
+          </Text>
+        ) : (
+          <View style={styles.metaSpacer} />
+        )}
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isAdded }}
-              accessibilityLabel={
-                isAdded
-                  ? `${service.service} is on the wishlist`
-                  : `Add ${service.service} to the wishlist`
-              }
-              style={[styles.addCta, isAdded && styles.addCtaDone]}
-              onPress={() => !isAdded && onAdd(service)}
-            >
-              <Text style={[styles.addCtaText, isAdded && styles.addCtaDoneText]}>
-                {isAdded ? 'On the wishlist' : 'Add to wishlist'}
-              </Text>
-            </Pressable>
-          </View>
-        );
-      })}
-    </Card>
+        {added ? (
+          <Text style={styles.addedText} accessibilityLabel={`${service.service} is on Needs`}>
+            Added
+          </Text>
+        ) : (
+          <Button
+            label="Add"
+            variant="ghost"
+            size="small"
+            busy={adding}
+            busyLabel=""
+            accessibilityLabel={`Add ${service.service} to Needs`}
+            onPress={onAdd}
+            style={styles.action}
+          />
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -547,85 +800,135 @@ const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
-  mileageLine: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 14, marginTop: -10 },
-
-  /* ── R14 · the confirm banner ──────────────────────────────────────────── */
+  /* ── R14 · the confirm band ────────────────────────────────────────────── */
+  /*
+    B5: a top rule and the page's own surface. The table beneath opens with a
+    rule of its own, so this band closes on nothing — two hairlines a pixel
+    apart read as a seam, which is `Card`'s argument for a top rule only.
+  */
   confirm: {
-    backgroundColor: surface.card,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: border.panel,
-    padding: PAGE_BODY.paddingHorizontal,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+    paddingTop: space.lg,
     gap: space.sm,
   },
-  confirmLead: { ...type.bodyStrong, color: text.primary },
+  /*
+    UI size, not body: at 16 the question read at the section head's scale
+    beside 63,000 SERVICE (round 33), and it is a control's question — the
+    label of the field beneath it, one step above the sentence that follows.
+  */
+  confirmLead: { ...type.ui, color: text.primary },
   confirmBody: { ...type.value, color: text.muted },
-  /* The field and its verb on one line — it is one question, not a form. */
-  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  /*
+    Bottoms aligned: the field carries its label above the input, so the row's
+    top edge is the label's and the verb sits beside the input, not the label.
+  */
+  confirmRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, marginTop: space.xs },
+  confirmField: { flex: 1 },
   confirmAction: { flexShrink: 0 },
 
-  input: {
-    flex: 1,
-    backgroundColor: surface.raised,
-    borderRadius: radius.button,
-    paddingHorizontal: 14,
-    fontFamily: interFace('400'),
-    fontSize: 16,
-    color: text.primary,
-    minHeight: 48,
-  },
-
-
-  /**
-   * The card, on the ladder rather than beside it.
-   *
-   * ⚠ This was a **private copy** — `surface.raised` with no border, where the
-   * `Card` primitive is `surface.card` with `border.panel`. `raised` is the
-   * ladder's step for bars, tab strips and chips; a card painted on it sits one
-   * step off from every other card in the app, which is precisely the "twelve
-   * slightly different containers" the primitive set was built to end.
-   *
-   * The gap is kept as it was. Padding and gaps across this app want a pass
-   * with a designer's eye rather than a find-and-replace — see the note in
-   * `mobile-radius-scale.test.ts` on why that rule was scoped to radius.
-   */
-  cardGap: { gap: 10 },
-  cardTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.2 },
-  reason: { color: text.secondary, fontFamily: interFace('400'),
-    fontSize: 14, lineHeight: 20 },
-  basis: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 12 },
-
-  service: {
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
+  /* ── R33 · the confirmed reading, as a row of the table ────────────────── */
+  readingRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: space.md,
+    minHeight: SPEC_ROW,
+    paddingVertical: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,
   },
-  serviceHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  serviceName: { color: text.primary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600', flexShrink: 1 },
-  overdue: { color: status.attention, fontSize: 12, fontFamily: interFace('700'), fontWeight: '700' },
-  body14: { color: text.secondary, fontFamily: interFace('400'),
-    fontSize: 14, lineHeight: 20 },
+  readingLabel: { ...type.monoLabel, color: text.muted },
+  readingValue: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
 
-  addCta: {
-    backgroundColor: surface.raised,
-    borderRadius: radius.button,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  /* ── B6 · the table ────────────────────────────────────────────────────── */
+  /*
+    One rule under the last row, so the table closes and the footnote beneath
+    is outside it — `BandRow`'s `last` rule, drawn once on the container.
+  */
+  table: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
+  /*
+    A group head is the History's visit head: the condensed grotesk over the
+    quiet line, on a rule. The milestone's detail is `milestoneReason`, which
+    the notification body also prints — the two must agree, so it is not
+    reworded here into the table's caps.
+  */
+  groupHead: {
+    gap: 2,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
   },
-  /* An explicit fill, never `opacity` — see WishlistScreen: the contrast audit
-     cannot see a parent alpha, so a faded control is an unmeasured one. */
-  addCtaDone: { backgroundColor: surface.raised },
-  addCtaText: { color: text.primary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
-  addCtaDoneText: { color: text.secondary },
+  /*
+    ⚠ 12 Sep · the token's own size. At 15 the condensed face was read as
+    "bold body-sans caps" (round 32) — the misread drift §6.13 records at
+    12pt, one size up — and the web sets its section heads (SPECIFICATION,
+    PERFORMANCE) at the size the token carries, as do the hub's rows.
+  */
+  groupLabel: { ...type.displaySection, color: text.primary },
+  groupDetail: { ...type.value, color: text.secondary },
 
-  unknownItem: { color: text.secondary, fontFamily: interFace('400'),
-    fontSize: 14, lineHeight: 20 },
-  footnote: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 12, lineHeight: 18 },
+  /*
+    ⚠ `SPEC_ROW` rule to rule, text centred — the record list's row, measured
+    against B6's 56 in round 24. The meta line grows the row; it never shrinks
+    it. The head line's `flex-start` alignment keeps the index, the mark and
+    the numeral on the name's first line when the name wraps.
+  */
+  row: {
+    gap: 2,
+    minHeight: SPEC_ROW,
+    justifyContent: 'center',
+    paddingVertical: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+  },
+  rowHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  /** The spec table's index — mono, muted, fixed width so the labels line up. */
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22, lineHeight: 20 },
+  /* Tight to the numeral it marks: the row's gap, less the mark's own air. */
+  mark: {
+    ...type.monoLabel,
+    lineHeight: 20,
+    color: status.attention,
+    width: 16,
+    textAlign: 'center',
+    marginRight: -space.sm,
+  },
+  name: { ...type.ui, color: text.primary, flex: 1 },
+  /* B6: the numeral, mono, right-aligned and tabular so a column is a column. */
+  position: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
+  positionNone: { ...type.mono, color: text.muted, textAlign: 'right', lineHeight: 20 },
+  /*
+    The second line: the meta, then the action at the rule. The meta takes
+    the width and wraps within it; the word keeps its own.
+  */
+  rowFoot: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+    paddingLeft: 22 + space.md,
+  },
+  /*
+    The control clears the floor through `Button`'s own height and pulls that
+    height back into the 16pt line so the row does not grow around it; the
+    label's own padding is pulled back too, so the word ends where the
+    numerals do.
+  */
+  action: { marginVertical: -(CONTROL_HEIGHT - 16) / 2, marginRight: -space.md },
+  addedText: { ...type.monoLabel, color: text.muted },
+  /*
+    The record's provenance voice: the quiet sans, under the name and clear of
+    the index column. A sentence, so not the mono (B1 gives the mono to
+    values; "Every 5,000 mi" is a rule stated in words, and "From your service
+    records" is a claim).
+  */
+  meta: { ...type.label, letterSpacing: 0, color: text.muted, flex: 1 },
+  metaBasis: { ...type.label, letterSpacing: 0, color: text.muted },
+  /* Holds the action at the rule on a row with nothing to say beneath its name. */
+  metaSpacer: { flex: 1 },
+
+  footnote: { ...type.label, letterSpacing: 0, color: text.muted },
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
   errorBody: { color: text.muted, fontFamily: interFace('400'),
