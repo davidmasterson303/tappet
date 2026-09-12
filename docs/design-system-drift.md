@@ -2018,7 +2018,43 @@ the status sodium, which is the one hue the brief keeps off every wait. Not
 built; every caller unmounts the instrument on failure and says what
 happened in its own voice. Worth a decision rather than a drift.
 
-### 14.8 Recorded deviations from the critic's brief
+### 14.8 The advisor adopts the instrument — 12 Sep ✅ closed, with one entry left
+
+`ConsultantChat` was the scanner's largest exemption: three `Loader2`
+spinners and a five-stage "thinking" list — "Reviewing vehicle profile…",
+"Checking service history…" — advanced by a 1.8s `setInterval` with a
+wrapping modulo. None of the five is a boundary the client can see;
+`sendConsultantMessage` is one call, so the list claimed to have finished
+checking the service history at 3.6 seconds and started over at nine: the
+invoice scanner's UX-15 defect in a chat. It is `components/AdvisorWait.tsx`
+now — the compact instrument in the thread, saying which of the **two** real
+stages is running: the upload (one fetch per attached file, "File 2 of 3" a
+real count, no byline because it is the composer's work) and the answer
+(Jay's byline, ANSWERING, and the one sentence true for the whole call). On
+the demo no model is called, so that sentence is not printed there. The send
+control takes the primitive's busy form with an empty label — icon-only, so
+the state is its accessible name — and the add-to-needs row carries the mark
+and a mono ADDING. Two more findings on the way:
+
+- **A conversation being fetched wore the greeting.** On every first load the
+  thread showed "Hey, Jay here" and four prompts for as long as
+  `getConsultantSession` took, over a thread about to fill with history — a
+  wait dressed as the un-answered state, the mod card's defect in reverse.
+  It is a delayed compact wait now; the empty thread keeps the greeting and
+  no arc, which `advisor-wait.test.tsx` pins as the anti-vacuous half.
+- **A first question with a file uploaded behind the greeting.** The wait was
+  drawn in the thread branch, and the optimistic turn only lands after the
+  upload, so the greeting — and four prompts inviting a second question —
+  stayed up through the whole upload. The greeting now ends when a question
+  is sent.
+
+One allow-list entry remains, and it is honest: `app/consultant/[vehicleId]/page.tsx`
+still draws two hand-rolled rings under "Loading consultant…". It was outside
+this pass's lane; the replacement is one line, `<Working delay line="Opening
+the advisor" />`, the shape `/plan` and `/vehicle-info` already use, and the
+entry comes out with it.
+
+### 14.9 Recorded deviations from the critic's brief
 
 - The specimen's section heading reads "the un-analysed mod" in the repo's
   British prose voice while the state label beneath it reads NOT ANALYZED YET

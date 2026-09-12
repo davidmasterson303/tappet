@@ -1,9 +1,10 @@
 'use client';
 
 import { Working, WorkingMark } from '@/components/Working';
+import { AdvisorWait } from '@/components/AdvisorWait';
 import { Button } from '@/components/ui/button';
 import { scanStages } from '@/lib/working';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Send } from 'lucide-react';
 
 /*
  * Every state of the wait instrument, live and frozen. Development only.
@@ -50,6 +51,9 @@ const SCAN_STAGES_READING = scanStages({
   fileCount: 3,
   itemsExtracted: 7,
 });
+
+/** The car every specimen sentence names — the demo Accord's year, make and model. */
+const DEMO_CAR = { year: 2018, make: 'Honda', model: 'Accord' };
 
 const states: Array<{
   title: string;
@@ -151,6 +155,37 @@ const states: Array<{
     ),
   },
   {
+    title: 'Compact — the advisor’s turn, first stage',
+    note:
+      'The thread while the composer uploads what was attached: one fetch per file, in order, ' +
+      'so the file and its place in the queue are facts. No byline — this is the composer’s ' +
+      'work, not Jay’s. This is the real component the thread renders, without a session, a ' +
+      'question or a model call.',
+    render: (frozen) => (
+      <div className="max-w-xl">
+        <AdvisorWait
+          frozen={frozen}
+          demo={false}
+          vehicle={DEMO_CAR}
+          uploading={{ fileName: 'shop-quote.pdf', fileIndex: 2, fileCount: 3 }}
+        />
+      </div>
+    ),
+  },
+  {
+    title: 'Compact — the advisor’s turn, second stage',
+    note:
+      'The same turn once the question is with the model: Jay’s byline, the instrument, and ' +
+      'the one fact that is true for the whole call. This replaces five “thinking” stages that ' +
+      'advanced on a 1.8s timer and wrapped — none of them a boundary the client could see. On ' +
+      'the demo no model is called, so the sentence is not printed there.',
+    render: (frozen) => (
+      <div className="max-w-xl">
+        <AdvisorWait frozen={frozen} demo={false} vehicle={DEMO_CAR} />
+      </div>
+    ),
+  },
+  {
     title: 'Mark — the button that started the work',
     note:
       'A busy button drops to its outlined form at its rest width and says what it is doing in ' +
@@ -183,6 +218,31 @@ const states: Array<{
           </Button>
           <Button size="sm" variant="outline" busy busyLabel="Saving">
             Save changes
+          </Button>
+        </div>
+        {/*
+          The advisor's send control is icon-only too, and takes the
+          primitive's busy form with an empty label: the outline, the mark,
+          the rest width held, and the state as its accessible name — there
+          is no room beside a 15px glyph for the mono status, and the thread
+          beside it is already saying ANSWERING.
+        */}
+        <div className="grid justify-items-start gap-3">
+          <Button
+            size="sm"
+            aria-label="Send"
+            className="tap-target-44 h-8 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+          >
+            <Send className="h-[15px] w-[15px]" />
+          </Button>
+          <Button
+            size="sm"
+            busy
+            busyLabel=""
+            aria-label="Answering"
+            className="tap-target-44 h-8 bg-primary hover:bg-primary/90 text-primary-foreground border-0"
+          >
+            <Send className="h-[15px] w-[15px]" />
           </Button>
         </div>
         {/*

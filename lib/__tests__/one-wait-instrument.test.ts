@@ -49,20 +49,18 @@ const MARKERS: Array<{ name: string; re: RegExp }> = [
 /**
  * Sites that keep a marker, and the reason each one is still there.
  *
- * ⚠ A reason is not a licence. Both entries name files owned by another
- * worktree on the day this was written; the day that work lands, the entries
- * come out and this list is empty. Nothing in the app the web team owns
- * belongs here.
+ * ⚠ A reason is not a licence. The list held two files owned by another
+ * worktree on 11 Sep; `components/ConsultantChat.tsx` came out on 12 Sep when
+ * the advisor adopted the instrument (see the case below, which now refuses
+ * a leftover in that file). The one entry left names a file outside that
+ * pass's lane; the day it is fixed, the entry comes out and this list is
+ * empty. Nothing in the app the web team owns belongs here.
  */
 const ALLOWED: Record<string, string> = {
-  'components/ConsultantChat.tsx':
-    'owned by the consultant worktree (11 Sep). Three Loader2 spinners and a THINKING_STAGES ' +
-    'list advancing on a 1.8s setInterval with a wrapping modulo — the invoice scanner’s UX-15 ' +
-    'defect in a chat. Should adopt <Working variant="compact"> for the JAY turn and ' +
-    '<WorkingMark> in the send and add-to-needs controls; see the 11 Sep report.',
   'app/consultant/[vehicleId]/page.tsx':
-    'owned by the consultant worktree (11 Sep). Two hand-rolled rings on the page load; ' +
-    'should become <Working delay line="Opening the advisor" /> like /plan and /vehicle-info.',
+    'outside the 12 Sep pass’s lane (app/consultant/**). Two hand-rolled rings on the page ' +
+    'load, "Loading consultant..."; should become <Working delay line="Opening the advisor" /> ' +
+    'like /plan and /vehicle-info, and then this entry comes out.',
 };
 
 /**
@@ -148,6 +146,38 @@ describe('one wait instrument', () => {
       .filter((h) => !(h.file in ALLOWED))
       .map((h) => `${h.file}:${h.line}  ${h.marker} — use <Working> or <WorkingMark> from components/Working.tsx`);
     expect(offenders).toEqual([]);
+  });
+
+  it('the advisor adopted the instrument, and the scan still reaches it', () => {
+    /*
+      `ConsultantChat.tsx` was the allow-list's largest entry: three Loader2
+      spinners and a five-stage "thinking" list advanced by a 1.8s setInterval
+      with a wrapping modulo — the invoice scanner's UX-15 defect in a chat.
+      With the entry gone, any marker left in the file is an offender above;
+      this pins the other half — that the file is still walked, still renders
+      the instrument, and owns no clock — so a deleted or renamed file cannot
+      pass as a clean one.
+    */
+    const advisor = files.find((f) => f.endsWith('components/ConsultantChat.tsx'));
+    expect(advisor).toBeDefined();
+    const source = stripComments(readFileSync(advisor!, 'utf8'));
+    expect(source).toMatch(/<AdvisorWait\b/);
+    expect(source).toMatch(/<WorkingMark\b/);
+    expect(source).not.toMatch(/THINKING_STAGES|setInterval\(/);
+    expect(hits.filter((h) => h.file === 'components/ConsultantChat.tsx')).toEqual([]);
+
+    // And a leftover would be refused, not excused: the file with one spinner
+    // put back, through the same filter the offenders case uses.
+    const relapse = scanSource(
+      'components/ConsultantChat.tsx',
+      readFileSync(advisor!, 'utf8') + '\n<Loader2 className="h-3.5 w-3.5 animate-spin" />\n'
+    ).filter((h) => !(h.file in ALLOWED));
+    expect(relapse.map((h) => h.marker)).toEqual(['Tailwind spin', 'Lucide Loader2']);
+
+    // The turn itself is the instrument, and it owns no clock either.
+    const turn = stripComments(readFileSync(join(ROOT, 'components', 'AdvisorWait.tsx'), 'utf8'));
+    expect(turn).toMatch(/<Working\b/);
+    expect(turn).not.toMatch(/requestAnimationFrame|setInterval|setTimeout/);
   });
 
   it('keeps every allow-list entry honest', () => {
