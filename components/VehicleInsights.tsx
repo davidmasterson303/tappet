@@ -65,10 +65,20 @@ interface VehicleInsightsProps {
    * section and deleting the branch would mean re-deriving them per page.
    */
   section?: InsightSection;
+  /**
+   * Who renders the modifications on/off switch for `section="mods"`.
+   *
+   * `'section'` (default) draws it here, above the body, and draws it alone
+   * when the surface is hidden. `'page'` draws nothing: the page renders
+   * `RegisterSwitch` itself, in both states, because a switch that lives
+   * inside the section it hides is gone the moment it is used — the Plan
+   * tab lost its way back exactly that way (11 Sep).
+   */
+  switchOwner?: 'section' | 'page';
 }
 
 const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, VehicleInsightsProps>(
-  ({ vehicle, knowledge, onWishlistStateUpdate, section }, ref) => {
+  ({ vehicle, knowledge, onWishlistStateUpdate, section, switchOwner = 'section' }, ref) => {
     const router = useRouter();
     const { data: wishlistItems } = useWishlistData(vehicle.id);
     const savedItemNames = useMemo(
@@ -587,7 +597,9 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       if (section === 'mods' && !modsVisible) {
         return (
           <>
-            <RegisterSwitch vehicleId={vehicle.id as string} visible={modsVisible} onApply={setModsVisible} />
+            {switchOwner === 'section' ? (
+              <RegisterSwitch vehicleId={vehicle.id as string} visible={modsVisible} onApply={setModsVisible} />
+            ) : null}
             {dialogs}
           </>
         );
@@ -595,7 +607,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
 
       return (
         <>
-          {section === 'mods' ? (
+          {section === 'mods' && switchOwner === 'section' ? (
             <RegisterSwitch
               vehicleId={vehicle.id as string}
               visible={modsVisible}
