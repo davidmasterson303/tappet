@@ -1650,6 +1650,197 @@ object (sans label, icon, chevron) and are where the mismatch actually
 lives; it joins the parking lot with the sliders glyph rather than being
 re-voiced on the strength of one reading.
 
+### 6.13 Rounds 26–28 — the off-frame states, and the two rows they exposed, 12 Sep
+
+Scores: 8 → 7 → 8, and the loop stops on the critic's `Continue: no` at
+round 28 — the second time it has said so at 8, which is the plateau
+`design-critic-loop-plateaus-at-seven` describes, one point higher.
+Checklists: round 26 **7 ✅ / 2 🟡** (B2 the cut, B9 the viewfinder); round
+27 **6 ✅ / 3 🟡** (B1, B5, B9); round 28 **7 ✅ / 2 🟡** (B1, B9). The dip
+in the middle is not a regression and the critic did not name one: round 27
+was the first round handed the frames §6.12 recorded as unsupplied — the
+Vehicle screen scrolled past its plate, and the factors table — and two
+things the loop had graded ✅ on the first fold for twenty rounds were sitting
+under it.
+
+**Round 26 — 8/10, `Continue: no`, graded as it stood.** The previous
+implementer's last commit re-shot the dial at the web's size and the
+collapsed Service title; the critic closed B3, B4, B6 and B8 on them and
+left B2 at *"the plate cut does not read"* and B9 on the viewfinder. Its gap
+3 was the fourth consecutive round naming "What is driving this score" — a
+bold sentence-case sans row with a sliders glyph directly above OPEN RECALLS
+in condensed caps — this time with the instruction *"set it like its
+neighbour, drop the icon, keep the chevron."* The loop ran on past the
+`Continue: no`, deliberately and for a stated reason: the caller had asked
+for the off-frame states to be shot rather than argued about, and the one
+visible gap left was four rounds old.
+
+**Round 27 — what was taken, measured first.**
+
+- **The score row is a row of the table** (`[B1]`). `BandRow` is
+  `RecallBand`'s drawing with the recall taken out — a hairline per row and
+  one under the last, a condensed caps label, an optional sans line, an
+  optional mono value at the right, a chevron — and `RecallBand` is now a
+  thin wrapper that owns the noun, the count and the reader's sentence. The
+  two sit under the reading as a two-row spec table, the same shape the
+  garage draws under its dial; `cardExit` (R24's rule between a card and
+  its way out) went with the row it separated. ⚠ The web reference settles
+  the "grotesk label, mono value" question §6.12 left open: the web's
+  *destination* rows on the dossier (VEHICLE DOSSIER, WISHLIST) are
+  condensed caps with a chevron, while its *fact* rows on the record are
+  mono-labelled. A row that goes somewhere is condensed; a row that states a
+  value is mono. Both screens' OPEN RECALLS rows go somewhere, and the
+  garage's mono one is left as it is — the critic did not raise it again.
+- **The two cuts were handed to the critic as pixels** (`[B2][B4]`). Round
+  25 had measured both at native resolution and written the numbers into a
+  commit message the critic cannot read; two rounds later it still marked
+  B2 🟡 *"not resolvable at this scale"*. Two 4× nearest-neighbour crops of
+  the shipped frames — the garage plate's top-right and the search field's
+  bottom-right — went into the set as evidence, not a re-shoot, and B2 went
+  ✅ on them in rounds 27 and 28. A measurement the critic can see is worth
+  three it cannot.
+- **The Vehicle's collapsed title is mono** (`[B8]`). `navTitle` was
+  `type.uiStrong` — Inter semibold, sentence case — beside a "‹ GARAGE"
+  already in `monoNav`; the same token as the roots and the back control
+  now. Never in frame before, because no graded frame had scrolled the car.
+- **`ListGroup` is a band** (`[B5]`). It was `surface.raised` inside a
+  hairline frame with a sans (`type.label`) eyebrow — the one filled,
+  outlined block on a screen of bands, twice on the scrolled Vehicle sheet.
+  Two hairlines now, the eyebrow in `displayLabel`. `WishlistAddScreen`
+  still groups its suggestions in it.
+- **The factors table can be shot.** `fixtures.ts`'s `/load-vehicle` answer
+  carries `health_drivers`, computed by `driversForVehicle` from the
+  fixture's own facts rather than written by hand — no schedule on this
+  fixture, so Maintenance scores nothing and says so; two recalls; a light
+  mileage load. B6 was already ✅ on the service rows; the frame made it
+  ✅ on the factors as well.
+
+**Round 27 — 7/10, and what the frames exposed.** The critic took the score
+row and the B2 crops, and named two things the new frames put in front of it
+for the first time: the hub — *"an iOS settings list inside a spec-table app:
+glyph, sans title-case label, sans value … inset separator"* — and the nav
+chrome one push apart, *"a thin hairline '< GARAGE' under a '2015 BMW M235I'
+mono-caps title; Health's is the system's heavy chevron with 'BMW M235i' in
+mixed case."* It asked for one more pass scoped to those two and then a stop.
+
+**Round 28 — taken, both.**
+
+- ⚠ **The hub's rows are `BandRow`s, and this supersedes David's 23 Aug
+  decision.** `NavRow` — glyph, sans label, sans count, inset seam — was his
+  correction (*"'This car' section is still really bad UI and UX, it's ugly
+  and uninviting to engage with"*) against a hub of four bare sans words in
+  a card, and the Lucide glyph was made *required* so it could not be
+  dropped under deadline. That decision predates the locked brief, and the
+  first scrolled frame showed its cost under it: values ("No schedule yet",
+  "5", "Daily Driver") in sans where the garage and the strip set the same
+  strings in mono, and the clock and wrench meaning Plan and Service in the
+  tab bar while meaning Service and History one screen up. The rows are now
+  condensed caps, mono value right-aligned, every chevron on the right edge,
+  no glyph — the web dossier's own destination rows — under condensed
+  eyebrows (`SectionHeader`). What the 23 Aug correction argued for survives
+  as structure: the label outside the group, 56pt rows the eye can count,
+  each carrying what is behind it. `NavRow.tsx` is deleted rather than left
+  as a dead component with its argument attached; the argument is in
+  `BandRow`'s docblock. **For David to overrule** — it is his decision being
+  superseded, on the strength of a brief he approved after it.
+- **One back control** (`[B1][B8]`). `BackControl` is the hairline chevron
+  and the `monoNav` label the vehicle screen always drew; `screenOptions.
+  headerLeft` now hands it to every pushed screen (native-stack hides its
+  own button when `headerLeft` is given and passes the previous screen's
+  `title` as `label`), and the vehicle screen renders the same component.
+  ⚠ The 6 Sep note that *"a hairline SVG chevron per screen is a bigger
+  change than this line"* was right about the size and wrong about the
+  need: `headerBackTitleStyle` could put the native label in mono but never
+  in caps, because the `UILabel` it becomes ignores `textTransform`, so the
+  seam was always going to be visible the first time a pushed screen was in
+  frame. A JS `Text` honours the transform; "BMW M235i" lands as BMW M235I
+  with no change to the string the route publishes. `mobile-tab-roots`
+  gained the guard, with the two silent regressions as its anti-vacuous
+  cases (the option gone; the option rendering something else).
+- "How you use this car" is **"How you use it"**: at the section head's size
+  the longer label truncated to "HOW YOU USE THIS…" beside its value, and a
+  destination's name is the one thing on the row that must not.
+
+**Round 28 — 8/10, `Continue: no`.** B5 ✅ on the hub; B1 🟡 on a reading
+that does not survive measurement: the critic put THIS CAR / WHAT YOU TOLD
+US / WHAT IS DRIVING IT "in the sans" and asked for every eyebrow in mono.
+They are `type.displayLabel` — Archivo Narrow 600 at 12pt, the token
+`SectionHeader` moved to on 6 Sep for exactly the reason the critic gives —
+and at 12pt on a scaled frame the condensed face and Inter are not
+distinguishable, which is the misread the loop's memory note predicts past
+7. Its other two gaps are decisions and not design: the Vehicle sheet's one
+filled primary is ASK THE ADVISOR by the screen spec's own sentence (*"one
+filled primary per screen, and it is this one"*), and the critic's proposal
+to give the fill to SCAN INVOICE and demote the advisor is an IA call for
+David; the strip's AVG · RELIABILITY is §6.12's standing item, an API
+change before a design one. Neither is taken, and the loop stops where the
+critic says it should: *"the next round worth a critique is the one with the
+viewfinder in it."*
+
+**Three frames, and the one that could not be taken.** `06-vehicle-
+collapsed` and `07-vehicle-factors` are in every round from 27 on and did
+the work above. Pull-to-refresh is not: the fixtures answer in the same
+frame, so there is no refreshing state to hold, and a pull held under the
+simulator's injected touches does not engage the scroller at all. ⚠ And
+the brief's refresh — *"a cyan hairline ramp along the top rule with mono
+REFRESHING"* — is not built; the app uses the system `RefreshControl`. It
+is the studio paragraph, not a checklist line, so no round has graded it;
+it is recorded here as unbuilt rather than as unphotographed.
+
+**Two defects the frames found, flagged and not fixed here.** The Health
+screen prints the stored health sentence verbatim, where the Vehicle screen
+runs it through `healthVerdict` — on the fixtures the two screens
+contradict each other one tap apart, and the critic's round-28 Cut list
+caught it (*"carry the caveat, drop the paragraph"*). And `load-vehicle`
+selects `plate_key` but does not hand it to `resolveVehiclePhoto`, so after
+a photo is removed the Vehicle screen refetches the stock image or the house
+plate where the garage list resolves the generation plate — the two-screens-
+disagree shape `lib/vehicle-photo.ts` warns about, one line away. Both are
+spawned as their own tasks; neither is in the loop's lane.
+
+**Also in these rounds, not a design change: Remove photo.** David, on the
+phone: *"i can't delete the image i uploaded on the app, so i can't revert
+to seeing the new default images for my car."* The API had gained the route
+(c876ad2); the screen now offers Remove from the one photo control as an
+`ActionSheetIOS` (Change photo / Remove photo / Cancel) and asks once —
+"Remove this photo? The car will stand on its plate." — then shows the plate
+optimistically and puts the photograph back with a banner if the removal
+fails. ⚠ A sheet, not a second control beside CHANGE PHOTO, and not a
+standing sodium-hairline REMOVE: the nav row over the photograph holds one
+control (the score chip was cut from that slot for crowding the title), a
+permanent destructive control would spend B7's warning axis on something
+present whenever the car has a picture, and the web's own dialog holds
+Remove *inside* Change. The sheet and the confirm are UIKit's surfaces, so
+the graded frames did not change. Commit `9929b7f`.
+
+**Parking lot — for David, added by these rounds:**
+
+- *The hub's glyphs* — superseded above; one sentence from David restores
+  `NavRow` from `git`, or blesses the table.
+- *Which control is the Vehicle sheet's primary* — ASK THE ADVISOR (the
+  screen spec) or SCAN INVOICE (the critic's reading of B9's "headline act").
+- *The three root mastheads* — the critic has now called them outside the
+  brief in two rounds (*"imagery has one job here, the plate"*); David asked
+  for them (§6.11). If they stay, the brief wants a line for them.
+- *The Health screen's summary* — spawned as a task; the fix is the Vehicle
+  screen's `healthVerdict` pattern with the service count.
+- *The strip's AVG · RELIABILITY* — unchanged from §6.12; an API decision.
+- *A plate that is still drawing* — the phone could say "Drawing this car's
+  plate" (`plateStatusLine`) if a mobile route carried the plate's status;
+  none does, and reading `vehicle_plates` from the device is the second
+  answer to one question `api/client.ts` exists to prevent. Not built.
+- *Search on a five-item history*, *root titles collapse left while pushed
+  titles collapse centred* — the critic's, repeated; both are
+  react-navigation facts (§6.8) rather than choices.
+
+**Guards.** `mobile-tab-roots` gained "the way back is one control";
+`primitives.test.tsx` gained `BandRow` (the condensed label, the warning as
+the only glyph, the closing rule on the last row, the reader's sentence);
+`VehicleDetailScreen.test.tsx` gained the sheet, the confirm and the
+optimistic removal with its revert. Nothing was relaxed; `GarageScreen`'s
+hierarchy case and the hero suite were untouched by the hub change because
+they pin order and photographs, not row components.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
