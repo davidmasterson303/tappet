@@ -2491,46 +2491,103 @@ nav {
  * The wait instrument is the health dial's own "coming alive" motion, kept
  * going for as long as the work runs. `ClusterGauge` draws its arc in cyan and
  * settles it off-white once there is a reading; here there is no reading yet,
- * so the cyan segment never settles — it swings between the two ends of the
- * scale like a needle that has not found its number.
+ * so the cyan pip never settles — it hunts between the two ends of the scale
+ * like a needle that has not found its number.
  *
- * ⚠ It swings, it does not fill. An arc that draws from 0 to 100 and starts
+ * ⚠ It hunts, it does not fill. An arc that draws from 0 to 100 and starts
  * again is a progress bar wearing the dial's clothes — it has a denominator,
- * and `b1e2baa` removed the last indicator that invented one. A segment of
- * fixed length carries no claim about how much is left. That is the whole
- * design, and it is why the keyframes animate `stroke-dashoffset` between two
+ * and `b1e2baa` removed the last indicator that invented one. A pip of fixed
+ * length carries no claim about how much is left. That is the whole design,
+ * and it is why the keyframes animate `stroke-dashoffset` between two
  * positions rather than `stroke-dasharray` between two lengths.
  *
  * The geometry is `pathLength="100"` on the track path from
  * `@tappet/core/cluster-geometry`, so the numbers below are percentages of the
- * arc: the segment is 18 long, so `0` parks it at the scale's foot and `-82`
- * at its head. The base declaration is `-41` — the segment centred at the top
- * of the dial — and it is the base rather than a keyframe on purpose: it is
- * what shows when the animation is not running, which is both the reduced-
- * motion state and the specimen's still frame. A reader who has asked for
- * less motion still sees an instrument that is switched on.
+ * arc: the pip is 9 long (24° of the 270° scale — brief B5), so `0` parks it
+ * at the scale's foot and `-91` at its head. The base declaration is `-45.5`
+ * — the pip at twelve o'clock — and it is the base rather than a keyframe on
+ * purpose: it is what shows when the animation is not running, which is both
+ * the reduced-motion state and the specimen's still frame. A reader who has
+ * asked for less motion still sees an instrument that is switched on.
  *
- * `alternate` with a symmetric ease, so the sweep decelerates into each end
- * and turns rather than snapping back to the start — a needle, not a marquee.
+ * `alternate` with a symmetric ease, so the pip decelerates into each end and
+ * turns rather than snapping back to the start — a needle, not a marquee.
  *
  * ⚠ Not the house `--ease-standard`. That curve is an aggressive ease-out for
  * reveals, and `alternate` plays a timing function backwards on the return
- * leg — so the sweep would arrive at the head slowly and leave it slowly, then
+ * leg — so the pip would arrive at the head slowly and leave it slowly, then
  * *snap* into the foot. Measured on the specimen: at half a cycle the house
  * ease is 97% of the way along, not 50%. A swing wants the same curve in both
  * directions, which is what `ease-in-out` is.
  */
 @keyframes workingSweep {
   0%   { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -82; }
+  100% { stroke-dashoffset: -91; }
+}
+
+/*
+ * ── Strokes are pixels, so they live here — brief B1, B2 ──────────────────
+ *
+ * The full face is 160px on desktop and 128px on a phone, a CSS width; the
+ * strokes that keep a 1px track and a 2px pip at both sizes are therefore CSS
+ * too, in viewBox units per face and per breakpoint. 200 viewBox units over
+ * 160px is 1.25 units to the pixel; over 128px, 1.5625. The compact face is
+ * 172 units over 20px (8.6 to the pixel) and the mark 172 over 14 (12.3).
+ * The terminal is a round cap on a zero-length path, so its diameter is a
+ * stroke width and the same mechanism sizes it: 4px.
+ *
+ * ⚠ Not `vector-effect: non-scaling-stroke`, which would do this for free and
+ * also unscale the dash pattern — and the pip is a dash pattern.
+ */
+.working-dial[data-face='full'] {
+  --wk-track: 1.25;
+  --wk-pip: 2.5;
+  --wk-dot: 5;
+}
+@media (max-width: 639px) {
+  .working-dial[data-face='full'] {
+    --wk-track: 1.5625;
+    --wk-pip: 3.125;
+    --wk-dot: 6.25;
+  }
+}
+.working-dial[data-face='compact'] {
+  --wk-track: 8.6;
+  --wk-pip: 17.2;
+  --wk-dot: 25.8;
+}
+.working-dial[data-face='mark'] {
+  --wk-track: 12.3;
+  --wk-pip: 24.6;
+}
+
+.working-track {
+  stroke: rgb(255 255 255 / 0.22);
+  stroke-width: var(--wk-track);
+}
+.working-mark .working-track {
+  stroke-opacity: 0.3;
 }
 
 .working-sweep {
-  stroke-dashoffset: -41;
+  stroke: var(--info);
+  stroke-width: var(--wk-pip);
+  stroke-dashoffset: -45.5;
+  /* The 1px bloom — light, not fill. Off on the mark, which is in the
+     button's own ink and has no hue to bloom. */
+  filter: drop-shadow(0 0 1px rgb(126 200 220 / 0.7));
+}
+.working-mark .working-sweep {
+  filter: none;
+}
+
+.working-terminal {
+  stroke: #EDE7DF;
+  stroke-width: var(--wk-dot);
 }
 
 .working-sweep.is-live {
-  animation: workingSweep 1400ms ease-in-out infinite alternate;
+  animation: workingSweep 1300ms ease-in-out infinite alternate;
 }
 
 /*
@@ -2565,20 +2622,6 @@ nav {
 .working-enter {
   opacity: 0;
   animation: workingEnter var(--duration-fast) var(--ease-standard) 350ms forwards;
-}
-
-/*
- * The active stage's mark breathes; the sweep already says "alive", so this
- * is a quiet echo rather than a second instrument. Done marks are off-white
- * ink — good news carries no hue — and pending marks are a hairline ring.
- */
-@keyframes workingBreathe {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
-.working-stage[data-state='active'] .working-stage-mark {
-  animation: workingBreathe 1400ms ease-in-out infinite;
 }
 
 /*
@@ -2792,9 +2835,6 @@ html[data-intro='play'] .garage-door {
     delay is not motion, it is not painting a dial for a hold that ends first.
   */
   .working-sweep.is-live {
-    animation: none;
-  }
-  .working-stage[data-state='active'] .working-stage-mark {
     animation: none;
   }
 

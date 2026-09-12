@@ -447,14 +447,10 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         sentence here, because it is the same wait.
       */
       return (
-        <Card className="cut-panel bg-[hsl(var(--card))] border-[color:var(--border)]">
-          <CardContent className="py-10">
-            <Working
-              line="Researching this car"
-              detail={`Common issues, maintenance intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model}. Usually under a minute — the rest of the page works now.`}
-            />
-          </CardContent>
-        </Card>
+        <Working
+          line="Researching this car"
+          detail={`Issues, intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model} — usually under a minute.`}
+        />
       );
     }
 
@@ -465,14 +461,10 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       */
       if (isAutoResearching) {
         return (
-          <Card className="cut-panel bg-[hsl(var(--card))] border-[color:var(--border)]">
-            <CardContent className="py-10">
-              <Working
-                line="Retrying the research"
-                detail={`The first attempt did not finish. Common issues, maintenance intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model} — the rest of the page works now.`}
-              />
-            </CardContent>
-          </Card>
+          <Working
+            line="Retrying the research"
+            detail={`The first attempt did not finish. Issues, intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model}.`}
+          />
         );
       }
       return (

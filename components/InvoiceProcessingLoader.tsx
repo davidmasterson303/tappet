@@ -86,6 +86,7 @@ export default function InvoiceProcessingLoader({
   return (
     <div className="flex flex-col items-center justify-center py-10 px-4 sm:px-6">
       <Working
+        panel={false}
         line={scanStageLabel(progress)}
         detail={
           progress.fileName

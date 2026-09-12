@@ -242,8 +242,9 @@ function ParseProgress() {
   return (
     <div className="mt-6">
       <Working
+        panel={false}
         line="Reading the estimate"
-        detail="The model reads the whole estimate in one pass and compares the job against typical prices. You will get a range and a plain answer."
+        detail="One pass over the whole estimate, compared against typical prices for the job."
       />
     </div>
   );

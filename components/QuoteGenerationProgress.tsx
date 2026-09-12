@@ -80,6 +80,7 @@ export function QuoteGenerationProgress({ items, zipCode }: QuoteGenerationProgr
   */
   return (
     <Working
+      panel={false}
       line={count === 1 ? 'Pricing your service item' : `Pricing ${count} service items`}
       detail={`Pricing ${count} service ${count === 1 ? 'item' : 'items'}. Your ZIP code ${zipCode} goes with the request so the ranges can allow for local labour rates.`}
     >

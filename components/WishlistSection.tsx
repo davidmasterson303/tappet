@@ -411,7 +411,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
           <div className="space-y-2 mt-2">
             {loadingQuotes ? (
               <div className="flex items-center justify-center py-10">
-                <Working line="Loading past quotes" />
+                <Working panel={false} line="Loading past quotes" />
               </div>
             ) : quoteHistory.length === 0 ? (
               <div className="text-center py-12">

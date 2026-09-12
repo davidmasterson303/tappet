@@ -1,11 +1,11 @@
 'use client';
 
-import { Working, WorkingMark, type WorkingStage } from '@/components/Working';
+import { Working, WorkingMark } from '@/components/Working';
 import { Button } from '@/components/ui/button';
 import { scanStages } from '@/lib/working';
 
 /*
- * Every state of the wait instrument, frozen and live. Development only.
+ * Every state of the wait instrument, live and frozen. Development only.
  *
  * ── Why this page exists ────────────────────────────────────────────────────
  *
@@ -16,13 +16,18 @@ import { scanStages } from '@/lib/working';
  * screenful, and the design loop can shoot it without a session, a Gemini
  * call or a database.
  *
- * ── Frozen, then live ───────────────────────────────────────────────────────
+ * ── Live, then frozen ───────────────────────────────────────────────────────
  *
  * A screenshot catches an infinite animation on whatever frame it happens to
- * be on. The frozen column holds the sweep on its centre frame — which is also
- * the base position, which is also what a reduced-motion visitor sees — so a
- * capture of this page and a capture under `prefers-reduced-motion` show the
- * same instrument. The live column is the thing itself.
+ * be on. Each live instrument is followed by the same state held on the pip's
+ * twelve-o'clock frame — which is also the base position, which is also what
+ * a reduced-motion visitor sees — so a capture of this page and a capture
+ * under `prefers-reduced-motion` show the same instrument.
+ *
+ * ⚠ One column, not two. The first draft set live and frozen side by side,
+ * which halved the width the full face had to sit in and put its one-line
+ * sentence on three lines. The instrument is a left-anchored panel on the
+ * page grid (brief B3), and the specimen shows it on the grid it is built for.
  *
  * ⚠ Nothing on this page claims a duration, and no state here is fed by a
  * timer. The stage lists are the real ones the scanner emits; the copy is the
@@ -53,14 +58,14 @@ const states: Array<{
   {
     title: 'Full — one opaque call',
     note:
-      'A page-level wait on a single model call. The line says what is happening; the detail says ' +
-      'what the caller was handed and what comes back. No stages, because there is nothing to be ' +
-      'part-way through, and no number, because nobody measured one.',
+      'A page-level wait on a single model call. The line says what is happening; the sentence ' +
+      'says what the caller was handed. No stages, because there is nothing to be part-way ' +
+      'through. The one duration is the one this product has measured.',
     render: (frozen) => (
       <Working
         frozen={frozen}
         line="Researching this car"
-        detail="Common issues, maintenance intervals and recalls for a 2018 Honda Accord. Usually under a minute — the rest of the page works now."
+        detail="Issues, intervals and recalls for a 2018 Honda Accord — usually under a minute."
       />
     ),
   },
@@ -68,8 +73,8 @@ const states: Array<{
     title: 'Full — real stages, first of two',
     note:
       'The invoice scanner has two stages because the client awaits two things. The first is ' +
-      'local and active; the second has not started. Every mark here comes from the scanner’s ' +
-      'own state, never from a timer.',
+      'local and active; the second has not started. Every mark comes from the scanner’s own ' +
+      'state, never from a timer.',
     render: (frozen) => (
       <Working
         frozen={frozen}
@@ -80,11 +85,11 @@ const states: Array<{
     ),
   },
   {
-    title: 'Full — real stages, second of two, with a fact',
+    title: 'Full — real stages, second of two, with a count',
     note:
-      'The long stage. The first is done — a fact, not a timer expiry — and the running count ' +
-      'is real: one file has come back with seven line items. “File 2 of 3” is a queue the user ' +
-      'actually has.',
+      'The long stage. The first is done — a fact, not a timer expiry — and the count in the ' +
+      'ledger footer is real: one file has come back with seven line items. “File 2 of 3” is a ' +
+      'queue the user actually has.',
     render: (frozen) => (
       <Working
         frozen={frozen}
@@ -92,9 +97,7 @@ const states: Array<{
         detail="oil-change-march.pdf · File 2 of 3"
         stages={SCAN_STAGES_READING}
       >
-        <p className="mono text-xs uppercase tracking-[0.14em] text-[color:var(--text-primary)]">
-          7 line items so far
-        </p>
+        7 line items so far
       </Working>
     ),
   },
@@ -102,15 +105,14 @@ const states: Array<{
     title: 'Full — page load, delayed entry',
     note:
       'The page-level variant with `delay`: it holds invisible for 350ms and fades in, so a ' +
-      'hold that resolves from cache never paints a dial. Frozen here to show the settled frame; ' +
-      'live, it arrives late on purpose.',
+      'hold that resolves from cache never paints a dial. Live, it arrives late on purpose.',
     render: (frozen) => <Working frozen={frozen} delay line="Opening the plan" />,
   },
   {
     title: 'Compact — a card',
     note:
-      'The dial at 28px beside the line, for a row or a card body. This is the Plan → Mods card ' +
-      'while an analysis runs; the mod and the car are facts the card was handed.',
+      'The dial at 20px beside the line, no panel of its own, for a row or a card body. This is ' +
+      'the Plan → Mods card while an analysis runs; the mod and the car are facts the card holds.',
     render: (frozen) => (
       <Working
         variant="compact"
@@ -150,16 +152,16 @@ const states: Array<{
   {
     title: 'Mark — inside a control',
     note:
-      'The sweep at button scale in the button’s own ink. The label carries the state; the mark ' +
-      'is hidden from assistive tech. One-for-one replacement for the old spinning glyph.',
+      'The sweep at 14px in the button’s own ink. The label carries the state; the mark is ' +
+      'hidden from assistive tech. One-for-one replacement for the old spinning glyph.',
     render: (frozen) => (
       <div className="flex flex-wrap gap-3">
         <Button disabled className="font-semibold">
-          <WorkingMark className="mr-2 h-4 w-4" frozen={frozen} />
+          <WorkingMark className="mr-2 h-3.5 w-3.5" frozen={frozen} />
           Decoding the VIN
         </Button>
         <Button size="sm" variant="outline" disabled>
-          <WorkingMark className="mr-1 h-3 w-3" frozen={frozen} />
+          <WorkingMark className="mr-1.5 h-3.5 w-3.5" frozen={frozen} />
           Analyzing
         </Button>
         <Button size="sm" variant="ghost" disabled className="text-white/60">
@@ -182,7 +184,7 @@ function EmptyMod() {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <h4 className="text-sm font-semibold text-white">Cat-back Exhaust System</h4>
-          <p className="mono mt-1.5 text-xs uppercase tracking-[0.14em] text-white/55">
+          <p className="mono mt-1.5 text-xs uppercase tracking-[0.08em] text-white/55">
             Not analyzed yet
           </p>
         </div>
@@ -197,7 +199,7 @@ function EmptyMod() {
 export default function WorkingStatesPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-10">
-      <div className="mx-auto max-w-5xl space-y-12">
+      <div className="mx-auto max-w-5xl space-y-14">
         <header className="space-y-2">
           <p className="mono text-xs uppercase tracking-[0.2em] text-white/55">Development only</p>
           <h1 className="display-instrument display-instrument-narrow uppercase text-3xl leading-none text-[color:var(--text-primary)]">
@@ -205,16 +207,11 @@ export default function WorkingStatesPage() {
           </h1>
           <p className="max-w-2xl text-sm text-white/60 leading-relaxed">
             Every state below is what the component renders from its props. There is no timer
-            inside it, no percentage, and no stage that a real event did not report. The left
-            column is held on the sweep’s centre frame — the same frame a reduced-motion visitor
-            sees; the right column is live.
+            inside it, no percentage, and no stage that a real event did not report. Each live
+            instrument is followed by the same state held on the pip’s twelve-o’clock frame — the
+            frame a reduced-motion visitor sees.
           </p>
         </header>
-
-        <div className="mono grid grid-cols-2 gap-6 text-xs uppercase tracking-[0.2em] text-white/55">
-          <span>Frozen</span>
-          <span>Live</span>
-        </div>
 
         {states.map((state) => (
           <section key={state.title} className="space-y-4">
@@ -222,18 +219,14 @@ export default function WorkingStatesPage() {
               <h2 className="text-base font-semibold text-white">{state.title}</h2>
               <p className="max-w-2xl text-sm text-white/60 leading-relaxed">{state.note}</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div
-                className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-6"
-                data-frame="frozen"
-              >
-                {state.render(true)}
-              </div>
-              <div
-                className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-6"
-                data-frame="live"
-              >
+            <div className="space-y-4">
+              <div data-frame="live">
+                <p className="mono mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Live</p>
                 {state.render(false)}
+              </div>
+              <div data-frame="frozen">
+                <p className="mono mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Frozen</p>
+                {state.render(true)}
               </div>
             </div>
           </section>

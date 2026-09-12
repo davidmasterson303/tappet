@@ -80,8 +80,10 @@ describe('the wait instrument renders every state', () => {
     const { container } = render(<Working variant="compact" line="Analyzing this mod" />);
     expect(screen.getByRole('status')).toHaveAttribute('data-working', 'compact');
     expect(container.querySelector('.working-sweep')).not.toBeNull();
-    // The compact face keeps no terminals — measured, see the component.
-    expect(container.querySelector('.working-terminal')).toBeNull();
+    // Filled terminals at both ends of the scale — brief B1 — on the compact
+    // face too; only the mark goes without them.
+    expect(container.querySelectorAll('.working-terminal').length).toBe(2);
+    expect(container.querySelector('.working-dial')).toHaveAttribute('data-face', 'compact');
     expect(container.textContent).not.toMatch(PERCENT);
   });
 
@@ -115,6 +117,8 @@ describe('the wait instrument renders every state', () => {
     expect(mark).not.toBeNull();
     expect(mark).toHaveAttribute('aria-hidden', 'true');
     expect(mark!.querySelector('.working-sweep')).toHaveAttribute('stroke', 'currentColor');
+    // No terminals at 14px — two dots on a 5px arc read as a face.
+    expect(mark!.querySelector('.working-terminal')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
 

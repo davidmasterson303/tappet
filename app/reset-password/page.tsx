@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center p-4 service-bay service-bay-dim">
         <div className="w-full max-w-md text-center">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
-            <Working className="mb-5" line="Verifying the reset link" />
+            <Working panel={false} className="mb-5" line="Verifying the reset link" />
             <p className="text-white/50 text-xs mt-3">
               If this takes too long,{' '}
               <Link href="/forgot-password" className="text-white underline decoration-white/30 underline-offset-4 transition-colors hover:decoration-white/60">

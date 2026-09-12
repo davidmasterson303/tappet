@@ -309,10 +309,11 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                 Naming the three is what the answer contains; it is not a
                 claim about how far along the call is.
               */
-              <div className="flex flex-col items-center justify-center py-10">
+              <div className="py-4">
                 <Working
+                  panel={false}
                   line="Looking up performance figures"
-                  detail="Stock horsepower, torque and 0–60 for this car, and the same figures with its installed mods."
+                  detail="Stock horsepower, torque and 0–60, and the same figures with the installed mods."
                 />
               </div>
             ) : (

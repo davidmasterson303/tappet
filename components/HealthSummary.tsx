@@ -539,9 +539,10 @@ export default function HealthSummary({
               difference between "slow" and "stuck". No duration — none measured.
             */
             <Working
-              className="py-6"
+              variant="compact"
+              className="py-4"
               line="Reading the service history"
-              detail="Every filed invoice, the dossier and the recall check go to the model together. The score and the summary come back as one answer."
+              detail="Every filed invoice, the dossier and the recall check, in one pass."
             />
           ) : (
             <>

@@ -79,7 +79,7 @@ export default function DocumentLibrary({ vehicleId }: DocumentLibraryProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-10">
-            <Working delay line="Loading documents" />
+            <Working panel={false} delay line="Loading documents" />
           </div>
         </CardContent>
       </Card>

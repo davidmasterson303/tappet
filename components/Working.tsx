@@ -74,12 +74,13 @@ import type { WorkingStage } from '@/lib/working';
  * measured.
  */
 
+
 export type { WorkingStage, WorkingStageState } from '@/lib/working';
 
 interface WorkingProps {
   /** What is happening, present tense. Rendered in mono caps. */
   line: string;
-  /** The facts this wait was handed, and what the answer will contain. */
+  /** The facts this wait was handed, and what the answer will contain. One sentence. */
   detail?: ReactNode;
   /** Real stages, in order. Omit when the work is one opaque call. */
   stages?: WorkingStage[];
@@ -91,18 +92,27 @@ interface WorkingProps {
    * never paints a dial. For page loads; not for a wait somebody just started.
    */
   delay?: boolean;
-  /** Anything else true about the wait — the items being priced, say. */
+  /** Anything else true about the wait — a real count, the items being priced. */
   children?: ReactNode;
+  /**
+   * The full face draws its own panel — graphite, hairline, the cut. A caller
+   * that already is one (a dialog, a page panel) turns it off so the wait is
+   * not a card inside a card.
+   */
+  panel?: boolean;
   className?: string;
 }
 
-/** Percent of the arc the sweep segment covers. `globals.css` assumes 18. */
-const SEGMENT = 18;
+/**
+ * Percent of the arc the pip covers: 24° of the 270° scale — brief B5.
+ * `globals.css` assumes 9; the keyframes park it at `0` and `-91`.
+ */
+const SEGMENT = 9;
 
 /**
  * The card face's square window onto the dial, from `ClusterGauge`: centred
- * on the pivot, wide enough for the terminals. The full face keeps the hero's
- * 178-tall crop so the dial does not float above its line.
+ * on the pivot. The full face keeps the hero's 178-tall crop so the dial does
+ * not float above its line.
  */
 const SQUARE = '14 14 172 172';
 
@@ -121,115 +131,111 @@ function useStill(frozen: boolean): boolean {
   return still;
 }
 
+type Face = 'full' | 'compact' | 'mark';
+
 /**
- * The dial itself. Track, sweep, terminals — nothing that could be read as a
+ * The dial itself. Track, pip, terminals — nothing that could be read as a
  * number. No needle: a needle points at a value, and there is none.
+ *
+ * ── Strokes are pixels, and the pixels come from CSS ─────────────────────
+ *
+ * A hairline is a rendered width, not a viewBox number — the dial's lesson
+ * from 5 Sep. The full face is 160px on desktop and 128px on a phone (brief
+ * B2), which is a CSS width, so the stroke widths that keep a 1px track at
+ * both sizes are CSS too: `.working-dial[data-face]` in globals.css sets
+ * `--wk-track`, `--wk-pip` and `--wk-dot` in viewBox units per face and per
+ * breakpoint, and the elements read them. No JS media query, no first paint
+ * at the wrong size.
+ *
+ * ⚠ Not `vector-effect: non-scaling-stroke`. It would hold every stroke at
+ * its pixel width for free, but it also unscales the dash pattern, and the
+ * pip IS a dash pattern on a `pathLength="100"` path.
+ *
+ * ⚠ The terminals are round-capped paths of near-zero length, not circles.
+ * A circle's `r` is an attribute; a round cap's diameter is its stroke width,
+ * which the same custom property can set. Same dot, one mechanism.
  */
-function Dial({
-  size,
-  face,
-  live,
-  frozen,
-}: {
-  size: number;
-  face: 'full' | 'square';
-  live: boolean;
-  frozen: boolean;
-}) {
-  /*
-    A hairline is a rendered width, not a viewBox number — the dial's own
-    lesson from 5 Sep. 3px on the face, 2px on the terminals, at any size.
-  */
-  const scale = (face === 'square' ? 172 : VIEW_W) / size;
-  const hairline = 3 * scale;
-  const terminalStroke = 2 * scale;
-  const terminalR = 4 * scale;
-
-  const viewBox = face === 'square' ? SQUARE : `0 0 ${VIEW_W} ${VIEW_H}`;
-  const height = face === 'square' ? size : (size * VIEW_H) / VIEW_W;
-
+function Dial({ face, live, frozen }: { face: Face; live: boolean; frozen: boolean }) {
+  const viewBox = face === 'full' ? `0 0 ${VIEW_W} ${VIEW_H}` : SQUARE;
   const foot = pointAt(0, R);
   const head = pointAt(100, R);
-
   const sweepClass = `working-sweep ${frozen ? 'is-frozen' : live ? 'is-live' : ''}`.trim();
 
   /*
-    ── What survives 28px ────────────────────────────────────────────────────
+    ── What survives 20px ──────────────────────────────────────────────────
 
-    The full face is the reading dial's unknown face: a dashed scale with a
-    hollow terminal at each end. At the compact size neither survives — a
-    2-unit dash is a third of a pixel, and two 4px rings on an 11px-radius
-    arc read as a pair of eyes under a brow (measured on the first specimen
-    capture, not inferred). So the compact face keeps only what the mark
-    keeps: a solid hairline track and the sweep. Same grammar, fewer marks.
+    Full and compact keep the terminals (brief B1); the mark does not — at
+    14px two dots on a 5px-radius arc read as a face, and the mark only has
+    to say "this control is working", which the moving pip does alone.
   */
-  const graduated = face === 'full';
+  const terminals = face !== 'mark';
+
+  const sizeClass =
+    face === 'full'
+      ? 'w-32 sm:w-40'
+      : face === 'compact'
+        ? 'w-5 h-5'
+        : '';
 
   return (
-    <svg viewBox={viewBox} width={size} height={height} aria-hidden="true" overflow="visible">
+    <svg
+      viewBox={viewBox}
+      className={`working-dial flex-shrink-0 ${sizeClass}`.trim()}
+      data-face={face}
+      aria-hidden="true"
+      focusable="false"
+      overflow="visible"
+    >
       {/*
-        The scale, dashed — the dial's own "measured range, no measurement"
-        face. Deleting it would leave a cyan segment floating in nothing,
-        which is indistinguishable from a component that half-loaded.
-
-        ⚠ 0.24, not the reading dial's 0.10. Measured on the specimen: at the
-        card face's alpha the dashes did not survive a screenshot at 96px, and
-        a sweep with no visible scale under it is a comet, not a needle.
+        The scale: a solid hairline, open at the bottom. The first draft dashed
+        it, borrowing the reading dial's "measured range, no measurement"
+        face, and the critique read the dots as stock spinner grammar — they
+        are, at any size a person actually meets a wait at. Solid now; the
+        empty centre where the numeral would be is what says "no reading".
       */}
       <path
         className="working-track"
         d={TRACK}
         fill="none"
-        stroke="rgb(255 255 255 / 0.24)"
-        strokeWidth={hairline}
         strokeLinecap="butt"
-        strokeDasharray={graduated ? '2 5' : undefined}
       />
 
       {/*
-        The sweep. `pathLength="100"` so the dash pattern is in percent of the
+        The pip. `pathLength="100"` so the dash pattern is in percent of the
         arc and the keyframes in globals.css can name positions on it. The
-        gap is the whole path, so exactly one segment is ever on the scale.
-        Round caps, so at a 3px stroke it terminates as the dot the north-star
-        draws. Cyan, because cyan is what this dial draws in before it has a
-        reading.
+        gap is the whole path, so exactly one pip is ever on the scale. Round
+        caps, cyan, a 1px bloom: the dial draws in cyan before it has a
+        reading, and this dial never gets one.
       */}
       <path
         className={sweepClass}
         d={TRACK}
         fill="none"
-        stroke="var(--info)"
-        strokeWidth={hairline}
         strokeLinecap="round"
         pathLength={100}
         strokeDasharray={`${SEGMENT} 100`}
-        style={{ filter: 'drop-shadow(0 0 3px rgb(126 200 220 / 0.55))' }}
       />
 
       {/*
-        The two ends of the scale, as hollow terminals. On the reading dial
-        the filled one marks the reading; there is no reading here, so both
-        are hollow and both are quiet. Full face only — see `graduated`.
+        The two ends of the scale, filled — the reading dial's terminals. The
+        foot and head each take a flash keyframe timed to the pip's arrival
+        (brief B5); see `.working-terminal` in globals.css.
       */}
-      {graduated && (
+      {terminals && (
         <>
-          <circle
+          <path
             className="working-terminal"
-            cx={foot.x}
-            cy={foot.y}
-            r={terminalR}
+            data-end="foot"
+            d={`M ${foot.x} ${foot.y} l 0.01 0`}
+            strokeLinecap="round"
             fill="none"
-            stroke="rgb(255 255 255 / 0.3)"
-            strokeWidth={terminalStroke}
           />
-          <circle
+          <path
             className="working-terminal"
-            cx={head.x}
-            cy={head.y}
-            r={terminalR}
+            data-end="head"
+            d={`M ${head.x} ${head.y} l 0.01 0`}
+            strokeLinecap="round"
             fill="none"
-            stroke="rgb(255 255 255 / 0.3)"
-            strokeWidth={terminalStroke}
           />
         </>
       )}
@@ -237,54 +243,63 @@ function Dial({
   );
 }
 
-function Stages({ stages }: { stages: WorkingStage[] }) {
+/**
+ * The ledger: real stages on hairline rules — brief B4. Number and label
+ * left, glyph at the right edge. Done is a filled off-white dot with off-white
+ * ink (good news carries no hue); active is a cyan ring and cyan ink; pending
+ * is a grey ring and grey ink. The glyphs are static: one moving thing per
+ * panel, and the pip is it.
+ */
+function Ledger({ stages, footer }: { stages: WorkingStage[]; footer?: ReactNode }) {
   return (
-    <ol className="w-full max-w-sm divide-y divide-white/8 border-y border-white/8">
-      {stages.map((stage, index) => (
-        <li
-          key={stage.label}
-          className="working-stage flex items-center gap-3 py-2"
-          data-state={stage.state}
-          /*
-            The state is spoken as well as drawn — a screen reader gets "done"
-            or "in progress" after the label rather than a coloured dot.
-          */
-          aria-label={`${stage.label} — ${
-            stage.state === 'done' ? 'done' : stage.state === 'active' ? 'in progress' : 'not started'
-          }`}
-        >
-          <span className="mono text-xs text-white/50 tabular-nums">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          <span
-            className={`mono flex-1 text-xs uppercase tracking-[0.14em] ${
-              stage.state === 'active'
-                ? 'text-[color:var(--info-strong)]'
-                : stage.state === 'done'
-                  ? 'text-[color:var(--text-primary)]'
-                  : 'text-white/50'
-            }`}
-          >
-            {stage.label}
-          </span>
-          {/*
-            Done: filled off-white — good is ink, not a hue. Active: a cyan
-            ring, breathing with the sweep. Pending: a hairline ring. The
-            ring is a border so forced colours can restate it.
-          */}
-          <span
-            aria-hidden="true"
-            className={`working-stage-mark h-2 w-2 rounded-full border ${
-              stage.state === 'done'
-                ? 'border-[color:var(--text-primary)] bg-[color:var(--text-primary)]'
-                : stage.state === 'active'
-                  ? 'border-[color:var(--info)]'
-                  : 'border-white/25'
-            }`}
-          />
-        </li>
-      ))}
-    </ol>
+    <div className="w-full">
+      <ol className="divide-y divide-white/8 border-y border-white/8">
+        {stages.map((stage, index) => {
+          const ink =
+            stage.state === 'active'
+              ? 'text-[color:var(--info-strong)]'
+              : stage.state === 'done'
+                ? 'text-[color:var(--text-primary)]'
+                : 'text-white/50';
+          return (
+            <li
+              key={stage.label}
+              className="working-stage flex items-center gap-4 py-2.5"
+              data-state={stage.state}
+              /*
+                The state is spoken as well as drawn — a screen reader gets
+                "done" or "in progress" after the label rather than a dot.
+              */
+              aria-label={`${stage.label} — ${
+                stage.state === 'done' ? 'done' : stage.state === 'active' ? 'in progress' : 'not started'
+              }`}
+            >
+              <span className={`mono text-xs tabular-nums ${ink}`}>
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className={`mono text-xs uppercase tracking-[0.08em] text-left ${ink}`}>
+                {stage.label}
+              </span>
+              <span
+                aria-hidden="true"
+                className={`working-stage-mark ml-auto h-2 w-2 rounded-full border ${
+                  stage.state === 'done'
+                    ? 'border-[color:var(--text-primary)] bg-[color:var(--text-primary)]'
+                    : stage.state === 'active'
+                      ? 'border-[color:var(--info)]'
+                      : 'border-white/25'
+                }`}
+              />
+            </li>
+          );
+        })}
+      </ol>
+      {footer && (
+        <div className="working-ledger-footer mono pt-2.5 text-xs uppercase tracking-[0.08em] text-[color:var(--text-primary)]">
+          {footer}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -296,10 +311,12 @@ export function Working({
   frozen = false,
   delay = false,
   children,
+  panel = true,
   className = '',
 }: WorkingProps) {
   const still = useStill(frozen);
   const live = !still;
+  const enter = delay && !frozen ? 'working-enter' : '';
 
   if (variant === 'compact') {
     return (
@@ -308,13 +325,11 @@ export function Working({
         aria-live="polite"
         data-working="compact"
         data-motion={still ? 'still' : 'live'}
-        className={`flex items-center gap-3 ${delay && !frozen ? 'working-enter' : ''} ${className}`.trim()}
+        className={`flex items-center gap-3 text-left ${enter} ${className}`.trim()}
       >
-        <div className="flex-shrink-0">
-          <Dial size={28} face="square" live={live} frozen={frozen} />
-        </div>
+        <Dial face="compact" live={live} frozen={frozen} />
         <div className="min-w-0">
-          <p className="mono text-xs uppercase tracking-[0.14em] text-[color:var(--text-primary)]">
+          <p className="mono text-xs uppercase tracking-[0.08em] text-[color:var(--text-primary)]">
             {line}
           </p>
           {detail && <p className="mt-0.5 text-xs text-white/55 leading-relaxed">{detail}</p>}
@@ -324,28 +339,43 @@ export function Working({
     );
   }
 
+  /*
+    ── The full face is a panel, left-anchored — brief B3 ──────────────────
+
+    The first draft centred everything and let the caller supply the panel,
+    and the critique read the result as a loading modal. So the instrument
+    owns its panel now — graphite, hairline, the 45° cut, 32px of padding —
+    and the cluster sits on its left edge: arc left, the status line on the
+    arc's centre line, one sentence beneath, the ledger beneath that. On a
+    phone the arc stacks over the text on the same left edge.
+  */
   return (
     <div
       role="status"
       aria-live="polite"
       data-working="full"
       data-motion={still ? 'still' : 'live'}
-      className={`flex flex-col items-center text-center gap-5 ${
-        delay && !frozen ? 'working-enter' : ''
-      } ${className}`.trim()}
+      className={`${
+        panel ? 'cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-6 sm:p-8' : ''
+      } text-left ${enter} ${className}`.trim()}
     >
-      <Dial size={96} face="full" live={live} frozen={frozen} />
-
-      <div className="space-y-2 max-w-md">
-        <p className="mono text-sm uppercase tracking-[0.18em] text-[color:var(--text-primary)]">
-          {line}
-        </p>
-        {detail && <p className="text-sm text-white/55 leading-relaxed">{detail}</p>}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+        <Dial face="full" live={live} frozen={frozen} />
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="mono text-sm uppercase tracking-[0.08em] text-[color:var(--text-primary)]">
+            {line}
+          </p>
+          {detail && <p className="text-sm text-white/55 leading-relaxed">{detail}</p>}
+        </div>
       </div>
 
-      {stages && stages.length > 0 && <Stages stages={stages} />}
-
-      {children}
+      {stages && stages.length > 0 ? (
+        <div className="mt-6">
+          <Ledger stages={stages} footer={children} />
+        </div>
+      ) : (
+        children && <div className="mt-6 space-y-3">{children}</div>
+      )}
     </div>
   );
 }
@@ -355,12 +385,12 @@ export function Working({
  *
  * Replaces `<Loader2 className="… animate-spin" />` one for one: the same
  * `className` sizes it, and it is `aria-hidden` because the button's label —
- * "Saving…", "Analyzing" — is the announcement. No dashes and no terminals:
- * at 16px they would be noise, and the mark only has to say "this control is
- * working", which the moving segment does alone.
+ * "Saving…", "Analyzing" — is the announcement. No terminals: at 14px they
+ * would be a face, and the mark only has to say "this control is working",
+ * which the moving pip does alone.
  */
 export function WorkingMark({
-  className = 'h-4 w-4',
+  className = 'h-3.5 w-3.5',
   frozen = false,
 }: {
   className?: string;
@@ -369,28 +399,22 @@ export function WorkingMark({
   const still = useStill(frozen);
   const sweepClass = `working-sweep ${frozen ? 'is-frozen' : still ? '' : 'is-live'}`.trim();
 
-  /*
-    ⚠ `vector-effect: non-scaling-stroke` would hold the hairline at any
-    rendered size without knowing it, but in Chrome it also unscales the dash
-    pattern, and the sweep IS a dash pattern. So the mark assumes the 16px it
-    is drawn at nearly everywhere and states its strokes in viewBox units.
-  */
   return (
     <svg
       viewBox={SQUARE}
-      className={`working-mark inline-block flex-shrink-0 ${className}`}
+      className={`working-dial working-mark inline-block flex-shrink-0 ${className}`}
+      data-face="mark"
       aria-hidden="true"
       focusable="false"
       overflow="visible"
       data-motion={still ? 'still' : 'live'}
     >
-      <path d={TRACK} fill="none" stroke="currentColor" strokeOpacity={0.25} strokeWidth={16} />
+      <path className="working-track" d={TRACK} fill="none" stroke="currentColor" />
       <path
         className={sweepClass}
         d={TRACK}
         fill="none"
         stroke="currentColor"
-        strokeWidth={16}
         strokeLinecap="round"
         pathLength={100}
         strokeDasharray={`${SEGMENT} 100`}
