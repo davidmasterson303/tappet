@@ -16,8 +16,10 @@
  * now answers with a `Location:`. A canary that POSTs to a 301 is downgraded
  * to a GET and fails loudly; a README link that 301s works and looks stale.
  *
- * ⚠ What this cannot prove is the deploy. `curl -sI` on each old host after
- * the promote is the check, and the roadmap says to run it.
+ * ⚠ What this cannot prove is the deploy. `promote-demo.mjs` asks the live
+ * hosts after the merge commit is served, through the same
+ * `scripts/lib/host-redirects.mjs` this suite imports — one parser, one
+ * verifier, pinned here against fixtures and a fake `fetch`.
  */
 
 import { readFileSync } from 'node:fs';
@@ -44,61 +46,22 @@ const PRODUCT_RETIRABLE: Record<string, string> = {
   'wellkept.southmoordigital.com': PRODUCT_PRIMARY,
 };
 
-interface Rule {
-  from: string;
-  to: string;
-  status: number | null;
-  force: boolean;
-}
-
-/**
- * The `[[redirects]]` tables, read with a parser sized to the file: a table
- * header, then `key = value` lines until the next header. No TOML library is
- * installed and one is not worth adding for four keys.
- */
-function readRedirects(source: string): Rule[] {
-  const rules: Rule[] = [];
-  let current: Record<string, string> | null = null;
-  for (const raw of source.split('\n')) {
-    const line = raw.replace(/#.*$/, '').trim();
-    if (line === '') continue;
-    if (/^\[\[redirects\]\]$/.test(line)) {
-      current = {};
-      rules.push(current as unknown as Rule);
-      continue;
-    }
-    if (/^\[/.test(line)) {
-      current = null;
-      continue;
-    }
-    const match = line.match(/^([A-Za-z_]+)\s*=\s*(.+)$/);
-    if (current && match) current[match[1]] = match[2].replace(/^"(.*)"$/, '$1');
-  }
-  return rules.map((r) => {
-    const raw = r as unknown as Record<string, string>;
-    return {
-      from: raw.from ?? '',
-      to: raw.to ?? '',
-      status: raw.status ? Number(raw.status) : null,
-      force: raw.force === 'true',
-    };
-  });
-}
-
-function host(url: string): string {
-  return url.replace(/^https?:\/\//, '').split('/')[0];
-}
+import {
+  hostOf as host,
+  readHostRedirects,
+  retiredHostsFor,
+  verifyHostRedirects,
+} from '../../scripts/lib/host-redirects.mjs';
 
 const toml = readFileSync(join(ROOT, 'netlify.toml'), 'utf8');
-const rules = readRedirects(toml);
-const hostRules = rules.filter((r) => /^https?:\/\//.test(r.from));
+const hostRules = readHostRedirects(toml);
 
 describe('the retired hostnames redirect', () => {
   it('found host-level rules at all', () => {
     expect(hostRules.length).toBeGreaterThanOrEqual(Object.keys(RETIRED).length);
   });
 
-  it('the parser reads a rule the way Netlify does, and sees a missing force', () => {
+  it('the parser reads a rule the way Netlify does, sees a missing force, and skips path rules', () => {
     const fixture = [
       '[[redirects]]',
       '  from = "https://old.example/*"   # trailing comment',
@@ -113,10 +76,79 @@ describe('the retired hostnames redirect', () => {
       '[[headers]]',
       '  for = "/*"',
     ].join('\n');
-    expect(readRedirects(fixture)).toEqual([
+    expect(readHostRedirects(fixture)).toEqual([
       { from: 'https://old.example/*', to: 'https://new.example/:splat', status: 301, force: false },
-      { from: '/demo', to: '/', status: 301, force: true },
     ]);
+    expect(retiredHostsFor(fixture, 'https://new.example')).toEqual(['old.example']);
+    expect(retiredHostsFor(fixture, 'https://elsewhere.example')).toEqual([]);
+  });
+
+  it('the verifier believes the host, not the file', async () => {
+    /*
+      What `promote-demo` runs after the deploy, against a fake `fetch`. Three
+      answers a host can give, each with its verdict: the 200 the old hosts
+      gave before the rules reached `demo-live` (fail — this is the baseline
+      the change has to move), a 301 to the wrong place (fail), and a 301 to
+      the primary with the primary itself on 200 (pass). And the primary
+      answering with a redirect is a loop, which fails even if every retired
+      host is right.
+    */
+    const fixture = [
+      '[[redirects]]',
+      '  from = "https://old.example/*"',
+      '  to = "https://new.example/:splat"',
+      '  status = 301',
+      '  force = true',
+    ].join('\n');
+    const answering = (table: Record<string, { status: number; location?: string }>) =>
+      (async (url: string) => {
+        const a = table[host(url)];
+        return { status: a.status, headers: new Headers(a.location ? { location: a.location } : {}) } as Response;
+      }) as unknown as typeof fetch;
+
+    const stillServing = await verifyHostRedirects({
+      toml: fixture,
+      primary: 'https://new.example',
+      fetchImpl: answering({ 'old.example': { status: 200 }, 'new.example': { status: 200 } }),
+    });
+    expect(stillServing.failures).toEqual(['old.example answered 200, not 301']);
+
+    const wrongWay = await verifyHostRedirects({
+      toml: fixture,
+      primary: 'https://new.example',
+      fetchImpl: answering({
+        'old.example': { status: 301, location: 'https://third.example/' },
+        'new.example': { status: 200 },
+      }),
+    });
+    expect(wrongWay.failures).toEqual(['old.example redirects to https://third.example/, not new.example']);
+
+    const loop = await verifyHostRedirects({
+      toml: fixture,
+      primary: 'https://new.example',
+      fetchImpl: answering({
+        'old.example': { status: 301, location: 'https://new.example/' },
+        'new.example': { status: 301, location: 'https://old.example/' },
+      }),
+    });
+    expect(loop.failures).toHaveLength(1);
+    expect(loop.failures[0]).toMatch(/^new\.example answered 301/);
+
+    const right = await verifyHostRedirects({
+      toml: fixture,
+      primary: 'https://new.example',
+      fetchImpl: answering({
+        'old.example': { status: 301, location: 'https://new.example/' },
+        'new.example': { status: 200 },
+      }),
+    });
+    expect(right.failures).toEqual([]);
+    expect(right.checked.map((c) => c.host)).toEqual(['old.example', 'new.example']);
+
+    // Nothing to verify is reported as nothing, never as a pass.
+    const nothing = await verifyHostRedirects({ toml: '', primary: 'https://new.example', fetchImpl: answering({}) });
+    expect(nothing.retired).toEqual([]);
+    expect(nothing.checked).toEqual([]);
   });
 
   it('sends every retired demo host to the demo primary, permanently and forced', () => {
