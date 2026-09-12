@@ -124,11 +124,22 @@ describe('the demo garage grid stays inside its payload budget', () => {
     expect(Object.keys(heroes).sort()).toEqual([...DEMO_VEHICLE_IDS].sort());
   });
 
-  it('keeps at least one car unphotographed, so the empty state is on show', () => {
-    // The demo's only live exercise of the no-photo design — see
-    // components/VehicleIdentity.tsx, which calls that state the primary one and
-    // records that nothing rendered it while every seeded car had a file.
-    expect(DEMO_UNPHOTOGRAPHED_VEHICLE_IDS.length).toBeGreaterThanOrEqual(1);
+  it('keeps no car bare any more, and the empty state still has a place to be looked at', () => {
+    /*
+      Until 12 Sep the M3 was the demo's only live exercise of the no-photo
+      design. Then every car without a photograph got a generated plate, so
+      the bare bay stopped being anyone's home state and became a wait —
+      shown as "Drawing this car's plate". The demo shows plates, as a user
+      sees them; the bare state is kept on `/dev/garage?state=empty` for the
+      design loop, and that route is what this now checks for, so the state
+      cannot quietly lose its last renderer.
+    */
+    expect(DEMO_UNPHOTOGRAPHED_VEHICLE_IDS).toHaveLength(0);
+    const devGarage = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', '..', 'app', 'dev', 'garage', 'page.tsx'),
+      'utf8'
+    );
+    expect(devGarage).toMatch(/'empty'/);
   });
 
   it.each(paths)('%s exists and is a card-sized derivative', (path) => {
