@@ -14,14 +14,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import type { InvoiceFile } from '../api/documents';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { buildPosition } from '@tappet/core/build-progress';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/garage-next-service';
-import { componentPlainName, normaliseRecalls } from '@tappet/core/recalls';
+import { componentPlainName } from '@tappet/core/recalls';
+import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
 import BackControl from '../components/BackControl';
@@ -32,6 +33,8 @@ import Card from '../components/Card';
 import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PhotoGrade from '../components/PhotoGrade';
+import PlateStatusLine from '../components/PlateStatusLine';
+import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
 import ProvenanceRow from '../components/ProvenanceRow';
 import StatStrip, { type Stat } from '../components/StatStrip';
@@ -142,6 +145,8 @@ interface Vehicle {
    * declared it and never drew it.
    */
   photo_url?: string | null;
+  /** The generation plate's status beside the photo — `null` is nothing to say. See `PlateStatusLine`. */
+  plate_status?: PlateStatus | null;
   /* Both embedded shapes accepted, for the reason GarageScreen sets out. */
   vehicle_health_summary?: HealthSummary | HealthSummary[] | null;
   nhtsa_data?: { recalls?: unknown[] | null } | { recalls?: unknown[] | null }[] | null;
@@ -272,37 +277,6 @@ interface HubCounts {
    */
   servicesFiledAt: string | null;
   wishlist: { count: number; total: number } | null;
-}
-
-/**
- * The most recent `created_at` among filed service records, or `null`.
- *
- * ⚠ Returns `null` for an empty list rather than "now" or the epoch. A car with
- * no records has no filing date, and either substitute would be a claim: the
- * epoch would call every verdict stale, and `now` would call every verdict
- * current. §6 — a missing value is "we cannot say".
- */
-function newestFiledAt(items: Array<{ created_at?: string | null }>): string | null {
-  let newest: string | null = null;
-  let newestAt = -Infinity;
-
-  for (const item of items) {
-    if (typeof item?.created_at !== 'string') continue;
-
-    /*
-      Parsed rather than compared as strings. These do all come from one
-      Postgres column and would sort lexically today — but that holds only while
-      every row carries the same offset and the same fractional precision, which
-      is a property of the data rather than of anything enforced here.
-    */
-    const at = Date.parse(item.created_at);
-    if (Number.isNaN(at) || at <= newestAt) continue;
-
-    newest = item.created_at;
-    newestAt = at;
-  }
-
-  return newest;
 }
 
 type State =
@@ -708,18 +682,21 @@ export function VehicleDetailScreen({
 
   if (state.status === 'loading') {
     /*
-      Shaped like the dossier that is coming, not a centred dot.
+      ── 12 Sep · the delayed full instrument, not a shaped skeleton ─────────
 
-      This is the densest screen in the app and the one a recall notification
-      opens, so it is the most likely to be met cold. A hero block then two
-      cards mirrors what resolves — the photo, the health card, the
-      destinations — which is what stops the fill-in reading as a jump.
+      This drew a hero block and two card skeletons "shaped like the dossier
+      that is coming" — but the dossier is a plate and a table now, not cards,
+      and a placeholder whose shape does not match what replaces it produces
+      the jump it existed to prevent. The rule the phone joins: a page-level
+      load takes the full wait instrument with `delay`, invisible for 350ms so
+      a hold that resolves sooner never paints. This is the densest screen in
+      the app and the one a recall notification opens, so it is the most
+      likely to be met cold — and the one whose wait most needs to say what it
+      is doing rather than pretend to be content.
     */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <Skeleton height={196} />
-        <SkeletonCard lines={3} />
-        <SkeletonCard lines={2} />
+        <Working delay line="Opening this car" />
       </ScrollView>
     );
   }
@@ -790,26 +767,12 @@ export function VehicleDetailScreen({
   ].filter((cell): cell is Stat => cell !== null);
 
   /*
-    ── Open recalls, which is not the same number as recalls ─────────────────
-
-    A campaign the owner has marked repaired is no longer counted here, and that
-    is the point of the whole recall change: a badge that can never go down
-    stops being read.
-
-    ⚠ A missing or malformed `recall_actions` embed means **nothing is treated
-    as marked**. Erring the other way would hide an open safety notice on the
-    strength of a field that failed to arrive.
+    Open recalls, which is not the same number as recalls — `verdict-inputs.ts`
+    carries the rule, shared with the Health screen since 12 Sep so the two
+    screens count the same campaigns.
   */
-  const allRecalls = normaliseRecalls(first(vehicle.nhtsa_data)?.recalls);
-  const marked = new Set(
-    (vehicle.recall_actions ?? []).flatMap((action) =>
-      typeof action?.campaign_number === 'string' ? [action.campaign_number] : []
-    )
-  );
-  const open = allRecalls.filter(
-    (recall) => !recall.campaignNumber || !marked.has(recall.campaignNumber)
-  );
-  const openRecalls = open.length;
+  const open = openRecalls(first(vehicle.nhtsa_data)?.recalls, vehicle.recall_actions);
+  const openRecallCount = open.length;
 
   /*
     The banner names the defect rather than describing itself.
@@ -836,7 +799,7 @@ export function VehicleDetailScreen({
     generatedAt: health?.last_generated,
     serviceCount: counts.services,
     newestFiledAt: counts.servicesFiledAt,
-    openRecalls,
+    openRecalls: openRecallCount,
   });
 
   /*
@@ -1012,6 +975,8 @@ export function VehicleDetailScreen({
           ]}
           pointerEvents="none"
         >
+          {/* 12 Sep: the plate says it is being drawn — see `PlateStatusLine`. */}
+          {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
           <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
             {name}
           </Text>
@@ -1158,13 +1123,13 @@ export function VehicleDetailScreen({
         score, the verdict and the provenance, and three different things to
         read do not make one thing to press.
       */}
-      {(score !== null && band) || openRecalls > 0 ? (
+      {(score !== null && band) || openRecallCount > 0 ? (
         <View>
           {score !== null && band && (
             <BandRow
               label="What is driving this score"
               onPress={onOpenHealth}
-              last={openRecalls === 0}
+              last={openRecallCount === 0}
             />
           )}
 
@@ -1193,9 +1158,9 @@ export function VehicleDetailScreen({
         that still had a box. The `AlertBanner` tones stay for the states that
         are alerts.
       */}
-          {openRecalls > 0 && (
+          {openRecallCount > 0 && (
             <RecallBand
-              count={openRecalls}
+              count={openRecallCount}
               worst={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
               onPress={onViewRecalls}
               last
@@ -1390,6 +1355,8 @@ export function VehicleDetailScreen({
             variant="outline"
             size="small"
             busy={uploading || removing}
+            busyLabel={removing ? 'Removing' : 'Uploading'}
+
             onPress={onPhotoControl}
             style={styles.pill}
           />

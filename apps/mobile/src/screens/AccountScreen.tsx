@@ -312,6 +312,7 @@ export function AccountScreen({
             onPress={() => void handleDelete()}
             disabled={!confirmed}
             busy={deleting}
+            busyLabel="Deleting"
             style={styles.deleteAction}
           />
         </View>

@@ -204,11 +204,16 @@
 >   empty. ⚠ The phone has not adopted it; §14 lists its nine skeleton loads
 >   and the `ActivityIndicator` sites, with the `react-native-svg` note for
 >   the pip (`ClusterGauge.tsx` already records there is no `pathLength`).
-> - **Mobile mastheads** (`1b10a02`…`fee512c`, drift §6.11–§6.12) — every tab
->   root opens on the night; the critic accepted them (B5 ✅ on all five) and
->   held at 7 with four lines 🟡 for states never in frame. A second agent is
->   continuing from round 26, capturing those states, and building **Remove
->   photo** on the Vehicle screen.
+> - **Mobile mastheads and the loop to round 28** (`1b10a02`…`e054079`, drift
+>   §6.11–§6.13) — every tab root opens on the night; the critic accepted them
+>   (B5 ✅ on all five). Capturing the off-frame states exposed three things
+>   twenty rounds never saw — a collapsed title in Inter, the hub drawn as an
+>   iOS settings box, the system chevron on pushed screens — all fixed. Closed
+>   at **8/10, 7 of 9** on the critic's second `Continue: no`: B9 needs the
+>   camera build, and its round-28 B1 was a misread the agent measured and
+>   declined. **Remove photo** ships as an action sheet under Change photo.
+>   ⚠ `NavRow` is deleted — that supersedes the 23 Aug decision (§6.13);
+>   pull-to-refresh's cyan ramp is unbuilt (system `RefreshControl`).
 > - **The phone's photograph and plate** (`c876ad2`) — `DELETE
 >   /api/v1/upload-photo` shares one body with the web's Remove; the phone's
 >   API resolves a ready plate server-side, so plates reach the phone with no
@@ -216,6 +221,8 @@
 >
 > #### Open, and David's
 >
+> - A fresh `MOBILE_TEST_TOKEN` + `MOBILE_TEST_VEHICLE_ID` — the contract
+>   script's credentialed half has not run since 2 Aug.
 > - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
 >   is deleted or merged on that answer.
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.

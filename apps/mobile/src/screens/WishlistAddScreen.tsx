@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import Chip from '../components/Chip';
 import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
-import { SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import {
   filterSuggestions,
@@ -297,11 +297,10 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
   }, [shown, typed]);
 
   if (state.kind === 'loading') {
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={2} />
-        <SkeletonCard lines={2} />
+        <Working delay line="Opening the suggestions" />
       </ScrollView>
     );
   }
@@ -465,6 +464,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                       variant="outline"
                       size="small"
                       busy={working}
+                      busyLabel=""
                       accessibilityLabel={`Add ${suggestion.name} to the wishlist`}
                       onPress={() =>
                         void add(suggestion.name, suggestion.type, suggestion.reason)
@@ -507,6 +507,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
             label={`Add “${typed}”`}
             variant="primary"
             busy={busy === wishlistItemIdentifier(DEFAULT_TYPE, typed)}
+            busyLabel="Adding"
             accessibilityLabel={`Add ${typed} to the wishlist`}
             onPress={() => void add(typed, DEFAULT_TYPE)}
           />

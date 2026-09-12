@@ -22,7 +22,7 @@ import {
   unmarkRecallAddressed,
   type AddressedRecall,
 } from '../api/recalls';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import {
   componentPlainName,
@@ -415,9 +415,15 @@ export function RecallDetailScreen({
 
   if (state.kind === 'loading') {
     /*
-      A banner-height block then recall cards. The banner is the first thing
-      this screen says when it has something to say, so leaving its space
-      unclaimed is what makes the arrival jump.
+      ── 12 Sep · two faces, because this is two kinds of wait ───────────────
+
+      Pushed on its own, this is a page load and takes the delayed full
+      instrument like every other. Embedded under Health it is a section of a
+      page that has already arrived — its own fetch, inside a body the person
+      is already reading — so it takes the compact face, delayed for the same
+      reason: the fixtures and a warm cache answer inside the hold and nothing
+      paints. "Reading", not "checking": nothing here asks NHTSA; the recalls
+      are read off the vehicle's stored record.
     */
     /*
       ⚠ **Embedded, this must not be a `ScrollView`** — see the container note
@@ -427,13 +433,11 @@ export function RecallDetailScreen({
     */
     return embedded ? (
       <View style={styles.embedded}>
-        <Skeleton height={72} />
-        <SkeletonCard lines={3} />
+        <Working variant="compact" delay line="Reading the recalls" />
       </View>
     ) : (
       <ScrollView contentContainerStyle={styles.body}>
-        <Skeleton height={72} />
-        <SkeletonCard lines={3} />
+        <Working delay line="Opening the recalls" />
       </ScrollView>
     );
   }
@@ -706,6 +710,7 @@ export function RecallDetailScreen({
                 label="Undo"
                 variant="outline"
                 busy={working}
+                busyLabel=""
                 accessibilityLabel={`Undo marking the ${plainComponent(recall) ?? 'recall'} repaired`}
                 onPress={() =>
                   recall.campaignNumber && void setAddressed(recall.campaignNumber, false)
@@ -731,6 +736,8 @@ export function RecallDetailScreen({
                   label="Mark as repaired"
                   variant="outline"
                   busy={working}
+                  busyLabel="Marking"
+
                   onPress={() => void setAddressed(recall.campaignNumber!, true)}
                   style={styles.action}
                 />

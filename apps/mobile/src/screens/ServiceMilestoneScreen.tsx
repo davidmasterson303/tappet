@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -13,7 +12,7 @@ import {
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { apiRequest, ApiRequestError } from '../api/client';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import {
   evaluateSchedule,
@@ -316,10 +315,10 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   );
 
   if (state.kind === 'loading') {
-    // One card: this screen resolves into a single milestone or a mileage gate.
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <SkeletonCard lines={3} />
+        <Working delay line="Reading the schedule" />
       </ScrollView>
     );
   }
@@ -389,6 +388,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
           variant="primary"
           size="small"
           busy={saving}
+          busyLabel="Saving"
+
           onPress={() => void confirm()}
           style={styles.confirmAction}
         />

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
 import { BuildScreen } from './BuildScreen';
 import { WishlistScreen } from './WishlistScreen';
-import { PAGE_BODY, space } from '../theme';
+import { PAGE_BODY, space, text, type, TARGET_MIN } from '../theme';
 
 export type PlanSegment = 'needs' | 'mods';
 
@@ -79,8 +79,34 @@ export function PlanScreen({
     </View>
   ) : null;
 
+  /*
+    ── ⚠ The way to add lives here, in the chrome, once rows exist ──────────
+
+    `WishlistScreen`'s empty state carries "See suggestions" and, by its own
+    note, hands the job to the nav bar's `+` once there are rows — "one
+    control per state". That `+` was the old stack header's, and the 11 Sep
+    tab rebuild replaced the header with `RootScreen`'s band. Nothing put the
+    control back: David, on his phone the same night, "i'm missing options to
+    add more items to my list". It is the Garage's "Add car" exactly — a mono
+    caps word at the band's trailing edge, `RootScreen`'s `trailing`, in the
+    voice B1 gives chrome — and only on Needs, since Mods has its own ladder.
+  */
+  const add =
+    segment === 'needs' ? (
+      <View style={styles.headerActions}>
+        <Pressable
+          onPress={onAdd}
+          accessibilityRole="button"
+          accessibilityLabel="Add something this car needs"
+          style={styles.headerAction}
+        >
+          <Text style={styles.headerActionLabel}>Add</Text>
+        </Pressable>
+      </View>
+    ) : null;
+
   return (
-    <RootScreen title="Plan" plate="plan" pinned={pinned}>
+    <RootScreen title="Plan" plate="plan" pinned={pinned} trailing={add}>
       {segment === 'mods' && showsMods ? (
         <BuildScreen
           vehicleId={vehicleId}
@@ -106,4 +132,8 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     paddingBottom: space.sm,
   },
+  // The Garage's header chrome, to the token — one voice for one job.
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  headerAction: { minHeight: TARGET_MIN, paddingTop: 6 },
+  headerActionLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
 });

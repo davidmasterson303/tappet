@@ -4,17 +4,21 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 
 import Button from '../components/Button';
 import Card from '../components/Card';
-import ClusterGauge, { HERO_SIZE } from '../components/ClusterGauge';
+import ClusterGauge from '../components/ClusterGauge';
+import { BAY_DIAL } from '../components/GarageBay';
 import HealthDrivers from '../components/HealthDrivers';
 import HealthHistory, { type HealthReading } from '../components/HealthHistory';
 import Plinth from '../components/Plinth';
+import ProvenanceRow from '../components/ProvenanceRow';
 import SectionHeader from '../components/SectionHeader';
 import { RecallDetailScreen } from './RecallDetailScreen';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { healthVerdict } from '@tappet/core/health-claims';
+import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { space, text, type } from '../theme';
 
 /**
@@ -57,6 +61,8 @@ import { space, text, type } from '../theme';
 interface HealthSummary {
   health_score?: number | null;
   summary?: string | null;
+  /** When the reading was taken — `healthVerdict` cannot refuse a stale sentence without it. */
+  last_generated?: string | null;
 }
 
 interface HealthResponse {
@@ -65,6 +71,9 @@ interface HealthResponse {
     make?: string | null;
     model?: string | null;
     vehicle_health_summary?: HealthSummary | HealthSummary[] | null;
+    /* Both embedded shapes, for the reason the vehicle screen sets out. */
+    nhtsa_data?: { recalls?: unknown[] | null } | { recalls?: unknown[] | null }[] | null;
+    recall_actions?: Array<{ campaign_number?: string | null }> | null;
   };
   /*
     ⚠ Both are **top level**, and both are snake_case — `health_drivers` and
@@ -91,7 +100,12 @@ type State =
       name: string;
       /** `null` is "we cannot say", and it is never drawn as a zero. */
       score: number | null;
-      summary: string | null;
+      /**
+       * What may be said about the score, from `healthVerdict` — the stored
+       * sentence only while it postdates the records on file, a statement of
+       * staleness otherwise, and the inputs the reading was worked out from.
+       */
+      verdict: ReturnType<typeof healthVerdict>;
       drivers: HealthDriver[];
       history: HealthReading[];
     };
@@ -117,11 +131,46 @@ export function HealthScreen({
       else setState({ kind: 'loading' });
 
       try {
-        const data = await apiRequest<HealthResponse>(
-          `/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`
-        );
+        /*
+          ── 12 Sep · two requests, so the verdict has its inputs ──────────────
+
+          This screen printed `vehicle_health_summary.summary` verbatim, where
+          the vehicle screen one tap up runs it through `healthVerdict` — so on
+          a car whose records postdate the reading, the hub said "taken before
+          your 5 service records were filed" and this screen printed the
+          sentence those records had superseded. The critic's round-28 Cut
+          list caught the contradiction (drift §6.13).
+
+          The verdict needs the service count and the newest filing date,
+          which live on `/load-maintenance-data`; `allSettled` keeps that
+          request subordinate, as the vehicle screen does: a slow history
+          costs the verdict its staleness check — `null` inputs leave the
+          sentence alone — and nothing else.
+        */
+        const [vehicleResult, servicesResult] = await Promise.allSettled([
+          apiRequest<HealthResponse>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
+          apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
+            `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
+          ),
+        ]);
+        if (vehicleResult.status === 'rejected') throw vehicleResult.reason;
+        const data = vehicleResult.value;
 
         const health = first(data.vehicle?.vehicle_health_summary);
+        const filedItems =
+          servicesResult.status === 'fulfilled' &&
+          Array.isArray(servicesResult.value.maintenanceLineItems)
+            ? servicesResult.value.maintenanceLineItems
+            : null;
+
+        const verdict = healthVerdict({
+          summary: health?.summary,
+          generatedAt: health?.last_generated,
+          serviceCount: filedItems === null ? null : filedItems.length,
+          newestFiledAt: filedItems === null ? null : newestFiledAt(filedItems),
+          openRecalls: openRecalls(first(data.vehicle?.nhtsa_data)?.recalls, data.vehicle?.recall_actions)
+            .length,
+        });
 
         setState({
           kind: 'loaded',
@@ -132,7 +181,7 @@ export function HealthScreen({
             title ||
             'this car',
           score: typeof health?.health_score === 'number' ? health.health_score : null,
-          summary: health?.summary ?? null,
+          verdict,
           drivers: Array.isArray(data.health_drivers) ? data.health_drivers : [],
           history: Array.isArray(data.health_history) ? data.health_history : [],
         });
@@ -194,11 +243,10 @@ export function HealthScreen({
   useRefetchOnFocus(load);
 
   if (state.kind === 'loading') {
+    /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
     return (
       <ScrollView contentContainerStyle={styles.body}>
-        <Skeleton height={220} />
-        <SkeletonCard lines={3} />
-        <SkeletonCard lines={2} />
+        <Working delay line="Opening the score" />
       </ScrollView>
     );
   }
@@ -257,8 +305,26 @@ export function HealthScreen({
               a considered component and this was its only call site, so
               deleting it would throw away the reasoning along with the usage.
             */}
-            <ClusterGauge score={state.score} size={HERO_SIZE} />
-            {state.summary ? <Text style={styles.summary}>{state.summary}</Text> : null}
+            {/*
+              ── 12 Sep · B3: the same dial as the garage, at the same size ──
+
+              This drew `HERO_SIZE` (184) while the garage draws `BAY_DIAL`
+              (240, the web dial at the web's own size — `GarageBay` carries
+              the measurement). The critic's round-29 gap 1 measured the
+              difference from the frames: a dial at three quarters of the
+              garage's, on the one screen that exists to explain the score.
+              One dial, one size; the garage's constant, not a second copy.
+            */}
+            <ClusterGauge score={state.score} size={BAY_DIAL} />
+            {/*
+              `verdict.text`, never the stored summary — the same rule as the
+              vehicle screen, which this screen used to break one tap away
+              from it. The provenance line names what the reading was worked
+              out from, so a contradiction is visible while somebody is
+              looking rather than only to whoever compares the two screens.
+            */}
+            {state.verdict.text ? <Text style={styles.summary}>{state.verdict.text}</Text> : null}
+            <ProvenanceRow kinds={state.verdict.inputs} />
           </>
         ) : (
           /*
