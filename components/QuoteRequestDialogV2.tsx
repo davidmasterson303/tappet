@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { CircleCheck as CheckCircle, ChevronLeft, ChevronRight, FileText, MapPin, Loader as Loader2, CircleAlert as AlertCircle, Wrench } from 'lucide-react';
+import { CircleCheck as CheckCircle, ChevronLeft, ChevronRight, FileText, MapPin, CircleAlert as AlertCircle, Wrench } from 'lucide-react';
 import { generateQuoteRequestV2 } from '@/app/actions';
 import { CostBreakdownTable } from './CostBreakdownTable';
 import { EmailDraftDisplay } from './EmailDraftDisplay';

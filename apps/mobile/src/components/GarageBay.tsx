@@ -12,13 +12,13 @@ import {
 import StatStrip, { type Stat } from './StatStrip';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
 
-import BayRoom, { BayLightPool, bayHeroHeight } from './BayRoom';
+import BayRoom, { bayHeroHeight } from './BayRoom';
 import ClusterGauge from './ClusterGauge';
 import {
   UNKNOWN_TIMING,
   describeNextService,
 } from '@tappet/core/garage-next-service';
-import { TABULAR, TARGET_MIN, bay, space, surface, text, type } from '../theme';
+import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
 import { interFace } from '../theme/fonts';
 
@@ -34,16 +34,24 @@ import { interFace } from '../theme/fonts';
  * which is why this and the plinth were deferred out of step 3 rather than
  * built around a placeholder and then built again.
  *
- * ── The size the board actually uses ────────────────────────────────────────
+ * ── The size the board actually uses — and the size the brief does ──────────
  *
- * ⚠ **164, not `HERO_SIZE`.** The instruments card specifies the hero at 184pt;
- * the bay screen passes `size="164"`. Both are the board's, and the screen is
- * the more specific claim — 184 is the dial's own design size, 164 is what fits
- * a bay with a room, an identity lockup and a service row above the fold. The
- * component default is untouched; the caller chooses, which is exactly how the
- * board expresses it too.
+ * ⚠ **164, not `HERO_SIZE`**, was the board's figure: the instruments card
+ * specifies the hero at 184pt and the bay screen passed 164, *"what fits a bay
+ * with a room, an identity lockup and a service row above the fold"*.
+ *
+ * ⚠ **240 since 11 Sep.** Locked brief B3: *"the dial is the web dial … 88pt
+ * grotesk numeral"*, and two rounds of the critique measured the 164 dial's
+ * 56pt reading against that. The web dial on a phone-width viewport spans
+ * ~62% of the width — about 240pt — so 240 is the web dial at the web's own
+ * size, and `ClusterGauge`'s `HERO_NUMERAL` puts 88 on it. What made 164 fit
+ * no longer applies: the service row and the recall are a table *under* the
+ * dial now, not rows between the plate and it, and the pool of light is gone
+ * (see the instrument below). On the 16 Pro the second reading row still ends
+ * above the tab bar; on a 4.7″ display the dial is whole above the fold and
+ * the rows scroll, which is the order the brief puts them in.
  */
-const BAY_DIAL = 164;
+const BAY_DIAL = 240;
 
 /** Door lift, then lights, then the needle. The order is the sentence. */
 const DOOR_MS = 460;
@@ -97,7 +105,7 @@ export default function GarageBay({
   active = true,
   onOpen,
   uploading,
-  alert,
+  recallCount = 0,
   footer,
   onOpenService,
   today,
@@ -138,14 +146,28 @@ export default function GarageBay({
   onOpen?: () => void;
   uploading?: boolean;
   /**
-   * What is **wrong** with this car, above the instrument — R19.
+   * Open recalls still standing against this car — the ones the recall screen
+   * would draw and the owner has not marked repaired. Zero draws no row.
    *
-   * ⚠ Above and not below, and that is the whole of the finding: an open recall
-   * outranks a health reading, and it used to render as a small chip under a
-   * 110pt dial. A bay with nothing in this slot is a bay whose dial is rightly
-   * the headline.
+   * ── ⚠ 11 Sep · a count, not a node, and under the dial rather than over it ─
+   *
+   * This was `alert?: ReactNode`, and the screen handed it a sodium-outlined
+   * chip placed **above** the instrument — R19's finding, 23 Aug: *"an open
+   * airbag recall outranks a fair score"*, so the alert came first and the
+   * dial became the resting state of a car with nothing wrong.
+   *
+   * The locked brief's garage runs *"the mono stat strip … then the dial"*,
+   * and two rounds of the critique read the chip as the one card left on the
+   * screen and the rows between strip and dial as the brief's order broken
+   * (critique 23, gap 1; critique 24, gap 1). So the dial follows the strip and
+   * the recall is the first thing after it — a full-width hairline row in the
+   * spec-table voice, sodium triangle beside a genuine warning (B7), the count
+   * in the numeral column (B6) — not the 22pt chip under a 110pt dial that
+   * R19 was written against. What R19 argued for survives: the recall is not
+   * small, not decorative, and not below the fold; what it argued *with* — a
+   * position above the instrument — gives way to the brief.
    */
-  alert?: React.ReactNode;
+  recallCount?: number;
   /** Anything else the screen hangs under the dial. */
   footer?: React.ReactNode;
   /** Opens `Service → Due` for this car — R21. Omitted means the row is a readout. */
@@ -335,104 +357,32 @@ export default function GarageBay({
       </Pressable>
 
       {/*
-        The next-service row.
+        ── ⚠ 11 Sep · the brief's order: strip, then the dial, then the readings ─
 
-        ⚠ **It renders in both states, and that is the design rather than an
-        oversight.** `docs/step4-api-gaps.md` §3 held this row for one sentence:
-        "'No schedule yet' is not the same as 'nothing due', and the card must
-        not imply the second." A row that disappears when the answer is unknown
-        is the version that breaks that rule — a bay with no next-service line,
-        sitting next to one that has it, reads as a car with nothing coming up.
-
-        Keeping the label fixed is what makes the empty state safe to say. The
-        subject of the sentence is settled before the value is read, so "No
-        schedule yet" can only be heard as an answer to *that* question.
-
-        It sits above the instrument for the same reason the advisor's estimate
-        sits below its provenance line: this is a fact about the car, and the
-        dial is a reading of it.
+        Critique 24, gap 1: *"the brief runs strip → dial; on screen NEXT SERVICE
+        and the recalls chip sit between them and ~140pt of empty graphite sits
+        under FAIR."* Both rows lived above the instrument since 23 Aug (R19,
+        R21). They are the two facts about the car the garage carries beyond
+        its reading, and under the brief they are what the spec table is for:
+        a mono label at the left, the value at the right, a hairline per row.
+        The dial comes straight off the strip, as the studio paragraph writes
+        it, and the two rows sit beneath it where the void was.
       */}
-      {/*
-        ── R21 · the row is a way in, not only a readout ─────────────────────
-
-        "Engine Oil & Filter Change · in 4,000 mi" is the single most actionable
-        string on the home screen, and it led nowhere — the only way to act on it
-        was to open the car, scroll the hub and find `Service`. It opens
-        `Service → Due` directly now.
-
-        ⚠ Only when there is an answer. `No schedule yet` is a statement, not a
-        destination, and a pressable row that leads to a screen saying the same
-        thing is worse than an unpressable one.
-      */}
-      <Pressable
-        onPress={nextService.kind === 'known' ? onOpenService : undefined}
-        disabled={nextService.kind !== 'known' || !onOpenService}
-        accessibilityRole={nextService.kind === 'known' && onOpenService ? 'button' : undefined}
-        accessibilityLabel={
-          nextService.kind === 'known' && onOpenService
-            ? `Next service: ${nextService.service}, ${nextService.timing}. Opens what is due.`
-            : undefined
-        }
-        style={({ pressed }) => [styles.nextService, pressed && styles.nextServicePressed]}
-      >
-        <Text style={styles.nextServiceLabel}>NEXT SERVICE</Text>
-        {nextService.kind === 'known' ? (
-          /*
-            ── R21 · the job and the timing are two facts, not one string ────
-
-            It read `Engine Oil & Filter Change · in 4,000 mi` as a single run
-            at one weight — the most actionable string on the home screen,
-            rendered as a label-plus-run-on. The job is what you do; the timing
-            is when. Splitting them lets the eye take the job at a glance and
-            the number when it wants it, and it puts the figure on tabular
-            digits (R11) so a stack of bays does not shimmer.
-          */
-          <View style={styles.nextServiceValue}>
-            <Text style={styles.nextServiceJob} numberOfLines={1}>
-              {nextService.service}
-            </Text>
-            <Text style={styles.nextServiceTiming} numberOfLines={1}>
-              {nextService.timing}
-            </Text>
-          </View>
-        ) : (
-          /*
-            Muted, and phrased to match the "No score yet" beneath it. Two
-            absences on one card that word themselves differently read as two
-            different kinds of problem.
-          */
-          <Text style={styles.nextServiceUnknown} numberOfLines={1}>
-            {UNKNOWN_TIMING}
-          </Text>
-        )}
-      </Pressable>
-
-      {/*
-        ── ⚠ R19 · the recall sits above the dial, not under it ──────────────
-
-        The hierarchy was inverted: a ~110pt dial reading 70 dominated the bay
-        and "2 recalls" was a ~22pt chip below it. **An open airbag recall
-        outranks a fair score** — one is a defect the manufacturer has admitted
-        and will fix for nothing, the other is a summary.
-
-        So the alert comes first, full width, and the dial becomes what a dial
-        should be: the resting state of a car with nothing wrong. On a car with
-        no open recall nothing changes, which is the point — the instrument is
-        the headline exactly when it deserves to be.
-      */}
-      {alert}
-
       <View style={styles.instrument}>
         {band && typeof score === 'number' ? (
-          <>
-            {/*
-              `active` is the door, not the bay. The needle waits for the room
-              to be visible — a sweep that ran behind a closed shutter would be
-              the animation this screen exists to stage, spent on nothing.
-            */}
-            <ClusterGauge score={score} size={BAY_DIAL} active={open} />
-            <BayLightPool />
-          </>
+          /*
+            `active` is the door, not the bay. The needle waits for the room
+            to be visible — a sweep that ran behind a closed shutter would be
+            the animation this screen exists to stage, spent on nothing.
+
+            ⚠ 11 Sep: no `BayLightPool` under it any more. The pool was a cyan
+            radial at 14% hung from the dial's foot — "lit glass" on the board.
+            Under B7 cyan is *"focus, active rule and refresh ramp"* and
+            nothing else, and on every graded frame the pool was invisible
+            anyway: 22pt of gap that read as air. The export stays for the
+            board's record; the bay does not draw it.
+          */
+          <ClusterGauge score={score} size={BAY_DIAL} active={open} />
         ) : (
           /*
             No score is not a zero, and it is not an empty dial either. A dial
@@ -442,39 +392,144 @@ export default function GarageBay({
         )}
       </View>
 
+      <View style={styles.readings}>
+        {/*
+          The next-service row.
+
+          ⚠ **It renders in both states, and that is the design rather than an
+          oversight.** `docs/step4-api-gaps.md` §3 held this row for one sentence:
+          "'No schedule yet' is not the same as 'nothing due', and the card must
+          not imply the second." A row that disappears when the answer is unknown
+          is the version that breaks that rule — a bay with no next-service line,
+          sitting next to one that has it, reads as a car with nothing coming up.
+
+          Keeping the label fixed is what makes the empty state safe to say. The
+          subject of the sentence is settled before the value is read, so "No
+          schedule yet" can only be heard as an answer to *that* question.
+        */}
+        {/*
+          ── R21 · the row is a way in, not only a readout ─────────────────────
+
+          "Engine Oil & Filter Change · in 4,000 mi" is the single most actionable
+          string on the home screen, and it led nowhere — the only way to act on it
+          was to open the car, scroll the hub and find `Service`. It opens
+          `Service → Due` directly now.
+
+          ⚠ Only when there is an answer. `No schedule yet` is a statement, not a
+          destination, and a pressable row that leads to a screen saying the same
+          thing is worse than an unpressable one.
+        */}
+        <Pressable
+          onPress={nextService.kind === 'known' ? onOpenService : undefined}
+          disabled={nextService.kind !== 'known' || !onOpenService}
+          accessibilityRole={nextService.kind === 'known' && onOpenService ? 'button' : undefined}
+          accessibilityLabel={
+            nextService.kind === 'known' && onOpenService
+              ? `Next service: ${nextService.service}, ${nextService.timing}. Opens what is due.`
+              : undefined
+          }
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        >
+          <Text style={styles.rowLabel}>NEXT SERVICE</Text>
+          {nextService.kind === 'known' ? (
+            /*
+              ── R21 · the job and the timing are two facts, not one string ────
+
+              It read `Engine Oil & Filter Change · in 4,000 mi` as a single run
+              at one weight — the most actionable string on the home screen,
+              rendered as a label-plus-run-on. The job is what you do; the timing
+              is when. Splitting them lets the eye take the job at a glance and
+              the number when it wants it, and it puts the figure on tabular
+              digits (R11) so a stack of bays does not shimmer.
+            */
+            <View style={styles.rowValue}>
+              <Text style={styles.nextServiceJob} numberOfLines={1}>
+                {nextService.service}
+              </Text>
+              <Text style={styles.nextServiceTiming} numberOfLines={1}>
+                {nextService.timing}
+              </Text>
+            </View>
+          ) : (
+            /*
+              Muted, and phrased to match the "No score yet" beneath it. Two
+              absences on one card that word themselves differently read as two
+              different kinds of problem.
+            */
+            <Text style={styles.nextServiceUnknown} numberOfLines={1}>
+              {UNKNOWN_TIMING}
+            </Text>
+          )}
+        </Pressable>
+
+        {recallCount > 0 ? (
+          /*
+            The recall row — the garage's version of the car's `RecallBand`, in
+            the strip-and-readings voice this screen speaks rather than the
+            section voice the car's screen does. Same triangle, same rule: the
+            sodium is the line beside the warning, never a frame around it.
+            It opens the car, where the band leads on to the campaigns.
+          */
+          <Pressable
+            onPress={onOpen}
+            disabled={!onOpen}
+            accessibilityRole={onOpen ? 'button' : undefined}
+            accessibilityLabel={
+              onOpen
+                ? `${recallCount} open recall${recallCount === 1 ? '' : 's'}. Opens the car.`
+                : undefined
+            }
+            style={({ pressed }) => [styles.row, styles.rowLast, pressed && styles.rowPressed]}
+          >
+            <Text style={styles.mark} accessibilityElementsHidden>
+              △
+            </Text>
+            <Text style={styles.rowLabel}>{recallCount === 1 ? 'OPEN RECALL' : 'OPEN RECALLS'}</Text>
+            <Text style={styles.rowCount}>{recallCount}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       {footer}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  nextService: {
+  /*
+    ── The readings: a two-row spec table under the dial ─────────────────────
+
+    A hairline above each row and one under the last, so the pair reads as
+    one table rather than two bands; 56 from rule to rule, B6's figure. The
+    label is the mono caps eyebrow and the value sits at the right edge, which
+    is the row every record list on the phone uses.
+  */
+  /* The bay's own gap separates it from the dial; no air of its own. */
+  readings: {},
+  row: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: space.md,
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
-    /* R21. It is a target now, so it clears the floor on its own. */
-    minHeight: TARGET_MIN,
+    minHeight: SPEC_ROW,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
   },
+  rowLast: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
   /* A fill swap on press. Never a group opacity — see `Button`. */
-  nextServicePressed: { backgroundColor: surface.raised },
-  /** 12/600 at 0.6 tracking — the label role, and the floor. Never smaller. */
-  nextServiceLabel: { ...type.monoLabel, color: text.muted },
+  rowPressed: { backgroundColor: surface.raised },
+  /** 12/500 mono caps — the label role, and the floor. Never smaller. */
+  rowLabel: { ...type.monoLabel, color: text.muted },
   /*
     Right-aligned and allowed to take the slack, so the label column stays put
     across a stack of bays. A value that started at a different x on every card
     would make the list read as unaligned rather than as a set.
   */
-  nextServiceValue: { flex: 1, alignItems: 'flex-end' },
+  rowValue: { flex: 1, alignItems: 'flex-end' },
   nextServiceJob: { ...type.ui, color: text.primary, textAlign: 'right' },
   /* R11. "in 4,000 mi" is a figure, and figures do not reflow between bays. */
   nextServiceTiming: { ...type.mono, color: text.muted, textAlign: 'right', ...TABULAR },
-  /*
-    The same size, one step quieter. Not italic and not a different face: this
-    is a real answer to the question, not an apology for one.
-  */
   /*
     ⚠ 6 Sep · B1: mono. "No schedule yet" is a **state**, and B1 gives states
     mono along with values and dates — the job name above it is a name and keeps
@@ -483,6 +538,13 @@ const styles = StyleSheet.create({
     what belongs in it changes with the string.
   */
   nextServiceUnknown: { ...type.mono, color: text.muted, flex: 1, textAlign: 'right' },
+  /*
+    ⚠ `△` (U+25B3), outlined, in sodium — B7's "hairline triangle beside a
+    genuine warning", the same mark `RecallBand` and the health drivers use.
+  */
+  mark: { ...type.monoLabel, color: status.attention, width: 16, textAlign: 'center' },
+  /* B6: the count in the numeral column, mono and right-aligned. */
+  rowCount: { ...type.mono, ...TABULAR, color: text.primary, flex: 1, textAlign: 'right' },
   /**
    * ⚠ **No horizontal padding, as of 23 Aug.**
    *

@@ -43,7 +43,34 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 const config = getDefaultConfig(projectRoot);
 
 // Watch the whole workspace so edits to packages/core reach the bundler.
-config.watchFolders = [workspaceRoot];
+/*
+  ── ⚠ 11 Sep · a worktree's node_modules is a symlink into the main tree ────
+
+  An agent's git worktree carries no install of its own; it links both
+  `node_modules` directories to the main checkout's, and the gitignored
+  `design-loop` folder with them so the fixtures' owner photo is one file on
+  one machine. Metro follows each link to its real path, finds it outside the
+  one watch folder, and refuses the very first import: `Unable to resolve
+  "expo" from "apps/mobile/index.ts"` — which reads as a broken install rather
+  than a watch-folder boundary; the photo fails the same way, one request
+  later. So the real paths are watched too, when they differ. In the main tree
+  they do not, and this adds nothing.
+*/
+const fs = require('fs');
+const realIfLinked = (dir) => {
+  try {
+    const real = fs.realpathSync(dir);
+    return real === dir ? [] : [real];
+  } catch {
+    return [];
+  }
+};
+config.watchFolders = [
+  workspaceRoot,
+  ...realIfLinked(path.resolve(projectRoot, 'node_modules')),
+  ...realIfLinked(path.resolve(workspaceRoot, 'node_modules')),
+  ...realIfLinked(path.resolve(workspaceRoot, 'design-loop')),
+];
 
 // Prefer this app's own node_modules, then the workspace root.
 config.resolver.nodeModulesPaths = [

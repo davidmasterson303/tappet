@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CircleCheck as CheckCircle, X, Check, Heart, Loader as Loader2, TriangleAlert, Wrench, Info } from 'lucide-react';
+import { CircleCheck as CheckCircle, X, Check, Heart, TriangleAlert, Wrench, Info } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 
 interface IssueCardProps {
@@ -112,19 +112,12 @@ export default function IssueCard({
                 : `${isSmall ? 'h-7 text-xs' : ''} bg-primary text-primary-foreground hover:bg-primary/90`
             }
             onClick={toggleWishlist}
-            disabled={wishlistLoading || loading}
+            disabled={loading}
+            busy={wishlistLoading}
+            busyLabel={isSaved ? 'Removing' : 'Adding'}
           >
-            {wishlistLoading ? (
-              <>
-                <Loader2 className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1 animate-spin`} />
-                {isSaved ? 'Removing' : 'Adding'}
-              </>
-            ) : (
-              <>
-                <Heart className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1 ${isSaved ? 'fill-current' : ''}`} />
-                {isSaved ? 'Remove from Needs' : 'Add to Needs'}
-              </>
-            )}
+            <Heart className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1 ${isSaved ? 'fill-current' : ''}`} />
+            {isSaved ? 'Remove from Needs' : 'Add to Needs'}
           </Button>
           <Button
             size={isSmall ? 'sm' : 'default'}

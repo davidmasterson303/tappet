@@ -198,9 +198,23 @@ describe('the wait is described without being estimated', () => {
       The old stages were divs that changed colour, so a blind user got a
       spinner and no account of it at all — the progress indicator was, for
       them, purely decorative and purely fictional.
+
+      ── Re-pointed 11 Sep, not relaxed ──────────────────────────────────────
+
+      The live region moved into the wait instrument the loader now renders:
+      `Working` is the `role="status"` container, and the loader's stage line,
+      file name and running count all sit inside it so they are read as one
+      update. So the assertion follows the attribute to where it lives — the
+      loader must render `<Working`, and `Working.tsx` must still carry both
+      attributes. A rename of either half fails here rather than going quiet.
     */
     const body = rendered(LOADER);
-    expect(body).toMatch(/aria-live="polite"/);
-    expect(body).toMatch(/role="status"/);
+    expect(body).toMatch(/<Working[\s>]/);
+
+    const instrument = rendered(
+      readFileSync(join(ROOT, 'components', 'Working.tsx'), 'utf8')
+    );
+    expect(instrument).toMatch(/aria-live="polite"/);
+    expect(instrument).toMatch(/role="status"/);
   });
 });

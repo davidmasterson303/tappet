@@ -22,7 +22,7 @@ export function VehicleCardSkeleton() {
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-4 w-32" />
         </div>
-        <Skeleton className="h-12 w-12 rounded-full" />
+        <Skeleton className="h-12 w-12" />
       </div>
       <Skeleton className="h-20 w-full" />
       <div className="flex gap-2">
@@ -60,7 +60,7 @@ export function MaintenanceHistorySkeleton() {
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 p-2">
-            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-10 w-10" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-3 w-20" />
@@ -126,7 +126,7 @@ export function QuoteDetailSkeleton() {
 export function ChatMessageSkeleton() {
   return (
     <div className="flex gap-3 mb-4">
-      <Skeleton className="h-8 w-8 rounded-full" />
+      <Skeleton className="h-8 w-8" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-24" />
         {Array.from({ length: 3 }).map((_, i) => (

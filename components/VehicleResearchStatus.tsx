@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader as Loader2, CircleAlert as AlertCircle, RefreshCw } from 'lucide-react';
+import { CircleAlert as AlertCircle, RefreshCw } from 'lucide-react';
+import { Working } from '@/components/Working';
 import { Button } from '@/components/ui/button';
 import { enrichVehicle, getResearchStatus } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
@@ -216,28 +217,26 @@ export function VehicleResearchStatus({
             </p>
           </div>
         </div>
-        <Button size="sm" onClick={run} disabled={running} className="flex-shrink-0">
-          <RefreshCw className={`mr-2 h-3.5 w-3.5 ${running ? 'animate-spin' : ''}`} aria-hidden="true" />
-          {running ? 'Retrying…' : 'Retry'}
+        <Button size="sm" onClick={run} busy={running} busyLabel="Retrying" className="flex-shrink-0">
+          <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+          Retry
         </Button>
       </div>
     );
   }
 
+  /*
+    The wait instrument at row size, with the one duration this product has
+    measured — the ~60s above is where "usually under a minute" comes from,
+    and it is the only place a number is printed on a wait anywhere in the
+    app. The instrument carries `role="status"` itself.
+  */
   return (
-    <div
-      className="flex items-center gap-3 rounded-xl border border-info-border bg-info-wash p-4"
-      role="status"
-      aria-live="polite"
-    >
-      <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-info" aria-hidden="true" />
-      <div>
-        <p className="text-sm font-medium text-foreground">Still learning about this car</p>
-        <p className="text-xs text-muted-foreground">
-          Researching common issues, maintenance intervals and recalls. Usually under a minute —
-          the rest of the dashboard works now.
-        </p>
-      </div>
-    </div>
+    <Working
+      variant="compact"
+      className="cut-panel border border-white/8 bg-[hsl(var(--card))]/95 p-4"
+      line="Still learning about this car"
+      detail="Researching common issues, maintenance intervals and recalls. Usually under a minute — the rest of the dashboard works now."
+    />
   );
 }

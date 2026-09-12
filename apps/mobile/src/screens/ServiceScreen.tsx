@@ -138,7 +138,7 @@ export function ServiceScreen({
   );
 
   return (
-    <RootScreen title="Service" pinned={pinned}>
+    <RootScreen title="Service" plate="service" pinned={pinned}>
       {segment === 'due' ? (
         <ServiceMilestoneScreen vehicleId={vehicleId} onSignOut={onSignOut} />
       ) : (

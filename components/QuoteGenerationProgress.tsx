@@ -1,7 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Wrench, Zap } from 'lucide-react';
+import { Working } from '@/components/Working';
 
 /**
  * What is actually happening while a quote is generated, and nothing else.
@@ -61,84 +60,54 @@ interface QuoteGenerationProgressProps {
 export function QuoteGenerationProgress({ items, zipCode }: QuoteGenerationProgressProps) {
   const count = items.length;
 
+  /*
+    ── The instrument, and what stayed — 11 Sep ────────────────────────────────
+
+    The beat is now the wait instrument shared with every other wait in the
+    product: the dial's ignition sweep, held. What it replaced here was a
+    framer-motion glow pulsing behind a lightning glyph and an indeterminate
+    bar — three separate ways of saying "working", none of them the way the
+    rest of the app says it.
+
+    Everything the panel could honestly say before, it still says, in the same
+    words: the count, the ZIP as something sent, the items by name, and what
+    the answer will contain. No percentage — a client cannot measure a model
+    call — and no per-item ticks, because one request prices all of them at
+    once and marking them off would invent an order that does not exist.
+
+    `Working` is the `role="status"` region, and the item list sits inside it
+    so a screen reader hears the count, the ZIP and the items as one account.
+  */
   return (
-    <div className="space-y-6" role="status" aria-live="polite">
-      <div className="text-center space-y-3">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', duration: 0.5 }}
-          className="flex justify-center"
-        >
-          <div className="relative">
-            <Zap className="h-16 w-16 text-info" aria-hidden="true" />
-            <motion.div
-              className="absolute inset-0 bg-info-wash rounded-full blur-xl"
-              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          </div>
-        </motion.div>
-        <h3 className="text-2xl font-bold text-info">Generating your quote</h3>
-        <p className="text-sm text-muted-foreground">
-          {/*
-            Both halves are facts this component was handed. The ZIP is stated
-            as something included rather than something consulted, because that
-            is all that happens to it.
-          */}
-          Pricing {count} service {count === 1 ? 'item' : 'items'}. Your ZIP code {zipCode} goes
-          with the request so the ranges can allow for local labour rates.
-        </p>
-      </div>
-
-      {/*
-        Indeterminate, and it has to stay that way. A determinate bar needs a
-        denominator, and the only honest one here is "one call, unknown length".
-        The CSS blanket rule in globals.css neutralises this under
-        `prefers-reduced-motion`; it is a CSS animation for exactly that reason.
-      */}
-      <div
-        className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden"
-        aria-hidden="true"
-      >
-        <div
-          className="h-full w-1/3 rounded-full"
-          style={{
-            background: 'linear-gradient(90deg, transparent, #22d3ee, transparent)',
-            animation: 'indeterminateSlide 1.6s ease-in-out infinite',
-          }}
-        />
-      </div>
-      <style jsx>{`
-        @keyframes indeterminateSlide {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(300%);
-          }
-        }
-      `}</style>
-
+    <Working
+      panel={false}
+      line={count === 1 ? 'Pricing your service item' : `Pricing ${count} service items`}
+      detail={`Pricing ${count} service ${count === 1 ? 'item' : 'items'}. Your ZIP code ${zipCode} goes with the request so the ranges can allow for local labour rates.`}
+    >
       {count > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-muted-foreground">
+        <div className="w-full max-w-md text-left">
+          <p className="mono text-xs uppercase tracking-[0.14em] text-white/55 mb-1">
             {count === 1 ? 'The item' : 'The items'} being priced
-          </div>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start gap-3 rounded-lg border border-info-border bg-black/20 p-3"
-            >
-              <Wrench className="h-4 w-4 text-info mt-0.5 flex-shrink-0" aria-hidden="true" />
-              <div className="min-w-0">
+          </p>
+          {/*
+            Hairline-ruled rows, not bordered tiles — the dossier's band
+            grammar. The category is mono because it is a label; the
+            description is the owner's own words and wraps rather than
+            truncating, because a clipped line item is the one you cannot
+            check.
+          */}
+          <ul className="divide-y divide-white/8 border-y border-white/8">
+            {items.map((item) => (
+              <li key={item.id} className="flex items-baseline justify-between gap-4 py-2.5">
                 <p className="text-sm text-foreground leading-snug">{item.description}</p>
                 {item.category && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.category}</p>
+                  <p className="mono text-xs uppercase tracking-[0.14em] text-white/50 flex-shrink-0">
+                    {item.category}
+                  </p>
                 )}
-              </div>
-            </div>
-          ))}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -147,10 +116,10 @@ export function QuoteGenerationProgress({ items, zipCode }: QuoteGenerationProgr
         cost breakdown and an email draft, always both. Naming the output is not
         the same as claiming to be part-way through producing it.
       */}
-      <p className="text-center text-xs text-muted-foreground leading-relaxed">
+      <p className="text-xs text-white/50 leading-relaxed max-w-md">
         You will get parts and labour ranges for each item, and an email draft you can send to a
         shop.
       </p>
-    </div>
+    </Working>
   );
 }

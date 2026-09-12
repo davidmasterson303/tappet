@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader as Loader2 } from 'lucide-react';
 import { generateVehicleDossier } from '@/app/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -48,7 +47,6 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
   return (
     <Button
       onClick={handleResearch}
-      disabled={isResearching}
       variant="ghost"
       size="sm"
       /*
@@ -68,17 +66,11 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
         voice, and this is a state word — it says what will happen.
       */
       className="mono h-auto px-0 text-xs uppercase tracking-widest text-white/55 hover:bg-transparent hover:text-white"
+      busy={isResearching} busyLabel="Researching"
     >
-      {isResearching ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Researching...
-        </>
-      ) : (
-        <>
+      <>
           {hasData ? 'Refresh research' : 'Generate research'}
         </>
-      )}
     </Button>
   );
 }

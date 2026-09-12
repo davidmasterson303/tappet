@@ -826,6 +826,20 @@ export const OPTICAL_CENTRE = {
 
 /** Any interactive target. `hitSlop` is not a substitute in a wrapped row. */
 export const TARGET_MIN = 44;
+
+/**
+ * A spec-table row, rule to rule — B6's *"hairline per 56pt row"*.
+ *
+ * ⚠ 11 Sep: the service record's lines measured 44 — `TARGET_MIN` plus the
+ * paddings they happened to carry — and the critique measured them against
+ * the brief's figure. Beside `TARGET_MIN` rather than in `rhythm`, because
+ * it is a row's height and not a gap: `theme-backdrop.test.tsx` holds every
+ * rhythm slot to the 4pt spacing scale, and 56 is not a step of it — it is
+ * the height the brief gives a row, which is a different kind of number, the
+ * way 44 is. A row that clears 44 is pressable; a row that sits at 56 is the
+ * same row every record list on the phone draws.
+ */
+export const SPEC_ROW = 56;
 /** Any focusable field on touch — under it iOS zooms and never zooms back. */
 export const FIELD_FONT_MIN = 16;
 /** The smallest rendered text. */

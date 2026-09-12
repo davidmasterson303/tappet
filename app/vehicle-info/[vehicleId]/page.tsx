@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import VehicleInsights from '@/components/VehicleInsights';
 import { Button } from '@/components/ui/button';
 import SpecBand from '@/components/SpecBand';
-import { Loader as Loader2, RefreshCw } from 'lucide-react';
+import { Working } from '@/components/Working';
 import ResearchButton from '@/components/ResearchButton';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
@@ -69,12 +69,19 @@ function SpecRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/*
+  ── An absence, not a wait ──────────────────────────────────────────────────
+
+  This held a static spinner glyph in a rounded tile — the loading icon, not
+  spinning, over a sentence about research that is not running on this
+  page. A loader that does not move reads as one that is stuck. The empty
+  band takes the system's empty treatment instead: the mono line, nothing
+  that suggests motion, and the sentence saying what fills it.
+*/
 function EmptySpec({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-center">
-      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center mb-3">
-        <Loader2 className="h-5 w-5 text-white/20" />
-      </div>
+    <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+      <p className="mono text-xs uppercase tracking-[0.14em] text-white/55">Not researched yet</p>
       <p className="text-sm text-white/50 leading-relaxed max-w-xs">
         {label} will be available after vehicle research is complete.
       </p>
@@ -159,20 +166,14 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
       return (
         <DashboardLayout vehicle={cachedVehicle} currentPage="vehicle-info" vehicleImage={vehicleImage}>
           <div className="flex items-center justify-center py-32">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
-              <p className="text-sm text-white/50">Loading vehicle info...</p>
-            </div>
+            <Working delay line="Opening the specifications" />
           </div>
         </DashboardLayout>
       );
     }
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-info-border border-t-info rounded-full animate-spin" />
-          <p className="text-sm text-white/50">Loading vehicle info...</p>
-        </div>
+        <Working delay line="Opening the specifications" />
       </div>
     );
   }
@@ -302,9 +303,18 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
         */}
         <SpecBand title="Performance">
             {perfLoading && !hasPerformanceData ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-8 h-8 border-2 border-info-border border-t-info rounded-full animate-spin mb-3" />
-                <p className="text-sm text-white/50">Analyzing performance specs...</p>
+              /*
+                `/api/v1/performance-stats` asks the model once for the
+                factory figures and the same figures with the installed mods.
+                Naming the three is what the answer contains; it is not a
+                claim about how far along the call is.
+              */
+              <div className="py-4">
+                <Working
+                  panel={false}
+                  line="Looking up performance figures"
+                  detail="Stock horsepower, torque and 0–60, and the same figures with the installed mods."
+                />
               </div>
             ) : (
               <>

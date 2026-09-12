@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Settings, LogOut, Loader as Loader2 } from 'lucide-react';
+import { User, Settings, LogOut } from 'lucide-react';
+import { WorkingMark } from '@/components/Working';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,7 +91,7 @@ export function AccountMenu() {
           className="cursor-pointer"
         >
           {signingOut ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+            <WorkingMark className="mr-2 h-4 w-4" />
           ) : (
             <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
           )}

@@ -226,7 +226,16 @@ describe('declarations that only bite after the build', () => {
       }
     };
 
-    expect(ignored('.claude/worktrees')).toBe(true);
+    /*
+      ⚠ A path *inside* the directory, not the directory itself. The pattern is
+      `.claude/worktrees/` — trailing slash, directories only — and git can
+      only call a path a directory if it exists. It does in the main checkout
+      and does not in an agent's worktree, where this suite also runs, so the
+      bare directory came back unignored there while the pattern was fine
+      (found 11 Sep). A child path matches the pattern whether or not anything
+      is on disk, and it is the child paths — the checkouts — that EAS packs.
+    */
+    expect(ignored('.claude/worktrees/any-checkout')).toBe(true);
 
     // The tracked file in the same directory must survive — it is what the
     // preview tooling reads, and ignoring `.claude/` wholesale would take it.

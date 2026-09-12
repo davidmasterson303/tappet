@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { generateVehicleHealthSummary } from '@/app/actions';
+import { Working, WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
@@ -525,15 +526,24 @@ export default function HealthSummary({
             <Activity className="h-5 w-5 text-info" />
             Vehicle Health
           </CardTitle>
-          <p className="text-sm text-white/50 mt-1">
-            {isRefreshing ? 'Analyzing your vehicle...' : 'Get started by uploading service invoices'}
-          </p>
+          {!isRefreshing && (
+            <p className="text-sm text-white/50 mt-1">Get started by uploading service invoices</p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {isRefreshing ? (
-            <div className="flex items-center justify-center py-10">
-              <RefreshCw className="h-7 w-7 text-info animate-spin" />
-            </div>
+            /*
+              One call, and what goes into it is knowable: `generateVehicleHealthSummary`
+              reads the filed invoices, the service history, the dossier and the
+              recall check before it asks the model once. Saying so is the
+              difference between "slow" and "stuck". No duration — none measured.
+            */
+            <Working
+              variant="compact"
+              className="py-4"
+              line="Reading the service history"
+              detail="Every filed invoice, the dossier and the recall check, in one pass."
+            />
           ) : (
             <>
               <p className="text-sm text-white/55 leading-relaxed">
@@ -595,7 +605,7 @@ export default function HealthSummary({
               className="chamfer-sm p-1.5 text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Refresh health summary"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? <WorkingMark className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}
             </button>
           </div>
           {healthSummary.red_flags && healthSummary.red_flags.length > 0 && (
@@ -749,7 +759,7 @@ export default function HealthSummary({
             className="text-[color:var(--text-muted)] hover:text-[color:var(--info-strong)] hover:bg-white/4 transition-colors"
             aria-label="Refresh health summary"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? <WorkingMark className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
         </div>
       </CardHeader>

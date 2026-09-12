@@ -2,6 +2,7 @@
 
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
+import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
   genAI,
   flashStructuredConfig,
@@ -4610,56 +4611,22 @@ export async function uploadVehiclePhoto(formData: FormData) {
 }
 
 export async function removeVehiclePhoto(vehicleId: string) {
+  /*
+    The body lives in `lib/vehicle-photo.ts` since 11 Sep, shared with the
+    phone's `DELETE /api/v1/upload-photo` — one implementation, so the two
+    clients cannot drift on what "remove" removes.
+  */
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
     }
-
-    const client = access.client;
-
-    const { data: vehicle, error: vehicleError } = await client
-      .from('vehicles')
-      .select('custom_image_storage_path')
-      .eq('id', vehicleId)
-      .maybeSingle();
-
-    if (vehicleError) {
-      console.error('Vehicle fetch error:', vehicleError);
-      return { success: false, error: 'Failed to fetch vehicle' };
-    }
-
-    if (vehicle?.custom_image_storage_path) {
-      const { error: deleteError } = await client.storage
-        .from('vehicle-documents')
-        .remove([vehicle.custom_image_storage_path]);
-
-      if (deleteError) {
-        console.warn('Failed to delete storage file:', deleteError);
-      }
-    }
-
-    const { error: updateError } = await client
-      .from('vehicles')
-      .update({
-        custom_image_url: null,
-        custom_image_storage_path: null,
-        custom_image_uploaded_at: null,
-      })
-      .eq('id', vehicleId);
-
-    if (updateError) {
-      console.error('Vehicle update error:', updateError);
-      return { success: false, error: 'Failed to remove photo' };
-    }
-
-    return { success: true };
+    return await clearVehiclePhoto(access.client, vehicleId);
   } catch (error: any) {
     console.error('Remove vehicle photo error:', error);
     return { success: false, error: error.message || 'Failed to remove photo' };
   }
 }
-
 /**
  * ── ⚠ Not exported (SEC-02) ─────────────────────────────────────────────────
  *

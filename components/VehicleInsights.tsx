@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CircleAlert as AlertCircle, FileText, Wrench, RefreshCw } from 'lucide-react';
+import { CircleAlert as AlertCircle, FileText, Wrench } from 'lucide-react';
+import { Working } from '@/components/Working';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   updateIssueStatus,
@@ -427,70 +428,54 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
     };
 
     if (!knowledge || knowledge.research_status === 'pending') {
+      /*
+        ── The fourth fake indicator, found while replacing the third ────────
+
+        This card drew three bars — "Issues Analysis", "Maintenance Schedule",
+        "Performance Data" — filled to 33%, 53% and 73% by the expression
+        `(i + 1) * 20 + 13`, and pulsed them. The widths were arithmetic on
+        the array index. Nothing here measures research, which is one call to
+        `generateVehicleDossier` with one outcome, so the card was showing
+        three readings of a quantity it did not have, in the same paint the
+        health dial uses for a reading it does. `b1e2baa` removed the quote
+        panel's percentage on 30 Aug for exactly this; this one was a page
+        away and nobody was watching a loader.
+
+        What is true: which car, what comes back, and the one duration this
+        product has measured — `VehicleResearchStatus` records ~60s of work
+        against a 4s poll, and says "usually under a minute" from it. Same
+        sentence here, because it is the same wait.
+      */
       return (
-        <Card className="bg-gradient-to-br from-slate-900/60 to-slate-900/40 border-info-border overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/5 via-transparent to-cyan-400/5 animate-pulse" />
-          <CardHeader className="relative">
-            <div className="space-y-4">
-              <CardTitle className="text-white flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-info-wash rounded-full animate-pulse blur" />
-                  <RefreshCw className="h-5 w-5 text-info animate-spin relative" />
-                </div>
-                <span>Vehicle Research In Progress</span>
-              </CardTitle>
-              <div className="text-slate-300 text-sm space-y-2">
-                <p>Analyzing your {vehicle.year} {vehicle.make} {vehicle.model}...</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1 h-3 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-xs text-slate-400">Gathering data</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="space-y-3">
-              <div className="space-y-2">
-                {['Issues Analysis', 'Maintenance Schedule', 'Performance Data'].map((label, i) => (
-                  <div key={label} className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">{label}</span>
-                    <div className="w-24 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-full animate-pulse"
-                        style={{ width: `${(i + 1) * 20 + 13}%`, animationDelay: `${i * 300}ms` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="pt-2 border-t border-slate-700/50">
-                <p className="text-xs text-slate-400 italic">This may take a moment. Feel free to explore the page.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Working
+          line="Researching this car"
+          detail={`Issues, intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model} — usually under a minute.`}
+        />
       );
     }
 
     if (knowledge.research_status === 'failed') {
+      /*
+        The retry is the same wait as above, so it is the same instrument —
+        the failure card only shows once the retry has also come back empty.
+      */
+      if (isAutoResearching) {
+        return (
+          <Working
+            line="Retrying the research"
+            detail={`The first attempt did not finish. Issues, intervals and recalls for a ${vehicle.year} ${vehicle.make} ${vehicle.model}.`}
+          />
+        );
+      }
       return (
         <Card className="bg-slate-900/50 border-yellow-400/20">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              {isAutoResearching
-                ? <RefreshCw className="h-5 w-5 text-yellow-400 animate-spin" />
-                : <AlertCircle className="h-5 w-5 text-yellow-400" />
-              }
+              <AlertCircle className="h-5 w-5 text-yellow-400" />
               Research Unavailable
             </CardTitle>
             <CardDescription className="text-slate-400">
-              {isAutoResearching
-                ? 'Retrying research...'
-                : 'We encountered an issue researching your vehicle. You can still track maintenance manually.'}
+              We encountered an issue researching your vehicle. You can still track maintenance manually.
             </CardDescription>
           </CardHeader>
         </Card>

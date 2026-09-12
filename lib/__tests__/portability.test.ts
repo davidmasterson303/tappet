@@ -211,6 +211,15 @@ const PORTABLE: string[] = [
     `lib/account-data.ts` records for the storage prefixes.
   */
   'lib/consultant-title.ts',
+  /*
+    Added 11 Sep with the wait instrument. The stage model `Working` draws
+    and the one mapping into it — the invoice scanner's two real stages from
+    `ScanProgress`. Imports only core, so it qualifies mechanically. It stays
+    in lib/ because the phone narrates its scanner in its own words
+    (`scan-progress.ts` records the two clients settling on one vocabulary,
+    not one component), and nothing outside the web asks for stage rows.
+  */
+  'lib/working.ts',
 ];
 
 /**
