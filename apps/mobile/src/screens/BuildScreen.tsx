@@ -12,6 +12,7 @@ import {
 import AlertBanner from '../components/AlertBanner';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import type { WishlistSource } from '@tappet/core/wishlist-source';
+import type { Mindedness } from '@tappet/core/vehicle-profile';
 import BuildGauge from '../components/BuildGauge';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -32,7 +33,7 @@ import {
 } from '@tappet/core/mod-progression';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import { declineMod, declinedMods, restoreMod } from '../onboarding/declined-mods';
-import { TARGET_MIN, border, radius, space, surface, text, type } from '../theme';
+import { TARGET_MIN, border, radius, space, status, surface, text, type } from '../theme';
 
 /**
  * The build, on a screen of its own.
@@ -240,6 +241,40 @@ export function BuildScreen({
     },
     [vehicleId, title, onSignOut]
   );
+
+  /*
+    ── 13 Sep · the way back on, where the copy promises it ──────────────────
+
+    The off card said *"turn them back on and we will start with the sensible
+    first steps"* and offered nothing to turn. David: "why are we inviting with
+    copy that user turns mods back on with no CTA to do so?" The route to the
+    answer existed — Vehicle › What you told us — but a sentence that names an
+    action has to carry it. This writes what the web's register switch writes
+    (`setModificationsVisible(id, true)` → `mild`, the first rung above stock)
+    through the profile PATCH the phone already uses, then reloads so the
+    ladder appears in place. The exact level is still theirs to change on the
+    profile screen; `mild` is the honest opening for somebody who has just
+    said "not never".
+  */
+  const [turningOn, setTurningOn] = useState(false);
+  const [turnOnProblem, setTurnOnProblem] = useState<string | null>(null);
+  const turnModificationsOn = useCallback(async () => {
+    setTurningOn(true);
+    setTurnOnProblem(null);
+    try {
+      await apiRequest('/vehicles', {
+        method: 'PATCH',
+        body: { vehicleId, performanceMindedness: 'mild' satisfies Mindedness },
+      });
+      await load();
+    } catch (error) {
+      const apiError = error as ApiRequestError;
+      if (apiError instanceof ApiRequestError && apiError.isLocallySignedOut) onSignOut();
+      setTurnOnProblem('That did not save. Try again, or change it under What you told us.');
+    } finally {
+      setTurningOn(false);
+    }
+  }, [vehicleId, load, onSignOut]);
 
   useEffect(() => {
     void load();
@@ -632,6 +667,21 @@ export function BuildScreen({
             hidden permanently — turn them back on and we will start with the sensible first
             steps for {state.name}.
           </Text>
+          {/*
+            The sentence's own verb, as the one filled primary this state has:
+            nothing else on the card is pressable, so B4's single primary is
+            this. The level it sets is the web switch's, and it can be changed
+            under What you told us.
+          */}
+          <Button
+            label="Turn modifications on"
+            variant="primary"
+            busy={turningOn}
+            busyLabel="Turning on"
+            accessibilityLabel="Turn modifications on for this car"
+            onPress={() => void turnModificationsOn()}
+          />
+          {turnOnProblem ? <Text style={styles.problem}>{turnOnProblem}</Text> : null}
         </Card>
       )}
     </ScrollView>
@@ -643,6 +693,7 @@ const styles = StyleSheet.create({
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xxl, gap: space.sm },
   errorTitle: { ...type.title, color: text.primary },
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
+  problem: { ...type.body, color: status.attention },
 
   dial: { alignItems: 'center' },
   summary: { ...type.body, color: text.secondary, textAlign: 'center' },
