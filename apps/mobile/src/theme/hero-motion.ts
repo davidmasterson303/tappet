@@ -132,6 +132,87 @@ export function heroBands(heroHeight: number): HeroBands {
 }
 
 /**
+ * Where the nav title starts to arrive, for this hero and this identity block.
+ *
+ * ── 13 Sep · derived from the sheet covering the name, floored at the constant ─
+ *
+ * `HERO_NAV_FADE_START` is a scroll offset chosen for a tall hero and a long
+ * sheet: by 300pt the sheet has slid under the nav and the car's name, gone
+ * from the hero since 210, comes back in mono. The binnacle's sheet is
+ * short, and every point of travel it does not need is a point of empty
+ * sheet the scroll has to be padded with (`sheetMinHeight`). So the title is
+ * allowed to arrive **as soon as the sheet has covered the identity block**
+ * — the moment there is no name left on the hero to argue with — which is
+ * earlier than 300 for any block under ~200pt tall, on every phone.
+ *
+ * The block sits `titleAnchor` above the hero's foot and drifts up at
+ * `HERO_PARALLAX_RATE` while the sheet, starting `HERO_SHEET_OVERLAP` onto
+ * the hero, rises at full rate; they meet at the block's top when
+ * `s(1 − rate) = titleAnchor + identityHeight − overlap`. Never earlier than
+ * `HERO_TITLE_FADE_SPAN`, so the stagger `heroTitleClearsNavTitle` names
+ * holds whatever the block measures; never later than the constant, so a
+ * tall hero keeps the arrival it always had.
+ */
+export function navFadeStartFor({
+  titleAnchor,
+  identityHeight,
+}: {
+  titleAnchor: number;
+  /** The identity block's measured height — status line, name and strip. */
+  identityHeight: number;
+}): number {
+  const covered = (titleAnchor + identityHeight - HERO_SHEET_OVERLAP) / (1 - HERO_PARALLAX_RATE);
+  return Math.round(Math.max(HERO_TITLE_FADE_SPAN, Math.min(HERO_NAV_FADE_START, covered)));
+}
+
+/**
+ * The least the sheet may measure, so the pullback can complete.
+ *
+ * ── 13 Sep · the binnacle is short, and the motion was designed for a ledger ─
+ *
+ * Every span above is a scroll offset, and the scroll can only travel as far
+ * as the content allows: `(heroHeight − HERO_SHEET_OVERLAP) + sheet − viewport`.
+ * The hub's sheet used to be a ledger longer than any display, so the nav
+ * title's arrival was always reachable. The binnacle fits in half a display,
+ * and with it the scroll stopped at ~160pt — the hero name faded to nothing
+ * (`HERO_TITLE_FADE_SPAN` is 210) and the nav name never came, so at the end
+ * of the scroll the car had no name at all; the critic read the frame as
+ * *"the collapsed header shows only GARAGE"*.
+ *
+ * This is the sheet height at which, when the scroll ends, the nav title has
+ * fully arrived **and** the sheet has passed under the nav plate — whichever
+ * of the two asks for more. The second matters once the title arrives early
+ * (`navFadeStartFor`): a title fully in while the sheet's edge still hangs
+ * 28pt below the plate leaves a band of dimmed hero between the two, and
+ * the floor arriving is the state the pullback exists to reach. The viewport
+ * is the scroll view's own measured height (the window stood in for it
+ * once, and the tab bar's 83pt went into the tail twice). A layout value
+ * derived from the motion constants and the nav's height, so none of them
+ * can drift apart: change a span and the floor moves with it. ⚠ It is a
+ * `minHeight` — a layout key — and must never be driven by `scrollY`;
+ * `mobile-native-driver.test.ts` holds that line.
+ */
+export function sheetMinHeight(
+  viewportHeight: number,
+  heroHeight: number,
+  {
+    navFadeStart = HERO_NAV_FADE_START,
+    navHeight,
+  }: {
+    /** Where the nav title starts to arrive — `navFadeStartFor`'s, or the constant. */
+    navFadeStart?: number;
+    /** The nav plate's height (the top inset and the row), for the sheet to pass under. */
+    navHeight?: number;
+  } = {},
+): number {
+  const spacer = heroHeight - HERO_SHEET_OVERLAP;
+  const titleArrived = navFadeStart + HERO_NAV_FADE_SPAN;
+  // Without the nav's height there is nothing to pass under; the title alone sets the floor.
+  const underTheNav = navHeight === undefined ? 0 : spacer - navHeight;
+  return Math.round(viewportHeight - spacer + Math.max(titleArrived, underTheNav));
+}
+
+/**
  * True when the hero's own title is gone before the nav's arrives.
  *
  * The pair `HERO_TITLE_FADE_SPAN` / `HERO_NAV_FADE_START` states the intent;

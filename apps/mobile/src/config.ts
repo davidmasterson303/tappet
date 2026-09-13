@@ -68,3 +68,27 @@ export const API_BASE_URL: string =
  * remembered — and this is the only door.
  */
 export const API_PREFIX = '/api/v1';
+
+/**
+ * The Supabase project's origin, from `app.json` — the same public value
+ * `auth/supabase.ts` builds its client on. `undefined` when the config is
+ * missing, so a reader falls back rather than throws; the auth module is
+ * the one that insists.
+ *
+ * ⚠ Here rather than read from `expo-constants` wherever it is wanted,
+ * because two root suites (`mobile-api-client`, `mobile-invoice-upload`)
+ * load `api/client.ts` — and through it `dev/fixtures.ts` — for real, with
+ * this module mocked: `expo-constants` is an ESM package the root jest
+ * does not transform, and an import of it anywhere on that path breaks
+ * both suites at collection. Nothing in `dev/` or `api/` may import it;
+ * they import this.
+ *
+ * Not a door to data: the mobile client has no Supabase table or storage
+ * access (`mobile-api-only.test.ts`), and the one thing built from this
+ * outside `auth/` is a public plate URL (`platePublicUrl`), which is a
+ * static object anyone can fetch.
+ */
+export const SUPABASE_URL: string | undefined = (() => {
+  const raw = (Constants.expoConfig?.extra as { supabaseUrl?: unknown } | undefined)?.supabaseUrl;
+  return typeof raw === 'string' && raw !== '' ? raw : undefined;
+})();

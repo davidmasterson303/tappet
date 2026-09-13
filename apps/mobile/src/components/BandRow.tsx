@@ -40,6 +40,27 @@ import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '.
  * what is behind it. The glyph does not, and that supersession is logged in
  * `docs/design-system-drift.md` §6.13 for David to overrule.
  *
+ * ── The index, when the rows are a list (13 Sep) ────────────────────────────
+ *
+ * B6 gives every record list a mono `01` index, and the Due table, the
+ * catalogue and Needs each draw one in the same style. A destination row
+ * on its own — NEXT SERVICE on the garage, WHAT IS DRIVING THIS SCORE —
+ * is a reading, not an entry, and carries none; a *set* of like rows is a
+ * list and takes the index the other lists take. `index` is the caller's
+ * string ("01"), set in the spec table's own style — mono, muted,
+ * tabular, 22pt wide so the labels share an edge — on the label's line.
+ *
+ * ── The value truncates; the label never does (13 Sep) ─────────────────────
+ *
+ * The label is `flex: 1` and the value took its own width, so a value wider
+ * than the room left squeezed the label to nothing — "HOW YOU USE THIS…"
+ * was this row's own history, and the vehicle hub now rows an owner's
+ * ownership objective, which is prose up to 280 characters. The value is
+ * held to one line and at most half the row, and ends in an ellipsis
+ * before the label loses a letter: the label is the destination's name,
+ * which is the one thing a row must never hide, and the value is a glimpse
+ * of what is behind it, spoken in full in the row's name.
+ *
  * ── The only mark is the warning ────────────────────────────────────────────
  *
  * `warning` draws `△` in sodium and nothing else can be drawn there. B7 gives
@@ -49,6 +70,7 @@ import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '.
  * the row's whole identity, as it is on the web.
  */
 export default function BandRow({
+  index,
   label,
   detail,
   count,
@@ -57,6 +79,8 @@ export default function BandRow({
   accessibilityLabel,
   last = false,
 }: {
+  /** The row's place in its list — "01" — when the rows are a list. Omit for a lone reading. */
+  index?: string;
   label: string;
   /** One quiet sans line under the label, for a destination that needs explaining. */
   detail?: string | null;
@@ -80,6 +104,11 @@ export default function BandRow({
       accessibilityLabel={accessibilityLabel ?? [label, count, detail].filter(Boolean).join(', ')}
       style={({ pressed }) => [styles.band, last && styles.last, pressed && styles.pressed]}
     >
+      {index ? (
+        <Text style={styles.index} accessibilityElementsHidden>
+          {index}
+        </Text>
+      ) : null}
       {warning ? (
         /*
           ⚠ `△` (U+25B3), the outlined triangle, in sodium — B7's "hairline
@@ -102,7 +131,11 @@ export default function BandRow({
         ) : null}
       </View>
 
-      {count ? <Text style={styles.count}>{count}</Text> : null}
+      {count ? (
+        <Text style={styles.count} numberOfLines={1}>
+          {count}
+        </Text>
+      ) : null}
       <View style={styles.chevron}>
         <Icon name="chevron-right" size={18} color={text.secondary} />
       </View>
@@ -138,17 +171,28 @@ const styles = StyleSheet.create({
     width: 16,
     textAlign: 'center',
   },
+  /** The spec table's index — mono, muted, fixed width so the labels line up; on the label's line. */
+  index: {
+    ...type.mono,
+    ...TABULAR,
+    color: text.muted,
+    minWidth: 22,
+    lineHeight: type.displaySection.lineHeight,
+  },
   labelBlock: { flex: 1, gap: 2 },
   /* B1: a section-grade label in the condensed grotesk. */
   label: { ...type.displaySection, color: text.primary },
   detail: { ...type.body, color: text.muted },
-  /* B6: the numeral, mono and right-aligned. */
+  /* B6: the numeral, mono and right-aligned. Half the row at most — the label keeps the rest. */
   count: {
     ...type.mono,
     ...TABULAR,
     color: text.primary,
     fontSize: 15,
     lineHeight: type.displaySection.lineHeight,
+    flexShrink: 1,
+    maxWidth: '50%',
+    textAlign: 'right',
   },
   chevron: { height: type.displaySection.lineHeight, justifyContent: 'center' },
 });

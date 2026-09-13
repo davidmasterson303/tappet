@@ -16,6 +16,7 @@ import {
   describeDeletion,
   isDeletionConfirmed,
 } from '@tappet/core/account-deletion';
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -282,6 +283,12 @@ export function AccountScreen({
         */}
         <View style={styles.legal}>
           <Text style={styles.label}>Legal</Text>
+          {/*
+            13 Sep: the phone's one use of the trademark symbol, and the same
+            notice line the web prints — `TRADEMARK_NOTICE` in core, so the
+            two surfaces make one claim about one owner.
+          */}
+          <Text style={styles.trademark}>{TRADEMARK_NOTICE}</Text>
           <Pressable
             onPress={() => void Linking.openURL(`${API_BASE_URL}/privacy`)}
             disabled={deleting}
@@ -482,6 +489,7 @@ const styles = StyleSheet.create({
 
 
   legal: { gap: 4 },
+  trademark: { ...type.value, color: text.muted, paddingBottom: 4 },
   /*
     44pt minimum, because these are the two rows most likely to be tapped by
     someone holding the phone one-handed in a car park while deciding whether

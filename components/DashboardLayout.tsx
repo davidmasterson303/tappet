@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Gauge, ListChecks, MessageSquare, Wrench, CreditCard as Edit2, Check, X, Info, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 import { CONTACT_EMAIL } from '@/lib/legal';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { Button } from '@/components/ui/button';
@@ -384,7 +385,8 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                   than one drawing, because a bar is wide and short and the
                   plate's own proportions fight that.
                 */}
-                <BrandWordmark size={28} />
+                {/* 13 Sep: the page's one trademark symbol, on its masthead. */}
+                <BrandWordmark size={28} trademark />
               </Link>
 
               {/*
@@ -1020,6 +1022,8 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
           <span className="flex items-center gap-2">
             <BrandLockup width={18} variant="icon" />
             <span>&copy; {new Date().getFullYear()}</span>
+            {/* 13 Sep: the notice line, the same words on every surface. */}
+            <span className="hidden sm:inline">{TRADEMARK_NOTICE}</span>
           </span>
           <div className="flex items-center gap-4">
             {/*

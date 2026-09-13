@@ -73,6 +73,8 @@ export interface BayVehicle {
   model?: string | null;
   trim?: string | null;
   photo_url?: string | null;
+  /** Which kind of picture that is — served since 13 Sep; only the owner's is graded. */
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
   /**
    * Whether the car's generation plate is still being drawn — `/vehicles`
    * carries it beside `photo_url` since 12 Sep, `null` when there is nothing
@@ -311,6 +313,7 @@ export default function GarageBay({
         <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
+            photoKind={vehicle.photo_kind}
             make={vehicle.make}
             busy={uploading}
             height={heroHeight}

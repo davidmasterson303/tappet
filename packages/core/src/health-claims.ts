@@ -225,6 +225,22 @@ export interface HealthVerdict {
    * half of their screen to believe.
    */
   text: string | null;
+  /**
+   * The same claim in a cell's worth of words — "Read before 5 records were
+   * filed." — for a surface with no room for the sentence.
+   *
+   * ── 13 Sep · the hub's HEALTH cell ─────────────────────────────────────
+   *
+   * The phone's hub became a binnacle (drift §6.18) and the stale caveat's
+   * four lines were the critic's most repeated cut across three rounds: a
+   * reading, its band word and a paragraph do not fit one cell. The short
+   * form says the same thing — taken before the records, does not count
+   * them — in the fewest words that are still a sentence; it never carries
+   * the stored summary, for the reason `text` does not. `null` wherever
+   * `text` is `null` or is the summary itself: a current reading has no
+   * caveat to shorten.
+   */
+  short: string | null;
   /** What the screen knows was read. For `ProvenanceRow`. Possibly empty. */
   inputs: string[];
 }
@@ -273,7 +289,7 @@ export function healthVerdict(params: {
   }
 
   const written = typeof params.summary === 'string' ? params.summary.trim() : '';
-  if (written === '') return { state: 'absent', text: null, inputs };
+  if (written === '') return { state: 'absent', text: null, short: null, inputs };
 
   const filed = timestamp(params.newestFiledAt);
   const generated = timestamp(params.generatedAt);
@@ -303,11 +319,12 @@ export function healthVerdict(params: {
     return {
       state: 'stale',
       text: `This reading was taken before your ${missed} were filed, so it does not account for them.`,
+      short: `Read before ${missed} were filed.`,
       inputs: [],
     };
   }
 
-  return { state: 'current', text: written, inputs };
+  return { state: 'current', text: written, short: null, inputs };
 }
 
 /** Milliseconds, or `null` for anything that is not a usable date. */

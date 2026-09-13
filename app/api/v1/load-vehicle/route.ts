@@ -3,7 +3,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { platePresence, resolveVehiclePhoto } from '@/lib/vehicle-photo';
+import { platePresence, resolveVehiclePhoto, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 import { driversForVehicle } from '@tappet/core/health-drivers';
 
 export const dynamic = 'force-dynamic';
@@ -217,18 +217,15 @@ export async function GET(request: NextRequest): Promise<Response> {
       unknown
     > & { custom_image_url?: string | null };
 
-    const photo_url = await resolveVehiclePhoto(
-      vehicleId,
-      {
-        image_url: vehicle.image_url as string | null,
-        custom_image_url,
-        // The plate ranks last; without it here the detail screen and the
-        // garage list resolved different fallbacks for the same car (found
-        // by the mobile loop on 12 Sep, the night the plate reached the API).
-        plate_key: (vehicle.plate_key as string | null | undefined) ?? null,
-      },
-      supabase
-    );
+    const photoColumns: VehiclePhotoColumns = {
+      image_url: vehicle.image_url as string | null,
+      custom_image_url,
+      // The plate ranks last; without it here the detail screen and the
+      // garage list resolved different fallbacks for the same car (found
+      // by the mobile loop on 12 Sep, the night the plate reached the API).
+      plate_key: (vehicle.plate_key as string | null | undefined) ?? null,
+    };
+    const photo_url = await resolveVehiclePhoto(vehicleId, photoColumns, supabase);
     /*
       Added 12 Sep, with the plate. `null` whenever there is a photograph to
       show or no plate was asked for; otherwise the library row's status, so
@@ -285,7 +282,14 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     return Response.json({
       success: true,
-      vehicle: { ...vehicle, photo_url, plate_status },
+      vehicle: {
+        ...vehicle,
+        photo_url,
+        // 13 Sep: which kind of picture that is, so the phone grades and
+        // labels only the owner's — see `vehiclePhotoKind`.
+        photo_kind: vehiclePhotoKind(vehicleId, photoColumns, photo_url),
+        plate_status,
+      },
       knowledge: knowledgeData,
       /*
         Top level rather than folded into `vehicle`. These are *derived* and the

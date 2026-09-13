@@ -1,6 +1,7 @@
 import {
   BRAND_COLOR,
   BRAND_NAME,
+  TRADEMARK_SYMBOL,
   LOCKUP,
   MAKER_NAME,
   MAKER_PATH,
@@ -59,6 +60,7 @@ export function BrandLockup({
   variant,
   ground = 'dark',
   className,
+  trademark = false,
 }: {
   /** The space available. The drawing is chosen from it unless `variant` says otherwise. */
   width?: number;
@@ -77,6 +79,15 @@ export function BrandLockup({
    */
   ground?: 'dark' | 'light';
   className?: string;
+  /**
+   * Draw the trademark symbol at the wordmark's shoulder — a page's one, on
+   * its most prominent use (13 Sep). A layout decision, never the asset's:
+   * the SVG stays the clean drawing, and the symbol is a sibling `<sup>` the
+   * way it sits beside any wordmark. Only the lockups that draw the word
+   * take it; the bare mark has no word to claim. Hidden from assistive tech —
+   * the notice line says it in words.
+   */
+  trademark?: boolean;
 }) {
   const chosen = variant ?? lockupFor(width);
   const ink = ground === 'light' ? BRAND_COLOR.tile : BRAND_COLOR.ink;
@@ -109,7 +120,7 @@ export function BrandLockup({
   const boxHeight = full ? LOCKUP.heightFull : LOCKUP.heightShort;
   const height = Math.round((width * boxHeight) / boxWidth);
 
-  return (
+  const drawing = (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${boxWidth} ${boxHeight}`}
@@ -117,7 +128,7 @@ export function BrandLockup({
       height={height}
       role="img"
       aria-label={full ? `${BRAND_NAME} by ${MAKER_NAME}` : BRAND_NAME}
-      className={className}
+      className={trademark ? undefined : className}
     >
       {/*
         The mark is centred on the wordmark's **cap band**, never on the block.
@@ -132,6 +143,15 @@ export function BrandLockup({
       <path d={WORDMARK_PATH} fill={ink} />
       {full && <path d={MAKER_PATH} fill={ink} opacity={0.6} />}
     </svg>
+  );
+  if (!trademark) return drawing;
+  return (
+    <span className={`inline-flex items-start ${className ?? ''}`}>
+      {drawing}
+      <sup aria-hidden="true" className="ml-0.5 text-[0.55em] leading-none text-white/55 select-none">
+        {TRADEMARK_SYMBOL}
+      </sup>
+    </span>
   );
 }
 
@@ -156,10 +176,13 @@ export function BrandWordmark({
   size = 20,
   ground = 'dark',
   className,
+  trademark = false,
 }: {
   size?: number;
   ground?: 'dark' | 'light';
   className?: string;
+  /** The page's one trademark symbol, on its masthead — see `BrandLockup`. */
+  trademark?: boolean;
 }) {
   return (
     <BrandLockup
@@ -167,6 +190,7 @@ export function BrandWordmark({
       variant="short"
       ground={ground}
       className={className}
+      trademark={trademark}
     />
   );
 }

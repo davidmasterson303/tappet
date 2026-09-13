@@ -375,6 +375,46 @@
 >
 > ---
 >
+> #### 13 Sep — David's phone feedback, worked through; two loops; both hostnames promoted
+>
+> **Live:** `web-live` **0f86453b**, `demo-live` **c26bbda6** (both from
+> `3565283`), the demo redirect re-verified by the script. On the phone, via
+> Metro 8081 (restarted for new files three times today):
+>
+> - **Wishlist add failed** — `wishlist_items.source` is CHECKed to
+>   `dossier | consultant | manual` (probe insert → `23514`); the catalogue
+>   sent `suggestions`, the Build ladder `progression-ladder`, and both had
+>   never worked. `@tappet/core/wishlist-source` names the set; the route 400s
+>   an unknown word; all three phone adds send `dossier` (`2edf133`).
+> - **The advisor is one place** — every "Learn more" / "ask the advisor"
+>   lands in the Advisor tab as a new thread keyed on its arrival, with
+>   "‹ PLAN" pinned as the way back; no stack pushes an advisor (`3145106`).
+>   **Threads** — THREADS on the "about" row lists a car's threads, reopens
+>   one under its id, starts another (`a48c797`); the two routes had existed
+>   since 12 Aug. The composer meets the keyboard (a stale 96pt offset was
+>   the gap) and HIDE KEYBOARD sits on its shoulder while it is up (`0698b82`).
+> - **Mods off** carries TURN MODIFICATIONS ON, writing what the web's switch
+>   writes (`79100ce`). **Odometer monthly** — `mileageCheckIn` in core asks
+>   once a month with a figure worked out from the owner's miles a month,
+>   rounded to the hundred; an unchanged confirmation is recorded
+>   (`4428819`); `/load-vehicle` serves the date since this promote.
+> - **The CTA loop** (rounds 37–41, 6 → 7, drift §6.17): `CutSurface` never
+>   got `onLayout` on a first push — every chip hairline and ADD box was
+>   missing, which is what David's phone showed; measured now. `RowActions`
+>   is the row-action pattern; the Plan root's ADD is ADD TO NEEDS, the
+>   primary under the rail; the Needs rows take the pattern. The figure now
+>   travels with an item (`source_data`), built in core (`7daedad`).
+> - **The hub** — three fearless concepts; the critic ranked CLUSTER first
+>   and the shipped page last (`concepts/hub/pick.md`, merged `3565283`);
+>   phase 3 (CLUSTER as the screen, loop from round 44) is running after a
+>   rate limit killed the first attempt mid-round — its committed half was
+>   recovered, its uncommitted half rebuilt.
+>
+> ⚠ Two rate-limit resets today killed agents mid-flight; every loop now
+> commits after each round. A dead agent's `<result>` shows its *first*
+> line, not its last — check the worktree and the branch before removing
+> either (one commit was nearly lost this way).
+>
 > #### 12 Sep, afternoon — everything merged, the captures for Claude Design, and one defect found by looking
 >
 > **On `main` and pushed (`1439601`):** the Service tab loop (`bb4b96b`, 8 of
@@ -822,8 +862,10 @@
 > - **`QuoteGenerationProgress.tsx` is still a fake progress bar** — a 7.5s timer to 100% with
 >   a step claiming to check regional labour rates the app has no location data for. Known,
 >   flagged, deliberately outside the scope that named the invoice scanner.
-> - `VehicleDetailScreen` says nothing about recalls when a car has none, and
->   `ServiceMilestoneScreen` titles both empty states alike — **still David's calls**.
+> - ~~`VehicleDetailScreen` says nothing about recalls when a car has none~~ — **resolved
+>   13 Sep with the binnacle** (drift §6.18): the RECALLS cell prints a grey 0 for a car
+>   NHTSA cleared and nothing for one never checked, the route's own distinction.
+>   `ServiceMilestoneScreen` titles both empty states alike — **still David's call**.
 > - **`verify:mobile` reports PARTIAL**: `MOBILE_TEST_TOKEN` expired 2 Aug.
 >
 > #### Next, in order
@@ -985,10 +1027,12 @@
 > #### Known and deliberate — do not re-report these
 >
 > - **Mod details fail to save** — the migration above.
-> - **`VehicleDetailScreen` shows nothing about recalls when a car has none.** Its banner is
->   behind `recalls > 0`, so "checked, clean" and "never checked" look identical. A silence
->   rather than a false claim, and **David's design call** — adding an element to that screen
->   was not something to decide while he was mid-test.
+> - ~~**`VehicleDetailScreen` shows nothing about recalls when a car has none.**~~ **Resolved
+>   13 Sep** (drift §6.18): the hub is a binnacle now and its RECALLS cell is always
+>   present — a 0 in the legend's ink when NHTSA was asked and had nothing, no numeral and
+>   "not checked yet" in its spoken name when the record is absent (`load-vehicle`'s own
+>   rule). "Checked, clean" and "never checked" no longer look identical, and neither is a
+>   false claim. `VehicleDetailScreen.test.tsx` holds both halves.
 > - **`ServiceMilestoneScreen` titles both empty states "Nothing due right now"**, though its
 >   body correctly distinguishes "no schedule yet" from "nothing due soon". Mild; same call.
 > - **`verify:mobile` reports PARTIAL, not green.** `MOBILE_TEST_TOKEN` expired 2 Aug, so the

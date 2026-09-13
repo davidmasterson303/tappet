@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import LegalDocument, { LegalSection } from '@/components/legal/LegalDocument';
 import { CONTACT_EMAIL, OPERATOR } from '@/lib/legal';
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy · Tappet',
@@ -69,6 +70,8 @@ export default function PrivacyPolicyPage() {
         This policy describes what {OPERATOR} collects through the Tappet app and website, why,
         who else is involved, and how to get rid of it.
       </p>
+      {/* 13 Sep: the trademark notice, beside the operator it names. */}
+      <p>{TRADEMARK_NOTICE}</p>
 
       <LegalSection>What we collect</LegalSection>
 
