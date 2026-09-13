@@ -170,14 +170,28 @@ type DossierScreens = {
     could not be exercised without a human typing, and synthetic keystrokes do
     not reach a React Native `TextInput`.
 
-    ⚠ 11 Sep: the advisor is a tab root *and* a pushed screen. A question that
-    arrives with the screen (`ask`) is asked once per mount, so a recall's "ask
-    the advisor" pushes a fresh instance onto the stack it came from rather than
-    switching to a tab whose thread may already be open and would swallow the
-    question in silence. The bare "Ask the advisor" from the car's hub, with no
-    question in hand, switches to the tab — that is the conversation.
+    ⚠ 11 Sep: the advisor was a tab root *and* a pushed screen — a question
+    that arrived with the screen was asked once per mount, so a recall's "ask
+    the advisor" pushed a fresh instance onto the stack it came from rather
+    than switch to a tab whose open thread would swallow the question.
+
+    ⚠ 13 Sep: **the advisor is one place.** David, from the catalogue's "Learn
+    more": *"it's disorienting to have this new environment"* — a second
+    advisor reachable from nowhere else, whose thread could not be found again
+    from the Advisor tab. So every question now goes to the tab (`askAdvisor`
+    below), and the swallowing is solved where it belongs: `askedAt` names the
+    arrival, and `AdvisorScreen` starts a new thread for each one. `from` is
+    the tab the question came from, drawn under the band as the way back.
   */
-  Advisor: { vehicleId: string; title?: string; ask?: string };
+  Advisor: {
+    vehicleId: string;
+    title?: string;
+    ask?: string;
+    /** When `ask` arrived (`Date.now()`); a new value is a new thread. */
+    askedAt?: number;
+    /** The tab to offer a way back to — "‹ PLAN". */
+    from?: OriginTab;
+  };
   /*
     3.3. Linked from the vehicle detail screen since 5 Aug, once build
     `29b4d76f` put `expo-image-picker` in the binary. Held back until then on
@@ -684,6 +698,49 @@ function openAdvisorTab(navigation: StackNavigation, car: Car) {
   });
 }
 
+/** The tabs a question can come from, and what their way back is called. */
+export type OriginTab = 'GarageTab' | 'ServiceTab' | 'PlanTab';
+export const ORIGIN_LABELS: Record<OriginTab, string> = {
+  GarageTab: 'Garage',
+  ServiceTab: 'Service',
+  PlanTab: 'Plan',
+};
+
+/**
+ * Ask the advisor a question from another tab — in the Advisor tab, as a new
+ * thread, with a way back.
+ *
+ * Exported as the params it produces so the target can be pinned without a
+ * navigator: `askedAt` is the arrival the screen keys the thread on, `from`
+ * is the breadcrumb.
+ */
+export function advisorThreadParams(
+  car: Car,
+  ask: string,
+  from: OriginTab,
+  now: () => number = Date.now
+): RootStackParamList['Tabs'] {
+  return {
+    screen: 'AdvisorTab',
+    params: { screen: 'Advisor', params: { ...car, ask, askedAt: now(), from } },
+  };
+}
+
+/**
+ * The tab a stack screen is standing in, read off the tab navigator's state.
+ * The catalogue is mounted in two stacks (the garage's dossier and the Plan
+ * tab), so its origin is whichever tab holds it now, not a constant.
+ */
+export function originTabOf(navigation: { getParent?: () => { getState?: () => { routes: Array<{ name: string }>; index: number } | undefined } | undefined }): OriginTab {
+  const tabs = navigation.getParent?.()?.getState?.();
+  const name = tabs?.routes[tabs.index]?.name;
+  return name && name in ORIGIN_LABELS ? (name as OriginTab) : 'GarageTab';
+}
+
+function askAdvisor(navigation: StackNavigation, car: Car, ask: string, from: OriginTab = originTabOf(navigation)) {
+  navigation.navigate('Tabs', advisorThreadParams(car, ask, from));
+}
+
 /** Everything a stack needs to render its screens. */
 type Session = {
   accessToken: string;
@@ -870,7 +927,7 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
             title={route.params.title}
             onSignOut={onSignOut}
             onAskAdvisor={(vehicleId, ask) =>
-              navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
             }
           />
         )}
@@ -882,9 +939,9 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
             vehicleId={route.params.vehicleId}
             title={route.params.title}
             onSignOut={onSignOut}
-            /* R16. The recalls section keeps its per-recall advisor thread. */
+            /* R16: each recall's question starts its own thread — in the Advisor tab, 13 Sep. */
             onAskAdvisor={(vehicleId, ask) =>
-              navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
             }
           />
         )}
@@ -917,10 +974,9 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       </Stack.Screen>
 
       {/*
-        Pushed from a recall's "ask the advisor", with the question in hand.
-        A fresh instance, so the question is asked — see the param's note.
+        No pushed Advisor here since 13 Sep: a recall's "ask the advisor" goes
+        to the Advisor tab as a new thread — see the `Advisor` param's note.
       */}
-      {advisorScreen(onSignOut)}
     </Stack.Navigator>
   );
 }
@@ -941,7 +997,6 @@ function PlanStack({ onSignOut }: Session) {
     <Stack.Navigator initialRouteName="Plan" screenOptions={screenOptions}>
       {planScreen(onSignOut)}
       {wishlistAddScreen(onSignOut)}
-      {advisorScreen(onSignOut)}
     </Stack.Navigator>
   );
 }
@@ -1099,6 +1154,15 @@ function advisorScreen(onSignOut: () => void) {
               decoded.
             */
             initialQuestion={route.params?.ask}
+            questionKey={route.params?.askedAt}
+            origin={
+              route.params?.from
+                ? {
+                    label: ORIGIN_LABELS[route.params.from],
+                    onPress: () => navigation.navigate('Tabs', { screen: route.params!.from! }),
+                  }
+                : undefined
+            }
             onSignOut={onSignOut}
           />
         ))
@@ -1156,8 +1220,14 @@ function wishlistAddScreen(onSignOut: () => void) {
           vehicleId={route.params.vehicleId}
           title={route.params.title}
           onSignOut={onSignOut}
+          /*
+            "Learn more" is a question for the advisor, and the advisor is the
+            Advisor tab — a new thread there, with "‹ PLAN" (or "‹ GARAGE",
+            when the catalogue was reached through the car's hub) to come
+            back by; `originTabOf` reads which.
+          */
           onAskAdvisor={(vehicleId, ask) =>
-            navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+            askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
           }
           /*
             The list behind this refetches on focus, so adding does not pop

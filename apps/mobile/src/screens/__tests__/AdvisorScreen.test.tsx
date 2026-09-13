@@ -137,6 +137,75 @@ describe('a link can arrive with its question', () => {
     );
   });
 
+  it('starts a new thread for each arrival of a question, even the same words twice', async () => {
+    /*
+      13 Sep: every "Learn more" and "ask the advisor" lands in the Advisor tab
+      now, where an Advisor may already be mounted with a thread open. The
+      arrival is keyed (`questionKey`), and a new key is a new thread: the
+      echo cleared, the server's session id dropped, the question asked
+      again. Without the key the second arrival — same words, from a second
+      tap — would be swallowed, which is the reason the old design pushed a
+      second advisor instead.
+    */
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First answer.', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's2', response: 'Second answer.', contextKinds: [] });
+
+    const view = await render(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={1}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(await view.findByText('First answer.')).toBeTruthy();
+
+    await view.rerender(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={2}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(await view.findByText('Second answer.')).toBeTruthy();
+    // A new thread, not a continuation: the first answer is gone and the
+    // second send carried no session to continue.
+    expect(view.queryByText('First answer.')).toBeNull();
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask.mock.calls[1][0]).toEqual(expect.objectContaining({ sessionId: null }));
+
+    // And the same key a second time is the same arrival: nothing more is sent.
+    await view.rerender(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={2}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(ask).toHaveBeenCalledTimes(2);
+  });
+
+  it('draws the way back to the tab the question came from, pinned under the band', async () => {
+    ask.mockResolvedValue({ sessionId: 's1', response: 'An answer.', contextKinds: [] });
+    const back = jest.fn();
+    const view = await render(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        vehicleTitle="2015 BMW M235i"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={1}
+        origin={{ label: 'Plan', onPress: back }}
+        onSignOut={jest.fn()}
+      />
+    );
+    await view.findByText('An answer.');
+    await userEvent.setup().press(view.getByLabelText('Back to Plan'));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
   it('asks nothing when the link carried no question', async () => {
     const view = await render(
       <AdvisorScreen

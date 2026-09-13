@@ -14,6 +14,7 @@ import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
 import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import CutSurface from '../components/CutSurface';
+import BackControl from '../components/BackControl';
 import RootScreen from '../components/RootScreen';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -120,6 +121,8 @@ export function AdvisorScreen({
   vehicleId,
   vehicleTitle,
   initialQuestion,
+  questionKey,
+  origin,
   onSignOut,
 }: {
   vehicleId: string;
@@ -149,6 +152,28 @@ export function AdvisorScreen({
    * one screen that could not be exercised without a human.
    */
   initialQuestion?: string;
+  /**
+   * Which arrival of `initialQuestion` this is. A new value starts a **new
+   * thread** — the local echo cleared, the server's session id dropped — and
+   * asks again, even when the question's text is the same one asked before.
+   *
+   * ── 13 Sep · the advisor is one place ───────────────────────────────────
+   *
+   * "Learn more" on the catalogue and "ask the advisor" on a recall used to
+   * push a fresh Advisor onto the stack they came from — a second advisor,
+   * reachable from nowhere else, that David called *"disorienting to have
+   * this new environment"*: the thread it started could not be found again
+   * from the Advisor tab. The push existed because a question asked once
+   * per mount would be swallowed by a tab whose Advisor was already mounted.
+   * Keying the ask on its arrival is what makes the tab safe to send to,
+   * so every question now lands here, and the tab is where the thread lives.
+   */
+  questionKey?: number;
+  /**
+   * Where a question came from, when it came from another tab — "‹ PLAN" —
+   * pinned under the band so the way back survives the transcript's scroll.
+   */
+  origin?: { label: string; onPress: () => void };
   onSignOut: () => void;
 }) {
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -196,7 +221,8 @@ export function AdvisorScreen({
 
   const sessionId = useRef<string | null>(null);
   const listRef = useRef<FlatList<Turn>>(null);
-  const askedOnOpen = useRef(false);
+  /** The arrival (`questionKey`) already asked, or `null` before the first. */
+  const askedOnOpen = useRef<number | null>(null);
 
   const trimmed = draft.trim();
   const overLength = trimmed.length > MAX_MESSAGE_LENGTH;
@@ -309,7 +335,21 @@ export function AdvisorScreen({
   */
   useEffect(() => {
     const question = initialQuestion?.trim();
-    if (!question || askedOnOpen.current) return;
+    if (!question) return;
+    /*
+      One send per arrival. `questionKey` names the arrival; without one (a
+      deep link, a notification) the mount is the arrival, as before. A new
+      key is a new thread: the echo is cleared and the server's session id
+      dropped *before* the send, so the answer opens a conversation rather
+      than continuing the last one.
+    */
+    const arrival = questionKey ?? 0;
+    if (askedOnOpen.current === arrival) return;
+    if (askedOnOpen.current !== null) {
+      sessionId.current = null;
+      setTurns([]);
+      setError(null);
+    }
 
     /*
       ⚠ **Waits for the consent read.** `null` is "still reading", and acting on
@@ -318,7 +358,7 @@ export function AdvisorScreen({
     */
     if (consent === null) return;
 
-    askedOnOpen.current = true;
+    askedOnOpen.current = arrival;
     setDraft(question);
 
     /*
@@ -341,7 +381,7 @@ export function AdvisorScreen({
     // Deliberately not routed through `send`, which reads `trimmed` from state
     // that has not committed yet on this tick.
     void ask(question);
-  }, [initialQuestion, ask, consent]);
+  }, [initialQuestion, questionKey, ask, consent]);
 
   return (
     <KeyboardAvoidingView
@@ -399,11 +439,22 @@ export function AdvisorScreen({
         title="Advisor"
         plate="advisor"
         pinned={
-          vehicleTitle ? (
+          origin || vehicleTitle ? (
             <View style={styles.context}>
-              <Text style={styles.contextLabel} numberOfLines={1}>
-                About {vehicleTitle}
-              </Text>
+              {/*
+                The way back to the tab the question came from, in the one
+                back control the app draws (`BackControl`). Pinned, not in the
+                band: a breadcrumb that faded with the large title would be
+                gone by the time the answer had scrolled it away.
+              */}
+              {origin ? (
+                <BackControl label={origin.label} onPress={origin.onPress} style={styles.origin} />
+              ) : null}
+              {vehicleTitle ? (
+                <Text style={styles.contextLabel} numberOfLines={1}>
+                  About {vehicleTitle}
+                </Text>
+              ) : null}
             </View>
           ) : null
         }
@@ -846,6 +897,8 @@ const styles = StyleSheet.create({
     it takes the mono the tab labels and stat-strip eyebrows use.
   */
   contextLabel: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
+  /* Left-aligned on the context row's own margin; the control carries its target height. */
+  origin: { alignSelf: 'flex-start', marginLeft: -space.sm, marginBottom: space.xs },
 
   /* ── R50 · the starter block ──────────────────────────────────────────── */
   emptyWrap: {
