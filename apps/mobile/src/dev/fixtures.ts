@@ -289,6 +289,108 @@ const SCHEDULE = [
 ];
 
 /**
+ * What the research found on this car, and what people do to it.
+ *
+ * ── 13 Sep · the catalogue's other two sources ──────────────────────────────
+ *
+ * `suggestionsFor` reads three arrays off the knowledge base and maps each
+ * onto one wishlist type — `known_issues` → issue, `maintenance_schedule` →
+ * maintenance, `common_mods` → modification. The fixture carried only the
+ * schedule, so WHAT THIS CAR NEEDS listed eight services and nothing else,
+ * and the Build ladder (which reads `common_mods`) drew no rungs at all —
+ * and the loop over the catalogue would have graded a list with one of its
+ * three kinds.
+ *
+ * ⚠ **Read off the live row, not written.** These are the M235i's own
+ * `vehicle_knowledge_base` rows as PostgREST returned them on 13 Sep
+ * (`known_issues` and `common_mods`, verbatim — the model's part names, its
+ * severities, its sentences), which is the one way a fixture can be sure
+ * every sentence on the frame is one the product would write. The shapes are
+ * the ones `wishlist-suggestions.test.ts` drives: `{ part, severity,
+ * description, mileage_range }` and `{ name, purpose, difficulty }`. One
+ * `High` severity — the water pump — so the catalogue's DO FIRST section has
+ * an issue in it beside the two Critical services, and every other chip is
+ * neutral, which is the rule the row's chip exists to keep.
+ */
+const KNOWN_ISSUES = [
+  {
+    part: 'Charge Pipe',
+    severity: 'Medium',
+    description:
+      'The factory plastic charge pipe is prone to cracking or bursting under boost pressure, especially with aftermarket tunes. Leads to boost leaks and limp mode.',
+    mileage_range: '40,000 - 80,000 miles',
+  },
+  {
+    part: 'Valve Cover Gasket (VCG) / Valve Cover',
+    severity: 'Medium',
+    description:
+      'The plastic valve cover can warp, and its gasket can fail, leading to oil leaks, burning oil smell, and potential vacuum leaks affecting engine performance.',
+    mileage_range: '60,000 - 100,000 miles',
+  },
+  {
+    part: 'Oil Filter Housing Gasket (OFHG)',
+    severity: 'Medium',
+    description:
+      'Common failure point leading to oil leaks visible on the passenger side of the engine, potentially contaminating the serpentine belt and causing its failure.',
+    mileage_range: '50,000 - 90,000 miles',
+  },
+  {
+    part: 'Electric Water Pump / Thermostat',
+    severity: 'High',
+    description:
+      'The electric water pump and thermostat are known to fail, leading to engine overheating, coolant loss, and potential stranding of the vehicle.',
+    mileage_range: '60,000 - 100,000 miles',
+  },
+  {
+    part: 'VANOS Solenoids',
+    severity: 'Medium',
+    description:
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.',
+    mileage_range: '50,000 - 90,000 miles',
+  },
+  {
+    part: 'Ignition Coils / Spark Plugs',
+    severity: 'Low',
+    description:
+      'Spark plugs are wear items, but ignition coils can fail prematurely, leading to engine misfires, rough running, and a check engine light.',
+    mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+  },
+];
+
+const COMMON_MODS = [
+  {
+    name: 'ECU Tune (e.g., Bootmod3, MHD)',
+    purpose: 'Performance (increased horsepower and torque)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Upgraded Charge Pipe',
+    purpose: 'Reliability (replaces failure-prone OEM plastic part), Performance',
+    difficulty: 'Easy',
+  },
+  {
+    name: 'Upgraded Intercooler',
+    purpose: 'Performance (reduces intake air temperatures for consistent power)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Cat-back Exhaust System',
+    purpose: 'Performance (minor gains), Sound (enhanced exhaust note)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Lowering Springs or Coilovers',
+    purpose: 'Performance (improved handling), Aesthetics (lower ride height)',
+    difficulty: 'Hard',
+  },
+  {
+    name: 'Performance Air Intake',
+    purpose: 'Performance (minor gains), Sound (enhanced induction noise)',
+    difficulty: 'Easy',
+  },
+];
+
+/**
  * Whether a path should be held open forever, so its wait can be seen.
  *
  * ── 12 Sep · the only way to photograph a wait without spending the call ────
@@ -346,6 +448,97 @@ function filePartUri(body: unknown): string | null {
 /** The photograph the fixture car currently answers with, if any. */
 export function designPhotoUrl(): string | null {
   return addedPhotoUri ?? process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null;
+}
+
+/**
+ * ── 13 Sep · what has been added to Needs through the control, for the session ──
+ *
+ * `POST /wishlist` was answered with the GET's `{ wishlistItems: [] }` — any
+ * body, any path under `/wishlist` — so an ADD on the catalogue "succeeded"
+ * into nothing: the row flipped on the screen's own state, and the Plan root
+ * behind it went on counting 0. The loop over the catalogue needs the added
+ * state as the product draws it, which is a row on Needs as well as a word
+ * on the catalogue, so the fixture keeps what is added the way it keeps the
+ * photograph: session-scoped, forgotten on reload.
+ *
+ * The shapes are the route's (`app/api/v1/wishlist/route.ts`): the POST
+ * answers `{ wishlistItem }` with the row it inserted; the GET lists rows
+ * newest first; `DELETE ?itemId=` removes one. The catalogue's identifier
+ * (`wishlistItemIdentifier`) is the dedupe key, as it is in the table — a
+ * second add of one identifier answers with the row already there rather
+ * than growing a duplicate the product cannot have. A body that is not an
+ * add (no identifier, no name) falls through to the network, the way every
+ * unmapped request here does.
+ */
+interface FixtureWishlistItem {
+  id: string;
+  vehicle_id: string;
+  item_type: string;
+  item_name: string;
+  item_identifier: string;
+  description: string | null;
+  category: null;
+  estimated_cost_parts: 0;
+  estimated_cost_labor: 0;
+  source: string;
+  created_at: string;
+}
+
+const addedNeeds: FixtureWishlistItem[] = [];
+
+/** The add's body, as `WishlistAddScreen` and the Build ladder send it — or `null`. */
+function wishlistAdd(body: unknown): Omit<FixtureWishlistItem, 'id' | 'created_at'> | null {
+  const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+  if (!record) return null;
+  const { vehicleId, itemType, itemName, itemIdentifier, description, source } = record;
+  if (typeof itemIdentifier !== 'string' || typeof itemName !== 'string' || typeof itemType !== 'string') {
+    return null;
+  }
+  return {
+    vehicle_id: typeof vehicleId === 'string' ? vehicleId : M235I.id,
+    item_type: itemType,
+    item_name: itemName,
+    item_identifier: itemIdentifier,
+    description: typeof description === 'string' && description ? description : null,
+    category: null,
+    estimated_cost_parts: 0,
+    estimated_cost_labor: 0,
+    source: typeof source === 'string' ? source : 'manual',
+  };
+}
+
+function answerWishlist(path: string, request: { method?: string; body?: unknown }): unknown | undefined {
+  if (request.method === 'DELETE') {
+    /*
+      A regex rather than `URLSearchParams`: React Native's own polyfill of
+      that class implements `append` and `toString` and throws on `get`, and
+      whether Expo's runtime replaces it is not a thing a fixture should rest on.
+    */
+    const itemId = decodeURIComponent(/[?&]itemId=([^&]*)/.exec(path)?.[1] ?? '');
+    const at = addedNeeds.findIndex((item) => item.id === itemId);
+    if (at >= 0) addedNeeds.splice(at, 1);
+    return { success: true };
+  }
+  if (request.method === 'POST') {
+    const add = wishlistAdd(request.body);
+    if (!add) return undefined;
+    const existing = addedNeeds.find((item) => item.item_identifier === add.item_identifier);
+    if (existing) return { wishlistItem: existing };
+    const item: FixtureWishlistItem = {
+      ...add,
+      id: `needs-${addedNeeds.length + 1}-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    addedNeeds.unshift(item);
+    return { wishlistItem: item };
+  }
+  /*
+    ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:
+    [] }`, a key no consumer reads, so the vehicle hub's PLAN row carried
+    nothing where the real API's empty list gives it a 0 — and the critique
+    called the row "valueless" on the strength of the fixture's lie.
+  */
+  return { wishlistItems: [...addedNeeds] };
 }
 
 /** The fixture car as the routes answer it — `photo_url` decided now, not at import. */
@@ -443,7 +636,7 @@ export function fixtureFor(
         screen's own docblock records that reading it off the vehicle is
         `undefined` forever with no error anywhere.
       */
-      knowledge: { maintenance_schedule: schedule },
+      knowledge: { known_issues: KNOWN_ISSUES, maintenance_schedule: schedule, common_mods: COMMON_MODS },
       health_drivers: driversForVehicle({
         schedule,
         historyRows: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
@@ -459,12 +652,7 @@ export function fixtureFor(
       maintenanceLineItems: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
     };
   }
-  /*
-    ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:
-    [] }`, a key no consumer reads, so the vehicle hub's PLAN row carried
-    nothing where the real API's empty list gives it a 0 — and the critique
-    called the row "valueless" on the strength of the fixture's lie.
-  */
-  if (path.startsWith('/wishlist')) return { wishlistItems: [] };
+  /* Needs — what has been added this session. See `answerWishlist`. */
+  if (path.startsWith('/wishlist')) return answerWishlist(path, request);
   return undefined;
 }
