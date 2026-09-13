@@ -150,6 +150,12 @@ interface Vehicle {
    * declared it and never drew it.
    */
   photo_url?: string | null;
+  /**
+   * Which kind of picture `photo_url` is — `owner`, `catalog` or `plate` —
+   * served since 13 Sep. Absent from an older API: then any `photo_url` is
+   * read as the owner's, which is what it always was before the plates.
+   */
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
   /** The generation plate's status beside the photo — `null` is nothing to say. See `PlateStatusLine`. */
   plate_status?: PlateStatus | null;
   /* Both embedded shapes accepted, for the reason GarageScreen sets out. */
@@ -314,6 +320,27 @@ type State =
 const WARNING_INK = (band: { name: string }) => ({
   color: band.name === 'warn' || band.name === 'bad' ? status.attention : text.primary,
 });
+
+/**
+ * Whether the picture on the hero is the owner's photograph.
+ *
+ * ── 13 Sep · a plate is not a photograph ─────────────────────────────────
+ *
+ * Since the plates went live, a car nobody has photographed arrives with
+ * `photo_url` set to its generation plate — and this screen read any
+ * `photo_url` as the owner's: it graded the plate a second time and offered
+ * CHANGE PHOTO over a car with no photo to change (found by the hub loop,
+ * drift §6.18). The route now says which kind of picture it sent; only the
+ * owner's takes the grade and the two-verb control. An older API sends no
+ * kind, and then a `photo_url` is read as it always was.
+ */
+export function isOwnerPhoto(vehicle: {
+  photo_url?: string | null;
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
+}): boolean {
+  if (!vehicle.photo_url) return false;
+  return vehicle.photo_kind === undefined || vehicle.photo_kind === null || vehicle.photo_kind === 'owner';
+}
 
 export function VehicleDetailScreen({
   vehicleId,
@@ -674,7 +701,7 @@ export function VehicleDetailScreen({
    * goes straight to the picker, as it always has.
    */
   const onPhotoControl = useCallback(() => {
-    const hasPhoto = state.status === 'ok' && Boolean(state.vehicle.photo_url);
+    const hasPhoto = state.status === 'ok' && isOwnerPhoto(state.vehicle);
     if (!hasPhoto) {
       void onAddPhoto();
       return;
@@ -1060,7 +1087,7 @@ export function VehicleDetailScreen({
           image and under the dim and the bed, so the grade is the photograph's
           and the contrast floor stays the floor.
         */}
-        {vehicle.photo_url ? <PhotoGrade /> : null}
+        {isOwnerPhoto(vehicle) ? <PhotoGrade /> : null}
 
         {/* The bay light going down as the floor comes up — shadow, not chrome. */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
@@ -1247,7 +1274,15 @@ export function VehicleDetailScreen({
                       <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
                       <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
                     </View>
-                    {verdict.text ? <Text style={styles.summary}>{verdict.text}</Text> : null}
+                    {/*
+                      13 Sep: the stale caveat in a cell's worth of words —
+                      the critic's most repeated cut across three rounds was
+                      the four-line sentence here. `short` is core's, the same
+                      claim; a current reading's own sentence stays as it is.
+                    */}
+                    {(verdict.short ?? verdict.text) ? (
+                      <Text style={styles.summary}>{verdict.short ?? verdict.text}</Text>
+                    ) : null}
                     <ProvenanceRow kinds={verdict.inputs} />
                   </>
                 ) : (
@@ -1480,7 +1515,7 @@ export function VehicleDetailScreen({
             Remove will tap.
           */}
           <Button
-            label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
+            label={isOwnerPhoto(vehicle) ? 'Change photo' : 'Add photo'}
             variant="outline"
             size="small"
             busy={uploading || removing}

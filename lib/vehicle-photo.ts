@@ -149,6 +149,45 @@ type PhotoPlan =
   | { kind: 'plate'; key: string; fallback: string | null };
 
 /**
+ * What kind of picture `photo_url` is — so a client can tell the owner's
+ * photograph from the app's own plate.
+ *
+ * ── 13 Sep · a plate is not a photograph ─────────────────────────────────
+ *
+ * Since the plates went live (12 Sep) a car with no owner photograph arrives
+ * on the phone with `photo_url` set to its generation plate — and the phone
+ * read any `photo_url` as the owner's: it graded the plate a second time and
+ * labelled the control CHANGE PHOTO over a car nobody had photographed
+ * (found by the hub loop, drift §6.18). The URL cannot say which it is;
+ * this does, from the same plan the resolvers use:
+ *
+ *   `owner`    the owner's upload (a stored object, or a URL they supplied)
+ *   `catalog`  the seeded stock image (`image_url`)
+ *   `plate`    the generation plate, when it resolved
+ *   `null`     no picture resolved
+ *
+ * `resolvedUrl` is what the resolver actually produced: a plan can name a
+ * plate that is still drawing, in which case nothing resolved and the kind
+ * is `null`, never `plate`.
+ */
+export type VehiclePhotoKind = 'owner' | 'catalog' | 'plate';
+
+export function vehiclePhotoKind(
+  vehicleId: string,
+  vehicle: VehiclePhotoColumns,
+  resolvedUrl: string | null
+): VehiclePhotoKind | null {
+  if (!resolvedUrl) return null;
+  const plan = planVehiclePhoto(vehicleId, vehicle);
+  if (plan.kind === 'sign') return 'owner';
+  if (plan.kind === 'plate') return 'plate';
+  const storedPath = storagePathFromStoredUrl(vehicle.custom_image_url);
+  const isMalformedStored = vehicle.custom_image_url?.startsWith(STORED_URL_SCHEME);
+  if (!storedPath && !isMalformedStored && vehicle.custom_image_url) return 'owner';
+  return vehicle.image_url ? 'catalog' : null;
+}
+
+/**
  * The public hero URL of every `ready` plate among `keys`, in one query.
  *
  * `vehicle_plates` is readable by every role, so whichever client the caller

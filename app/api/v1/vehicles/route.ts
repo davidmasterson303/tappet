@@ -8,7 +8,7 @@ import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
-import { platePresence, resolveVehiclePhotos } from '@/lib/vehicle-photo';
+import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 
 export const dynamic = 'force-dynamic';
 
@@ -179,7 +179,15 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const vehicles = rows.map((row) => {
       const { custom_image_url, ...vehicle } = row;
-      return { ...vehicle, photo_url: photos.get(row.id) ?? null, plate_status: plates.get(row.id) ?? null };
+      const photo_url = photos.get(row.id) ?? null;
+      return {
+        ...vehicle,
+        photo_url,
+        // 13 Sep: which kind of picture that is — the owner's, the catalogue's
+        // or the plate — so the garage grades only the owner's. Additive.
+        photo_kind: vehiclePhotoKind(row.id, row as VehiclePhotoColumns, photo_url),
+        plate_status: plates.get(row.id) ?? null,
+      };
     });
 
     logger.info('API:GET_VEHICLES', 'Vehicles fetched successfully', {

@@ -881,7 +881,10 @@ describe('the health verdict, against what the screen is holding', () => {
     // The sentence itself is gone, not captioned. Both halves are asserted:
     // a card that simply stopped rendering anything would pass the first.
     expect(view.queryByText(/complete lack of documented maintenance/)).toBeNull();
-    await view.findByText(/taken before your 5 service records were filed/i);
+    // 13 Sep: the cell prints core's short form of the same claim — the
+    // four-line sentence was the critic's most repeated cut on the hub.
+    await view.findByText(/Read before 5 service records were filed/i);
+    expect(view.queryByText(/taken before your 5 service records/i)).toBeNull();
   });
 
   it('names what the reading was worked out from', async () => {
@@ -1175,6 +1178,61 @@ describe('taking the photograph back off the car', () => {
     // Nothing to refetch — the server did not change anything.
     expect(loads()).toHaveLength(loadsBefore);
     expect(props.onSignOut).not.toHaveBeenCalled();
+  });
+
+
+/**
+ * Whether the house grade is in the rendered tree — its blend layers are the
+ * only views in the app with a `mixBlendMode`, so that is what is looked for.
+ */
+function hasHouseGrade(tree: unknown): boolean {
+  let found = false;
+  const walk = (node: unknown) => {
+    if (found || !node || typeof node !== 'object') return;
+    const host = node as { props?: { style?: unknown }; children?: unknown[] };
+    const style = host.props?.style;
+    const styles = Array.isArray(style) ? style.flat(Infinity) : [style];
+    if (styles.some((s) => s && typeof s === 'object' && 'mixBlendMode' in (s as object))) found = true;
+    for (const child of host.children ?? []) walk(child);
+  };
+  walk(tree);
+  return found;
+}
+
+  it('reads a plate as the app’s picture, not the owner’s: no grade, and ADD PHOTO — 13 Sep', async () => {
+    /*
+      Since the plates went live a car nobody photographed arrives with
+      `photo_url` set to its plate. Read as the owner's, the plate was graded
+      a second time and the control said CHANGE PHOTO over nothing to change
+      (the hub loop, drift §6.18). The route now sends `photo_kind`; a plate
+      keeps the plain image and the one-verb control. Absent kind — an older
+      API — is the owner's, as it always was.
+    */
+    const user = userEvent.setup();
+    respond({ photo_url: PHOTO, photo_kind: 'plate' });
+    const pickPhoto = jest.fn().mockResolvedValue(null);
+    const { view } = await mount(REFERENCE, { pickPhoto });
+    await view.findAllByText(/2018 Honda Accord/);
+
+    expect(view.queryByLabelText('Change photo')).toBeNull();
+    // The plate draws under no grade: no house-split gradient on the hero.
+    expect(hasHouseGrade(view.toJSON())).toBe(false);
+    await user.press(view.getByLabelText('Add photo'));
+    expect(pickPhoto).toHaveBeenCalledTimes(1);
+    expect(sheet).not.toHaveBeenCalled();
+  });
+
+  it('grades and offers to change the owner’s photograph, kind named or not', async () => {
+    respond({ photo_url: PHOTO, photo_kind: 'owner' });
+    const { view } = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.getByLabelText('Change photo')).toBeTruthy();
+    expect(hasHouseGrade(view.toJSON())).toBe(true);
+
+    respond({ photo_url: PHOTO });
+    const older = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    await older.view.findAllByText(/2018 Honda Accord/);
+    expect(older.view.getByLabelText('Change photo')).toBeTruthy();
   });
 
   it('goes straight to the picker when there is no photograph to remove', async () => {
