@@ -1,12 +1,12 @@
-import { interFace } from '../theme/fonts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
-import Chip from '../components/Chip';
-import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
+import RowActions from '../components/RowActions';
+import SearchField from '../components/SearchField';
+import { clipWords, suggestionValue, type WishlistSourceData } from './wishlist-row';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import {
@@ -17,17 +17,7 @@ import {
 } from '@tappet/core/wishlist-suggestions';
 import { wishlistItemIdentifier, type WishlistItemType } from '@tappet/core/wishlist-identifier';
 import type { WishlistSource } from '@tappet/core/wishlist-source';
-import {
-  FIELD_FONT_MIN,
-  TABULAR,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { TABULAR, border, space, surface, text, type } from '../theme';
 
 /**
  * Adding to the wishlist — suggestions first, free text last.
@@ -179,8 +169,17 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
    * that silently matches nothing — all three have happened.
    */
   const add = useCallback(
-    async (name: string, itemType: WishlistItemType, description?: string) => {
+    async (name: string, itemType: WishlistItemType, description?: string, note?: string | null) => {
       const identifier = wishlistItemIdentifier(itemType, name);
+      /*
+        ── 13 Sep · the figure travels with the item ──────────────────────
+        Core's sentence for the row's figure, in `source_data`, so the Needs
+        list can print "5,000 MI / 12 MO" beside the item the way this
+        screen did (round 40). Nothing is written when there is nothing to
+        carry. `wishlist-row.ts` says why the sentence and not the figure,
+        and what core should own here.
+      */
+      const sourceData: WishlistSourceData | undefined = note ? { note } : undefined;
 
       setProblem(null);
       setBusy(identifier);
@@ -209,6 +208,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
               `@tappet/core/wishlist-source` carries the set.
             */
             source: 'dossier' satisfies WishlistSource,
+            ...(sourceData ? { sourceData } : {}),
           },
         });
 
@@ -342,41 +342,30 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
     <View style={styles.screen}>
       {problem && <AlertBanner tone="critical" headline="That was not added" body={problem} />}
 
-      {/* The filter. It is also the free-text field — see the header. */}
-      <View style={[styles.search, styles.searchPinned]}>
-        <Icon name="search" size={17} />
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search suggestions"
-          placeholderTextColor={text.muted}
-          /*
-            ⚠ **R38.** It read "Filter suggestions, or type something to add",
-            which is the placeholder's two-jobs problem said out loud. Filtering
-            an existing list and authoring a new item are different verbs with
-            different results, and one name cannot signal which is about to
-            happen.
+      {/*
+        The filter. It is also the free-text field — see the header.
 
-            The field searches. Authoring is the block at the list's foot, which
-            appears with its own lead sentence and its own button — a visible
-            affordance rather than a hint inside a field.
-          */
-          accessibilityLabel="Search suggestions"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {typed.length > 0 && (
-          <Pressable
-            onPress={() => setQuery('')}
-            accessibilityRole="button"
-            accessibilityLabel="Clear the filter"
-            style={styles.clear}
-          >
-            <Icon name="x" size={16} />
-          </Pressable>
-        )}
-      </View>
+        ⚠ **R38.** The placeholder read "Filter suggestions, or type something
+        to add", which is the placeholder's two-jobs problem said out loud.
+        Filtering an existing list and authoring a new item are different
+        verbs with different results, and one name cannot signal which is
+        about to happen. The field searches. Authoring is the block at the
+        list's foot, which appears with its own lead sentence and its own
+        button — a visible affordance rather than a hint inside a field.
+
+        ⚠ 13 Sep · `SearchField`, the History list's box, not a private copy.
+        This was a square `View` with a `borderWidth`, grey under focus and
+        blue-careted — every defect the History's box had been cured of one
+        round at a time (round 38: *"the only container without a cut"*).
+      */}
+      <SearchField
+        style={styles.searchPinned}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search suggestions"
+        accessibilityLabel="Search suggestions"
+        clearAccessibilityLabel="Clear the filter"
+      />
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       {state.suggestions.length === 0 ? (
@@ -405,93 +394,120 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
         headers over two matches is furniture.
       */}
       {groups.map(({ label, rows }) => (
-        <ListGroup key={label} label={label}>
+        <ListGroup key={label} label={label} count={typed.length > 0}>
           {rows.map((suggestion, index) => {
             const added = state.onList.has(suggestion.identifier);
             const working = busy === suggestion.identifier;
+            const value = suggestionValue(suggestion);
 
+            /*
+              ── 13 Sep · the row is the spec table's — B6, round 37 ──────────
+
+              The History and Due rows' shape: the mono index, the label, the
+              mono figure right-aligned at the rule, a hairline per row; the
+              reason beneath in the quiet sans, clear of the index column; and
+              the row's verbs on its last line (`RowActions`). It was a bold
+              sans name with the chip beside it, the sentence, the figure as a
+              second sentence, and two controls under everything — *"prose on
+              hairlines, not a spec table"*.
+            */
             return (
               <View
                 key={suggestion.identifier}
                 style={[styles.row, index < rows.length - 1 && styles.divided]}
               >
                 <View style={styles.rowHead}>
+                  <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
                   <Text style={styles.name}>{suggestion.name}</Text>
-                  {/*
-                    ⚠ Coloured only when the research said so. The spec:
-                    "priority chips are neutral unless the item is genuinely
-                    urgent." A list where half the chips are amber has taught
-                    its reader that amber means nothing.
-                  */}
-                  <Chip label={suggestion.chip} tone={suggestion.urgent ? 'attention' : 'neutral'} />
+                  {value ? (
+                    <Text style={styles.value} accessibilityLabel={suggestion.note ?? value}>
+                      {value}
+                    </Text>
+                  ) : null}
                 </View>
 
-                {/*
-                  ── R41 · two lines, and then the row stops ────────────────
+                <View style={styles.rowBody}>
+                  {/*
+                    ── R41 · two lines, and then the row stops ──────────────
 
-                  The reason is research prose and runs to whatever length the
-                  model wrote. Uncapped, the last row on screen ended mid-
-                  sentence at the fold with no ellipsis, which reads as a
-                  rendering fault rather than as more text below.
+                    The reason is research prose and runs to whatever length
+                    the model wrote. Uncapped, the last row on screen ended
+                    mid-sentence at the fold with no ellipsis, which reads as
+                    a rendering fault rather than as more text below. Two
+                    lines is enough to say what the part is and why it
+                    matters; the whole of it is what LEARN MORE is for — and
+                    the cut lands on a word (`clipWords`), not inside one.
+                  */}
+                  <Text style={styles.reason} numberOfLines={2} accessibilityLabel={suggestion.reason}>
+                    {clipWords(suggestion.reason)}
+                  </Text>
 
-                  Two lines is enough to say what the part is and why it
-                  matters; the whole of it is what "Learn more" is for.
-                */}
-                <Text style={styles.reason} numberOfLines={2}>
-                  {suggestion.reason}
-                </Text>
-                {suggestion.note ? <Text style={styles.note}>{suggestion.note}</Text> : null}
+                  {/*
+                    ── R39, rewritten 13 Sep · one control per row ────────────
 
-                <View style={styles.actions}>
-                  {added ? (
-                    <View style={styles.addedRow}>
-                      <Icon name="circle-check" size={16} color={text.secondary} />
-                      <Text style={styles.addedText}>On the list</Text>
-                    </View>
-                  ) : (
-                    <Button
-                      label="Add"
-                      /*
-                        ── R39 · one control per row ─────────────────────────
+                    `Add` and `Learn more` were once `outline` and `ghost`
+                    and read as two equal buttons down the list; R39 made ADD
+                    a `quiet` fill so each row had one control the eye could
+                    land on. `quiet` left the primitive set on 6 Sep (B4
+                    names three treatments, and a graphite fill was a field
+                    with no way to tell) and ADD "took `outline`" — back to
+                    the pair R39 was written to escape, which is what David
+                    read from his phone as *"unclear, not obvious, not
+                    inviting"*. The pair is now the pattern `RowActions`
+                    states once for every list: the box at the trailing edge
+                    is the act, the ghost word before it is the step beneath,
+                    and once added the box becomes its state word.
 
-                        `Add` and `Learn more` were `outline` and `ghost`, which
-                        read as two equal buttons repeated down the list — so no
-                        row had a primary and the eye had nothing to land on.
+                    ⚠ The row itself is still deliberately **not** the
+                    affordance. There is no suggestion detail screen; the only
+                    thing a row could navigate to is the advisor, and that
+                    spends a model call. A whole-row tap that costs money on a
+                    mis-scroll is the wrong trade — declined in this loop as
+                    it was in §6.15's.
+                  */}
+                  <RowActions
+                    action={{
+                      label: 'Add',
+                      accessibilityLabel: `Add ${suggestion.name} to the wishlist`,
+                      onPress: () =>
+                        void add(suggestion.name, suggestion.type, suggestion.reason, suggestion.note),
+                      busy: working,
+                    }}
+                    secondary={{
+                      label: 'Learn more',
+                      accessibilityLabel: `Ask the advisor about ${suggestion.name}`,
+                      onPress: () => onAskAdvisor(vehicleId, learnMoreQuestion(suggestion, state.name)),
+                    }}
+                    /*
+                      ADDED — the Due table's word, so one state has one
+                      word across the app; "On the list" was the sentence
+                      the reader still hears. Round 39 measured the longer
+                      word pushing LEARN MORE off its column.
+                    */
+                    done={added ? 'Added' : null}
+                    doneAccessibilityLabel={`${suggestion.name} is on the list`}
+                  >
+                    {/*
+                      ── 13 Sep · the kind is a word, on every row ───────────
 
-                        `quiet` is a fill; `ghost` is not. That is an
-                        unambiguous step rather than two borders of different
-                        weights, and it costs nothing on the row that has
-                        already been added, where the control is replaced by its
-                        state.
-
-                        ⚠ The card itself is deliberately **not** the affordance,
-                        which is what the pattern would normally ask for. There
-                        is no suggestion detail screen; the only thing a row
-                        could navigate to is the advisor, and that spends a model
-                        call. A whole-card tap target that costs money on a
-                        mis-scroll is the wrong trade.
-                      */
-                      variant="outline"
-                      size="small"
-                      busy={working}
-                      busyLabel=""
-                      accessibilityLabel={`Add ${suggestion.name} to the wishlist`}
-                      onPress={() =>
-                        void add(suggestion.name, suggestion.type, suggestion.reason)
-                      }
-                      style={styles.action}
-                    />
-                  )}
-                  <Button
-                    label="Learn more"
-                    variant="ghost"
-                    size="small"
-                    accessibilityLabel={`Ask the advisor about ${suggestion.name}`}
-                    onPress={() =>
-                      onAskAdvisor(vehicleId, learnMoreQuestion(suggestion, state.name))
-                    }
-                    style={styles.action}
-                  />
+                      This was a `Chip`, and a coloured one when the research
+                      said urgent (a High issue, a Critical service). Round 38
+                      read what the colour drew — the same SERVICE chip sodium
+                      here and grey on Needs one screen back, a routine oil
+                      change wearing the warning hue because its priority is
+                      Critical, while DO FIRST already said so — and round 40
+                      read what the box drew: *"a boxed category label … reads
+                      as a control"*, three cut hairlines on one line with the
+                      act's. So the kind is the Due row's basis token: a bare
+                      mono word in the muted ink, the row's one box being the
+                      act. The section carries urgency (`urgent` still sorts
+                      and sections); the word carries the kind and nothing
+                      else, which is the one rule both screens can keep.
+                    */}
+                    <Text style={styles.kind}>{suggestion.chip}</Text>
+                  </RowActions>
                 </View>
               </View>
             );
@@ -554,34 +570,27 @@ const styles = StyleSheet.create({
   errorTitle: { ...type.title, color: text.primary },
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
 
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    minHeight: TARGET_MIN,
-    paddingHorizontal: space.md,
-    borderRadius: radius.well,
-    borderWidth: 1,
-    borderColor: border.field,
-    backgroundColor: surface.well,
-  },
-  /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  input: { flex: 1, color: text.primary, fontFamily: interFace('400'),
-    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
-  clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
+  /*
+    ── The spec table's row — B6 ─────────────────────────────────────────────
 
-  row: { padding: space.md, gap: space.xs },
+    The Due row's numbers (`ServiceMilestoneScreen`): 12 above and below, the
+    head line's index at a fixed 22 so every name shares one left edge, the
+    figure mono and tabular at the rule, and everything beneath the head
+    line indented past the index column. Nothing here is a `padding` on the
+    horizontal — `ListGroup`'s rules run the page width and the row's text
+    starts on the page margin, as the History rows' does.
+  */
+  row: { paddingVertical: space.md, gap: space.xs },
   divided: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
-  rowHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' },
-  name: { ...type.bodyStrong, color: text.primary, flexShrink: 1 },
+  rowHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22, lineHeight: 20 },
+  name: { ...type.ui, color: text.primary, flex: 1 },
+  /* B6: the figure, mono, right-aligned and tabular so the column is a column. */
+  value: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
+  rowBody: { paddingLeft: 22 + space.md, gap: space.xs },
   reason: { ...type.value, color: text.secondary, lineHeight: 19 },
-  /* Figures — "Typically 60,000 – 100,000 miles", "Every 10,000 mi". R11. */
-  note: { ...type.label, letterSpacing: 0, color: text.muted, ...TABULAR },
-
-  actions: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
-  action: { flexShrink: 1 },
-  addedRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: TARGET_MIN },
-  addedText: { ...type.uiStrong, color: text.secondary },
+  /* The kind — KNOWN ISSUE, SERVICE, MODIFICATION — in the Due row's token voice. */
+  kind: { ...type.monoLabel, color: text.muted },
 
   own: { gap: space.sm },
   ownLead: { ...type.value, color: text.muted, lineHeight: 19 },

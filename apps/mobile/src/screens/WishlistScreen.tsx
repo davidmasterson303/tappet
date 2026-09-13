@@ -1,38 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import Button from '../components/Button';
-import Card from '../components/Card';
-import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
+import RowActions from '../components/RowActions';
+import { clipWords, storedNote, suggestionValue } from './wishlist-row';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
-import {
-  PAGE_BODY,
-  TABULAR,
-  border,
-  brand,
-  radius,
-  space,
-  status,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { PAGE_BODY, TABULAR, border, radius, space, surface, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -87,29 +66,18 @@ import { interFace } from '../theme/fonts';
 interface Props {
   vehicleId: string;
   onSignOut: () => void;
-  /**
-   * Opens the suggestions catalogue.
-   *
-   * ⚠ A route, not a sheet on this screen. `native-wishlist.spec.html`: *"Add
-   * is in the nav bar, not a floating action button. A FAB covers the last row
-   * and belongs to a different design language."*
-   */
-  onAdd: () => void;
-  /**
-   * Told when the list turns out to be empty, so the nav bar can drop its `+`.
-   *
-   * ⚠ The redundancy David flagged was two controls doing one job on a screen
-   * with nothing on it. I removed the wrong one first — a filled button is the
-   * affordance on an empty screen, and a corner glyph is not. So the button
-   * stays and the `+` stands down until there is a list to add to.
-   *
-   * Reported upward rather than decided in the navigator, because only this
-   * screen knows whether the fetch came back empty — and it must not be
-   * confused with "still loading", which is why it fires on the loaded state
-   * rather than on `items.length` at any moment.
-   */
-  onEmptyChange?: (empty: boolean) => void;
 }
+
+/*
+  ── 13 Sep · `onAdd` and `onEmptyChange` left with the empty state's button ──
+
+  Adding is the Plan root's act now — ADD TO NEEDS, the primary pinned under
+  the rail on every state (`PlanScreen`) — so this screen no longer opens the
+  catalogue and no longer reports emptiness upward for a nav-bar `+` that the
+  11 Sep tab rebuild removed. The docblock those props carried argued for a
+  route rather than a sheet (*"a FAB covers the last row and belongs to a
+  different design language"*); that stands, one screen up.
+*/
 
 interface WishlistItem {
   id: string;
@@ -119,6 +87,18 @@ interface WishlistItem {
   category?: string | null;
   estimated_cost_parts?: number | null;
   estimated_cost_labor?: number | null;
+  /** The route's `jsonb` passthrough; the catalogue writes its note here (`wishlist-row.ts`). */
+  source_data?: unknown;
+}
+
+/**
+ * The row's figure: the estimate where one is costed, else the interval or
+ * window the catalogue sent with the item, read through the same function
+ * the catalogue prints it with — so "5,000 MI / 12 MO" survives the trip
+ * (round 40). A row with neither prints nothing, never a dash.
+ */
+function figureOf(item: WishlistItem): string | null {
+  return estimate(item) ?? suggestionValue({ type: item.item_type, note: storedNote(item.source_data) });
 }
 
 type State =
@@ -163,11 +143,11 @@ function listTotal(items: readonly WishlistItem[]): number | null {
 }
 
 /**
- * The row's chip.
+ * The row's kind, as a word.
  *
  * `category` when the item came from somewhere that assigned one — the
  * progression ladder writes a role there — falling back to the item type in
- * plain words. Never "Item": a chip that says nothing is a chip that should
+ * plain words. Never "Item": a word that says nothing is a word that should
  * not be drawn, and every row has at least a type.
  */
 const TYPE_WORD: Record<string, string> = {
@@ -180,19 +160,7 @@ function chipFor(item: WishlistItem): string {
   return item.category?.trim() || TYPE_WORD[item.item_type ?? ''] || 'Service';
 }
 
-/**
- * Whether a row may wear colour.
- *
- * ⚠ Only an **issue** can, and only because that is the one type where the
- * research made a severity judgement. A service and a modification are things
- * you plan; an issue is a thing that is wrong. Colouring more than that is how
- * a list teaches its reader to ignore the colour — the spec's own point.
- */
-function isUrgent(item: WishlistItem): boolean {
-  return item.item_type === 'issue';
-}
-
-export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: Props) {
+export function WishlistScreen({ vehicleId, onSignOut }: Props) {
   /*
     B8 · the root's scroll contract. `null` when this screen is pushed with a
     native header or mounted on its own, and spreads to nothing there.
@@ -251,14 +219,6 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
     the first focus too rather than being clever about skipping it.
   */
   useRefetchOnFocus(load);
-
-  /*
-    Only ever from the loaded state. "Loading" is not "empty", and reporting it
-    as such would flash the nav bar's `+` out and back on every refresh.
-  */
-  useEffect(() => {
-    if (state.kind === 'loaded') onEmptyChange?.(state.items.length === 0);
-  }, [state, onEmptyChange]);
 
   const remove = useCallback(
     (item: WishlistItem) => {
@@ -424,73 +384,118 @@ export function WishlistScreen({ vehicleId, onSignOut, onAdd, onEmptyChange }: P
 
       {state.items.length === 0 ? (
         /*
-          No action, and deliberately: the "Add something" control sits directly
-          above this. A second control with the same job would be two ways to do
-          one thing on a screen with nothing on it — which reads as indecision
-          rather than helpfulness.
-        */
-        /*
-          ⚠ The big CTA stays, and the **nav bar's `+` is what goes** — see the
-          header's note. I resolved the redundancy the wrong way round first.
+          ── 13 Sep · words, and no button — the primary is pinned above ────
 
-          On an empty screen a filled button is the affordance and a 22pt glyph
-          in the corner is a rounding error; once there are rows the `+` is
-          right and there is no empty state to compete with it. One control per
-          state, rather than one control per screen.
+          This carried SEE SUGGESTIONS, and the note beside it argued for one
+          control per *state*: the filled button on the empty screen, the
+          band's word once there were rows. The word was the problem — David,
+          on the root with rows: *"it looks like a nav element, like Account.
+          But it's not, it's part of the core functionality of Plan"* — so the
+          act took the Service root's grammar instead: ADD TO NEEDS is the
+          full-width primary pinned under the rail on every state
+          (`PlanScreen`), the way SCAN INVOICE is. A second one here would be
+          two ways to do one thing on a screen with nothing on it, which is
+          the redundancy the empty History resolved the same way (§6.15).
+          The caption and the body stay: they say why the list is empty and
+          what the control above it opens.
         */
         <EmptyState
           inset={false}
           rule={false}
           headline="Nothing on the list yet"
-          body="See what we already know this car needs — its known issues, its schedule, and the usual modifications. You can add anything of your own too."
-          actionLabel="See suggestions"
-          actionAccessibilityLabel="See what this car needs"
-          onAction={onAdd}
+          /*
+            One sentence (round 38's Cut list): "You can add anything of your
+            own too" restated what the catalogue offers at its own foot.
+          */
+          body="See what we already know this car needs — its known issues, its schedule, and the usual modifications."
         />
       ) : (
         state.items.map((item, index) => (
           /*
-            ⚠ A divided row, not a `Card` each. The spec is explicit: *"rows get
-            whitespace and a hairline divider, never zebra striping"* — and a
-            stack of bordered cards is the same mistake in the other direction,
-            six boxes where the eye wants one list. The last row draws no rule.
+            ── 13 Sep · the row is the spec table's — B6, round 37 ──────────
+
+            The History and Due rows' shape: the mono index, the label, the
+            mono figure at the rule (the estimate, or a dash — `ListRow`'s
+            rule: a missing value is "we cannot say", never a vanished
+            column), the reason beneath in the quiet sans, and the row's verbs
+            on its last line. It was a bold sans name, a bold sans price, and
+            a cyan-bordered Done beside a sodium Remove — the pre-brief
+            controls that never went through a loop, which the critique
+            ranked as the palette breach on this tab (*"the list one screen
+            back speaks another [dialect]"*).
+
+            ⚠ A divided row, not a `Card` each. The spec is explicit: *"rows
+            get whitespace and a hairline divider, never zebra striping"* —
+            and a stack of bordered cards is the same mistake in the other
+            direction. The last row draws no rule.
           */
           <View
             key={item.id}
             style={[styles.item, index < state.items.length - 1 && styles.itemDivided]}
           >
             <View style={styles.itemHead}>
+              <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+                {String(index + 1).padStart(2, '0')}
+              </Text>
               <Text style={styles.itemName}>{item.item_name}</Text>
-              {estimate(item) && <Text style={styles.itemCost}>{estimate(item)}</Text>}
+              {/*
+                The figure — the estimate, or the interval the item was added
+                with. ⚠ No dash where there is neither: `ListRow`'s em dash
+                marks a tracked reading that is missing, and neither is
+                tracked for every item — a column of dashes read as *"a stray
+                glyph"* (round 38).
+              */}
+              {figureOf(item) ? <Text style={styles.itemCost}>{figureOf(item)}</Text> : null}
             </View>
 
-            {item.description ? <Text style={styles.itemBody}>{item.description}</Text> : null}
+            <View style={styles.itemBody}>
+              {/* Two lines, cut on a word — the catalogue's own cut (`clipWords`), so the list stays a table. */}
+              {item.description ? (
+                <Text style={styles.itemReason} numberOfLines={2} accessibilityLabel={item.description}>
+                  {clipWords(item.description)}
+                </Text>
+              ) : null}
 
-            <View style={styles.itemFoot}>
               {/*
-                Neutral unless the row earned otherwise. The spec: *"semantic
-                colour does semantic work only — 'Control' and 'Durability' are
-                roles from the progression ladder, not severities."*
+                ── The row's verbs, in the pattern `RowActions` states ────────
+
+                DONE is the act — the box at the trailing edge — because it
+                writes the job into the car's service history and is the
+                reason to keep a list at all; REMOVE is the ghost word before
+                it. ⚠ REMOVE is not the sodium `delete` treatment: B7 gives
+                sodium one job, and a sodium hairline on every row of a list
+                is a list that is all warning. The destructive step is the
+                confirm the word opens (`remove`'s alert), which is where the
+                brief puts the hue.
               */}
-              <Chip label={chipFor(item)} tone={isUrgent(item) ? 'attention' : 'neutral'} />
-              <View style={styles.itemActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Mark ${item.item_name} done`}
-                  style={styles.doneCta}
-                  onPress={() => setDoneItem(item)}
-                >
-                  <Text style={styles.doneText}>Done</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${item.item_name} from the wishlist`}
-                  style={styles.removeCta}
-                  onPress={() => remove(item)}
-                >
-                  <Text style={styles.removeText}>Remove</Text>
-                </Pressable>
-              </View>
+              <RowActions
+                action={{
+                  label: 'Done',
+                  accessibilityLabel: `Mark ${item.item_name} done`,
+                  onPress: () => setDoneItem(item),
+                }}
+                secondary={{
+                  label: 'Remove',
+                  accessibilityLabel: `Remove ${item.item_name} from the wishlist`,
+                  onPress: () => remove(item),
+                }}
+              >
+                {/*
+                  ── 13 Sep · the kind is a word, on every row ─────────────
+
+                  This was a `Chip`, sodium on every issue, on the reading
+                  that an issue is "a thing that is wrong" — a rule the
+                  catalogue did not share, so the same item changed hue
+                  between the two screens (round 38); and a box, which read
+                  as a second control beside DONE's (round 40). A wishlist
+                  row carries no severity, and colouring by type alone tells
+                  the owner a Low-severity coil is a warning (§10). The kind
+                  is the Due row's basis token — a bare mono word in the
+                  muted ink — and the spec's own line stands: *"semantic
+                  colour does semantic work only."*
+                */}
+                <Text style={styles.kind}>{chipFor(item)}</Text>
+              </RowActions>
             </View>
           </View>
         ))
@@ -512,9 +517,13 @@ const styles = StyleSheet.create({
   /*
     ── The summary line ─────────────────────────────────────────────────────
 
-    Label left in the uppercase label role, total right at the editorial size in
-    tabular figures. It is the one big number on the screen and it earns that:
-    the list exists so somebody can see what this car is going to cost.
+    Label left, total right at the editorial size in tabular figures. It is
+    the one big number on the screen and it earns that: the list exists so
+    somebody can see what this car is going to cost.
+
+    ⚠ 13 Sep · B1: the label is a count and a state — "2 ITEMS · ESTIMATED"
+    — so it is set in the mono the rail and the chips speak, not the sans
+    eyebrow it was (the critique: *"2 ITEMS … are sans"*).
   */
   summary: {
     flexDirection: 'row',
@@ -525,7 +534,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: border.panel,
   },
-  summaryLabel: { ...type.label, color: text.muted },
+  summaryLabel: { ...type.monoLabel, color: text.muted },
   summaryTotal: {
     ...type.display,
     fontSize: 26,
@@ -534,138 +543,30 @@ const styles = StyleSheet.create({
     ...TABULAR,
   },
 
-  /* Rows in one list, divided by a hairline. Never cards, never striped. */
+  /*
+    ── B6 · the table's row ─────────────────────────────────────────────────
+
+    The Due row's numbers (`ServiceMilestoneScreen`): 12 above and below, the
+    index at a fixed 22 so every name shares one left edge, the figure mono
+    and tabular at the rule, and everything beneath the head line indented
+    past the index column. Rows in one list, divided by a hairline. Never
+    cards, never striped.
+  */
   item: { paddingVertical: space.md, gap: space.xs },
   itemDivided: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
+  itemHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22, lineHeight: 20 },
+  itemName: { ...type.ui, color: text.primary, flex: 1 },
+  /* The estimate, mono and tabular at the rule. */
+  itemCost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
+  itemBody: { paddingLeft: 22 + space.md, gap: space.xs },
+  /* The reason the row is here, in the quiet sans — it travelled with the item from the catalogue. */
+  itemReason: { ...type.value, color: text.secondary, lineHeight: 19 },
+  /* The kind — KNOWN ISSUE, SERVICE, MODIFICATION — in the Due row's token voice. */
+  kind: { ...type.monoLabel, color: text.muted },
 
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-
-  /*
-    The closed state. A single control that says what it does, so the screen
-    opens as a list rather than as a form — the first item is now above the
-    fold on a phone, which it was not.
-  */
-  openComposer: {
-    minHeight: 48,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: border.field,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  openComposerText: { color: text.secondary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600' },
-
-  composer: { gap: 10 },
-  typeBlock: { gap: 8 },
-  typeLabel: { color: text.muted, fontSize: 12, fontFamily: interFace('600'), fontWeight: '600' },
-  composerActions: { flexDirection: 'row', gap: 10 },
-  composerCancel: {
-    minHeight: 48,
-    paddingHorizontal: 18,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: border.field,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  composerCancelText: { color: text.secondary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600' },
-  input: {
-    backgroundColor: surface.raised,
-    borderRadius: radius.button,
-    paddingHorizontal: 14,
-    /*
-      16px, not 14. iOS Safari's zoom rule does not apply to a native
-      `TextInput`, but RB0's floor — "16px any focusable input at ≤640" — was
-      adopted as a system rule rather than a browser workaround, and a smaller
-      field here would be the one place in the product that disagrees.
-    */
-    fontFamily: interFace('400'),
-    fontSize: 16,
-    color: text.primary,
-    minHeight: 48,
-  },
-
-  typeRow: { flexDirection: 'row', gap: 8 },
-  typeChip: {
-    paddingHorizontal: 14,
-    borderRadius: radius.button,
-    backgroundColor: surface.raised,
-    /*
-      Grown for real rather than given a 44px `::after`-style hit area. These
-      wrap in a row with an 8px gap, and R9 recorded what happens when a padded
-      hit area overhangs into a gap from both sides: two rows of chips get
-      overlapping targets and the tap goes to whichever painted last. A control
-      that answers the wrong tap is worse than one slightly too small.
-    */
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  /*
-    ⚠ The selected state is the brand fill, not white. It was `surface.inverse`
-    until 23 Aug, which put a white fill on a screen whose primary button is
-    cyan — the same two-filled-treatments conflict the retired `inverse` button
-    variant caused, one control down. See `Button`'s docblock.
-  */
-  typeChipOn: { backgroundColor: brand.primary },
-  typeText: { color: text.secondary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
-  typeTextOn: { color: text.onPrimary },
-
-  /*
-    An explicit fill, **not `opacity`**, and that is a testability decision as
-    much as a design one.
-
-    `opacity` on the parent is the obvious way to grey a button out, and the
-    contrast audit cannot see it: `auditText` derives each text's surface from
-    the style tree, and a parent alpha never reaches the comparison. Verified —
-    dropping the old `opacity: 0.55` to `0.12` left all 39 mobile tests green
-    while making the label genuinely unreadable. A guard that cannot fail on
-    the thing it is named after is worse than no guard.
-
-    A real colour is measured. #8f8f8f against the near-black label reads about
-    6.2:1, and taking it darker turns the suite red, which is the whole point.
-  */
-
-  /**
-   * The card, on the ladder rather than beside it.
-   *
-   * ⚠ This was a **private copy** — `surface.raised` with no border, where the
-   * `Card` primitive is `surface.card` with `border.panel`. `raised` is the
-   * ladder's step for bars, tab strips and chips; a card painted on it sits one
-   * step off from every other card in the app, which is precisely the "twelve
-   * slightly different containers" the primitive set was built to end.
-   *
-   * The gap is kept as it was. Padding and gaps across this app want a pass
-   * with a designer's eye rather than a find-and-replace — see the note in
-   * `mobile-radius-scale.test.ts` on why that rule was scoped to radius.
-   */
-  cardGap: { gap: 8 },
-  itemHead: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  itemName: { color: text.primary, fontSize: 15, fontFamily: interFace('600'), fontWeight: '600', flexShrink: 1 },
-  itemCost: { color: text.primary, fontSize: 15, fontFamily: interFace('700'), fontWeight: '700' },
-  itemBody: { color: text.secondary, fontFamily: interFace('400'),
-    fontSize: 14, lineHeight: 20 },
-  itemFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  itemMeta: { color: text.muted, fontFamily: interFace('400'),
-    fontSize: 12 },
-  itemActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  /*
-    Done is the primary action on a row and Remove is not, so they do not look
-    alike. Remove deletes; Done writes the job into the car's service history
-    and is the reason to keep a list at all.
-  */
-  doneCta: {
-    minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: brand.primary,
-    justifyContent: 'center',
-  },
-  doneText: { color: brand.accent, fontSize: 14, fontFamily: interFace('700'), fontWeight: '700' },
-  removeCta: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  removeText: { color: status.attention, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
-
 
   errorTitle: { color: text.primary, fontSize: 17, fontFamily: interFace('600'), fontWeight: '600' },
   errorBody: { color: text.muted, fontFamily: interFace('400'),

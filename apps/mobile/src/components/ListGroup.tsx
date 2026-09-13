@@ -52,6 +52,7 @@ import { border, space, text, type } from '../theme';
  */
 export default function ListGroup({
   label,
+  count = false,
   children,
 }: {
   /**
@@ -61,11 +62,19 @@ export default function ListGroup({
    * it is does not need naming twice.
    */
   label?: string;
+  /**
+   * The label is a count ("5 matching"), not a section's name — set in the
+   * mono a value takes, like the Needs list's "2 ITEMS", rather than the
+   * condensed head a section takes (B1; round 39).
+   */
+  count?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label.toUpperCase()}</Text> : null}
+      {label ? (
+        <Text style={count ? styles.count : styles.label}>{label.toUpperCase()}</Text>
+      ) : null}
       <View style={styles.group}>{children}</View>
     </View>
   );
@@ -74,13 +83,21 @@ export default function ListGroup({
 const styles = StyleSheet.create({
   wrap: { gap: space.sm },
   /*
-    ⚠ B1: the condensed eyebrow, not `type.label`. The same slip `SectionHeader`
+    ⚠ B1: the condensed grotesk, not `type.label`. The same slip `SectionHeader`
     carried until 6 Sep — the sans eyebrow the critique called "tracked grey
     sans, neither condensed nor mono" — survived here because this label was
-    below the fold on the one screen that uses it with a name. Indented to the
-    rows' own inset so it sits over the column it names.
+    below the fold on the one screen that uses it with a name.
+
+    ⚠ 13 Sep · at `displaySection`'s 20pt, not the 12pt eyebrow. Three
+    rounds read DO FIRST and EVERYTHING ELSE at 12pt as "tracked Inter caps"
+    — the misread §6.13 records for the condensed face at that size, and
+    the reason the Due table's group heads took the token's own 20pt in
+    round 33. The catalogue's heads are that table's heads: the same face at
+    the size it reads as itself, in the full ink a section head carries.
   */
-  label: { ...type.displayLabel, color: text.muted, paddingHorizontal: space.xs },
+  label: { ...type.displaySection, color: text.primary },
+  /* A count is a value: the Needs summary's voice. */
+  count: { ...type.monoLabel, color: text.muted },
   /*
     Two hairlines and nothing between them but the rows. No fill (B5's one
     surface), no radius (B4's zero), no frame. Each row draws its own inset

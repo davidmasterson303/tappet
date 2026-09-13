@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { WishlistScreen } from '../WishlistScreen';
+import { brand, status, text } from '../../theme';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -57,7 +58,7 @@ function listReturns(items: unknown[]) {
 
 async function mount(overrides: Partial<Parameters<typeof WishlistScreen>[0]> = {}) {
   const props = { vehicleId: 'v1', ...overrides, onSignOut: jest.fn() };
-  return { props, view: await render(<WishlistScreen {...props} onAdd={jest.fn()} />) };
+  return { props, view: await render(<WishlistScreen {...props} />) };
 }
 
 let alertSpy: jest.SpyInstance;
@@ -288,5 +289,123 @@ describe('the summary line', () => {
     expect(view.getByText('2 ITEMS · ESTIMATED')).toBeTruthy();
     // Once in the summary, once on the row that carries it.
     expect(view.getAllByText('$290')).toHaveLength(2);
+  });
+});
+
+describe('the row as a spec table, with the pattern’s verbs — round 37', () => {
+  /*
+    The rows were a bold sans name, a bold sans price, a cyan-bordered Done
+    and a sodium Remove — pre-brief controls that never went through a loop,
+    and the critique's one named palette breach on the tab. They are the
+    History row's shape now (index, label, mono figure at the rule) with the
+    verbs `RowActions` gives every list: DONE the box, REMOVE the ghost word.
+  */
+  const flat = (style: unknown) =>
+    Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) as Record<string, unknown>;
+
+  it('numbers the rows and puts the estimate at the rule, and nothing where there is none', async () => {
+    listReturns([
+      item({ id: 'w1', estimated_cost_parts: 200, estimated_cost_labor: 90 }),
+      item({ id: 'w2', item_name: 'Cabin filter', estimated_cost_parts: null, estimated_cost_labor: null }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Cabin filter');
+
+    expect(view.getByText('01', { includeHiddenElements: true })).toBeTruthy();
+    expect(view.getByText('02', { includeHiddenElements: true })).toBeTruthy();
+    /* No figure, no dash: an estimate is not a tracked reading (round 38). */
+    expect(view.queryByText('—')).toBeNull();
+    expect(flat(view.getAllByText('$290')[1].props.style).fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('draws DONE as the hairline box and REMOVE as the word before it, and no hue on either', async () => {
+    listReturns([item({ item_type: 'issue' })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+
+    /* And the kind is a muted word even on an issue — the list has no severity to colour by. */
+    expect(flat(view.getByText('Known issue').props.style).color).toBe(text.muted);
+
+    const done = view.getByLabelText('Mark Front brake pads done');
+    const remove = view.getByLabelText('Remove Front brake pads from the wishlist');
+    expect(done.props.accessibilityRole).toBe('button');
+    expect(remove.props.accessibilityRole).toBe('button');
+
+    const doneWord = flat(view.getByText('Done').props.style);
+    const removeWord = flat(view.getByText('Remove').props.style);
+    expect(doneWord.textTransform).toBe('uppercase');
+    expect(removeWord.textTransform).toBe('uppercase');
+    /* Off-white on the box, the chrome ink on the word — neither cyan nor sodium. */
+    expect(doneWord.color).toBe(text.primary);
+    expect(removeWord.color).toBe(text.secondary);
+    expect([doneWord.color, removeWord.color]).not.toContain(brand.accent);
+    expect([doneWord.color, removeWord.color]).not.toContain(status.attention);
+  });
+
+  it('prints the figure the catalogue sent with the item, read the same way', async () => {
+    /*
+      Round 40: "Engine oil and filter" arrived on the list without its
+      "5,000 MI / 12 MO". The catalogue writes core's sentence to
+      `source_data.note`; the row reads it back through `suggestionValue`.
+      A row added elsewhere has no note and no figure — not a dash, not a
+      guess.
+    */
+    listReturns([
+      item({
+        id: 'w1',
+        item_name: 'Engine oil and filter',
+        item_type: 'maintenance',
+        estimated_cost_parts: null,
+        estimated_cost_labor: null,
+        source_data: { note: 'Every 5,000 mi or 12 months' },
+      }),
+      item({
+        id: 'w2',
+        item_name: 'Charge pipe',
+        item_type: 'issue',
+        estimated_cost_parts: null,
+        estimated_cost_labor: null,
+        source_data: {},
+      }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Charge pipe');
+    expect(view.getByText('5,000 MI / 12 MO')).toBeTruthy();
+    expect(view.queryByText('—')).toBeNull();
+    expect(view.queryByText(/Every 5,000/)).toBeNull();
+  });
+
+  it('keeps the reason to two lines, ended on a sentence, and names the kind as a bare mono word', async () => {
+    const prose =
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.';
+    listReturns([item({ item_type: 'issue', description: prose })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+
+    const reason = view.getByText(/Can become clogged/);
+    expect(reason.props.numberOfLines).toBe(2);
+    /* The first sentence fits the cap, so the row ends on it, whole — an edit, not a truncation. */
+    expect(reason.props.children).toBe('Can become clogged or fail, affecting variable valve timing.');
+    expect(String(reason.props.children).length).toBeLessThan(prose.length);
+
+    const kind = flat(view.getByText('Known issue').props.style);
+    expect(kind.fontFamily).toMatch(/JetBrainsMono/);
+    expect(kind.color).toBe(text.muted);
+    /* A word, not a chip: a `Chip` wraps its label in the cut surface, which measures itself. */
+    expect(view.getByText('Known issue').parent?.props.onLayout).toBeUndefined();
+  });
+
+  it('sets the summary in the mono voice — a count is a value', async () => {
+    listReturns([item({ estimated_cost_parts: null, estimated_cost_labor: null })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+    expect(flat(view.getByText('1 ITEM').props.style).fontFamily).toMatch(/JetBrainsMono/);
+  });
+
+  it('offers no button on the empty state — the tab’s primary is pinned above it', async () => {
+    listReturns([]);
+    const { view } = await mount();
+    await view.findByText('Nothing on the list yet');
+    expect(view.queryByRole('button')).toBeNull();
   });
 });
