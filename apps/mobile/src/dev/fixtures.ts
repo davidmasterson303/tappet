@@ -29,10 +29,9 @@
  * worst failure this file could have, because every screen would look perfect.
  */
 
-import Constants from 'expo-constants';
-
 import { driversForVehicle } from '@tappet/core/health-drivers';
 import { platePublicUrl, type PlateStatus } from '@tappet/core/plates';
+import { SUPABASE_URL } from '../config';
 
 /**
  * The plate's status on the fixture car, from the environment.
@@ -599,15 +598,17 @@ function answerWishlist(path: string, request: { method?: string; body?: unknown
  * `photo_url`, with `plate_status` nulled because the plate is showing. A
  * ready plate is a **public** object (`platePublicUrl`, the `garage-images`
  * bucket), so unlike the owner photograph it is not a credential and can
- * be named here. The origin is `app.json`'s `extra.supabaseUrl`, the one
- * the auth client reads; missing, the car falls back to the house plate
- * rather than a broken image.
+ * be named here. The origin is `config.ts`'s `SUPABASE_URL` — `app.json`'s
+ * `extra.supabaseUrl`, the one the auth client reads — and ⚠ it is read
+ * through `config` rather than from `expo-constants`, because this file is
+ * loaded for real by two root suites that cannot parse that package
+ * (`config.ts` carries the note). Missing, the car falls back to the house
+ * plate rather than a broken image.
  */
 const M235I_PLATE_KEY = 'bmw/2-series/f22';
 const M235I_PLATE_HERO = 'plates/bmw/2-series/f22/hero-3x2.jpg';
 function readyPlateUrl(): string | null {
-  const base = (Constants.expoConfig?.extra as { supabaseUrl?: unknown } | undefined)?.supabaseUrl;
-  return typeof base === 'string' && base !== '' ? platePublicUrl(base, M235I_PLATE_HERO) : null;
+  return SUPABASE_URL ? platePublicUrl(SUPABASE_URL, M235I_PLATE_HERO) : null;
 }
 
 /** The fixture car as the routes answer it — `photo_url` decided now, not at import. */

@@ -2562,6 +2562,289 @@ for the session — the POST answered with the route's `{ wishlistItem }`
 including `source_data`, the GET newest-first, `DELETE ?itemId=` — so the
 Plan root can be shot with rows on it and the Needs row with its figure.
 
+### 6.18 The car's hub is a binnacle — three concepts, the pick, rounds 42–46, 13 Sep
+
+David, on the car's hub (`VehicleDetailScreen`, pushed from the Garage):
+*"i feel surprised this page, with these cta's/nav elements, received an
+acceptable score from the design critic."* He asked for three fearless
+concepts, the critic to pick the best fit, and the existing loop on the
+pick — *"when in doubt, trust design critic, don't need to ask me for
+everything."* The loop ran on the iPhone 16 Pro (concepts) simulator under
+Expo Go, fixtures Metro on 8094, with four states in every set — rest on
+the plate, scrolled to the end, the owner's photograph added through the
+app's own control, and the plate's wait state — and the web dossier at
+phone width as the blind comparator. **42: 7 → 43: ungraded → 44: 7 →
+45: 7 → 46: 8, `Continue: no`.** 5 ✅ / 4 🟡 in round 42 became 6 ✅ /
+3 🟡 in round 46, the three left partial being B1 (a misread, below), B2
+(taken after the stop) and B3 (the dial is the garage's by the brief's own
+words). The blind rank put the phone at rest first in rounds 44 and 45 and
+the web dossier first in 46 — *"full dial, spec tables, complete
+instrument"* — which is the dial question in the parking lot, not a
+regression.
+
+**The three concepts** (`apps/mobile/src/screens/hub-concepts/` on
+`1c93c72`, behind `EXPO_PUBLIC_DESIGN_VARIANT=a|b|c`; the frames, README
+and pick in `design-loop/mobile-ios/concepts/hub/`), each keeping the film
+and breaking the page — the row-list-of-links, the one-filled-primary at
+the bottom, the chrome word as action, hero-then-ledger:
+
+- **A · CLUSTER** — an instrument binnacle, not a list: the readings in one
+  hairline-celled panel under the plate, every cell a reading and every
+  reading the door to its own screen, the verdict the check-control message
+  beneath, the two acts a pair of switches at the foot.
+- **B · WORK ORDER** — a race engineer's sheet: the tools first as a rail
+  under the plate, then the punch list of what the car needs as a numbered
+  spec table, most urgent first, with History, Plan and the answers demoted
+  to an index at the foot.
+- **C · TICKET** — the reading and the next act as one object: a cut slab
+  carrying the 88pt numeral, its verdict, the acts it leads to as rows, and
+  its counterfoil, the one filled verb; the places an index beneath.
+
+**The pick** (`concepts/hub/pick.md`, one blind invocation, the shipped page
+as the fourth candidate): **CLUSTER first, WORK ORDER, TICKET, the shipped
+page last.** *"It is the only candidate that treats the space under the
+plate as the same instrument as the plate: mono-caps labels, big mono
+values, hairline cells, the stat strip simply continuing downward … A and B
+lead with a number their own copy calls stale; D leads with a data-entry
+button; C leads with the readings."* Its one reservation was the 70
+separated from the sentence that says it is stale — *"precisely the
+unqualified precision this product says it will not show"* — and its three
+notes on the pick (the verdict sentence with the 70; the job named in the
+NEXT SERVICE cell; HOW YOU USE IT cut and PLAN's 0 in label grey) went into
+round 42. The shipped page's own verdict: *"a tidy settings list with no
+dominant reading; the overdue service is an unnamed value below the fold."*
+
+**Round 42 — 7/10, 5 ✅ / 4 🟡.** CLUSTER made the real screen with the
+three notes taken. Gaps: WHAT YOU TOLD US as a mono ghost word *"floating
+over roughly 450pt of empty graphite"* (B1); SCAN INVOICE at equal weight
+with the advisor when the phone's headline act should be the band's one
+primary (B9); the count band's numerals on three baselines because FUEL
+SYSTEM lifted the recall cell's (B6). **Round 43 is frames only**: the
+fixes were built and shot, and the critic's call died on a rate limit
+before it read an image. ⚠ **The worktree that held rounds 42 and 43 was
+killed with that work uncommitted.** It was recovered here from the dead
+agent's transcript — every `Write` and `Edit` payload and the scratchpad
+scripts that survived, replayed with each replacement asserting one match
+— then verified against tsc and the suites before anything else was
+touched. Commit after every round is the rule this cost; `df29e94`
+carries the recovery.
+
+**What the hub is now** (`Binnacle.tsx`, `VehicleDetailScreen.tsx`):
+
+- **The panel.** HEALTH (three parts wide) beside NEXT SERVICE (two): the
+  reading at `numeralPlate`'s 44 with its band word, `healthVerdict`'s
+  sentence and the provenance line inside the cell — the reading and its
+  qualification never separated; the sweep's service by name in condensed
+  caps over core's own timing, the sodium triangle beside the legend only
+  when `describeNextService` says overdue or due now. Then RECALLS ·
+  HISTORY · PLAN, one numeral each on one baseline. Every cell is
+  pressable and says where it opens in its spoken name; the legend sits
+  *under* the value with a hairline chevron after it, so a pressable cell
+  and the plate's strip cell — eyebrow over value, not pressable — never
+  read as one object. A count the screen could not read is nothing on the
+  cell; a zero it did read is in the legend's ink (`VehicleDetailScreen.
+  test.tsx` holds both, because a screen that printed 0 for both would pass
+  either alone).
+- **The switches.** SCAN INVOICE the one off-white primary and ASK THE
+  ADVISOR the hairline secondary beside it, at the panel's foot under 24pt
+  of air — the Service root's figure between its primary and the first
+  rule. That number is not decoration: at 16 the panel's two rows ended 7pt
+  short of the fold on the 16 Pro and a 7pt band of off-white showed over
+  the tab bar at rest, which round 44 read as *"a stray band"*; measured at
+  21px on the frame, 0 after. The critic's alternative — the switches above
+  the count row — would have put the readings the pick led with under the
+  fold and sliced the numerals instead.
+- **WHAT YOU TOLD US** is a real section: `01 MILES A MONTH · 500`,
+  `02 MODIFICATIONS · Keep it stock`, `03 OWNERSHIP · Keep forever`, each a
+  `BandRow` opening the profile, with the spec table's index (B6) and the
+  objective as a right-aligned mono value. MODIFICATIONS and OWNERSHIP are
+  the web wizard's own heads for those answers, because the phone's profile
+  asks "What do you want from it?" two blocks above a field labelled "What
+  you want out of it" and side by side in a table those read as one
+  question asked twice. ⚠ HOW YOU USE IT is not a row: USE is on the strip
+  400pt above (the pick's note and round 45's cut — *"one goes"*), and every
+  row here opens the one profile where it is changed. Round 43 had restored
+  it on the argument that the section should not omit the answer it is
+  best known for; superseded, and written down in the screen.
+- **The sheet has a floor, and the title arrives early.** The binnacle is
+  half a display tall and a sheet the height of its content stopped the
+  scroll ~160pt in — past the hero name's fade (`HERO_TITLE_FADE_SPAN`
+  210), short of the nav name's arrival (300) — so at the end of the scroll
+  the car had no name. `sheetMinHeight` derives the floor from the motion
+  constants, the scroll view's measured height (round 42 used the window
+  and counted the tab bar's 83pt into the tail twice) and the nav's height;
+  `navFadeStartFor` lets the mono title arrive as soon as the sheet has
+  covered the identity block rather than at the constant. ⚠ **The tail is
+  structural, and this is its arithmetic:** the end state is the sheet
+  filling the viewport under the nav, so the tail is `(viewport − nav) −
+  content` whatever the hero's height — 171pt with three answer rows on the
+  16 Pro (513px, measured), 106 with four. Any content between "fits at
+  rest" and "covers the name" ends the scroll with the name half under the
+  sheet's edge, so the floor is not optional; only more content or a
+  different end state removes the tail.
+- **The plate's cut, where the plate meets the sheet.** The brief's cut is
+  top-right; on this screen the plate runs under the status bar, so that
+  corner is under the clock and every graded frame showed a plate with no
+  cut while both buttons under it had one. Round 46 reversed the earlier
+  acceptance (*"a cut nobody can see does not meet the line"*) and it was
+  taken after the stop: the plate's one corner on the page is the sheet's
+  leading edge, and that edge travels, so the cut is the sheet's —
+  `cut.plate` of page colour laid over the plate's bottom-right corner
+  above the edge, the masthead's and the garage plate's construction
+  (`cornerCovers`, equal legs held), the hairline stopping where the bevel
+  begins. Seen at 4× and at native scale; ungraded.
+- **The car opens on its own plate.** Round 44's first gap — *"'drawn' is
+  indistinguishable from 'drawing' … the top half of the car's own page
+  holds no car"* — was the fixture, not the design: the M235i's generation
+  plate has been `ready` in `vehicle_plates` since 12 Sep and the route
+  serves a ready plate as `photo_url`, and the fixture answered `null` at
+  rest, so every graded frame of the hub and the garage had stood the car
+  on the house plate. `dev/fixtures.ts` carries the plate's public URL now
+  (`platePublicUrl` on `app.json`'s `supabaseUrl` — a public object, not a
+  credential), nulls the status under it as the route does, and keeps the
+  house plate for `pending`/`generating`/`failed` with the line that
+  explains it. ⚠ On the way: `apps/mobile/.env` carries
+  `EXPO_PUBLIC_DESIGN_PHOTO_URL=` with an empty value, and `??` had taken
+  `''` as a photograph — invisible while `''` and `null` drew the same
+  plate, and in front of the plate the moment there was one. `||` now, and
+  the fixtures suite holds the ready plate, the empty variable and the wait
+  state as the anti-vacuous pair. The fixture also carries the M235i's other
+  two answers as PostgREST returned them (`stock`, "Keep forever") — ⚠
+  `stock` hides the Build ladder (`showsModifications`), so a loop shooting
+  Mods from these fixtures sees the ladder's off state, which is the state
+  this car is in.
+- **`BandRow`** takes an optional `index` (the Due table's style — mono,
+  muted, tabular, 22pt, hidden from the reader) and holds its value to one
+  line and half the row, so a 280-character objective truncates before the
+  label loses a letter — "HOW YOU USE THIS…" was this row's own history.
+  `primitives.test.tsx` holds both, each proven against the wrong
+  behaviour.
+- ⚠ **A car never checked for recalls prints no count** (after the stop,
+  found on the board rather than in a frame). The old page hid its recall
+  row at 0, so "checked, clean" and "never checked" were the same silence
+  — the roadmap carried that as David's call — and the concept's cell
+  printed `open.length`, which is 0 for both: a `null` dressed as a
+  reading. The cell now follows `load-vehicle`'s own rule — an absent
+  `recalls` is "never checked" and prints nothing, with "not checked yet"
+  in its spoken name; an empty array is "asked, none" and prints 0 in the
+  legend's ink. Both halves held in the screen's test; the roadmap entry
+  is closed in that direction.
+
+**Not taken, with the reason:**
+
+- *The four-line caveat* (round 42's cut, 44's cut, 45's gap 1, 46's cut —
+  four rounds). It is `healthVerdict`'s sentence in `packages/core/
+  health-claims.ts`, shared with the web, and the product's own words for a
+  stale reading; re-voicing it on the phone is the two-clients-two-claims
+  defect that module exists to prevent, and truncating it hides half of a
+  claim about staleness (§10). Not editable from a worktree. **Proposal for
+  David/core:** a `short` beside `text` on `HealthVerdict` — for `stale`,
+  "Read before 5 records were filed"; `null` for `current` — the way
+  `SERVICE_BASIS_SHORT` sits beside `SERVICE_BASIS_LABELS` (§6.16), so the
+  cell prints one mono line and the sentence stays the reader's. It is
+  also what frees the fold: with a one-line caveat the two rows end 60pt
+  higher and the switches sit whole in the first view, which is the half of
+  B9 the critic called *"worth a point"*.
+- *The wait mark as a "spinner"* (rounds 42, 44, 45 — three asks for a
+  cyan hairline ramp along a rule). It is `WorkingMark`, the house wait
+  instrument's bare mark (§14, graded 9/10 on web), not the system spinner;
+  B7's ramp is the *refresh* idiom and the plate line is a wait. Declined
+  each time for that reason — and at 14pt on a scaled still the compact arc
+  reads as a ring to this critic three rounds running, which is a fact for
+  Design (below).
+- *WHAT YOU TOLD US "in sans"* (the pick, round 45, round 46 — and §6.13
+  before them). The caption is `type.displayLabel`, Archivo Narrow
+  SemiBold; round 46 asked for it to be confirmed at native scale before
+  being touched, and at 6× it is the row labels' own letterforms one size
+  down. Not touched. §6.17 moved the Due table's *group heads* to
+  `displaySection`'s 20pt for the same misread; the section eyebrow is the
+  system's 12pt on every root and stays so here.
+- *The switches above the count row* (round 44) and *the count row without
+  its air* (round 45's cut) — both undo the fold: the readings the pick led
+  with go under it, or the primary is sliced again at a 68pt cell. The 96pt
+  cell is the concept's floor for a value, its legend and a thumb.
+- *ASK THE ADVISOR "duplicates the ADVISOR tab"* (round 46's cut, with its
+  own condition: *"unless it scopes the advisor to this car"*). It does —
+  `openAdvisorTab` with the vehicle and its title; the tab bar opens the
+  root as it last stood. Kept.
+
+**Recorded deviations and open items — for Design:**
+
+- *The binnacle is a pattern the system does not have.* A panel of readings
+  where every cell is a door: value over legend (the strip's pair
+  inverted, so the two objects never read as one), a hairline chevron after
+  the legend, sodium only as the triangle beside a genuine warning, a 96pt
+  cell floor, a fill swap on press, left rules on every cell after the first
+  so a dropped cell leaves no rule hanging. The critic's one-line reading of
+  it — *"the stat strip simply continuing downward"* — is the spec.
+- *The acts at a hub's foot: one primary, one secondary, 24pt of air.* The
+  same figure the Service root gives its primary. Where the fold lands is
+  the device's; the rule is that what meets it is a rule or air, never a
+  sliced control.
+- *The 12pt condensed eyebrow reads as sans from a still* — four rounds,
+  three surfaces. The options are Design's: wider tracking on
+  `displayLabel`, or the 20pt step §6.17 took for group heads. The build
+  keeps the token.
+- *The wait instrument's bare mark reads as a ring at 14pt* — three rounds.
+  The compact face with terminals is unmistakable; the bare mark is not.
+  Whether the plate line takes the compact face (a second instrument on the
+  bay, the reason `PlateStatusLine` gives for the mark) is Design's.
+- *B2's cut on a plate that runs under the status bar* lives at the
+  plate/sheet boundary, on the sheet's side, because that is the plate's
+  only corner on the page and it travels. Round 46's parking lot asks
+  whether the cut moves or the line is waived for this surface; it moved.
+- *A ready plate arrives as `photo_url`, and the phone cannot tell.* Two
+  consequences visible in the frames: `PhotoGrade` is laid over a plate
+  that was graded at generation, and the control over it reads CHANGE
+  PHOTO (with Remove in its sheet) on a car with no owner photograph. The
+  payload should say what the image is — a `photo_kind: 'owner' | 'stock'
+  | 'plate'` beside `photo_url` on both mobile routes (`app/api/v1/`, not
+  core) — so the phone grades only what it should and names the control
+  ADD PHOTO over a plate. A mobile build reading the field must wait for
+  the promote (CLAUDE.md §8).
+
+**Parking lot — for David:**
+
+- *The dial on the hub* (rounds 42 and 46): the web dossier carries the
+  arc on the car page; the brief moved it to Garage and Health, and the
+  hub's 70 is bare. The critic ranked the web first in round 46 for it. A
+  compact arc in the HEALTH cell is a brief question.
+- *The count band as three spec rows* rather than three cells (round 42's
+  parking lot).
+- *The tail* — 171pt at three answer rows, by the arithmetic above. The
+  ways out are more content under the switches (the four answers, or
+  something new), or a different end state for the pullback; the floor is
+  not the cause.
+- *The owner-photo fixture is a film still* (round 45: *"reads as stock,
+  and … the house grade cannot be seen doing any work"*). David's own
+  daylight snap of a 2 Series exists (`design-loop/mobile-ios/
+  owner-photo-daylight.jpg`, 12 Sep); putting it in the concepts
+  simulator's library makes the next loop's 03 frame honest.
+- *The strip is MILEAGE · TRIM · USE where the brief's studio version
+  names MILEAGE · AVG · RELIABILITY* — pre-brief and unchanged by this
+  loop; with USE now the only place the usage answer is printed, the strip
+  is load-bearing.
+- *A 16:9 plate* (round 44's parking lot) would clear the fold without
+  reordering; the brief runs the plate under the status bar.
+- *Hanging both cells of the first row from the top rule* (round 45's
+  parking lot): NEXT SERVICE's content is bottom-aligned beside a full
+  HEALTH cell.
+- *`performance_mindedness: 'stock'` in the fixture* hides the Mods ladder
+  under fixtures; a Build loop wants `moderate` for the session, or an
+  `EXPO_PUBLIC_DESIGN_*` switch for it.
+
+**What `packages/core` should own** (not written from a worktree): the
+`short` form on `HealthVerdict` above, and nothing else — `platePublicUrl`
+and `MINDEDNESS_LABELS` were already there to read.
+
+**The numbers.** Mobile jest in band 39/39 suites, 747/747 tests, exit 0
+after every round; root jest 214/214 suites, 3646 passed, 1 skipped; tsc
+clean in both. Files: `components/Binnacle.tsx` and its test are new;
+`screens/hub-concepts/` (six files) is gone with the switch; `BandRow`,
+`hero-motion.ts`, `dev/fixtures.ts` and the hub changed. Frames and
+critiques: `design-loop/mobile-ios/44-hub/` … `46-hub/`,
+`critique-44.md` … `critique-46.md`; `43-hub/` stays frames only.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

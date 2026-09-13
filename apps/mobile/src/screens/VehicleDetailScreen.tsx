@@ -797,6 +797,18 @@ export function VehicleDetailScreen({
   */
   const open = openRecalls(first(vehicle.nhtsa_data)?.recalls, vehicle.recall_actions);
   const openRecallCount = open.length;
+  /*
+    ⚠ Whether NHTSA was asked at all — the route's own rule (`load-vehicle`):
+    an absent `recalls` is "never checked", an empty array is "asked and had
+    nothing", and only one of those may print a 0. The old page hid its
+    recall row at 0 and so said nothing either way (the roadmap carried that
+    silence as David's call); the binnacle's cell printed `open.length`,
+    which is 0 for both — a `null` dressed as a reading, the defect
+    `health-claims.ts` exists to make impossible. Unchecked, the cell
+    carries no numeral and says so in its name; checked and clean, it
+    prints 0 in the legend's ink.
+  */
+  const recallsChecked = Array.isArray(first(vehicle.nhtsa_data)?.recalls);
 
   /*
     The banner names the defect rather than describing itself.
@@ -1290,11 +1302,17 @@ export function VehicleDetailScreen({
                 legend="Recalls"
                 warning={openRecallCount > 0}
                 onPress={onViewRecalls}
-                accessibilityLabel={`View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}${
-                  worstRecall ? `. ${worstRecall}` : ''
-                }`}
+                accessibilityLabel={
+                  recallsChecked
+                    ? `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}${
+                        worstRecall ? `. ${worstRecall}` : ''
+                      }`
+                    : 'Recalls, not checked yet. Opens the account of the score.'
+                }
               >
-                <Text style={[styles.count, openRecallCount === 0 && styles.countEmpty]}>{openRecallCount}</Text>
+                {recallsChecked ? (
+                  <Text style={[styles.count, openRecallCount === 0 && styles.countEmpty]}>{openRecallCount}</Text>
+                ) : null}
               </BinnacleCell>
               <BinnacleCell
                 legend="History"

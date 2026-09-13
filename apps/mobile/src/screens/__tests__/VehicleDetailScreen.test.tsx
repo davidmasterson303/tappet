@@ -339,6 +339,27 @@ describe('the counts on the binnacle', () => {
     expect(readoutColor(view.getByText('2'))).toBe(text.primary);
   });
 
+  it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
+    /*
+      The route's rule, on the cell: an absent `recalls` is "never
+      checked" and prints nothing; an empty array is "asked, none" and
+      prints 0 in the legend's ink. The old page was silent for both; the
+      binnacle once printed 0 for both. Held together so a cell that printed
+      0 for every car would fail on the first half.
+    */
+    respond({ nhtsa_data: null, vehicle_health_summary: null });
+    const never = await mount();
+    await never.view.findAllByText(/2018 Honda Accord/);
+    expect(never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.')).toBeTruthy();
+    expect(never.view.queryByText('0')).toBeNull();
+
+    respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
+    const clean = await mount();
+    await clean.view.findAllByText(/2018 Honda Accord/);
+    expect(clean.view.getByLabelText('View 0 open recalls')).toBeTruthy();
+    expect(readoutColor(clean.view.getByText('0'))).toBe(text.muted);
+  });
+
   it('prints nothing for a count it could not read', async () => {
     respondWithWishlist(() => Promise.reject(new ApiRequestError({ status: 500, message: 'Timed out' })));
     const { view } = await mount();
