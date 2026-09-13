@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
 
 import { AdvisorScreen } from '../AdvisorScreen';
 import { askAdvisor } from '../../api/consultant';
@@ -204,6 +205,34 @@ describe('a link can arrive with its question', () => {
     await view.findByText('An answer.');
     await userEvent.setup().press(view.getByLabelText('Back to Plan'));
     expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a way to put the keyboard away while it is up, and not otherwise', async () => {
+    /*
+      13 Sep, David: "i want an easy way / cta to collapse keyboard and chat
+      bar so that i can more easily read thread." The control exists only
+      while the composer is focused — a ghost word on its shoulder — and it
+      dismisses the keyboard. Focus is what a keyboard's presence means in
+      this runner; the control keys on it.
+    */
+    const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const view = await render(
+      <AdvisorScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+    );
+    await view.findByText('Ask about this car');
+    expect(view.queryByLabelText('Hide keyboard')).toBeNull();
+
+    await act(async () => {
+      fireEvent(view.getByLabelText('Ask about this car'), 'focus');
+    });
+    await userEvent.setup().press(view.getByLabelText('Hide keyboard'));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent(view.getByLabelText('Ask about this car'), 'blur');
+    });
+    expect(view.queryByLabelText('Hide keyboard')).toBeNull();
+    dismiss.mockRestore();
   });
 
   it('asks nothing when the link carried no question', async () => {

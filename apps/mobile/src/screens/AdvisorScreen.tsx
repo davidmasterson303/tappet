@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,6 +16,7 @@ import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import CutSurface from '../components/CutSurface';
 import BackControl from '../components/BackControl';
+import Icon from '../components/Icon';
 import RootScreen from '../components/RootScreen';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -388,11 +390,18 @@ export function AdvisorScreen({
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       /*
-        The stack header is outside this view, so without offsetting its height
-        the composer lifts to the wrong place and sits under the keyboard's top
-        edge. 96 is the large-title header plus the safe area on the 16e.
+        ── 13 Sep · no offset, because there is no header above this view ──
+
+        This carried 96 — "the large-title header plus the safe area" — from
+        the days the advisor was pushed under a native header. It is a tab
+        root now (`headerShown: navigation.canGoBack()` is false here) and its
+        band is inside this view, so the 96 was pure gap: David's screenshot
+        shows the composer floating a hundred and sixty points above the
+        keyboard with a void beneath it. The view already measures its own
+        distance from the screen's bottom, which is how the tab bar's height
+        is accounted for; nothing else is outside it.
       */
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
+      keyboardVerticalOffset={0}
     >
       {/*
         ── ⚠ LEG-02 · explicit permission before the question leaves ─────────
@@ -524,6 +533,32 @@ export function AdvisorScreen({
               stroke rather than a border — `CutSurface` draws the shape, so a
               `borderColor` on the view underneath would square the corner it just cut.
             */}
+            {focused ? (
+              /*
+                ── 13 Sep · a way to put the keyboard away and read ───────────
+
+                With the keyboard up, half the transcript is under it and the
+                only way out was a tap on whatever list was left showing — not
+                a control anybody would find. David: "i want an easy way / cta
+                to collapse keyboard and chat bar so that i can more easily
+                read thread." One mono-caps ghost word on the composer's
+                shoulder, there only while the keyboard is, in the voice the
+                chrome speaks. Dragging the transcript still dismisses too.
+              */
+              <View style={styles.hideRow}>
+                <Pressable
+                  onPress={() => Keyboard.dismiss()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Hide keyboard"
+                  hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                  style={({ pressed }) => [styles.hide, pressed && styles.hidePressed]}
+                >
+                  <Text style={styles.hideLabel}>Hide keyboard</Text>
+                  <Icon name="chevron-down" size={14} color={text.secondary} />
+                </Pressable>
+              </View>
+            ) : null}
+
             <CutSurface
               style={styles.composer}
               cut={['bottomRight']}
@@ -952,6 +987,17 @@ const styles = StyleSheet.create({
   starterRowPressed: { backgroundColor: surface.well, borderColor: border.fieldHover },
   starterText: { ...type.body, fontSize: 15, lineHeight: 21, color: text.primary },
 
+  /* The shoulder above the composer: one ghost word, right-aligned, 44pt tall. */
+  hideRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg },
+  hide: {
+    minHeight: TARGET_MIN,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+  },
+  hidePressed: { opacity: 0.6 },
+  hideLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
