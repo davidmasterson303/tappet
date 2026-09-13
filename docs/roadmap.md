@@ -375,6 +375,32 @@
 >
 > ---
 >
+> #### 13 Sep, evening — the stranded worktrees, read before they were removed (CLAUDE.md §4)
+>
+> Nine worktrees from other sessions sat beside `main`, seven with commits
+> it did not have. Each was read against the artefact:
+>
+> - **Merged:** `claude/charming-rubin-151bbe` — the wait instrument's sweep
+>   began at the centre and snapped back every pass (`resetBeforeIteration`;
+>   the flake session David started on 12 Sep, `ce1a4b4`); and
+>   `claude/beautiful-lamport-e99305` — the worktrees-ignore guard reads
+>   `.gitignore` alone (`a27ee4f`). ⚠ Merging the second showed that the
+>   12 Sep splash-guard edit had **deleted four cases** from
+>   `mobile-native-build-inputs.test.ts` (export compliance, the worktrees
+>   ignore, the API origin, the dev-client profile) by replacing "from the
+>   describe to the end of the file"; the suite was green on thirteen. All
+>   seventeen are back and pass.
+> - **Superseded, worktrees removed, branches kept:** `xenodochial-brattain`
+>   (the guard fix the merged one replaces), `sharp-dhawan` (18 Aug, the
+>   date-a-day-early fix — on `main` since 4 Sep), `zealous-banach` (8 Aug,
+>   code-split dashboard folds — the dashboard has been rebuilt since),
+>   `sad-greider` (12 Sep 03:23, the plate on the phone's routes — `main`
+>   did it that afternoon as `plate_status`), `ecstatic-lamport` (12 Sep
+>   03:18, the Health screen refusing a stale reading — `main`'s Health
+>   screen reads `healthVerdict` now; its one idea worth carrying is a
+>   single shared read of the filed services for the hub and Health),
+>   `friendly-lewin` (a staged deletion of a component that no longer exists).
+>
 > #### 13 Sep, later — the hub is a binnacle, the mark carries its claim
 >
 > **The hub** (drift §6.18): three fearless concepts as real screens; the
