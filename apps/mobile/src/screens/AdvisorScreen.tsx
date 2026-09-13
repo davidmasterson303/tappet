@@ -996,7 +996,8 @@ const styles = StyleSheet.create({
     gap: space.xs,
     paddingHorizontal: space.sm,
   },
-  hidePressed: { opacity: 0.6 },
+  /* The system's fill swap, as every pressed state here — never a fade (`mobile-pressed-states`). */
+  hidePressed: { backgroundColor: surface.raised },
   hideLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
   composer: {
     flexDirection: 'row',
