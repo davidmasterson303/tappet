@@ -80,11 +80,12 @@
 > - **Six commits of 8 Sep were on one laptop.** Local `main` was six ahead of
 >   `origin/main` — the whole IA pass, verified only by the session that wrote it.
 >   Pushed 11 Sep.
-> - **`prepare/revert-operator-to-individual`** (6 Sep, one commit, "⛔ PREPARED,
->   NOT DEPLOYED") exists because Southmoor Digital LLC was **not in the Colorado
->   registry** while the live privacy page names it as operator. David is forming
->   the LLC with Cowork (11 Sep, "a few more days"); if that lands the branch is
->   deleted, if not it is merged. Everything App-Store-facing waits on it.
+> - ~~**`prepare/revert-operator-to-individual`**~~ — **deleted 13 Sep.**
+>   Southmoor Digital LLC was formed that morning (Articles filed in Colorado,
+>   EIN issued; Cowork's record). The operator the live policies have named
+>   since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
+>   App-Store-facing chain is now: bank account → D-U-N-S → Apple Individual →
+>   Organization → App Store Connect record → IAP products.
 > - `origin/web-live` and `origin/demo-live` still carried the `ignore =` key
 >   until the 11 Sep promote; `main` deleted it in `ea2f0de`. Netlify reads the
 >   config from the commit it builds, so the promote that carries the deletion is
@@ -254,8 +255,7 @@
 >   missing cell; "—" says "we cannot say").
 > - A fresh `MOBILE_TEST_TOKEN` + `MOBILE_TEST_VEHICLE_ID` — the contract
 >   script's credentialed half has not run since 2 Aug.
-> - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
->   is deleted or merged on that answer.
+> - ~~The LLC~~ — formed 13 Sep; the revert branch is deleted.
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
 > - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
 >   cover the loop, a real signed-in shot is still the fidelity check.
