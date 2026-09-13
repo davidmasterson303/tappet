@@ -1,4 +1,5 @@
 import type { WishlistSuggestion } from '@tappet/core/wishlist-suggestions';
+import { readWishlistSourceData } from '@tappet/core/wishlist-source';
 
 /**
  * What a wishlist row prints, shared by the catalogue and the Needs list.
@@ -31,12 +32,11 @@ import type { WishlistSuggestion } from '@tappet/core/wishlist-suggestions';
  * and is not printed as a sentence in the body (round 39). Better an empty
  * slot than a figure guessed from prose.
  *
- * ⚠ **This belongs in `packages/core` beside `note`** — a `value` on
- * `WishlistSuggestion`, built from the raw fields rather than read back out
- * of the sentence, so the web can print the same figure. Written here
- * because a worktree does not edit core; the shapes matched are the exact
- * templates `wishlist-suggestions.ts` writes, and the test pins them
- * against core's real output so a template change cannot pass silently.
+ * ⚠ This lived here for a day because a worktree does not edit core. Core
+ * now builds `value` from the raw fields (`WishlistSuggestion.value`,
+ * `mileageWindowValue`, `intervalValue`), and this function prefers it; the
+ * sentence parser beneath is for rows stored before the figure travelled
+ * with them, and its test still pins the templates it reads.
  */
 const WINDOW = /([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)\b/gi;
 const INTERVAL = /^Every (?:([\d,]+) mi)?(?: or )?(?:(\d+) months)?$/;
@@ -44,7 +44,19 @@ const INTERVAL = /^Every (?:([\d,]+) mi)?(?: or )?(?:(\d+) months)?$/;
 export function suggestionValue(suggestion: {
   type: WishlistSuggestion['type'] | string | null | undefined;
   note: string | null | undefined;
+  /** Core's own figure (`WishlistSuggestion.value`, 13 Sep) — used whenever it is there. */
+  value?: string | null;
 }): string | null {
+  /*
+    ── 13 Sep · core owns the figure now ────────────────────────────────────
+    `WishlistSuggestion.value` is built from the raw fields in core, so the
+    catalogue's rows and a Needs row written today carry it directly. The
+    parser beneath serves one thing: a Needs row stored before the figure
+    travelled with it (`source_data.note` without `value`), read back out of
+    the sentence — pinned against core's real templates so a template change
+    still cannot pass silently.
+  */
+  if (suggestion.value) return suggestion.value;
   if (!suggestion.note) return null;
   if (suggestion.type === 'issue') {
     /*
@@ -124,19 +136,19 @@ export function clipWords(prose: string, cap = REASON_CAP): string {
  * figure: one spelling, read back through `suggestionValue` on the list, so
  * the two screens cannot print two figures for one item.
  *
- * ⚠ **A shape core should own.** `WishlistSourceData` beside
- * `wishlist-source.ts`, and the web's add writing the same key, so an item
- * added from the dossier carries its figure to the phone too. Until then a
- * row added elsewhere shows no figure, which is honest (§10).
+ * The shape is core's (`WishlistSourceData` beside `wishlist-source.ts`,
+ * 13 Sep), and the figure travels with the sentence. The web's dossier add
+ * does not write these yet, so an item added there shows no figure on the
+ * phone, which is honest (§10).
  */
-export interface WishlistSourceData {
-  /** Core's `note` sentence for the suggestion, as `suggestionsFor` wrote it. */
-  note?: string;
-}
+export type { WishlistSourceData } from '@tappet/core/wishlist-source';
 
 /** The note off a stored row's `source_data`, or nothing — never a guess at its shape. */
 export function storedNote(sourceData: unknown): string | null {
-  if (!sourceData || typeof sourceData !== 'object') return null;
-  const note = (sourceData as Record<string, unknown>).note;
-  return typeof note === 'string' && note.trim() ? note : null;
+  return readWishlistSourceData(sourceData).note ?? null;
+}
+
+/** The figure off a stored row's `source_data` — core's own, when the row was written with it. */
+export function storedValue(sourceData: unknown): string | null {
+  return readWishlistSourceData(sourceData).value ?? null;
 }

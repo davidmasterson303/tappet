@@ -309,7 +309,8 @@ describe('adding — the claims that moved from the composer', () => {
     await user.press(view.getByLabelText('Add Engine Oil (0W-20 Full Synthetic) to the wishlist'));
 
     await waitFor(() => expect(posted()).toBeDefined());
-    expect(posted()![1]?.body).toMatchObject({ sourceData: { note: 'Every 5,000 mi' } });
+    // Both of core's strings travel: the sentence and, since core builds it, the figure itself.
+    expect(posted()![1]?.body).toMatchObject({ sourceData: { note: 'Every 5,000 mi', value: '5,000 MI' } });
   });
 
   it('writes no source_data for an item with nothing to carry — so the case above is real', async () => {
@@ -482,6 +483,12 @@ describe('the row as a spec table — B6, round 37', () => {
     common_mods: [{ name: 'Intake', purpose: 'Air.', difficulty: 'Easy' }],
   });
   const byName = (name: string) => rows.find((row) => row.name === name)!;
+
+  it('prefers the figure core built over the sentence, and reads a row written before it out of the sentence', () => {
+    // A row stored today carries core's `value`; the parser never runs for it.
+    expect(suggestionValue({ type: 'maintenance', note: 'Every 5,000 mi', value: '5,000 MI' })).toBe('5,000 MI');
+    expect(suggestionValue({ type: 'issue', note: 'nonsense', value: '60,000–100,000 MI' })).toBe('60,000–100,000 MI');
+  });
 
   it('reads the figure out of the sentence, in the column’s voice', () => {
     expect(suggestionValue(byName('Water pump'))).toBe('60,000–100,000 MI');

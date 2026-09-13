@@ -169,7 +169,13 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
    * that silently matches nothing — all three have happened.
    */
   const add = useCallback(
-    async (name: string, itemType: WishlistItemType, description?: string, note?: string | null) => {
+    async (
+      name: string,
+      itemType: WishlistItemType,
+      description?: string,
+      note?: string | null,
+      value?: string | null
+    ) => {
       const identifier = wishlistItemIdentifier(itemType, name);
       /*
         ── 13 Sep · the figure travels with the item ──────────────────────
@@ -179,7 +185,8 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
         carry. `wishlist-row.ts` says why the sentence and not the figure,
         and what core should own here.
       */
-      const sourceData: WishlistSourceData | undefined = note ? { note } : undefined;
+      const sourceData: WishlistSourceData | undefined =
+        note || value ? { ...(note ? { note } : {}), ...(value ? { value } : {}) } : undefined;
 
       setProblem(null);
       setBusy(identifier);
@@ -472,7 +479,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                       label: 'Add',
                       accessibilityLabel: `Add ${suggestion.name} to the wishlist`,
                       onPress: () =>
-                        void add(suggestion.name, suggestion.type, suggestion.reason, suggestion.note),
+                        void add(suggestion.name, suggestion.type, suggestion.reason, suggestion.note, suggestion.value),
                       busy: working,
                     }}
                     secondary={{

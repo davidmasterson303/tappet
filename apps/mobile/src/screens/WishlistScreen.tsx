@@ -7,7 +7,7 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import RowActions from '../components/RowActions';
-import { clipWords, storedNote, suggestionValue } from './wishlist-row';
+import { clipWords, storedNote, storedValue, suggestionValue } from './wishlist-row';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
@@ -98,7 +98,10 @@ interface WishlistItem {
  * (round 40). A row with neither prints nothing, never a dash.
  */
 function figureOf(item: WishlistItem): string | null {
-  return estimate(item) ?? suggestionValue({ type: item.item_type, note: storedNote(item.source_data) });
+  return (
+    estimate(item) ??
+    suggestionValue({ type: item.item_type, note: storedNote(item.source_data), value: storedValue(item.source_data) })
+  );
 }
 
 type State =

@@ -38,3 +38,29 @@ export type WishlistSource = (typeof WISHLIST_SOURCES)[number];
 export function isWishlistSource(value: unknown): value is WishlistSource {
   return typeof value === 'string' && (WISHLIST_SOURCES as readonly string[]).includes(value);
 }
+
+/**
+ * What a client may write into `wishlist_items.source_data` — a `jsonb` the
+ * route passes through, that held `{}` on every live row until 13 Sep.
+ *
+ * The phone's catalogue writes the suggestion's `note` and `value` beside
+ * the item so the Plan list can print the same figure the catalogue did —
+ * the figure has no column of its own. Both are core's own strings
+ * (`suggestionsFor`), so the two screens cannot print two figures for one
+ * item, and a reader that finds neither prints nothing (§10). The web's
+ * dossier add does not write these yet; a row added there shows no figure
+ * on the phone, which is honest until it does.
+ */
+export interface WishlistSourceData {
+  note?: string | null;
+  value?: string | null;
+}
+
+/** The two strings off a stored row's `source_data`, or nothing — never a guess at its shape. */
+export function readWishlistSourceData(sourceData: unknown): WishlistSourceData {
+  if (!sourceData || typeof sourceData !== 'object') return {};
+  const record = sourceData as Record<string, unknown>;
+  const pick = (key: 'note' | 'value') =>
+    typeof record[key] === 'string' && (record[key] as string).trim() ? (record[key] as string) : null;
+  return { note: pick('note'), value: pick('value') };
+}

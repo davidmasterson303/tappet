@@ -357,6 +357,7 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
         item_type: 'maintenance',
         estimated_cost_parts: null,
         estimated_cost_labor: null,
+        // A row written before core built the figure: the sentence alone, read back.
         source_data: { note: 'Every 5,000 mi or 12 months' },
       }),
       item({
