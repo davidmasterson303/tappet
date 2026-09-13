@@ -3,7 +3,7 @@ import { act, fireEvent, render, userEvent, waitFor } from '@testing-library/rea
 import { Keyboard } from 'react-native';
 
 import { AdvisorScreen } from '../AdvisorScreen';
-import { askAdvisor } from '../../api/consultant';
+import { askAdvisor, listAdvisorThreads, loadAdvisorThread } from '../../api/consultant';
 import { auditText, belowFloor } from '../../test-support/contrast';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
@@ -44,10 +44,12 @@ jest.mock('../../onboarding/ai-consent', () => ({
 
 jest.mock('../../api/consultant', () => {
   const actual = jest.requireActual('../../api/consultant');
-  return { ...actual, askAdvisor: jest.fn() };
+  return { ...actual, askAdvisor: jest.fn(), listAdvisorThreads: jest.fn(), loadAdvisorThread: jest.fn() };
 });
 
 const ask = askAdvisor as jest.MockedFunction<typeof askAdvisor>;
+const listThreads = listAdvisorThreads as jest.MockedFunction<typeof listAdvisorThreads>;
+const loadThread = loadAdvisorThread as jest.MockedFunction<typeof loadAdvisorThread>;
 
 /** The shape of a real answer, including the exact strings that shipped raw. */
 const ANSWER = [
@@ -245,6 +247,85 @@ describe('a link can arrive with its question', () => {
 
     await view.findByText('Ask about this car');
     expect(ask).not.toHaveBeenCalled();
+  });
+});
+
+describe('the threads — 13 Sep', () => {
+  /*
+    David: "i need some way to toggle between chat threads... or to view other
+    threads and select one to enter, or start new thread." The THREADS control
+    on the context row opens the sheet; the sheet lists what the server has;
+    picking one makes its messages the transcript and its id the one the next
+    question continues; NEW THREAD clears both.
+  */
+  const VEHICLE = 'db143cdc-e68c-46f0-849e-69f7a1873f58';
+
+  it('lists the car’s threads, newest first as the server sends them, with a label for each', async () => {
+    listThreads.mockResolvedValue([
+      { id: 't2', title: 'Sport mode vs sport transmission', createdAt: '2026-09-12T10:00:00Z', updatedAt: '2026-09-13T08:40:00Z' },
+      { id: 't1', title: null, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T10:05:00Z' },
+    ]);
+    const view = await render(<AdvisorScreen vehicleId={VEHICLE} vehicleTitle="2015 BMW M235i" onSignOut={jest.fn()} />);
+    await view.findByText('Ask about this car');
+
+    await userEvent.setup().press(view.getByLabelText('Threads'));
+
+    expect(await view.findByText('Sport mode vs sport transmission')).toBeTruthy();
+    // A thread the server did not name is still a row, with its day beneath it.
+    expect(view.getByText('Untitled thread')).toBeTruthy();
+    expect(view.getByText('1 SEP')).toBeTruthy();
+    expect(listThreads).toHaveBeenCalledWith(VEHICLE);
+  });
+
+  it('reopens a picked thread as the transcript, and continues it with its id', async () => {
+    listThreads.mockResolvedValue([
+      { id: 't2', title: 'Sport mode vs sport transmission', createdAt: null, updatedAt: '2026-09-13T08:40:00Z' },
+    ]);
+    loadThread.mockResolvedValue({
+      id: 't2',
+      title: 'Sport mode vs sport transmission',
+      turns: [
+        { role: 'user', content: 'What is the difference between the modes?' },
+        { role: 'assistant', content: 'Sport sharpens the throttle map.' },
+      ],
+    });
+    ask.mockResolvedValue({ sessionId: 't2', response: 'And Sport+ loosens the stability control.', contextKinds: [] });
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId={VEHICLE} onSignOut={jest.fn()} />);
+    await view.findByText('Ask about this car');
+
+    await user.press(view.getByLabelText('Threads'));
+    await user.press(await view.findByLabelText('Open thread Sport mode vs sport transmission'));
+
+    expect(await view.findByText('Sport sharpens the throttle map.')).toBeTruthy();
+    expect(view.getByText('What is the difference between the modes?')).toBeTruthy();
+
+    // The next question continues that thread, not a new one.
+    await user.type(view.getByLabelText('Ask about this car'), 'And Sport+?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('And Sport+ loosens the stability control.');
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 't2', message: 'And Sport+?' }));
+  });
+
+  it('starts a new thread from the sheet: the transcript clears and the next question carries no id', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First answer.', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's2', response: 'Fresh answer.', contextKinds: [] });
+    listThreads.mockResolvedValue([]);
+    const user = userEvent.setup();
+    const view = await render(
+      <AdvisorScreen vehicleId={VEHICLE} initialQuestion="First question" questionKey={1} onSignOut={jest.fn()} />
+    );
+    await view.findByText('First answer.');
+
+    await user.press(view.getByLabelText('Threads'));
+    await user.press(await view.findByLabelText('Start a new thread'));
+    expect(view.queryByText('First answer.')).toBeNull();
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Second question');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Fresh answer.');
+    expect(ask.mock.calls[1][0]).toEqual(expect.objectContaining({ sessionId: null, message: 'Second question' }));
   });
 });
 

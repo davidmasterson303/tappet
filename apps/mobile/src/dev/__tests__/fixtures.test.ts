@@ -12,7 +12,7 @@
  * is not showing), and `DELETE` takes it away. A body that is not that shape
  * falls through to the network, the way every unmapped path here does.
  */
-import { designPhotoUrl, fixtureFor } from '../fixtures';
+import { designPhotoUrl, fixtureFor, fixtureHolds } from '../fixtures';
 
 /** React Native's `FormData`, as far as the fixture reads it. */
 function rnForm(parts: Array<{ fieldName: string; uri?: string; string?: string }>) {
@@ -66,5 +66,29 @@ describe('the fixture car and its photograph', () => {
     expect(fixtureFor('/upload-photo', { method: 'POST', body: { not: 'a form' } })).toBeUndefined();
     expect(fixtureFor('/upload-photo', { method: 'POST', body: rnForm([{ fieldName: 'vehicleId', string: 'v' }]) })).toBeUndefined();
     expect(designPhotoUrl()).toBe(process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null);
+  });
+});
+
+describe('a held path', () => {
+  const env = process.env.EXPO_PUBLIC_DESIGN_HOLD;
+  afterEach(() => {
+    if (env === undefined) delete process.env.EXPO_PUBLIC_DESIGN_HOLD;
+    else process.env.EXPO_PUBLIC_DESIGN_HOLD = env;
+  });
+
+  it('holds its own route and its query string, not the routes beneath it', () => {
+    process.env.EXPO_PUBLIC_DESIGN_HOLD = '/consultant, /vehicles';
+    expect(fixtureHolds('/consultant')).toBe(true);
+    expect(fixtureHolds('/vehicles?x=1')).toBe(true);
+    // The thread list under the advisor still opens while the ask is held.
+    expect(fixtureHolds('/consultant/conversations?vehicleId=v')).toBe(false);
+    expect(fixtureHolds('/consultant/conversations/t1')).toBe(false);
+  });
+
+  it('holds a subtree when named with a trailing slash, and nothing when unset', () => {
+    process.env.EXPO_PUBLIC_DESIGN_HOLD = '/consultant/';
+    expect(fixtureHolds('/consultant/conversations')).toBe(true);
+    delete process.env.EXPO_PUBLIC_DESIGN_HOLD;
+    expect(fixtureHolds('/consultant')).toBe(false);
   });
 });

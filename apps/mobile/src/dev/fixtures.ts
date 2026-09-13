@@ -370,11 +370,20 @@ function designCar() {
 export function fixtureHolds(path: string): boolean {
   const raw = process.env.EXPO_PUBLIC_DESIGN_HOLD;
   if (!raw) return false;
+  /*
+    A name holds its own route — `/consultant` holds the ask and its query
+    string — and not the routes beneath it: `/consultant/conversations` is
+    the thread list, which a frame of the advisor answering still wants to
+    open (13 Sep). To hold a whole subtree, name it with a trailing slash.
+  */
+  const route = path.split('?')[0];
   return raw
     .split(',')
     .map((prefix: string) => prefix.trim())
     .filter(Boolean)
-    .some((prefix: string) => path.startsWith(prefix));
+    .some((prefix: string) =>
+      prefix.endsWith('/') ? route.startsWith(prefix) : route === prefix
+    );
 }
 
 /**
@@ -411,6 +420,35 @@ const DESIGN_EMPTY = new Set(
  * does not cover behaves normally instead of silently rendering as empty. An
  * un-fixtured screen should look broken, not finished.
  */
+const THREADS = [
+  {
+    id: 'thread-modes',
+    title: 'Sport mode vs sport transmission',
+    created_at: '2026-09-12T14:10:00Z',
+    updated_at: '2026-09-13T14:42:00Z',
+  },
+  { id: 'thread-pump', title: null, created_at: '2026-09-11T16:00:00Z', updated_at: '2026-09-11T16:04:00Z' },
+];
+
+const THREAD_MESSAGES: Record<string, Array<{ role: 'user' | 'assistant'; content: string }>> = {
+  'thread-modes': [
+    { role: 'user', content: "What's the difference between the sport driving mode and sport transmission mode?" },
+    {
+      role: 'assistant',
+      content:
+        'Sport on the rocker changes the whole car — throttle map, steering weight, the adaptive dampers and the shift schedule. Sport on the shifter changes the gearbox alone: it holds gears longer and shifts harder, and leaves the rest as it was.',
+    },
+  ],
+  'thread-pump': [
+    { role: 'user', content: 'Tell me about the electric water pump on my 2015 BMW M235i.' },
+    {
+      role: 'assistant',
+      content:
+        'The N55 uses an electric coolant pump that fails without much warning, usually between 60,000 and 90,000 miles. Budget for it with the thermostat; the labour overlaps.',
+    },
+  ],
+};
+
 export function fixtureFor(
   path: string,
   request: { method?: string; body?: unknown } = {}
@@ -474,5 +512,23 @@ export function fixtureFor(
     called the row "valueless" on the strength of the fixture's lie.
   */
   if (path.startsWith('/wishlist')) return { wishlistItems: [] };
+  /*
+    ── 13 Sep · the advisor's threads, so the sheet can be photographed ─────
+    Two threads the shape the routes send — `conversations` newest first, one
+    without a server title so the fallback row is in frame — and each one's
+    messages. `/consultant` itself stays unanswered (held or real), because a
+    canned answer would put words in the model's mouth on a frame.
+  */
+  if (path.startsWith('/consultant/conversations/')) {
+    const id = path.slice('/consultant/conversations/'.length);
+    return {
+      conversation: {
+        id,
+        title: THREADS.find((t) => t.id === id)?.title ?? null,
+        messages: THREAD_MESSAGES[id] ?? [],
+      },
+    };
+  }
+  if (path.startsWith('/consultant/conversations')) return { conversations: THREADS };
   return undefined;
 }

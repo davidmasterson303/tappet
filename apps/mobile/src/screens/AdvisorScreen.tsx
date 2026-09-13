@@ -11,7 +11,14 @@ import {
   View,
 } from 'react-native';
 
-import { askAdvisor, MAX_MESSAGE_LENGTH } from '../api/consultant';
+import {
+  askAdvisor,
+  listAdvisorThreads,
+  loadAdvisorThread,
+  MAX_MESSAGE_LENGTH,
+  type AdvisorThread,
+} from '../api/consultant';
+import AdvisorThreadsSheet from '../components/AdvisorThreadsSheet';
 import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import CutSurface from '../components/CutSurface';
@@ -226,6 +233,21 @@ export function AdvisorScreen({
   /** The arrival (`questionKey`) already asked, or `null` before the first. */
   const askedOnOpen = useRef<number | null>(null);
 
+  /*
+    ── 13 Sep · the threads, and moving between them ─────────────────────────
+
+    The server keeps every thread; the screen used to keep one per arrival
+    and no way to see the others. `threadsOpen` is the sheet; `threads` is
+    the list as last fetched (refetched each time the sheet opens, since a
+    question just asked is a thread the list did not have); `currentId`
+    mirrors `sessionId.current` for the sheet's "OPEN NOW" mark — a ref
+    draws nothing, so the id the sheet shows has to be state.
+  */
+  const [threadsOpen, setThreadsOpen] = useState(false);
+  const [threads, setThreads] = useState<AdvisorThread[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(false);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+
   const trimmed = draft.trim();
   const overLength = trimmed.length > MAX_MESSAGE_LENGTH;
   const canSend = trimmed.length > 0 && !overLength && !busy;
@@ -251,6 +273,7 @@ export function AdvisorScreen({
       });
 
       sessionId.current = answer.sessionId || sessionId.current;
+      setCurrentId(sessionId.current);
 
       setTurns((current) => [
         ...current,
@@ -349,6 +372,7 @@ export function AdvisorScreen({
     if (askedOnOpen.current === arrival) return;
     if (askedOnOpen.current !== null) {
       sessionId.current = null;
+      setCurrentId(null);
       setTurns([]);
       setError(null);
     }
@@ -385,6 +409,66 @@ export function AdvisorScreen({
     void ask(question);
   }, [initialQuestion, questionKey, ask, consent]);
 
+  const openThreads = useCallback(async () => {
+    setThreadsOpen(true);
+    setThreadsLoading(true);
+    try {
+      setThreads(await listAdvisorThreads(vehicleId));
+    } catch (caught) {
+      const apiError = caught as ApiRequestError;
+      if (apiError instanceof ApiRequestError && apiError.isLocallySignedOut) onSignOut();
+      // The sheet shows what it has; an empty list says so in its own words.
+    } finally {
+      setThreadsLoading(false);
+    }
+  }, [vehicleId, onSignOut]);
+
+  /** Reopen a thread: its messages become the transcript, its id the one the next question continues. */
+  const pickThread = useCallback(
+    async (thread: AdvisorThread) => {
+      setThreadsOpen(false);
+      if (thread.id === sessionId.current) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const loaded = await loadAdvisorThread(thread.id);
+        sessionId.current = loaded.id;
+        setCurrentId(loaded.id);
+        setTurns(
+          loaded.turns.map((turn) =>
+            turn.role === 'user'
+              ? { id: nextId(), role: 'you' as const, text: turn.content }
+              : {
+                  id: nextId(),
+                  role: 'advisor' as const,
+                  text: turn.content,
+                  // A stored answer does not carry what was put in front of
+                  // the model; saying nothing is the honest provenance row.
+                  kinds: [],
+                  ...(turn.estimate ? { estimate: turn.estimate } : {}),
+                }
+          )
+        );
+      } catch (caught) {
+        const apiError = caught as ApiRequestError;
+        if (apiError instanceof ApiRequestError && apiError.isLocallySignedOut) onSignOut();
+        setError('That thread could not be opened. Try again.');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [onSignOut]
+  );
+
+  /** A new thread: nothing sent, nothing to send until a question is — the id arrives with the first answer. */
+  const newThread = useCallback(() => {
+    setThreadsOpen(false);
+    sessionId.current = null;
+    setCurrentId(null);
+    setTurns([]);
+    setError(null);
+  }, []);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -411,6 +495,15 @@ export function AdvisorScreen({
         off. Blocking the product on a privacy refusal would trade a 5.1.2
         problem for a 5.1.1(v)-shaped one.
       */}
+      <AdvisorThreadsSheet
+        visible={threadsOpen}
+        threads={threads}
+        loading={threadsLoading}
+        currentId={currentId}
+        onPick={(thread) => void pickThread(thread)}
+        onNew={newThread}
+        onClose={() => setThreadsOpen(false)}
+      />
       <AiConsentSheet
         visible={consentOpen}
         copy={ADVISOR_AI_CONSENT}
@@ -448,7 +541,7 @@ export function AdvisorScreen({
         title="Advisor"
         plate="advisor"
         pinned={
-          origin || vehicleTitle ? (
+          (
             <View style={styles.context}>
               {/*
                 The way back to the tab the question came from, in the one
@@ -459,13 +552,32 @@ export function AdvisorScreen({
               {origin ? (
                 <BackControl label={origin.label} onPress={origin.onPress} style={styles.origin} />
               ) : null}
-              {vehicleTitle ? (
-                <Text style={styles.contextLabel} numberOfLines={1}>
-                  About {vehicleTitle}
-                </Text>
-              ) : null}
+              <View style={styles.contextRow}>
+                {vehicleTitle ? (
+                  <Text style={[styles.contextLabel, styles.contextTitle]} numberOfLines={1}>
+                    About {vehicleTitle}
+                  </Text>
+                ) : (
+                  <View style={styles.contextTitle} />
+                )}
+                {/*
+                  Threads live on the row that says what the thread is about:
+                  it is navigation among threads, so it speaks in the chrome's
+                  voice, and it sits pinned so it is there at any scroll.
+                */}
+                <Pressable
+                  onPress={() => void openThreads()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Threads"
+                  hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+                  style={({ pressed }) => [styles.threads, pressed && styles.threadsPressed]}
+                >
+                  <Text style={styles.threadsLabel}>Threads</Text>
+                  <Icon name="chevron-down" size={14} color={text.secondary} />
+                </Pressable>
+              </View>
             </View>
-          ) : null
+          )
         }
       >
         {(scroll) => (
@@ -932,6 +1044,11 @@ const styles = StyleSheet.create({
     it takes the mono the tab labels and stat-strip eyebrows use.
   */
   contextLabel: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
+  contextRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: TARGET_MIN },
+  contextTitle: { flex: 1 },
+  threads: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: TARGET_MIN, paddingHorizontal: space.xs },
+  threadsPressed: { backgroundColor: surface.raised },
+  threadsLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
   /* Left-aligned on the context row's own margin; the control carries its target height. */
   origin: { alignSelf: 'flex-start', marginLeft: -space.sm, marginBottom: space.xs },
 
