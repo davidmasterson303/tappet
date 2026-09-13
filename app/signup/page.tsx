@@ -194,7 +194,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex group mb-6">
-            <BrandLockup width={200} />
+            <BrandLockup width={200} trademark />
           </Link>
           <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
           <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI consultant that knows your car.</p>
