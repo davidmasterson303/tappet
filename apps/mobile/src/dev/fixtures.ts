@@ -29,8 +29,10 @@
  * worst failure this file could have, because every screen would look perfect.
  */
 
+import Constants from 'expo-constants';
+
 import { driversForVehicle } from '@tappet/core/health-drivers';
-import type { PlateStatus } from '@tappet/core/plates';
+import { platePublicUrl, type PlateStatus } from '@tappet/core/plates';
 
 /**
  * The plate's status on the fixture car, from the environment.
@@ -45,6 +47,10 @@ import type { PlateStatus } from '@tappet/core/plates';
  * `EXPO_PUBLIC_DESIGN_PLATE_STATUS`: unset or anything the API would never
  * send is `null`, which is the route's own "nothing to say". The shape is the
  * route's; only the value is chosen.
+ *
+ * ⚠ 13 Sep: unset (and `ready`) now stands the car on its **ready plate**
+ * — see `designCar`. Only `pending`, `generating` and `failed` show the
+ * house plate, and they show it with the line that explains it.
  */
 const PLATE_STATUSES: readonly PlateStatus[] = ['pending', 'generating', 'ready', 'failed'];
 const DESIGN_PLATE_STATUS: PlateStatus | null = (() => {
@@ -466,9 +472,17 @@ function filePartUri(body: unknown): string | null {
   return part?.uri ?? null;
 }
 
-/** The photograph the fixture car currently answers with, if any. */
+/**
+ * The photograph the fixture car currently answers with, if any.
+ *
+ * ⚠ `||`, not `??`, on the variable: `apps/mobile/.env` carries the key with
+ * an empty value, and an empty string is not a photograph. It passed as one
+ * for a day without showing — `''` and `null` both drew the house plate —
+ * until the car had a plate to fall back to (13 Sep) and the empty string
+ * stood in front of it.
+ */
 export function designPhotoUrl(): string | null {
-  return addedPhotoUri ?? process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null;
+  return addedPhotoUri ?? (process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL || null);
 }
 
 /**
@@ -566,14 +580,55 @@ function answerWishlist(path: string, request: { method?: string; body?: unknown
   return { wishlistItems: [...addedNeeds] };
 }
 
+/**
+ * The M235i's own generation plate — `vehicle_plates` has held it `ready`
+ * since 12 Sep 09:26, and the car's `plate_key` names it.
+ *
+ * ── 13 Sep · the car's page opened on a street with no car on it ──────────
+ *
+ * The fixture answered `photo_url: null` at rest, so every graded frame of
+ * the hub and the garage stood the car on the *house* plate — the state a
+ * real car is in only before its plate is drawn or after the drawing
+ * failed. Round 44's first gap: *"'drawn' is indistinguishable from
+ * 'drawing', so the user never sees anything arrive, and the top half of
+ * the car's own page holds no car."* The product had already answered
+ * that; the fixture had not caught up with it.
+ *
+ * The route's own precedence (`lib/vehicle-photo.ts`): the owner's
+ * photograph, else the stock image, else the ready plate — served as
+ * `photo_url`, with `plate_status` nulled because the plate is showing. A
+ * ready plate is a **public** object (`platePublicUrl`, the `garage-images`
+ * bucket), so unlike the owner photograph it is not a credential and can
+ * be named here. The origin is `app.json`'s `extra.supabaseUrl`, the one
+ * the auth client reads; missing, the car falls back to the house plate
+ * rather than a broken image.
+ */
+const M235I_PLATE_KEY = 'bmw/2-series/f22';
+const M235I_PLATE_HERO = 'plates/bmw/2-series/f22/hero-3x2.jpg';
+function readyPlateUrl(): string | null {
+  const base = (Constants.expoConfig?.extra as { supabaseUrl?: unknown } | undefined)?.supabaseUrl;
+  return typeof base === 'string' && base !== '' ? platePublicUrl(base, M235I_PLATE_HERO) : null;
+}
+
 /** The fixture car as the routes answer it — `photo_url` decided now, not at import. */
 function designCar() {
+  /*
+    The owner's photograph first, as the route ranks it. Then the plate —
+    but only when it is ready: `EXPO_PUBLIC_DESIGN_PLATE_STATUS` names a
+    plate still drawing or failed, and a car in either state stands on the
+    house plate with the status line saying why (`PlateStatusLine`). `ready`
+    and unset are the same answer, as they are from the route: the plate
+    shows and the status is nulled under it.
+  */
   const photo = designPhotoUrl();
+  const plateReady = DESIGN_PLATE_STATUS === null || DESIGN_PLATE_STATUS === 'ready';
+  const photo_url = photo ?? (plateReady ? readyPlateUrl() : null);
   return {
     ...M235I,
-    photo_url: photo,
-    /* `null` under a photograph, as the route does it — the plate is not showing. */
-    plate_status: photo ? null : DESIGN_PLATE_STATUS,
+    plate_key: M235I_PLATE_KEY,
+    photo_url,
+    /* `null` under a photograph or a plate, as the route does it — the empty plate is not showing. */
+    plate_status: photo_url ? null : DESIGN_PLATE_STATUS,
   };
 }
 

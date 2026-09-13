@@ -282,11 +282,10 @@ interface HubCounts {
   wishlist: { count: number; total: number } | null;
 }
 
-/** One of the owner's answers, as the WHAT YOU TOLD US section rows it. A prose answer is a `detail`; a chosen one is a `value`. */
+/** One of the owner's answers, as the WHAT YOU TOLD US section rows it: a label and its value in the numeral column. */
 interface Answer {
   label: string;
-  value?: string;
-  detail?: string;
+  value: string;
 }
 
 type State =
@@ -908,10 +907,19 @@ export function VehicleDetailScreen({
     the field it opens agree. ⚠ Two of the labels are not: the profile asks
     "What do you want from it?" (the mindedness) two blocks above a field
     labelled "What you want out of it" (the objective), and side by side in
-    a table those two read as one question asked twice. The mindedness row
-    takes the web wizard's own head for the same answer — MODIFICATIONS —
-    and the objective keeps the phone field's label, so a reader who taps
-    through lands on a field with the name they pressed.
+    a table those two read as one question asked twice. Both rows take the
+    web wizard's own heads for the same answers — MODIFICATIONS, and the
+    OWNERSHIP step whose title is "Ownership Objectives" — which are nouns
+    the width of a row's label.
+
+    ⚠ The objective is prose in core (`OBJECTIVE_MAX` 280, *"an objective
+    is prose and stays prose"*) and a value on this row. Round 44 read it
+    as a caption — *"grey sans, left, under its label, while the three rows
+    above carry mono values on the right"* (B1, B6) — and the row's job is
+    to say there is an answer and open it, not to print it in full: the
+    wizard's answers are four short phrases, a sentence truncates in the
+    column (`BandRow` keeps the label whole), and the whole answer is the
+    row's spoken name and one tap away on the profile.
   */
   const answers: Answer[] = [];
   if (typeof vehicle.avg_miles_per_month === 'number') {
@@ -927,7 +935,7 @@ export function VehicleDetailScreen({
     });
   }
   if (vehicle.ownership_objective?.trim()) {
-    answers.push({ label: 'What you want out of it', detail: vehicle.ownership_objective.trim() });
+    answers.push({ label: 'Ownership', value: vehicle.ownership_objective.trim() });
   }
 
   /*
@@ -1287,6 +1295,17 @@ export function VehicleDetailScreen({
             takes the off-white fill and the advisor keeps the hairline. The
             tab bar already carries the advisor as a root; nothing carries
             the scan but Service's primary and this.
+
+            ⚠ 24pt of air between the panel's closing rule and the switches —
+            the Service root's own figure between its primary and the first
+            rule (round 33: 24, not 32). Round 44 measured the cost of 16: on
+            the 16 Pro the panel's two rows end 7pt short of the fold, so a
+            7pt band of off-white showed over the tab bar at rest — *"a white
+            sliver … reading as a stray band"* (B9). At 24 the rows end on
+            the fold; what meets the tab bar's rule is the panel's air. The
+            critic's alternative — the switches above the count row — would
+            put the readings the pick led with under the fold instead, with
+            the count row's numerals sliced where the button was.
           */}
           <View style={styles.switches}>
             <Button label="Scan invoice" size="small" onPress={onScanInvoice} style={styles.switch} />
@@ -1319,7 +1338,6 @@ export function VehicleDetailScreen({
                   key={answer.label}
                   label={answer.label}
                   count={answer.value}
-                  detail={answer.detail}
                   onPress={onOpenProfile}
                   last={index === answers.length - 1}
                 />
@@ -1585,7 +1603,7 @@ const styles = StyleSheet.create({
   timing: { fontSize: 15, lineHeight: 20 },
 
   /* ── The switches, and the foot ─────────────────────────────────────── */
-  switches: { flexDirection: 'row', gap: space.sm, padding: space.lg },
+  switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },
 

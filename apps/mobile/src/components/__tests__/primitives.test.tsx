@@ -332,6 +332,26 @@ describe('BandRow', () => {
     expect(mark.color).toBe(status.attention);
   });
 
+  it('holds the value to one line and half the row, so it truncates before the label does', async () => {
+    /*
+      13 Sep. The vehicle hub rows an owner's ownership objective — prose up
+      to 280 characters — in the value column. RNTL lays nothing out, so
+      what is checkable is the ceiling the value is given: one line, half
+      the row, a shrink. Without those the label, `flex: 1`, is what gives.
+    */
+    const objective = 'Keep it reliable past 200,000 miles without over-spending on it';
+    const view = await render(<BandRow label="Ownership" count={objective} onPress={jest.fn()} />);
+
+    const value = view.getByText(objective);
+    expect(value.props.numberOfLines).toBe(1);
+    const style = flat(value.props.style);
+    expect(style.flexShrink).toBe(1);
+    expect(style.maxWidth).toBe('50%');
+    // The label is still the whole destination name, and the reader hears both.
+    expect(view.getByText('Ownership').props.numberOfLines).toBe(1);
+    expect(view.getByLabelText(`Ownership, ${objective}`)).toBeTruthy();
+  });
+
   it('closes the table under the last row and not under the others', async () => {
     const last = await render(<BandRow label="Open recalls" onPress={jest.fn()} last />);
     const middle = await render(<BandRow label="What is driving this score" onPress={jest.fn()} />);

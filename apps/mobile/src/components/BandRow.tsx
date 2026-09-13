@@ -40,6 +40,17 @@ import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '.
  * what is behind it. The glyph does not, and that supersession is logged in
  * `docs/design-system-drift.md` §6.13 for David to overrule.
  *
+ * ── The value truncates; the label never does (13 Sep) ─────────────────────
+ *
+ * The label is `flex: 1` and the value took its own width, so a value wider
+ * than the room left squeezed the label to nothing — "HOW YOU USE THIS…"
+ * was this row's own history, and the vehicle hub now rows an owner's
+ * ownership objective, which is prose up to 280 characters. The value is
+ * held to one line and at most half the row, and ends in an ellipsis
+ * before the label loses a letter: the label is the destination's name,
+ * which is the one thing a row must never hide, and the value is a glimpse
+ * of what is behind it, spoken in full in the row's name.
+ *
  * ── The only mark is the warning ────────────────────────────────────────────
  *
  * `warning` draws `△` in sodium and nothing else can be drawn there. B7 gives
@@ -102,7 +113,11 @@ export default function BandRow({
         ) : null}
       </View>
 
-      {count ? <Text style={styles.count}>{count}</Text> : null}
+      {count ? (
+        <Text style={styles.count} numberOfLines={1}>
+          {count}
+        </Text>
+      ) : null}
       <View style={styles.chevron}>
         <Icon name="chevron-right" size={18} color={text.secondary} />
       </View>
@@ -142,13 +157,16 @@ const styles = StyleSheet.create({
   /* B1: a section-grade label in the condensed grotesk. */
   label: { ...type.displaySection, color: text.primary },
   detail: { ...type.body, color: text.muted },
-  /* B6: the numeral, mono and right-aligned. */
+  /* B6: the numeral, mono and right-aligned. Half the row at most — the label keeps the rest. */
   count: {
     ...type.mono,
     ...TABULAR,
     color: text.primary,
     fontSize: 15,
     lineHeight: type.displaySection.lineHeight,
+    flexShrink: 1,
+    maxWidth: '50%',
+    textAlign: 'right',
   },
   chevron: { height: type.displaySection.lineHeight, justifyContent: 'center' },
 });
