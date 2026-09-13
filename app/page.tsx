@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 import { VehicleCard } from '@/components/VehicleCard';
 import GarageDoor, { useIntroRevealed } from '@/components/GarageDoor';
 import LandingHero from '@/components/LandingHero';
@@ -135,8 +136,8 @@ function GarageContents() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center group">
-                {/* 21px mark — the small cut, switched inside the component. */}
-                <BrandWordmark size={28} />
+                {/* 21px mark — the small cut, switched inside the component; the page's one trademark symbol (13 Sep). */}
+                <BrandWordmark size={28} trademark />
               </Link>
               <PublicNavActions />
             </div>
@@ -429,6 +430,12 @@ function GarageContents() {
             <p className="text-xs text-white/55">
               Tappet — Southmoor Digital
             </p>
+            {/*
+              13 Sep: the notice line. One sentence, the same words on every
+              surface (`TRADEMARK_NOTICE` in core), because the claim is only
+              worth making if it is made consistently.
+            */}
+            <p className="text-xs text-white/50 mt-1">{TRADEMARK_NOTICE}</p>
           </footer>
         </main>
       </div>

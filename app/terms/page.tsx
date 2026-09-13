@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import LegalDocument, { LegalSection } from '@/components/legal/LegalDocument';
 import { CONTACT_EMAIL, OPERATOR, SUBSCRIPTION_CANCEL_PATH } from '@/lib/legal';
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 
 export const metadata: Metadata = {
   title: 'Terms of Use · Tappet',
@@ -43,6 +44,8 @@ export default function TermsPage() {
         These terms cover your use of the Tappet app and website, operated by {OPERATOR}. Using
         Tappet means you accept them.
       </p>
+      {/* 13 Sep: the trademark notice, beside the operator it names. */}
+      <p>{TRADEMARK_NOTICE}</p>
 
       <LegalSection>What Tappet is not</LegalSection>
 
