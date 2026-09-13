@@ -2342,6 +2342,226 @@ loop stopped on its own rule, and this is exactly the change the critic
 prescribed. The frame is `~/Desktop/tappet-design-sync-2026-09-12/
 screens-service/01-due.png`, with 01b, 03 and 05 re-shot beside it.
 
+### 6.17 The row action, and the tab's add — rounds 37–41 over the catalogue and the Plan root, 13 Sep
+
+David, from his phone, on WHAT THIS CAR NEEDS: *"I really don't like the
+add and learn more CTA's. Are these in conformance with design system? If
+yes, we need to improve design system, then improve here. They're simply
+unclear, not obvious, not inviting."* And an hour later, on the Plan root
+with one row on it: *"i'm not happy with Add CTA. it looks like a nav
+element, like Account. But it's not, it's part of the core functionality
+of Plan."* One question, on two screens: what does an action look like on
+this phone when it is not the screen's single filled primary and is not
+chrome. The loop ran five rounds (`37-catalogue/` … `41-catalogue/`,
+`critique-37.md` … `critique-41.md`), on the iPhone 16 Pro (design sync)
+simulator under Expo Go, with the Plan root — empty and with rows — in
+every blind set beside the catalogue and the web's Plan page at 390px
+(`web-reference/plan-web-mobile.png`, new). **6 → 6 → 7 → 7 → 7**, and the
+loop stopped on its own two-flat-rounds rule. 2 ✅ / 7 🟡 became 5 ✅ with
+B6 the one open line (B2, B3, B9 are not on this surface). Blind rank moved
+from *phone empty root, catalogue, phone root with rows, web* to *phone
+root with rows, catalogue, phone empty root, web* — the web's Plan page
+last in every round: *"nested cards, tinted chips, pills."*
+
+**⚠ The controls conformed, and the phone was not drawing them.** Before
+round 37 could be shot, the first push of the catalogue after a launch
+rendered every `CutSurface` on the screen — forty of them — and not one
+received `onLayout`: forty renders, zero layout events, logged from the
+component. No chip had its hairline and no ADD had its box until the screen
+was left and opened again, or the rows remounted. `measure()` on the same
+views answered with their true size on the push where the event was
+silent, so the surface now asks once after mounting and takes whichever
+answer comes first (`CutSurface`, `0cb5b27`; `cut-geometry.test.tsx` holds
+the shape from a measurement alone and nothing when neither answers). Why
+the event is dropped on that push and not the next is not established; the
+fix is written against what was measured. It is very likely what David's
+phone showed him: ADD as a bare word beside LEARN MORE, two ghosts — which
+is exactly *"unclear, not obvious"*, and exactly the pair R39 had been
+written to escape.
+
+**The pattern — `RowActions`, the repeated row action.** The one-filled-
+primary rule leaves one case open: a list of things each of which can be
+taken. By 13 Sep the phone had answered it three ways on three screens (an
+outline box beside a ghost word on the catalogue; a ghost word alone on the
+Due table's meta line; a cyan-bordered box beside a sodium word on Needs),
+and the web a fourth (a filled primary on every card,
+`MaintenanceItemCard.tsx`). The spec, as landed and graded, for Design:
+
+- **The act is the brief's secondary at the small size** — `Button`
+  `outline` `small`: 48pt (`CONTROL_HEIGHT`, the field's height), mono caps
+  at 12pt, off-white hairline (`text.primary`), one 45° cut bottom-right at
+  `cut.control`, no fill. It sits at the **trailing edge of the row's last
+  line**, so the row ends where its control does and the box's right edge is
+  the rule the row's numeral ends on (B6).
+- **One box per row.** A second verb is the `ghost` word before it — mono
+  caps in `text.secondary`, the roots' chrome ink — so the box is where the
+  eye lands and the word is the step beneath. Never two boxes; never a
+  sodium box on every row (B7 gives sodium one job — the destructive
+  treatment belongs to the confirm the word opens).
+- **States.** Rest: the hairline. Pressed: a fill swap to `surface.raised`
+  inside the hairline — `outline` had no pressed fill at all until this
+  loop, as `ghost` had none until 12 Sep, and `primitives.test.tsx` now
+  holds every variant's pressed fill (the source scan reads `*Pressed`
+  style names and `Button`'s fills live in a map). Busy: the wait mark,
+  bare, at the rest width. **Done: a word, not a disabled verb** — the box
+  is replaced by a mono state word in `text.muted` (one step under the
+  ghost verb, so a done row is not a row with two verbs), no glyph (the
+  check-circle was *"an icon doing the job the system gives to a mono
+  word"*), held to at least the box's width and flush right so the verb
+  before it does not move when the state changes (measured in round 39:
+  "On the list" pushed LEARN MORE 64pt left). The word is **ADDED**, the Due
+  table's — one word for one state across the app; the sentence a reader
+  hears is still "X is on the list".
+- **The one-primary rule's carve-out: none.** The row action is the
+  secondary, so a screen keeps one filled primary — the catalogue's free-
+  text `ADD "…"` at its foot, the Plan root's ADD TO NEEDS.
+- **Leading content shares the line**, centred on the control's height: the
+  kind, as a bare mono word in `text.muted` (the Due row's basis token) — not
+  a chip. Round 40 read three cut hairlines on one line as three controls;
+  the row's one box is the act's.
+- ⚠ **The row itself is not the affordance**, on either list (asked for in
+  rounds 37, 39, 40 and 41). A tap that writes to Needs with no visible verb
+  is a write on a mis-scroll; a tap that opens the advisor spends a model
+  call (R39). The verb is visible, and it is a box because a bare word was
+  what read as "not obvious" from a phone.
+
+Where it landed: the catalogue (LEARN MORE / ADD → ADDED), the Needs list
+(REMOVE / DONE), both as the spec table's row — mono index, `type.ui`
+label, mono figure at the rule, the reason in the quiet sans beneath,
+`RowActions` on the last line. ⚠ The Due table's ADD (§6.15) is the
+pattern's *word* form and is not converted: its loop closed at 7 with the
+word graded ✅, and its meta line has no room for a 48pt box without
+growing every row past the 56pt rhythm. Whether the Due row should take the
+box is the open half of this pattern — **for Design**: the box where a row
+has a line of its own for its verbs, the word where the verb shares the
+numeral's meta line, or one form everywhere at a cost to the ledger. The
+Build ladder (`BuildScreen`, cards, a gauge with a needle) is pre-brief and
+was not on this surface; it takes `RowActions` when it joins the system.
+
+**The tab's add is its primary, not its chrome.** The Plan root's ADD was
+the Garage's ADD CAR copied to the token — a mono caps word at the band's
+trailing edge, and the same word in the native header when pushed. The
+chrome voice is what makes ADD CAR read as navigation, and on the Garage
+that is right: adding a car is occasional. On Plan the act is what the tab
+is for, and the Service root already says what that looks like: SCAN
+INVOICE, the full-width primary pinned under the rail on every state,
+closing the band with a rule. ADD TO NEEDS is that control (`PlanScreen`,
+`f46c8c6`) — on Needs only, since Mods carries its own ladder — and the
+pushed instance needs nothing of its own any more, because `RootScreen`
+renders the pinned block under a native header too; the `headerRight` copy
+and the `onEmptyChange` prop went with the word. The empty Needs state kept
+its caption and body and lost its second button (the redundancy the empty
+History resolved the same way, §6.15). **For David:** the critic asked in
+rounds 39, 40 and 41 for the populated state's add to stand down — a mono
+ADD in the "2 ITEMS" band, or a hairline secondary as the table's last
+row — on the brief's empty-state line (*"mono caption, sans body, one
+button"*, which a primary pinned above the caption reorders) and on weight
+(*"it outweighs the two items it serves"*). Declined, with the reason: a
+control that moves between the band and the chrome by the list's length is
+the "one control per state" rule that produced the word David rejected; a
+verb at the foot of a twenty-row list is the 11 Sep "i'm missing options to
+add" again; and the two roots now make one shape. It inherits §6.15's open
+question — whether a root's primary pins or scrolls — and whatever David
+rules there rules here.
+
+**What else closed, and the numbers:**
+
+- **`SearchField`** — the History list's search box as a primitive (the
+  cut, the cyan focus stroke, the cyan caret, the 16px floor), and the
+  catalogue takes it in place of a square `View` that had none of those.
+  Round 38 found the three defects the History's box had been cured of one
+  round at a time, again, on the second screen — the private-copy failure
+  the primitive set exists to end.
+- **One chip rule, then no chip.** The catalogue coloured a chip by the
+  research's severity (a High issue, a Critical service — the spec's own
+  rule); the Needs list coloured every issue; so the same item changed hue
+  between screens and a routine oil change wore the warning hue under a
+  head that already said DO FIRST. Neutral on both (round 39), then the
+  kind as a bare word (round 41). Urgency is the section; the chip family
+  keeps its rule elsewhere. ⚠ `wishlist-suggestions.ts` still says *"urgent
+  is the only value that may colour it"* — true of the value, no longer of
+  a chip; core's docblock to amend.
+- **The figure is mono and at the rule**, read back out of core's sentence:
+  `60,000–100,000 MI`, `5,000 MI / 12 MO`, `24 MO`, `EASY`; an issue's
+  several windows spanned first-low to last-high (the coils' "30,000 -
+  60,000 miles (plugs), 60,000 - 100,000 miles (coils)" is
+  `30,000–100,000 MI` — less than the sentence, nothing it did not say);
+  a numeric sentence never in the body; an empty slot rather than a dash
+  where nothing is known (a column of dashes read as *"a stray glyph"*).
+  **The figure travels with the item**: the catalogue writes core's note to
+  `source_data` — a `jsonb` the route passes through, written by nothing and
+  read by nothing (every live row `{}`, read 13 Sep) — and the Needs row
+  reads it back through the same `suggestionValue`, so "5,000 MI / 12 MO"
+  survives the trip. `wishlist-row.ts` holds the reading rules for both
+  screens.
+- **The heads take their face.** DO FIRST and EVERYTHING ELSE at
+  `displaySection`'s 20pt, as the Due table's heads are — at the 12pt
+  eyebrow the condensed face read as "tracked Inter caps" in three rounds,
+  §6.13's misread again — and a search count ("5 MATCHING") in the mono the
+  Needs summary speaks ("2 ITEMS", mono now; it was the sans eyebrow).
+- **The reason ends on a word, then on a sentence.** `numberOfLines={2}`
+  cut mid-word ("coolant loss, and p…" — *"an unedited default"*); the cut
+  is made at the last space inside 96 characters, and after the stop, at
+  the last full stop inside it where one lands (`clipWords`) — VANOS ends
+  "…affecting variable valve timing." whole. The Needs row takes the same
+  cut. ⚠ Declined: one sentence or none (round 41) — a High-severity
+  issue's one sentence is three lines, and the reason is the product's
+  argument, not decoration.
+- Measured: the ADD box is 48×48 at the rule; the state word ends at the
+  rule; every mono figure ends at the rule; LEARN MORE holds one x across
+  rows before and after an add.
+
+**Recorded deviations and open items — for Design:**
+
+- *The ghost as a third rung.* The brief names three treatments (primary
+  fill, secondary hairline, destructive hairline); the roots' chrome word
+  and this pattern's second verb are a fourth — mono caps in
+  `text.secondary`, no box, pressing to `surface.raised`. Round 39: *"the
+  brief's button vocabulary has no bare-text tertiary; REMOVE and LEARN
+  MORE add one — bless it or fold into secondary hairline."* It has carried
+  ADD CAR and ACCOUNT since 11 Sep and the Due table's ADD since round 33;
+  it needs a line in the system.
+- *REMOVE is soft, and the destructive step is the confirm.* Decided once,
+  as the critic asked: the word on the row is a ghost, never a sodium box
+  on every row; sodium belongs to the alert it opens. The critic's
+  alternative (round 41) — a native swipe with sodium on the revealed
+  action, so each row carries one boxed DONE — is a flow change and is
+  **David's**.
+- *The state word cannot go smaller.* Round 41 asked for the kind label a
+  size under the verbs; both are the 12pt mono label and 12 is `TYPE_MIN`,
+  the floor the whole phone holds. Ink is the step the system has.
+- *Chip and secondary share a silhouette* (round 39's parking lot) —
+  hairline plus cut, told apart by ink weight. The catalogue's kind left the
+  chip for that reason; the chip family elsewhere still shares the shape.
+- *LEARN MORE stays* — rounds 37, 39, 40, 41 asked for it cut, the row as
+  the disclosure. David's 23 Aug ask names both verbs; the row-as-affordance
+  reason is above; and the loop's job was to make the pair read as a pair,
+  which the blind rank says it now does. **For David**, with the critic's
+  count.
+- *Not built, ungraded:* sticky section heads on the scrolled catalogue;
+  ADDED as a tap-to-undo; one name for the destination across ADD TO NEEDS,
+  WHAT THIS CAR NEEDS and the empty copy; "Search" alone as the placeholder;
+  whether Plan needs its plate at all (the brief gives the plate to Garage
+  and Vehicle) — the critic's parking lot, unchanged.
+
+**What `packages/core` should own** (not written from a worktree, which
+does not edit core): a `value` on `WishlistSuggestion` built from the raw
+fields — the window, the interval, the difficulty — so the web prints the
+same figure the phone reads back out of `note` today
+(`apps/mobile/src/screens/wishlist-row.ts` is the interim, pinned against
+core's real templates); a `WishlistSourceData` beside `wishlist-source.ts`
+naming `{ note }` as what an add writes to `source_data`, with the web's
+dossier add writing the same key so an item added there carries its
+figure to the phone; and the `urgent`-colours-the-chip sentence in
+`wishlist-suggestions.ts` amended to "sorts and sections".
+
+**The fixture, for the next loop:** `dev/fixtures.ts` carries the M235i's
+own `known_issues` and `common_mods` as PostgREST returned them on 13 Sep
+(the catalogue had drawn one of its three kinds), and keeps what ADD writes
+for the session — the POST answered with the route's `{ wishlistItem }`
+including `source_data`, the GET newest-first, `DELETE ?itemId=` — so the
+Plan root can be shot with rows on it and the Needs row with its figure.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
