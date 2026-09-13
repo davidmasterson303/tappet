@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   StyleSheet,
   View,
@@ -163,15 +163,48 @@ export default function CutSurface({
 } & Omit<ViewProps, 'style' | 'children'>) {
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
 
+  const ref = useRef<View>(null);
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     if (box && box.width === width && box.height === height) return;
     setBox({ width, height });
   };
 
+  /*
+    ── ⚠ 13 Sep · the layout event does not always come, and the shape needs it ──
+
+    On WHAT THIS CAR NEEDS, opened for the first time after launch, every
+    surface on the screen rendered and not one received `onLayout` — forty
+    renders, zero layout events, logged from this component on the iPhone 16
+    Pro simulator under Expo Go (RN 0.86) — so no chip had its hairline and no
+    ADD had its box. Leave the screen and open it again and all forty events
+    arrive; type into the search field, which remounts the rows, and they
+    arrive. A row control drawn as a bare word on the first open is the shape
+    `CLAUDE.md` §6 collects: nothing errors, and the screen reads as designed
+    that way — which is what the catalogue's ADD looked like when it was
+    judged "unclear, not obvious" from a phone.
+
+    `measure` on the same views answered with their true size on the push
+    where the event was silent, so once after mounting the surface asks for
+    its box and takes whichever answer comes first. The event still wins any
+    later disagreement — `onLayout` replaces a box that no longer matches, and
+    it is the only path a resize takes. Why the event is dropped on that one
+    push and not the next is not established here; the fallback is written
+    against what was measured, not against a theory, and `cut-geometry.
+    test.tsx` holds both halves: the shape appears from a measurement alone,
+    and nothing appears when neither answers.
+  */
+  useEffect(() => {
+    if (box) return;
+    ref.current?.measure((_x, _y, width, height) => {
+      if (width > 0 && height > 0) setBox((held) => held ?? { width, height });
+    });
+  }, [box]);
+
   return (
     <View
       {...rest}
+      ref={ref}
       style={style}
       onLayout={onLayout}
       /*
