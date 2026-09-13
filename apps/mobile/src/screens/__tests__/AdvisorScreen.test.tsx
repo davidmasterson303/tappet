@@ -1,9 +1,12 @@
 import { StyleSheet } from 'react-native';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
 
 import { AdvisorScreen } from '../AdvisorScreen';
-import { askAdvisor } from '../../api/consultant';
+import { askAdvisor, listAdvisorThreads, loadAdvisorThread } from '../../api/consultant';
 import { auditText, belowFloor } from '../../test-support/contrast';
+import { ApiRequestError } from '../../api/client';
+import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
 
 /**
  * The advisor's answer, rendered.
@@ -41,10 +44,12 @@ jest.mock('../../onboarding/ai-consent', () => ({
 
 jest.mock('../../api/consultant', () => {
   const actual = jest.requireActual('../../api/consultant');
-  return { ...actual, askAdvisor: jest.fn() };
+  return { ...actual, askAdvisor: jest.fn(), listAdvisorThreads: jest.fn(), loadAdvisorThread: jest.fn() };
 });
 
 const ask = askAdvisor as jest.MockedFunction<typeof askAdvisor>;
+const listThreads = listAdvisorThreads as jest.MockedFunction<typeof listAdvisorThreads>;
+const loadThread = loadAdvisorThread as jest.MockedFunction<typeof loadAdvisorThread>;
 
 /** The shape of a real answer, including the exact strings that shipped raw. */
 const ANSWER = [
@@ -135,6 +140,103 @@ describe('a link can arrive with its question', () => {
     );
   });
 
+  it('starts a new thread for each arrival of a question, even the same words twice', async () => {
+    /*
+      13 Sep: every "Learn more" and "ask the advisor" lands in the Advisor tab
+      now, where an Advisor may already be mounted with a thread open. The
+      arrival is keyed (`questionKey`), and a new key is a new thread: the
+      echo cleared, the server's session id dropped, the question asked
+      again. Without the key the second arrival — same words, from a second
+      tap — would be swallowed, which is the reason the old design pushed a
+      second advisor instead.
+    */
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First answer.', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's2', response: 'Second answer.', contextKinds: [] });
+
+    const view = await render(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={1}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(await view.findByText('First answer.')).toBeTruthy();
+
+    await view.rerender(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={2}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(await view.findByText('Second answer.')).toBeTruthy();
+    // A new thread, not a continuation: the first answer is gone and the
+    // second send carried no session to continue.
+    expect(view.queryByText('First answer.')).toBeNull();
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask.mock.calls[1][0]).toEqual(expect.objectContaining({ sessionId: null }));
+
+    // And the same key a second time is the same arrival: nothing more is sent.
+    await view.rerender(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={2}
+        onSignOut={jest.fn()}
+      />
+    );
+    expect(ask).toHaveBeenCalledTimes(2);
+  });
+
+  it('draws the way back to the tab the question came from, pinned under the band', async () => {
+    ask.mockResolvedValue({ sessionId: 's1', response: 'An answer.', contextKinds: [] });
+    const back = jest.fn();
+    const view = await render(
+      <AdvisorScreen
+        vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
+        vehicleTitle="2015 BMW M235i"
+        initialQuestion="Tell me about the charge pipe"
+        questionKey={1}
+        origin={{ label: 'Plan', onPress: back }}
+        onSignOut={jest.fn()}
+      />
+    );
+    await view.findByText('An answer.');
+    await userEvent.setup().press(view.getByLabelText('Back to Plan'));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a way to put the keyboard away while it is up, and not otherwise', async () => {
+    /*
+      13 Sep, David: "i want an easy way / cta to collapse keyboard and chat
+      bar so that i can more easily read thread." The control exists only
+      while the composer is focused — a ghost word on its shoulder — and it
+      dismisses the keyboard. Focus is what a keyboard's presence means in
+      this runner; the control keys on it.
+    */
+    const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const view = await render(
+      <AdvisorScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
+    );
+    await view.findByText('Ask about this car');
+    expect(view.queryByLabelText('Hide keyboard')).toBeNull();
+
+    await act(async () => {
+      fireEvent(view.getByLabelText('Ask about this car'), 'focus');
+    });
+    await userEvent.setup().press(view.getByLabelText('Hide keyboard'));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent(view.getByLabelText('Ask about this car'), 'blur');
+    });
+    expect(view.queryByLabelText('Hide keyboard')).toBeNull();
+    dismiss.mockRestore();
+  });
+
   it('asks nothing when the link carried no question', async () => {
     const view = await render(
       <AdvisorScreen
@@ -145,6 +247,85 @@ describe('a link can arrive with its question', () => {
 
     await view.findByText('Ask about this car');
     expect(ask).not.toHaveBeenCalled();
+  });
+});
+
+describe('the threads — 13 Sep', () => {
+  /*
+    David: "i need some way to toggle between chat threads... or to view other
+    threads and select one to enter, or start new thread." The THREADS control
+    on the context row opens the sheet; the sheet lists what the server has;
+    picking one makes its messages the transcript and its id the one the next
+    question continues; NEW THREAD clears both.
+  */
+  const VEHICLE = 'db143cdc-e68c-46f0-849e-69f7a1873f58';
+
+  it('lists the car’s threads, newest first as the server sends them, with a label for each', async () => {
+    listThreads.mockResolvedValue([
+      { id: 't2', title: 'Sport mode vs sport transmission', createdAt: '2026-09-12T10:00:00Z', updatedAt: '2026-09-13T08:40:00Z' },
+      { id: 't1', title: null, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T10:05:00Z' },
+    ]);
+    const view = await render(<AdvisorScreen vehicleId={VEHICLE} vehicleTitle="2015 BMW M235i" onSignOut={jest.fn()} />);
+    await view.findByText('Ask about this car');
+
+    await userEvent.setup().press(view.getByLabelText('Threads'));
+
+    expect(await view.findByText('Sport mode vs sport transmission')).toBeTruthy();
+    // A thread the server did not name is still a row, with its day beneath it.
+    expect(view.getByText('Untitled thread')).toBeTruthy();
+    expect(view.getByText('1 SEP')).toBeTruthy();
+    expect(listThreads).toHaveBeenCalledWith(VEHICLE);
+  });
+
+  it('reopens a picked thread as the transcript, and continues it with its id', async () => {
+    listThreads.mockResolvedValue([
+      { id: 't2', title: 'Sport mode vs sport transmission', createdAt: null, updatedAt: '2026-09-13T08:40:00Z' },
+    ]);
+    loadThread.mockResolvedValue({
+      id: 't2',
+      title: 'Sport mode vs sport transmission',
+      turns: [
+        { role: 'user', content: 'What is the difference between the modes?' },
+        { role: 'assistant', content: 'Sport sharpens the throttle map.' },
+      ],
+    });
+    ask.mockResolvedValue({ sessionId: 't2', response: 'And Sport+ loosens the stability control.', contextKinds: [] });
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId={VEHICLE} onSignOut={jest.fn()} />);
+    await view.findByText('Ask about this car');
+
+    await user.press(view.getByLabelText('Threads'));
+    await user.press(await view.findByLabelText('Open thread Sport mode vs sport transmission'));
+
+    expect(await view.findByText('Sport sharpens the throttle map.')).toBeTruthy();
+    expect(view.getByText('What is the difference between the modes?')).toBeTruthy();
+
+    // The next question continues that thread, not a new one.
+    await user.type(view.getByLabelText('Ask about this car'), 'And Sport+?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('And Sport+ loosens the stability control.');
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 't2', message: 'And Sport+?' }));
+  });
+
+  it('starts a new thread from the sheet: the transcript clears and the next question carries no id', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First answer.', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's2', response: 'Fresh answer.', contextKinds: [] });
+    listThreads.mockResolvedValue([]);
+    const user = userEvent.setup();
+    const view = await render(
+      <AdvisorScreen vehicleId={VEHICLE} initialQuestion="First question" questionKey={1} onSignOut={jest.fn()} />
+    );
+    await view.findByText('First answer.');
+
+    await user.press(view.getByLabelText('Threads'));
+    await user.press(await view.findByLabelText('Start a new thread'));
+    expect(view.queryByText('First answer.')).toBeNull();
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Second question');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Fresh answer.');
+    expect(ask.mock.calls[1][0]).toEqual(expect.objectContaining({ sessionId: null, message: 'Second question' }));
   });
 });
 
@@ -350,5 +531,64 @@ describe('asking before a question goes to Google', () => {
     await view.findByText(/this car’s records go to Google/);
     // ⚠ And says what does *not* — narrower than the invoice sheet on purpose.
     await view.findByText(/No photographs and no documents/);
+  });
+});
+
+describe('when the advisor is refused as a paid feature — E6’s wire, off', () => {
+  /*
+    The server's gate answers `code: 'needs-subscription'` beside its sentence
+    (`lib/feature-gate.ts`). The screen keys on the code, keeps the sentence,
+    and asks for the paywall — rather than the 502 branch's "try again", which
+    cannot help when the answer is a purchase.
+
+    Reachable only with `PAID_FEATURES_ENFORCED` on, which it is not; this is
+    the wire, tested while it is cold.
+  */
+  const refusal = () =>
+    new ApiRequestError({
+      status: 402,
+      message: 'The advisor is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.',
+      code: 'needs-subscription',
+    });
+
+  it('keeps the server’s sentence and asks for the paywall', async () => {
+    ask.mockRejectedValue(refusal());
+    const upgrade = jest.fn();
+    const stop = onUpgradeRequested(upgrade);
+
+    const view = await renderAdvisor();
+
+    expect(await view.findByText(/is part of Tappet Plus/)).toBeTruthy();
+    expect(upgrade).toHaveBeenCalledWith({ feature: 'advisor' });
+    // Not the retry advice: trying again cannot help here.
+    expect(view.queryByText(/try again/i)).toBeNull();
+
+    stop();
+  });
+
+  it('leaves the question in the composer, like every other refusal', async () => {
+    ask.mockRejectedValue(refusal());
+    const stop = onUpgradeRequested(jest.fn());
+
+    const view = await renderAdvisor('Is this quote fair?');
+
+    await view.findByText(/is part of Tappet Plus/);
+    expect(view.getByDisplayValue('Is this quote fair?')).toBeTruthy();
+
+    stop();
+  });
+
+  it('does not open the paywall on an ordinary 502', async () => {
+    // Anti-vacuous: the code is the key, not the failure.
+    ask.mockRejectedValue(new ApiRequestError({ status: 502, message: 'Failed to answer' }));
+    const upgrade = jest.fn();
+    const stop = onUpgradeRequested(upgrade);
+
+    const view = await renderAdvisor();
+
+    expect(await view.findByText(/try again/i)).toBeTruthy();
+    expect(upgrade).not.toHaveBeenCalled();
+
+    stop();
   });
 });

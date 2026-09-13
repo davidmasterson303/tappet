@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -27,11 +26,10 @@ import {
   type ServiceVisit,
 } from '@tappet/core/service-record';
 import { formatCurrency } from '@tappet/core/formatting-utils';
-import CutSurface from '../components/CutSurface';
+import SearchField from '../components/SearchField';
 import SwipeToRemove from '../components/SwipeToRemove';
-import Icon from '../components/Icon';
 import { useRootScroll } from '../components/RootScreen';
-import { border, brand, cut, FIELD_FONT_MIN, PAGE_BODY, radius, SPEC_ROW, space, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { border, PAGE_BODY, radius, SPEC_ROW, space, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -131,7 +129,6 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('');
-  const [searching, setSearching] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -361,7 +358,7 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
     !query && counted > 0 && visits.filter((visit) => visit.counted > 0).length > 1;
 
   /*
-    ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This is
+    ⚠ 6 Sep · B4: the cut is drawn by `CutSurface`, not by this view. This was
     a hand-rolled search box rather than the `Field` primitive — giving
     `Field` the cut left this one square, which is how the critique kept
     finding "the search field is square" after the fix had landed.
@@ -373,42 +370,19 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
     caret and the selection on iOS, and the stroke steps to cyan for as long
     as the field has focus — the brief's *"cyan hairline on focus"*, the same
     rule `Field` now draws.
+
+    ⚠ 13 Sep · and it is `SearchField` now, because the catalogue had copied
+    the box without either fix and the critique found both defects again on
+    the second screen (round 38). The treatment lives once.
   */
   const search =
     state.records.length > 0 ? (
-      <CutSurface
-        style={styles.search}
-        cut={['bottomRight']}
-        size={cut.control}
-        fill={surface.well}
-        stroke={searching ? brand.accent : border.field}
-      >
-        <Icon name="search" size={17} />
-        <TextInput
-          style={styles.searchInput}
-          value={filter}
-          onChangeText={setFilter}
-          onFocus={() => setSearching(true)}
-          onBlur={() => setSearching(false)}
-          selectionColor={brand.accent}
-          cursorColor={brand.accent}
-          placeholder="Search services"
-          placeholderTextColor={text.muted}
-          accessibilityLabel="Search this service history"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {filter.length > 0 && (
-          <Pressable
-            onPress={() => setFilter('')}
-            accessibilityRole="button"
-            accessibilityLabel="Clear the search"
-            style={styles.searchClear}
-          >
-            <Icon name="x" size={16} />
-          </Pressable>
-        )}
-      </CutSurface>
+      <SearchField
+        value={filter}
+        onChangeText={setFilter}
+        placeholder="Search services"
+        accessibilityLabel="Search this service history"
+      />
     ) : null;
 
   return (
@@ -456,10 +430,17 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
           root's, not this segment's, and a segment mounted somewhere without
           it would need the door back.
         */
+        /*
+          `rule={false}`: the pinned band above closes with the hairline
+          (`ServiceScreen`). "On Plan", not "on Needs" — Needs is the Plan
+          tab's list, and read from this tab the word looked like the segment
+          beside it (round 34's Cut list; drift §6.15 had recorded it).
+        */
         <EmptyState
           inset={false}
+          rule={false}
           headline="Nothing recorded yet"
-          body="Scan an invoice, or mark something done on Needs, and it will appear here."
+          body="Scan an invoice, or mark something done on Plan, and it will appear here."
         />
       ) : (
         <>
@@ -778,19 +759,6 @@ function visitProvenance(visit: ServiceVisit, linesOnRecord: number): string {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: surface.page },
   noMatch: { ...type.body, color: text.secondary, paddingVertical: space.md },
-  /* First in the list, at the page's gutter; the body's own gap separates it. */
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    minHeight: TARGET_MIN,
-    paddingHorizontal: space.md,
-    /* ⚠ Ground and border are `CutSurface`'s now; a fill here squares the cut. */
-  },
-  /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  searchInput: { flex: 1, color: text.primary, fontFamily: interFace('400'),
-    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
-  searchClear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 

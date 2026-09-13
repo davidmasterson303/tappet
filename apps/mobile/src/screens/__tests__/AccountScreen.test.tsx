@@ -366,3 +366,64 @@ describe('the subscription warning — Guideline 3.1.2 / E5', () => {
     expect(mockDelete).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the way to the paywall — E8', () => {
+  it('opens it from a Tappet Plus row', async () => {
+    const onSubscribe = jest.fn();
+    const resolved = await mount({ onSubscribe }).view;
+
+    await userEvent.press(resolved.getByLabelText('Tappet Plus, plans and restore purchases'));
+
+    expect(onSubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('promises only what the paywall can do today', async () => {
+    /*
+      Nothing is on sale yet, and the paywall says so when it opens. A row
+      reading "Subscribe now" would be a promise the next screen breaks; this
+      one names the two things that are true of it — plans, and restore.
+    */
+    const resolved = await mount({ onSubscribe: jest.fn() }).view;
+
+    expect(resolved.getByText(/see plans, or restore a subscription/i)).toBeTruthy();
+    expect(resolved.queryByText(/subscribe now|upgrade now|\$|£/)).toBeNull();
+  });
+
+  it('draws no row when nothing would open', async () => {
+    // The modal presentation predates a mounted paywall and passes no handler.
+    const resolved = await mount().view;
+
+    expect(resolved.queryByText('Tappet Plus')).toBeNull();
+  });
+
+  it('reads the subscription again once the paywall says the server entitled the account', async () => {
+    /*
+      On the root stack this screen reads `getSubscription()` once, when it is
+      pushed — and the paywall opens over it from the row above. Without a
+      second read, somebody who subscribed from this screen and then deleted
+      their account from it would not see the warning that deletion does not
+      stop the billing, which is the one sentence E5 exists to show them.
+      `RootNavigator` bumps the epoch when `PaywallHost` announces an
+      entitlement; this is the other end.
+    */
+    // As the root stack renders it: no `visible`, so nothing but the epoch can re-run the read.
+    const resolved = await mount({ visible: undefined, onSubscribe: jest.fn(), subscriptionEpoch: 0 }).view;
+    await waitFor(() => expect(mockSubscription).toHaveBeenCalledTimes(1));
+    expect(resolved.queryByText(/does not cancel your subscription/i)).toBeNull();
+
+    mockSubscription.mockResolvedValue({ live: true, certain: true });
+    resolved.rerender(
+      <AccountScreen
+        email="owner@example.test"
+        accessToken="test-token"
+        onSignOut={jest.fn()}
+        onDeleted={jest.fn()}
+        onSubscribe={jest.fn()}
+        subscriptionEpoch={1}
+      />
+    );
+
+    expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
+    expect(mockSubscription).toHaveBeenCalledTimes(2);
+  });
+});

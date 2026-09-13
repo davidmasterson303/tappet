@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   uploadInvoice,
@@ -9,9 +9,11 @@ import {
   type InvoiceFile,
 } from '../api/documents';
 import Button from '../components/Button';
+import Viewfinder from '../components/Viewfinder';
 import Working from '../components/Working';
 import { scanLine, scanStages, type ScanPhase } from '../components/working-stages';
 import { ApiRequestError } from '../api/client';
+import { requestUpgrade } from '../purchases/upgrade-prompt';
 import { PAGE_BODY, space, text, type } from '../theme';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
@@ -21,11 +23,11 @@ import { interFace } from '../theme/fonts';
 /**
  * Phase 3.3 — photograph an invoice and have its line items read.
  *
- * ── Why the image is injected rather than imported ──────────────────────────
+ * ── Why the library image is injected rather than imported ──────────────────
  *
- * This file never imports `expo-image-picker`. The image arrives through a
- * `pickImage` prop, exactly as `GarageScreen` takes `onOpenVehicle` rather than
- * importing react-navigation.
+ * This file never imports `expo-image-picker`. The library image arrives
+ * through a `pickImage` prop, exactly as `GarageScreen` takes `onOpenVehicle`
+ * rather than importing react-navigation.
  *
  * That began as a scheduling constraint and is now a design one. The dev client
  * was built before the picker was a dependency, so importing it anywhere in the
@@ -35,6 +37,19 @@ import { interFace } from '../theme/fonts';
  * it bought: this screen is an ordinary component that can be rendered with a
  * stub, which is the only reason it was ever looked at before the camera
  * existed.
+ *
+ * ── ⚠ 12 Sep · the camera is the screen now — brief B9 ─────────────────────
+ *
+ * The idle frame *is* the viewfinder (`components/Viewfinder.tsx`): the live
+ * feed under the header, hairline brackets, a mono readout, a capture control,
+ * and CHOOSE FROM LIBRARY beside it. The camera path no longer goes through
+ * `pickImage` — the viewfinder captures with `expo-camera` and hands `send`
+ * the same `InvoiceFile` the picker would have, at the same quality
+ * (`media/invoice-image.ts`) — so the prop's source is the library alone. The
+ * seam stays for that path, and for the reason above: the screen still mounts
+ * with a stub. What changed is that `Viewfinder` imports its native modules
+ * directly; its docblock says why that is safe on every runtime this app has
+ * left, and which one it is not.
  *
  * ── The outcomes, and why two of them are not errors ────────────────────────
  *
@@ -68,6 +83,11 @@ import { interFace } from '../theme/fonts';
   wait instrument can draw them as a ledger (`working-stages.ts` says which
   phases exist and why the third is only sometimes drawn) and the line and the
   ledger come from one mapping rather than two spellings.
+
+  ⚠ `'camera'` never reaches the wait at `picking` any more: the viewfinder
+  is the picking, on its own frame with its own readout (CAPTURING), and the
+  wait begins once the file exists. The source still travels so the ledger's
+  first row is named for what happened — "Photographing the invoice", done.
 */
 type ScanSource = 'camera' | 'library';
 
@@ -91,6 +111,12 @@ type State =
   */
   | {
       status: 'error';
+      /**
+       * The title says which act failed. Absent, it is the upload's — "That
+       * did not upload" — which is wrong for the one failure that happens
+       * before there is anything to upload: the viewfinder's shutter.
+       */
+      heading?: string;
       message: string;
       retryable: boolean;
       signInMayHelp?: boolean;
@@ -117,8 +143,12 @@ export function InvoiceScanScreen({
    * Injected so this file stays free of native imports — see the header.
    * `src/media/pick-image.ts` is the real implementation and the only
    * module that imports `expo-image-picker`.
+   *
+   * ⚠ `'library'` only, since 12 Sep. The camera is the viewfinder's, and
+   * narrowing the type here is what stops a future "Take a photo" reaching
+   * for the system sheet again by habit.
    */
-  pickImage: (source: 'camera' | 'library') => Promise<InvoiceFile | null>;
+  pickImage: (source: 'library') => Promise<InvoiceFile | null>;
   onSignOut: () => void;
   /** Lets the caller refresh the vehicle once line items have changed. */
   onFiled?: () => void;
@@ -134,9 +164,18 @@ export function InvoiceScanScreen({
    * sometimes a VIN — sends it to Gemini, and said nothing about Google at all.
    *
    * `unknown` until the read resolves, so the sheet does not flash for somebody
-   * who already answered. The source they chose is held alongside, so accepting
-   * continues into the thing they were trying to do rather than dropping them
-   * back on the idle screen to press it again.
+   * who already answered.
+   *
+   * ── ⚠ 12 Sep · asked at the door, because the viewfinder is the picker ─────
+   *
+   * The sheet used to open when TAKE A PHOTO was pressed, holding the source
+   * so that agreeing continued into the camera. There is no such press now:
+   * the screen *opens* on the camera. So the question is asked as the screen
+   * opens — the viewfinder is held (`live={false}`, nothing filmed, no
+   * permission alert stacked under the sheet) until it is answered, and
+   * agreeing arms it, which is the thing the person came to do. The ordering
+   * the old comment argued for is kept exactly: consent before the camera
+   * points at anything, never after the photograph exists.
    */
   /*
     ⚠ `null` is **"still reading"**, which is not the same as `'unknown'`
@@ -147,7 +186,12 @@ export function InvoiceScanScreen({
     leaving the question unasked forever.
   */
   const [consent, setConsent] = useState<AiConsent | null>(null);
-  const [awaitingConsent, setAwaitingConsent] = useState<'camera' | 'library' | null>(null);
+  /*
+    "Change that" from the declined state re-opens the sheet without
+    forgetting the answer it is revisiting — declining twice must still read
+    as declined, not as unknown.
+  */
+  const [reasking, setReasking] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -203,6 +247,33 @@ export function InvoiceScanScreen({
         setState({ status: 'done', itemsExtracted: result.itemsExtracted });
         onFiled?.();
       } catch (caught) {
+        if (caught instanceof ApiRequestError && caught.needsSubscription) {
+          /*
+            ── E6's wire · a refusal is not a failure ─────────────────────────
+
+            The gate said invoice scanning is part of the subscription
+            (`lib/feature-gate.ts`, forwarded by `/upload-document` as 402
+            with `code: 'needs-subscription'`). The server's sentence is the
+            message — it names the feature and what stays free — under a
+            heading that is not "That did not upload", because it did not
+            fail; and it is not retryable, because trying again cannot help
+            when the answer is a purchase. The paywall opens over it, the same
+            way the advisor's refusal does.
+
+            ⚠ Off today. `PAID_FEATURES_ENFORCED` is what makes this branch
+            reachable, and it stays off until a sandbox purchase has been
+            through Restore.
+          */
+          setState({
+            status: 'error',
+            heading: 'Part of Tappet Plus',
+            message: caught.message,
+            retryable: false,
+          });
+          requestUpgrade('invoice-scanning');
+          return;
+        }
+
         const message = describeUploadError(caught);
         /*
           Reached only from `uploadInvoice`'s network and server paths — a
@@ -241,20 +312,17 @@ export function InvoiceScanScreen({
   );
 
   /**
-   * Open the picker and run the upload. **No consent check** — see `choose`.
+   * Open the library and run the upload. **No consent check** — see `choose`.
    *
-   * ⚠ Split out on purpose. `choose` closes over `consent`, so calling it from
-   * the sheet's accept handler runs the closure that opened the sheet — where
-   * consent is still `unknown` — and re-opens it. Separating the gate from the
-   * work means accepting continues into the thing the person was doing, which
-   * is the difference between a question and an obstacle.
+   * ⚠ Split out on purpose, and still so: `choose` closes over `consent`, and
+   * the work must not re-read the gate that just admitted it.
    */
-  const openPicker = useCallback(async (from: ScanSource) => {
-    source.current = from;
-    setState({ status: 'working', phase: 'picking', source: from });
+  const openPicker = useCallback(async () => {
+    source.current = 'library';
+    setState({ status: 'working', phase: 'picking', source: 'library' });
 
     try {
-      const chosen = await pickImage(from);
+      const chosen = await pickImage('library');
       if (!chosen) {
         // Dismissing the picker is not a failure and must not read as one.
         setState({ status: 'idle' });
@@ -277,58 +345,175 @@ export function InvoiceScanScreen({
   }, [pickImage, send]);
 
   /**
-   * The consent gate in front of `openPicker` — LEG-02.
+   * The consent gate in front of the library — LEG-02.
    *
-   * ⚠ **Asked before the picker opens, not after.** Consent obtained once the
-   * photograph exists is consent for something that has already happened, and
-   * by then the person has aimed a camera at a document carrying a shop's name
-   * and address on the strength of a screen that told them nothing about
-   * Google.
-   *
-   * `declined` is not blocked here: the idle screen stands its controls down in
-   * that state, so reaching this while declined means somebody deliberately
-   * re-opened the sheet.
+   * The sheet is at the door (see `consent`), so by the time this control can
+   * be pressed the answer is `granted` or `declined` — and declined stands the
+   * control down. The guard is kept for the state it cannot see from here:
+   * anything but a yes re-opens the sheet rather than opening the library.
    */
-  const choose = useCallback(
-    async (source: 'camera' | 'library') => {
-      if (consent === 'unknown') {
-        setAwaitingConsent(source);
-        return;
-      }
+  const choose = useCallback(async () => {
+    if (consent !== 'granted') {
+      setReasking(true);
+      return;
+    }
 
-      await openPicker(source);
+    await openPicker();
+  }, [consent, openPicker]);
+
+  /**
+   * The viewfinder's capture, as the upload wants it.
+   *
+   * The haptic has already fired and the file is on disk; what remains is the
+   * same `send` the library path calls, with the ledger's first row named for
+   * the camera (`scanStages`).
+   */
+  const captured = useCallback(
+    async (chosen: InvoiceFile) => {
+      source.current = 'camera';
+      setFile(chosen);
+      await send(chosen, false);
     },
-    [consent, openPicker]
+    [send]
   );
+
+  /*
+    `takePictureAsync` rejected. Nothing was uploaded, so neither the upload's
+    title nor its generic sentence is true here; the screen's error state
+    carries the photograph's own words, and both ways forward — the frame
+    again, or the library — are on it. Not retryable: there is no file to
+    resend.
+  */
+  const captureFailed = useCallback((caught: unknown) => {
+    setState({
+      status: 'error',
+      heading: 'That photograph did not take',
+      message:
+        'The camera could not take the photograph. Try again, or choose a photo from your library.',
+      retryable: false,
+      diagnostic: diagnoseUploadError(caught),
+    });
+  }, []);
+
+  /*
+    ── ⚠ LEG-02 · declining means "no AI features", never "no app" ──────────
+
+    The controls stand down rather than the screen refusing: the viewfinder is
+    held, the line below says what declining cost and how to change it, and
+    the frame stays where it was. Blocking the product on a privacy refusal
+    would trade a 5.1.2 problem for a 5.1.1(v)-shaped one — and the garage,
+    the history and the recall list are all useful without a model.
+  */
+  const idleFoot =
+    consent === 'declined' ? (
+      <View style={styles.block}>
+        <Text style={styles.body_}>{INVOICE_AI_CONSENT.declineNote}</Text>
+        <Button
+          label="Change that"
+          variant="outline"
+          size="small"
+          onPress={() => setReasking(true)}
+          style={styles.onMargin}
+        />
+      </View>
+    ) : (
+      /*
+        ── R49 · what happens next, stated before it happens ────────────────
+
+        A model reads the photograph and writes rows into the owner's
+        permanent service record, and the system's rule is that AI
+        uncertainty is stated plainly, before the act.
+
+        ⚠ The review's suggested line was *"You review them before anything
+        is saved."* **That is not true** and is not written here. Line items
+        are written by `uploadInvoice` as soon as extraction succeeds; the
+        only thing held back for confirmation is a vehicle mismatch. What is
+        promised is what actually happens.
+
+        ⚠ 12 Sep · one line, and it stays *before* the photograph. Two
+        critiques asked for the caveat to move to "the post-capture review,
+        where the lines are actually shown" — there is no such review (the
+        lines are filed as they are read), and R49's point is that consent to
+        a model reading a document is given before the document is
+        photographed, not after. What the viewfinder took from the ask is the
+        length: an explainer page became one line at the frame's foot.
+      */
+      <Text style={styles.caveat}>
+        A model reads the line items into this car's history — check them afterwards.
+      </Text>
+    );
 
   return (
     <>
     <AiConsentSheet
-      visible={awaitingConsent !== null}
+      visible={consent === 'unknown' || reasking}
       copy={INVOICE_AI_CONSENT}
       onAccept={() => {
-        const source = awaitingConsent;
-        setAwaitingConsent(null);
+        setReasking(false);
         setConsent('granted');
         void recordAiConsent('granted');
         /*
-          Continue into the thing they were trying to do. Dropping them back on
-          the idle screen to press the same button again is how a consent sheet
-          reads as an obstacle rather than a question.
+          Nothing else to do: `granted` arms the viewfinder, which asks for
+          the camera and comes up ready. That is the thing they came to do,
+          continued into rather than pressed for again.
         */
-        /*
-          `openPicker`, not `choose` — the gate has just been satisfied and
-          re-checking it here would read the state this render still holds.
-        */
-        if (source) void openPicker(source);
       }}
       onDecline={() => {
-        setAwaitingConsent(null);
+        setReasking(false);
         setConsent('declined');
         void recordAiConsent('declined');
       }}
     />
 
+    {state.status === 'idle' ? (
+      /*
+        ── ⚠ 12 Sep · the first frame is the viewfinder — brief B9 ───────────
+
+        Outside the scroller and full height: a viewfinder is a frame, not a
+        band, and the feed fills what the header and the tab bar leave. R47
+        still holds — the nav says SCAN INVOICE and the screen does not
+        repeat it; the readout names the act instead.
+
+        **No PDF claim.** An earlier frame said "A PDF works too", which the
+        server supports and this screen does not: the picker is `mediaTypes:
+        ['images']`, so a PDF cannot be selected at all. Promising a
+        capability the control in front of you cannot reach is worse than
+        not mentioning it. Picking documents needs `expo-document-picker` —
+        another native module, another cloud build.
+
+        `live` only once the person has agreed: `null` is still reading,
+        `unknown` has the sheet up, and `declined` stands the controls down
+        — see `consent`.
+      */
+      <Viewfinder
+        live={consent === 'granted'}
+        onCapture={captured}
+        onCaptureFailed={captureFailed}
+        beside={
+          /*
+            Not a fallback. Plenty of invoices arrive as an emailed PDF or a
+            photo taken days ago — and the simulator has no camera at all, so
+            a camera-only flow could never be exercised on the machine this is
+            developed on. Beside the capture control at the same height, as
+            the critique placed it.
+
+            ⚠ `outline`, not `ghost` (round 35): a bare word beside a boxed
+            CAPTURE read as *"a half-built button row"*. The brief's own pair
+            — *"primary off-white fill … secondary off-white hairline"* — at
+            one height, the odometer gate's grammar. The ghost was right when
+            the word sat *under* a paragraph and a primary (rounds 32–33);
+            beside a primary it is the secondary, and the secondary has a box.
+          */
+          <Button
+            label="Choose from library"
+            variant="outline"
+            size="small"
+            onPress={() => void choose()}
+          />
+        }
+        foot={idleFoot}
+      />
+    ) : (
     <ScrollView
       /*
         ── ⚠ 12 Sep · top-aligned; R57's optical centre is superseded here ────
@@ -348,141 +533,18 @@ export function InvoiceScanScreen({
       */
       contentContainerStyle={styles.body}
     >
-      {state.status === 'idle' && (
-        <View style={styles.block}>
-          {/*
-            ── R47 · the nav title said this 40pt above ───────────────────────
-
-            `Scan an invoice` rendered twice — once as the stack header's title
-            and again as the screen's H1, with nothing between them. iOS has one
-            pattern for a title that appears in both places (the large title
-            that shrinks into the bar as it scrolls) and this screen was not it;
-            it was simply the same words, twice.
-
-            The nav keeps it. What the screen leads with is what happens next.
-          */}
-          {/*
-            **No PDF claim.** This said "A PDF works too", which the server
-            supports and this screen does not: the picker is `mediaTypes:
-            ['images']`, so a PDF cannot be selected at all. Promising a
-            capability the button in front of you cannot reach is worse than
-            not mentioning it. Picking documents needs `expo-document-picker` —
-            another native module, another cloud build — so it waits for the
-            next one rather than costing its own.
-          */}
-          {/*
-            ── ⚠ 12 Sep · the brief's empty-state grammar, B1 and B9 ─────────
-
-            *"Empty states left-aligned: mono caption, sans body, one button."*
-            The first frame of the scan is not an empty state, but it is the
-            same shape — a screen with nothing on it yet and one thing to do —
-            and it was set as two sans paragraphs over two equal buttons. The
-            caption now names the act in the mono, the body says what the
-            model does with it, and the library is a text control beneath the
-            one primary rather than a second box the same size.
-
-            ⚠ What this frame still is not: B9's viewfinder. *"Hairline corner
-            brackets and a mono readout"* need the camera feed behind them,
-            and the dev client opens the *system* camera through
-            `expo-image-picker`; drawing brackets over graphite here would be a
-            picture of a viewfinder, which the critique would (rightly) call a
-            placeholder doing an image's job. That frame is `expo-camera`, an
-            EAS build (`CLAUDE.md` §9) — logged in drift §6.9, not faked here.
-          */}
-          <Text style={styles.caption} accessibilityRole="header">
-            Photograph the invoice
-          </Text>
-          {/*
-            ── R49 · what happens next, stated before it happens ─────────────
-
-            The screen offered two ways to start and said nothing about where
-            they lead. The system's rule is that AI uncertainty is stated
-            plainly, and this is the moment for it: a model reads a photograph
-            and writes rows into the owner's permanent service record.
-
-            ⚠ The review's suggested line was *"You review them before anything
-            is saved."* **That is not true** and is not written here. Line items
-            are written by `uploadInvoice` as soon as extraction succeeds; the
-            only thing held back for confirmation is a vehicle mismatch. What is
-            promised is what actually happens.
-
-            ⚠ 12 Sep · one paragraph, and it stays *before* the photograph.
-            The critique asked for the caveat to move to "the post-capture
-            review, where the lines are actually shown" — there is no such
-            review (see above: the lines are filed as they are read), and
-            R49's point is that consent to a model reading a document is
-            given before the document is photographed, not after. The two
-            paragraphs became one sentence pair, which is the half of the cut
-            that was right.
-          */}
-          <Text style={styles.lead}>
-            Its line items are read by a model and added to this car's history, so check them
-            afterwards. If the invoice looks like a different car, we ask before filing it.
-          </Text>
-          {/*
-            ── ⚠ LEG-02 · declining means "no AI features", never "no app" ────
-
-            The controls stand down rather than the screen refusing, and the
-            line below says what declining cost and how to change it. Blocking
-            the product on a privacy refusal would trade a 5.1.2 problem for a
-            5.1.1(v)-shaped one — and the garage, the history and the recall
-            list are all useful without a model.
-          */}
-          {consent === 'declined' ? (
-            <View style={styles.block}>
-              <Text style={styles.body_}>{INVOICE_AI_CONSENT.declineNote}</Text>
-              <Button
-                label="Change that"
-                variant="outline"
-                onPress={() => setAwaitingConsent('camera')}
-              />
-            </View>
-          ) : (
-            <>
-          <Button label="Take a photo" variant="primary" onPress={() => void choose('camera')} />
-          {/*
-            Not a fallback. Plenty of invoices arrive as an emailed PDF or a
-            photo taken days ago — and the simulator has no camera at all, so a
-            camera-only flow could never be exercised on the machine this is
-            developed on.
-
-            ⚠ 12 Sep: `ghost`, not `outline`. Two boxes of one size under one
-            paragraph read as two equal offers, and B9 makes the camera the
-            headline act; the library is the way in for a bill that is already
-            a photograph, and a mono caps word beneath the primary is how this
-            system writes a secondary that must not compete (the roots' own
-            chrome). It is still 44pt and still named for the reader.
-          */}
-          <Button
-            label="Choose from library"
-            variant="ghost"
-            size="small"
-            onPress={() => void choose('library')}
-            /*
-              Left, on the page's own margin: a centred word under a
-              left-aligned caption and body was the one thing on the screen
-              not reading from the margin (round 32's AI-tell list). The
-              small size's 12pt of padding is pulled back so the word starts
-              where the sentences do.
-            */
-            style={styles.library}
-          />
-            </>
-          )}
-        </View>
-      )}
-
       {state.status === 'working' && (
         /*
           ── 12 Sep · the full instrument with a ledger ──────────────────────
 
           Web's scanner is the one wait with a stage list, because it is the
           one wait with two real awaits; the phone's has two as well — the
-          picker, then the upload — and a third on the confirm path. Every
-          mark comes from this screen's own state, never from a timer. The
-          line beneath is the file's name — a value, so mono (B1) — which is
-          a fact the screen was handed; it is not printed while the picker is
-          still open, because there is no file yet.
+          picker or the viewfinder's shutter, then the upload — and a third
+          on the confirm path. Every mark comes from this screen's own state,
+          never from a timer. The line beneath is the file's name — a value,
+          so mono (B1) — which is a fact the screen was handed; it is not
+          printed while the picker is still open, because there is no file
+          yet.
 
           Not `delay`ed: this wait was started by a press and wants its
           feedback at once. Left-anchored on the page's own gutter rather than
@@ -548,22 +610,27 @@ export function InvoiceScanScreen({
         <View style={styles.block}>
           <Text style={styles.title}>That does not look like an invoice</Text>
           <Text style={styles.body_}>{state.message}</Text>
+          {/*
+            Back to the viewfinder — "another photo" is the frame, not the
+            system sheet, since 12 Sep. Every camera route on this screen
+            lands on `idle` for the same reason.
+          */}
           <Button
             label="Try another photo"
             variant="primary"
-            onPress={() => void choose('camera')}
+            onPress={() => setState({ status: 'idle' })}
           />
           <Button
             label="Choose from library"
             variant="outline"
-            onPress={() => void choose('library')}
+            onPress={() => void choose()}
           />
         </View>
       )}
 
       {state.status === 'error' && (
         <View style={styles.block}>
-          <Text style={styles.title}>That did not upload</Text>
+          <Text style={styles.title}>{state.heading ?? 'That did not upload'}</Text>
           <Text style={styles.body_}>{state.message}</Text>
 
           {/*
@@ -612,13 +679,18 @@ export function InvoiceScanScreen({
           <Button
             label="Choose a different file"
             variant={state.retryable && file ? 'outline' : 'primary'}
-            onPress={() => void choose('library')}
+            onPress={() => void choose()}
           />
 
-          <Button label="Take a photo" variant="outline" onPress={() => void choose('camera')} />
+          <Button
+            label="Take a photo"
+            variant="outline"
+            onPress={() => setState({ status: 'idle' })}
+          />
         </View>
       )}
     </ScrollView>
+    )}
     </>
   );
 }
@@ -630,11 +702,18 @@ const styles = StyleSheet.create({
   /* `body_` because `body` is the container above. */
   body_: { color: text.muted, fontFamily: interFace('400'),
     fontSize: 15, lineHeight: 22 },
-  /* B1: the mono caption the brief gives a screen with one thing to do. */
-  caption: { ...type.monoLabel, color: text.primary },
-  library: { alignSelf: 'flex-start', marginLeft: -space.md },
-  /* The one line that says what this screen is for. A step above the rest. */
-  lead: { ...type.body, fontSize: 15, lineHeight: 22, color: text.secondary },
+  /*
+    Left, on the page's own margin: a centred word under left-aligned copy was
+    the one thing on the old frame not reading from the margin (round 32's
+    AI-tell list). The small size's 12pt of padding is pulled back so the
+    word starts where the sentences do.
+  */
+  onMargin: { alignSelf: 'flex-start', marginLeft: -space.md },
+  /*
+    R49's line, at the viewfinder's foot. Muted, and the 13pt sans — the Due
+    row's meta scale — because it is a caveat under the act, not the act.
+  */
+  caveat: { ...type.value, color: text.muted },
 
   /* Monospace so an elapsed figure is scannable; dev builds only. */
   diagnostic: {

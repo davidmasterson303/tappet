@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 
 import type { InvoiceFile } from '../api/documents';
+import { INVOICE_QUALITY } from './invoice-image';
 
 /**
  * The one place that will import `expo-image-picker`.
@@ -46,6 +47,17 @@ import type { InvoiceFile } from '../api/documents';
  * camera-only flow could never be exercised on the machine this is developed
  * on. Both sources return the same `InvoiceFile`, so the screen does not care
  * which was used.
+ *
+ * ── ⚠ 12 Sep · the invoice's camera path no longer comes through here ───────
+ *
+ * B9 gave the scan its own viewfinder (`components/Viewfinder.tsx`, on
+ * `expo-camera`), so `InvoiceScanScreen` opens on a live frame and captures
+ * from it; `pickInvoiceImage('camera')` — the system camera sheet — is kept
+ * because the seam is the picker's, and nothing on the phone calls it for an
+ * invoice any more. The library path is unchanged and is still what the
+ * simulator exercises. The two sources encode at one figure, `INVOICE_QUALITY`
+ * in `invoice-image.ts`, which is where the number moved so the viewfinder
+ * could not drift from it.
  */
 
 /** Thrown when the camera cannot be reached at all — refused, or not yet built in. */
@@ -59,15 +71,12 @@ export class ImagePickerUnavailable extends Error {
 /** Where the image comes from. Both produce the same `InvoiceFile`. */
 export type InvoiceImageSource = 'camera' | 'library';
 
-/**
- * Reduce the capture before it is encoded.
- *
- * 0.7 rather than 1.0. The extractor reads text off an invoice, which survives
- * JPEG compression easily, and the alternative is uploading several megabytes
- * over cellular from a car park. See the M235i note above for what an
- * unreduced original does on this simulator.
- */
-const QUALITY = 0.7;
+/*
+  The invoice's encoding quality lived here as `QUALITY = 0.7` until 12 Sep.
+  It is `INVOICE_QUALITY` in `invoice-image.ts` now, shared with the
+  viewfinder, so the two sources of an invoice photograph cannot disagree
+  about it. The reasoning for the figure went with it.
+*/
 
 /**
  * The wording each caller needs when permission is refused.
@@ -100,7 +109,7 @@ export type ImagePurpose = keyof typeof PROMPTS;
 export async function pickInvoiceImage(
   source: InvoiceImageSource = 'camera',
 ): Promise<InvoiceFile | null> {
-  return pickImage(source, 'invoice', QUALITY);
+  return pickImage(source, 'invoice', INVOICE_QUALITY);
 }
 
 /**

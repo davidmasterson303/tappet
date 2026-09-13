@@ -48,14 +48,16 @@ export interface WorkingStage {
  * what runs. So the ledger has three rows there, and two everywhere else,
  * and every mark is a thing that happened.
  *
- * `source` names the first stage honestly: the camera and the photo library
- * are different sheets, and "Opening the camera" over a library picker is a
- * lie in the state voice.
+ * `source` names the first stage honestly: the library is a sheet the app
+ * sits behind, and the camera — since 12 Sep — is the viewfinder's own
+ * shutter (`Viewfinder.tsx`), so its row says what happened there. "Opening
+ * the camera" over a photograph already taken, or over a library picker, is
+ * a lie in the state voice.
  */
 export type ScanPhase = 'picking' | 'reading' | 'filing';
 
 export function scanStages(phase: ScanPhase, source: 'camera' | 'library'): WorkingStage[] {
-  const picking = source === 'camera' ? 'Opening the camera' : 'Opening your photos';
+  const picking = source === 'camera' ? 'Photographing the invoice' : 'Opening your photos';
 
   if (phase === 'filing') {
     return [

@@ -80,6 +80,33 @@ export const SERVICE_BASIS_LABELS: Record<ServiceBasis, string> = {
   'mileage-estimate': 'Estimated from your mileage',
 };
 
+/**
+ * The same three claims, for a row that has no room for a sentence.
+ *
+ * ── 12 Sep · B6, the last open line on the phone's Service tab ─────────────
+ *
+ * The Due row's meta line is the interval and the basis on one line:
+ * *"Every 15,000 mi · Based on what you told us at sign-up"*. At every iPhone
+ * width that orphans a word, and the design critic's answer (rounds 34–36)
+ * was a mono token — `· SIGN-UP`, `· RECORDS`, `· ESTIMATED` — rather than
+ * a second line. The token has to live here, beside the sentence it stands
+ * for, or the phone and the web start making different claims about one
+ * car, which is the failure this file exists to prevent.
+ *
+ * ⚠ Each token is the head word of its sentence and nothing more: RECORDS
+ * is "from your service records", SIGN-UP is "what you told us at sign-up",
+ * ESTIMATED is "estimated from your mileage". `service-provenance.test.ts`
+ * holds each token to its sentence, so a token cannot quietly claim more
+ * than the sentence does (CLAUDE.md §10). A client that prints the token
+ * still owes the reader the sentence — on the phone it is the row's
+ * accessibility label, so a screen reader hears the claim in full.
+ */
+export const SERVICE_BASIS_SHORT: Record<ServiceBasis, string> = {
+  'service-history': 'RECORDS',
+  'owner-reported': 'SIGN-UP',
+  'mileage-estimate': 'ESTIMATED',
+};
+
 export const SCHEDULE_BASIS_LABELS: Record<ScheduleBasis, string> = {
   /*
     "Typical" rather than "manufacturer-recommended", which is what the prompt

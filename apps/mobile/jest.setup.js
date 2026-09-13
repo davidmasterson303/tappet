@@ -105,6 +105,96 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true })),
 }));
 
+/*
+  ── `expo-camera`, as the viewfinder sees it ────────────────────────────────
+
+  `Viewfinder.tsx` imports the module directly (its docblock says why the
+  `pickImage` seam does not extend to it), so every screen test that mounts
+  the scan mounts a camera. The stub answers the way a phone with a camera and
+  a granted permission does: the permission hook says granted, the view
+  reports ready on mount, the lens query finds the wide lens, and a capture
+  resolves a JPEG. `InvoiceScanScreen.test.tsx` turns each of those the other
+  way through `__camera` — a denied permission, no lens, a rejected capture —
+  which is what makes the readout's words testable without a device.
+
+  `CameraView` is a class in the real module and the viewfinder calls methods
+  on its ref, so the stub is a `forwardRef` exposing the same two methods; the
+  stub's `onCameraReady` fires from an effect so the "ready" path runs in the
+  same order it does natively (mount, then the event).
+*/
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const __camera = {
+    permission: { status: 'granted', granted: true, canAskAgain: true, expires: 'never' },
+    requestPermission: jest.fn(async () => __camera.permission),
+    getAvailableLensesAsync: jest.fn(async () => ['Back Camera']),
+    takePictureAsync: jest.fn(async () => ({
+      uri: 'file:///tmp/capture.jpg',
+      width: 3024,
+      height: 4032,
+      format: 'jpg',
+    })),
+    /** Whether the stub view reports ready on mount. */
+    ready: true,
+    reset() {
+      __camera.permission = { status: 'granted', granted: true, canAskAgain: true, expires: 'never' };
+      __camera.ready = true;
+      __camera.requestPermission.mockReset().mockImplementation(async () => __camera.permission);
+      __camera.getAvailableLensesAsync.mockReset().mockResolvedValue(['Back Camera']);
+      __camera.takePictureAsync.mockReset().mockResolvedValue({
+        uri: 'file:///tmp/capture.jpg',
+        width: 3024,
+        height: 4032,
+        format: 'jpg',
+      });
+    },
+  };
+
+  const CameraView = React.forwardRef(function CameraView(props, ref) {
+    React.useImperativeHandle(ref, () => ({
+      takePictureAsync: (...args) => __camera.takePictureAsync(...args),
+      getAvailableLensesAsync: () => __camera.getAvailableLensesAsync(),
+    }));
+    const { onCameraReady } = props;
+    React.useEffect(() => {
+      if (__camera.ready) onCameraReady?.();
+    }, [onCameraReady]);
+    return React.createElement(View, { testID: 'camera-view', style: props.style });
+  });
+
+  return {
+    CameraView,
+    /*
+      The hook's tuple: the current answer (`null` for the first frame, as the
+      real hook), a request that resolves the stub's answer, and a get.
+    */
+    useCameraPermissions: jest.fn(() => {
+      const [answer, setAnswer] = React.useState(null);
+      React.useEffect(() => {
+        setAnswer(__camera.permission);
+      }, []);
+      const request = React.useCallback(async () => {
+        const next = await __camera.requestPermission();
+        setAnswer(next);
+        return next;
+      }, []);
+      const get = React.useCallback(async () => __camera.permission, []);
+      return [answer, request, get];
+    }),
+    __camera,
+  };
+});
+
+jest.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy', Soft: 'soft', Rigid: 'rigid' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+  impactAsync: jest.fn(async () => undefined),
+  notificationAsync: jest.fn(async () => undefined),
+  selectionAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   getPermissionsAsync: jest.fn(async () => ({ granted: true, canAskAgain: true })),
@@ -151,3 +241,60 @@ jest.mock('@supabase/supabase-js', () => ({
     },
   }),
 }));
+
+/*
+  ── `expo-iap` — the App Store, off-device ───────────────────────────────────
+
+  A native module with no JS fallback: its `import` is harmless (the module is
+  resolved lazily through a Proxy) but the first real call throws `Cannot find
+  native module 'ExpoIap'` — reproduced under this runner on 12 Sep, which is
+  the same absence Expo Go has. `src/api/store.ts` is the only importer.
+
+  Two things beyond the image-picker pattern above, both because the package
+  is **event-driven**: a purchase is delivered on `purchaseUpdatedListener` and
+  a failure on `purchaseErrorListener`, never as a return value. So the mock
+  keeps a listener set per event, and exposes `__emit(event, payload)` so a
+  test can deliver one the way the native side would — and `__listenerCount`
+  so it can prove the adapter unsubscribed afterwards. Both are test-only and
+  prefixed to say so; nothing in `src/` may reach for them.
+
+  Availability is not mocked here. The adapter asks
+  `requireOptionalNativeModule('ExpoIap')` from `expo`, which under this
+  runner answers `null` — "this build cannot buy" — exactly as Expo Go does.
+  A test that needs a store present mocks `expo` itself and says so.
+*/
+jest.mock('expo-iap', () => {
+  const listeners = {
+    'purchase-updated': new Set(),
+    'purchase-error': new Set(),
+  };
+  const subscribe = (event) => (listener) => {
+    listeners[event].add(listener);
+    return { remove: () => listeners[event].delete(listener) };
+  };
+
+  return {
+    __esModule: true,
+    ErrorCode: {
+      AlreadyOwned: 'already-owned',
+      DeferredPayment: 'deferred-payment',
+      NetworkError: 'network-error',
+      Pending: 'pending',
+      PurchaseError: 'purchase-error',
+      UserCancelled: 'user-cancelled',
+    },
+    initConnection: jest.fn(async () => true),
+    endConnection: jest.fn(async () => true),
+    fetchProducts: jest.fn(async () => []),
+    requestPurchase: jest.fn(async () => []),
+    finishTransaction: jest.fn(async () => undefined),
+    restorePurchases: jest.fn(async () => undefined),
+    getAvailablePurchases: jest.fn(async () => []),
+    purchaseUpdatedListener: jest.fn(subscribe('purchase-updated')),
+    purchaseErrorListener: jest.fn(subscribe('purchase-error')),
+    __emit: (event, payload) => {
+      for (const listener of [...listeners[event]]) listener(payload);
+    },
+    __listenerCount: (event) => listeners[event].size,
+  };
+});

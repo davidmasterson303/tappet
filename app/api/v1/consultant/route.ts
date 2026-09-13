@@ -147,6 +147,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
 
     if (!result.success) {
+      /*
+        ── E6's wire · a gate refusal is not a failed answer ─────────────────
+
+        The action returns `{ success: false, error }` for everything it will
+        not do, and this route answered all of it with 502 — which the advisor
+        screen renders as "could not answer that one, try again". For the
+        feature gate that advice is wrong twice: nothing failed, and trying
+        again cannot help, because the answer is a subscription.
+
+        So a refusal carrying `code: 'needs-subscription'` goes out as **402**
+        with `code` and `feature` beside the sentence, and the phone opens the
+        paywall on the code rather than on the status. `feature-gate.ts`
+        carries the shape; `PAID_FEATURES_ENFORCED` decides whether it is ever
+        returned, and it is off.
+      */
+      if (result.code === 'needs-subscription') {
+        logger.info('API:CONSULTANT', 'Consultant refused: needs subscription', { vehicleId });
+        return Response.json(
+          { success: false, error: result.error, code: result.code, feature: result.feature },
+          { status: 402 }
+        );
+      }
+
       logger.warn('API:CONSULTANT', 'Consultant declined to answer', {
         vehicleId,
         error: result.error,

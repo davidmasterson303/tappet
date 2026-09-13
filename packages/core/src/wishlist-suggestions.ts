@@ -64,13 +64,14 @@ export interface WishlistSuggestion {
   /** One line saying why it is worth doing. Never empty — see `reasonOf`. */
   reason: string;
   /**
-   * The chip: what **kind** of thing this is — `Known issue`, `Service`,
-   * `Modification`.
+   * The kind of thing this is — `Known issue`, `Service`, `Modification`.
    *
-   * ⚠ Never the priority. See the header: a chip that repeats the sort order is
-   * decoration, and it displaces the one fact only the chip can carry.
+   * ⚠ Never the priority. See the header: a word that repeats the sort order
+   * is decoration, and it displaces the one fact only this slot can carry.
    *
-   * `urgent` is the only value that may colour it.
+   * `urgent` sorts and sections; it does not colour this word (13 Sep — the
+   * phone prints the kind as a bare mono word, not a chip, and an amber word
+   * beside a sodium figure said the same thing twice).
    */
   chip: string;
   urgent: boolean;
@@ -78,6 +79,52 @@ export interface WishlistSuggestion {
   identifier: string;
   /** Free-text extras a detail view can show — mileage window, interval, effort. */
   note: string | null;
+  /**
+   * The row's one figure, for a numeral column — built from the raw fields,
+   * never read back out of `note`.
+   *
+   * ── 13 Sep · the figure is core's, so two clients print one ───────────
+   *
+   * An issue carries a mileage window, a service an interval, a modification
+   * an effort. `note` sets each as a sentence for a body; a spec-table row
+   * wants the figure alone, mono, at the rule: `60,000–100,000 MI`,
+   * `5,000 MI / 12 MO`, `EASY`. The phone's Plan rows read it back out of
+   * the sentence for a day (`wishlist-row.ts`); this is the field they were
+   * waiting for, and the sentence's template can change without moving it.
+   *
+   * ⚠ §10: a window the model wrote as two — "30,000 - 60,000 miles (plugs),
+   * 60,000 - 100,000 miles (coils)" — is spanned first low to last high,
+   * which says less than the model did and nothing it did not. No window
+   * in the text gives `null`, never a figure guessed from prose.
+   */
+  value: string | null;
+}
+
+/** Every "a - b mi(les)" window in a mileage-range string, in order. */
+const WINDOW = /([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)\b/gi;
+
+/** `60,000–100,000 MI` for a mileage-range string, or `null` when it holds no window. */
+export function mileageWindowValue(range: string | null | undefined): string | null {
+  if (!range) return null;
+  // `exec` in a loop rather than `matchAll`: the root tsconfig's target
+  // predates iterable match results, and core compiles under both configs.
+  const windows: Array<[number, number]> = [];
+  WINDOW.lastIndex = 0;
+  for (let m = WINDOW.exec(range); m; m = WINDOW.exec(range)) {
+    windows.push([Number(m[1].replace(/,/g, '')), Number(m[2].replace(/,/g, ''))]);
+  }
+  if (windows.length === 0) return null;
+  const low = Math.min(...windows.map(([from]) => from));
+  const high = Math.max(...windows.map(([, to]) => to));
+  return `${low.toLocaleString('en-US')}–${high.toLocaleString('en-US')} MI`;
+}
+
+/** `5,000 MI / 12 MO` from a schedule's numbers, or `null` when it has neither. */
+export function intervalValue(miles: number | null, months: number | null): string | null {
+  const parts = [miles ? `${miles.toLocaleString('en-US')} MI` : null, months ? `${months} MO` : null].filter(
+    Boolean
+  );
+  return parts.length > 0 ? parts.join(' / ') : null;
 }
 
 function text(value: unknown): string | null {
@@ -136,6 +183,7 @@ function fromIssues(rows: unknown): WishlistSuggestion[] {
         urgent,
         identifier: wishlistItemIdentifier('issue', name),
         note: window ? `Typically ${window}` : null,
+        value: mileageWindowValue(window),
       },
     ];
   });
@@ -173,6 +221,7 @@ function fromSchedule(rows: unknown): WishlistSuggestion[] {
         urgent,
         identifier: wishlistItemIdentifier('maintenance', name),
         note: interval,
+        value: intervalValue(miles, months),
       },
     ];
   });
@@ -201,6 +250,7 @@ function fromMods(rows: unknown): WishlistSuggestion[] {
         urgent: false,
         identifier: wishlistItemIdentifier('modification', name),
         note: text(record.difficulty),
+        value: text(record.difficulty)?.toUpperCase() ?? null,
       },
     ];
   });

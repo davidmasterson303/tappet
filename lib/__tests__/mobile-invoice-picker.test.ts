@@ -34,6 +34,9 @@
 /* Module, not a global script — see the note in `mobile-session.test.ts`. */
 export {};
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 const requestCameraPermissionsAsync = jest.fn();
 const requestMediaLibraryPermissionsAsync = jest.fn();
 const launchCameraAsync = jest.fn();
@@ -60,6 +63,10 @@ const {
   pickInvoiceImage,
   ImagePickerUnavailable,
 } = require('../../apps/mobile/src/media/pick-image');
+const {
+  INVOICE_QUALITY,
+  invoiceFileFromCapture,
+} = require('../../apps/mobile/src/media/invoice-image');
 const { ALLOWED_DOCUMENT_TYPES } = require('@tappet/core/validation');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
@@ -159,6 +166,62 @@ describe('what the picker returns', () => {
     // dismissal and hide a real failure.
     launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [] });
     await expect(pickInvoiceImage('library')).rejects.toBeInstanceOf(ImagePickerUnavailable);
+  });
+});
+
+/**
+ * ── 12 Sep · the viewfinder is a second source, and it must match ───────────
+ *
+ * B9's viewfinder (`components/Viewfinder.tsx`) captures with `expo-camera`
+ * rather than the picker, so a second module now produces an `InvoiceFile`.
+ * Everything above about the picker's output — a type on the allowlist, a
+ * name with an extension, no invented size — has to be true of the capture
+ * too, and the quality has to be the one figure, because the extractor is
+ * paid per image and the car park's cellular link does not care which
+ * control took the photograph.
+ */
+describe('the viewfinder’s capture', () => {
+  it('encodes at the same quality as the picker, by construction', () => {
+    /*
+      One export, read by both. A test that compared two literals would pass
+      while they agreed and say nothing about whether they *must*.
+    */
+    const pick = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'media', 'pick-image.ts'),
+      'utf8'
+    );
+    const finder = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'components', 'Viewfinder.tsx'),
+      'utf8'
+    );
+    expect(pick).toMatch(/pickImage\(source, 'invoice', INVOICE_QUALITY\)/);
+    expect(finder).toMatch(/takePictureAsync\(\{ quality: INVOICE_QUALITY \}\)/);
+    expect(INVOICE_QUALITY).toBe(0.7);
+  });
+
+  it('produces a type the upload will accept, with a matching extension', () => {
+    const jpg = invoiceFileFromCapture({ uri: 'file:///cache/Camera/a.jpg', format: 'jpg' });
+    expect(ALLOWED_DOCUMENT_TYPES).toContain(jpg.type);
+    expect(jpg).toMatchObject({ uri: 'file:///cache/Camera/a.jpg', type: 'image/jpeg' });
+    expect(jpg.name).toMatch(/\.jpg$/);
+
+    // A capture that arrived as PNG must not be sent as `.jpg`.
+    const png = invoiceFileFromCapture({ uri: 'file:///cache/Camera/b.png', format: 'png' });
+    expect(ALLOWED_DOCUMENT_TYPES).toContain(png.type);
+    expect(png).toMatchObject({ type: 'image/png' });
+    expect(png.name).toMatch(/\.png$/);
+  });
+
+  it('defaults to JPEG when the camera reports no format', () => {
+    const file = invoiceFileFromCapture({ uri: 'file:///cache/Camera/c' });
+    expect(file).toMatchObject({ type: 'image/jpeg' });
+    expect(file.name).toMatch(/\.jpg$/);
+  });
+
+  it('reports no size rather than a guessed one', () => {
+    // The camera does not report bytes. `uploadInvoice` lets an unknown size
+    // through and leaves the server to refuse; a figure here would be invented.
+    expect('size' in invoiceFileFromCapture({ uri: 'file:///cache/Camera/a.jpg' })).toBe(false);
   });
 });
 

@@ -1,8 +1,12 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 import { InvoiceScanScreen } from '../InvoiceScanScreen';
 import { uploadInvoice, type InvoiceFile } from '../../api/documents';
 import { ApiRequestError } from '../../api/client';
+import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
+import { READOUT } from '../../components/Viewfinder';
 
 /**
  * Scanning an invoice.
@@ -13,13 +17,20 @@ import { ApiRequestError } from '../../api/client';
  * an invoice, it can read a *different car*, and the upload can fail in ways
  * that either will or will not survive a retry.
  *
- * ── Nothing native is mocked, by design ─────────────────────────────────────
+ * ── What is native here, and where it is stubbed ────────────────────────────
  *
  * `pickImage` is a **prop**. The screen never imports `expo-image-picker` —
- * `src/media/pick-image.ts` is the only module that does. So the picker
- * is injected here as a plain function, and these tests exercise the real
- * component with no native stubbing at all. That injection is why this screen
- * is testable and the camera path is not a black box.
+ * `src/media/pick-image.ts` is the only module that does — so the library
+ * path is injected as a plain function and exercised with no stubbing at all.
+ *
+ * ⚠ 12 Sep: the camera is not a prop. B9 made the first frame a viewfinder
+ * (`components/Viewfinder.tsx`), which imports `expo-camera` and
+ * `expo-haptics` itself, and `jest.setup.js` stubs both the way it stubs the
+ * picker — a phone with a camera and a granted permission unless a test says
+ * otherwise. `__camera` below is that stub's dial: the permission it answers,
+ * whether the view reports ready, what the lens query finds, what a capture
+ * returns. Turning each of those the wrong way is how the readout's words and
+ * the capture's haptic are testable without a device.
  *
  * ── The two rules worth the whole file ──────────────────────────────────────
  *
@@ -65,6 +76,19 @@ jest.mock('../../api/documents', () => {
 
 const upload = uploadInvoice as jest.MockedFunction<typeof uploadInvoice>;
 
+/** The camera stub's dial — see `jest.setup.js`. */
+const { __camera: camera } = jest.requireMock('expo-camera') as {
+  __camera: {
+    permission: { status: string; granted: boolean; canAskAgain: boolean; expires: string };
+    requestPermission: jest.Mock;
+    getAvailableLensesAsync: jest.Mock;
+    takePictureAsync: jest.Mock;
+    ready: boolean;
+    reset: () => void;
+  };
+};
+const haptic = Haptics.impactAsync as jest.MockedFunction<typeof Haptics.impactAsync>;
+
 /**
  * Typed as `InvoiceFile`, with no cast.
  *
@@ -83,17 +107,226 @@ async function mount(over: { pickImage?: jest.Mock } = {}) {
   const pickImage = over.pickImage ?? jest.fn(async () => FILE);
   const props = {
     vehicleId: 'v1',
-    pickImage: pickImage as (s: 'camera' | 'library') => Promise<InvoiceFile | null>,
+    pickImage: pickImage as (s: 'library') => Promise<InvoiceFile | null>,
     onSignOut: jest.fn(),
     onFiled: jest.fn(),
   };
   return { props, pickImage, view: await render(<InvoiceScanScreen {...props} />) };
 }
 
-beforeEach(() => upload.mockReset());
+beforeEach(() => {
+  upload.mockReset();
+  camera.reset();
+  haptic.mockClear();
+});
+
+/** The readout's right cell, as printed — uppercase is the style's, not the string's. */
+const readout = (view: Awaited<ReturnType<typeof mount>>['view']): string | null => {
+  const node = view.queryByTestId('viewfinder-readout');
+  return node ? String(node.props.children) : null;
+};
+
+describe('the first frame is the viewfinder — brief B9', () => {
+  it('opens on the camera, not on a page about the camera', async () => {
+    /*
+      SCAN INVOICE used to land on four lines of copy and a TAKE A PHOTO
+      button — "a primary leading to another primary", in four critiques
+      running. The first frame is the frame: the feed, its brackets, the
+      readout, a capture control, and the library beside it.
+    */
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    view.getByTestId('viewfinder-brackets');
+    view.getByText('Photograph the invoice');
+    view.getByRole('button', { name: 'Capture' });
+    view.getByText('Choose from library');
+
+    expect(view.queryByText('Take a photo')).toBeNull();
+    expect(view.queryByText(/Its line items are read by a model/)).toBeNull();
+  });
+
+  it('keeps the model caveat before the capture, in one line', async () => {
+    /*
+      R49: a model reads the photograph into the owner's permanent record, and
+      that is said before the photograph, not on a review step — there is no
+      review step; lines file as they are read. Two critiques asked for it to
+      move; what moved is its length.
+    */
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    view.getByText(/A model reads the line items into this car's history/);
+  });
+
+  it('says READY only once the camera has, and finds a lens', async () => {
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    expect(camera.getAvailableLensesAsync).toHaveBeenCalled();
+  });
+
+  it('says STARTING while the session has not reported ready', async () => {
+    // Never READY on the strength of a granted permission alone.
+    camera.ready = false;
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    expect(readout(view)).toBe(READOUT.starting);
+    expect(view.getByRole('button', { name: 'Capture' }).props.accessibilityState.disabled).toBe(
+      true
+    );
+  });
+
+  it('says NO CAMERA when the device reports no lens, and keeps the library', async () => {
+    /*
+      ⚠ The simulator fires `onCameraReady` with no camera behind it; the
+      lens query is what tells the truth there. A capture on that frame would
+      hand a generated grey square to the model, so the control stands down —
+      and the second way in is still on the frame.
+    */
+    camera.getAvailableLensesAsync.mockResolvedValue([]);
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.none));
+    expect(view.getByRole('button', { name: 'Capture' }).props.accessibilityState.disabled).toBe(
+      true
+    );
+    view.getByText(/This device has no camera/);
+    view.getByText('Choose from library');
+  });
+
+  it('asks for the camera when nobody has answered yet', async () => {
+    camera.permission = { status: 'undetermined', granted: false, canAskAgain: true, expires: 'never' };
+    camera.requestPermission.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+    });
+    const { view } = await mount();
+
+    await waitFor(() => expect(camera.requestPermission).toHaveBeenCalledTimes(1));
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+  });
+
+  it('says CAMERA OFF when refused for good, points at Settings, and keeps the library', async () => {
+    /*
+      iOS asks once. After a refusal the only route back is Settings, and a
+      dead end that does not say so is a dead end — the sentence names the
+      switch, the control opens it, and the library is still offered.
+    */
+    camera.permission = { status: 'denied', granted: false, canAskAgain: false, expires: 'never' };
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await waitFor(() => expect(readout(view)).toBe(READOUT.off));
+    expect(camera.requestPermission).not.toHaveBeenCalled();
+    expect(view.queryByTestId('camera-view')).toBeNull();
+    view.getByText(/Camera access is off for Tappet/);
+    view.getByText('Choose from library');
+
+    await user.press(view.getByRole('button', { name: 'Open Settings' }));
+    expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the capture', () => {
+  it('fires one firm haptic at the press, then takes the picture, then sends it', async () => {
+    /*
+      "One firm haptic on capture" — once, `Heavy`, and before the shutter:
+      the feel is the press. The count is the assertion; a second impact
+      anywhere on the path — a "success" tap when the file arrives, say — is
+      exactly what this refuses.
+    */
+    const user = userEvent.setup();
+    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
+    const { pickImage, view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    await user.press(view.getByRole('button', { name: 'Capture' }));
+
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(haptic).toHaveBeenCalledTimes(1);
+    expect(haptic).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Heavy);
+    expect(haptic.mock.invocationCallOrder[0]).toBeLessThan(
+      camera.takePictureAsync.mock.invocationCallOrder[0]
+    );
+
+    // The picker is the library's; the camera path never touches it.
+    expect(pickImage).not.toHaveBeenCalled();
+  });
+
+  it('hands send an InvoiceFile the upload will accept', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    await user.press(view.getByRole('button', { name: 'Capture' }));
+
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    const { file } = upload.mock.calls[0][0];
+    expect(file).toMatchObject({ uri: 'file:///tmp/capture.jpg', type: 'image/jpeg' });
+    expect(file.name).toMatch(/\.jpg$/);
+    // Unknown, not invented: the camera does not report bytes.
+    expect(file.size).toBeUndefined();
+  });
+
+  it('encodes at the same quality as the library path', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    await user.press(view.getByRole('button', { name: 'Capture' }));
+
+    await waitFor(() => expect(camera.takePictureAsync).toHaveBeenCalledTimes(1));
+    expect(camera.takePictureAsync).toHaveBeenCalledWith({ quality: 0.7 });
+  });
+
+  it('says the photograph failed, not the upload, when the shutter rejects', async () => {
+    // Nothing was uploaded, so "That did not upload" would be a lie about
+    // which act failed — and both ways forward are on the screen.
+    camera.takePictureAsync.mockRejectedValue(new Error('Camera is not running'));
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    await user.press(view.getByRole('button', { name: 'Capture' }));
+
+    await view.findByText('That photograph did not take');
+    expect(upload).not.toHaveBeenCalled();
+    view.getByText('Take a photo');
+    view.getByText('Choose a different file');
+  });
+
+  it('returns to the viewfinder from "Take a photo", never to the system sheet', async () => {
+    camera.takePictureAsync.mockRejectedValue(new Error('Camera is not running'));
+    const user = userEvent.setup();
+    const { pickImage, view } = await mount();
+
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    await user.press(view.getByRole('button', { name: 'Capture' }));
+    await view.findByText('That photograph did not take');
+
+    await user.press(view.getByText('Take a photo'));
+
+    await view.findByTestId('camera-view');
+    expect(pickImage).not.toHaveBeenCalled();
+  });
+});
 
 describe('choosing an image', () => {
-  it('offers the camera and the library', async () => {
+  it('offers the library beside the capture control', async () => {
     /*
       Both, deliberately. A receipt is often a photo taken days ago, and the
       simulator has no camera at all — a camera-only flow could never be
@@ -101,7 +334,8 @@ describe('choosing an image', () => {
     */
     const { view } = await mount();
 
-    expect(view.getByText(/take a photo|camera/i)).toBeTruthy();
+    await view.findByTestId('camera-view');
+    expect(view.getByRole('button', { name: 'Capture' })).toBeTruthy();
     expect(view.getByText('Choose from library')).toBeTruthy();
   });
 
@@ -280,6 +514,38 @@ describe('when the upload fails', () => {
     expect(props.onSignOut).not.toHaveBeenCalled();
   });
 
+  it('a paid-feature refusal keeps the server’s sentence, offers no retry, and asks for the paywall — E6’s wire, off', async () => {
+    /*
+      `/upload-document` forwards the gate's `code: 'needs-subscription'` as a
+      402 beside its sentence. Trying again cannot help when the answer is a
+      purchase, so the retry the other failures offer is withheld, the heading
+      is not "That did not upload" (nothing failed), and the paywall is asked
+      for with the feature named — the advisor's shape exactly. Reachable only
+      with `PAID_FEATURES_ENFORCED` on, which it is not.
+    */
+    const user = userEvent.setup();
+    upload.mockRejectedValue(
+      new ApiRequestError({
+        status: 402,
+        message: 'Invoice scanning is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.',
+        code: 'needs-subscription',
+      })
+    );
+    const upgrade = jest.fn();
+    const stop = onUpgradeRequested(upgrade);
+
+    const { view } = await mount();
+    await user.press(view.getByText('Choose from library'));
+
+    expect(await view.findByText(/is part of Tappet Plus/)).toBeTruthy();
+    expect(view.getByText('Part of Tappet Plus')).toBeTruthy();
+    expect(view.queryByText('That did not upload')).toBeNull();
+    expect(view.queryByText('Try again')).toBeNull();
+    expect(upgrade).toHaveBeenCalledWith({ feature: 'invoice-scanning' });
+
+    stop();
+  });
+
   it('shows the failure rather than returning silently to idle', async () => {
     // A flow that quietly resets looks like the button did nothing, which is
     // how somebody re-photographs a receipt four times.
@@ -328,24 +594,26 @@ describe('asking before an invoice goes to Google', () => {
     mockConsent = 'granted';
   });
 
-  it('asks before the picker opens, not after', async () => {
+  it('asks at the door, before the camera is even requested', async () => {
     /*
       ⚠ **Before**, and the ordering is the whole finding. Consent obtained
       after the photograph exists is consent for something that already
-      happened — and by then the person has aimed a camera at a document on the
-      strength of a screen that told them nothing.
+      happened. The screen now *opens* on the camera, so the question is asked
+      as it opens: the sheet is up, the viewfinder is held, and the system's
+      own camera alert is not stacked under it.
     */
     mockConsent = 'unknown';
-    const user = userEvent.setup();
+    camera.permission = { status: 'undetermined', granted: false, canAskAgain: true, expires: 'never' };
     const pickImage = jest.fn();
 
     const view = await render(
       <InvoiceScanScreen vehicleId="v1" pickImage={pickImage} onSignOut={jest.fn()} />
     );
 
-    await user.press(await view.findByText('Take a photo'));
-
     await view.findByText('Reading an invoice uses Google’s AI');
+    expect(camera.requestPermission).not.toHaveBeenCalled();
+    expect(view.queryByTestId('camera-view')).toBeNull();
+    expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
     expect(pickImage).not.toHaveBeenCalled();
   });
 
@@ -356,41 +624,49 @@ describe('asking before an invoice goes to Google', () => {
       of is that an invoice is not only their own data.
     */
     mockConsent = 'unknown';
+
+    const view = await render(
+      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+    );
+
+    await view.findByText(/The photograph goes to Google/);
+    await view.findByText(/the shop’s name and address/);
+  });
+
+  it('brings the camera up once they agree — the thing they came to do', async () => {
+    /*
+      Agreeing arms the viewfinder, which asks for the camera and comes up
+      ready. Nobody is dropped back to press a button again, which is how a
+      consent sheet reads as an obstacle rather than a question.
+    */
+    mockConsent = 'unknown';
+    camera.permission = { status: 'undetermined', granted: false, canAskAgain: true, expires: 'never' };
+    camera.requestPermission.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+    });
     const user = userEvent.setup();
 
     const view = await render(
       <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
     );
 
-    await user.press(await view.findByText('Take a photo'));
-
-    await view.findByText(/The photograph goes to Google/);
-    await view.findByText(/the shop’s name and address/);
-  });
-
-  it('continues into what they were doing once they agree', async () => {
-    // Dropping them back to press the same button again is how a consent sheet
-    // reads as an obstacle rather than a question.
-    mockConsent = 'unknown';
-    const user = userEvent.setup();
-    const pickImage = jest.fn(async () => null);
-
-    const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={pickImage} onSignOut={jest.fn()} />
-    );
-
-    await user.press(await view.findByText('Choose from library'));
     await user.press(await view.findByText('Scan invoices'));
 
-    await waitFor(() => expect(pickImage).toHaveBeenCalledWith('library'));
+    await waitFor(() => expect(camera.requestPermission).toHaveBeenCalledTimes(1));
+    await view.findByTestId('camera-view');
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
   });
 
-  it('does not block the app when they decline', async () => {
+  it('stands the controls down when they decline — never the screen', async () => {
     /*
       ⚠ Declining means "no AI features", **never** "no app". Blocking the
       product on a privacy refusal trades a 5.1.2 problem for a
       5.1.1(v)-shaped one — and the garage, the history and the recall list are
-      all useful without a model.
+      all useful without a model. The frame stays; nothing is filmed for
+      nobody.
     */
     mockConsent = 'declined';
 
@@ -399,9 +675,13 @@ describe('asking before an invoice goes to Google', () => {
     );
 
     await view.findByText(/You can still add services by hand/);
-    expect(view.queryByText('Take a photo')).toBeNull();
+    expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
+    expect(view.queryByText('Choose from library')).toBeNull();
+    expect(view.queryByTestId('camera-view')).toBeNull();
+    expect(camera.requestPermission).not.toHaveBeenCalled();
     // …and it is a decision they can revisit, not a dead end.
     view.getByText('Change that');
+    view.getByTestId('viewfinder-brackets');
   });
 
   it('sends nothing when they decline', async () => {
@@ -414,5 +694,21 @@ describe('asking before an invoice goes to Google', () => {
 
     await view.findByText(/You can still add services by hand/);
     expect(pickImage).not.toHaveBeenCalled();
+    expect(camera.takePictureAsync).not.toHaveBeenCalled();
+  });
+
+  it('re-asks from "Change that", and a second refusal still reads as declined', async () => {
+    mockConsent = 'declined';
+    const user = userEvent.setup();
+
+    const view = await render(
+      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+    );
+
+    await user.press(await view.findByText('Change that'));
+    await user.press(await view.findByText('Not now'));
+
+    await view.findByText(/You can still add services by hand/);
+    expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
   });
 });

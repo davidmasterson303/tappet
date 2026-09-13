@@ -129,3 +129,76 @@ export function formatMileagePromptMessage(status: MileageUpdateStatus): string 
   const months = Math.max(1, status.monthsSinceLast);
   return `Time to update! You've driven an estimated ${status.estimatedMilesDriven} miles in the last ${months} month${months > 1 ? 's' : ''}`;
 }
+
+/**
+ * Whether to ask for the odometer now, and what to put in the field.
+ *
+ * ── 13 Sep · not more than monthly, and with a number worked out ────────────
+ *
+ * The phone's Service tab opened on "Still around 66,000 miles?" every time it
+ * was opened. David: *"we don't need to ask to confirm mileage every login.
+ * not more than monthly. but we should calculate assumed new mileage each
+ * month we ask."* Both halves live here so the phone and the web ask the same
+ * question at the same interval from the same facts:
+ *
+ *   `ask`      — no reading has ever been confirmed (`last_mileage_update_date`
+ *                null), or at least one month has passed since the last one.
+ *                Time, not miles: a stored car is still asked monthly, and
+ *                answered "unchanged" in one tap.
+ *   `assumed`  — the reading to offer: the last one plus the owner's own
+ *                miles-a-month times the months since, when both are known
+ *                and at least a month has passed; otherwise the last reading.
+ *
+ * ⚠ The assumed figure is an estimate and is rounded to the nearest hundred
+ * so it reads as one (CLAUDE.md §10) — a field prefilled with 66,713 claims a
+ * precision nobody measured. The owner confirms or corrects it; only what
+ * they confirm is stored, and `validateMileageUpdate` still judges it.
+ *
+ * `months` is elapsed calendar time in average months (30.44 days), the same
+ * arithmetic `calculateMileageUpdateStatus` uses, so the two agree on when a
+ * month has passed.
+ */
+export interface MileageCheckIn {
+  /** Ask now — never confirmed, or a month or more since. */
+  ask: boolean;
+  /** The reading to offer in the field. */
+  assumed: number;
+  /** Whether `assumed` is a projection rather than the stored reading. */
+  projected: boolean;
+  /** Whole months since the last confirmation; `null` when never confirmed. */
+  monthsSince: number | null;
+}
+
+const DAYS_PER_MONTH = 30.44;
+
+export function mileageCheckIn(
+  vehicle: {
+    current_mileage: number | null | undefined;
+    avg_miles_per_month?: number | null;
+    last_mileage_update_date?: string | null;
+  },
+  now: Date = new Date()
+): MileageCheckIn {
+  const current = typeof vehicle.current_mileage === 'number' ? vehicle.current_mileage : 0;
+  const last = vehicle.last_mileage_update_date ? new Date(vehicle.last_mileage_update_date) : null;
+  if (!last || Number.isNaN(last.getTime())) {
+    return { ask: true, assumed: current, projected: false, monthsSince: null };
+  }
+
+  const elapsedMonths = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24 * DAYS_PER_MONTH);
+  const monthsSince = Math.max(0, Math.floor(elapsedMonths));
+  const ask = elapsedMonths >= 1;
+
+  const perMonth = vehicle.avg_miles_per_month;
+  const projects = ask && typeof perMonth === 'number' && perMonth > 0;
+  /*
+    Rounded to the nearest hundred, then floored at the stored reading: a
+    small month rounded down would otherwise offer a figure *below* the last
+    one, which `validateMileageUpdate` refuses as going backwards.
+  */
+  const assumed = projects
+    ? Math.max(current, Math.round((current + perMonth * elapsedMonths) / 100) * 100)
+    : current;
+
+  return { ask, assumed, projected: assumed !== current, monthsSince };
+}

@@ -71,6 +71,35 @@ beforeEach(() => {
 });
 
 describe('the tab bar', () => {
+  it('stands down on the invoice scan, and on nothing else', async () => {
+    /*
+      A viewfinder above GARAGE / PLAN / ADVISOR read as "a tab child" to the
+      critic in rounds 34 and 36 — a camera is an act, not a place. The bar
+      is still the navigator's and still outside every screen; it draws
+      nothing for that one route, read off the focused tab's nested state the
+      way `getFocusedRouteNameFromRoute` reads it. The other half is pinned
+      too: the same tab, one screen shallower, keeps its bar.
+    */
+    const scanning = tabState(1);
+    scanning.routes[1] = {
+      ...scanning.routes[1],
+      state: {
+        index: 1,
+        routes: [
+          { name: 'Service', params: { vehicleId: 'v1' } },
+          { name: 'InvoiceScan', params: { vehicleId: 'v1' } },
+        ],
+      },
+    } as (typeof scanning.routes)[number];
+    const hidden = await render(withSafeArea(<TabBar state={scanning} navigation={helpers().navigation} />));
+    expect(hidden.queryAllByRole('tab')).toEqual([]);
+
+    const shown = await render(
+      withSafeArea(<TabBar state={tabState(1, { ServiceTab: { vehicleId: 'v1' } })} navigation={helpers().navigation} />)
+    );
+    expect(shown.getAllByRole('tab')).toHaveLength(4);
+  });
+
   it('offers all four destinations, by name, in the navigator’s order', async () => {
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)

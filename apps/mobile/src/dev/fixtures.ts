@@ -23,14 +23,44 @@
  *
  * ── Gating ──────────────────────────────────────────────────────────────────
  *
- * Read only by `api/client.ts`, behind `__DEV__` **and**
- * `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a release bundle, and never when the
- * flag is off — a build that quietly serves fixtures instead of the API is the
- * worst failure this file could have, because every screen would look perfect.
+ * Read by `api/client.ts` — and, for `designVariant` alone, by the vehicle
+ * hub — behind `__DEV__` **and** `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a
+ * release bundle, and never when the flag is off — a build that quietly serves
+ * fixtures instead of the API is the worst failure this file could have,
+ * because every screen would look perfect.
  */
 
 import { driversForVehicle } from '@tappet/core/health-drivers';
 import type { PlateStatus } from '@tappet/core/plates';
+
+/**
+ * Which concept of the vehicle hub to draw, from the environment.
+ *
+ * ── 13 Sep · three concepts of one screen, selected without a rebuild ───────
+ *
+ * David asked for three new designs of the car's hub, built as real screens
+ * so the design critic grades what the product would draw rather than a
+ * mockup of it. Three files of `VehicleDetailScreen` would be three copies of
+ * its data path; one screen with a switch is one. `EXPO_PUBLIC_DESIGN_VARIANT`
+ * names the concept — `a` | `b` | `c` — and anything else, including unset,
+ * is `null`: the screen as it ships. The concepts exist only while the pick is
+ * being made; the switch and the losing concepts go when it is.
+ *
+ * ⚠ The same double gate as everything in this file, applied **here** rather
+ * than at the call site, so a screen cannot read the variable on its own and
+ * find a value in a release build. `EXPO_PUBLIC_*` values are inlined at
+ * transform time; the guard is what keeps a concept out of the bundle the App
+ * Store gets.
+ */
+export type DesignVariant = 'a' | 'b' | 'c';
+const DESIGN_VARIANTS: readonly DesignVariant[] = ['a', 'b', 'c'];
+export function designVariant(): DesignVariant | null {
+  if (typeof __DEV__ === 'undefined' || !__DEV__ || process.env.EXPO_PUBLIC_DESIGN_FIXTURES !== '1') {
+    return null;
+  }
+  const raw = process.env.EXPO_PUBLIC_DESIGN_VARIANT;
+  return DESIGN_VARIANTS.find((variant) => variant === raw) ?? null;
+}
 
 /**
  * The plate's status on the fixture car, from the environment.
@@ -60,6 +90,14 @@ const M235I = {
   model: 'M235i',
   trim: 'xDrive',
   current_mileage: 66_000,
+  /*
+    13 Sep: the odometer is asked for monthly, with a figure worked out from
+    these two (`mileageCheckIn`). Forty-five days at 500 a month puts the
+    gate on screen offering "About 66,700 miles by now?" — the state the
+    loop photographs. Ten days would hide it; that is a test, not a frame.
+  */
+  avg_miles_per_month: 500,
+  last_mileage_update_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
   vehicle_status: 'daily_driver',
   /*
     ── 12 Sep · what the nightly sweep would have written ──────────────────
@@ -89,9 +127,12 @@ const M235I = {
    * the plate renders its placeholder, which is the honest empty state anyway.
    * Refresh it by signing the object again — it expires.
    */
-  photo_url: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null,
-  /* `null` under a photograph, as the route does it — the plate is not showing. */
-  plate_status: process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ? null : DESIGN_PLATE_STATUS,
+  /*
+    `photo_url` and `plate_status` are not written here: they are read at
+    answer time by `designCar()` below, because a photograph can also arrive
+    through the app's own ADD PHOTO control during a session (12 Sep) and the
+    car has to answer with it from then on.
+  */
   /*
     ── ⚠ 11 Sep · the reading is genuinely stale, not a sentence pretending ──
 
@@ -286,6 +327,108 @@ const SCHEDULE = [
 ];
 
 /**
+ * What the research found on this car, and what people do to it.
+ *
+ * ── 13 Sep · the catalogue's other two sources ──────────────────────────────
+ *
+ * `suggestionsFor` reads three arrays off the knowledge base and maps each
+ * onto one wishlist type — `known_issues` → issue, `maintenance_schedule` →
+ * maintenance, `common_mods` → modification. The fixture carried only the
+ * schedule, so WHAT THIS CAR NEEDS listed eight services and nothing else,
+ * and the Build ladder (which reads `common_mods`) drew no rungs at all —
+ * and the loop over the catalogue would have graded a list with one of its
+ * three kinds.
+ *
+ * ⚠ **Read off the live row, not written.** These are the M235i's own
+ * `vehicle_knowledge_base` rows as PostgREST returned them on 13 Sep
+ * (`known_issues` and `common_mods`, verbatim — the model's part names, its
+ * severities, its sentences), which is the one way a fixture can be sure
+ * every sentence on the frame is one the product would write. The shapes are
+ * the ones `wishlist-suggestions.test.ts` drives: `{ part, severity,
+ * description, mileage_range }` and `{ name, purpose, difficulty }`. One
+ * `High` severity — the water pump — so the catalogue's DO FIRST section has
+ * an issue in it beside the two Critical services, and every other chip is
+ * neutral, which is the rule the row's chip exists to keep.
+ */
+const KNOWN_ISSUES = [
+  {
+    part: 'Charge Pipe',
+    severity: 'Medium',
+    description:
+      'The factory plastic charge pipe is prone to cracking or bursting under boost pressure, especially with aftermarket tunes. Leads to boost leaks and limp mode.',
+    mileage_range: '40,000 - 80,000 miles',
+  },
+  {
+    part: 'Valve Cover Gasket (VCG) / Valve Cover',
+    severity: 'Medium',
+    description:
+      'The plastic valve cover can warp, and its gasket can fail, leading to oil leaks, burning oil smell, and potential vacuum leaks affecting engine performance.',
+    mileage_range: '60,000 - 100,000 miles',
+  },
+  {
+    part: 'Oil Filter Housing Gasket (OFHG)',
+    severity: 'Medium',
+    description:
+      'Common failure point leading to oil leaks visible on the passenger side of the engine, potentially contaminating the serpentine belt and causing its failure.',
+    mileage_range: '50,000 - 90,000 miles',
+  },
+  {
+    part: 'Electric Water Pump / Thermostat',
+    severity: 'High',
+    description:
+      'The electric water pump and thermostat are known to fail, leading to engine overheating, coolant loss, and potential stranding of the vehicle.',
+    mileage_range: '60,000 - 100,000 miles',
+  },
+  {
+    part: 'VANOS Solenoids',
+    severity: 'Medium',
+    description:
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.',
+    mileage_range: '50,000 - 90,000 miles',
+  },
+  {
+    part: 'Ignition Coils / Spark Plugs',
+    severity: 'Low',
+    description:
+      'Spark plugs are wear items, but ignition coils can fail prematurely, leading to engine misfires, rough running, and a check engine light.',
+    mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+  },
+];
+
+const COMMON_MODS = [
+  {
+    name: 'ECU Tune (e.g., Bootmod3, MHD)',
+    purpose: 'Performance (increased horsepower and torque)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Upgraded Charge Pipe',
+    purpose: 'Reliability (replaces failure-prone OEM plastic part), Performance',
+    difficulty: 'Easy',
+  },
+  {
+    name: 'Upgraded Intercooler',
+    purpose: 'Performance (reduces intake air temperatures for consistent power)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Cat-back Exhaust System',
+    purpose: 'Performance (minor gains), Sound (enhanced exhaust note)',
+    difficulty: 'Moderate',
+  },
+  {
+    name: 'Lowering Springs or Coilovers',
+    purpose: 'Performance (improved handling), Aesthetics (lower ride height)',
+    difficulty: 'Hard',
+  },
+  {
+    name: 'Performance Air Intake',
+    purpose: 'Performance (minor gains), Sound (enhanced induction noise)',
+    difficulty: 'Easy',
+  },
+];
+
+/**
  * Whether a path should be held open forever, so its wait can be seen.
  *
  * ── 12 Sep · the only way to photograph a wait without spending the call ────
@@ -303,14 +446,171 @@ const SCHEDULE = [
  * Same double gate as everything in this file, read by `api/client.ts` after
  * `fixtureFor` — a held path is held whether or not it has a canned answer.
  */
+/**
+ * ── 12 Sep · a photograph added through the control, kept for the session ──
+ *
+ * Claude Design's most specific request was the vehicle detail with a *real
+ * owner photograph* under the house grade — a frame nobody had shot, because
+ * every captured round showed the plate. `EXPO_PUBLIC_DESIGN_PHOTO_URL` can
+ * put a photograph on the car, but it bypasses the control, and the control
+ * is what the product runs: the action sheet, the picker and its encode at
+ * `VEHICLE_QUALITY`, the upload, the reload. The dev account's password is
+ * stale (400) and the demo's cars refuse writes, so the real route cannot be
+ * driven from a simulator at all.
+ *
+ * So the fixture answers the upload. `POST /upload-photo` is answered with
+ * the picked file's own `uri` — read off React Native's `FormData` parts, the
+ * shape `api/photos.ts` sends — and the car answers with that `uri` as its
+ * `photo_url` from then on; `DELETE` takes it away again. Everything the
+ * product does to the pixels still happens: the encode is the picker's, and
+ * the server stores what it is sent byte for byte (`uploadVehiclePhoto` in
+ * `app/actions.ts` — `Buffer.from(arrayBuffer)`, no resize, no re-encode), so
+ * a frame shot this way is the frame the product would draw. The one thing it
+ * cannot exercise is the network hop, and a capture that leans on this says
+ * so.
+ *
+ * ⚠ Session-scoped on purpose — a reload of the bundle forgets it, the same
+ * way it forgets everything else here. A fixture that persisted a
+ * photograph would be a second place the car's state lives.
+ */
+let addedPhotoUri: string | null = null;
+
+/** The `file` part's `uri` off a React Native `FormData`, or `null`. */
+function filePartUri(body: unknown): string | null {
+  const form = body as { getParts?: () => Array<{ fieldName?: string; uri?: string }> } | undefined;
+  if (typeof form?.getParts !== 'function') return null;
+  const part = form.getParts().find((p) => p.fieldName === 'file' && typeof p.uri === 'string');
+  return part?.uri ?? null;
+}
+
+/** The photograph the fixture car currently answers with, if any. */
+export function designPhotoUrl(): string | null {
+  return addedPhotoUri ?? process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null;
+}
+
+/**
+ * ── 13 Sep · what has been added to Needs through the control, for the session ──
+ *
+ * `POST /wishlist` was answered with the GET's `{ wishlistItems: [] }` — any
+ * body, any path under `/wishlist` — so an ADD on the catalogue "succeeded"
+ * into nothing: the row flipped on the screen's own state, and the Plan root
+ * behind it went on counting 0. The loop over the catalogue needs the added
+ * state as the product draws it, which is a row on Needs as well as a word
+ * on the catalogue, so the fixture keeps what is added the way it keeps the
+ * photograph: session-scoped, forgotten on reload.
+ *
+ * The shapes are the route's (`app/api/v1/wishlist/route.ts`): the POST
+ * answers `{ wishlistItem }` with the row it inserted; the GET lists rows
+ * newest first; `DELETE ?itemId=` removes one. The catalogue's identifier
+ * (`wishlistItemIdentifier`) is the dedupe key, as it is in the table — a
+ * second add of one identifier answers with the row already there rather
+ * than growing a duplicate the product cannot have. A body that is not an
+ * add (no identifier, no name) falls through to the network, the way every
+ * unmapped request here does.
+ */
+interface FixtureWishlistItem {
+  id: string;
+  vehicle_id: string;
+  item_type: string;
+  item_name: string;
+  item_identifier: string;
+  description: string | null;
+  category: null;
+  estimated_cost_parts: 0;
+  estimated_cost_labor: 0;
+  source: string;
+  /** The route's `jsonb` passthrough — the catalogue's note travels here. */
+  source_data: Record<string, unknown>;
+  created_at: string;
+}
+
+const addedNeeds: FixtureWishlistItem[] = [];
+
+/** The add's body, as `WishlistAddScreen` and the Build ladder send it — or `null`. */
+function wishlistAdd(body: unknown): Omit<FixtureWishlistItem, 'id' | 'created_at'> | null {
+  const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+  if (!record) return null;
+  const { vehicleId, itemType, itemName, itemIdentifier, description, source, sourceData } = record;
+  if (typeof itemIdentifier !== 'string' || typeof itemName !== 'string' || typeof itemType !== 'string') {
+    return null;
+  }
+  return {
+    vehicle_id: typeof vehicleId === 'string' ? vehicleId : M235I.id,
+    item_type: itemType,
+    item_name: itemName,
+    item_identifier: itemIdentifier,
+    description: typeof description === 'string' && description ? description : null,
+    category: null,
+    estimated_cost_parts: 0,
+    estimated_cost_labor: 0,
+    source: typeof source === 'string' ? source : 'manual',
+    source_data:
+      sourceData && typeof sourceData === 'object' ? (sourceData as Record<string, unknown>) : {},
+  };
+}
+
+function answerWishlist(path: string, request: { method?: string; body?: unknown }): unknown | undefined {
+  if (request.method === 'DELETE') {
+    /*
+      A regex rather than `URLSearchParams`: React Native's own polyfill of
+      that class implements `append` and `toString` and throws on `get`, and
+      whether Expo's runtime replaces it is not a thing a fixture should rest on.
+    */
+    const itemId = decodeURIComponent(/[?&]itemId=([^&]*)/.exec(path)?.[1] ?? '');
+    const at = addedNeeds.findIndex((item) => item.id === itemId);
+    if (at >= 0) addedNeeds.splice(at, 1);
+    return { success: true };
+  }
+  if (request.method === 'POST') {
+    const add = wishlistAdd(request.body);
+    if (!add) return undefined;
+    const existing = addedNeeds.find((item) => item.item_identifier === add.item_identifier);
+    if (existing) return { wishlistItem: existing };
+    const item: FixtureWishlistItem = {
+      ...add,
+      id: `needs-${addedNeeds.length + 1}-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    addedNeeds.unshift(item);
+    return { wishlistItem: item };
+  }
+  /*
+    ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:
+    [] }`, a key no consumer reads, so the vehicle hub's PLAN row carried
+    nothing where the real API's empty list gives it a 0 — and the critique
+    called the row "valueless" on the strength of the fixture's lie.
+  */
+  return { wishlistItems: [...addedNeeds] };
+}
+
+/** The fixture car as the routes answer it — `photo_url` decided now, not at import. */
+function designCar() {
+  const photo = designPhotoUrl();
+  return {
+    ...M235I,
+    photo_url: photo,
+    /* `null` under a photograph, as the route does it — the plate is not showing. */
+    plate_status: photo ? null : DESIGN_PLATE_STATUS,
+  };
+}
+
 export function fixtureHolds(path: string): boolean {
   const raw = process.env.EXPO_PUBLIC_DESIGN_HOLD;
   if (!raw) return false;
+  /*
+    A name holds its own route — `/consultant` holds the ask and its query
+    string — and not the routes beneath it: `/consultant/conversations` is
+    the thread list, which a frame of the advisor answering still wants to
+    open (13 Sep). To hold a whole subtree, name it with a trailing slash.
+  */
+  const route = path.split('?')[0];
   return raw
     .split(',')
     .map((prefix: string) => prefix.trim())
     .filter(Boolean)
-    .some((prefix: string) => path.startsWith(prefix));
+    .some((prefix: string) =>
+      prefix.endsWith('/') ? route.startsWith(prefix) : route === prefix
+    );
 }
 
 /**
@@ -347,8 +647,52 @@ const DESIGN_EMPTY = new Set(
  * does not cover behaves normally instead of silently rendering as empty. An
  * un-fixtured screen should look broken, not finished.
  */
-export function fixtureFor(path: string): unknown | undefined {
-  if (path.startsWith('/vehicles')) return { vehicles: [M235I] };
+const THREADS = [
+  {
+    id: 'thread-modes',
+    title: 'Sport mode vs sport transmission',
+    created_at: '2026-09-12T14:10:00Z',
+    updated_at: '2026-09-13T14:42:00Z',
+  },
+  { id: 'thread-pump', title: null, created_at: '2026-09-11T16:00:00Z', updated_at: '2026-09-11T16:04:00Z' },
+];
+
+const THREAD_MESSAGES: Record<string, Array<{ role: 'user' | 'assistant'; content: string }>> = {
+  'thread-modes': [
+    { role: 'user', content: "What's the difference between the sport driving mode and sport transmission mode?" },
+    {
+      role: 'assistant',
+      content:
+        'Sport on the rocker changes the whole car — throttle map, steering weight, the adaptive dampers and the shift schedule. Sport on the shifter changes the gearbox alone: it holds gears longer and shifts harder, and leaves the rest as it was.',
+    },
+  ],
+  'thread-pump': [
+    { role: 'user', content: 'Tell me about the electric water pump on my 2015 BMW M235i.' },
+    {
+      role: 'assistant',
+      content:
+        'The N55 uses an electric coolant pump that fails without much warning, usually between 60,000 and 90,000 miles. Budget for it with the thermostat; the labour overlaps.',
+    },
+  ],
+};
+
+export function fixtureFor(
+  path: string,
+  request: { method?: string; body?: unknown } = {}
+): unknown | undefined {
+  if (path.startsWith('/upload-photo')) {
+    if (request.method === 'DELETE') {
+      addedPhotoUri = null;
+      return { success: true };
+    }
+    const uri = filePartUri(request.body);
+    // Not the shape the app sends: fall through to the network rather than
+    // answer a request this file does not understand.
+    if (!uri) return undefined;
+    addedPhotoUri = uri;
+    return { success: true, photoUrl: uri };
+  }
+  if (path.startsWith('/vehicles')) return { vehicles: [designCar()] };
   if (path.startsWith('/load-vehicle')) {
     /*
       ── 12 Sep · the drivers, computed rather than written ───────────────────
@@ -366,13 +710,13 @@ export function fixtureFor(path: string): unknown | undefined {
     */
     const schedule = DESIGN_EMPTY.has('schedule') ? [] : SCHEDULE;
     return {
-      vehicle: M235I,
+      vehicle: designCar(),
       /*
         ⚠ A top-level sibling of `vehicle`, as the route returns it — the
         screen's own docblock records that reading it off the vehicle is
         `undefined` forever with no error anywhere.
       */
-      knowledge: { maintenance_schedule: schedule },
+      knowledge: { known_issues: KNOWN_ISSUES, maintenance_schedule: schedule, common_mods: COMMON_MODS },
       health_drivers: driversForVehicle({
         schedule,
         historyRows: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
@@ -388,12 +732,25 @@ export function fixtureFor(path: string): unknown | undefined {
       maintenanceLineItems: DESIGN_EMPTY.has('history') ? [] : MAINTENANCE,
     };
   }
+  /* Needs — what has been added this session. See `answerWishlist`. */
+  if (path.startsWith('/wishlist')) return answerWishlist(path, request);
   /*
-    ⚠ `wishlistItems`, the route's own field (12 Sep). This answered `{ items:
-    [] }`, a key no consumer reads, so the vehicle hub's PLAN row carried
-    nothing where the real API's empty list gives it a 0 — and the critique
-    called the row "valueless" on the strength of the fixture's lie.
+    ── 13 Sep · the advisor's threads, so the sheet can be photographed ─────
+    Two threads the shape the routes send — `conversations` newest first, one
+    without a server title so the fallback row is in frame — and each one's
+    messages. `/consultant` itself stays unanswered (held or real), because a
+    canned answer would put words in the model's mouth on a frame.
   */
-  if (path.startsWith('/wishlist')) return { wishlistItems: [] };
+  if (path.startsWith('/consultant/conversations/')) {
+    const id = path.slice('/consultant/conversations/'.length);
+    return {
+      conversation: {
+        id,
+        title: THREADS.find((t) => t.id === id)?.title ?? null,
+        messages: THREAD_MESSAGES[id] ?? [],
+      },
+    };
+  }
+  if (path.startsWith('/consultant/conversations')) return { conversations: THREADS };
   return undefined;
 }

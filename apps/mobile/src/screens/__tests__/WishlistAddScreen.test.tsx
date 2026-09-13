@@ -1,6 +1,9 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { WishlistAddScreen } from '../WishlistAddScreen';
+import { REASON_CAP, clipWords, suggestionValue } from '../wishlist-row';
+import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
+import { text } from '../../theme';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -133,16 +136,32 @@ describe('the suggestions', () => {
     expect(at('Engine Oil')).toBeLessThan(at('K&N'));
   });
 
-  it('colours a chip only where the research made a severity call', async () => {
+  it('names the kind on every chip, colours none, and says the priority once as the section', async () => {
     /*
       ⚠ The spec's rule: "priority chips are neutral unless the item is
       genuinely urgent." A list where half the chips are amber has taught its
-      reader that amber means nothing.
+      reader that amber means nothing — and round 38 found the sodium chip
+      saying what DO FIRST already said, while the same chip was grey on the
+      Needs list. The section carries urgency now; no chip carries a tone.
     */
     respond();
     const { view } = await mount();
 
     await view.findByText('Fuel injector seals');
+    /*
+      Read off the rendered word: the kind is a bare mono word in
+      `text.muted` — not a chip, since round 40 (*"a boxed category label
+      … reads as a control"*): the row keeps one box, the act's. The High
+      issue and the Critical service are the two rows that used to be toned.
+    */
+    const styleOf = (label: string) =>
+      Object.assign({}, ...[view.getAllByText(label)[0].props.style].flat(Infinity).filter(Boolean));
+    expect(styleOf('Known issue').color).toBe(text.muted);
+    expect(styleOf('Service').color).toBe(text.muted);
+    expect(styleOf('Known issue').fontFamily).toMatch(/JetBrainsMono/);
+    expect(styleOf('Known issue').textTransform).toBe('uppercase');
+    /* A word, not a chip: a `Chip` wraps its label in the cut surface, which measures itself. */
+    expect(view.getAllByText('Known issue')[0].parent?.props.onLayout).toBeUndefined();
 
     /*
       ⚠ **R40, 23 Aug.** Every chip now names the row's *kind*; none of them
@@ -275,6 +294,37 @@ describe('adding — the claims that moved from the composer', () => {
     expect(String((posted()![1]?.body as Record<string, unknown>).description)).toMatch(/fire risk/i);
   });
 
+  it('carries the figure with the item, as core’s own sentence in source_data', async () => {
+    /*
+      Round 40: the interval vanished between the catalogue and the list.
+      The sentence core wrote (`note`) travels in `sourceData`, and the list
+      reads its figure back through the same function — one spelling. A
+      suggestion with no note writes no key rather than an empty one.
+    */
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('Engine Oil (0W-20 Full Synthetic)');
+    await user.press(view.getByLabelText('Add Engine Oil (0W-20 Full Synthetic) to the wishlist'));
+
+    await waitFor(() => expect(posted()).toBeDefined());
+    // Both of core's strings travel: the sentence and, since core builds it, the figure itself.
+    expect(posted()![1]?.body).toMatchObject({ sourceData: { note: 'Every 5,000 mi', value: '5,000 MI' } });
+  });
+
+  it('writes no source_data for an item with nothing to carry — so the case above is real', async () => {
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('Fuel injector seals');
+    await user.press(view.getByLabelText('Add Fuel injector seals to the wishlist'));
+
+    await waitFor(() => expect(posted()).toBeDefined());
+    expect((posted()![1]?.body as Record<string, unknown>).sourceData).toBeUndefined();
+  });
+
   it('sends nothing for a whitespace-only entry', async () => {
     respond();
     const user = userEvent.setup();
@@ -329,7 +379,7 @@ describe('adding — the claims that moved from the composer', () => {
 
     // Flips to the on-list state rather than showing an error about a state
     // the person already has.
-    await view.findByText('On the list');
+    await view.findByText('Added');
     expect(view.queryByText(/could not be added/i)).toBeNull();
   });
 
@@ -369,7 +419,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('K&N Drop-in Air Filter');
-    view.getByText('On the list');
+    view.getByText('Added');
     expect(view.queryByLabelText('Add K&N Drop-in Air Filter to the wishlist')).toBeNull();
   });
 });
@@ -405,5 +455,153 @@ describe('the state that is not an error', () => {
 
     const { view } = await mount();
     await view.findByText(/have not worked out what .* needs yet/i);
+  });
+});
+
+describe('the row as a spec table — B6, round 37', () => {
+  /*
+    The figure in the numeral column is read back out of the sentence core
+    writes as `note`, so these run core's own `suggestionsFor` rather than
+    hand-written notes: a change to the template in `wishlist-suggestions.ts`
+    fails here instead of silently emptying every column.
+  */
+  const rows = suggestionsFor({
+    known_issues: [
+      { part: 'Water pump', severity: 'High', description: 'Fails.', mileage_range: '60,000 - 100,000 miles' },
+      {
+        part: 'Coils',
+        severity: 'Low',
+        description: 'Wear.',
+        mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+      },
+    ],
+    maintenance_schedule: [
+      { service: 'Oil', priority: 'Critical', description: 'Drain.', interval_miles: 5000, interval_months: 12 },
+      { service: 'Belt', priority: 'Normal', description: 'Look.', interval_miles: 15000 },
+      { service: 'Brake fluid', priority: 'Normal', description: 'Bleed.', interval_months: 24 },
+    ],
+    common_mods: [{ name: 'Intake', purpose: 'Air.', difficulty: 'Easy' }],
+  });
+  const byName = (name: string) => rows.find((row) => row.name === name)!;
+
+  it('prefers the figure core built over the sentence, and reads a row written before it out of the sentence', () => {
+    // A row stored today carries core's `value`; the parser never runs for it.
+    expect(suggestionValue({ type: 'maintenance', note: 'Every 5,000 mi', value: '5,000 MI' })).toBe('5,000 MI');
+    expect(suggestionValue({ type: 'issue', note: 'nonsense', value: '60,000–100,000 MI' })).toBe('60,000–100,000 MI');
+  });
+
+  it('reads the figure out of the sentence, in the column’s voice', () => {
+    expect(suggestionValue(byName('Water pump'))).toBe('60,000–100,000 MI');
+    expect(suggestionValue(byName('Oil'))).toBe('5,000 MI / 12 MO');
+    expect(suggestionValue(byName('Belt'))).toBe('15,000 MI');
+    expect(suggestionValue(byName('Brake fluid'))).toBe('24 MO');
+    expect(suggestionValue(byName('Intake'))).toBe('EASY');
+  });
+
+  it('spans every window the sentence names, and guesses nothing from prose', () => {
+    /*
+      Round 39: two windows in one sentence — plugs and coils — is the row's
+      window from the first low to the last high, which is what the model
+      wrote and no more (§10: an envelope is less precise, not more). A
+      sentence with no window in it gives the column nothing.
+    */
+    expect(suggestionValue(byName('Coils'))).toBe('30,000–100,000 MI');
+    expect(suggestionValue({ type: 'issue', note: 'Typically at high mileage' })).toBeNull();
+    expect(suggestionValue({ type: 'issue', note: null })).toBeNull();
+  });
+
+  it('draws the figure at the rule and never as a sentence in the body', async () => {
+    request.mockImplementation((path: string) =>
+      path.startsWith('/wishlist')
+        ? Promise.resolve({ wishlistItems: [] } as never)
+        : Promise.resolve({
+            vehicle: { year: 2015, make: 'BMW', model: 'M235i' },
+            knowledge: {
+              known_issues: [
+                { part: 'Water pump', severity: 'High', description: 'Fails.', mileage_range: '60,000 - 100,000 miles' },
+                {
+                  part: 'Coils',
+                  severity: 'Low',
+                  description: 'Wear.',
+                  mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+                },
+              ],
+            },
+          } as never)
+    );
+    const { view } = await mount();
+    await view.findByText('Water pump');
+
+    view.getByText('60,000–100,000 MI');
+    view.getByText('30,000–100,000 MI');
+    /* Never a numeric sentence in the body (round 39): the figure is the column's or nowhere. */
+    expect(view.queryByText(/Typically/)).toBeNull();
+    /*
+      And the index, which is what makes it a spec table rather than a list —
+      counted within each group, as the History counts within a visit: the
+      High issue is 01 of DO FIRST and the Low one is 01 of EVERYTHING ELSE.
+      Hidden from the reader (the name is the row's identity), so asked for.
+    */
+    expect(view.getAllByText('01', { includeHiddenElements: true })).toHaveLength(2);
+    expect(view.queryByText('02', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('ends the reason on a sentence where one fits, else on a word, never inside one', () => {
+    /*
+      Round 41, after the stop: "rough idle…" was a cut inside a sentence
+      whose first sentence fit the cap. Where a full stop lands inside the
+      cap the cut ends there, with no ellipsis — an edit, not a truncation;
+      a single sentence longer than the cap still ends on a word.
+    */
+    const vanos =
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.';
+    expect(clipWords(vanos)).toBe('Can become clogged or fail, affecting variable valve timing.');
+
+    const prose =
+      'The electric water pump and thermostat are known to fail, leading to engine overheating, coolant loss, and potential stranding of the vehicle.';
+    const clipped = clipWords(prose);
+    expect(clipped.length).toBeLessThanOrEqual(REASON_CAP + 1);
+    expect(clipped.endsWith('…')).toBe(true);
+    expect(clipped).toBe('The electric water pump and thermostat are known to fail, leading to engine overheating, coolant…');
+    // Short prose is left alone, so the cases above are not matching a template.
+    expect(clipWords('Fails.')).toBe('Fails.');
+    // A full stop inside a number is not a sentence's end.
+    expect(clipWords('Runs 0.5h labor then fails, leading to engine overheating, coolant loss, and potential stranding of it all.')).toMatch(/…$/);
+  });
+
+  it('marks an added row with the one word the app uses for that state, and no glyph', async () => {
+    respond({ onList: [wishlistItemIdentifier('modification', 'K&N Drop-in Air Filter')] });
+    const { view } = await mount();
+    await view.findByText('Added');
+    /*
+      The check-circle that used to sit before the word was the critique's
+      "icon doing the job the system gives to a mono word": the word is the
+      state, it is not a button, and a reader hears the sentence. ADDED, the
+      Due table's word (round 39): "On the list" was wider than the box it
+      replaced and pushed LEARN MORE left on exactly the rows just touched.
+    */
+    const word = view.getByText('Added');
+    expect(word.props.accessibilityRole).toBeUndefined();
+    expect(view.getByLabelText('K&N Drop-in Air Filter is on the list')).toBeTruthy();
+  });
+
+  it('heads a section in the condensed grotesk and a search count in mono', async () => {
+    /*
+      Round 39: DO FIRST and EVERYTHING ELSE are section heads (B1 gives
+      those the condensed grotesk, at the Due table's 20pt so the face reads
+      as itself); "5 MATCHING" is a count, and a count is mono like the
+      root's "2 ITEMS".
+    */
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText('Fuel injector seals');
+
+    const faceOf = (label: string) =>
+      Object.assign({}, ...[view.getByText(label).props.style].flat(Infinity).filter(Boolean)).fontFamily as string;
+    expect(faceOf('DO FIRST')).toMatch(/ArchivoNarrow/);
+
+    await user.type(view.getByLabelText('Search suggestions'), 'filter');
+    expect(faceOf('1 MATCHING')).toMatch(/JetBrainsMono/);
   });
 });

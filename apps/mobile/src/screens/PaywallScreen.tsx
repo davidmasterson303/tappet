@@ -13,6 +13,7 @@ import {
   FREE_FEATURE_COPY,
   PAID_FEATURES,
   PAID_FEATURE_COPY,
+  type PaidFeature,
 } from '@tappet/core/paid-features';
 
 /**
@@ -63,20 +64,52 @@ export interface SubscriptionOption {
  * The restore control is required for the same reason it is useful: a
  * reinstall, a second device, or a subscription bought before signing in all
  * end up needing it, and a customer who cannot find it buys twice.
+ *
+ * ── ⚠ Four states before a price, and each says only what is true ───────────
+ *
+ * The store adapter (`api/store.ts`) answers one of `ready`, `none`, `failed`
+ * or `unavailable`, and this screen has a sentence for each of the three that
+ * are not a price:
+ *
+ *   - **`unavailable`** — this build has no StoreKit. Expo Go today, and the
+ *     state of any build the native module is not in. Not an error and not a
+ *     network problem; the sentence says the build cannot buy, and nothing
+ *     else.
+ *   - **`none`** — the App Store answered and carries none of our products.
+ *     True until App Store Connect has them, and true after launch in a
+ *     storefront the product is not sold in. The sentence used to blame the
+ *     customer's Apple ID ("nothing available to buy on this Apple ID"), which
+ *     was a guess about the cause dressed as a fact.
+ *   - **`failed`** — the App Store could not be reached. The one case where
+ *     "check your connection" is honest advice.
+ *
+ * No price is rendered in any of them, because none was returned.
  */
 export default function PaywallScreen({
   visible,
   options,
   loadFailed = false,
+  unavailable = false,
+  feature = null,
   onPurchase,
   onRestore,
   onClose,
 }: {
   visible: boolean;
-  /** `null` while StoreKit is still answering. */
+  /** `null` while StoreKit is still answering; `[]` when it answered with nothing. */
   options: SubscriptionOption[] | null;
   /** StoreKit could not return products at all. */
   loadFailed?: boolean;
+  /**
+   * This build cannot talk to StoreKit. Wins over every other state: a build
+   * with no store has not failed to load anything.
+   */
+  unavailable?: boolean;
+  /**
+   * The feature whose refusal opened this screen, so the person is told what
+   * they are being asked to pay for. `null` when opened from settings.
+   */
+  feature?: PaidFeature | null;
   onPurchase: (productId: string) => Promise<PurchaseResolution>;
   onRestore: () => Promise<PurchaseResolution>;
   onClose: () => void;
@@ -151,6 +184,18 @@ export default function PaywallScreen({
           */}
           <Text style={styles.headline}>Three features, one subscription</Text>
 
+          {/*
+            Why the screen opened, when a refusal opened it. One line naming the
+            feature the person just reached for — the same fact the refusal
+            carried, and the only thing this screen knows about it. Nothing
+            when opened from settings, where there is no such fact.
+          */}
+          {feature ? (
+            <Text style={styles.lede} accessibilityRole="text">
+              {PAID_FEATURE_COPY[feature].label} is part of Tappet Plus.
+            </Text>
+          ) : null}
+
           <View style={styles.features}>
             {PAID_FEATURES.map((feature) => (
               <View key={feature} style={styles.feature}>
@@ -185,7 +230,19 @@ export default function PaywallScreen({
             </View>
           )}
 
-          {loadFailed ? (
+          {unavailable ? (
+            /*
+              Expo Go, or any build without the native module. The adapter
+              reports it as a state rather than an error, and the sentence
+              matches: nothing is broken, nothing is loading, and nothing on
+              this screen can be bought from here.
+            */
+            <Well style={styles.notice}>
+              <Text style={styles.noticeText}>
+                This build of Tappet cannot make purchases, so there is nothing to buy from here.
+              </Text>
+            </Well>
+          ) : loadFailed ? (
             <Well style={styles.notice}>
               <Text style={styles.noticeText}>
                 We could not reach the App Store to load prices. Check your connection and try
@@ -204,9 +261,17 @@ export default function PaywallScreen({
               <Working variant="compact" line="Loading prices" detail="From the App Store." />
             </Well>
           ) : options.length === 0 ? (
+            /*
+              The App Store answered, and carries none of our products. That is
+              the honest state until App Store Connect has them, and the honest
+              state in a storefront the product is not sold in — and neither is
+              anything about the customer or their connection. "Yet" is the one
+              word doing work: a catalogue is a thing that changes.
+            */
             <Well style={styles.notice}>
               <Text style={styles.noticeText}>
-                There is nothing available to buy on this Apple ID right now.
+                Tappet Plus is not on sale in your App Store yet, so there is nothing to buy
+                here for now.
               </Text>
             </Well>
           ) : (

@@ -11,9 +11,12 @@
 
 import {
   filterSuggestions,
+  intervalValue,
   learnMoreQuestion,
+  mileageWindowValue,
   suggestionsFor,
 } from '@tappet/core/wishlist-suggestions';
+import { readWishlistSourceData } from '@tappet/core/wishlist-source';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
 /** The Accord's row, trimmed. Field names as PostgREST returns them. */
@@ -116,6 +119,39 @@ describe('reading the three sources', () => {
     expect(byName.get('Engine Oil (0W-20 Full Synthetic)')?.note).toBe('Every 5,000 mi');
     expect(byName.get('Brake fluid')?.note).toBe('Every 36 months');
     expect(byName.get('10th Gen CVT Transmission')?.note).toBe('Typically 80,000-120,000 mi');
+  });
+
+  it('gives every row its one figure for a numeral column, built from the fields and not the sentence', () => {
+    /*
+      13 Sep, for the Plan rows: a spec table's figure is mono at the rule —
+      `80,000–120,000 MI`, `5,000 MI`, `36 MO`, `EASY` — and it is core's so
+      the catalogue and the Needs list print one figure for one item. Built
+      from the raw fields: the sentence's template may change without
+      moving it.
+    */
+    const byName = new Map(all.map((s) => [s.name, s]));
+    expect(byName.get('10th Gen CVT Transmission')?.value).toBe('80,000–120,000 MI');
+    expect(byName.get('Engine Oil (0W-20 Full Synthetic)')?.value).toBe('5,000 MI');
+    expect(byName.get('Brake fluid')?.value).toBe('36 MO');
+    expect(byName.get('K&N Drop-in Air Filter')?.value).toBe('EASY');
+    // No window in the text: no figure, never one guessed from prose (§10).
+    expect(byName.get('Fuel injector seals')?.value).toBeNull();
+  });
+
+  it('spans a window the model wrote as two, and reads both interval halves', () => {
+    expect(mileageWindowValue('30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)')).toBe('30,000–100,000 MI');
+    expect(mileageWindowValue('60,000–100,000 mi')).toBe('60,000–100,000 MI');
+    expect(mileageWindowValue('when the coolant starts to smell')).toBeNull();
+    expect(mileageWindowValue(null)).toBeNull();
+    expect(intervalValue(5000, 12)).toBe('5,000 MI / 12 MO');
+    expect(intervalValue(null, null)).toBeNull();
+  });
+
+  it('reads a stored row’s note and figure back, and nothing off a shape it does not know', () => {
+    expect(readWishlistSourceData({ note: 'Every 5,000 mi', value: '5,000 MI' })).toEqual({ note: 'Every 5,000 mi', value: '5,000 MI' });
+    expect(readWishlistSourceData({})).toEqual({ note: null, value: null });
+    expect(readWishlistSourceData(null)).toEqual({});
+    expect(readWishlistSourceData({ note: 42, value: '' })).toEqual({ note: null, value: null });
   });
 
   it('survives every shape a jsonb column can actually hold', () => {

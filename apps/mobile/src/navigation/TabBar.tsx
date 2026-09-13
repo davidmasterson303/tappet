@@ -1,4 +1,4 @@
-import { CommonActions, type NavigationState } from '@react-navigation/native';
+import { CommonActions, getFocusedRouteNameFromRoute, type NavigationState } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -122,9 +122,31 @@ function mountedVehicle(route: NavigationState['routes'][number]): string | unde
  * same argument `native-wishlist.spec.html` makes against a floating action
  * button. It takes its 49pt out of the frame instead, which the review costed
  * explicitly against the pinned hero and judged worth it.
+ *
+ * ── The one act it stands down for ──────────────────────────────────────────
+ *
+ * The invoice scan opens on a viewfinder (B9, 12 Sep), and the critic read a
+ * viewfinder above GARAGE / PLAN / ADVISOR as *"a tab child"* in two rounds
+ * (34 and 36): a camera is an act, not a place, and the act wants the frame
+ * to itself with the readout as its only chrome. So on `InvoiceScan` the bar
+ * draws nothing. Still the navigator's, still outside every screen — the
+ * structural claim above holds; the bar decides for itself what one route
+ * gets, the way a native camera sheet takes the whole screen. The viewfinder
+ * pads its own foot by the safe-area inset for the same reason the bar does:
+ * without the bar the home indicator is its neighbour.
  */
+const ROUTES_WITHOUT_A_BAR = new Set(['InvoiceScan']);
+
+/** The route the focused tab is showing — a pushed screen's name, or the tab's own. */
+export function focusedRouteName(state: Pick<BottomTabBarProps['state'], 'routes' | 'index'>): string {
+  const tab = state.routes[state.index];
+  return tab ? getFocusedRouteNameFromRoute(tab) ?? tab.name : '';
+}
+
 export default function TabBar({ state, navigation }: Pick<BottomTabBarProps, 'state' | 'navigation'>) {
   const insets = useSafeAreaInsets();
+
+  if (ROUTES_WITHOUT_A_BAR.has(focusedRouteName(state))) return null;
 
   return (
     <View

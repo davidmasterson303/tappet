@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/supabase';
 import { checkMonthlyBudget } from '@/lib/ai-budget';
-import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
+import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { budgetMessage } from '@tappet/core/ai/budget';
 import {
   nextCheckDue,
@@ -125,6 +125,13 @@ export interface VehicleForResearch {
 export interface ResearchOutcome {
   success: boolean;
   error?: string;
+  /**
+   * Present only on a feature-gate refusal, beside `error` — E6's wire. The
+   * shape is `FeatureRefusal` in `feature-gate.ts`; a caller that forwards
+   * errors to a client forwards these two with it.
+   */
+  code?: FeatureRefusal['code'];
+  feature?: FeatureRefusal['feature'];
   unsupported?: boolean;
   data?: z.infer<typeof VehicleDataSchema>;
   /**
@@ -195,7 +202,7 @@ export async function researchVehicleDossier(
           vehicleId,
           userId,
         });
-        return { success: false, error: gate };
+        return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
       }
 
       const budget = await checkMonthlyBudget(userId);

@@ -18,6 +18,7 @@
 import {
   SCHEDULE_BASIS_LABELS,
   SERVICE_BASIS_LABELS,
+  SERVICE_BASIS_SHORT,
   isServiceBasis,
   milestoneBasis,
   serviceBasis,
@@ -180,6 +181,23 @@ describe('the wording', () => {
       expect(SERVICE_BASIS_LABELS[basis]).toEqual(expect.any(String));
       expect(SERVICE_BASIS_LABELS[basis].length).toBeGreaterThan(0);
     }
+  });
+
+  it('gives every basis a short token that is a word of its own sentence, and nothing more', () => {
+    /*
+      B6's token stands in for the sentence on a row with no room for one.
+      It may only be a word the sentence already says — RECORDS, SIGN-UP,
+      ESTIMATED — so the phone cannot claim on one line what the web denies
+      on the next. Held here rather than trusted: a token that drifted to
+      "VERIFIED" or "DEALER" would pass every layout test and lie.
+    */
+    for (const basis of Object.keys(SERVICE_BASIS_LABELS) as Array<keyof typeof SERVICE_BASIS_LABELS>) {
+      const token = SERVICE_BASIS_SHORT[basis];
+      expect(token).toMatch(/^[A-Z][A-Z-]+$/);
+      expect(SERVICE_BASIS_LABELS[basis].toLowerCase()).toContain(token.toLowerCase());
+    }
+    // Three claims, three different tokens.
+    expect(new Set(Object.values(SERVICE_BASIS_SHORT)).size).toBe(Object.keys(SERVICE_BASIS_LABELS).length);
   });
 });
 

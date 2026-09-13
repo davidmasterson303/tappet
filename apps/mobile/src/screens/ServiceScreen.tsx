@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useContext, useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { NavigationContext } from '@react-navigation/native';
 
 import Button from '../components/Button';
 import RootScreen from '../components/RootScreen';
@@ -7,7 +8,7 @@ import Segmented from '../components/Segmented';
 import { ServiceHistoryScreen } from './ServiceHistoryScreen';
 import type { ServiceVisit } from '@tappet/core/service-record';
 import { ServiceMilestoneScreen } from './ServiceMilestoneScreen';
-import { PAGE_BODY, space } from '../theme';
+import { PAGE_BODY, border, space, text, type } from '../theme';
 
 export type ServiceSegment = 'due' | 'history';
 
@@ -42,12 +43,22 @@ export type ServiceSegment = 'due' | 'history';
  */
 export function ServiceScreen({
   vehicleId,
+  vehicleTitle,
   onScan,
   onOpenVisit,
   initialSegment = 'due',
   onSignOut,
 }: {
   vehicleId: string;
+  /**
+   * The car this tab is about, named under the band — the Advisor root's
+   * context line (R52), which the critique asked this root for in round 34:
+   * *"nothing says which car this Due list belongs to, and a garage can hold
+   * more than one."* Optional because the route's `title` is: a deep link
+   * carries the id and not always the name, and a line that said "undefined"
+   * would be worse than no line.
+   */
+  vehicleTitle?: string;
   /**
    * Which side to open on.
    *
@@ -92,6 +103,17 @@ export function ServiceScreen({
   }, [initialSegment]);
 
   /*
+    Pushed from the car's hub, the native header's back label already names
+    the car — "‹ BMW M235I" — and the same name 24pt beneath it is the "two
+    names on one screen" `ScreenTitle` retired. The line is the root's, where
+    nothing else says whose list this is. `NavigationContext` is read the way
+    `RootScreen` and `PlanScreen` read it, so the three cannot disagree about
+    whether a header is present.
+  */
+  const navigation = useContext(NavigationContext);
+  const pushed = navigation?.canGoBack() ?? false;
+
+  /*
     ── ⚠ 11 Sep · B8: the root's name collapses, the rail and the primary stay ──
 
     `RootScreen` draws the condensed title and turns it into the mono nav title
@@ -102,6 +124,23 @@ export function ServiceScreen({
   */
   const pinned = (
     <>
+      {/*
+        ── 12 Sep · the root names its car — brief B2, round 34 ─────────────
+
+        The Advisor root's line, in the Advisor's voice (mono caps, muted,
+        pinned under the band so it is true for every scroll position). The
+        Garage names its car on the bay; this tab computed a Due list for a
+        car it never named, which on a two-car garage is a list with no
+        subject. Above the rail: it says what the rail switches between.
+      */}
+      {vehicleTitle && !pushed ? (
+        <View style={styles.context}>
+          <Text style={styles.contextLabel} numberOfLines={1}>
+            {vehicleTitle}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.switcher}>
         <Segmented
           accessibilityLabel="Service"
@@ -155,14 +194,39 @@ export function ServiceScreen({
 
 const styles = StyleSheet.create({
   /*
+    The Advisor root's context line, to the same numbers (`AdvisorScreen`'s
+    `context`), so the two roots name their car in one place and one voice.
+    Its bottom air is the rail's top air; the rail keeps its own.
+  */
+  context: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  contextLabel: { ...type.monoLabel, color: text.muted },
+  /*
     Full-bleed to the page gutter; the control's own cut is its only edge.
 
     ⚠ 12 Sep: 4 beneath, not 12. Each segment's body opens with `PAGE_BODY`'s
     20 (nav → first element), so the primary sat 32pt above the first rule
     on every frame — the critique's Cut list, *"the ~75px of air"*. 4 + 20 is
     the band spacing the instrument uses (§14.3's 24), which is enough.
+
+    ── 12 Sep · the band closes with a rule — brief B5, round 34 ────────────
+
+    The pinned block ended at the primary's cut, and the list beneath scrolled
+    under it with nothing marking the edge: *"'records' peeks out beneath it
+    in 02 and the search field is sliced in half in 03b"*. A hairline closes
+    it now, 12 under the control, so content passes under a rule the way it
+    passes under the collapsed title's. ⚠ The rule that used to open each
+    segment's first band went with it — the odometer gate's, the confirmed
+    reading's, both empties' — because two hairlines with 20pt of nothing
+    between them read as an empty band (`EmptyState`'s own `rule` note). The
+    first element now sits `PAGE_BODY`'s 20 under this rule, which is where
+    the old rule's air put it.
   */
-  scan: { paddingHorizontal: space.lg, paddingBottom: space.xs },
+  scan: {
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: border.panel,
+  },
   /*
     Pinned above the content, on the page's own surface. Same rule as the
     history screen's search field: a control whose job is to change what is

@@ -110,12 +110,52 @@ export async function checkFeatureAccess(
 }
 
 /**
- * The refusal message, or `null` when the call may proceed.
+ * What a refused call returns, beside `success: false`.
+ *
+ * ── E6's wire — the machine-readable half of a refusal ──────────────────────
+ *
+ * Until 12 Sep this was a sentence. A sentence is right for a person and
+ * useless to a client: the phone read "The advisor is part of Tappet Plus" as
+ * one more failed request, and the consultant route answered it with a 502
+ * that the advisor screen renders as "try again" — advice that cannot help,
+ * because the answer is a purchase, not a retry.
+ *
+ * So the refusal carries `code` beside `error`. It is the literal already in
+ * `FeatureDecision['state']` rather than a second string, so the gate and the
+ * wire cannot name the same state two ways; and `feature`, so the paywall can
+ * say what was reached for. The `/api/v1/*` routes forward both, the mobile
+ * client's `ApiRequestError` carries `code`, and `requestUpgrade(feature)` is
+ * what a screen calls on it.
+ *
+ * ⚠ **Wired, and off.** `PAID_FEATURES_ENFORCED` decides whether this is ever
+ * returned, and it stays off until a sandbox purchase has been through Restore
+ * — `paid-features.ts` carries the rule. Nothing about this shape changes
+ * what a call is allowed to do.
+ */
+export interface FeatureRefusal {
+  /** The sentence, written to be shown. */
+  error: string;
+  /** The literal a client keys on to open the paywall. */
+  code: Extract<FeatureDecision, { state: 'needs-subscription' }>['state'];
+  /** What was reached for, so the paywall can name it. */
+  feature: PaidFeature;
+}
+
+/**
+ * The refusal, or `null` when the call may proceed.
  *
  * A convenience for the call sites, which all have the same shape as the budget
- * checks above them: one guard, one early return carrying a sentence the client
- * can render.
+ * checks above them: one guard, one early return carrying the three fields.
+ *
+ * ⚠ Written out at the call sites rather than spread — `{ success: false,
+ * error: gate.error, code: gate.code, feature: gate.feature }`. The routes
+ * read `result.code` off the action's *inferred* return type, and TypeScript
+ * only adds a member's missing properties to the other members of that union
+ * (as `code?: undefined`) for plain object literals; a spread is left out, and
+ * `result.code` then does not typecheck anywhere.
  */
-export function featureRefusal(decision: FeatureDecision): string | null {
-  return decision.state === 'needs-subscription' ? decision.message : null;
+export function featureRefusal(decision: FeatureDecision): FeatureRefusal | null {
+  return decision.state === 'needs-subscription'
+    ? { error: decision.message, code: decision.state, feature: decision.feature }
+    : null;
 }

@@ -54,6 +54,8 @@ export function AccountScreen({
   onClose,
   onSignOut,
   onDeleted,
+  onSubscribe,
+  subscriptionEpoch,
 }: {
   /**
    * Present it as a modal.
@@ -71,6 +73,19 @@ export function AccountScreen({
   onSignOut: () => void;
   /** Called after the account is gone, so the app can clear the session. */
   onDeleted: (summary: string) => void;
+  /**
+   * Opens the paywall. E8 — the settings way in, beside the refusal way in
+   * (`requestUpgrade`). Optional so the modal presentation, which predates
+   * the paywall being mounted anywhere, need not offer a row it cannot honour;
+   * absent, the row is not drawn.
+   */
+  onSubscribe?: () => void;
+  /**
+   * Bumped by `RootNavigator` when the paywall says the server entitled the
+   * account. The subscription is re-read on every change; the value itself
+   * means nothing. See the E5 note on the read below for why this exists.
+   */
+  subscriptionEpoch?: number;
 }) {
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -85,6 +100,14 @@ export function AccountScreen({
     subscription purchase, and a screen that checked once at app start would
     tell somebody who subscribed ten minutes ago that they have nothing to
     cancel.
+
+    ⚠ And read again on `subscriptionEpoch` (12 Sep, E8). As a route on the
+    root stack `visible` never changes, so "on open" is once — and the paywall
+    now opens over this screen from the Tappet Plus row. Somebody who bought
+    there and then deleted their account from here would have been told
+    nothing about the billing continuing, on the one screen whose job is to
+    say so. `PaywallHost` announces the server's verdict; the navigator turns
+    it into a number this effect depends on.
 
     A failure here resolves to "no subscription" and is deliberately silent.
     The screen's job is deletion — Apple requires that flow to work — and
@@ -104,7 +127,7 @@ export function AccountScreen({
     return () => {
       cancelled = true;
     };
-  }, [visible]);
+  }, [visible, subscriptionEpoch]);
 
   async function handleDelete() {
     if (!confirmed || deleting) return;
@@ -210,6 +233,33 @@ export function AccountScreen({
             <Text style={styles.value}>{email}</Text>
           </View>
         )}
+
+        {/*
+          ── E8 · the way to the paywall from settings ──────────────────────
+
+          Above sign-out, in the same shape as the legal rows below: a head in
+          the condensed grotesk and a 44pt row. What the row promises is only
+          what the paywall can do today — show plans, and restore — because
+          nothing is on sale yet and the paywall says so itself when it opens.
+          "Subscribe now" here would be a promise the next screen breaks.
+        */}
+        {onSubscribe ? (
+          <View style={styles.legal}>
+            <Text style={styles.label}>Subscription</Text>
+            <Pressable
+              onPress={onSubscribe}
+              disabled={deleting}
+              accessibilityRole="button"
+              accessibilityLabel="Tappet Plus, plans and restore purchases"
+              style={styles.legalRow}
+            >
+              <Text style={styles.legalText}>Tappet Plus</Text>
+              <Text style={styles.rowDetail}>
+                See plans, or restore a subscription bought on another device.
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/*
           An exact variant match, not an approximation: this was transparent
@@ -440,6 +490,8 @@ const styles = StyleSheet.create({
   legalRow: { minHeight: 44, justifyContent: 'center' },
   legalText: { color: text.secondary, fontFamily: interFace('400'),
     fontSize: 15 },
+  /** The subscription row's second line: what the next screen can do, in the value face. */
+  rowDetail: { ...type.value, color: text.muted, marginTop: 2 },
 
   /*
     ── ⚠ 6 Sep · B5 and B7: the danger zone became a band ────────────────────
