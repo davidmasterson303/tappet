@@ -7,6 +7,7 @@ import Button from '../components/Button';
 import Chip from '../components/Chip';
 import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
+import RowActions from '../components/RowActions';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import {
@@ -89,6 +90,69 @@ type State =
 
 /** What a hand-typed item is filed as when nothing else says otherwise. */
 const DEFAULT_TYPE: WishlistItemType = 'maintenance';
+
+/**
+ * The row's figure, for the numeral column — B6, round 37.
+ *
+ * A suggestion carries one figure: an issue's mileage window, a service's
+ * interval, a modification's difficulty. Core prints it as a sentence
+ * (`note`: "Typically 60,000 - 100,000 miles", "Every 5,000 mi or 12
+ * months", "Easy") and the row used to set that sentence in sans under the
+ * reason — the critique's *"the values are sans"*. A spec table's figure is
+ * mono and ends at the rule, so the sentence is read back into its numbers
+ * here: `60,000–100,000 MI`, `5,000 MI / 12 MO`, `EASY`. The numbers are
+ * core's own, unrounded (§10).
+ *
+ * ⚠ A window the model wrote in prose — the M235i's coils say "30,000 -
+ * 60,000 miles (plugs), 60,000 - 100,000 miles (coils)" — does not fit a
+ * column and is not forced into one: `null` here, and the row prints the
+ * sentence under the reason as before. Better nothing in the column than a
+ * figure that was guessed from a sentence.
+ *
+ * ⚠ **This belongs in `packages/core` beside `note`** — a `value` on
+ * `WishlistSuggestion`, built from the raw fields rather than read back out
+ * of the sentence, so the web can print the same figure. Written here
+ * because a worktree does not edit core; the shapes matched are the exact
+ * templates `wishlist-suggestions.ts` writes, and the test pins them
+ * against core's real output so a template change cannot pass silently.
+ */
+const WINDOW = /^Typically ([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)$/i;
+const INTERVAL = /^Every (?:([\d,]+) mi)?(?: or )?(?:(\d+) months)?$/;
+
+export function suggestionValue(suggestion: Pick<WishlistSuggestion, 'type' | 'note'>): string | null {
+  if (!suggestion.note) return null;
+  if (suggestion.type === 'issue') {
+    const match = WINDOW.exec(suggestion.note);
+    return match ? `${match[1]}–${match[2]} MI` : null;
+  }
+  if (suggestion.type === 'maintenance') {
+    const match = INTERVAL.exec(suggestion.note);
+    if (!match || (!match[1] && !match[2])) return null;
+    return [match[1] ? `${match[1]} MI` : null, match[2] ? `${match[2]} MO` : null]
+      .filter(Boolean)
+      .join(' / ');
+  }
+  return suggestion.note.toUpperCase();
+}
+
+/**
+ * Two lines of the reason, ended on a word — R41, revised in round 37.
+ *
+ * `numberOfLines={2}` cut the prose mid-word ("coolant loss, and p…"),
+ * which the critique read three times on one frame as *"an unedited
+ * default, not a decision"*. The platform's tail truncation has no word
+ * mode, so the cut is made here, at the last space before the cap, with the
+ * platform's own two-line limit kept beneath it for a narrower phone. Ninety-six
+ * characters is two lines of the 13pt value face at the row's text width on
+ * every iPhone this runs on.
+ */
+export const REASON_CAP = 96;
+
+export function clipWords(prose: string, cap = REASON_CAP): string {
+  if (prose.length <= cap) return prose;
+  const cut = prose.lastIndexOf(' ', cap);
+  return `${prose.slice(0, cut > 0 ? cut : cap).replace(/[,;:.]$/, '')}…`;
+}
 
 export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, onAdded }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -409,89 +473,100 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
           {rows.map((suggestion, index) => {
             const added = state.onList.has(suggestion.identifier);
             const working = busy === suggestion.identifier;
+            const value = suggestionValue(suggestion);
 
+            /*
+              ── 13 Sep · the row is the spec table's — B6, round 37 ──────────
+
+              The History and Due rows' shape: the mono index, the label, the
+              mono figure right-aligned at the rule, a hairline per row; the
+              reason beneath in the quiet sans, clear of the index column; and
+              the row's verbs on its last line (`RowActions`). It was a bold
+              sans name with the chip beside it, the sentence, the figure as a
+              second sentence, and two controls under everything — *"prose on
+              hairlines, not a spec table"*.
+            */
             return (
               <View
                 key={suggestion.identifier}
                 style={[styles.row, index < rows.length - 1 && styles.divided]}
               >
                 <View style={styles.rowHead}>
+                  <Text style={styles.index} accessibilityElementsHidden importantForAccessibility="no">
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
                   <Text style={styles.name}>{suggestion.name}</Text>
-                  {/*
-                    ⚠ Coloured only when the research said so. The spec:
-                    "priority chips are neutral unless the item is genuinely
-                    urgent." A list where half the chips are amber has taught
-                    its reader that amber means nothing.
-                  */}
-                  <Chip label={suggestion.chip} tone={suggestion.urgent ? 'attention' : 'neutral'} />
+                  {value ? (
+                    <Text style={styles.value} accessibilityLabel={suggestion.note ?? value}>
+                      {value}
+                    </Text>
+                  ) : null}
                 </View>
 
-                {/*
-                  ── R41 · two lines, and then the row stops ────────────────
+                <View style={styles.rowBody}>
+                  {/*
+                    ── R41 · two lines, and then the row stops ──────────────
 
-                  The reason is research prose and runs to whatever length the
-                  model wrote. Uncapped, the last row on screen ended mid-
-                  sentence at the fold with no ellipsis, which reads as a
-                  rendering fault rather than as more text below.
+                    The reason is research prose and runs to whatever length
+                    the model wrote. Uncapped, the last row on screen ended
+                    mid-sentence at the fold with no ellipsis, which reads as
+                    a rendering fault rather than as more text below. Two
+                    lines is enough to say what the part is and why it
+                    matters; the whole of it is what LEARN MORE is for — and
+                    the cut lands on a word (`clipWords`), not inside one.
+                  */}
+                  <Text style={styles.reason} numberOfLines={2} accessibilityLabel={suggestion.reason}>
+                    {clipWords(suggestion.reason)}
+                  </Text>
+                  {/* The figure as a sentence, only where it would not fit the column. */}
+                  {suggestion.note && !value ? <Text style={styles.note}>{suggestion.note}</Text> : null}
 
-                  Two lines is enough to say what the part is and why it
-                  matters; the whole of it is what "Learn more" is for.
-                */}
-                <Text style={styles.reason} numberOfLines={2}>
-                  {suggestion.reason}
-                </Text>
-                {suggestion.note ? <Text style={styles.note}>{suggestion.note}</Text> : null}
+                  {/*
+                    ── R39, rewritten 13 Sep · one control per row ────────────
 
-                <View style={styles.actions}>
-                  {added ? (
-                    <View style={styles.addedRow}>
-                      <Icon name="circle-check" size={16} color={text.secondary} />
-                      <Text style={styles.addedText}>On the list</Text>
-                    </View>
-                  ) : (
-                    <Button
-                      label="Add"
-                      /*
-                        ── R39 · one control per row ─────────────────────────
+                    `Add` and `Learn more` were once `outline` and `ghost`
+                    and read as two equal buttons down the list; R39 made ADD
+                    a `quiet` fill so each row had one control the eye could
+                    land on. `quiet` left the primitive set on 6 Sep (B4
+                    names three treatments, and a graphite fill was a field
+                    with no way to tell) and ADD "took `outline`" — back to
+                    the pair R39 was written to escape, which is what David
+                    read from his phone as *"unclear, not obvious, not
+                    inviting"*. The pair is now the pattern `RowActions`
+                    states once for every list: the box at the trailing edge
+                    is the act, the ghost word before it is the step beneath,
+                    and once added the box becomes its state word.
 
-                        `Add` and `Learn more` were `outline` and `ghost`, which
-                        read as two equal buttons repeated down the list — so no
-                        row had a primary and the eye had nothing to land on.
-
-                        `quiet` is a fill; `ghost` is not. That is an
-                        unambiguous step rather than two borders of different
-                        weights, and it costs nothing on the row that has
-                        already been added, where the control is replaced by its
-                        state.
-
-                        ⚠ The card itself is deliberately **not** the affordance,
-                        which is what the pattern would normally ask for. There
-                        is no suggestion detail screen; the only thing a row
-                        could navigate to is the advisor, and that spends a model
-                        call. A whole-card tap target that costs money on a
-                        mis-scroll is the wrong trade.
-                      */
-                      variant="outline"
-                      size="small"
-                      busy={working}
-                      busyLabel=""
-                      accessibilityLabel={`Add ${suggestion.name} to the wishlist`}
-                      onPress={() =>
-                        void add(suggestion.name, suggestion.type, suggestion.reason)
-                      }
-                      style={styles.action}
-                    />
-                  )}
-                  <Button
-                    label="Learn more"
-                    variant="ghost"
-                    size="small"
-                    accessibilityLabel={`Ask the advisor about ${suggestion.name}`}
-                    onPress={() =>
-                      onAskAdvisor(vehicleId, learnMoreQuestion(suggestion, state.name))
-                    }
-                    style={styles.action}
-                  />
+                    ⚠ The row itself is still deliberately **not** the
+                    affordance. There is no suggestion detail screen; the only
+                    thing a row could navigate to is the advisor, and that
+                    spends a model call. A whole-row tap that costs money on a
+                    mis-scroll is the wrong trade — declined in this loop as
+                    it was in §6.15's.
+                  */}
+                  <RowActions
+                    action={{
+                      label: 'Add',
+                      accessibilityLabel: `Add ${suggestion.name} to the wishlist`,
+                      onPress: () => void add(suggestion.name, suggestion.type, suggestion.reason),
+                      busy: working,
+                    }}
+                    secondary={{
+                      label: 'Learn more',
+                      accessibilityLabel: `Ask the advisor about ${suggestion.name}`,
+                      onPress: () => onAskAdvisor(vehicleId, learnMoreQuestion(suggestion, state.name)),
+                    }}
+                    done={added ? 'On the list' : null}
+                    doneAccessibilityLabel={`${suggestion.name} is on the list`}
+                  >
+                    {/*
+                      ⚠ Coloured only when the research said so. The spec:
+                      "priority chips are neutral unless the item is genuinely
+                      urgent." A list where half the chips are amber has taught
+                      its reader that amber means nothing.
+                    */}
+                    <Chip label={suggestion.chip} tone={suggestion.urgent ? 'attention' : 'neutral'} />
+                  </RowActions>
                 </View>
               </View>
             );
@@ -570,18 +645,27 @@ const styles = StyleSheet.create({
     fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
   clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
 
-  row: { padding: space.md, gap: space.xs },
-  divided: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
-  rowHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' },
-  name: { ...type.bodyStrong, color: text.primary, flexShrink: 1 },
-  reason: { ...type.value, color: text.secondary, lineHeight: 19 },
-  /* Figures — "Typically 60,000 – 100,000 miles", "Every 10,000 mi". R11. */
-  note: { ...type.label, letterSpacing: 0, color: text.muted, ...TABULAR },
+  /*
+    ── The spec table's row — B6 ─────────────────────────────────────────────
 
-  actions: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
-  action: { flexShrink: 1 },
-  addedRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: TARGET_MIN },
-  addedText: { ...type.uiStrong, color: text.secondary },
+    The Due row's numbers (`ServiceMilestoneScreen`): 12 above and below, the
+    head line's index at a fixed 22 so every name shares one left edge, the
+    figure mono and tabular at the rule, and everything beneath the head
+    line indented past the index column. Nothing here is a `padding` on the
+    horizontal — `ListGroup`'s rules run the page width and the row's text
+    starts on the page margin, as the History rows' does.
+  */
+  row: { paddingVertical: space.md, gap: space.xs },
+  divided: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
+  rowHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22, lineHeight: 20 },
+  name: { ...type.ui, color: text.primary, flex: 1 },
+  /* B6: the figure, mono, right-aligned and tabular so the column is a column. */
+  value: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
+  rowBody: { paddingLeft: 22 + space.md, gap: space.xs },
+  reason: { ...type.value, color: text.secondary, lineHeight: 19 },
+  /* The figure as a sentence, where it would not fit the column. R11. */
+  note: { ...type.label, letterSpacing: 0, color: text.muted, ...TABULAR },
 
   own: { gap: space.sm },
   ownLead: { ...type.value, color: text.muted, lineHeight: 19 },

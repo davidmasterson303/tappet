@@ -3,13 +3,14 @@ import { fireEvent, render, userEvent } from '@testing-library/react-native';
 
 import AlertBanner from '../AlertBanner';
 import BandRow from '../BandRow';
-import Button from '../Button';
+import Button, { BUTTON_FILL, type ButtonVariant } from '../Button';
 import Chip from '../Chip';
 import EmptyState from '../EmptyState';
 import Field from '../Field';
 import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
+import RowActions from '../RowActions';
 import {
   CONTROL_HEIGHT,
   FIELD_FONT_MIN,
@@ -644,5 +645,121 @@ describe('EmptyState', () => {
     );
 
     expect(view.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('Button — every variant presses to a fill', () => {
+  /*
+    ── 13 Sep · the map, not the render ─────────────────────────────────────
+
+    A pressed state cannot be rendered here (see `pressed states` above), and
+    the source scan in `mobile-pressed-states.test.ts` reads `*Pressed` style
+    names — which `Button` does not use, because its feedback is a fill swap
+    inside `CutSurface`, read off the `FILL` map by variant. So the map is
+    the thing to hold: `ghost` sat in it with no entry until 12 Sep and gave
+    no feedback at all under the finger, and `outline` — the row action's
+    form — had none until today. A variant without a pressed fill is the
+    defect the scan was written for, one map away from where the scan looks.
+  */
+  it('has a pressed fill for each variant, distinct from its rest fill', () => {
+    const variants: ButtonVariant[] = ['primary', 'outline', 'ghost', 'delete'];
+    for (const variant of variants) {
+      const [rest, pressed] = BUTTON_FILL[variant] ?? [];
+      expect(typeof pressed).toBe('string');
+      expect(pressed).not.toBe(rest);
+    }
+  });
+
+  it('is not vacuous — the map has as many entries as there are variants', () => {
+    expect(Object.keys(BUTTON_FILL).sort()).toEqual(['delete', 'ghost', 'outline', 'primary']);
+  });
+});
+
+describe('RowActions — the repeated row action', () => {
+  /*
+    ── 13 Sep · one box per row, and a word once it is done ─────────────────
+
+    A list of things each of which can be taken (the catalogue's ADD, the
+    Needs list's DONE) is the case the one-filled-primary rule leaves
+    unanswered, and the phone had answered it three ways: an outline box
+    beside a ghost word (the catalogue), a ghost word alone on the meta line
+    (the Due table), and a cyan box beside a sodium word (the Needs list).
+    `RowActions` is the one answer: the box is the brief's secondary at the
+    small size, at the row's trailing edge; a second verb is the ghost word
+    before it; once the act is done the box is replaced by a mono state word
+    and nothing on the row is pressable that has nothing left to do.
+  */
+  const onAdd = jest.fn();
+  const onLearn = jest.fn();
+
+  beforeEach(() => {
+    onAdd.mockClear();
+    onLearn.mockClear();
+  });
+
+  it('draws the act as the secondary — an off-white hairline, no fill, mono caps', async () => {
+    const view = await render(
+      <RowActions
+        action={{ label: 'Add', accessibilityLabel: 'Add oil to Needs', onPress: onAdd }}
+        secondary={{ label: 'Learn more', accessibilityLabel: 'Ask about oil', onPress: onLearn }}
+      />
+    );
+    expect(groundOf(view.toJSON())).toBeUndefined();
+    const box = view.getByLabelText('Add oil to Needs');
+    expect(box.props.accessibilityRole).toBe('button');
+    expect(boxStyleOf(box)?.minHeight).toBe(CONTROL_HEIGHT);
+    expect(flat(view.getByText('Add').props.style).textTransform).toBe('uppercase');
+    await userEvent.setup().press(box);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('sets the second verb as the ghost word, in the chrome ink', async () => {
+    const view = await render(
+      <RowActions
+        action={{ label: 'Add', accessibilityLabel: 'Add oil to Needs', onPress: onAdd }}
+        secondary={{ label: 'Learn more', accessibilityLabel: 'Ask about oil', onPress: onLearn }}
+      />
+    );
+    expect(flat(view.getByText('Learn more').props.style).color).toBe(text.secondary);
+    await userEvent.setup().press(view.getByLabelText('Ask about oil'));
+    expect(onLearn).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('replaces the box with its state word once the act is done, and the word is not a button', async () => {
+    const view = await render(
+      <RowActions
+        action={{ label: 'Add', accessibilityLabel: 'Add oil to Needs', onPress: onAdd }}
+        done="On the list"
+        doneAccessibilityLabel="Oil is on Needs"
+      />
+    );
+    expect(view.queryByLabelText('Add oil to Needs')).toBeNull();
+    const word = view.getByText('On the list');
+    expect(flat(word.props.style).textTransform).toBe('uppercase');
+    /* One step quieter than the ghost verb — a state, not a second control. */
+    expect(flat(word.props.style).color).toBe(text.muted);
+    expect(view.queryByRole('button')).toBeNull();
+    expect(view.getByLabelText('Oil is on Needs')).toBeTruthy();
+  });
+
+  it('keeps the leading content on the same line as the act', async () => {
+    const view = await render(
+      <RowActions action={{ label: 'Done', accessibilityLabel: 'Mark oil done', onPress: onAdd }}>
+        <Text>SERVICE</Text>
+      </RowActions>
+    );
+    expect(view.getByText('SERVICE')).toBeTruthy();
+    expect(view.getByLabelText('Mark oil done')).toBeTruthy();
+  });
+
+  it('shows the act working, named all the while', async () => {
+    const view = await render(
+      <RowActions action={{ label: 'Add', accessibilityLabel: 'Add oil to Needs', onPress: onAdd, busy: true }} />
+    );
+    const box = view.getByLabelText('Add oil to Needs');
+    expect(box.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
+    await userEvent.setup().press(box);
+    expect(onAdd).not.toHaveBeenCalled();
   });
 });

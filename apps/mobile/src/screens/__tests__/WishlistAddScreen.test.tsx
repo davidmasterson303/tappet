@@ -1,6 +1,7 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
-import { WishlistAddScreen } from '../WishlistAddScreen';
+import { REASON_CAP, WishlistAddScreen, clipWords, suggestionValue } from '../WishlistAddScreen';
+import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -405,5 +406,106 @@ describe('the state that is not an error', () => {
 
     const { view } = await mount();
     await view.findByText(/have not worked out what .* needs yet/i);
+  });
+});
+
+describe('the row as a spec table — B6, round 37', () => {
+  /*
+    The figure in the numeral column is read back out of the sentence core
+    writes as `note`, so these run core's own `suggestionsFor` rather than
+    hand-written notes: a change to the template in `wishlist-suggestions.ts`
+    fails here instead of silently emptying every column.
+  */
+  const rows = suggestionsFor({
+    known_issues: [
+      { part: 'Water pump', severity: 'High', description: 'Fails.', mileage_range: '60,000 - 100,000 miles' },
+      {
+        part: 'Coils',
+        severity: 'Low',
+        description: 'Wear.',
+        mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+      },
+    ],
+    maintenance_schedule: [
+      { service: 'Oil', priority: 'Critical', description: 'Drain.', interval_miles: 5000, interval_months: 12 },
+      { service: 'Belt', priority: 'Normal', description: 'Look.', interval_miles: 15000 },
+      { service: 'Brake fluid', priority: 'Normal', description: 'Bleed.', interval_months: 24 },
+    ],
+    common_mods: [{ name: 'Intake', purpose: 'Air.', difficulty: 'Easy' }],
+  });
+  const byName = (name: string) => rows.find((row) => row.name === name)!;
+
+  it('reads the figure out of the sentence, in the column’s voice', () => {
+    expect(suggestionValue(byName('Water pump'))).toBe('60,000–100,000 MI');
+    expect(suggestionValue(byName('Oil'))).toBe('5,000 MI / 12 MO');
+    expect(suggestionValue(byName('Belt'))).toBe('15,000 MI');
+    expect(suggestionValue(byName('Brake fluid'))).toBe('24 MO');
+    expect(suggestionValue(byName('Intake'))).toBe('EASY');
+  });
+
+  it('leaves the column empty rather than guess a figure from prose', () => {
+    // Two windows in one sentence is a sentence, not a value (§10).
+    expect(suggestionValue(byName('Coils'))).toBeNull();
+    expect(suggestionValue({ type: 'issue', note: null })).toBeNull();
+  });
+
+  it('draws the figure at the rule and the sentence only where the figure would not fit', async () => {
+    request.mockImplementation((path: string) =>
+      path.startsWith('/wishlist')
+        ? Promise.resolve({ wishlistItems: [] } as never)
+        : Promise.resolve({
+            vehicle: { year: 2015, make: 'BMW', model: 'M235i' },
+            knowledge: {
+              known_issues: [
+                { part: 'Water pump', severity: 'High', description: 'Fails.', mileage_range: '60,000 - 100,000 miles' },
+                {
+                  part: 'Coils',
+                  severity: 'Low',
+                  description: 'Wear.',
+                  mileage_range: '30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)',
+                },
+              ],
+            },
+          } as never)
+    );
+    const { view } = await mount();
+    await view.findByText('Water pump');
+
+    view.getByText('60,000–100,000 MI');
+    expect(view.queryByText('Typically 60,000 - 100,000 miles')).toBeNull();
+    view.getByText('Typically 30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)');
+    /*
+      And the index, which is what makes it a spec table rather than a list —
+      counted within each group, as the History counts within a visit: the
+      High issue is 01 of DO FIRST and the Low one is 01 of EVERYTHING ELSE.
+      Hidden from the reader (the name is the row's identity), so asked for.
+    */
+    expect(view.getAllByText('01', { includeHiddenElements: true })).toHaveLength(2);
+    expect(view.queryByText('02', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('ends the reason on a word, never inside one', () => {
+    const prose =
+      'The electric water pump and thermostat are known to fail, leading to engine overheating, coolant loss, and potential stranding of the vehicle.';
+    const clipped = clipWords(prose);
+    expect(clipped.length).toBeLessThanOrEqual(REASON_CAP + 1);
+    expect(clipped.endsWith('…')).toBe(true);
+    expect(clipped).toBe('The electric water pump and thermostat are known to fail, leading to engine overheating, coolant…');
+    // Short prose is left alone, so the case above is not matching a template.
+    expect(clipWords('Fails.')).toBe('Fails.');
+  });
+
+  it('marks an added row with a word and no glyph', async () => {
+    respond({ onList: [wishlistItemIdentifier('modification', 'K&N Drop-in Air Filter')] });
+    const { view } = await mount();
+    await view.findByText('On the list');
+    /*
+      The check-circle that used to sit before the word was the critique's
+      "icon doing the job the system gives to a mono word": the word is the
+      state, it is not a button, and a reader hears the sentence.
+    */
+    const word = view.getByText('On the list');
+    expect(word.props.accessibilityRole).toBeUndefined();
+    expect(view.getByLabelText('K&N Drop-in Air Filter is on the list')).toBeTruthy();
   });
 });

@@ -264,11 +264,23 @@ export default function Button({
   at rest (the variant paints no surface), `raised` while pressed: the fill
   swap every other variant makes, and the same one `ListRow` makes.
 */
-const FILL: Partial<Record<ButtonVariant, [string | undefined, string]>> = {
+/*
+  ── 13 Sep · and so does `outline`, which had no entry either ──────────────
+
+  The secondary is the row action's form (`RowActions`) — twenty of them
+  down the catalogue — and it pressed to nothing: the map carried `ghost`'s
+  entry from 12 Sep and still none for the hairline box. The same fill swap,
+  inside the hairline. `primitives.test.tsx` now reads this map and holds
+  every variant to a pressed fill, because the source scan that guards
+  pressed states reads `*Pressed` style names and this map has none.
+*/
+export const BUTTON_FILL: Partial<Record<ButtonVariant, [string | undefined, string]>> = {
   primary: [text.primary, text.secondary],
+  outline: [undefined, surface.raised],
   ghost: [undefined, surface.raised],
   delete: [surface.page, surface.raised],
 };
+const FILL = BUTTON_FILL;
 
 /** Hairline edges. Secondary is off-white; destructive is sodium. */
 const STROKE: Partial<Record<ButtonVariant, string>> = {

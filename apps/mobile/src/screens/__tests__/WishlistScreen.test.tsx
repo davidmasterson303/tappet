@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { WishlistScreen } from '../WishlistScreen';
+import { brand, status, text } from '../../theme';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -57,7 +58,7 @@ function listReturns(items: unknown[]) {
 
 async function mount(overrides: Partial<Parameters<typeof WishlistScreen>[0]> = {}) {
   const props = { vehicleId: 'v1', ...overrides, onSignOut: jest.fn() };
-  return { props, view: await render(<WishlistScreen {...props} onAdd={jest.fn()} />) };
+  return { props, view: await render(<WishlistScreen {...props} />) };
 }
 
 let alertSpy: jest.SpyInstance;
@@ -288,5 +289,67 @@ describe('the summary line', () => {
     expect(view.getByText('2 ITEMS · ESTIMATED')).toBeTruthy();
     // Once in the summary, once on the row that carries it.
     expect(view.getAllByText('$290')).toHaveLength(2);
+  });
+});
+
+describe('the row as a spec table, with the pattern’s verbs — round 37', () => {
+  /*
+    The rows were a bold sans name, a bold sans price, a cyan-bordered Done
+    and a sodium Remove — pre-brief controls that never went through a loop,
+    and the critique's one named palette breach on the tab. They are the
+    History row's shape now (index, label, mono figure at the rule) with the
+    verbs `RowActions` gives every list: DONE the box, REMOVE the ghost word.
+  */
+  const flat = (style: unknown) =>
+    Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) as Record<string, unknown>;
+
+  it('numbers the rows and puts the estimate, or a dash, at the rule', async () => {
+    listReturns([
+      item({ id: 'w1', estimated_cost_parts: 200, estimated_cost_labor: 90 }),
+      item({ id: 'w2', item_name: 'Cabin filter', estimated_cost_parts: null, estimated_cost_labor: null }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Cabin filter');
+
+    expect(view.getByText('01', { includeHiddenElements: true })).toBeTruthy();
+    expect(view.getByText('02', { includeHiddenElements: true })).toBeTruthy();
+    /* A missing estimate is "we cannot say", never a vanished column. */
+    expect(view.getByLabelText('No estimate')).toBeTruthy();
+    expect(flat(view.getAllByText('$290')[1].props.style).fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('draws DONE as the hairline box and REMOVE as the word before it, and no hue on either', async () => {
+    listReturns([item()]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+
+    const done = view.getByLabelText('Mark Front brake pads done');
+    const remove = view.getByLabelText('Remove Front brake pads from the wishlist');
+    expect(done.props.accessibilityRole).toBe('button');
+    expect(remove.props.accessibilityRole).toBe('button');
+
+    const doneWord = flat(view.getByText('Done').props.style);
+    const removeWord = flat(view.getByText('Remove').props.style);
+    expect(doneWord.textTransform).toBe('uppercase');
+    expect(removeWord.textTransform).toBe('uppercase');
+    /* Off-white on the box, the chrome ink on the word — neither cyan nor sodium. */
+    expect(doneWord.color).toBe(text.primary);
+    expect(removeWord.color).toBe(text.secondary);
+    expect([doneWord.color, removeWord.color]).not.toContain(brand.accent);
+    expect([doneWord.color, removeWord.color]).not.toContain(status.attention);
+  });
+
+  it('sets the summary in the mono voice — a count is a value', async () => {
+    listReturns([item({ estimated_cost_parts: null, estimated_cost_labor: null })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+    expect(flat(view.getByText('1 ITEM').props.style).fontFamily).toMatch(/JetBrainsMono/);
+  });
+
+  it('offers no button on the empty state — the tab’s primary is pinned above it', async () => {
+    listReturns([]);
+    const { view } = await mount();
+    await view.findByText('Nothing on the list yet');
+    expect(view.queryByRole('button')).toBeNull();
   });
 });

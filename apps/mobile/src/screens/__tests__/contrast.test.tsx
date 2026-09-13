@@ -585,7 +585,7 @@ describe('the wishlist', () => {
     });
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
     );
 
     await view.findByText('CVT fluid flush');
@@ -596,7 +596,7 @@ describe('the wishlist', () => {
     request.mockResolvedValue({ wishlistItems: [] });
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
     );
 
     await view.findByText('Nothing on the list yet');
@@ -668,7 +668,7 @@ describe('the wishlist', () => {
 
     const user = userEvent.setup();
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
     );
 
     await user.press(await view.findByLabelText('Mark Front brake pads done'));
@@ -681,7 +681,7 @@ describe('the wishlist', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream is down' }));
 
     const view = await render(
-      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} onAdd={jest.fn()} />
+      <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
     );
 
     await view.findByText('Could not load the wishlist');
