@@ -54,6 +54,9 @@ import {
   heroBands,
 } from '../theme/hero-motion';
 import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { designVariant } from '../dev/fixtures';
+import HubConceptBody from './hub-concepts';
+import type { HubModel } from './hub-concepts/hub-model';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 
 /*
@@ -870,6 +873,42 @@ export function VehicleDetailScreen({
   const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || title || '';
 
   /*
+    ── 13 Sep · three concepts of this sheet, behind the fixtures' gate ───────
+
+    `designVariant()` is `null` everywhere but a development bundle that has
+    opted in twice, and `null` is the screen as it ships. The concepts take
+    what this screen has already worked out — the reading, the verdict, the
+    next service, the counts — as one object, so nothing about the car is
+    decided twice. See `hub-concepts/index.tsx` for why this exists and when
+    it goes.
+  */
+  const variant = designVariant();
+  const model: HubModel = {
+    name,
+    score,
+    band,
+    verdictText: verdict.text,
+    provenance: verdict.inputs,
+    nextService,
+    serviceDue,
+    historyCount,
+    wishlistCount,
+    openRecallCount,
+    worstRecall,
+    usage: vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
+    on: {
+      health: onOpenHealth,
+      recalls: onViewRecalls,
+      milestone: onOpenMilestone,
+      history: onOpenHistory,
+      wishlist: onOpenWishlist,
+      scan: onScanInvoice,
+      advisor: onAskAdvisor,
+      profile: onOpenProfile,
+    },
+  };
+
+  /*
     ── The interpolations ────────────────────────────────────────────────────
 
     Every one is driven by `scrollY` and lands on a transform or an opacity.
@@ -1031,6 +1070,16 @@ export function VehicleDetailScreen({
           */}
           <View style={styles.sheetEdge} pointerEvents="none" />
 
+          {variant ? (
+            <>
+              {photoError && (
+                <View style={styles.body}>
+                  <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
+                </View>
+              )}
+              <HubConceptBody variant={variant} model={model} />
+            </>
+          ) : (
           <View style={styles.body}>
             {photoError && (
               <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
@@ -1278,6 +1327,7 @@ export function VehicleDetailScreen({
         />
       </View>
           </View>
+          )}
         </Animated.View>
       </Animated.ScrollView>
 
