@@ -375,6 +375,37 @@
 >
 > ---
 >
+> #### 13 Sep, later — the hub is a binnacle, the mark carries its claim
+>
+> **The hub** (drift §6.18): three fearless concepts as real screens; the
+> critic ranked CLUSTER first and the old row-list page **last**; the loop
+> refined CLUSTER 7 → 7 → 8 (`Continue: no`, `6ad53f2`). Under the plate the
+> car's readings are cells — HEALTH with its sentence inside, NEXT SERVICE
+> naming the job, RECALLS · HISTORY · PLAN on one baseline — SCAN INVOICE the
+> one primary, WHAT YOU TOLD US as indexed rows. Hand-offs landed from the
+> main tree (`1b5dde6`): `HealthVerdict.short` for the cell, and
+> `photo_kind` on both vehicle routes so a generation plate is no longer read
+> as the owner's photograph (it was graded twice and labelled CHANGE PHOTO).
+> The first attempt died on a rate limit mid-round; its commit was recovered
+> and its uncommitted rounds rebuilt — loops now commit every round.
+>
+> **The mark** (`76b3176`, `089c3c2`; Cowork's handoff): Tappet is claimed,
+> not registered. The trademark symbol sits once per surface — each web
+> masthead and the auth pages' lockup as a layout sibling of the wordmark,
+> the phone's Legal section — and one notice line, core's
+> `TRADEMARK_NOTICE`, in both web footers, the Terms, the Privacy policy and
+> the phone. `no-registered-mark.test.ts` refuses the registered symbol in
+> every spelling anywhere a customer can read, proven red with one dropped
+> in; it is the one line to change when the certificate arrives. Verified on
+> the live product host after the promote, not the deploy log: two symbols
+> on `/`, `/terms`, `/privacy`, the notice on each, the registered symbol
+> nowhere, the title untouched.
+>
+> Promoted: `web-live` **8700eb99**, `demo-live` **6d26f5f7** — both carry all
+> of it; the mark verified on `/`, `/login`, `/terms`, `/privacy` of both hosts. ⚠ A promote checks out release branches in this tree —
+> never edit tracked files while one runs; the 13 Sep demo promote failed
+> once on exactly that and was re-run.
+>
 > #### 13 Sep — David's phone feedback, worked through; two loops; both hostnames promoted
 >
 > **Live:** `web-live` **0f86453b**, `demo-live` **c26bbda6** (both from
