@@ -2837,7 +2837,7 @@ carries the recovery.
 `short` form on `HealthVerdict` above, and nothing else — `platePublicUrl`
 and `MINDEDNESS_LABELS` were already there to read.
 
-**The numbers.** Mobile jest in band 39/39 suites, 747/747 tests, exit 0
+**The numbers.** Mobile jest in band 39/39 suites, 748/748 tests, exit 0
 after every round; root jest 214/214 suites, 3646 passed, 1 skipped; tsc
 clean in both. Files: `components/Binnacle.tsx` and its test are new;
 `screens/hub-concepts/` (six files) is gone with the switch; `BandRow`,
