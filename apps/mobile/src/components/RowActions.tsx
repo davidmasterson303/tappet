@@ -75,7 +75,11 @@ export default function RowActions({
     accessibilityLabel: string;
     onPress: () => void;
   };
-  /** The state word that replaces the act once it has happened. */
+  /**
+   * The state word that replaces the act once it has happened — ADDED, the
+   * app's one word for it. ⚠ A word the box's column can hold: a longer one
+   * moves the verb before it (see `styles.done`).
+   */
   done?: string | null;
   /** What a reader hears for the state word — "X is on Needs". */
   doneAccessibilityLabel?: string;
@@ -133,15 +137,24 @@ const styles = StyleSheet.create({
   },
   leading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   /*
-    The state word: the ghost's voice, padded to the box's width so it lands
-    where the box was, in `text.muted` — the Due row's ADDED, and one step
-    under the ghost verb beside it, so a row that is done does not read as a
-    row with two verbs. It is a state, not a control, and its ink says so.
+    The state word: the ghost's voice in `text.muted` — the Due row's ADDED,
+    one step under the ghost verb beside it, so a row that is done does not
+    read as a row with two verbs. It is a state, not a control, and its ink
+    says so.
+
+    ⚠ 13 Sep · it holds the box's column. Round 39 measured what "On the
+    list" did to the row it replaced ADD on: wider than the box, it pushed
+    LEARN MORE 64pt left, and its own inset stopped it 12pt short of the
+    rule — the column the values and the boxes hold broke on exactly the
+    rows just touched. So the word is at least the box's width, flush right
+    with no trailing inset, and the caller's word is one the column can
+    hold: ADDED, five letters, the app's one word for that state.
   */
   done: {
     ...type.monoLabel,
     color: text.muted,
-    paddingHorizontal: space.md,
+    minWidth: CONTROL_HEIGHT,
+    textAlign: 'right',
     lineHeight: CONTROL_HEIGHT,
   },
 });

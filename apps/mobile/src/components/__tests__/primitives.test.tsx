@@ -742,6 +742,15 @@ describe('RowActions — the repeated row action', () => {
     expect(flat(word.props.style).color).toBe(text.muted);
     expect(view.queryByRole('button')).toBeNull();
     expect(view.getByLabelText('Oil is on Needs')).toBeTruthy();
+    /*
+      And it holds the box's column: at least the box's width, flush right,
+      no trailing padding — so the verb before it does not move when the
+      row's state changes (round 39, gap 2).
+    */
+    const style = flat(word.props.style);
+    expect(style.minWidth).toBe(CONTROL_HEIGHT);
+    expect(style.textAlign).toBe('right');
+    expect(style.paddingRight ?? style.paddingHorizontal ?? 0).toBe(0);
   });
 
   it('keeps the leading content on the same line as the act', async () => {

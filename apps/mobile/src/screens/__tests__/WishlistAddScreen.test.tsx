@@ -342,7 +342,7 @@ describe('adding — the claims that moved from the composer', () => {
 
     // Flips to the on-list state rather than showing an error about a state
     // the person already has.
-    await view.findByText('On the list');
+    await view.findByText('Added');
     expect(view.queryByText(/could not be added/i)).toBeNull();
   });
 
@@ -382,7 +382,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('K&N Drop-in Air Filter');
-    view.getByText('On the list');
+    view.getByText('Added');
     expect(view.queryByLabelText('Add K&N Drop-in Air Filter to the wishlist')).toBeNull();
   });
 });
@@ -455,13 +455,19 @@ describe('the row as a spec table — B6, round 37', () => {
     expect(suggestionValue(byName('Intake'))).toBe('EASY');
   });
 
-  it('leaves the column empty rather than guess a figure from prose', () => {
-    // Two windows in one sentence is a sentence, not a value (§10).
-    expect(suggestionValue(byName('Coils'))).toBeNull();
+  it('spans every window the sentence names, and guesses nothing from prose', () => {
+    /*
+      Round 39: two windows in one sentence — plugs and coils — is the row's
+      window from the first low to the last high, which is what the model
+      wrote and no more (§10: an envelope is less precise, not more). A
+      sentence with no window in it gives the column nothing.
+    */
+    expect(suggestionValue(byName('Coils'))).toBe('30,000–100,000 MI');
+    expect(suggestionValue({ type: 'issue', note: 'Typically at high mileage' })).toBeNull();
     expect(suggestionValue({ type: 'issue', note: null })).toBeNull();
   });
 
-  it('draws the figure at the rule and the sentence only where the figure would not fit', async () => {
+  it('draws the figure at the rule and never as a sentence in the body', async () => {
     request.mockImplementation((path: string) =>
       path.startsWith('/wishlist')
         ? Promise.resolve({ wishlistItems: [] } as never)
@@ -484,8 +490,9 @@ describe('the row as a spec table — B6, round 37', () => {
     await view.findByText('Water pump');
 
     view.getByText('60,000–100,000 MI');
-    expect(view.queryByText('Typically 60,000 - 100,000 miles')).toBeNull();
-    view.getByText('Typically 30,000 - 60,000 miles (plugs), 60,000 - 100,000 miles (coils)');
+    view.getByText('30,000–100,000 MI');
+    /* Never a numeric sentence in the body (round 39): the figure is the column's or nowhere. */
+    expect(view.queryByText(/Typically/)).toBeNull();
     /*
       And the index, which is what makes it a spec table rather than a list —
       counted within each group, as the History counts within a visit: the
@@ -507,17 +514,39 @@ describe('the row as a spec table — B6, round 37', () => {
     expect(clipWords('Fails.')).toBe('Fails.');
   });
 
-  it('marks an added row with a word and no glyph', async () => {
+  it('marks an added row with the one word the app uses for that state, and no glyph', async () => {
     respond({ onList: [wishlistItemIdentifier('modification', 'K&N Drop-in Air Filter')] });
     const { view } = await mount();
-    await view.findByText('On the list');
+    await view.findByText('Added');
     /*
       The check-circle that used to sit before the word was the critique's
       "icon doing the job the system gives to a mono word": the word is the
-      state, it is not a button, and a reader hears the sentence.
+      state, it is not a button, and a reader hears the sentence. ADDED, the
+      Due table's word (round 39): "On the list" was wider than the box it
+      replaced and pushed LEARN MORE left on exactly the rows just touched.
     */
-    const word = view.getByText('On the list');
+    const word = view.getByText('Added');
     expect(word.props.accessibilityRole).toBeUndefined();
     expect(view.getByLabelText('K&N Drop-in Air Filter is on the list')).toBeTruthy();
+  });
+
+  it('heads a section in the condensed grotesk and a search count in mono', async () => {
+    /*
+      Round 39: DO FIRST and EVERYTHING ELSE are section heads (B1 gives
+      those the condensed grotesk, at the Due table's 20pt so the face reads
+      as itself); "5 MATCHING" is a count, and a count is mono like the
+      root's "2 ITEMS".
+    */
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText('Fuel injector seals');
+
+    const faceOf = (label: string) =>
+      Object.assign({}, ...[view.getByText(label).props.style].flat(Infinity).filter(Boolean)).fontFamily as string;
+    expect(faceOf('DO FIRST')).toMatch(/ArchivoNarrow/);
+
+    await user.type(view.getByLabelText('Search suggestions'), 'filter');
+    expect(faceOf('1 MATCHING')).toMatch(/JetBrainsMono/);
   });
 });

@@ -92,11 +92,12 @@ const DEFAULT_TYPE: WishlistItemType = 'maintenance';
  * here: `60,000–100,000 MI`, `5,000 MI / 12 MO`, `EASY`. The numbers are
  * core's own, unrounded (§10).
  *
- * ⚠ A window the model wrote in prose — the M235i's coils say "30,000 -
- * 60,000 miles (plugs), 60,000 - 100,000 miles (coils)" — does not fit a
- * column and is not forced into one: `null` here, and the row prints the
- * sentence under the reason as before. Better nothing in the column than a
- * figure that was guessed from a sentence.
+ * ⚠ A window the model wrote as two — the M235i's coils say "30,000 -
+ * 60,000 miles (plugs), 60,000 - 100,000 miles (coils)" — is spanned, first
+ * low to last high, which says less than the sentence and nothing the
+ * sentence did not; a note with no window in it gives the column nothing
+ * and is not printed as a sentence in the body (round 39). Better an empty
+ * slot than a figure guessed from prose.
  *
  * ⚠ **This belongs in `packages/core` beside `note`** — a `value` on
  * `WishlistSuggestion`, built from the raw fields rather than read back out
@@ -105,14 +106,27 @@ const DEFAULT_TYPE: WishlistItemType = 'maintenance';
  * templates `wishlist-suggestions.ts` writes, and the test pins them
  * against core's real output so a template change cannot pass silently.
  */
-const WINDOW = /^Typically ([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)$/i;
+const WINDOW = /([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)\b/gi;
 const INTERVAL = /^Every (?:([\d,]+) mi)?(?: or )?(?:(\d+) months)?$/;
 
 export function suggestionValue(suggestion: Pick<WishlistSuggestion, 'type' | 'note'>): string | null {
   if (!suggestion.note) return null;
   if (suggestion.type === 'issue') {
-    const match = WINDOW.exec(suggestion.note);
-    return match ? `${match[1]}–${match[2]} MI` : null;
+    /*
+      Every window in the sentence, spanned: the coils' "30,000 - 60,000
+      miles (plugs), 60,000 - 100,000 miles (coils)" is the row's window from
+      the first low to the last high — what the model wrote and no more,
+      which is the direction §10 allows. Round 39: a numeric sentence in the
+      body is never the answer; the figure is the column's or nowhere.
+    */
+    const windows = [...suggestion.note.matchAll(WINDOW)].map(([, low, high]) => [
+      Number(low.replace(/,/g, '')),
+      Number(high.replace(/,/g, '')),
+    ]);
+    if (windows.length === 0) return null;
+    const low = Math.min(...windows.map(([from]) => from));
+    const high = Math.max(...windows.map(([, to]) => to));
+    return `${low.toLocaleString('en-US')}–${high.toLocaleString('en-US')} MI`;
   }
   if (suggestion.type === 'maintenance') {
     const match = INTERVAL.exec(suggestion.note);
@@ -447,7 +461,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
         headers over two matches is furniture.
       */}
       {groups.map(({ label, rows }) => (
-        <ListGroup key={label} label={label}>
+        <ListGroup key={label} label={label} count={typed.length > 0}>
           {rows.map((suggestion, index) => {
             const added = state.onList.has(suggestion.identifier);
             const working = busy === suggestion.identifier;
@@ -496,8 +510,6 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                   <Text style={styles.reason} numberOfLines={2} accessibilityLabel={suggestion.reason}>
                     {clipWords(suggestion.reason)}
                   </Text>
-                  {/* The figure as a sentence, only where it would not fit the column. */}
-                  {suggestion.note && !value ? <Text style={styles.note}>{suggestion.note}</Text> : null}
 
                   {/*
                     ── R39, rewritten 13 Sep · one control per row ────────────
@@ -534,7 +546,13 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                       accessibilityLabel: `Ask the advisor about ${suggestion.name}`,
                       onPress: () => onAskAdvisor(vehicleId, learnMoreQuestion(suggestion, state.name)),
                     }}
-                    done={added ? 'On the list' : null}
+                    /*
+                      ADDED — the Due table's word, so one state has one
+                      word across the app; "On the list" was the sentence
+                      the reader still hears. Round 39 measured the longer
+                      word pushing LEARN MORE off its column.
+                    */
+                    done={added ? 'Added' : null}
                     doneAccessibilityLabel={`${suggestion.name} is on the list`}
                   >
                     {/*
@@ -636,8 +654,6 @@ const styles = StyleSheet.create({
   value: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
   rowBody: { paddingLeft: 22 + space.md, gap: space.xs },
   reason: { ...type.value, color: text.secondary, lineHeight: 19 },
-  /* The figure as a sentence, where it would not fit the column. R11. */
-  note: { ...type.label, letterSpacing: 0, color: text.muted, ...TABULAR },
 
   own: { gap: space.sm },
   ownLead: { ...type.value, color: text.muted, lineHeight: 19 },
