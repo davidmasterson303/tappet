@@ -323,7 +323,7 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
     const { view } = await mount();
     await view.findByText('Front brake pads');
 
-    /* And the chip is neutral even on an issue — the list has no severity to colour by. */
+    /* And the kind is a muted word even on an issue — the list has no severity to colour by. */
     expect(flat(view.getByText('Known issue').props.style).color).toBe(text.muted);
 
     const done = view.getByLabelText('Mark Front brake pads done');
@@ -340,6 +340,58 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
     expect(removeWord.color).toBe(text.secondary);
     expect([doneWord.color, removeWord.color]).not.toContain(brand.accent);
     expect([doneWord.color, removeWord.color]).not.toContain(status.attention);
+  });
+
+  it('prints the figure the catalogue sent with the item, read the same way', async () => {
+    /*
+      Round 40: "Engine oil and filter" arrived on the list without its
+      "5,000 MI / 12 MO". The catalogue writes core's sentence to
+      `source_data.note`; the row reads it back through `suggestionValue`.
+      A row added elsewhere has no note and no figure — not a dash, not a
+      guess.
+    */
+    listReturns([
+      item({
+        id: 'w1',
+        item_name: 'Engine oil and filter',
+        item_type: 'maintenance',
+        estimated_cost_parts: null,
+        estimated_cost_labor: null,
+        source_data: { note: 'Every 5,000 mi or 12 months' },
+      }),
+      item({
+        id: 'w2',
+        item_name: 'Charge pipe',
+        item_type: 'issue',
+        estimated_cost_parts: null,
+        estimated_cost_labor: null,
+        source_data: {},
+      }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Charge pipe');
+    expect(view.getByText('5,000 MI / 12 MO')).toBeTruthy();
+    expect(view.queryByText('—')).toBeNull();
+    expect(view.queryByText(/Every 5,000/)).toBeNull();
+  });
+
+  it('keeps the reason to two lines, cut on a word, and names the kind as a bare mono word', async () => {
+    const prose =
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.';
+    listReturns([item({ item_type: 'issue', description: prose })]);
+    const { view } = await mount();
+    await view.findByText('Front brake pads');
+
+    const reason = view.getByText(/Can become clogged/);
+    expect(reason.props.numberOfLines).toBe(2);
+    expect(reason.props.children).toMatch(/…$/);
+    expect(String(reason.props.children).length).toBeLessThan(prose.length);
+
+    const kind = flat(view.getByText('Known issue').props.style);
+    expect(kind.fontFamily).toMatch(/JetBrainsMono/);
+    expect(kind.color).toBe(text.muted);
+    /* A word, not a chip: a `Chip` wraps its label in the cut surface, which measures itself. */
+    expect(view.getByText('Known issue').parent?.props.onLayout).toBeUndefined();
   });
 
   it('sets the summary in the mono voice — a count is a value', async () => {

@@ -1,6 +1,7 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
-import { REASON_CAP, WishlistAddScreen, clipWords, suggestionValue } from '../WishlistAddScreen';
+import { WishlistAddScreen } from '../WishlistAddScreen';
+import { REASON_CAP, clipWords, suggestionValue } from '../wishlist-row';
 import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
 import { text } from '../../theme';
 import { apiRequest, ApiRequestError } from '../../api/client';
@@ -148,14 +149,19 @@ describe('the suggestions', () => {
 
     await view.findByText('Fuel injector seals');
     /*
-      Read off the rendered label: a neutral chip's word is `text.muted`, a
-      toned one's is `text.primary` (`Chip`'s ink rule). The High issue and
-      the Critical service are the two rows that used to be toned.
+      Read off the rendered word: the kind is a bare mono word in
+      `text.muted` — not a chip, since round 40 (*"a boxed category label
+      … reads as a control"*): the row keeps one box, the act's. The High
+      issue and the Critical service are the two rows that used to be toned.
     */
-    const inkOf = (label: string) =>
-      Object.assign({}, ...[view.getAllByText(label)[0].props.style].flat(Infinity).filter(Boolean)).color;
-    expect(inkOf('Known issue')).toBe(text.muted);
-    expect(inkOf('Service')).toBe(text.muted);
+    const styleOf = (label: string) =>
+      Object.assign({}, ...[view.getAllByText(label)[0].props.style].flat(Infinity).filter(Boolean));
+    expect(styleOf('Known issue').color).toBe(text.muted);
+    expect(styleOf('Service').color).toBe(text.muted);
+    expect(styleOf('Known issue').fontFamily).toMatch(/JetBrainsMono/);
+    expect(styleOf('Known issue').textTransform).toBe('uppercase');
+    /* A word, not a chip: a `Chip` wraps its label in the cut surface, which measures itself. */
+    expect(view.getAllByText('Known issue')[0].parent?.props.onLayout).toBeUndefined();
 
     /*
       ⚠ **R40, 23 Aug.** Every chip now names the row's *kind*; none of them
@@ -286,6 +292,36 @@ describe('adding — the claims that moved from the composer', () => {
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect(String((posted()![1]?.body as Record<string, unknown>).description)).toMatch(/fire risk/i);
+  });
+
+  it('carries the figure with the item, as core’s own sentence in source_data', async () => {
+    /*
+      Round 40: the interval vanished between the catalogue and the list.
+      The sentence core wrote (`note`) travels in `sourceData`, and the list
+      reads its figure back through the same function — one spelling. A
+      suggestion with no note writes no key rather than an empty one.
+    */
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('Engine Oil (0W-20 Full Synthetic)');
+    await user.press(view.getByLabelText('Add Engine Oil (0W-20 Full Synthetic) to the wishlist'));
+
+    await waitFor(() => expect(posted()).toBeDefined());
+    expect(posted()![1]?.body).toMatchObject({ sourceData: { note: 'Every 5,000 mi' } });
+  });
+
+  it('writes no source_data for an item with nothing to carry — so the case above is real', async () => {
+    respond();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('Fuel injector seals');
+    await user.press(view.getByLabelText('Add Fuel injector seals to the wishlist'));
+
+    await waitFor(() => expect(posted()).toBeDefined());
+    expect((posted()![1]?.body as Record<string, unknown>).sourceData).toBeUndefined();
   });
 
   it('sends nothing for a whitespace-only entry', async () => {

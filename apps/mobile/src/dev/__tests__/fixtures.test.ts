@@ -121,6 +121,23 @@ describe('the fixture car and its needs', () => {
     expect(list[0].item_identifier).toBe('issue:charge-pipe');
   });
 
+  it('keeps what the add sent beside the item, as the route does', () => {
+    // `sourceData` → `source_data`, so a frame of Needs shows the figure the catalogue sent.
+    const answer = fixtureFor('/wishlist', {
+      method: 'POST',
+      body: {
+        vehicleId,
+        itemType: 'maintenance',
+        itemName: 'Oil',
+        itemIdentifier: 'maintenance:oil',
+        sourceData: { note: 'Every 5,000 mi' },
+      },
+    }) as { wishlistItem: { source_data: unknown } };
+    expect(answer.wishlistItem.source_data).toEqual({ note: 'Every 5,000 mi' });
+    const [listed] = itemsOf(fixtureFor(`/wishlist?vehicleId=${vehicleId}`)) as unknown as Array<{ source_data: unknown }>;
+    expect(listed.source_data).toEqual({ note: 'Every 5,000 mi' });
+  });
+
   it('lists newest first, as the route orders them', () => {
     const add = (name: string) =>
       fixtureFor('/wishlist', {

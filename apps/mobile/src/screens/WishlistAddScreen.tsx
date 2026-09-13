@@ -3,10 +3,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
-import Chip from '../components/Chip';
 import ListGroup from '../components/ListGroup';
 import RowActions from '../components/RowActions';
 import SearchField from '../components/SearchField';
+import { clipWords, suggestionValue, type WishlistSourceData } from './wishlist-row';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import {
@@ -79,83 +79,6 @@ type State =
 
 /** What a hand-typed item is filed as when nothing else says otherwise. */
 const DEFAULT_TYPE: WishlistItemType = 'maintenance';
-
-/**
- * The row's figure, for the numeral column — B6, round 37.
- *
- * A suggestion carries one figure: an issue's mileage window, a service's
- * interval, a modification's difficulty. Core prints it as a sentence
- * (`note`: "Typically 60,000 - 100,000 miles", "Every 5,000 mi or 12
- * months", "Easy") and the row used to set that sentence in sans under the
- * reason — the critique's *"the values are sans"*. A spec table's figure is
- * mono and ends at the rule, so the sentence is read back into its numbers
- * here: `60,000–100,000 MI`, `5,000 MI / 12 MO`, `EASY`. The numbers are
- * core's own, unrounded (§10).
- *
- * ⚠ A window the model wrote as two — the M235i's coils say "30,000 -
- * 60,000 miles (plugs), 60,000 - 100,000 miles (coils)" — is spanned, first
- * low to last high, which says less than the sentence and nothing the
- * sentence did not; a note with no window in it gives the column nothing
- * and is not printed as a sentence in the body (round 39). Better an empty
- * slot than a figure guessed from prose.
- *
- * ⚠ **This belongs in `packages/core` beside `note`** — a `value` on
- * `WishlistSuggestion`, built from the raw fields rather than read back out
- * of the sentence, so the web can print the same figure. Written here
- * because a worktree does not edit core; the shapes matched are the exact
- * templates `wishlist-suggestions.ts` writes, and the test pins them
- * against core's real output so a template change cannot pass silently.
- */
-const WINDOW = /([\d,]+)\s*[-–]\s*([\d,]+)\s*(?:mi|miles)\b/gi;
-const INTERVAL = /^Every (?:([\d,]+) mi)?(?: or )?(?:(\d+) months)?$/;
-
-export function suggestionValue(suggestion: Pick<WishlistSuggestion, 'type' | 'note'>): string | null {
-  if (!suggestion.note) return null;
-  if (suggestion.type === 'issue') {
-    /*
-      Every window in the sentence, spanned: the coils' "30,000 - 60,000
-      miles (plugs), 60,000 - 100,000 miles (coils)" is the row's window from
-      the first low to the last high — what the model wrote and no more,
-      which is the direction §10 allows. Round 39: a numeric sentence in the
-      body is never the answer; the figure is the column's or nowhere.
-    */
-    const windows = [...suggestion.note.matchAll(WINDOW)].map(([, low, high]) => [
-      Number(low.replace(/,/g, '')),
-      Number(high.replace(/,/g, '')),
-    ]);
-    if (windows.length === 0) return null;
-    const low = Math.min(...windows.map(([from]) => from));
-    const high = Math.max(...windows.map(([, to]) => to));
-    return `${low.toLocaleString('en-US')}–${high.toLocaleString('en-US')} MI`;
-  }
-  if (suggestion.type === 'maintenance') {
-    const match = INTERVAL.exec(suggestion.note);
-    if (!match || (!match[1] && !match[2])) return null;
-    return [match[1] ? `${match[1]} MI` : null, match[2] ? `${match[2]} MO` : null]
-      .filter(Boolean)
-      .join(' / ');
-  }
-  return suggestion.note.toUpperCase();
-}
-
-/**
- * Two lines of the reason, ended on a word — R41, revised in round 37.
- *
- * `numberOfLines={2}` cut the prose mid-word ("coolant loss, and p…"),
- * which the critique read three times on one frame as *"an unedited
- * default, not a decision"*. The platform's tail truncation has no word
- * mode, so the cut is made here, at the last space before the cap, with the
- * platform's own two-line limit kept beneath it for a narrower phone. Ninety-six
- * characters is two lines of the 13pt value face at the row's text width on
- * every iPhone this runs on.
- */
-export const REASON_CAP = 96;
-
-export function clipWords(prose: string, cap = REASON_CAP): string {
-  if (prose.length <= cap) return prose;
-  const cut = prose.lastIndexOf(' ', cap);
-  return `${prose.slice(0, cut > 0 ? cut : cap).replace(/[,;:.]$/, '')}…`;
-}
 
 export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, onAdded }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -246,8 +169,17 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
    * that silently matches nothing — all three have happened.
    */
   const add = useCallback(
-    async (name: string, itemType: WishlistItemType, description?: string) => {
+    async (name: string, itemType: WishlistItemType, description?: string, note?: string | null) => {
       const identifier = wishlistItemIdentifier(itemType, name);
+      /*
+        ── 13 Sep · the figure travels with the item ──────────────────────
+        Core's sentence for the row's figure, in `source_data`, so the Needs
+        list can print "5,000 MI / 12 MO" beside the item the way this
+        screen did (round 40). Nothing is written when there is nothing to
+        carry. `wishlist-row.ts` says why the sentence and not the figure,
+        and what core should own here.
+      */
+      const sourceData: WishlistSourceData | undefined = note ? { note } : undefined;
 
       setProblem(null);
       setBusy(identifier);
@@ -276,6 +208,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
               `@tappet/core/wishlist-source` carries the set.
             */
             source: 'dossier' satisfies WishlistSource,
+            ...(sourceData ? { sourceData } : {}),
           },
         });
 
@@ -538,7 +471,8 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                     action={{
                       label: 'Add',
                       accessibilityLabel: `Add ${suggestion.name} to the wishlist`,
-                      onPress: () => void add(suggestion.name, suggestion.type, suggestion.reason),
+                      onPress: () =>
+                        void add(suggestion.name, suggestion.type, suggestion.reason, suggestion.note),
                       busy: working,
                     }}
                     secondary={{
@@ -556,22 +490,23 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                     doneAccessibilityLabel={`${suggestion.name} is on the list`}
                   >
                     {/*
-                      ── 13 Sep · neutral, on every row — urgency is the section ──
+                      ── 13 Sep · the kind is a word, on every row ───────────
 
-                      This coloured the chip sodium when the research said
-                      urgent (a High issue, a Critical service), on the spec's
-                      rule that "priority chips are neutral unless the item is
-                      genuinely urgent". Round 38 read what that draws: the
-                      same SERVICE chip sodium here and grey on Needs one
-                      screen back, and a routine oil change wearing the
-                      warning hue because its priority is Critical — while
-                      DO FIRST, the head the row sits under, already says so.
-                      The section carries urgency; the chip names the kind and
-                      nothing else, which is the one rule both screens can
-                      keep (Needs has no severity to colour by, §10). `urgent`
-                      still sorts and sections; it no longer colours.
+                      This was a `Chip`, and a coloured one when the research
+                      said urgent (a High issue, a Critical service). Round 38
+                      read what the colour drew — the same SERVICE chip sodium
+                      here and grey on Needs one screen back, a routine oil
+                      change wearing the warning hue because its priority is
+                      Critical, while DO FIRST already said so — and round 40
+                      read what the box drew: *"a boxed category label … reads
+                      as a control"*, three cut hairlines on one line with the
+                      act's. So the kind is the Due row's basis token: a bare
+                      mono word in the muted ink, the row's one box being the
+                      act. The section carries urgency (`urgent` still sorts
+                      and sections); the word carries the kind and nothing
+                      else, which is the one rule both screens can keep.
                     */}
-                    <Chip label={suggestion.chip} />
+                    <Text style={styles.kind}>{suggestion.chip}</Text>
                   </RowActions>
                 </View>
               </View>
@@ -654,6 +589,8 @@ const styles = StyleSheet.create({
   value: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
   rowBody: { paddingLeft: 22 + space.md, gap: space.xs },
   reason: { ...type.value, color: text.secondary, lineHeight: 19 },
+  /* The kind — KNOWN ISSUE, SERVICE, MODIFICATION — in the Due row's token voice. */
+  kind: { ...type.monoLabel, color: text.muted },
 
   own: { gap: space.sm },
   ownLead: { ...type.value, color: text.muted, lineHeight: 19 },

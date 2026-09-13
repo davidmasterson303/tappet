@@ -481,6 +481,8 @@ interface FixtureWishlistItem {
   estimated_cost_parts: 0;
   estimated_cost_labor: 0;
   source: string;
+  /** The route's `jsonb` passthrough — the catalogue's note travels here. */
+  source_data: Record<string, unknown>;
   created_at: string;
 }
 
@@ -490,7 +492,7 @@ const addedNeeds: FixtureWishlistItem[] = [];
 function wishlistAdd(body: unknown): Omit<FixtureWishlistItem, 'id' | 'created_at'> | null {
   const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
   if (!record) return null;
-  const { vehicleId, itemType, itemName, itemIdentifier, description, source } = record;
+  const { vehicleId, itemType, itemName, itemIdentifier, description, source, sourceData } = record;
   if (typeof itemIdentifier !== 'string' || typeof itemName !== 'string' || typeof itemType !== 'string') {
     return null;
   }
@@ -504,6 +506,8 @@ function wishlistAdd(body: unknown): Omit<FixtureWishlistItem, 'id' | 'created_a
     estimated_cost_parts: 0,
     estimated_cost_labor: 0,
     source: typeof source === 'string' ? source : 'manual',
+    source_data:
+      sourceData && typeof sourceData === 'object' ? (sourceData as Record<string, unknown>) : {},
   };
 }
 

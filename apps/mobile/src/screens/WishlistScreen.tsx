@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import Chip from '../components/Chip';
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import RowActions from '../components/RowActions';
+import { clipWords, storedNote, suggestionValue } from './wishlist-row';
 import { formatCurrency } from '@tappet/core/formatting-utils';
 import { completionPayload, type CompletionDraft } from '@tappet/core/wishlist-completion';
 import { MarkDoneSheet } from './MarkDoneSheet';
@@ -87,6 +87,18 @@ interface WishlistItem {
   category?: string | null;
   estimated_cost_parts?: number | null;
   estimated_cost_labor?: number | null;
+  /** The route's `jsonb` passthrough; the catalogue writes its note here (`wishlist-row.ts`). */
+  source_data?: unknown;
+}
+
+/**
+ * The row's figure: the estimate where one is costed, else the interval or
+ * window the catalogue sent with the item, read through the same function
+ * the catalogue prints it with — so "5,000 MI / 12 MO" survives the trip
+ * (round 40). A row with neither prints nothing, never a dash.
+ */
+function figureOf(item: WishlistItem): string | null {
+  return estimate(item) ?? suggestionValue({ type: item.item_type, note: storedNote(item.source_data) });
 }
 
 type State =
@@ -131,11 +143,11 @@ function listTotal(items: readonly WishlistItem[]): number | null {
 }
 
 /**
- * The row's chip.
+ * The row's kind, as a word.
  *
  * `category` when the item came from somewhere that assigned one — the
  * progression ladder writes a role there — falling back to the item type in
- * plain words. Never "Item": a chip that says nothing is a chip that should
+ * plain words. Never "Item": a word that says nothing is a word that should
  * not be drawn, and every row has at least a type.
  */
 const TYPE_WORD: Record<string, string> = {
@@ -427,19 +439,22 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
               </Text>
               <Text style={styles.itemName}>{item.item_name}</Text>
               {/*
-                The estimate, where one exists. ⚠ No dash where none does:
-                `ListRow`'s em dash marks a tracked reading that is missing,
-                and an estimate is not tracked for every item — a column of
-                dashes read as *"a stray glyph"* (round 38). The slot is left
-                empty; the row's figure, when it has one, is the interval it
-                was added with, which the table does not carry yet (see
-                §6.17 for what core would need).
+                The figure — the estimate, or the interval the item was added
+                with. ⚠ No dash where there is neither: `ListRow`'s em dash
+                marks a tracked reading that is missing, and neither is
+                tracked for every item — a column of dashes read as *"a stray
+                glyph"* (round 38).
               */}
-              {estimate(item) ? <Text style={styles.itemCost}>{estimate(item)}</Text> : null}
+              {figureOf(item) ? <Text style={styles.itemCost}>{figureOf(item)}</Text> : null}
             </View>
 
             <View style={styles.itemBody}>
-              {item.description ? <Text style={styles.itemReason}>{item.description}</Text> : null}
+              {/* Two lines, cut on a word — the catalogue's own cut (`clipWords`), so the list stays a table. */}
+              {item.description ? (
+                <Text style={styles.itemReason} numberOfLines={2} accessibilityLabel={item.description}>
+                  {clipWords(item.description)}
+                </Text>
+              ) : null}
 
               {/*
                 ── The row's verbs, in the pattern `RowActions` states ────────
@@ -466,18 +481,20 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 }}
               >
                 {/*
-                  ── 13 Sep · neutral, on every row ─────────────────────────
+                  ── 13 Sep · the kind is a word, on every row ─────────────
 
-                  This coloured every issue sodium, on the reading that an
-                  issue is "a thing that is wrong" — a rule the catalogue did
-                  not share (it coloured by the research's severity), so the
-                  same item changed hue between the two screens (round 38).
-                  A wishlist row carries no severity, and colouring by type
-                  alone tells the owner a Low-severity coil is a warning
-                  (§10). The chip names the kind; the spec's own line stands:
-                  *"semantic colour does semantic work only."*
+                  This was a `Chip`, sodium on every issue, on the reading
+                  that an issue is "a thing that is wrong" — a rule the
+                  catalogue did not share, so the same item changed hue
+                  between the two screens (round 38); and a box, which read
+                  as a second control beside DONE's (round 40). A wishlist
+                  row carries no severity, and colouring by type alone tells
+                  the owner a Low-severity coil is a warning (§10). The kind
+                  is the Due row's basis token — a bare mono word in the
+                  muted ink — and the spec's own line stands: *"semantic
+                  colour does semantic work only."*
                 */}
-                <Chip label={chipFor(item)} />
+                <Text style={styles.kind}>{chipFor(item)}</Text>
               </RowActions>
             </View>
           </View>
@@ -545,6 +562,8 @@ const styles = StyleSheet.create({
   itemBody: { paddingLeft: 22 + space.md, gap: space.xs },
   /* The reason the row is here, in the quiet sans — it travelled with the item from the catalogue. */
   itemReason: { ...type.value, color: text.secondary, lineHeight: 19 },
+  /* The kind — KNOWN ISSUE, SERVICE, MODIFICATION — in the Due row's token voice. */
+  kind: { ...type.monoLabel, color: text.muted },
 
   body: { ...PAGE_BODY },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
