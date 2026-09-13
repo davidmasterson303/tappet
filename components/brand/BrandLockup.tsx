@@ -1,6 +1,7 @@
 import {
   BRAND_COLOR,
   BRAND_NAME,
+  TRADEMARK_SYMBOL,
   LOCKUP,
   MAKER_NAME,
   MAKER_PATH,
@@ -156,18 +157,36 @@ export function BrandWordmark({
   size = 20,
   ground = 'dark',
   className,
+  trademark = false,
 }: {
   size?: number;
   ground?: 'dark' | 'light';
   className?: string;
+  /**
+   * Draw the trademark symbol beside the wordmark — the page's one, on its
+   * masthead (13 Sep). A layout decision, not the asset's: the drawing stays
+   * clean, and the symbol is a sibling the way it sits beside any wordmark.
+   * Hidden from assistive tech; the notice line in the footer says it in
+   * words.
+   */
+  trademark?: boolean;
 }) {
-  return (
+  const mark = (
     <BrandLockup
       width={Math.round((size * LOCKUP.width) / LOCKUP.mark)}
       variant="short"
       ground={ground}
-      className={className}
+      className={trademark ? undefined : className}
     />
+  );
+  if (!trademark) return mark;
+  return (
+    <span className={`inline-flex items-start ${className ?? ''}`}>
+      {mark}
+      <sup aria-hidden="true" className="ml-0.5 text-[0.55em] leading-none text-white/55 select-none">
+        {TRADEMARK_SYMBOL}
+      </sup>
+    </span>
   );
 }
 

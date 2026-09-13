@@ -13,7 +13,7 @@
  * not exist yet and therefore cannot complain.
  */
 
-import { clearVehiclePhoto, platePresence, resolveVehiclePhoto, resolveVehiclePhotos } from '../vehicle-photo';
+import { clearVehiclePhoto, platePresence, resolveVehiclePhoto, resolveVehiclePhotos, vehiclePhotoKind } from '../vehicle-photo';
 import { STORED_URL_SCHEME, storedUrl } from '@tappet/core/storage-paths';
 import { DEMO_UNPHOTOGRAPHED_VEHICLE_IDS } from '@tappet/core/demo';
 
@@ -484,5 +484,27 @@ describe('platePresence — what the phone may say about a plate', () => {
     const presence = await platePresence([{ id: 'p', photo_url: 'https://x/signed', plate_key: PLATE_KEY }], client);
     expect(presence.get('p')).toBeNull();
     expect(client.calls).toHaveLength(0);
+  });
+});
+
+describe('vehiclePhotoKind — a plate is not a photograph (13 Sep)', () => {
+  /*
+    Since the plates went live a car nobody has photographed arrives with
+    `photo_url` set to its plate, and the phone graded it a second time and
+    labelled the control CHANGE PHOTO. The kind travels beside the URL so a
+    client can tell the owner's picture from the app's own.
+  */
+  const V = 'a1000000-0000-0000-0000-0000000000aa';
+
+  it('names the owner’s upload, the seeded stock image, and the plate', () => {
+    expect(vehiclePhotoKind(V, { custom_image_url: storedUrl(`${V}/photo.jpg`), image_url: null, plate_key: null }, 'https://signed')).toBe('owner');
+    expect(vehiclePhotoKind(V, { custom_image_url: 'https://owner.example/car.jpg', image_url: null, plate_key: null }, 'https://owner.example/car.jpg')).toBe('owner');
+    expect(vehiclePhotoKind(V, { custom_image_url: null, image_url: '/vehicles/wrx/hero-3x2.jpg', plate_key: null }, '/vehicles/wrx/hero-3x2.jpg')).toBe('catalog');
+    expect(vehiclePhotoKind(V, { custom_image_url: null, image_url: null, plate_key: 'bmw/2-series/f22' }, 'https://plate.example/hero.jpg')).toBe('plate');
+  });
+
+  it('says nothing when nothing resolved — a plate still drawing is not a plate on screen', () => {
+    expect(vehiclePhotoKind(V, { custom_image_url: null, image_url: null, plate_key: 'bmw/2-series/f22' }, null)).toBeNull();
+    expect(vehiclePhotoKind(V, { custom_image_url: null, image_url: null, plate_key: null }, null)).toBeNull();
   });
 });

@@ -22,14 +22,14 @@ import { buildPosition } from '@tappet/core/build-progress';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/garage-next-service';
 import { componentPlainName } from '@tappet/core/recalls';
+import { MINDEDNESS_LABELS, type Mindedness } from '@tappet/core/vehicle-profile';
 import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { healthVerdict } from '@tappet/core/health-claims';
 import AlertBanner from '../components/AlertBanner';
 import BackControl from '../components/BackControl';
 import BandRow from '../components/BandRow';
-import RecallBand from '../components/RecallBand';
+import Binnacle, { BinnacleCell, BinnacleRow } from '../components/Binnacle';
 import Button from '../components/Button';
-import Card from '../components/Card';
 import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PhotoGrade from '../components/PhotoGrade';
@@ -52,12 +52,14 @@ import {
   HERO_TITLE_FADE_SPAN,
   detailHeroHeight,
   heroBands,
+  navFadeStartFor,
+  sheetMinHeight,
 } from '../theme/hero-motion';
-import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
-import { designVariant } from '../dev/fixtures';
-import HubConceptBody from './hub-concepts';
-import type { HubModel } from './hub-concepts/hub-model';
+import Svg, { Path } from 'react-native-svg';
+import { TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { cornerCovers } from '../components/CutSurface';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { monoFace } from '../theme/fonts';
 
 /*
   ⚠ `PHOTO_HERO = 196` is gone. The hero is no longer a band with a number on
@@ -148,6 +150,12 @@ interface Vehicle {
    * declared it and never drew it.
    */
   photo_url?: string | null;
+  /**
+   * Which kind of picture `photo_url` is — `owner`, `catalog` or `plate` —
+   * served since 13 Sep. Absent from an older API: then any `photo_url` is
+   * read as the owner's, which is what it always was before the plates.
+   */
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
   /** The generation plate's status beside the photo — `null` is nothing to say. See `PlateStatusLine`. */
   plate_status?: PlateStatus | null;
   /* Both embedded shapes accepted, for the reason GarageScreen sets out. */
@@ -282,6 +290,12 @@ interface HubCounts {
   wishlist: { count: number; total: number } | null;
 }
 
+/** One of the owner's answers, as the WHAT YOU TOLD US section rows it: a label and its value in the numeral column. */
+interface Answer {
+  label: string;
+  value: string;
+}
+
 type State =
   | { status: 'loading' }
   | {
@@ -306,6 +320,27 @@ type State =
 const WARNING_INK = (band: { name: string }) => ({
   color: band.name === 'warn' || band.name === 'bad' ? status.attention : text.primary,
 });
+
+/**
+ * Whether the picture on the hero is the owner's photograph.
+ *
+ * ── 13 Sep · a plate is not a photograph ─────────────────────────────────
+ *
+ * Since the plates went live, a car nobody has photographed arrives with
+ * `photo_url` set to its generation plate — and this screen read any
+ * `photo_url` as the owner's: it graded the plate a second time and offered
+ * CHANGE PHOTO over a car with no photo to change (found by the hub loop,
+ * drift §6.18). The route now says which kind of picture it sent; only the
+ * owner's takes the grade and the two-verb control. An older API sends no
+ * kind, and then a `photo_url` is read as it always was.
+ */
+export function isOwnerPhoto(vehicle: {
+  photo_url?: string | null;
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
+}): boolean {
+  if (!vehicle.photo_url) return false;
+  return vehicle.photo_kind === undefined || vehicle.photo_kind === null || vehicle.photo_kind === 'owner';
+}
 
 export function VehicleDetailScreen({
   vehicleId,
@@ -368,6 +403,19 @@ export function VehicleDetailScreen({
 }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  /*
+    The scroll view's own height, for the sheet's floor. The window stood in
+    for it in round 42 and the tab bar's 83pt was counted into the tail twice;
+    `null` until the first layout, when the window is the honest stand-in.
+  */
+  const [viewport, setViewport] = useState<number | null>(null);
+  /*
+    The identity block's measured height, for `navFadeStartFor`: the nav
+    title may arrive once the sheet has covered the block, and the block's
+    height is the one term of that geometry no constant knows. `null` until
+    the first layout; the constant's own start stands in.
+  */
+  const [identityHeight, setIdentityHeight] = useState<number | null>(null);
 
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -653,7 +701,7 @@ export function VehicleDetailScreen({
    * goes straight to the picker, as it always has.
    */
   const onPhotoControl = useCallback(() => {
-    const hasPhoto = state.status === 'ok' && Boolean(state.vehicle.photo_url);
+    const hasPhoto = state.status === 'ok' && isOwnerPhoto(state.vehicle);
     if (!hasPhoto) {
       void onAddPhoto();
       return;
@@ -776,6 +824,18 @@ export function VehicleDetailScreen({
   */
   const open = openRecalls(first(vehicle.nhtsa_data)?.recalls, vehicle.recall_actions);
   const openRecallCount = open.length;
+  /*
+    ⚠ Whether NHTSA was asked at all — the route's own rule (`load-vehicle`):
+    an absent `recalls` is "never checked", an empty array is "asked and had
+    nothing", and only one of those may print a 0. The old page hid its
+    recall row at 0 and so said nothing either way (the roadmap carried that
+    silence as David's call); the binnacle's cell printed `open.length`,
+    which is 0 for both — a `null` dressed as a reading, the defect
+    `health-claims.ts` exists to make impossible. Unchecked, the cell
+    carries no numeral and says so in its name; checked and clean, it
+    prints 0 in the legend's ink.
+  */
+  const recallsChecked = Array.isArray(first(vehicle.nhtsa_data)?.recalls);
 
   /*
     The banner names the defect rather than describing itself.
@@ -873,40 +933,58 @@ export function VehicleDetailScreen({
   const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || title || '';
 
   /*
-    ── 13 Sep · three concepts of this sheet, behind the fixtures' gate ───────
-
-    `designVariant()` is `null` everywhere but a development bundle that has
-    opted in twice, and `null` is the screen as it ships. The concepts take
-    what this screen has already worked out — the reading, the verdict, the
-    next service, the counts — as one object, so nothing about the car is
-    decided twice. See `hub-concepts/index.tsx` for why this exists and when
-    it goes.
+    The sodium mark on the NEXT SERVICE cell. Read off core's own timing words
+    rather than a number this screen worked out: `describeNextService` says
+    "overdue by …", "overdue since …" or "due now" exactly when the sweep's
+    reading is behind the odometer or the calendar, and a screen that compared
+    the miles itself would be a second opinion about when a service is late.
   */
-  const variant = designVariant();
-  const model: HubModel = {
-    name,
-    score,
-    band,
-    verdictText: verdict.text,
-    provenance: verdict.inputs,
-    nextService,
-    serviceDue,
-    historyCount,
-    wishlistCount,
-    openRecallCount,
-    worstRecall,
-    usage: vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null,
-    on: {
-      health: onOpenHealth,
-      recalls: onViewRecalls,
-      milestone: onOpenMilestone,
-      history: onOpenHistory,
-      wishlist: onOpenWishlist,
-      scan: onScanInvoice,
-      advisor: onAskAdvisor,
-      profile: onOpenProfile,
-    },
-  };
+  const serviceOverdue = nextService.kind === 'known' && /^(overdue|due now)/.test(nextService.timing);
+
+  /*
+    The owner's answers, as rows. Each is optional and an absent one is an
+    absent row — a dash under MODIFICATIONS would read as an answer of
+    nothing. The values are the profile screen's own words, so the row and
+    the field it opens agree.
+
+    ⚠ Three of the four, not four. The usage answer is the strip's USE cell
+    on the plate 400pt above — the pick's own note (*"USE / Daily Driver is
+    already in the hero strip"*) and round 45's cut (*"USE in the stat strip
+    duplicates HOW YOU USE IT in the table below; one goes"*). The strip's
+    is the one that stays: it is B2's strip, shared cell for cell with the
+    garage, and the reading the owner checks. Round 43 had restored the row
+    on the argument that a section of what you told us should not omit the
+    answer it is best known for; the answer is not omitted from the screen,
+    and every row here opens the one profile where it is changed. ⚠ Two of the labels are not: the profile asks
+    "What do you want from it?" (the mindedness) two blocks above a field
+    labelled "What you want out of it" (the objective), and side by side in
+    a table those two read as one question asked twice. Both rows take the
+    web wizard's own heads for the same answers — MODIFICATIONS, and the
+    OWNERSHIP step whose title is "Ownership Objectives" — which are nouns
+    the width of a row's label.
+
+    ⚠ The objective is prose in core (`OBJECTIVE_MAX` 280, *"an objective
+    is prose and stays prose"*) and a value on this row. Round 44 read it
+    as a caption — *"grey sans, left, under its label, while the three rows
+    above carry mono values on the right"* (B1, B6) — and the row's job is
+    to say there is an answer and open it, not to print it in full: the
+    wizard's answers are four short phrases, a sentence truncates in the
+    column (`BandRow` keeps the label whole), and the whole answer is the
+    row's spoken name and one tap away on the profile.
+  */
+  const answers: Answer[] = [];
+  if (typeof vehicle.avg_miles_per_month === 'number') {
+    answers.push({ label: 'Miles a month', value: miles.format(vehicle.avg_miles_per_month) });
+  }
+  if (vehicle.performance_mindedness && vehicle.performance_mindedness in MINDEDNESS_LABELS) {
+    answers.push({
+      label: 'Modifications',
+      value: MINDEDNESS_LABELS[vehicle.performance_mindedness as Mindedness],
+    });
+  }
+  if (vehicle.ownership_objective?.trim()) {
+    answers.push({ label: 'Ownership', value: vehicle.ownership_objective.trim() });
+  }
 
   /*
     ── The interpolations ────────────────────────────────────────────────────
@@ -943,8 +1021,18 @@ export function VehicleDetailScreen({
     extrapolate: 'clamp',
   });
 
+  /*
+    The nav title's arrival — `navFadeStartFor` once the identity block has
+    measured, the constant until then. Both feed an `inputRange`, which is
+    the interpolation's own argument and not a style key, so the native
+    driver is untouched.
+  */
+  const navFadeStart =
+    identityHeight === null
+      ? HERO_NAV_FADE_START
+      : navFadeStartFor({ titleAnchor: bands.titleAnchor, identityHeight });
   const navFade = scrollY.interpolate({
-    inputRange: [HERO_NAV_FADE_START, HERO_NAV_FADE_START + HERO_NAV_FADE_SPAN],
+    inputRange: [navFadeStart, navFadeStart + HERO_NAV_FADE_SPAN],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -999,7 +1087,7 @@ export function VehicleDetailScreen({
           image and under the dim and the bed, so the grade is the photograph's
           and the contrast floor stays the floor.
         */}
-        {vehicle.photo_url ? <PhotoGrade /> : null}
+        {isOwnerPhoto(vehicle) ? <PhotoGrade /> : null}
 
         {/* The bay light going down as the floor comes up — shadow, not chrome. */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
@@ -1012,6 +1100,7 @@ export function VehicleDetailScreen({
             styles.identity,
             { bottom: bands.titleAnchor, opacity: identityFade, transform: [{ translateY: heroDrift }] },
           ]}
+          onLayout={(event) => setIdentityHeight(event.nativeEvent.layout.height)}
           pointerEvents="none"
         >
           {/* 12 Sep: the plate says it is being drawn — see `PlateStatusLine`. */}
@@ -1042,6 +1131,7 @@ export function VehicleDetailScreen({
       <Animated.ScrollView
         style={styles.scroller}
         contentContainerStyle={styles.scrollBody}
+        onLayout={(event) => setViewport(event.nativeEvent.layout.height)}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
@@ -1063,271 +1153,294 @@ export function VehicleDetailScreen({
         */}
         <View style={{ height: heroH - HERO_SHEET_OVERLAP }} pointerEvents="none" />
 
-        <Animated.View style={[styles.sheet, { shadowOpacity: sheetShadow }]}>
+        {/*
+          ⚠ Tall enough for the pullback to complete — 13 Sep. The binnacle is
+          short, and a sheet the height of its content could not travel to
+          `HERO_NAV_FADE_START`: the hero name finished fading and the mono nav
+          title never came, so the car had no name at the end of the scroll.
+          `sheetMinHeight` derives the floor from the motion constants; the
+          tail it leaves under the foot is the price of the title arriving,
+          and it is the same tail the ledger left. Static: a `minHeight` is a
+          layout key and must never be driven by `scrollY`.
+        */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              minHeight: sheetMinHeight(viewport ?? windowHeight, heroH, { navFadeStart, navHeight: insets.top + 44 }),
+              shadowOpacity: sheetShadow,
+            },
+          ]}
+        >
           {/*
             The batten's lit hairline on the leading edge. This is a floor
             arriving, not an iOS modal — square top corners, no rounded card.
           */}
           <View style={styles.sheetEdge} pointerEvents="none" />
 
-          {variant ? (
-            <>
-              {photoError && (
-                <View style={styles.body}>
-                  <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
-                </View>
-              )}
-              <HubConceptBody variant={variant} model={model} />
-            </>
-          ) : (
-          <View style={styles.body}>
-            {photoError && (
+          {/*
+            ── 13 Sep · B2: the plate's cut, where the plate meets the sheet ──
+
+            The brief gives the plate one 45° cut, top-right; on this screen
+            the plate runs under the status bar, so that corner is under the
+            clock and every graded frame showed a plate with no cut while
+            both buttons under it had one. Round 46 reversed the earlier
+            acceptance: *"a cut nobody can see does not meet the line."*
+
+            The plate's only corner on the page is where it meets the sheet,
+            and that edge travels — the sheet rises over the pinned hero —
+            so the cut is the sheet's: `cut.plate` of page colour laid back
+            over the plate's bottom-right corner, above the leading edge, the
+            way `MastheadPlate` and the garage plate paint theirs
+            (`cornerCovers`, so `cut-geometry.test.tsx` holds the legs equal).
+            The hairline stops where the bevel begins; the garage plate's cut
+            carries no rule either. Decorative, hidden from the reader.
+          */}
+          <Svg
+            width={cut.plate}
+            height={cut.plate}
+            style={styles.sheetCut}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']).map((d) => (
+              <Path key={d} d={d} fill={surface.page} />
+            ))}
+          </Svg>
+
+          {photoError && (
+            <View style={styles.banner}>
               <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
+            </View>
+          )}
+
+          {/*
+            ── 13 Sep · the sheet is a binnacle, not a ledger ─────────────────
+
+            What stood here: the reading in a band with its sentence, a two-row
+            table (WHAT IS DRIVING THIS SCORE · OPEN RECALLS), the hub as a
+            four-row spec table under THIS CAR, the one filled primary, and a
+            WHAT YOU TOLD US row — the row-list-of-links, the
+            primary-at-the-bottom, hero-then-ledger. David, 13 Sep: *"i feel
+            surprised this page, with these cta's/nav elements, received an
+            acceptable score from the design critic."* Three concepts were
+            built behind a fixtures flag and put to the critic blind with the
+            shipped page as the fourth; it ranked the binnacle first and the
+            shipped page last (`design-loop/mobile-ios/concepts/hub/pick.md`).
+            `Binnacle` carries the design; this is its composition for the car.
+
+            The rows, and what each cell says it is the door to:
+
+              HEALTH (3)  · the reading, its sentence, its provenance → Health
+              NEXT SERVICE (2) · the sweep's service, and when → what is due
+              RECALLS · HISTORY · PLAN → the campaigns, the records, the needs
+
+            The verdict sentence lives **inside** the HEALTH cell — the critic's
+            one reservation on the pick was a reading separated from the
+            sentence that qualifies it, and David's 23 Aug point was the same:
+            a paragraph explaining a reading you have to look away to find is
+            a paragraph about nothing. `verdict.text`, never `health.summary`
+            (`healthVerdict` carries why), and the provenance line beneath it.
+
+            ⚠ The dial is still not here. It is the garage's instrument and
+            David cut this screen's copy on 23 Aug because it covered the car;
+            what this cell carries is the reading at the plate's numeral size,
+            which is the largest thing on the sheet and still not over the
+            photograph. `VehicleDetailScreen.test.tsx` holds "never over the
+            car".
+          */}
+          <Binnacle accessibilityLabel="Readings">
+            <BinnacleRow first>
+              <BinnacleCell
+                legend="Health"
+                flex={3}
+                onPress={onOpenHealth}
+                accessibilityLabel={
+                  score !== null && band
+                    ? `Health score ${score} out of 100 — ${band.label}. Opens what is driving it.`
+                    : 'Health, no score yet. Opens what is driving it.'
+                }
+              >
+                {score !== null && band ? (
+                  <>
+                    <View style={styles.reading}>
+                      {/*
+                        ⚠ 6 Sep · B3 and B7: the reading stopped wearing the
+                        band. `WARNING_INK` spends sodium only where the ramp
+                        says there is a genuine warning; a sound reading is
+                        ink. The band table is untouched and still consulted.
+                      */}
+                      <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
+                      <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
+                    </View>
+                    {/*
+                      13 Sep: the stale caveat in a cell's worth of words —
+                      the critic's most repeated cut across three rounds was
+                      the four-line sentence here. `short` is core's, the same
+                      claim; a current reading's own sentence stays as it is.
+                    */}
+                    {(verdict.short ?? verdict.text) ? (
+                      <Text style={styles.summary}>{verdict.short ?? verdict.text}</Text>
+                    ) : null}
+                    <ProvenanceRow kinds={verdict.inputs} />
+                  </>
+                ) : (
+                  <Text style={styles.absent}>No score yet</Text>
+                )}
+              </BinnacleCell>
+
+              {/*
+                ⚠ The service by name, and core's own words for when. This cell
+                used to print the timing alone ("overdue by 3,000 mi"), which
+                does not say what is overdue — the critic's second note on the
+                pick. The name is the knowledge base's; the timing is
+                `describeNextService`, shared with the garage so the two cannot
+                word one schedule differently. Where the sweep has not written
+                a row the cell says `UNKNOWN_TIMING` under its permanent label —
+                "No schedule yet" is not "nothing due", and the label never
+                leaves (`garage-next-service.ts`).
+              */}
+              <BinnacleCell
+                legend="Next service"
+                flex={2}
+                rule
+                warning={serviceOverdue}
+                onPress={onOpenMilestone}
+                accessibilityLabel={`Next service, ${
+                  nextService.kind === 'known' ? `${nextService.service}, ${nextService.timing}` : serviceDue
+                }. Opens what is due.`}
+              >
+                {nextService.kind === 'known' ? (
+                  <Text style={styles.serviceName} numberOfLines={3}>
+                    {nextService.service}
+                  </Text>
+                ) : null}
+                <Text style={[styles.count, styles.timing]} numberOfLines={3}>
+                  {serviceDue}
+                </Text>
+              </BinnacleCell>
+            </BinnacleRow>
+
+            <BinnacleRow>
+              {/*
+                ⚠ R16 · opens `Health`, not a recalls screen: the recalls are a
+                section of it, under the dial they drive. The count is *open*
+                recalls — `verdict-inputs.ts`. The worst open campaign is in
+                the reader's sentence and nowhere on the cell: round 42 put
+                its system under the count and the three numerals of the row
+                landed on three baselines (B6, gap 3). A count says there is
+                something to read; the name of it is one tap away, on the
+                screen this opens.
+              */}
+              <BinnacleCell
+                legend="Recalls"
+                warning={openRecallCount > 0}
+                onPress={onViewRecalls}
+                accessibilityLabel={
+                  recallsChecked
+                    ? `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}${
+                        worstRecall ? `. ${worstRecall}` : ''
+                      }`
+                    : 'Recalls, not checked yet. Opens the account of the score.'
+                }
+              >
+                {recallsChecked ? (
+                  <Text style={[styles.count, openRecallCount === 0 && styles.countEmpty]}>{openRecallCount}</Text>
+                ) : null}
+              </BinnacleCell>
+              <BinnacleCell
+                legend="History"
+                rule
+                onPress={onOpenHistory}
+                accessibilityLabel={historyCount ? `History, ${historyCount} recorded services.` : 'History.'}
+              >
+                {historyCount ? (
+                  <Text style={[styles.count, historyCount === '0' && styles.countEmpty]}>{historyCount}</Text>
+                ) : null}
+              </BinnacleCell>
+              <BinnacleCell
+                legend="Plan"
+                rule
+                onPress={onOpenWishlist}
+                accessibilityLabel={wishlistCount ? `Plan, ${wishlistCount}.` : 'Plan.'}
+              >
+                {wishlistCount ? (
+                  <Text style={[styles.count, wishlistCount === '0' && styles.countEmpty]} numberOfLines={2}>
+                    {wishlistCount}
+                  </Text>
+                ) : null}
+              </BinnacleCell>
+            </BinnacleRow>
+          </Binnacle>
+
+          {/*
+            ── The switches ─────────────────────────────────────────────────
+
+            Two acts at the panel's foot, and the scan is the one primary.
+            The advisor was *"the verb this screen exists to lead to"* in the
+            spec, and the critic's reading of the four candidates was that a
+            verb outranking the car's readings is the wrong hierarchy for a
+            hub — *"the two actions recede to the bottom, where actions
+            belong."* Round 42 had them as two equal hairlines; the critic
+            graded that against B9 — *"the phone's headline act is a
+            below-the-fold secondary twinned with the advisor"* — so the scan
+            takes the off-white fill and the advisor keeps the hairline. The
+            tab bar already carries the advisor as a root; nothing carries
+            the scan but Service's primary and this.
+
+            ⚠ 24pt of air between the panel's closing rule and the switches —
+            the Service root's own figure between its primary and the first
+            rule (round 33: 24, not 32). Round 44 measured the cost of 16: on
+            the 16 Pro the panel's two rows end 7pt short of the fold, so a
+            7pt band of off-white showed over the tab bar at rest — *"a white
+            sliver … reading as a stray band"* (B9). At 24 the rows end on
+            the fold; what meets the tab bar's rule is the panel's air. The
+            critic's alternative — the switches above the count row — would
+            put the readings the pick led with under the fold instead, with
+            the count row's numerals sliced where the button was.
+          */}
+          <View style={styles.switches}>
+            <Button label="Scan invoice" size="small" onPress={onScanInvoice} style={styles.switch} />
+            <Button label="Ask the advisor" variant="outline" size="small" onPress={onAskAdvisor} style={styles.switch} />
+          </View>
+
+          {/*
+            ── What the owner told us ────────────────────────────────────────
+
+            A **destination**, still — David: *"why are we showing these
+            details with no option to update? all should be editable."* — and
+            a section with its answers in it. Round 42 demoted it to a ghost
+            word at the foot, on the pick's note that HOW YOU USE IT · Daily
+            Driver repeated the plate's USE cell; the critic then graded the
+            word as *"a mono label floating over roughly 450pt of empty
+            graphite"* (B1) and named the two honest forms: a section head in
+            condensed caps with content beneath, or nothing. This is the
+            first. The rows are the profile screen's own four answers in its
+            own order and words, each the door to editing them; the average is
+            the one the strip does not carry, and the usage stays because a
+            section of "what you told us" that omitted the answer it is best
+            known for would be lying by omission. A missing answer is a
+            missing row, never a dash.
+          */}
+          <View style={styles.answers}>
+            {answers.length > 0 ? <SectionHeader title="What you told us" /> : null}
+            {answers.length > 0 ? (
+              answers.map((answer, index) => (
+                <BandRow
+                  key={answer.label}
+                  /* B6: a list of like rows carries the spec table's index. */
+                  index={String(index + 1).padStart(2, '0')}
+                  label={answer.label}
+                  count={answer.value}
+                  onPress={onOpenProfile}
+                  last={index === answers.length - 1}
+                />
+              ))
+            ) : (
+              <BandRow label="What you told us" onPress={onOpenProfile} last />
             )}
-      {/*
-        ⚠ The dial is **not** here any more — it is in the hero, on the plane
-        above this sheet. What stays is the sentence and the way in to the
-        account of it; a second copy of the reading on the same screen would be
-        the duplication the hero exists to remove.
-      */}
-      {score !== null && band && (
-        <Card>
-          {/*
-            ── ⚠ The card carries the score it is explaining ──────────────────
-
-            David, 23 Aug: *"I don't like that driving score details are still
-            visible after the user can no longer see the actual score — on
-            scroll, the score exits the viewport well earlier than the
-            description."*
-
-            The dial is on the hero and the chip is in the nav, so the number
-            never technically leaves — but neither is *beside the sentence about
-            it* by the time the sentence is on screen. A paragraph explaining a
-            reading you have to look away to find is a paragraph about nothing.
-
-            So the reading is repeated here at the value size, in the band
-            colour, with the verdict beside it. Three appearances of one number
-            sounds like a lot and is not: only two are ever visible at once, at
-            different scales and doing different jobs — the dial is the
-            instrument, the chip is chrome, and this is the subject of the
-            paragraph under it.
-          */}
-          <View style={styles.scoreHead}>
-            {/*
-              ── ⚠ 6 Sep · B3 and B7: the score stopped wearing the band ──────
-
-              Both of these took `healthBandHex(band)` at every reading, so a 70
-              printed in the `ok` band's `#D6BE9B` — the gold B3 names and bans,
-              and a third hue on a two-hue system. The dial one screen away had
-              already moved to off-white ink; this was the same reading in a
-              different colour, on the same car.
-
-              The band table is untouched and still consulted — `WARNING_INK`
-              below spends sodium only where the ramp says there is a genuine
-              warning. What changed is that a sound reading is ink.
-            */}
-            <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
-            <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
           </View>
-
-          {/*
-            ⚠ `verdict.text`, never `health.summary`. The stored sentence is
-            shown only when the reading is current; when it predates the records
-            on file, what renders instead is a statement of that, and the
-            sentence itself does not appear at all — see `healthVerdict`.
-          */}
-          {verdict.text ? <Text style={styles.summary}>{verdict.text}</Text> : null}
-
-          {/*
-            What the number was worked out from, named. This is the half that
-            makes a contradiction like the one above visible while somebody is
-            looking at the screen, rather than only to whoever thinks to open
-            the service history and compare.
-          */}
-          <ProvenanceRow kinds={verdict.inputs} />
-        </Card>
-      )}
-
-      {/*
-        ── The two rows under the reading: one table ──────────────────────────
-
-        ⚠ 12 Sep · B1. The way into the account of the score sat *inside* the
-        card as a `NavRow` — a sliders glyph, a bold sentence-case sans label,
-        an inset divider — directly above OPEN RECALLS in condensed caps. The
-        critique named it four rounds running, the last time exactly: *"the
-        only bold sans sentence-case head in the app … while OPEN RECALLS
-        directly beneath it is condensed caps. One voice per level: set it
-        like its neighbour, drop the icon, keep the chevron."* The web's own
-        destination rows on the dossier (VEHICLE DOSSIER, WISHLIST) are that:
-        condensed caps and a chevron.
-
-        So the row is out of the card and beside the recall as a two-row spec
-        table — the same shape the garage draws under its dial — with one
-        hairline per row and the last row closing it. `BandRow` carries what
-        it replaced — `NavRow`, the iOS grouped-table row with the glyphs
-        David asked for on 23 Aug — and why the hub below followed it into the
-        same table one round later.
-
-        The card is still deliberately **not** the target. It carries the
-        score, the verdict and the provenance, and three different things to
-        read do not make one thing to press.
-      */}
-      {(score !== null && band) || openRecallCount > 0 ? (
-        <View>
-          {score !== null && band && (
-            <BandRow
-              label="What is driving this score"
-              onPress={onOpenHealth}
-              last={openRecallCount === 0}
-            />
-          )}
-
-      {/*
-        ── The recall ─────────────────────────────────────────────────────────
-
-        ⚠ **Below the dial, which is the design system's order and not the one
-        that shipped.** `specs/native-vehicle-detail.spec.html` reads score,
-        then "2 open recalls", then the hub. The shipped screen put it first on
-        the argument that a recall is the one time-critical thing here — a good
-        argument, and it is above the fold either way, so this follows the spec
-        and the disagreement is written down for Design rather than settled
-        unilaterally. See `docs/design-system-drift.md`.
-
-        The body names the **worst open recall** instead of saying "what it
-        means, and what to do about it". The spec's own line is *"One is a fuel
-        pump that can cut power"*, and it is right: a banner that describes
-        itself is furniture, and a banner that names the defect is information.
-      */}
-      {/*
-        ⚠ 6 Sep · B7: a *count* of open recalls is a state — it says there is
-        something to read, not that the car is unsafe to drive tonight — so it
-        never took the `critical` fill, and on 11 Sep it stopped taking the
-        `attention` frame as well. `RecallBand` is a hairline row with the
-        sodium triangle beside it: B5's band and B7's line, on the one screen
-        that still had a box. The `AlertBanner` tones stay for the states that
-        are alerts.
-      */}
-          {openRecallCount > 0 && (
-            <RecallBand
-              count={openRecallCount}
-              worst={worstRecall ?? 'Free to fix at a franchised dealer, whatever the age.'}
-              onPress={onViewRecalls}
-              last
-            />
-          )}
-        </View>
-      ) : null}
-
-      {/*
-        ── The hub ────────────────────────────────────────────────────────────
-
-        Six places to go, as rows with a chevron rather than as `ListRow`s with
-        an empty value. That swap is the whole of David's *"it's not clear that
-        these are buttons I could tap"*: a `ListRow` is a fact (muted label,
-        primary value) and a destination is the reverse — the label is the
-        payload and the chevron says it goes somewhere.
-
-        Each row carries what is behind it where the screen knows: 18 services,
-        a wishlist total, the next service. Where it does not know, it carries
-        **nothing** — never a zero, which would claim the place is empty.
-      */}
-      {/*
-        ── ⚠ R14 / R15 · five rows became three ──────────────────────────────
-
-        It was `Service due`, `Service history`, `Wishlist`, `Build` and `Scan an
-        invoice` — five siblings off a flat list, four of which were two pairs
-        answering one question each.
-
-        `Service` is what this car has had done and what it needs; `Plan` is
-        what to do to it next, needs and mods. Both open on the segment their
-        row named, so nothing that used to be one tap away is now two.
-
-        The counts move with them. `Service` shows the history count because
-        that is the countable fact; `Plan` shows the needs count and total,
-        which is the number an owner is actually tracking.
-      */}
-      {/*
-        ── ⚠ 12 Sep · B1 and B5: the hub is a spec table, not a settings list ─
-
-        These were `NavRow`s in a `ListGroup`: a Lucide glyph, a sans
-        title-case label, a sans count, an inset seam — the iOS grouped table.
-        That form was David's own correction on 23 Aug (*"ugly and uninviting
-        to engage with"*), made against a hub of four bare sans words in a
-        card, and the glyphs were its answer. The locked brief came after it,
-        and the first frame of this screen scrolled past the recall showed the
-        cost: the one iOS-settings block in an app that is otherwise the spec
-        table, with values ("No schedule yet", "5", "Daily Driver") in sans
-        where the garage and the strip set the same strings in mono — and the
-        clock and wrench meaning Plan and Service in the tab bar while meaning
-        Service and History here.
-
-        So the rows are `BandRow`s under a condensed eyebrow: full-width
-        hairlines, condensed caps label, mono value at the right, every
-        chevron on the right edge, no glyph — the web dossier's own
-        destination rows (VEHICLE DOSSIER, WISHLIST). What David asked for
-        survives as structure: the label sits outside the group, the rows are
-        56pt and countable, and each carries what is behind it. Logged in
-        `docs/design-system-drift.md` §6.13 as a supersession of the 23 Aug
-        decision, for him to overrule.
-
-        Each row carries what is behind it where the screen knows: a count, a
-        total, a timing. Where it does not know, it carries **nothing** —
-        never a zero, which would claim the place is empty (see `HubCounts`).
-      */}
-      <View>
-        <SectionHeader title="This car" />
-        <BandRow label="Service" count={serviceDue} onPress={onOpenMilestone} />
-        <BandRow label="History" count={historyCount} onPress={onOpenHistory} />
-        <BandRow label="Plan" count={wishlistCount} onPress={onOpenWishlist} />
-        {/*
-          No `detail` line. The rows are one line each, and a two-line row in a
-          table of one-liners is the row that looks broken — "Scan invoice"
-          already says what it does. One name for the act, with the Service
-          root's primary and the scan's nav title (round 34's Cut list).
-        */}
-        <BandRow label="Scan invoice" onPress={onScanInvoice} last />
-      </View>
-
-      {/*
-        ── The one filled primary ─────────────────────────────────────────────
-
-        The advisor is the verb this screen exists to lead to, and it is the only
-        filled control on it — the spec says so directly: *"one filled primary
-        per screen, and it is this one; the recall banner is a card affordance,
-        not a second CTA."*
-      */}
-      <Button label="Ask the advisor" onPress={onAskAdvisor} style={styles.primaryAction} />
-
-      {/*
-        ── What the owner told us ─────────────────────────────────────────────
-
-        ⚠ A **destination**, not a read-only card. It was four `ListRow`s with
-        no way to change any of them — David's *"why are we showing these
-        details with no option to update? all should be editable."* The honest
-        answer was that nothing in the product could write them:
-        `PATCH /api/v1/vehicles` took a mileage reading and nothing else.
-
-        A row rather than inline editing, because one of these answers turns a
-        whole surface on and off — `stock` hides the Build route — and that
-        deserves a deliberate save rather than happening under a finger.
-      */}
-      <View>
-        <SectionHeader title="What you told us" />
-        {/*
-          "How you use it", not "How you use this car": at the section head's
-          size the longer label and its value overran the row and the label
-          truncated to "HOW YOU USE THIS…" — the one thing a destination's
-          name must not do. The screen is the car; "it" is not ambiguous here.
-        */}
-        <BandRow
-          label="How you use it"
-          count={vehicle.vehicle_status ? humanise(vehicle.vehicle_status) : null}
-          onPress={onOpenProfile}
-          last
-        />
-      </View>
-          </View>
-          )}
         </Animated.View>
       </Animated.ScrollView>
 
@@ -1402,7 +1515,7 @@ export function VehicleDetailScreen({
             Remove will tap.
           */}
           <Button
-            label={vehicle.photo_url ? 'Change photo' : 'Add photo'}
+            label={isOwnerPhoto(vehicle) ? 'Change photo' : 'Add photo'}
             variant="outline"
             size="small"
             busy={uploading || removing}
@@ -1419,20 +1532,6 @@ export function VehicleDetailScreen({
         call site above. Its slot now carries the photo control, which needed a
         home that the content surface does not cover.
       */}
-    </View>
-  );
-}
-
-/**
- * A missing value renders as an em dash rather than vanishing. A row that
- * disappears makes the screen look like it loaded a different car; a dash says
- * the field exists and is empty, which is the true statement.
- */
-function Row({ label, value }: { label: string; value: string | null }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value ?? '—'}</Text>
     </View>
   );
 }
@@ -1530,7 +1629,9 @@ const styles = StyleSheet.create({
     meaning. A hairline still separates the sheet from the photograph; it is
     just not a signal any more.
   */
-  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel },
+  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel, marginRight: cut.plate },
+  /** The plate's cut: `cut.plate` square, standing on the leading edge at the right, above the plate. */
+  sheetCut: { position: 'absolute', top: -cut.plate, right: 0 },
 
   /* ── z6 · the nav ─────────────────────────────────────────────────────── */
   navPlate: {
@@ -1566,63 +1667,44 @@ const styles = StyleSheet.create({
 
   /* ── z7 · the score chip ──────────────────────────────────────────────── */
   dialChip: { position: 'absolute', right: space.lg, alignItems: 'flex-end' },
-  /*
-    `cardExit` — R24's rule between a card's content and its way out — is gone
-    with the row it separated (12 Sep). The way out is a row of the table
-    beneath the card now, and the table draws its own rules.
-  */
 
+  /* ── The binnacle's readings ────────────────────────────────────────── */
+  banner: { padding: space.lg },
+  reading: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   /*
-    The reading, at the value size rather than the instrument's. Tabular so it
+    ⚠ **R7 · the condensed grotesk, because this screen's display role is the
+    hero title and its serif role is nobody's.** This was `type.editorial` at
+    30 once (two serif roles on one screen), then Inter at 30 as the subject
+    of a paragraph. It is the plate's numeral now — `numeralPlate`, the same
+    reading at the size it takes when it sits inside a plate rather than
+    owning a screen — because the cell is an instrument and the reading is
+    what it reads. The `Health` screen is where the 88 is spent. Tabular so it
     does not shift as the score moves between sweeps.
   */
-  scoreHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
-  /*
-    ⚠ **R7 · sans, because this screen's serif role is the hero title.**
+  scoreValue: { ...type.numeralPlate, color: text.primary, ...TABULAR },
+  scoreBand: { ...type.monoNav, color: text.primary },
+  absent: { ...type.mono, color: text.muted },
+  summary: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
+  /* B1: the service's name is a section head in miniature — the factor label's size. */
+  serviceName: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
+  /* A count: mono, tabular, at the health drivers' reading size. */
+  count: {
+    fontFamily: monoFace('500'), fontWeight: '500',
+    fontSize: 20,
+    lineHeight: 24,
+    color: text.primary,
+    ...TABULAR,
+  },
+  /* A zero the screen did read, in the legend's ink: an empty list is not a warning. */
+  countEmpty: { color: text.muted },
+  timing: { fontSize: 15, lineHeight: 20 },
 
-    This was `type.editorial` at 30, which put **two** serif roles on one screen
-    — the 36pt car name over the photograph and this. The theme's own rule is
-    "one serif role per screen, never two", and the system offers two kinds of
-    role, (a) a name and (b) a single hero numeral. A screen picks one.
-
-    On this screen the name wins: it is the signature, it is the only place an
-    owner sees their own car, and the numeral is the *subject of the paragraph
-    under it* rather than the screen's headline. The `Health` screen is where
-    the numeral is the hero, and that is where role (b) is spent.
-  */
-  scoreValue: { ...type.title, fontSize: 30, lineHeight: 34, ...TABULAR },
-  scoreBand: { ...type.monoLabel, color: text.muted },
+  /* ── The switches, and the foot ─────────────────────────────────────── */
+  switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
+  switch: { flex: 1 },
+  answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },
 
   body: { padding: space.lg, gap: space.md },
-
-  headerBlock: { gap: 2 },
-  trim: { ...type.body, color: text.muted },
-
-  /* The same real surface step the garage cards now use — not a 5% wash. */
-
-  buildDial: { alignItems: 'center' },
-  summary: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
-
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: space.lg },
-  rowLabel: { ...type.body, fontSize: 14, color: text.muted },
-  rowValue: { ...type.body, fontSize: 14, color: text.primary, flexShrink: 1, textAlign: 'right' },
-
-
-  /*
-    ⚠ **The colours in the two CTAs below are deliberately NOT tokenised.**
-
-    They are measured values with a history. The white fill was chosen over the
-    brand cyan because `bg-cyan-600` was a known 3.68:1 and an open decision on
-    the web board, and the dark ink sat at 4.47:1 — a hair under the floor —
-    behind a shipped comment that claimed 8.6:1 and had measured white-on-white
-    by mistake. The rendered-contrast suite caught it; 0.60 gives 5.35:1.
-
-    Substituting a token here would re-open a question that cost real time to
-    close, and no source scan can catch it because this is dark text on light.
-    Structure moves onto the system; these four colours do not.
-  */
-
-  /* Outlined rather than filled, so it reads as the second verb on the screen. */
 
   centred: {
     flex: 1,
@@ -1634,6 +1716,4 @@ const styles = StyleSheet.create({
   errorTitle: { ...type.title, color: text.primary },
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
   stateAction: { marginTop: space.md, paddingHorizontal: space.xxl },
-  /* Full-bleed: the one thing on the screen that is a commitment, not a link. */
-  primaryAction: { alignSelf: 'stretch', marginTop: space.xs },
 });

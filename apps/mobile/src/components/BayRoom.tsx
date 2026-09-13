@@ -139,11 +139,14 @@ const BLUR_OVERSCAN = 1.16;
 
 export default function BayRoom({
   photo,
+  photoKind,
   make,
   busy = false,
   height = BAY_HERO_MAX,
 }: {
   photo?: string | null;
+  /** Which kind of picture `photo` is; only the owner's is graded (13 Sep). Absent = the owner's, as before the plates. */
+  photoKind?: 'owner' | 'catalog' | 'plate' | null;
   make?: string | null;
   /** Omitted means no control — see `VehiclePlate` for why that is not a failure. */
   busy?: boolean;
@@ -251,8 +254,12 @@ export default function BayRoom({
             accessibilityRole="image"
             accessibilityLabel={make ? `${make} photo` : 'Vehicle photo'}
           />
-          {/* B9: the owner's photograph passes through the house grade. */}
-          <PhotoGrade />
+          {/*
+            B9: the owner's photograph passes through the house grade — and
+            only the owner's. A plate is already the film; grading it again
+            lifts its blacks twice (13 Sep, the hub loop).
+          */}
+          {photoKind === undefined || photoKind === null || photoKind === 'owner' ? <PhotoGrade /> : null}
         </>
       ) : (
         <NightPlate />

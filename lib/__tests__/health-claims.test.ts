@@ -222,6 +222,27 @@ describe('healthVerdict', () => {
       design critique found twice; a stale reading read none of them.
     */
     expect(verdict.inputs).toEqual([]);
+    /*
+      13 Sep: the hub's HEALTH cell has room for a sentence of a few words,
+      not a paragraph. The short form makes the same claim — taken before
+      the records, not counting them — and, like `text`, never carries the
+      stored summary.
+    */
+    expect(verdict.short).toBe('Read before 5 service records were filed.');
+    expect(verdict.short).not.toContain('complete lack');
+  });
+
+  it('has no short caveat for a reading that needs none', () => {
+    const current = healthVerdict({
+      summary: SUMMARY,
+      generatedAt: '2026-08-20T00:00:00+00:00',
+      serviceCount: 5,
+      newestFiledAt: '2026-08-06T02:43:11.903661+00:00',
+      openRecalls: 2,
+    });
+    expect(current.state).toBe('current');
+    expect(current.short).toBeNull();
+    expect(healthVerdict({ summary: '', generatedAt: null, serviceCount: 0, newestFiledAt: null, openRecalls: 0 }).short).toBeNull();
   });
 
   it('names what it read, so the contradiction is visible', () => {

@@ -1,5 +1,6 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
+import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 import { AccountScreen } from '../AccountScreen';
 import { deleteAccount, getSubscription } from '../../api/account';
 import { ApiRequestError } from '../../api/client';
@@ -111,6 +112,15 @@ describe('the confirmation gate', () => {
     good enough, the instrument is a unit test of `handleDelete` extracted from
     the component, not a cleverer query.
   */
+
+  it('carries the trademark notice once, in the Legal section — 13 Sep', async () => {
+    // The phone's one use of the symbol: the same sentence the web prints,
+    // from core, so both surfaces name one owner. Not in any chrome title.
+    const { view } = mount();
+    const screen = await view;
+    expect(screen.getByText(TRADEMARK_NOTICE)).toBeTruthy();
+    expect(screen.getAllByText(/™/)).toHaveLength(1);
+  });
 
   it('does not delete when nothing has been typed', async () => {
     const user = userEvent.setup();

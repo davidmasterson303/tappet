@@ -112,6 +112,34 @@ export const BRAND_NAME = 'Tappet';
 export const MAKER_NAME = 'Southmoor Digital';
 
 /**
+ * ── 13 Sep · the mark carries a claim, not a registration ───────────────────
+ *
+ * Tappet is not a registered mark and will not be for about a year. Until a
+ * certificate exists the correct symbol is the trademark one — it asserts a
+ * common-law claim, needs no filing, and dates itself the moment it deploys.
+ * The registered symbol before registration is improper and can be held
+ * against the application; `no-registered-mark.test.ts` refuses it anywhere
+ * in customer-facing source, and that guard is the one line to change when
+ * the certificate arrives.
+ *
+ * Where the symbol goes: the first or most prominent use per surface — the
+ * web masthead once per page, the phone's Account screen once — and this
+ * notice line in the web footer, the Terms, the Privacy policy and the
+ * phone's Legal section. Where it must not: the App Store name field, the
+ * page `<title>` and OG tags, the bundle display name, body copy, the
+ * advisor's own answers, and the brand drawing itself — the symbol is a
+ * layout decision beside the wordmark, never baked into the asset, which is
+ * why `BRAND_NAME` stays a bare word.
+ *
+ * The owner is the operating entity (`lib/legal.ts`'s `OPERATOR`); the two
+ * strings are held equal by a test so the notice can never name a different
+ * company from the one the policies name.
+ */
+export const TRADEMARK_SYMBOL = '™';
+export const TRADEMARK_OWNER = 'Southmoor Digital LLC';
+export const TRADEMARK_NOTICE = `${BRAND_NAME}${TRADEMARK_SYMBOL} is a trademark of ${TRADEMARK_OWNER}.`;
+
+/**
  * Clear space: **one mark height on all sides**, so 20 grid units.
  *
  * Stated against the mark rather than as a fixed number, because a fixed number

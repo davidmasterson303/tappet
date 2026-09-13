@@ -85,6 +85,8 @@ interface Vehicle {
   current_mileage?: number | null;
   vehicle_status?: string | null;
   photo_url?: string | null;
+  /** Which kind of picture that is — `owner`, `catalog`, `plate` — served since 13 Sep. */
+  photo_kind?: 'owner' | 'catalog' | 'plate' | null;
   /** Beside `photo_url` since 12 Sep; `null` is nothing to say. See `PlateStatusLine`. */
   plate_status?: PlateStatus | null;
   /*

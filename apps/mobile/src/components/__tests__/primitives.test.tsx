@@ -332,6 +332,45 @@ describe('BandRow', () => {
     expect(mark.color).toBe(status.attention);
   });
 
+  it('draws the spec table’s index when the rows are a list, and none for a lone reading', async () => {
+    /*
+      13 Sep. B6's `01` on the vehicle hub's WHAT YOU TOLD US rows, in the
+      style the Due table, the catalogue and Needs already draw it — mono,
+      muted, tabular, 22pt wide. Hidden from the reader: the row's name is
+      the label, and "zero one, miles a month" is not.
+    */
+    const listed = await render(<BandRow index="01" label="Miles a month" count="500" onPress={jest.fn()} />);
+    const index = listed.getByText('01', { includeHiddenElements: true });
+    expect(index.props.accessibilityElementsHidden).toBe(true);
+    const style = flat(index.props.style);
+    expect(String(style.fontFamily)).toMatch(/JetBrains/i);
+    expect(style.minWidth).toBe(22);
+    expect(listed.getByLabelText('Miles a month, 500')).toBeTruthy();
+
+    const lone = await render(<BandRow label="Next service" onPress={jest.fn()} />);
+    expect(lone.queryByText(/^\d\d$/, { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('holds the value to one line and half the row, so it truncates before the label does', async () => {
+    /*
+      13 Sep. The vehicle hub rows an owner's ownership objective — prose up
+      to 280 characters — in the value column. RNTL lays nothing out, so
+      what is checkable is the ceiling the value is given: one line, half
+      the row, a shrink. Without those the label, `flex: 1`, is what gives.
+    */
+    const objective = 'Keep it reliable past 200,000 miles without over-spending on it';
+    const view = await render(<BandRow label="Ownership" count={objective} onPress={jest.fn()} />);
+
+    const value = view.getByText(objective);
+    expect(value.props.numberOfLines).toBe(1);
+    const style = flat(value.props.style);
+    expect(style.flexShrink).toBe(1);
+    expect(style.maxWidth).toBe('50%');
+    // The label is still the whole destination name, and the reader hears both.
+    expect(view.getByText('Ownership').props.numberOfLines).toBe(1);
+    expect(view.getByLabelText(`Ownership, ${objective}`)).toBeTruthy();
+  });
+
   it('closes the table under the last row and not under the others', async () => {
     const last = await render(<BandRow label="Open recalls" onPress={jest.fn()} last />);
     const middle = await render(<BandRow label="What is driving this score" onPress={jest.fn()} />);

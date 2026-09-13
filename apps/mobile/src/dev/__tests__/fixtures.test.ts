@@ -11,8 +11,22 @@
  * vehicle routes answer with the photograph from then on (and say the plate
  * is not showing), and `DELETE` takes it away. A body that is not that shape
  * falls through to the network, the way every unmapped path here does.
+ *
+ * ── 13 Sep · the car stands on its plate, not on nothing ───────────────────
+ *
+ * "Starts without one" used to mean `photo_url: null` — the house plate.
+ * The M235i's generation plate is ready in the library, and the route
+ * serves a ready plate *as* `photo_url` (`lib/vehicle-photo.ts`), so the
+ * fixture does too: the car starts on its plate, the owner's photograph
+ * outranks it, and `DELETE` returns to the plate — "the car will stand on
+ * its plate", the confirm's own words — never to nothing. The house plate
+ * is what a car stands on while the plate is drawing, which is the
+ * environment's to ask for, and the pair below holds both halves.
  */
 import { designPhotoUrl, fixtureFor, fixtureHolds } from '../fixtures';
+
+/** The public object every route would resolve the M235i's ready plate to. */
+const READY_PLATE = 'https://example.supabase.test/storage/v1/object/public/garage-images/plates/bmw/2-series/f22/hero-3x2.jpg';
 
 /** React Native's `FormData`, as far as the fixture reads it. */
 function rnForm(parts: Array<{ fieldName: string; uri?: string; string?: string }>) {
@@ -27,10 +41,57 @@ describe('the fixture car and its photograph', () => {
     fixtureFor('/upload-photo', { method: 'DELETE', body: { vehicleId: 'x' } });
   });
 
-  it('starts without one, and says the plate is what is showing', () => {
+  it('starts on its ready plate, with nothing to say about it', () => {
+    // No photograph has been added — and the car is not empty for it.
     expect(designPhotoUrl()).toBe(process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null);
     const before = vehicleOf(fixtureFor('/load-vehicle?vehicleId=v'));
-    expect(before.photo_url).toBe(designPhotoUrl());
+    expect(before.photo_url).toBe(READY_PLATE);
+    // The plate is showing, so the status is nulled under it, as the route nulls it.
+    expect(before.plate_status).toBeNull();
+    expect(garageOf(fixtureFor('/vehicles')).photo_url).toBe(READY_PLATE);
+  });
+
+  it('reads an empty EXPO_PUBLIC_DESIGN_PHOTO_URL as no photograph, not as one', () => {
+    /*
+      `apps/mobile/.env` carries the key with nothing after the `=`. An empty
+      string stood in front of the plate for a day without anyone seeing it,
+      because `''` and `null` drew the same house plate until there was a
+      plate to fall back to.
+    */
+    const held = process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL;
+    process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL = '';
+    try {
+      jest.isolateModules(() => {
+        const empty = require('../fixtures') as typeof import('../fixtures');
+        expect(empty.designPhotoUrl()).toBeNull();
+        expect(vehicleOf(empty.fixtureFor('/load-vehicle?vehicleId=v')).photo_url).toBe(READY_PLATE);
+      });
+    } finally {
+      if (held === undefined) delete process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL;
+      else process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL = held;
+    }
+  });
+
+  it('stands on the house plate while the plate is drawing, and says so', () => {
+    /*
+      The anti-vacuous half: the environment names a plate still drawing,
+      and the car has no image and the status the line is printed from. The
+      variable is read once at import, so the module is loaded again under
+      it rather than the value being flipped underneath a loaded one.
+    */
+    const held = process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS;
+    process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS = 'generating';
+    try {
+      jest.isolateModules(() => {
+        const drawing = require('../fixtures') as typeof import('../fixtures');
+        const car = vehicleOf(drawing.fixtureFor('/load-vehicle?vehicleId=v'));
+        expect(car.photo_url).toBeNull();
+        expect(car.plate_status).toBe('generating');
+      });
+    } finally {
+      if (held === undefined) delete process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS;
+      else process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS = held;
+    }
   });
 
   it('answers the upload with the picked file, then serves it from both routes', () => {
@@ -57,9 +118,8 @@ describe('the fixture car and its photograph', () => {
     expect(vehicleOf(fixtureFor('/load-vehicle?vehicleId=v')).photo_url).toBe(uri);
 
     expect(fixtureFor('/upload-photo', { method: 'DELETE', body: { vehicleId: 'v' } })).toEqual({ success: true });
-    expect(vehicleOf(fixtureFor('/load-vehicle?vehicleId=v')).photo_url).toBe(
-      process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null
-    );
+    // Back to the plate — the confirm promised the car would stand on it.
+    expect(vehicleOf(fixtureFor('/load-vehicle?vehicleId=v')).photo_url).toBe(READY_PLATE);
   });
 
   it('does not answer an upload it cannot read — that request reaches the network', () => {
