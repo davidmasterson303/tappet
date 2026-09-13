@@ -15,8 +15,9 @@ import {
   sheetMinHeight,
 } from '../../theme/hero-motion';
 import * as RN from 'react-native';
-import { StyleSheet } from 'react-native';
-import { text, type } from '../../theme';
+import { StyleSheet, processColor } from 'react-native';
+import { border, cut, surface, text, type } from '../../theme';
+import { cornerCovers } from '../../components/CutSurface';
 
 /**
  * Every rendered host node of a kind, with its props.
@@ -705,6 +706,34 @@ describe('the hero pullback', () => {
     expect((StyleSheet.flatten(sheet!.style as never) as { minHeight?: number }).minHeight).toBe(
       sheetMinHeight(REFERENCE.frame.height, heroH, { navHeight: REFERENCE.insets.top + 44 }),
     );
+  });
+
+  it('cuts the plate where it meets the sheet, with the plate\'s leg', async () => {
+    /*
+      13 Sep · B2. The plate's top-right corner is under the status bar on
+      this screen, so its one visible corner is the sheet's leading edge,
+      and the cut is painted there: `cut.plate` of page colour over the
+      plate's corner, the garage plate's and the masthead's construction.
+      Read off the rendered path so a cover that grew a leg, or lost its
+      ground, fails here rather than in a frame.
+    */
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const [expected] = cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']);
+    const covers = hostNodes(view.root, 'RNSVGPath').filter((props) => props.d === expected);
+    expect(covers).toHaveLength(1);
+    // Page colour, so it reads as the plate's corner removed and not as a mark on it.
+    const fill = covers[0].fill as { payload?: unknown } | undefined;
+    expect(fill && typeof fill === 'object' && 'payload' in fill ? fill.payload : fill).toBe(processColor(surface.page));
+    // The hairline stops where the bevel begins.
+    const edge = hostNodes(view.root, 'View').find(
+      (props) => (StyleSheet.flatten(props.style as never) as { backgroundColor?: string })?.backgroundColor === border.panel
+        && (StyleSheet.flatten(props.style as never) as { height?: number })?.height === StyleSheet.hairlineWidth,
+    );
+    expect(edge).toBeDefined();
+    expect((StyleSheet.flatten(edge!.style as never) as { marginRight?: number }).marginRight).toBe(cut.plate);
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {

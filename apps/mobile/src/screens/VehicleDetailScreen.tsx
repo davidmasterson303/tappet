@@ -55,7 +55,9 @@ import {
   navFadeStartFor,
   sheetMinHeight,
 } from '../theme/hero-motion';
-import { TABULAR, border, brand, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import Svg, { Path } from 'react-native-svg';
+import { TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { cornerCovers } from '../components/CutSurface';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 import { monoFace } from '../theme/fonts';
 
@@ -1137,6 +1139,37 @@ export function VehicleDetailScreen({
           */}
           <View style={styles.sheetEdge} pointerEvents="none" />
 
+          {/*
+            ── 13 Sep · B2: the plate's cut, where the plate meets the sheet ──
+
+            The brief gives the plate one 45° cut, top-right; on this screen
+            the plate runs under the status bar, so that corner is under the
+            clock and every graded frame showed a plate with no cut while
+            both buttons under it had one. Round 46 reversed the earlier
+            acceptance: *"a cut nobody can see does not meet the line."*
+
+            The plate's only corner on the page is where it meets the sheet,
+            and that edge travels — the sheet rises over the pinned hero —
+            so the cut is the sheet's: `cut.plate` of page colour laid back
+            over the plate's bottom-right corner, above the leading edge, the
+            way `MastheadPlate` and the garage plate paint theirs
+            (`cornerCovers`, so `cut-geometry.test.tsx` holds the legs equal).
+            The hairline stops where the bevel begins; the garage plate's cut
+            carries no rule either. Decorative, hidden from the reader.
+          */}
+          <Svg
+            width={cut.plate}
+            height={cut.plate}
+            style={styles.sheetCut}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']).map((d) => (
+              <Path key={d} d={d} fill={surface.page} />
+            ))}
+          </Svg>
+
           {photoError && (
             <View style={styles.banner}>
               <AlertBanner tone="critical" headline={photoError.headline} body={photoError.body} />
@@ -1543,7 +1576,9 @@ const styles = StyleSheet.create({
     meaning. A hairline still separates the sheet from the photograph; it is
     just not a signal any more.
   */
-  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel },
+  sheetEdge: { height: StyleSheet.hairlineWidth, backgroundColor: border.panel, marginRight: cut.plate },
+  /** The plate's cut: `cut.plate` square, standing on the leading edge at the right, above the plate. */
+  sheetCut: { position: 'absolute', top: -cut.plate, right: 0 },
 
   /* ── z6 · the nav ─────────────────────────────────────────────────────── */
   navPlate: {
