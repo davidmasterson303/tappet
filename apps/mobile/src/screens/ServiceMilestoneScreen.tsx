@@ -22,7 +22,7 @@ import {
   serviceBasis,
 } from '@tappet/core/service-provenance';
 import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { mileageCheckIn, validateMileageUpdate, type MileageCheckIn } from '@tappet/core/mileage-tracking';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   CONTROL_HEIGHT,
@@ -128,6 +128,10 @@ interface VehicleResponse {
     make?: string | null;
     model?: string | null;
     current_mileage?: number | null;
+    /** The owner's own figure from onboarding; what a month of driving is assumed to add. */
+    avg_miles_per_month?: number | null;
+    /** When the reading was last confirmed; served by `/load-vehicle` since 13 Sep. */
+    last_mileage_update_date?: string | null;
   };
   knowledge?: { maintenance_schedule?: unknown } | null;
 }
@@ -167,6 +171,8 @@ type State =
       kind: 'ready';
       name: string;
       mileage: number;
+      /** Whether to ask for the odometer now, and what to offer — `mileageCheckIn`. */
+      checkIn: MileageCheckIn;
       schedule: ScheduleEntry[];
       history: ServiceHistoryRow[];
     };
@@ -288,11 +294,29 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       const vehicle = body.vehicle;
       const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : 0;
       const rawSchedule = body.knowledge?.maintenance_schedule;
+      /*
+        ── 13 Sep · monthly, with a number worked out ──────────────────────
+
+        The gate asked "Still around 66,000 miles?" on every open. David:
+        "we don't need to ask to confirm mileage every login. not more than
+        monthly. but we should calculate assumed new mileage each month we
+        ask." `mileageCheckIn` (core, shared with the web) decides both: ask
+        only when a month has passed since the last confirmation — or none
+        was ever made — and offer the last reading plus the owner's own miles
+        a month for the months since, rounded to a hundred so it reads as
+        the estimate it is.
+      */
+      const checkIn = mileageCheckIn({
+        current_mileage: mileage,
+        avg_miles_per_month: vehicle?.avg_miles_per_month,
+        last_mileage_update_date: vehicle?.last_mileage_update_date,
+      });
 
       setState({
         kind: 'ready',
         name: [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'this car',
         mileage,
+        checkIn,
         schedule: Array.isArray(rawSchedule) ? (rawSchedule as ScheduleEntry[]) : [],
         /*
           ⚠ `history?.` on both sides. `Array.isArray(history?.maintenanceLineItems)`
@@ -304,7 +328,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
           ? history?.maintenanceLineItems ?? []
           : [],
       });
-      setReading(String(mileage));
+      setReading(String(checkIn.assumed));
+      setConfirmed(!checkIn.ask);
     } catch (error) {
       const apiError = error as ApiRequestError;
       /*
@@ -345,12 +370,13 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       return;
     }
 
-    // Unchanged is the common answer and costs nothing to skip.
-    if (next === state.mileage) {
-      setConfirmed(true);
-      return;
-    }
-
+    /*
+      An unchanged reading used to skip the write. It cannot now: the server's
+      `last_mileage_update_date` is what "not more than monthly" is counted
+      from, and a confirmation nobody recorded is a question asked again on
+      the next open. `validateMileageUpdate` accepts an equal reading — that
+      is what confirming one is.
+    */
     setSaving(true);
     try {
       await apiRequest('/vehicles', {
@@ -513,14 +539,24 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   */
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
-      <Text style={styles.confirmLead}>Still around {miles.format(state.mileage)} miles?</Text>
+      <Text style={styles.confirmLead}>
+        {state.checkIn.projected
+          ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
+          : `Still around ${miles.format(state.mileage)} miles?`}
+      </Text>
       {/*
         One sentence. "What is due depends on the odometer" said the same
         thing as the line that follows it, and the critique's Cut list said
         keep one; this is the one the §10 test holds — the list is computed
-        from the reading, and the screen says so.
+        from the reading, and the screen says so. When the figure is a
+        projection the sentence says where it came from — the owner's own
+        miles a month — so "about" is a claim with its basis, not a guess.
       */}
-      <Text style={styles.confirmBody}>The list below is worked out from this reading.</Text>
+      <Text style={styles.confirmBody}>
+        {state.checkIn.projected
+          ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
+          : 'The list below is worked out from this reading.'}
+      </Text>
 
       {/* The field and its verb on one line — it is one question, not a form. */}
       <View style={styles.confirmRow}>

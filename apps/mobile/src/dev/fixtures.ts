@@ -60,6 +60,14 @@ const M235I = {
   model: 'M235i',
   trim: 'xDrive',
   current_mileage: 66_000,
+  /*
+    13 Sep: the odometer is asked for monthly, with a figure worked out from
+    these two (`mileageCheckIn`). Forty-five days at 500 a month puts the
+    gate on screen offering "About 66,700 miles by now?" — the state the
+    loop photographs. Ten days would hide it; that is a test, not a frame.
+  */
+  avg_miles_per_month: 500,
+  last_mileage_update_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
   vehicle_status: 'daily_driver',
   /*
     ── 12 Sep · what the nightly sweep would have written ──────────────────

@@ -355,6 +355,64 @@ describe('the mileage confirm', () => {
     await view.findByText(/The list below is worked out from this reading/);
   });
 
+  it('does not ask inside a month of the last confirmation', async () => {
+    /*
+      13 Sep, David: "we don't need to ask to confirm mileage every login.
+      not more than monthly." `mileageCheckIn` reads the date the server
+      records on every confirmation; ten days on, the list is shown from the
+      stored reading and the question is not put.
+    */
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    respondWith([], {
+      ...(VEHICLE as object),
+      vehicle: { ...(VEHICLE as { vehicle: object }).vehicle, avg_miles_per_month: 500, last_mileage_update_date: tenDaysAgo },
+    });
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    expect((await view.findAllByText(/Engine oil and filter/i)).length).toBeGreaterThan(0);
+    expect(view.queryByText(/Still around .* miles\?/)).toBeNull();
+    expect(view.queryByLabelText('That is right')).toBeNull();
+  });
+
+  it('asks after a month with the reading worked out from the owner’s miles a month, and stores what they confirm', async () => {
+    /*
+      "…but we should calculate assumed new mileage each month we ask." 45
+      days at 500 a month on 94,800 is about 95,500 — offered as "about",
+      with its basis, rounded to the hundred an estimate deserves. Confirming
+      it stores it: the PATCH carries the projected figure, and a confirmation
+      is written even when nothing changed, because the date it writes is
+      what the next month is counted from.
+    */
+    const days45 = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+    respondWith([], {
+      ...(VEHICLE as object),
+      vehicle: { ...(VEHICLE as { vehicle: object }).vehicle, avg_miles_per_month: 500, last_mileage_update_date: days45 },
+    });
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await view.findByText(/About 95,500 miles by now\?/);
+    await view.findByText(/Worked out from 94,800 and your usual miles a month/);
+    expect(view.getByDisplayValue('95,500')).toBeTruthy();
+
+    await user.press(view.getByLabelText('That is right'));
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith('/vehicles', expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', currentMileage: 95_500 } }))
+    );
+  });
+
+  it('records an unchanged confirmation too, so the month is counted from it', async () => {
+    respondWith([]);
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await user.press(await view.findByLabelText('That is right'));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith('/vehicles', expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', currentMileage: 94_800 } }))
+    );
+  });
+
   it('drops the banner once the reading is confirmed', async () => {
     // The anti-vacuous half: a banner that never went away would pass above.
     respondWith([]);
