@@ -3,6 +3,7 @@ import { getServiceRoleClient, getServerClient } from '@/lib/supabase';
 import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, authorizeVehicleScopedRow } from '@/lib/api-auth';
+import { isWishlistSource, WISHLIST_SOURCES } from '@tappet/core/wishlist-source';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,23 @@ export async function POST(request: NextRequest) {
 
     if (!['issue', 'maintenance', 'modification'].includes(itemType)) {
       return NextResponse.json({ error: 'Invalid item type' }, { status: 400 });
+    }
+
+    /*
+      ── 13 Sep · refuse an unknown source here, not in the database ────────
+
+      `wishlist_items.source` is CHECKed to three words. A fourth one used to
+      reach the insert, come back `23514`, and leave as a 500 that said
+      "Failed to add item to wishlist" — which is what the phone's catalogue
+      and Build ladder produced on every add, for weeks, with nothing in the
+      message to say why. `@tappet/core/wishlist-source` carries the words;
+      the client sends one of them or is told which it may send.
+    */
+    if (source !== undefined && !isWishlistSource(source)) {
+      return NextResponse.json(
+        { error: `Unknown source — one of ${WISHLIST_SOURCES.join(', ')}` },
+        { status: 400 }
+      );
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });

@@ -16,6 +16,7 @@ import {
   type WishlistSuggestion,
 } from '@tappet/core/wishlist-suggestions';
 import { wishlistItemIdentifier, type WishlistItemType } from '@tappet/core/wishlist-identifier';
+import type { WishlistSource } from '@tappet/core/wishlist-source';
 import {
   FIELD_FONT_MIN,
   TABULAR,
@@ -198,7 +199,16 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
               recommendation rather than a shopping list.
             */
             description: description ?? '',
-            source: 'suggestions',
+            /*
+              ⚠ `'dossier'`, one of the three words the table accepts. This
+              sent `'suggestions'` from the day it was written and the
+              database refused every add with `23514` — "Failed to add item
+              to wishlist" on David's phone, 12 Sep. The catalogue is what
+              the app knows about the car, which is what `dossier` means;
+              the web sends the same word for the same add.
+              `@tappet/core/wishlist-source` carries the set.
+            */
+            source: 'dossier' satisfies WishlistSource,
           },
         });
 

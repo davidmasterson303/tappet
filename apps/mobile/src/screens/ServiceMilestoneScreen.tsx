@@ -14,6 +14,7 @@ import {
   type ScheduleEntry,
   type ServiceDue,
 } from '@tappet/core/service-due';
+import type { WishlistSource } from '@tappet/core/wishlist-source';
 import {
   SCHEDULE_BASIS_LABELS,
   SERVICE_BASIS_LABELS,
@@ -390,6 +391,13 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
             itemName: service.service,
             itemIdentifier: wishlistItemIdentifier('maintenance', service.service),
             description: service.description || null,
+            /*
+              The schedule is the app's knowledge of the car, so the row says
+              `dossier` — the word the web sends for the same add. It used to
+              send nothing and take the route's `manual` default, which
+              claimed the owner had typed it.
+            */
+            source: 'dossier' satisfies WishlistSource,
           },
         });
         setAdded((prev) => [...prev, service.service]);

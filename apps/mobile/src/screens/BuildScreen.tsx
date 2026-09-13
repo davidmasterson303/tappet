@@ -11,6 +11,7 @@ import {
 
 import AlertBanner from '../components/AlertBanner';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import type { WishlistSource } from '@tappet/core/wishlist-source';
 import BuildGauge from '../components/BuildGauge';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -289,7 +290,13 @@ export function BuildScreen({
             */
             description: rung.purpose || rung.rationale,
             category: roleLabel(rung.role),
-            source: 'progression-ladder',
+            /*
+              ⚠ `'dossier'` — the ladder is the app's own research on the
+              car. This sent `'progression-ladder'`, which the table's CHECK
+              refused on every add (`23514`, 13 Sep); see
+              `@tappet/core/wishlist-source`.
+            */
+            source: 'dossier' satisfies WishlistSource,
           },
         });
 
