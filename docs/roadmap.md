@@ -180,16 +180,17 @@
 > and `jimp` cuts the derivatives because `sharp` is a dev dependency and this
 > project's Supabase plan has no image transforms.
 >
-> ⚠ **Dormant until David runs `20260912010000_…generations_plate.sql`** in
-> the SQL editor (`check-migrations --pending` shows it as the one pending
-> item). Then `POST /api/internal/plates/backfill` with `x-cron-secret`, again
-> until `scanned` is 0, gives every existing photo-less car its plate. The
-> garage query asks for `plate_key` with a 42703 fallback so a deploy before
-> the migration empties nothing — delete that retry once the table is live.
-> **The phone does not resolve `plate_key` yet** — queued behind the mobile
-> loop, whose lane it is. The rights posture is recorded in
-> `public/vehicles/CREDITS.md`; the prompt asks badges away and the model does
-> not always oblige.
+> ~~⚠ **Dormant until David runs `20260912010000_…generations_plate.sql`**~~
+> — **all three halves closed 12 Sep, re-read live 13 Sep** (CLAUDE.md §1):
+> `vehicle_plates` answers PostgREST with two `ready` rows drawn 09:26 that
+> morning (the 2 Series and the Accord's `honda/accord/7th-generation`, which
+> the one real car carries in `vehicles.plate_key`); the 42703 retries came
+> out in `86c573d`; the phone's API resolves the plate into `photo_url` and
+> says whether one is drawing (`c876ad2`, `c134bb6`), and since `1b5dde6` says
+> which kind of picture it is, so the plate is never graded as the owner's.
+> The three demo cars keep their stock images and need no plate. The rights
+> posture is recorded in `public/vehicles/CREDITS.md`; the prompt asks badges
+> away and the model does not always oblige.
 >
 > **Overnight into 12 Sep, in agent worktrees, merged and promoted:**
 >
