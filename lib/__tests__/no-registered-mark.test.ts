@@ -111,6 +111,10 @@ describe('the trademark symbol', () => {
       const source = read(rel);
       expect(source.match(/<BrandWordmark[^>]*\btrademark\b/g) ?? []).toHaveLength(1);
     }
+    // The auth pages have no masthead; their 200px lockup is the page's most prominent use.
+    for (const rel of ['app/login/page.tsx', 'app/signup/page.tsx', 'app/forgot-password/page.tsx', 'app/reset-password/page.tsx']) {
+      expect(read(rel).match(/<BrandLockup width=\{200\} trademark \/>/g) ?? []).toHaveLength(1);
+    }
     const lockup = read('components/brand/BrandLockup.tsx');
     // The symbol is a sibling `<sup>` the wordmark component renders; the SVG paths carry no glyph.
     expect(lockup).toMatch(/<sup[^>]*>\s*\{TRADEMARK_SYMBOL\}/);
