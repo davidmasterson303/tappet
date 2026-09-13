@@ -2,6 +2,7 @@ import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { REASON_CAP, WishlistAddScreen, clipWords, suggestionValue } from '../WishlistAddScreen';
 import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
+import { text } from '../../theme';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -134,16 +135,27 @@ describe('the suggestions', () => {
     expect(at('Engine Oil')).toBeLessThan(at('K&N'));
   });
 
-  it('colours a chip only where the research made a severity call', async () => {
+  it('names the kind on every chip, colours none, and says the priority once as the section', async () => {
     /*
       ⚠ The spec's rule: "priority chips are neutral unless the item is
       genuinely urgent." A list where half the chips are amber has taught its
-      reader that amber means nothing.
+      reader that amber means nothing — and round 38 found the sodium chip
+      saying what DO FIRST already said, while the same chip was grey on the
+      Needs list. The section carries urgency now; no chip carries a tone.
     */
     respond();
     const { view } = await mount();
 
     await view.findByText('Fuel injector seals');
+    /*
+      Read off the rendered label: a neutral chip's word is `text.muted`, a
+      toned one's is `text.primary` (`Chip`'s ink rule). The High issue and
+      the Critical service are the two rows that used to be toned.
+    */
+    const inkOf = (label: string) =>
+      Object.assign({}, ...[view.getAllByText(label)[0].props.style].flat(Infinity).filter(Boolean)).color;
+    expect(inkOf('Known issue')).toBe(text.muted);
+    expect(inkOf('Service')).toBe(text.muted);
 
     /*
       ⚠ **R40, 23 Aug.** Every chip now names the row's *kind*; none of them

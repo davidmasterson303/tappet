@@ -303,7 +303,7 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
   const flat = (style: unknown) =>
     Object.assign({}, ...[style].flat(Infinity).filter(Boolean)) as Record<string, unknown>;
 
-  it('numbers the rows and puts the estimate, or a dash, at the rule', async () => {
+  it('numbers the rows and puts the estimate at the rule, and nothing where there is none', async () => {
     listReturns([
       item({ id: 'w1', estimated_cost_parts: 200, estimated_cost_labor: 90 }),
       item({ id: 'w2', item_name: 'Cabin filter', estimated_cost_parts: null, estimated_cost_labor: null }),
@@ -313,15 +313,18 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
 
     expect(view.getByText('01', { includeHiddenElements: true })).toBeTruthy();
     expect(view.getByText('02', { includeHiddenElements: true })).toBeTruthy();
-    /* A missing estimate is "we cannot say", never a vanished column. */
-    expect(view.getByLabelText('No estimate')).toBeTruthy();
+    /* No figure, no dash: an estimate is not a tracked reading (round 38). */
+    expect(view.queryByText('—')).toBeNull();
     expect(flat(view.getAllByText('$290')[1].props.style).fontVariant).toEqual(['tabular-nums']);
   });
 
   it('draws DONE as the hairline box and REMOVE as the word before it, and no hue on either', async () => {
-    listReturns([item()]);
+    listReturns([item({ item_type: 'issue' })]);
     const { view } = await mount();
     await view.findByText('Front brake pads');
+
+    /* And the chip is neutral even on an issue — the list has no severity to colour by. */
+    expect(flat(view.getByText('Known issue').props.style).color).toBe(text.muted);
 
     const done = view.getByLabelText('Mark Front brake pads done');
     const remove = view.getByLabelText('Remove Front brake pads from the wishlist');

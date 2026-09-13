@@ -1,13 +1,12 @@
-import { interFace } from '../theme/fonts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
-import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
 import RowActions from '../components/RowActions';
+import SearchField from '../components/SearchField';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import {
@@ -18,17 +17,7 @@ import {
 } from '@tappet/core/wishlist-suggestions';
 import { wishlistItemIdentifier, type WishlistItemType } from '@tappet/core/wishlist-identifier';
 import type { WishlistSource } from '@tappet/core/wishlist-source';
-import {
-  FIELD_FONT_MIN,
-  TABULAR,
-  TARGET_MIN,
-  border,
-  radius,
-  space,
-  surface,
-  text,
-  type,
-} from '../theme';
+import { TABULAR, border, space, surface, text, type } from '../theme';
 
 /**
  * Adding to the wishlist — suggestions first, free text last.
@@ -406,41 +395,30 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
     <View style={styles.screen}>
       {problem && <AlertBanner tone="critical" headline="That was not added" body={problem} />}
 
-      {/* The filter. It is also the free-text field — see the header. */}
-      <View style={[styles.search, styles.searchPinned]}>
-        <Icon name="search" size={17} />
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search suggestions"
-          placeholderTextColor={text.muted}
-          /*
-            ⚠ **R38.** It read "Filter suggestions, or type something to add",
-            which is the placeholder's two-jobs problem said out loud. Filtering
-            an existing list and authoring a new item are different verbs with
-            different results, and one name cannot signal which is about to
-            happen.
+      {/*
+        The filter. It is also the free-text field — see the header.
 
-            The field searches. Authoring is the block at the list's foot, which
-            appears with its own lead sentence and its own button — a visible
-            affordance rather than a hint inside a field.
-          */
-          accessibilityLabel="Search suggestions"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {typed.length > 0 && (
-          <Pressable
-            onPress={() => setQuery('')}
-            accessibilityRole="button"
-            accessibilityLabel="Clear the filter"
-            style={styles.clear}
-          >
-            <Icon name="x" size={16} />
-          </Pressable>
-        )}
-      </View>
+        ⚠ **R38.** The placeholder read "Filter suggestions, or type something
+        to add", which is the placeholder's two-jobs problem said out loud.
+        Filtering an existing list and authoring a new item are different
+        verbs with different results, and one name cannot signal which is
+        about to happen. The field searches. Authoring is the block at the
+        list's foot, which appears with its own lead sentence and its own
+        button — a visible affordance rather than a hint inside a field.
+
+        ⚠ 13 Sep · `SearchField`, the History list's box, not a private copy.
+        This was a square `View` with a `borderWidth`, grey under focus and
+        blue-careted — every defect the History's box had been cured of one
+        round at a time (round 38: *"the only container without a cut"*).
+      */}
+      <SearchField
+        style={styles.searchPinned}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search suggestions"
+        accessibilityLabel="Search suggestions"
+        clearAccessibilityLabel="Clear the filter"
+      />
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       {state.suggestions.length === 0 ? (
@@ -560,12 +538,22 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                     doneAccessibilityLabel={`${suggestion.name} is on the list`}
                   >
                     {/*
-                      ⚠ Coloured only when the research said so. The spec:
-                      "priority chips are neutral unless the item is genuinely
-                      urgent." A list where half the chips are amber has taught
-                      its reader that amber means nothing.
+                      ── 13 Sep · neutral, on every row — urgency is the section ──
+
+                      This coloured the chip sodium when the research said
+                      urgent (a High issue, a Critical service), on the spec's
+                      rule that "priority chips are neutral unless the item is
+                      genuinely urgent". Round 38 read what that draws: the
+                      same SERVICE chip sodium here and grey on Needs one
+                      screen back, and a routine oil change wearing the
+                      warning hue because its priority is Critical — while
+                      DO FIRST, the head the row sits under, already says so.
+                      The section carries urgency; the chip names the kind and
+                      nothing else, which is the one rule both screens can
+                      keep (Needs has no severity to colour by, §10). `urgent`
+                      still sorts and sections; it no longer colours.
                     */}
-                    <Chip label={suggestion.chip} tone={suggestion.urgent ? 'attention' : 'neutral'} />
+                    <Chip label={suggestion.chip} />
                   </RowActions>
                 </View>
               </View>
@@ -628,22 +616,6 @@ const styles = StyleSheet.create({
   },
   errorTitle: { ...type.title, color: text.primary },
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
-
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    minHeight: TARGET_MIN,
-    paddingHorizontal: space.md,
-    borderRadius: radius.well,
-    borderWidth: 1,
-    borderColor: border.field,
-    backgroundColor: surface.well,
-  },
-  /** Pinned at the field floor: under 16px iOS zooms on focus and never back. */
-  input: { flex: 1, color: text.primary, fontFamily: interFace('400'),
-    fontSize: FIELD_FONT_MIN, paddingVertical: space.sm },
-  clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
 
   /*
     ── The spec table's row — B6 ─────────────────────────────────────────────

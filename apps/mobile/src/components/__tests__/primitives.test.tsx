@@ -11,6 +11,7 @@ import ListRow from '../ListRow';
 import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
 import RowActions from '../RowActions';
+import SearchField from '../SearchField';
 import {
   CONTROL_HEIGHT,
   FIELD_FONT_MIN,
@@ -761,5 +762,68 @@ describe('RowActions — the repeated row action', () => {
     expect(box.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
     await userEvent.setup().press(box);
     expect(onAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe('SearchField — one search box, not two', () => {
+  /*
+    ── 13 Sep · the catalogue's was square, grey on focus, blue-careted ─────
+
+    The History screen hand-rolled its search box on 6 Sep and gave it the
+    cut, the cyan focus stroke and the cyan caret on 12 Sep; the catalogue
+    hand-rolled its own and got none of those — the critique found "the
+    search field is square … the caret is system blue" on the second screen
+    after the first had been fixed, which is the private-copy failure the
+    primitive set exists to end. One component, both screens.
+  */
+  const strokeOf = (view: Awaited<ReturnType<typeof render>>): number | null => {
+    const found: number[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== 'object') return;
+      const host = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
+      const stroke = host.props?.stroke as { payload?: unknown } | undefined;
+      if (host.type === 'RNSVGPath' && stroke && typeof stroke === 'object' && 'payload' in stroke) {
+        found.push(Number(stroke.payload));
+      }
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(view.toJSON());
+    return found[0] ?? null;
+  };
+
+  const mount = async (value = '') => {
+    const onChange = jest.fn();
+    const view = await render(
+      <SearchField value={value} onChangeText={onChange} placeholder="Search suggestions" accessibilityLabel="Search suggestions" />
+    );
+    await fireEvent(view.getByLabelText('Search suggestions'), 'layout', {
+      nativeEvent: { layout: { width: 320, height: 48 } },
+    });
+    return { view, onChange };
+  };
+
+  it('draws the field hairline at rest and steps it to cyan while focused', async () => {
+    const { view } = await mount();
+    expect(strokeOf(view)).toBe(Number(processColor(border.field)));
+    await fireEvent(view.getByLabelText('Search suggestions'), 'focus');
+    expect(strokeOf(view)).toBe(Number(processColor(brand.accent)));
+    await fireEvent(view.getByLabelText('Search suggestions'), 'blur');
+    expect(strokeOf(view)).toBe(Number(processColor(border.field)));
+  });
+
+  it('never leaves the caret to the system, and holds the 16px floor', async () => {
+    const { view } = await mount();
+    const input = view.getByLabelText('Search suggestions');
+    expect(Number(processColor(input.props.selectionColor))).toBe(Number(processColor(brand.accent)));
+    expect(flat(input.props.style).fontSize).toBe(FIELD_FONT_MIN);
+  });
+
+  it('offers a clear control only once there is something to clear', async () => {
+    const empty = await mount('');
+    expect(empty.view.queryByLabelText('Clear the search')).toBeNull();
+
+    const typed = await mount('oil');
+    await userEvent.setup().press(typed.view.getByLabelText('Clear the search'));
+    expect(typed.onChange).toHaveBeenCalledWith('');
   });
 });

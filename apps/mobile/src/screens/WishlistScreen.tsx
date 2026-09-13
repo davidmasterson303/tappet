@@ -148,18 +148,6 @@ function chipFor(item: WishlistItem): string {
   return item.category?.trim() || TYPE_WORD[item.item_type ?? ''] || 'Service';
 }
 
-/**
- * Whether a row may wear colour.
- *
- * ⚠ Only an **issue** can, and only because that is the one type where the
- * research made a severity judgement. A service and a modification are things
- * you plan; an issue is a thing that is wrong. Colouring more than that is how
- * a list teaches its reader to ignore the colour — the spec's own point.
- */
-function isUrgent(item: WishlistItem): boolean {
-  return item.item_type === 'issue';
-}
-
 export function WishlistScreen({ vehicleId, onSignOut }: Props) {
   /*
     B8 · the root's scroll contract. `null` when this screen is pushed with a
@@ -403,7 +391,11 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
           inset={false}
           rule={false}
           headline="Nothing on the list yet"
-          body="See what we already know this car needs — its known issues, its schedule, and the usual modifications. You can add anything of your own too."
+          /*
+            One sentence (round 38's Cut list): "You can add anything of your
+            own too" restated what the catalogue offers at its own foot.
+          */
+          body="See what we already know this car needs — its known issues, its schedule, and the usual modifications."
         />
       ) : (
         state.items.map((item, index) => (
@@ -434,13 +426,16 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 {String(index + 1).padStart(2, '0')}
               </Text>
               <Text style={styles.itemName}>{item.item_name}</Text>
-              {estimate(item) ? (
-                <Text style={styles.itemCost}>{estimate(item)}</Text>
-              ) : (
-                <Text style={styles.itemCostNone} accessibilityLabel="No estimate">
-                  —
-                </Text>
-              )}
+              {/*
+                The estimate, where one exists. ⚠ No dash where none does:
+                `ListRow`'s em dash marks a tracked reading that is missing,
+                and an estimate is not tracked for every item — a column of
+                dashes read as *"a stray glyph"* (round 38). The slot is left
+                empty; the row's figure, when it has one, is the interval it
+                was added with, which the table does not carry yet (see
+                §6.17 for what core would need).
+              */}
+              {estimate(item) ? <Text style={styles.itemCost}>{estimate(item)}</Text> : null}
             </View>
 
             <View style={styles.itemBody}>
@@ -471,11 +466,18 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 }}
               >
                 {/*
-                  Neutral unless the row earned otherwise. The spec: *"semantic
-                  colour does semantic work only — 'Control' and 'Durability'
-                  are roles from the progression ladder, not severities."*
+                  ── 13 Sep · neutral, on every row ─────────────────────────
+
+                  This coloured every issue sodium, on the reading that an
+                  issue is "a thing that is wrong" — a rule the catalogue did
+                  not share (it coloured by the research's severity), so the
+                  same item changed hue between the two screens (round 38).
+                  A wishlist row carries no severity, and colouring by type
+                  alone tells the owner a Low-severity coil is a warning
+                  (§10). The chip names the kind; the spec's own line stands:
+                  *"semantic colour does semantic work only."*
                 */}
-                <Chip label={chipFor(item)} tone={isUrgent(item) ? 'attention' : 'neutral'} />
+                <Chip label={chipFor(item)} />
               </RowActions>
             </View>
           </View>
@@ -538,9 +540,8 @@ const styles = StyleSheet.create({
   itemHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   index: { ...type.mono, color: text.muted, ...TABULAR, minWidth: 22, lineHeight: 20 },
   itemName: { ...type.ui, color: text.primary, flex: 1 },
-  /* The estimate, mono and tabular at the rule; a dash where nobody has costed it. */
+  /* The estimate, mono and tabular at the rule. */
   itemCost: { ...type.mono, color: text.primary, textAlign: 'right', ...TABULAR, lineHeight: 20 },
-  itemCostNone: { ...type.mono, color: text.muted, textAlign: 'right', lineHeight: 20 },
   itemBody: { paddingLeft: 22 + space.md, gap: space.xs },
   /* The reason the row is here, in the quiet sans — it travelled with the item from the catalogue. */
   itemReason: { ...type.value, color: text.secondary, lineHeight: 19 },
