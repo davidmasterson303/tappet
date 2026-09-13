@@ -904,7 +904,17 @@ export function VehicleDetailScreen({
     The owner's answers, as rows. Each is optional and an absent one is an
     absent row — a dash under MODIFICATIONS would read as an answer of
     nothing. The values are the profile screen's own words, so the row and
-    the field it opens agree. ⚠ Two of the labels are not: the profile asks
+    the field it opens agree.
+
+    ⚠ Three of the four, not four. The usage answer is the strip's USE cell
+    on the plate 400pt above — the pick's own note (*"USE / Daily Driver is
+    already in the hero strip"*) and round 45's cut (*"USE in the stat strip
+    duplicates HOW YOU USE IT in the table below; one goes"*). The strip's
+    is the one that stays: it is B2's strip, shared cell for cell with the
+    garage, and the reading the owner checks. Round 43 had restored the row
+    on the argument that a section of what you told us should not omit the
+    answer it is best known for; the answer is not omitted from the screen,
+    and every row here opens the one profile where it is changed. ⚠ Two of the labels are not: the profile asks
     "What do you want from it?" (the mindedness) two blocks above a field
     labelled "What you want out of it" (the objective), and side by side in
     a table those two read as one question asked twice. Both rows take the
@@ -924,9 +934,6 @@ export function VehicleDetailScreen({
   const answers: Answer[] = [];
   if (typeof vehicle.avg_miles_per_month === 'number') {
     answers.push({ label: 'Miles a month', value: miles.format(vehicle.avg_miles_per_month) });
-  }
-  if (vehicle.vehicle_status) {
-    answers.push({ label: 'How you use it', value: humanise(vehicle.vehicle_status) });
   }
   if (vehicle.performance_mindedness && vehicle.performance_mindedness in MINDEDNESS_LABELS) {
     answers.push({
@@ -1336,6 +1343,8 @@ export function VehicleDetailScreen({
               answers.map((answer, index) => (
                 <BandRow
                   key={answer.label}
+                  /* B6: a list of like rows carries the spec table's index. */
+                  index={String(index + 1).padStart(2, '0')}
                   label={answer.label}
                   count={answer.value}
                   onPress={onOpenProfile}
