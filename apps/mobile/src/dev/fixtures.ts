@@ -23,44 +23,15 @@
  *
  * ── Gating ──────────────────────────────────────────────────────────────────
  *
- * Read by `api/client.ts` — and, for `designVariant` alone, by the vehicle
- * hub — behind `__DEV__` **and** `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a
- * release bundle, and never when the flag is off — a build that quietly serves
- * fixtures instead of the API is the worst failure this file could have,
- * because every screen would look perfect.
+ * Read only by `api/client.ts`, behind `__DEV__` **and**
+ * `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a release bundle, and never when the
+ * flag is off — a build that quietly serves fixtures instead of the API is the
+ * worst failure this file could have, because every screen would look perfect.
  */
 
 import { driversForVehicle } from '@tappet/core/health-drivers';
-import type { PlateStatus } from '@tappet/core/plates';
-
-/**
- * Which concept of the vehicle hub to draw, from the environment.
- *
- * ── 13 Sep · three concepts of one screen, selected without a rebuild ───────
- *
- * David asked for three new designs of the car's hub, built as real screens
- * so the design critic grades what the product would draw rather than a
- * mockup of it. Three files of `VehicleDetailScreen` would be three copies of
- * its data path; one screen with a switch is one. `EXPO_PUBLIC_DESIGN_VARIANT`
- * names the concept — `a` | `b` | `c` — and anything else, including unset,
- * is `null`: the screen as it ships. The concepts exist only while the pick is
- * being made; the switch and the losing concepts go when it is.
- *
- * ⚠ The same double gate as everything in this file, applied **here** rather
- * than at the call site, so a screen cannot read the variable on its own and
- * find a value in a release build. `EXPO_PUBLIC_*` values are inlined at
- * transform time; the guard is what keeps a concept out of the bundle the App
- * Store gets.
- */
-export type DesignVariant = 'a' | 'b' | 'c';
-const DESIGN_VARIANTS: readonly DesignVariant[] = ['a', 'b', 'c'];
-export function designVariant(): DesignVariant | null {
-  if (typeof __DEV__ === 'undefined' || !__DEV__ || process.env.EXPO_PUBLIC_DESIGN_FIXTURES !== '1') {
-    return null;
-  }
-  const raw = process.env.EXPO_PUBLIC_DESIGN_VARIANT;
-  return DESIGN_VARIANTS.find((variant) => variant === raw) ?? null;
-}
+import { platePublicUrl, type PlateStatus } from '@tappet/core/plates';
+import { SUPABASE_URL } from '../config';
 
 /**
  * The plate's status on the fixture car, from the environment.
@@ -75,6 +46,10 @@ export function designVariant(): DesignVariant | null {
  * `EXPO_PUBLIC_DESIGN_PLATE_STATUS`: unset or anything the API would never
  * send is `null`, which is the route's own "nothing to say". The shape is the
  * route's; only the value is chosen.
+ *
+ * ⚠ 13 Sep: unset (and `ready`) now stands the car on its **ready plate**
+ * — see `designCar`. Only `pending`, `generating` and `failed` show the
+ * house plate, and they show it with the line that explains it.
  */
 const PLATE_STATUSES: readonly PlateStatus[] = ['pending', 'generating', 'ready', 'failed'];
 const DESIGN_PLATE_STATUS: PlateStatus | null = (() => {
@@ -99,6 +74,19 @@ const M235I = {
   avg_miles_per_month: 500,
   last_mileage_update_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
   vehicle_status: 'daily_driver',
+  /*
+    ── 13 Sep · the other two answers, as the row holds them ───────────────
+
+    The hub's WHAT YOU TOLD US section rows all four onboarding answers,
+    and the fixture carried two, so the section was shot at half its
+    length. These are what PostgREST returned for the M235i on 13 Sep —
+    not invented, and `stock` is the honest one: it is the answer that
+    hides the Build ladder (`showsModifications`), so a loop shooting Mods
+    from these fixtures sees the ladder's off state, which is the state
+    this car is in.
+  */
+  performance_mindedness: 'stock',
+  ownership_objective: 'Keep forever',
   /*
     ── 12 Sep · what the nightly sweep would have written ──────────────────
 
@@ -483,9 +471,17 @@ function filePartUri(body: unknown): string | null {
   return part?.uri ?? null;
 }
 
-/** The photograph the fixture car currently answers with, if any. */
+/**
+ * The photograph the fixture car currently answers with, if any.
+ *
+ * ⚠ `||`, not `??`, on the variable: `apps/mobile/.env` carries the key with
+ * an empty value, and an empty string is not a photograph. It passed as one
+ * for a day without showing — `''` and `null` both drew the house plate —
+ * until the car had a plate to fall back to (13 Sep) and the empty string
+ * stood in front of it.
+ */
 export function designPhotoUrl(): string | null {
-  return addedPhotoUri ?? process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null;
+  return addedPhotoUri ?? (process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL || null);
 }
 
 /**
@@ -583,14 +579,57 @@ function answerWishlist(path: string, request: { method?: string; body?: unknown
   return { wishlistItems: [...addedNeeds] };
 }
 
+/**
+ * The M235i's own generation plate — `vehicle_plates` has held it `ready`
+ * since 12 Sep 09:26, and the car's `plate_key` names it.
+ *
+ * ── 13 Sep · the car's page opened on a street with no car on it ──────────
+ *
+ * The fixture answered `photo_url: null` at rest, so every graded frame of
+ * the hub and the garage stood the car on the *house* plate — the state a
+ * real car is in only before its plate is drawn or after the drawing
+ * failed. Round 44's first gap: *"'drawn' is indistinguishable from
+ * 'drawing', so the user never sees anything arrive, and the top half of
+ * the car's own page holds no car."* The product had already answered
+ * that; the fixture had not caught up with it.
+ *
+ * The route's own precedence (`lib/vehicle-photo.ts`): the owner's
+ * photograph, else the stock image, else the ready plate — served as
+ * `photo_url`, with `plate_status` nulled because the plate is showing. A
+ * ready plate is a **public** object (`platePublicUrl`, the `garage-images`
+ * bucket), so unlike the owner photograph it is not a credential and can
+ * be named here. The origin is `config.ts`'s `SUPABASE_URL` — `app.json`'s
+ * `extra.supabaseUrl`, the one the auth client reads — and ⚠ it is read
+ * through `config` rather than from `expo-constants`, because this file is
+ * loaded for real by two root suites that cannot parse that package
+ * (`config.ts` carries the note). Missing, the car falls back to the house
+ * plate rather than a broken image.
+ */
+const M235I_PLATE_KEY = 'bmw/2-series/f22';
+const M235I_PLATE_HERO = 'plates/bmw/2-series/f22/hero-3x2.jpg';
+function readyPlateUrl(): string | null {
+  return SUPABASE_URL ? platePublicUrl(SUPABASE_URL, M235I_PLATE_HERO) : null;
+}
+
 /** The fixture car as the routes answer it — `photo_url` decided now, not at import. */
 function designCar() {
+  /*
+    The owner's photograph first, as the route ranks it. Then the plate —
+    but only when it is ready: `EXPO_PUBLIC_DESIGN_PLATE_STATUS` names a
+    plate still drawing or failed, and a car in either state stands on the
+    house plate with the status line saying why (`PlateStatusLine`). `ready`
+    and unset are the same answer, as they are from the route: the plate
+    shows and the status is nulled under it.
+  */
   const photo = designPhotoUrl();
+  const plateReady = DESIGN_PLATE_STATUS === null || DESIGN_PLATE_STATUS === 'ready';
+  const photo_url = photo ?? (plateReady ? readyPlateUrl() : null);
   return {
     ...M235I,
-    photo_url: photo,
-    /* `null` under a photograph, as the route does it — the plate is not showing. */
-    plate_status: photo ? null : DESIGN_PLATE_STATUS,
+    plate_key: M235I_PLATE_KEY,
+    photo_url,
+    /* `null` under a photograph or a plate, as the route does it — the empty plate is not showing. */
+    plate_status: photo_url ? null : DESIGN_PLATE_STATUS,
   };
 }
 

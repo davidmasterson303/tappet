@@ -3,14 +3,21 @@ import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
 import {
+  HERO_NAV_FADE_SPAN,
   HERO_NAV_FADE_START,
+  HERO_PARALLAX_RATE,
+  HERO_SHEET_OVERLAP,
   HERO_TITLE_FADE_SPAN,
   detailHeroHeight,
   heroBands,
   heroTitleClearsNavTitle,
+  navFadeStartFor,
+  sheetMinHeight,
 } from '../../theme/hero-motion';
 import * as RN from 'react-native';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, processColor } from 'react-native';
+import { border, cut, surface, text, type } from '../../theme';
+import { cornerCovers } from '../../components/CutSurface';
 
 /**
  * Every rendered host node of a kind, with its props.
@@ -29,6 +36,11 @@ function hostNodes(root: unknown, kind: string): Array<Record<string, unknown>> 
   };
   walk((root as { toJSON?: () => unknown })?.toJSON?.() ?? root);
   return found;
+}
+
+/** A rendered `Text`'s colour, flattened the way RN merges. */
+function readoutColor(node: { props: Record<string, unknown> }): unknown {
+  return ((StyleSheet.flatten(node.props.style as never) ?? {}) as { color?: unknown }).color;
 }
 
 /** Every matched node's rendered `fontSize`, flattened the way RN merges. */
@@ -252,16 +264,20 @@ describe('the ways out', () => {
     expect(props.onOpenWishlist).toHaveBeenCalledTimes(1);
   });
 
-  it('reaches service on one row, not two', async () => {
-    // R14. `Service due` and `Service history` were siblings answering one
-    // question; `Service` opens on `Due` and `History` on the other segment.
+  it('reaches service on one reading, not two', async () => {
+    /*
+      R14. `Service due` and `Service history` were siblings answering one
+      question; the NEXT SERVICE cell opens on `Due` and HISTORY on the other
+      segment. 13 Sep: the cells are the binnacle's, and the reading *is* the
+      door — pressing the value opens the screen it reads from.
+    */
     const user = userEvent.setup();
     respond();
     const { props, view } = await mount();
 
     await view.findAllByText(/2018 Honda Accord/);
 
-    await user.press(view.getByText('Service'));
+    await user.press(view.getByText('Next service'));
     expect(props.onOpenMilestone).toHaveBeenCalledTimes(1);
 
     await user.press(view.getByText('History'));
@@ -271,6 +287,89 @@ describe('the ways out', () => {
     expect(view.queryByText('Service due')).toBeNull();
     expect(view.queryByText('Wishlist')).toBeNull();
     expect(view.queryByText('Build')).toBeNull();
+  });
+});
+
+/**
+ * ── `null` is never `0` ─────────────────────────────────────────────────────
+ *
+ * `HubCounts` carries the rule and the binnacle has to keep it: a count the
+ * screen could not read is nothing on the cell, and a zero it *did* read is a
+ * zero in the legend's ink — an empty plan is not a warning, and a failed
+ * request is not an empty plan. The two cases are held together because a
+ * screen that printed "0" for both would pass either one alone.
+ */
+describe('the counts on the binnacle', () => {
+  /** The vehicle, the records, and whatever the wishlist request should do. */
+  function respondWithWishlist(wishlist: () => Promise<unknown>) {
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/wishlist')) return wishlist() as never;
+      if (path.startsWith('/load-maintenance-data')) {
+        return Promise.resolve({ maintenanceLineItems: [{ created_at: '2026-08-06T02:43:11Z' }] }) as never;
+      }
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1',
+          year: 2018,
+          make: 'Honda',
+          model: 'Accord',
+          vehicle_health_summary: { health_score: 61 },
+          nhtsa_data: {
+            recalls: [
+              { NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' },
+              { NHTSACampaignNumber: '21V-100', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' },
+            ],
+          },
+        },
+      }) as never;
+    });
+  }
+
+  it('prints a zero it read, in the legend’s ink', async () => {
+    respondWithWishlist(() => Promise.resolve({ wishlistItems: [] }));
+    const { view } = await mount();
+
+    const plan = await view.findByLabelText('Plan, 0.');
+    const zero = view.getByText('0');
+    expect(plan).toBeTruthy();
+    expect(readoutColor(zero)).toBe(text.muted);
+
+    // The anti-vacuous half: a count that is not zero is set in the value's ink.
+    expect(readoutColor(view.getByText('1'))).toBe(text.primary);
+    expect(readoutColor(view.getByText('2'))).toBe(text.primary);
+  });
+
+  it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
+    /*
+      The route's rule, on the cell: an absent `recalls` is "never
+      checked" and prints nothing; an empty array is "asked, none" and
+      prints 0 in the legend's ink. The old page was silent for both; the
+      binnacle once printed 0 for both. Held together so a cell that printed
+      0 for every car would fail on the first half.
+    */
+    respond({ nhtsa_data: null, vehicle_health_summary: null });
+    const never = await mount();
+    await never.view.findAllByText(/2018 Honda Accord/);
+    expect(never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.')).toBeTruthy();
+    expect(never.view.queryByText('0')).toBeNull();
+
+    respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
+    const clean = await mount();
+    await clean.view.findAllByText(/2018 Honda Accord/);
+    expect(clean.view.getByLabelText('View 0 open recalls')).toBeTruthy();
+    expect(readoutColor(clean.view.getByText('0'))).toBe(text.muted);
+  });
+
+  it('prints nothing for a count it could not read', async () => {
+    respondWithWishlist(() => Promise.reject(new ApiRequestError({ status: 500, message: 'Timed out' })));
+    const { view } = await mount();
+
+    await view.findByLabelText('Plan.');
+    // No zero anywhere on the screen — the history count is 1 and the recalls
+    // 2, so the only "0" a failed wishlist could add is the one this guards
+    // against.
+    expect(view.queryByText('0')).toBeNull();
+    expect(view.getByText('1')).toBeTruthy();
   });
 });
 
@@ -407,20 +506,23 @@ describe('what this screen leads to stays reachable', () => {
       order.findIndex((line) => line.toLowerCase().includes(needle.toLowerCase()));
 
     /*
-      ⚠ Rewritten 23 Aug with the hub, and again with the IA merge. The claim is
-      the same one — the verb this screen exists to lead to must not sit under a
-      stack of instruments — but the landmarks changed twice: the instruments
-      left this screen, and then five hub rows became three (R14, R15). `Plan`
-      is where `Wishlist` and `Build` went.
+      ⚠ Rewritten 23 Aug with the hub, again with the IA merge, and again on
+      13 Sep when the hub became a binnacle. The claim is the same one — the
+      verb this screen exists to lead to must not sit under a stack of
+      instruments — but the landmarks keep moving: the instruments left this
+      screen, five hub rows became three (R14, R15), and then the rows became
+      cells of one panel with the acts as switches at its foot. THIS CAR is
+      gone with the list it named.
     */
-    expect(at('This car')).toBeGreaterThan(-1);
+    expect(at('Next service')).toBeGreaterThan(-1);
     expect(at('Ask the advisor')).toBeGreaterThan(-1);
 
-    // The reading, then the places to go, then the one thing to do, then the
-    // answers the owner gave when they added the car.
-    expect(at('Fair')).toBeLessThan(at('This car'));
-    expect(at('This car')).toBeLessThan(at('Plan'));
-    expect(at('Plan')).toBeLessThan(at('Ask the advisor'));
+    // The reading, then what it needs, then the places to go, then the two
+    // things to do, then the door to the answers the owner gave at sign-up.
+    expect(at('Fair')).toBeLessThan(at('Next service'));
+    expect(at('Next service')).toBeLessThan(at('Plan'));
+    expect(at('Plan')).toBeLessThan(at('Scan invoice'));
+    expect(at('Scan invoice')).toBeLessThan(at('Ask the advisor'));
     expect(at('Ask the advisor')).toBeLessThan(at('What you told us'));
   });
 
@@ -453,8 +555,12 @@ describe('what this screen leads to stays reachable', () => {
 
     const readouts = await view.findAllByText('61');
     expect(readouts).toHaveLength(1);
-    // The card's own 30. No chip, and no instrument readout over the photograph.
-    expect(readoutSizes(readouts)).toEqual([30]);
+    /*
+      The binnacle's HEALTH cell, at the plate's numeral size — 13 Sep; it was
+      the card's 30. No chip, and no instrument readout over the photograph:
+      the one reading on the screen is in the sheet, under the car.
+    */
+    expect(readoutSizes(readouts)).toEqual([type.numeralPlate.fontSize]);
   });
 
   it('sizes the hero title down on the shortest display', async () => {
@@ -552,6 +658,103 @@ describe('the hero pullback', () => {
     // stagger avoids. Held as a relationship so either number can move.
     expect(heroTitleClearsNavTitle()).toBe(true);
     expect(HERO_TITLE_FADE_SPAN).toBeLessThan(HERO_NAV_FADE_START);
+  });
+
+  it('lets the nav title arrive once the sheet has covered the name, inside the stagger', () => {
+    /*
+      13 Sep. The nav title used to arrive at a constant offset chosen for a
+      long ledger; on the binnacle's short sheet every unneeded point of
+      travel is empty sheet. So it arrives when the sheet has covered the
+      identity block — the geometry `navFadeStartFor` carries — and never
+      before the hero name has finished fading, never after the constant.
+    */
+    const { titleAnchor } = heroBands(detailHeroHeight(REFERENCE.frame.height));
+    const covered = navFadeStartFor({ titleAnchor, identityHeight: 120 });
+
+    // The reference block: after the hero name is gone, before the constant.
+    expect(covered).toBeGreaterThanOrEqual(HERO_TITLE_FADE_SPAN);
+    expect(covered).toBeLessThan(HERO_NAV_FADE_START);
+    // And it is the covering, not a guess: the sheet's top meets the block's
+    // drifting top exactly there.
+    const sheetTop = -HERO_SHEET_OVERLAP - covered; // relative to the hero's foot
+    const blockTop = -(titleAnchor + 120) - HERO_PARALLAX_RATE * covered;
+    expect(Math.abs(sheetTop - blockTop)).toBeLessThan(1);
+
+    // The two bounds, so a block can neither outrun the stagger nor delay the constant.
+    expect(navFadeStartFor({ titleAnchor, identityHeight: 0 })).toBe(HERO_TITLE_FADE_SPAN);
+    expect(navFadeStartFor({ titleAnchor, identityHeight: 600 })).toBe(HERO_NAV_FADE_START);
+    // An earlier start lowers the floor by exactly that much, until the other
+    // thing the floor waits for — the sheet passing under the nav — asks for more.
+    const heroH = detailHeroHeight(REFERENCE.frame.height);
+    expect(sheetMinHeight(791, heroH, { navFadeStart: covered })).toBe(
+      sheetMinHeight(791, heroH) - (HERO_NAV_FADE_START - covered),
+    );
+    const navHeight = REFERENCE.insets.top + 44;
+    const underTheNav = 791 - navHeight;
+    expect(sheetMinHeight(791, heroH, { navFadeStart: covered, navHeight })).toBe(
+      Math.max(sheetMinHeight(791, heroH, { navFadeStart: covered }), underTheNav),
+    );
+  });
+
+  it('gives the sheet the room for the nav title to arrive, whatever it carries', async () => {
+    /*
+      13 Sep. The binnacle is half a display tall, and a sheet the height of
+      its content stops the scroll ~160pt in — past the hero name's fade,
+      short of the nav name's arrival — so the car had no name at the end of
+      the scroll. The floor is derived from the motion constants rather than
+      chosen: at the height it gives, the scroll can reach the end of the nav
+      fade exactly, and moving a span moves the floor with it.
+    */
+    const heroH = detailHeroHeight(REFERENCE.frame.height);
+    const travelAtFloor =
+      heroH - HERO_SHEET_OVERLAP + sheetMinHeight(REFERENCE.frame.height, heroH) - REFERENCE.frame.height;
+    expect(travelAtFloor).toBe(HERO_NAV_FADE_START + HERO_NAV_FADE_SPAN);
+
+    respond();
+    const { view } = await mount(REFERENCE);
+    await view.findAllByText(/2018 Honda Accord/);
+
+    /*
+      And the sheet actually carries it: the one `View` with the sheet's
+      shadow. No layout event fires under this renderer, so the screen is on
+      its stand-ins — the window for the viewport, the constant for the nav
+      fade's start — and the nav's own height, which it knows from the insets.
+    */
+    const sheet = hostNodes(view.root, 'View').find(
+      (props) => (StyleSheet.flatten(props.style as never) as { shadowRadius?: number })?.shadowRadius === 22,
+    );
+    expect(sheet).toBeDefined();
+    expect((StyleSheet.flatten(sheet!.style as never) as { minHeight?: number }).minHeight).toBe(
+      sheetMinHeight(REFERENCE.frame.height, heroH, { navHeight: REFERENCE.insets.top + 44 }),
+    );
+  });
+
+  it('cuts the plate where it meets the sheet, with the plate\'s leg', async () => {
+    /*
+      13 Sep · B2. The plate's top-right corner is under the status bar on
+      this screen, so its one visible corner is the sheet's leading edge,
+      and the cut is painted there: `cut.plate` of page colour over the
+      plate's corner, the garage plate's and the masthead's construction.
+      Read off the rendered path so a cover that grew a leg, or lost its
+      ground, fails here rather than in a frame.
+    */
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const [expected] = cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']);
+    const covers = hostNodes(view.root, 'RNSVGPath').filter((props) => props.d === expected);
+    expect(covers).toHaveLength(1);
+    // Page colour, so it reads as the plate's corner removed and not as a mark on it.
+    const fill = covers[0].fill as { payload?: unknown } | undefined;
+    expect(fill && typeof fill === 'object' && 'payload' in fill ? fill.payload : fill).toBe(processColor(surface.page));
+    // The hairline stops where the bevel begins.
+    const edge = hostNodes(view.root, 'View').find(
+      (props) => (StyleSheet.flatten(props.style as never) as { backgroundColor?: string })?.backgroundColor === border.panel
+        && (StyleSheet.flatten(props.style as never) as { height?: number })?.height === StyleSheet.hairlineWidth,
+    );
+    expect(edge).toBeDefined();
+    expect((StyleSheet.flatten(edge!.style as never) as { marginRight?: number }).marginRight).toBe(cut.plate);
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {
@@ -735,16 +938,23 @@ describe('the hero’s nav, as controls', () => {
       rests on the hub row, which is the remaining route. What must not happen is
       that health becomes unreachable from this screen, which is exactly what
       deleting the chip could have caused without this.
+
+      13 Sep: the row is gone too — the reading *is* the door now. The HEALTH
+      cell of the binnacle carries the score, the band, the verdict, and says
+      in its own name that it opens the account of the score. The claim holds
+      on the spoken name because that is what a reader who cannot see the
+      chevron is told; a cell that stopped announcing where it goes would fail
+      here before anyone noticed it on a device.
     */
-    const row = await view.findByText('What is driving this score');
-    expect(row).toBeTruthy();
+    const door = await view.findByLabelText(/Health score 61 out of 100 — Fair\. Opens what is driving it\./);
+    expect(door.props.accessibilityRole).toBe('button');
   });
 
   it('opens the health detail from that door', async () => {
     respond();
     const { props, view } = await mount();
 
-    await userEvent.press(await view.findByText('What is driving this score'));
+    await userEvent.press(await view.findByLabelText(/Opens what is driving it/));
     expect(props.onOpenHealth).toHaveBeenCalled();
   });
 

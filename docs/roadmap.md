@@ -862,8 +862,10 @@
 > - **`QuoteGenerationProgress.tsx` is still a fake progress bar** — a 7.5s timer to 100% with
 >   a step claiming to check regional labour rates the app has no location data for. Known,
 >   flagged, deliberately outside the scope that named the invoice scanner.
-> - `VehicleDetailScreen` says nothing about recalls when a car has none, and
->   `ServiceMilestoneScreen` titles both empty states alike — **still David's calls**.
+> - ~~`VehicleDetailScreen` says nothing about recalls when a car has none~~ — **resolved
+>   13 Sep with the binnacle** (drift §6.18): the RECALLS cell prints a grey 0 for a car
+>   NHTSA cleared and nothing for one never checked, the route's own distinction.
+>   `ServiceMilestoneScreen` titles both empty states alike — **still David's call**.
 > - **`verify:mobile` reports PARTIAL**: `MOBILE_TEST_TOKEN` expired 2 Aug.
 >
 > #### Next, in order
@@ -1025,10 +1027,12 @@
 > #### Known and deliberate — do not re-report these
 >
 > - **Mod details fail to save** — the migration above.
-> - **`VehicleDetailScreen` shows nothing about recalls when a car has none.** Its banner is
->   behind `recalls > 0`, so "checked, clean" and "never checked" look identical. A silence
->   rather than a false claim, and **David's design call** — adding an element to that screen
->   was not something to decide while he was mid-test.
+> - ~~**`VehicleDetailScreen` shows nothing about recalls when a car has none.**~~ **Resolved
+>   13 Sep** (drift §6.18): the hub is a binnacle now and its RECALLS cell is always
+>   present — a 0 in the legend's ink when NHTSA was asked and had nothing, no numeral and
+>   "not checked yet" in its spoken name when the record is absent (`load-vehicle`'s own
+>   rule). "Checked, clean" and "never checked" no longer look identical, and neither is a
+>   false claim. `VehicleDetailScreen.test.tsx` holds both halves.
 > - **`ServiceMilestoneScreen` titles both empty states "Nothing due right now"**, though its
 >   body correctly distinguishes "no schedule yet" from "nothing due soon". Mild; same call.
 > - **`verify:mobile` reports PARTIAL, not green.** `MOBILE_TEST_TOKEN` expired 2 Aug, so the
