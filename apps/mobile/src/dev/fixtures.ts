@@ -23,44 +23,14 @@
  *
  * ── Gating ──────────────────────────────────────────────────────────────────
  *
- * Read by `api/client.ts` — and, for `designVariant` alone, by the vehicle
- * hub — behind `__DEV__` **and** `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a
- * release bundle, and never when the flag is off — a build that quietly serves
- * fixtures instead of the API is the worst failure this file could have,
- * because every screen would look perfect.
+ * Read only by `api/client.ts`, behind `__DEV__` **and**
+ * `EXPO_PUBLIC_DESIGN_FIXTURES=1`. Never in a release bundle, and never when the
+ * flag is off — a build that quietly serves fixtures instead of the API is the
+ * worst failure this file could have, because every screen would look perfect.
  */
 
 import { driversForVehicle } from '@tappet/core/health-drivers';
 import type { PlateStatus } from '@tappet/core/plates';
-
-/**
- * Which concept of the vehicle hub to draw, from the environment.
- *
- * ── 13 Sep · three concepts of one screen, selected without a rebuild ───────
- *
- * David asked for three new designs of the car's hub, built as real screens
- * so the design critic grades what the product would draw rather than a
- * mockup of it. Three files of `VehicleDetailScreen` would be three copies of
- * its data path; one screen with a switch is one. `EXPO_PUBLIC_DESIGN_VARIANT`
- * names the concept — `a` | `b` | `c` — and anything else, including unset,
- * is `null`: the screen as it ships. The concepts exist only while the pick is
- * being made; the switch and the losing concepts go when it is.
- *
- * ⚠ The same double gate as everything in this file, applied **here** rather
- * than at the call site, so a screen cannot read the variable on its own and
- * find a value in a release build. `EXPO_PUBLIC_*` values are inlined at
- * transform time; the guard is what keeps a concept out of the bundle the App
- * Store gets.
- */
-export type DesignVariant = 'a' | 'b' | 'c';
-const DESIGN_VARIANTS: readonly DesignVariant[] = ['a', 'b', 'c'];
-export function designVariant(): DesignVariant | null {
-  if (typeof __DEV__ === 'undefined' || !__DEV__ || process.env.EXPO_PUBLIC_DESIGN_FIXTURES !== '1') {
-    return null;
-  }
-  const raw = process.env.EXPO_PUBLIC_DESIGN_VARIANT;
-  return DESIGN_VARIANTS.find((variant) => variant === raw) ?? null;
-}
 
 /**
  * The plate's status on the fixture car, from the environment.
@@ -99,6 +69,19 @@ const M235I = {
   avg_miles_per_month: 500,
   last_mileage_update_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
   vehicle_status: 'daily_driver',
+  /*
+    ── 13 Sep · the other two answers, as the row holds them ───────────────
+
+    The hub's WHAT YOU TOLD US section rows all four onboarding answers,
+    and the fixture carried two, so the section was shot at half its
+    length. These are what PostgREST returned for the M235i on 13 Sep —
+    not invented, and `stock` is the honest one: it is the answer that
+    hides the Build ladder (`showsModifications`), so a loop shooting Mods
+    from these fixtures sees the ladder's off state, which is the state
+    this car is in.
+  */
+  performance_mindedness: 'stock',
+  ownership_objective: 'Keep forever',
   /*
     ── 12 Sep · what the nightly sweep would have written ──────────────────
 
