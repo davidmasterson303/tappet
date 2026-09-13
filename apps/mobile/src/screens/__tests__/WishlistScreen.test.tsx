@@ -375,7 +375,7 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
     expect(view.queryByText(/Every 5,000/)).toBeNull();
   });
 
-  it('keeps the reason to two lines, cut on a word, and names the kind as a bare mono word', async () => {
+  it('keeps the reason to two lines, ended on a sentence, and names the kind as a bare mono word', async () => {
     const prose =
       'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.';
     listReturns([item({ item_type: 'issue', description: prose })]);
@@ -384,7 +384,8 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
 
     const reason = view.getByText(/Can become clogged/);
     expect(reason.props.numberOfLines).toBe(2);
-    expect(reason.props.children).toMatch(/…$/);
+    /* The first sentence fits the cap, so the row ends on it, whole — an edit, not a truncation. */
+    expect(reason.props.children).toBe('Can become clogged or fail, affecting variable valve timing.');
     expect(String(reason.props.children).length).toBeLessThan(prose.length);
 
     const kind = flat(view.getByText('Known issue').props.style);

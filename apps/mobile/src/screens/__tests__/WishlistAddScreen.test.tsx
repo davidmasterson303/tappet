@@ -539,15 +539,27 @@ describe('the row as a spec table — B6, round 37', () => {
     expect(view.queryByText('02', { includeHiddenElements: true })).toBeNull();
   });
 
-  it('ends the reason on a word, never inside one', () => {
+  it('ends the reason on a sentence where one fits, else on a word, never inside one', () => {
+    /*
+      Round 41, after the stop: "rough idle…" was a cut inside a sentence
+      whose first sentence fit the cap. Where a full stop lands inside the
+      cap the cut ends there, with no ellipsis — an edit, not a truncation;
+      a single sentence longer than the cap still ends on a word.
+    */
+    const vanos =
+      'Can become clogged or fail, affecting variable valve timing. Symptoms include rough idle, reduced power, and check engine light with VANOS-related fault codes.';
+    expect(clipWords(vanos)).toBe('Can become clogged or fail, affecting variable valve timing.');
+
     const prose =
       'The electric water pump and thermostat are known to fail, leading to engine overheating, coolant loss, and potential stranding of the vehicle.';
     const clipped = clipWords(prose);
     expect(clipped.length).toBeLessThanOrEqual(REASON_CAP + 1);
     expect(clipped.endsWith('…')).toBe(true);
     expect(clipped).toBe('The electric water pump and thermostat are known to fail, leading to engine overheating, coolant…');
-    // Short prose is left alone, so the case above is not matching a template.
+    // Short prose is left alone, so the cases above are not matching a template.
     expect(clipWords('Fails.')).toBe('Fails.');
+    // A full stop inside a number is not a sentence's end.
+    expect(clipWords('Runs 0.5h labor then fails, leading to engine overheating, coolant loss, and potential stranding of it all.')).toMatch(/…$/);
   });
 
   it('marks an added row with the one word the app uses for that state, and no glyph', async () => {

@@ -89,8 +89,24 @@ export function suggestionValue(suggestion: {
  */
 export const REASON_CAP = 96;
 
+/** A sentence's end inside the cap: a full stop followed by a space, not one inside a number. */
+const SENTENCE_END = /[.!?](?=\s)/g;
+
 export function clipWords(prose: string, cap = REASON_CAP): string {
   if (prose.length <= cap) return prose;
+  /*
+    ── After the stop (round 41) · an edit before a truncation ──────────────
+
+    "rough idle…" was a cut inside a sentence whose *first* sentence would
+    have fit — the critique's *"machine truncation, not editing"*. Where a
+    sentence ends inside the cap, the row ends there, whole, with no
+    ellipsis; only a sentence longer than the cap is cut on a word.
+  */
+  let sentenceEnd = -1;
+  for (const match of prose.matchAll(SENTENCE_END)) {
+    if (match.index !== undefined && match.index < cap) sentenceEnd = match.index;
+  }
+  if (sentenceEnd > 0) return prose.slice(0, sentenceEnd + 1);
   const cut = prose.lastIndexOf(' ', cap);
   return `${prose.slice(0, cut > 0 ? cut : cap).replace(/[,;:.]$/, '')}…`;
 }
