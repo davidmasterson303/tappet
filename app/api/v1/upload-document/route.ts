@@ -133,6 +133,19 @@ export async function POST(request: NextRequest): Promise<Response> {
         } as ApiResponse);
       }
 
+      /*
+        E6's wire: the feature gate's refusal, as 402 with `code` and
+        `feature` beside the sentence — the consultant route carries the
+        argument. Ahead of the string matching below, which would otherwise
+        file it under 500 "Upload failed".
+      */
+      if (result.code === 'needs-subscription') {
+        return NextResponse.json(
+          { success: false, error: result.error, code: result.code, feature: result.feature },
+          { status: 402 }
+        );
+      }
+
       let errorMessage = result.error || 'Upload failed';
       let statusCode = 500;
 

@@ -180,6 +180,34 @@ describe('failures a phone actually hits', () => {
     });
   });
 
+  it('carries the server’s code beside its message — E6’s wire', async () => {
+    /*
+      `lib/feature-gate.ts` returns `code: 'needs-subscription'` beside the
+      refusal sentence and the routes forward it as 402. The screen keys on
+      the code, not the number, so it has to survive the trip.
+    */
+    fetchMock.mockResolvedValue(
+      reply(402, { error: 'The advisor is part of Tappet Plus.', code: 'needs-subscription', feature: 'advisor' })
+    );
+
+    await expect(apiRequest('/consultant', { method: 'POST', body: {} })).rejects.toMatchObject({
+      status: 402,
+      message: 'The advisor is part of Tappet Plus.',
+      code: 'needs-subscription',
+      needsSubscription: true,
+    });
+  });
+
+  it('carries no code when the server sent none', async () => {
+    // Anti-vacuous for the case above, and the ordinary shape of every error.
+    fetchMock.mockResolvedValue(reply(404, { error: 'Vehicle not found' }));
+
+    await expect(apiRequest('/load-vehicle')).rejects.toMatchObject({
+      code: null,
+      needsSubscription: false,
+    });
+  });
+
   it('reports the status, not a parse error, when a proxy returns HTML', async () => {
     /*
       The cold-start symptom recorded against /api/version: a 502 from an edge

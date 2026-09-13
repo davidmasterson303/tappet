@@ -52,6 +52,24 @@ const NATIVE_MODULES: Record<string, { infoPlistKeys: string[]; phase: string }>
     infoPlistKeys: [],
     phase: 'Phase 5 — recall and service-due alerts',
   },
+  /*
+    ── 12 Sep · B9's two modules, installed together in `0bdaf9f` ────────────
+
+    The viewfinder (`components/Viewfinder.tsx`) opens the camera itself and
+    the capture is felt through the haptic engine. Camera access reuses the
+    string the picker already required — one camera, one sentence — and the
+    microphone is **not** listed: `CameraView` is mounted in picture mode and
+    the iOS module touches the audio device only when recording, so a string
+    for it would describe a use the app does not make. Haptics need nothing.
+  */
+  'expo-camera': {
+    infoPlistKeys: ['NSCameraUsageDescription'],
+    phase: 'B9 — the viewfinder',
+  },
+  'expo-haptics': {
+    infoPlistKeys: [],
+    phase: 'B9 — one firm haptic on capture',
+  },
 };
 
 describe('native modules are declared', () => {

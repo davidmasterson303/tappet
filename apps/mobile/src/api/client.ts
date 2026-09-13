@@ -56,6 +56,12 @@ export interface ApiError {
   elapsedMs?: number;
   /** The runtime's own words, for a dev build to show. Never shown in release. */
   cause?: string;
+  /**
+   * The server's machine-readable reason, when it sent one — the `code` field
+   * of the error body. E6's wire: `'needs-subscription'` is the one a screen
+   * acts on, by opening the paywall rather than offering a retry.
+   */
+  code?: string;
 }
 
 export class ApiRequestError extends Error {
@@ -64,8 +70,15 @@ export class ApiRequestError extends Error {
   readonly kind: FailureKind;
   readonly elapsedMs: number | null;
   readonly cause: string | null;
+  /**
+   * The body's `code`, or `null`. Read beside `status`, never instead of it: a
+   * status says what happened to the request, a code says what the server
+   * decided — and a refusal the phone can act on is the second kind of fact.
+   * `lib/feature-gate.ts` names the one code that exists.
+   */
+  readonly code: string | null;
 
-  constructor({ status, message, origin = 'server', kind = 'http', elapsedMs, cause }: ApiError) {
+  constructor({ status, message, origin = 'server', kind = 'http', elapsedMs, cause, code }: ApiError) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
@@ -73,6 +86,19 @@ export class ApiRequestError extends Error {
     this.kind = kind;
     this.elapsedMs = elapsedMs ?? null;
     this.cause = cause ?? null;
+    this.code = code ?? null;
+  }
+
+  /**
+   * The server refused because the feature is part of the subscription.
+   *
+   * On the code, not the status. A 402 is what the routes send with it, but
+   * the code is the contract — `FeatureDecision['state']`, forwarded verbatim
+   * — and a screen that keyed on the number would open a paywall on any
+   * future 402 that meant something else.
+   */
+  get needsSubscription(): boolean {
+    return this.code === 'needs-subscription';
   }
 
   /**
@@ -183,7 +209,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       wait without making the call it waits on. See `fixtureHolds`.
     */
     if (fixtureHolds(path)) return new Promise<T>(() => {});
-    const canned = fixtureFor(path);
+    const canned = fixtureFor(path, { method, body });
     if (canned !== undefined) return canned as T;
   }
 
@@ -338,6 +364,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       // The server's own message when it sent one — those are written to be
       // shown and are careful not to leak whether a resource exists.
       message: typeof payload?.error === 'string' ? payload.error : `Request failed (${response.status})`,
+      // And its reason, when it sent one. See `ApiRequestError.code`.
+      code: typeof payload?.code === 'string' ? payload.code : undefined,
     });
   }
 
@@ -415,6 +443,8 @@ function sendMultipart<T>({
               typeof parsed?.error === 'string'
                 ? parsed.error
                 : `Request failed (${request.status})`,
+            // The multipart path is the invoice upload, which is gated too.
+            code: typeof parsed?.code === 'string' ? parsed.code : undefined,
           })
         );
         return;

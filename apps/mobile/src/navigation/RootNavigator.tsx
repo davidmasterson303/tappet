@@ -39,6 +39,8 @@ import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import AccountControl from './AccountControl';
+import { PaywallHost } from '../purchases/PaywallHost';
+import { requestUpgrade } from '../purchases/upgrade-prompt';
 import BackControl from '../components/BackControl';
 import ChooseACar from '../components/ChooseACar';
 import { rememberVehicle } from './last-vehicle';
@@ -168,14 +170,28 @@ type DossierScreens = {
     could not be exercised without a human typing, and synthetic keystrokes do
     not reach a React Native `TextInput`.
 
-    ⚠ 11 Sep: the advisor is a tab root *and* a pushed screen. A question that
-    arrives with the screen (`ask`) is asked once per mount, so a recall's "ask
-    the advisor" pushes a fresh instance onto the stack it came from rather than
-    switching to a tab whose thread may already be open and would swallow the
-    question in silence. The bare "Ask the advisor" from the car's hub, with no
-    question in hand, switches to the tab — that is the conversation.
+    ⚠ 11 Sep: the advisor was a tab root *and* a pushed screen — a question
+    that arrived with the screen was asked once per mount, so a recall's "ask
+    the advisor" pushed a fresh instance onto the stack it came from rather
+    than switch to a tab whose open thread would swallow the question.
+
+    ⚠ 13 Sep: **the advisor is one place.** David, from the catalogue's "Learn
+    more": *"it's disorienting to have this new environment"* — a second
+    advisor reachable from nowhere else, whose thread could not be found again
+    from the Advisor tab. So every question now goes to the tab (`askAdvisor`
+    below), and the swallowing is solved where it belongs: `askedAt` names the
+    arrival, and `AdvisorScreen` starts a new thread for each one. `from` is
+    the tab the question came from, drawn under the band as the way back.
   */
-  Advisor: { vehicleId: string; title?: string; ask?: string };
+  Advisor: {
+    vehicleId: string;
+    title?: string;
+    ask?: string;
+    /** When `ask` arrived (`Date.now()`); a new value is a new thread. */
+    askedAt?: number;
+    /** The tab to offer a way back to — "‹ PLAN". */
+    from?: OriginTab;
+  };
   /*
     3.3. Linked from the vehicle detail screen since 5 Aug, once build
     `29b4d76f` put `expo-image-picker` in the binary. Held back until then on
@@ -682,6 +698,49 @@ function openAdvisorTab(navigation: StackNavigation, car: Car) {
   });
 }
 
+/** The tabs a question can come from, and what their way back is called. */
+export type OriginTab = 'GarageTab' | 'ServiceTab' | 'PlanTab';
+export const ORIGIN_LABELS: Record<OriginTab, string> = {
+  GarageTab: 'Garage',
+  ServiceTab: 'Service',
+  PlanTab: 'Plan',
+};
+
+/**
+ * Ask the advisor a question from another tab — in the Advisor tab, as a new
+ * thread, with a way back.
+ *
+ * Exported as the params it produces so the target can be pinned without a
+ * navigator: `askedAt` is the arrival the screen keys the thread on, `from`
+ * is the breadcrumb.
+ */
+export function advisorThreadParams(
+  car: Car,
+  ask: string,
+  from: OriginTab,
+  now: () => number = Date.now
+): RootStackParamList['Tabs'] {
+  return {
+    screen: 'AdvisorTab',
+    params: { screen: 'Advisor', params: { ...car, ask, askedAt: now(), from } },
+  };
+}
+
+/**
+ * The tab a stack screen is standing in, read off the tab navigator's state.
+ * The catalogue is mounted in two stacks (the garage's dossier and the Plan
+ * tab), so its origin is whichever tab holds it now, not a constant.
+ */
+export function originTabOf(navigation: { getParent?: () => { getState?: () => { routes: Array<{ name: string }>; index: number } | undefined } | undefined }): OriginTab {
+  const tabs = navigation.getParent?.()?.getState?.();
+  const name = tabs?.routes[tabs.index]?.name;
+  return name && name in ORIGIN_LABELS ? (name as OriginTab) : 'GarageTab';
+}
+
+function askAdvisor(navigation: StackNavigation, car: Car, ask: string, from: OriginTab = originTabOf(navigation)) {
+  navigation.navigate('Tabs', advisorThreadParams(car, ask, from));
+}
+
 /** Everything a stack needs to render its screens. */
 type Session = {
   accessToken: string;
@@ -868,7 +927,7 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
             title={route.params.title}
             onSignOut={onSignOut}
             onAskAdvisor={(vehicleId, ask) =>
-              navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
             }
           />
         )}
@@ -880,9 +939,9 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
             vehicleId={route.params.vehicleId}
             title={route.params.title}
             onSignOut={onSignOut}
-            /* R16. The recalls section keeps its per-recall advisor thread. */
+            /* R16: each recall's question starts its own thread — in the Advisor tab, 13 Sep. */
             onAskAdvisor={(vehicleId, ask) =>
-              navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
             }
           />
         )}
@@ -915,10 +974,9 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       </Stack.Screen>
 
       {/*
-        Pushed from a recall's "ask the advisor", with the question in hand.
-        A fresh instance, so the question is asked — see the param's note.
+        No pushed Advisor here since 13 Sep: a recall's "ask the advisor" goes
+        to the Advisor tab as a new thread — see the `Advisor` param's note.
       */}
-      {advisorScreen(onSignOut)}
     </Stack.Navigator>
   );
 }
@@ -939,7 +997,6 @@ function PlanStack({ onSignOut }: Session) {
     <Stack.Navigator initialRouteName="Plan" screenOptions={screenOptions}>
       {planScreen(onSignOut)}
       {wishlistAddScreen(onSignOut)}
-      {advisorScreen(onSignOut)}
     </Stack.Navigator>
   );
 }
@@ -997,6 +1054,7 @@ function serviceScreen(onSignOut: () => void) {
         withCar(route, navigation, 'Service', (vehicleId) => (
           <ServiceScreen
             vehicleId={vehicleId}
+            vehicleTitle={route.params?.title}
             initialSegment={route.params?.segment}
             /*
               Scanning starts here and returns here. `useRefetchOnFocus` on
@@ -1096,6 +1154,15 @@ function advisorScreen(onSignOut: () => void) {
               decoded.
             */
             initialQuestion={route.params?.ask}
+            questionKey={route.params?.askedAt}
+            origin={
+              route.params?.from
+                ? {
+                    label: ORIGIN_LABELS[route.params.from],
+                    onPress: () => navigation.navigate('Tabs', { screen: route.params!.from! }),
+                  }
+                : undefined
+            }
             onSignOut={onSignOut}
           />
         ))
@@ -1107,14 +1174,22 @@ function advisorScreen(onSignOut: () => void) {
 function invoiceScreens(onSignOut: () => void) {
   return (
     <>
-      <Stack.Screen name="InvoiceScan" options={{ title: 'SCAN AN INVOICE' }}>
+      {/*
+        ── 12 Sep · one name for the act ─────────────────────────────────
+
+        SCAN INVOICE, as the Service root's primary and the hub's row say it
+        — the nav read SCAN AN INVOICE, and round 34's Cut list counted the
+        article: *"the act has one name."*
+      */}
+      <Stack.Screen name="InvoiceScan" options={{ title: 'SCAN INVOICE' }}>
         {({ route }) => (
           <InvoiceScanScreen
             vehicleId={route.params.vehicleId}
             /*
-              The seam. `pick-image.ts` is the only module that will
-              import expo-image-picker, so this screen stays free of native
-              imports and one file changes when the build lands.
+              The seam. `pick-image.ts` is the only module that imports
+              expo-image-picker, so this screen stays free of native imports
+              for the library path; the camera is the viewfinder's own
+              (`components/Viewfinder.tsx`).
             */
             pickImage={pickInvoiceImage}
             onSignOut={onSignOut}
@@ -1145,8 +1220,14 @@ function wishlistAddScreen(onSignOut: () => void) {
           vehicleId={route.params.vehicleId}
           title={route.params.title}
           onSignOut={onSignOut}
+          /*
+            "Learn more" is a question for the advisor, and the advisor is the
+            Advisor tab — a new thread there, with "‹ PLAN" (or "‹ GARAGE",
+            when the catalogue was reached through the car's hub) to come
+            back by; `originTabOf` reads which.
+          */
           onAskAdvisor={(vehicleId, ask) =>
-            navigation.navigate('Advisor', { vehicleId, title: route.params.title, ask })
+            askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
           }
           /*
             The list behind this refetches on focus, so adding does not pop
@@ -1198,6 +1279,16 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
   */
   const navigation = useNavigationContainerRef<RootStackParamList>();
   const [atRoot, setAtRoot] = useState(true);
+
+  /*
+    ── E8 · the one account fact that can go stale on this device ───────────
+
+    Counts the times the paywall has said the server entitled the account.
+    `AccountScreen` re-reads its subscription on every change — it holds that
+    read for E5's deletion warning, and the paywall opens over it from its own
+    row. The number itself means nothing; `usePaywall.ts` carries the argument.
+  */
+  const [subscriptionEpoch, setSubscriptionEpoch] = useState(0);
 
   /**
    * Where the tree is, and which car it is about.
@@ -1308,10 +1399,29 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
                 show a confirmation on. `App.tsx`'s gate takes over.
               */
               onDeleted={() => onSignOut()}
+              /*
+                E8: the settings way into the paywall. The same signal a
+                refused screen sends, with no feature — `PaywallHost` below is
+                what listens, and it is what makes this row honest to draw.
+              */
+              onSubscribe={() => requestUpgrade(null)}
+              subscriptionEpoch={subscriptionEpoch}
             />
           )}
         </Stack.Screen>
       </Stack.Navigator>
+
+      {/*
+        ── E8 · the paywall, mounted once, beside the navigator ──────────────
+
+        A sibling of the root stack for the same reason `AccountControl` is:
+        four tab stacks each mount their own advisor, and every one of them can
+        be refused. `requestUpgrade()` from any of them, or the account row
+        above, opens this one modal. It renders what the resolver returns and
+        decides nothing — `usePaywall.ts` is the composition and carries the
+        argument.
+      */}
+      <PaywallHost onEntitled={() => setSubscriptionEpoch((epoch) => epoch + 1)} />
 
       {/*
         ⚠ A sibling of the navigator — the *root* navigator — and outside every

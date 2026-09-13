@@ -1274,7 +1274,8 @@ export async function sendConsultantMessage(params: {
       */
       const gate = featureRefusal(await checkFeatureAccess(access.userId, 'advisor'));
       if (gate) {
-        return { success: false, error: gate };
+        // `code` and `feature` ride with the sentence — E6's wire, see `feature-gate.ts`.
+        return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
       }
 
       const budget = await checkMonthlyBudget(access.userId);
@@ -2584,7 +2585,7 @@ export async function generateModificationDetails(vehicleId: string, modName: st
     */
     const modGate = featureRefusal(await checkFeatureAccess(access.userId, 'dossier'));
     if (modGate) {
-      return { success: false, error: modGate };
+      return { success: false, error: modGate.error, code: modGate.code, feature: modGate.feature };
     }
 
     const budget = await checkMonthlyBudget(access.userId);
@@ -3809,7 +3810,7 @@ export async function parseInvoiceLineItems(documentId: string, vehicleId: strin
     */
     const invoiceGate = featureRefusal(await checkFeatureAccess(access.userId, 'invoice-scanning'));
     if (invoiceGate) {
-      return { success: false, error: invoiceGate };
+      return { success: false, error: invoiceGate.error, code: invoiceGate.code, feature: invoiceGate.feature };
     }
 
     // 5.1 — the other path a user can drive repeatedly, and the one still
@@ -4377,6 +4378,20 @@ export async function uploadInvoice(formData: FormData) {
           message: parseResult.message,
           extractedVehicle: parseResult.extractedVehicle,
           expectedVehicle: parseResult.expectedVehicle,
+        };
+      }
+
+      /*
+        A gate refusal keeps its `code` and `feature` on the way out — E6's
+        wire, see `feature-gate.ts`. The route reads `code` to answer 402 with
+        both, and the phone reads it to open the paywall instead of a retry.
+      */
+      if (parseResult.code === 'needs-subscription') {
+        return {
+          success: false,
+          error: parseResult.error || 'Failed to parse invoice',
+          code: parseResult.code,
+          feature: parseResult.feature,
         };
       }
 

@@ -155,3 +155,71 @@ export async function askAdvisor({
     ...(estimate ? { estimate } : {}),
   };
 }
+
+/**
+ * ── 13 Sep · the advisor's threads — list one car's, reopen one ─────────────
+ *
+ * David: "i need some way to toggle between chat threads... or to view other
+ * threads and select one to enter, or start new thread." The screen's own
+ * docblock had recorded for a month that the routes existed — the phone just
+ * never called them. `GET /consultant/conversations?vehicleId=` lists a car's
+ * threads newest first; `GET /consultant/conversations/<id>` returns one with
+ * its messages, which the screen draws as turns and continues by sending the
+ * same id with the next question. Starting a new thread is what the screen
+ * already does — omit the id.
+ *
+ * Titles come from the server (`consultant_conversations.title`), which may
+ * be null on a thread it has not named; the screen falls back to the first
+ * question so a row is never blank.
+ */
+export interface AdvisorThread {
+  id: string;
+  title: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface StoredTurn {
+  role: 'user' | 'assistant';
+  content: string;
+  estimate?: ConsultantEstimate;
+}
+
+export async function listAdvisorThreads(vehicleId: string): Promise<AdvisorThread[]> {
+  const body = await apiRequest<{ conversations?: unknown }>(
+    `/consultant/conversations?vehicleId=${encodeURIComponent(vehicleId)}`
+  );
+  if (!Array.isArray(body.conversations)) return [];
+  return body.conversations
+    .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+    .filter((row) => typeof row.id === 'string')
+    .map((row) => ({
+      id: row.id as string,
+      title: typeof row.title === 'string' && row.title.trim() ? row.title : null,
+      createdAt: typeof row.created_at === 'string' ? row.created_at : null,
+      updatedAt: typeof row.updated_at === 'string' ? row.updated_at : null,
+    }));
+}
+
+export async function loadAdvisorThread(
+  sessionId: string
+): Promise<{ id: string; title: string | null; turns: StoredTurn[] }> {
+  const body = await apiRequest<{ conversation?: { id?: unknown; title?: unknown; messages?: unknown } }>(
+    `/consultant/conversations/${encodeURIComponent(sessionId)}`
+  );
+  const conversation = body.conversation ?? {};
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+  const turns: StoredTurn[] = [];
+  for (const raw of messages) {
+    if (!raw || typeof raw !== 'object') continue;
+    const m = raw as Record<string, unknown>;
+    if ((m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string') continue;
+    const estimate = narrowEstimate(m.estimate);
+    turns.push({ role: m.role, content: m.content, ...(estimate ? { estimate } : {}) });
+  }
+  return {
+    id: typeof conversation.id === 'string' ? conversation.id : sessionId,
+    title: typeof conversation.title === 'string' && conversation.title.trim() ? conversation.title : null,
+    turns,
+  };
+}

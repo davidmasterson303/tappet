@@ -403,6 +403,14 @@ const STATIC_ANALYSIS_SUITES = [
   // replaced them tells you nothing about who did not adopt it. The failure it
   // pins is silent in the ordinary way: a twenty-first spinner renders fine.
   'one-wait-instrument.test.ts',
+  // Reads the mobile navigator's source and proves the advisor is mounted in
+  // one stack and pushed from none — the "second advisor environment" David
+  // hit on 12 Sep. Nothing to import: the navigator is React Native, which
+  // this runner cannot load, and the pure halves (the params a question
+  // travels with) are pinned in the mobile suite (`advisor-thread.test.ts`).
+  // The failure it pins is silent in the ordinary way — a pushed advisor
+  // renders perfectly and simply cannot be found again from the tab.
+  'mobile-one-advisor.test.ts',
 ];
 
 /**

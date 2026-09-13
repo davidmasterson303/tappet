@@ -14,13 +14,15 @@ import {
   type ScheduleEntry,
   type ServiceDue,
 } from '@tappet/core/service-due';
+import type { WishlistSource } from '@tappet/core/wishlist-source';
 import {
   SCHEDULE_BASIS_LABELS,
   SERVICE_BASIS_LABELS,
+  SERVICE_BASIS_SHORT,
   serviceBasis,
 } from '@tappet/core/service-provenance';
 import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { mileageCheckIn, validateMileageUpdate, type MileageCheckIn } from '@tappet/core/mileage-tracking';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   CONTROL_HEIGHT,
@@ -126,6 +128,10 @@ interface VehicleResponse {
     make?: string | null;
     model?: string | null;
     current_mileage?: number | null;
+    /** The owner's own figure from onboarding; what a month of driving is assumed to add. */
+    avg_miles_per_month?: number | null;
+    /** When the reading was last confirmed; served by `/load-vehicle` since 13 Sep. */
+    last_mileage_update_date?: string | null;
   };
   knowledge?: { maintenance_schedule?: unknown } | null;
 }
@@ -165,11 +171,23 @@ type State =
       kind: 'ready';
       name: string;
       mileage: number;
+      /** Whether to ask for the odometer now, and what to offer — `mileageCheckIn`. */
+      checkIn: MileageCheckIn;
       schedule: ScheduleEntry[];
       history: ServiceHistoryRow[];
     };
 
 const miles = new Intl.NumberFormat('en-US');
+
+/**
+ * A digit string, grouped for display: `'66000'` → `'66,000'`, `''` → `''`.
+ *
+ * Exported for the test, which types through the field and reads what it
+ * shows. Never parsed back — the field's value is the digits (see the gate).
+ */
+export function groupDigits(digits: string): string {
+  return digits === '' ? '' : miles.format(Number(digits));
+}
 
 /**
  * The numeral column: where this car stands against the interval.
@@ -276,11 +294,29 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       const vehicle = body.vehicle;
       const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : 0;
       const rawSchedule = body.knowledge?.maintenance_schedule;
+      /*
+        ── 13 Sep · monthly, with a number worked out ──────────────────────
+
+        The gate asked "Still around 66,000 miles?" on every open. David:
+        "we don't need to ask to confirm mileage every login. not more than
+        monthly. but we should calculate assumed new mileage each month we
+        ask." `mileageCheckIn` (core, shared with the web) decides both: ask
+        only when a month has passed since the last confirmation — or none
+        was ever made — and offer the last reading plus the owner's own miles
+        a month for the months since, rounded to a hundred so it reads as
+        the estimate it is.
+      */
+      const checkIn = mileageCheckIn({
+        current_mileage: mileage,
+        avg_miles_per_month: vehicle?.avg_miles_per_month,
+        last_mileage_update_date: vehicle?.last_mileage_update_date,
+      });
 
       setState({
         kind: 'ready',
         name: [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'this car',
         mileage,
+        checkIn,
         schedule: Array.isArray(rawSchedule) ? (rawSchedule as ScheduleEntry[]) : [],
         /*
           ⚠ `history?.` on both sides. `Array.isArray(history?.maintenanceLineItems)`
@@ -292,7 +328,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
           ? history?.maintenanceLineItems ?? []
           : [],
       });
-      setReading(String(mileage));
+      setReading(String(checkIn.assumed));
+      setConfirmed(!checkIn.ask);
     } catch (error) {
       const apiError = error as ApiRequestError;
       /*
@@ -333,12 +370,13 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       return;
     }
 
-    // Unchanged is the common answer and costs nothing to skip.
-    if (next === state.mileage) {
-      setConfirmed(true);
-      return;
-    }
-
+    /*
+      An unchanged reading used to skip the write. It cannot now: the server's
+      `last_mileage_update_date` is what "not more than monthly" is counted
+      from, and a confirmation nobody recorded is a question asked again on
+      the next open. `validateMileageUpdate` accepts an equal reading — that
+      is what confirming one is.
+    */
     setSaving(true);
     try {
       await apiRequest('/vehicles', {
@@ -379,6 +417,13 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
             itemName: service.service,
             itemIdentifier: wishlistItemIdentifier('maintenance', service.service),
             description: service.description || null,
+            /*
+              The schedule is the app's knowledge of the car, so the row says
+              `dossier` — the word the web sends for the same add. It used to
+              send nothing and take the route's `manual` default, which
+              claimed the owner had typed it.
+            */
+            source: 'dossier' satisfies WishlistSource,
           },
         });
         setAdded((prev) => [...prev, service.service]);
@@ -451,8 +496,10 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   if (state.schedule.length === 0) {
     return (
       <ScrollView contentContainerStyle={styles.body} {...rootScroll}>
+        {/* `rule={false}`: the pinned band above closes with the hairline. */}
         <EmptyState
           inset={false}
+          rule={false}
           headline="No schedule yet"
           body="This car has no structured service schedule yet, so nothing can be worked out from its mileage."
         />
@@ -492,14 +539,24 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   */
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
-      <Text style={styles.confirmLead}>Still around {miles.format(state.mileage)} miles?</Text>
+      <Text style={styles.confirmLead}>
+        {state.checkIn.projected
+          ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
+          : `Still around ${miles.format(state.mileage)} miles?`}
+      </Text>
       {/*
         One sentence. "What is due depends on the odometer" said the same
         thing as the line that follows it, and the critique's Cut list said
         keep one; this is the one the §10 test holds — the list is computed
-        from the reading, and the screen says so.
+        from the reading, and the screen says so. When the figure is a
+        projection the sentence says where it came from — the owner's own
+        miles a month — so "about" is a claim with its basis, not a guess.
       */}
-      <Text style={styles.confirmBody}>The list below is worked out from this reading.</Text>
+      <Text style={styles.confirmBody}>
+        {state.checkIn.projected
+          ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
+          : 'The list below is worked out from this reading.'}
+      </Text>
 
       {/* The field and its verb on one line — it is one question, not a form. */}
       <View style={styles.confirmRow}>
@@ -512,10 +569,22 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
             typed, and a person typing an odometer is not in doubt about the
             unit.
           */}
+          {/*
+            ── 12 Sep · the field reads 66,000, like every other reading ────
+
+            The critique's parking lot since round 30, and round 34's gap 3:
+            the one number on the surface printed without its separators was
+            the one being typed. Shown grouped, kept as digits — `reading`
+            holds what was typed with everything but digits removed, which is
+            what `confirm` has always parsed, and `groupDigits` is only the
+            display. A number pad appends at the end, so the caret has nowhere
+            surprising to land; deleting through a comma removes the digit
+            before it, because the comma was never in the value.
+          */}
           <Field
             label="Odometer"
-            value={reading}
-            onChangeText={setReading}
+            value={groupDigits(reading)}
+            onChangeText={(typed) => setReading(typed.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
             returnKeyType="done"
             onSubmitEditing={() => void confirm()}
@@ -716,9 +785,23 @@ function DueRow({
 }) {
   const overdue = service.status === 'overdue';
   const position = positionLabel(service);
-  const basis = service.status === 'unknown' ? null : SERVICE_BASIS_LABELS[serviceBasis(service.evidence)];
+  /*
+    ── B6 · the token on the line, the sentence in the ear ─────────────────
+
+    The meta line prints `SERVICE_BASIS_SHORT` — RECORDS · SIGN-UP · ESTIMATED,
+    the critic's own tokens (rounds 34–36) — because the sentence orphaned a
+    word at every iPhone width and a second line is not what a ledger row has
+    room for. The sentence is not dropped: it is the meta line's spoken label,
+    so a screen reader hears the claim in full, and core holds each token to
+    its sentence so the two cannot say different things.
+  */
+  const basisKey = service.status === 'unknown' ? null : serviceBasis(service.evidence);
+  const basis = basisKey ? SERVICE_BASIS_SHORT[basisKey] : null;
+  const basisSentence = basisKey ? SERVICE_BASIS_LABELS[basisKey] : null;
   const interval = intervalLabel(service);
   const spoken = [service.service, positionSentence(service)].filter(Boolean).join(', ');
+  /* What the meta line says out loud: the interval, then the sentence the token stands for. */
+  const metaSpoken = [interval, basisSentence].filter(Boolean).join(' · ');
 
   return (
     <View style={styles.row}>
@@ -762,12 +845,15 @@ function DueRow({
 
       <View style={styles.rowFoot}>
         {interval || basis ? (
-          <Text style={styles.meta}>
+          <Text style={styles.meta} accessibilityLabel={metaSpoken}>
             {interval}
             {interval && basis ? ' · ' : null}
             {/*
-              Its own node, so the claim is findable as the sentence core wrote
-              — the provenance tests look for `SERVICE_BASIS_LABELS[...]` whole.
+              Its own node, so the claim is findable as the token core wrote —
+              the provenance tests look for `SERVICE_BASIS_SHORT[...]` whole.
+              The line's own label carries the sentence, so a screen reader
+              hears "Based on what you told us at sign-up" where a sighted
+              reader sees SIGN-UP.
             */}
             {basis ? <Text style={styles.metaBasis}>{basis}</Text> : null}
           </Text>
@@ -802,14 +888,18 @@ const styles = StyleSheet.create({
 
   /* ── R14 · the confirm band ────────────────────────────────────────────── */
   /*
-    B5: a top rule and the page's own surface. The table beneath opens with a
-    rule of its own, so this band closes on nothing — two hairlines a pixel
-    apart read as a seam, which is `Card`'s argument for a top rule only.
+    B5: the page's own surface. The table beneath opens with a rule of its
+    own, so this band closes on nothing — two hairlines a pixel apart read as
+    a seam, which is `Card`'s argument for a top rule only.
+
+    ⚠ 12 Sep · and no top rule of its own any more: the pinned band above
+    closes with one (`ServiceScreen`'s `scan`), and this is the first thing
+    under it. No top air of its own either — `PAGE_BODY`'s 20 under that rule
+    is the same distance the History side gives its search field, measured on
+    the frame (the old 16 on top of it put the question 40pt under the rule
+    against the field's 22).
   */
   confirm: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: border.panel,
-    paddingTop: space.lg,
     gap: space.sm,
   },
   /*
@@ -828,15 +918,20 @@ const styles = StyleSheet.create({
   confirmAction: { flexShrink: 0 },
 
   /* ── R33 · the confirmed reading, as a row of the table ────────────────── */
+  /*
+    ⚠ 12 Sep · no top rule, and no top air: it is the first row under the
+    pinned band, whose closing hairline is its top edge and whose body gives
+    it `PAGE_BODY`'s 20 (see `confirm`) — 16 more of its own would hang the
+    reading between the two rules with twice the air above it as below. The
+    group head beneath draws the rule that closes it.
+  */
   readingRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: space.md,
-    minHeight: SPEC_ROW,
-    paddingVertical: space.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: border.panel,
+    minHeight: SPEC_ROW - space.lg,
+    paddingBottom: space.lg,
   },
   readingLabel: { ...type.monoLabel, color: text.muted },
   readingValue: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
@@ -924,7 +1019,8 @@ const styles = StyleSheet.create({
     records" is a claim).
   */
   meta: { ...type.label, letterSpacing: 0, color: text.muted, flex: 1 },
-  metaBasis: { ...type.label, letterSpacing: 0, color: text.muted },
+  /* The token is chrome's voice — mono caps, like the heads and ADD beside it. */
+  metaBasis: { ...type.monoLabel, color: text.muted },
   /* Holds the action at the rule on a row with nothing to say beneath its name. */
   metaSpacer: { flex: 1 },
 

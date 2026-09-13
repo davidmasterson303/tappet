@@ -217,7 +217,7 @@ describe('the ledger', () => {
 
     view.getByText('01');
     view.getByText('02');
-    view.getByLabelText('Opening the camera — done');
+    view.getByLabelText('Photographing the invoice — done');
     view.getByLabelText('Reading the invoice — in progress');
     // The footer is a real count in the state voice.
     expect(flat(view.getByText('7 line items so far').props.style).textTransform).toBe('uppercase');
@@ -246,7 +246,7 @@ describe('the ledger', () => {
 describe('the scanner’s stages are facts', () => {
   it('has two stages in the ordinary flow and three only on the confirm path', () => {
     expect(scanStages('picking', 'camera')).toEqual([
-      { label: 'Opening the camera', state: 'active' },
+      { label: 'Photographing the invoice', state: 'active' },
       { label: 'Reading the invoice', state: 'pending' },
     ]);
     expect(scanStages('reading', 'library')).toEqual([
@@ -254,7 +254,7 @@ describe('the scanner’s stages are facts', () => {
       { label: 'Reading the invoice', state: 'active' },
     ]);
     expect(scanStages('filing', 'camera')).toEqual([
-      { label: 'Opening the camera', state: 'done' },
+      { label: 'Photographing the invoice', state: 'done' },
       { label: 'Reading the invoice', state: 'done' },
       { label: 'Filing it against this car', state: 'active' },
     ]);

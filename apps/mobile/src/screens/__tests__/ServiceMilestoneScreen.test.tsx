@@ -1,8 +1,8 @@
 import { render, userEvent, waitFor } from '@testing-library/react-native';
 
-import { ServiceMilestoneScreen } from '../ServiceMilestoneScreen';
+import { ServiceMilestoneScreen, groupDigits } from '../ServiceMilestoneScreen';
 import { apiRequest } from '../../api/client';
-import { SERVICE_BASIS_LABELS } from '@tappet/core/service-provenance';
+import { SERVICE_BASIS_LABELS, SERVICE_BASIS_SHORT } from '@tappet/core/service-provenance';
 import { status } from '../../theme';
 
 /**
@@ -156,8 +156,18 @@ describe('provenance', () => {
 
     // Oil counts from the record at 92,000 → 99,500; the rotation has nothing
     // to count from and takes the next boundary, 100,000. One visit, two claims.
-    expect(await view.findByText(SERVICE_BASIS_LABELS['service-history'])).toBeTruthy();
-    expect(view.getByText(SERVICE_BASIS_LABELS['mileage-estimate'])).toBeTruthy();
+    expect(await view.findByText(SERVICE_BASIS_SHORT['service-history'])).toBeTruthy();
+    expect(view.getByText(SERVICE_BASIS_SHORT['mileage-estimate'])).toBeTruthy();
+
+    /*
+      B6: the row prints the token and *speaks* the sentence. The token is a
+      word of the sentence and nothing more (core holds that), and the
+      sentence is the meta line's accessibility label, so a screen reader
+      hears the claim in full — the printed sentence is gone, not the claim.
+    */
+    expect(view.getAllByLabelText(new RegExp(SERVICE_BASIS_LABELS['service-history'])).length).toBeGreaterThan(0);
+    expect(view.getAllByLabelText(new RegExp(SERVICE_BASIS_LABELS['mileage-estimate'])).length).toBeGreaterThan(0);
+    expect(view.queryByText(SERVICE_BASIS_LABELS['service-history'])).toBeNull();
   });
 
   it('says "estimated" when there is no history to count from', async () => {
@@ -169,8 +179,8 @@ describe('provenance', () => {
     const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
     await passTheGate(user, view);
 
-    expect(await view.findByText(SERVICE_BASIS_LABELS['mileage-estimate'])).toBeTruthy();
-    expect(view.queryByText(SERVICE_BASIS_LABELS['service-history'])).toBeNull();
+    expect(await view.findByText(SERVICE_BASIS_SHORT['mileage-estimate'])).toBeTruthy();
+    expect(view.queryByText(SERVICE_BASIS_SHORT['service-history'])).toBeNull();
   });
 
   it('claims service records on the row that has them', async () => {
@@ -188,7 +198,7 @@ describe('provenance', () => {
     await passTheGate(user, view);
 
     // The oil service now counts from 92,000 rather than from the odometer.
-    expect(await view.findByText(SERVICE_BASIS_LABELS['service-history'])).toBeTruthy();
+    expect(await view.findByText(SERVICE_BASIS_SHORT['service-history'])).toBeTruthy();
   });
 
   it('does not let a remembered date pass as a record', async () => {
@@ -211,8 +221,8 @@ describe('provenance', () => {
     const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
     await passTheGate(user, view);
 
-    expect(await view.findByText(SERVICE_BASIS_LABELS['owner-reported'])).toBeTruthy();
-    expect(view.queryByText(SERVICE_BASIS_LABELS['service-history'])).toBeNull();
+    expect(await view.findByText(SERVICE_BASIS_SHORT['owner-reported'])).toBeTruthy();
+    expect(view.queryByText(SERVICE_BASIS_SHORT['service-history'])).toBeNull();
   });
 });
 
@@ -230,7 +240,7 @@ describe('when the maintenance request fails', () => {
     await passTheGate(user, view);
 
     expect(view.queryByText(/Still around/)).toBeNull();
-    expect(await view.findByText(SERVICE_BASIS_LABELS['mileage-estimate'])).toBeTruthy();
+    expect(await view.findByText(SERVICE_BASIS_SHORT['mileage-estimate'])).toBeTruthy();
   });
 
   it('degrades to estimating rather than to an error', async () => {
@@ -343,6 +353,64 @@ describe('the mileage confirm', () => {
     const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
 
     await view.findByText(/The list below is worked out from this reading/);
+  });
+
+  it('does not ask inside a month of the last confirmation', async () => {
+    /*
+      13 Sep, David: "we don't need to ask to confirm mileage every login.
+      not more than monthly." `mileageCheckIn` reads the date the server
+      records on every confirmation; ten days on, the list is shown from the
+      stored reading and the question is not put.
+    */
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    respondWith([], {
+      ...(VEHICLE as object),
+      vehicle: { ...(VEHICLE as { vehicle: object }).vehicle, avg_miles_per_month: 500, last_mileage_update_date: tenDaysAgo },
+    });
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    expect((await view.findAllByText(/Engine oil and filter/i)).length).toBeGreaterThan(0);
+    expect(view.queryByText(/Still around .* miles\?/)).toBeNull();
+    expect(view.queryByLabelText('That is right')).toBeNull();
+  });
+
+  it('asks after a month with the reading worked out from the owner’s miles a month, and stores what they confirm', async () => {
+    /*
+      "…but we should calculate assumed new mileage each month we ask." 45
+      days at 500 a month on 94,800 is about 95,500 — offered as "about",
+      with its basis, rounded to the hundred an estimate deserves. Confirming
+      it stores it: the PATCH carries the projected figure, and a confirmation
+      is written even when nothing changed, because the date it writes is
+      what the next month is counted from.
+    */
+    const days45 = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+    respondWith([], {
+      ...(VEHICLE as object),
+      vehicle: { ...(VEHICLE as { vehicle: object }).vehicle, avg_miles_per_month: 500, last_mileage_update_date: days45 },
+    });
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await view.findByText(/About 95,500 miles by now\?/);
+    await view.findByText(/Worked out from 94,800 and your usual miles a month/);
+    expect(view.getByDisplayValue('95,500')).toBeTruthy();
+
+    await user.press(view.getByLabelText('That is right'));
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith('/vehicles', expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', currentMileage: 95_500 } }))
+    );
+  });
+
+  it('records an unchanged confirmation too, so the month is counted from it', async () => {
+    respondWith([]);
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    await user.press(await view.findByLabelText('That is right'));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith('/vehicles', expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', currentMileage: 94_800 } }))
+    );
   });
 
   it('drops the banner once the reading is confirmed', async () => {
@@ -523,5 +591,42 @@ describe('the spec table', () => {
 
     // B1: a value in the mono, with its unit — not "66,000 miles" in the sans.
     expect(await view.findByText('66,000 MI')).toBeTruthy();
+  });
+
+  it('shows the field’s reading grouped, and sends the digits', async () => {
+    /*
+      ── 12 Sep · round 34's gap 3 ──────────────────────────────────────────
+
+      "66000" under "Still around 66,000 miles?" was the one figure on the
+      surface printed without its separators. The field shows the grouped
+      form; what it holds and what `confirm` sends is the digits — the
+      separators are display, never value, so the PATCH cannot carry a comma.
+    */
+    const user = userEvent.setup();
+    respondWith([BELT], FULL);
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    const field = await view.findByLabelText('Odometer');
+    expect(field.props.value).toBe('66,000');
+
+    await user.clear(field);
+    await user.type(field, '72400');
+    expect(field.props.value).toBe('72,400');
+
+    await user.press(view.getByLabelText('That is right'));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        '/vehicles',
+        expect.objectContaining({ body: expect.objectContaining({ currentMileage: 72_400 }) })
+      )
+    );
+  });
+
+  it('groups digits for display and nothing else', () => {
+    expect(groupDigits('66000')).toBe('66,000');
+    expect(groupDigits('7')).toBe('7');
+    // Empty stays empty: a placeholder-shaped "0" would be a reading nobody took.
+    expect(groupDigits('')).toBe('');
   });
 });

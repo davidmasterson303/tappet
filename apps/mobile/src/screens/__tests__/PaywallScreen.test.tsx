@@ -200,10 +200,93 @@ describe('states before anything can be bought', () => {
     expect(screen.getByText(/could not reach the app store/i)).toBeTruthy();
   });
 
-  it('says so when the Apple ID has nothing available', async () => {
+  it('says the products are not on sale when the App Store returned none', async () => {
+    /*
+      `none` from the adapter: connected, and the storefront carries none of
+      our ids. True until App Store Connect has the products, and true after
+      launch where the product is not sold. The earlier sentence — "nothing
+      available to buy on this Apple ID" — blamed the account for a state of
+      the catalogue, and this pins the replacement.
+    */
     await setup({ options: [] });
 
-    expect(screen.getByText(/nothing available to buy/i)).toBeTruthy();
+    expect(screen.getByText(/not on sale in your app store yet/i)).toBeTruthy();
+    /*
+      The retired sentence, by its own words — not `/apple id/i`, which the
+      renewal terms below legitimately contain ("your Apple ID settings") and
+      which failed against a correct screen on the first run.
+    */
+    expect(screen.queryByText(/nothing available to buy on this apple id/i)).toBeNull();
+    // Not a network problem, and must not be described as one.
+    expect(screen.queryByText(/check your connection/i)).toBeNull();
+  });
+
+  it('says this build cannot buy when there is no store in it', async () => {
+    /*
+      `unavailable`: Expo Go, or a build without the native module. A state
+      rather than an error — nothing failed to load and nothing is loading —
+      so neither the wait instrument nor the connection advice may appear.
+    */
+    await setup({ options: null, unavailable: true });
+
+    expect(screen.getByText(/this build of tappet cannot make purchases/i)).toBeTruthy();
+    expect(screen.queryByText('Loading prices')).toBeNull();
+    expect(screen.queryByText(/check your connection/i)).toBeNull();
+  });
+
+  it('wins over a failed load, because a build with no store has not failed to load', async () => {
+    await setup({ options: null, loadFailed: true, unavailable: true });
+
+    expect(screen.getByText(/cannot make purchases/i)).toBeTruthy();
+    expect(screen.queryByText(/could not reach the app store/i)).toBeNull();
+  });
+
+  it.each([
+    ['none', { options: [] as SubscriptionOption[] }],
+    ['unavailable', { options: null, unavailable: true }],
+    ['failed', { options: null, loadFailed: true }],
+  ])('renders no price and no way to buy in the %s state', async (_state, props) => {
+    /*
+      No price was returned, so none may be shown — a currency symbol on this
+      screen is a claim that Apple quoted a figure. And no subscribe control:
+      the only buttons left are Close and Restore.
+    */
+    const { onPurchase } = await setup(props);
+
+    expect(screen.queryByText(/[£$€]\s?\d/)).toBeNull();
+    expect(screen.queryByLabelText(/^Subscribe,/)).toBeNull();
+    expect(onPurchase).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['none', { options: [] as SubscriptionOption[] }],
+    ['unavailable', { options: null, unavailable: true }],
+    ['failed', { options: null, loadFailed: true }],
+  ])('still offers restore in the %s state', async (_state, props) => {
+    /*
+      The restore control is a 3.1.2 element and it stays: a subscription
+      bought on another device is restorable whether or not this storefront
+      sells one today. What it says when pressed is the resolver's business.
+    */
+    const { onRestore } = await setup(props);
+
+    await userEvent.press(screen.getByText('Restore purchases'));
+
+    await waitFor(() => expect(onRestore).toHaveBeenCalled());
+  });
+});
+
+describe('why it opened', () => {
+  it('names the feature whose refusal opened it', async () => {
+    await setup({ feature: 'advisor' });
+
+    expect(screen.getByText('The advisor is part of Tappet Plus.')).toBeTruthy();
+  });
+
+  it('claims nothing about a reason when opened from settings', async () => {
+    await setup({ feature: null });
+
+    expect(screen.queryByText(/is part of Tappet Plus\./)).toBeNull();
   });
 });
 

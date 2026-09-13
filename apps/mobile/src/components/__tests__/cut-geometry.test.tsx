@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 
 import CutSurface, { cornerCovers, cutPath, type CutCorner } from '../CutSurface';
@@ -293,5 +293,71 @@ describe('the ground cover over a cut corner', () => {
     */
     expect(svgs(await mount('#100F0D'))).toBe(2);
     expect(svgs(await mount())).toBe(1);
+  });
+});
+
+/**
+ * The shape is drawn when the layout event never comes.
+ *
+ * ── 13 Sep · forty surfaces, no layout event, no shape ──────────────────────
+ *
+ * On the catalogue's first push after launch, every `CutSurface` on the
+ * screen rendered and not one received `onLayout` — forty renders, zero
+ * layout events, logged from the component — so no chip had its hairline and
+ * no ADD had its box until the screen was left and opened again, when all
+ * forty events arrived. `measure` on the same views answered with their real
+ * size on the push where the event was silent, so the surface asks for its
+ * box once after mounting and takes whichever answer comes first.
+ *
+ * The first case is the fallback; the second proves it is not free — with no
+ * layout and no measurement, nothing is drawn, which is what the app showed.
+ */
+describe('a cut surface that never hears its layout', () => {
+  const measure = (View.prototype as unknown as { measure: jest.Mock }).measure;
+
+  afterEach(() => measure.mockReset());
+
+  const pathOf = (tree: unknown): string | null => {
+    let found: string | null = null;
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== 'object') return;
+      const host = node as { type?: unknown; props?: { d?: string }; children?: unknown[] };
+      if (host.type === 'RNSVGPath' && typeof host.props?.d === 'string') found = host.props.d;
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(tree);
+    return found;
+  };
+
+  it('draws the shape from a measurement instead', async () => {
+    measure.mockImplementation((callback: (x: number, y: number, w: number, h: number) => void) =>
+      callback(0, 0, 100, 60)
+    );
+    const view = await render(
+      React.createElement(CutSurface, { stroke: '#F5F3F0', testID: 'surface' }, React.createElement(Text, null, 'ADD'))
+    );
+    /* No layout event is delivered. */
+    expect(pathOf(view.toJSON())).toBe(cutPath(100, 60, 12, ['bottomRight']));
+  });
+
+  it('draws nothing when neither the event nor the measurement answers — so the case above is real', async () => {
+    const view = await render(
+      React.createElement(CutSurface, { stroke: '#F5F3F0', testID: 'surface' }, React.createElement(Text, null, 'ADD'))
+    );
+    expect(measure).toHaveBeenCalled();
+    expect(pathOf(view.toJSON())).toBeNull();
+  });
+
+  it('still takes the layout event, which corrects a measurement', async () => {
+    measure.mockImplementation((callback: (x: number, y: number, w: number, h: number) => void) =>
+      callback(0, 0, 100, 60)
+    );
+    const view = await render(
+      React.createElement(CutSurface, { stroke: '#F5F3F0', testID: 'surface' }, React.createElement(Text, null, 'ADD'))
+    );
+    await fireEvent(view.getByTestId('surface'), 'layout', {
+      nativeEvent: { layout: { width: 120, height: 48 } },
+    });
+    expect(pathOf(view.toJSON())).toBe(cutPath(120, 48, 12, ['bottomRight']));
   });
 });

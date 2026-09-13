@@ -31,7 +31,7 @@
 > | dossier (dashboard + advisor) | 17 | 8/10, blind-ranked 1st of 4 from 4th | finished — "nine was asked for and not reached", recorded honestly |
 > | vehicle info | 5 | 7/10, plateau | finished, `50942e8` |
 > | logo / identity | 3 | 9→8 on a corrected cap constant, 9 of 9 met | finished, shipped `8938170`; drift §12 |
-> | iOS | 23 | 7/10 screens (peak 8 at round 22), 8 of 9 lines, 9/10 specimen | finished 11 Sep on `Continue: no` — B9 (viewfinder + haptic) needs `expo-camera`/`expo-haptics`, i.e. an EAS build; drift §6.10 |
+> | iOS | 36 | 7/10 screens (peak 8 at rounds 22 and 35), **9 of 9 lines**, 9/10 specimen | finished 12 Sep on `Continue: no` — B9 (viewfinder + haptic) **built** in Expo Go, `f80e4ba`, ✅ from round 34; B6's token closed from the main tree after the stop (`317e4a4`, measured, not re-judged); drift §6.16 |
 > | signed-in web (`/garage` `/settings` `/onboard`) | 4 | 8/10, 9 of 10 lines, garage blind-ranked 1st of 6 | finished 11 Sep on `Continue: no` — judged via `/dev/*` fixture routes, `1b8e6bc`; drift §13 |
 >
 > Then 8 Sep was a different critique — an **IA review**, not a visual one — which
@@ -268,7 +268,8 @@
 >
 > The mobile lane runs in order: the Service tab's critic loop → **B9** (the
 > viewfinder + capture haptic, `expo-camera` + `expo-haptics`, testable in
-> Expo Go) → **the store adapter** → the one device build above. The adapter
+> Expo Go — **done 12 Sep**, `f80e4ba`…`0326396`, drift §6.16) → **the store
+> adapter** → the one device build above. The adapter
 > is `expo-iap` **5.6.0**, and these are facts read from the unpacked package
 > today, not its README:
 >
@@ -341,10 +342,13 @@
 > (CLAUDE.md §8), and `hostname-redirects.test.ts` pins the rules, the
 > no-loop property, and that nothing here still names a redirected host.
 >
-> ✅ **David, 12 Sep: "yes, promote the demo redirect when the loop lands"** —
-> so the promote that carries the Service tab loop's merge carries this. It
-> was asked because `crewchief-demo.davidmasterson.co` is the link recruiters
-> hold. Verify after the deploy, not the merge:
+> ✅ **Live, 12 Sep 18:15 UTC.** David said yes; the promote that carried the
+> Service tab loop's merge carried this: `web-live` **8f90ce4f**, `demo-live`
+> **0fedcb2c**. `promote-demo` verified it after the deploy (both old demo
+> hosts `301 → https://tappet-demo.davidmasterson.co/`, destination `200`),
+> and by hand a deep path keeps its path and query
+> (`/privacy?x=1 → …/privacy?x=1`). Cowork verifies from outside as the
+> second pair of eyes. The check by hand, for any later doubt:
 >
 > ```
 > for h in crewchief-demo.davidmasterson.co wellkept-demo.davidmasterson.co; do
@@ -352,16 +356,134 @@
 > ```
 >
 > expects `301 -> https://tappet-demo.davidmasterson.co/` for both, and
-> `tappet-demo.davidmasterson.co` itself still `200`. The **product pair is
-> second**, in its own commit after that reads right: that host takes the
-> app's API writes and a 301 downgrades POST to GET. The check Cowork asked
-> for is done — the only device build ever made (22 Aug, `f7969888`,
+> `tappet-demo.davidmasterson.co` itself still `200`.
+>
+> ⚠ **The product pair is not shipped, and needs David's explicit yes** —
+> `crewchief.davidmasterson.co` and `wellkept.southmoordigital.com` →
+> `tappet.southmoordigital.com`. That host is the App Store listing's URL
+> and the app's API; a 301 downgrades POST to GET. Everything decidable is
+> decided: the only device build ever made (22 Aug, `f7969888`,
 > `co.davidmasterson.crewchief`, profile `device`) is a development client
-> that takes `apiBaseUrl` from Metro's manifest, and the fallback in
-> `apps/mobile/src/config.ts` is `tappet.southmoordigital.com`; nothing
-> installed calls the old product host. The App Store listing still names
-> `crewchief.davidmasterson.co` — Cowork's, and the redirect must not make
-> it look done.
+> that takes `apiBaseUrl` from Metro's manifest, the fallback in
+> `apps/mobile/src/config.ts` is the new host, Expo Go reads the same
+> manifest, no script or workflow posts to the old host, and a redirect
+> preserves path and query so an old magic-link or listing URL still lands.
+> It is two more `[[redirects]]` blocks, the same guard extended to four
+> hosts, and one `promote-web`, which republishes the API. The App Store
+> listing still names `crewchief.davidmasterson.co` — Cowork's, and the
+> redirect must not make it look done.
+>
+> ---
+>
+> #### 12 Sep, afternoon — everything merged, the captures for Claude Design, and one defect found by looking
+>
+> **On `main` and pushed (`1439601`):** the Service tab loop (`bb4b96b`, 8 of
+> 9 lines), the store adapter and E6's wire (`bf79f92`), B9's viewfinder with
+> the loop continued to **8/10** and `Continue: no` (`c1369a7`), the scan's
+> own line of E6's wire (`1439601`), and the two fixes below. Verified on the
+> merged tree each time: mobile **678/678** in band, exit 0; root 3619;
+> both `tsc` clean. Metro on 8081 restarted after each merge that added
+> files. ⚠ Not promoted: `web-live` is `8f90ce4f` and `demo-live` `0fedcb2c`
+> (the Service loop). The next `promote-web` publishes the E6 402 wire (inert
+> while enforcement is off) and B9 — JS only; nothing here needs a build to
+> run in Expo Go, and the device build carries all of it natively.
+>
+> **The Claude Design sync** (`~/Desktop/tappet-design-sync-2026-09-12/`,
+> Cowork's folder, its `MANIFEST.md` rewritten around what was shot): the
+> four tab roots at HEAD, the vehicle detail with a real photograph through
+> the app's own ADD PHOTO control (never taken before), and the web garage and
+> M3 dossier at 1440. Shot on a second iPhone 16 Pro simulator ("design sync")
+> with the 22 Aug dev client, its floating tools button off by preference
+> (`EXDevMenuShowFloatingActionButton`), against a fixtures Metro.
+>
+> - ⚠ **Found by looking: ADD printed on top of ACCOUNT on the Plan root**,
+>   live since `b8e2d59` — the Plan copied the Garage's trailing row without
+>   `paddingRight: ACCOUNT_CONTROL_SLOT`, the padding the Garage carries with
+>   a note saying this exact collision removes a feature. That is why the Add
+>   control David could not find on his phone on 11 Sep was there and
+>   unreadable. Fixed and pinned (`5e6ea37`).
+> - The fixtures now answer `POST /upload-photo` with the picked file's own
+>   `uri` and serve it back as `photo_url` (`16a23e0`), so the control path —
+>   sheet, picker, encode, reload, `PhotoGrade` — runs with no session; the
+>   server stores bytes unchanged, so the pixels are the product's. The dev
+>   account's password is stale (400) — still David's to refresh.
+> - **Finding, written up in the manifest, not fixed:** the candidate
+>   `owner-photo.jpg` is a *night* image in the house key, so it cannot test
+>   what was asked. A generated flat-daylight owner snapshot through the same
+>   control shows the grade does not make night — highlights stay white — and
+>   the hero's **top chrome loses its floor**: CHANGE PHOTO sits on a blown
+>   sky. The identity band survives on the bed. The hero's top needs its own
+>   floor (a scrim or dim ramp under the nav row) or an ink that adapts.
+>   Claude Design's, with the frames.
+> - `/garage` 307s to `/login` on the demo (protected); the demo garage is `/`.
+>
+> **David's, from these lanes:** the locked brief's B1 still says "No serif
+> except the WK mark" (frozen 6 Sep, a day before the rename) — only David
+> edits `design-loop/mobile-ios/brief.md`; and the first App Store upload
+> should be watched for ITMS-90683, since `expo-camera` is in without
+> `NSMicrophoneUsageDescription` (picture mode never touches audio). B6's
+> tokens were not David's after all — core is editable from the main tree —
+> and closed at `317e4a4`: every Service checklist line is ✅, measured.
+>
+> #### 12 Sep, evening — the store adapter is built against the mocked module; nothing has been bought
+>
+> Branch `worktree-agent-a9aecf2a18444c376`, cut from `dd3b805`; not merged.
+> The brief was `scratchpad/briefs/iap-adapter.md`, and every claim below was
+> checked against the code and the installed package rather than the board.
+>
+> **What is built.** `apps/mobile/src/api/store.ts` is the only importer of
+> `expo-iap`: `storeAvailability()` asks `requireOptionalNativeModule('ExpoIap')`
+> first, so Expo Go and this runner answer `unavailable` as a state;
+> `loadSubscriptionOptions()` answers `ready | none | failed | unavailable`,
+> where `none` is "connected, Apple returned none of our ids" — the honest
+> state until App Store Connect has products — and is never reported as
+> connection trouble; `purchase()` settles once on whichever of the event and
+> the promise arrives first; `restore()` is `restorePurchases()` then
+> `getAvailablePurchases()`, empty = `nothing-to-restore`; `finish()` is a
+> separate step. `src/purchases/usePaywall.ts` is the composition — store →
+> `verifyPurchase` → `resolvePurchase` → `finish` **only** on `entitled` /
+> `recorded-not-entitled` — and `PaywallHost` mounts the paywall once beside
+> the root navigator, opened by `requestUpgrade(feature)` or the Tappet Plus
+> row in Settings. `PaywallScreen` gained `none` and `unavailable` and shows no
+> price Apple did not return. Product ids come from `PRODUCT_TIERS` alone.
+>
+> **What the pod's source settled** (`openiap-versions.json` pins `openiap`
+> 3.4.0 → `hyodotdev/openiap` at that tag, `packages/apple/Sources/`): a
+> success is emitted **and** resolved; a cancel and a deferred purchase are
+> emitted **and** rejected (`user-cancelled`, `deferred-payment`); no iOS path
+> resolves with nothing; `purchaseToken` is `jwsRepresentation ?? transactionId`,
+> so the server judges what it is sent; `subscriptionPeriodUnitIOS` is nil
+> only for a non-renewing subscription, so a product without one is dropped
+> loudly rather than labelled from its name. `store.ts` cites the file.
+>
+> **What the device build still has to prove, in order:** the paywall reads
+> `unavailable` in Expo Go and `none` on the device build today; once App
+> Store Connect has the two products, `ready` with Apple's prices; then **one
+> sandbox purchase** — the event/promise order across the bridge, the token
+> verifying `entitled` on `web-live`, `finishTransaction` after it — and then
+> **Restore** on a reinstall. Only after that: `PAID_FEATURES_ENFORCED`, and
+> the `ai-budget.test.ts` guard. ⚠ The products are weeks out — the App Store
+> Connect record waits on the Apple account moving Individual → Organization
+> (Cowork, 12 Sep) — and nothing here should be read as IAP shipping.
+>
+> **Found while wiring E6, not on the board:**
+>
+> - **The dossier has no entry point on the phone.** `load-vehicle` returns
+>   the dossier the sweep or the web wrote; no mobile request can carry
+>   `feature: 'dossier'`, so the phone's half of the wire is the advisor
+>   (done) and the invoice scan (the other lane's one line, at merge). After
+>   the flip, a free owner's car is refused by the gate *in the sweep* and the
+>   phone shows an empty dossier with no upgrade path — a product question,
+>   named here rather than answered.
+> - **Nothing listens at launch.** An unfinished transaction is re-delivered
+>   on the next launch into no listener; Restore picks it up and the webhook
+>   writes the entitlement regardless. A launch-time reconciliation is not
+>   built; `store.ts` says why.
+> - **The one account fact the phone holds went stale.** `AccountScreen` reads
+>   its subscription once when pushed, and the paywall now opens over it from
+>   its own row; the deletion warning (E5) would have been wrong for exactly
+>   the person who just bought. `PaywallHost` announces a `grantsAccess`
+>   resolution and the navigator turns it into an epoch the screen re-reads on.
 >
 > ---
 >
@@ -1704,8 +1826,8 @@
 > | **2** | **App Store Connect setup** | **David** · weekend | Products matching `PRODUCT_TIERS` **exactly**, the notifications URL, a sandbox tester, App Review info. Setup sheet with the verified strings was delivered 18 Aug. ✅ The promote it depended on is already done |
 > | **3** | **D2 — the price** | **David** | Standing recommendation $8.99/mo · $79/yr. Blocks creating the products, not the code: Apple returns a localised price and the app renders that |
 > | **4** | **The `DemoBanner` decision** | **David** | Gate it on an env var (cleanest — the codebase has no site-distinguishing flag yet), gate on hostname, or leave it. Costs a promote |
-> | **5** | **`expo-iap` + the store adapter** | Claude Code | The last of E8. A native module, so it **costs an EAS build**, and a purchase cannot be tested until 2 lands. Everything it plugs into is built and tested |
-> | **6** | **E6 — the upgrade prompt** | Claude Code | ~0.5 ed, and **it is now genuinely unblocked** — it was correctly blocked on E8 because there was nothing to buy. `ai-budget.test.ts:174` asserts the limit message offers no upgrade; that assertion becomes wrong once 5 ships |
+> | **5** | ~~**`expo-iap` + the store adapter**~~ | Claude Code | ✅ **Built 12 Sep, pending products** — `apps/mobile/src/api/store.ts`, composed in `src/purchases/`, paywall routed from Settings and from a refusal; 95 mobile tests against the mocked module. ⚠ **Nothing has been bought.** The device build has to show `unavailable` → `none`, and a sandbox purchase then Restore once App Store Connect has products — weeks out, behind the Organization account. See the 12 Sep block at the top |
+> | **6** | **E6 — the upgrade prompt** | Claude Code | **Wired, off** (12 Sep): the gate's refusal carries `code: 'needs-subscription'` + `feature` from `featureRefusal` through the four sites and two routes to `ApiRequestError.code`; the advisor opens the paywall on it. `PAID_FEATURES_ENFORCED` is untouched and `ai-budget.test.ts:180` "does not offer an upgrade that does not exist yet" stays until a sandbox purchase has been through Restore |
 >
 > ⚠ **Ordering that is not a preference:** CLAUDE.md §8 says a mobile build needing
 > a new `/api/v1/*` route must be promoted first. That is **already satisfied** —

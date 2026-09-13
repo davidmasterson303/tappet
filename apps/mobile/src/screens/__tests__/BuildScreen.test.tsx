@@ -1,7 +1,7 @@
 import { render, userEvent } from '@testing-library/react-native';
 
 import { BuildScreen } from '../BuildScreen';
-import { apiRequest } from '../../api/client';
+import { apiRequest, ApiRequestError } from '../../api/client';
 
 /**
  * The build, once it became a screen.
@@ -283,5 +283,59 @@ describe('the states this product is careful about', () => {
 
     await view.findByText(/modifications are turned off/i);
     expect(view.queryByText('Cobb Accessport V3')).toBeNull();
+  });
+
+  it('carries the verb its copy promises — one tap turns them on and the ladder appears', async () => {
+    /*
+      13 Sep. The card said "turn them back on and we will start with the
+      sensible first steps" and offered nothing to turn — David: "why are we
+      inviting with copy that user turns mods back on with no CTA to do so?"
+      The tap writes what the web's register switch writes (`mild`, the first
+      rung above stock) through the profile PATCH, then reloads: the ladder
+      is on screen without leaving the tab.
+    */
+    let mindedness = 'stock';
+    request.mockImplementation((path: string, options?: { method?: string; body?: unknown }) => {
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] } as never);
+      if (path.startsWith('/vehicles') && options?.method === 'PATCH') {
+        mindedness = (options.body as { performanceMindedness: string }).performanceMindedness;
+        return Promise.resolve({} as never);
+      }
+      return Promise.resolve({
+        vehicle: { year: 2018, make: 'Subaru', model: 'WRX', performance_mindedness: mindedness },
+        knowledge: { common_mods: MODS },
+      } as never);
+    });
+    const { view } = await mount();
+    await view.findByText(/modifications are turned off/i);
+
+    await userEvent.setup().press(view.getByLabelText('Turn modifications on for this car'));
+
+    expect(await view.findByText('Cobb Accessport V3')).toBeTruthy();
+    expect(view.queryByText(/modifications are turned off/i)).toBeNull();
+    expect(request).toHaveBeenCalledWith(
+      '/vehicles',
+      expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', performanceMindedness: 'mild' } })
+    );
+  });
+
+  it('says so, on the card, when the switch did not save', async () => {
+    request.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] } as never);
+      if (path.startsWith('/vehicles') && options?.method === 'PATCH') {
+        return Promise.reject(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
+      }
+      return Promise.resolve({
+        vehicle: { year: 2018, make: 'Subaru', model: 'WRX', performance_mindedness: 'stock' },
+        knowledge: { common_mods: MODS },
+      } as never);
+    });
+    const { view } = await mount();
+    await view.findByText(/modifications are turned off/i);
+
+    await userEvent.setup().press(view.getByLabelText('Turn modifications on for this car'));
+
+    expect(await view.findByText(/did not save/i)).toBeTruthy();
+    expect(view.getByText(/modifications are turned off/i)).toBeTruthy();
   });
 });

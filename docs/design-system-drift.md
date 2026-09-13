@@ -1385,8 +1385,8 @@ is in `packages/core/health-claims.ts`, and the design fixture that had been
 storing the app's own stale sentence *as* the stored summary is fixed to hold
 a real one with the dates that make it stale.
 
-**B9 — owner photos are graded ✅; the viewfinder and the capture haptic are
-blocked on a build.** `PhotoGrade` lays the house grade over an owner's
+**B9 — owner photos are graded ✅; the viewfinder and the capture haptic
+~~are blocked on a build~~ — built 12 Sep, see §6.16.** `PhotoGrade` lays the house grade over an owner's
 photograph as four blended layers (lifted blacks, sodium→cyan split tone,
 vignette, the plate's own grain), which the new architecture composites
 natively — no image pipeline, no native module. ⚠ The layers must be
@@ -1399,6 +1399,15 @@ today the scan opens the system camera through `expo-image-picker`, which is
 the viewfinder iOS provides. Each is one EAS build (CLAUDE.md §9); logged here
 rather than built, the same way §3.23 logged the camera-first scan. Until
 then B9 grades 🟡 whatever the loop does.
+
+⚠ **Corrected 12 Sep — the paragraph above is history.** `expo-camera` and
+`expo-haptics` were installed on `main` in `0bdaf9f` and both are bundled in
+Expo Go, so the viewfinder needed no build to be *built* and run: it is
+`components/Viewfinder.tsx` (§6.16), graded ✅ on Expo Go in rounds 34–36,
+and the one device build (`docs/runbook-eas-device-build.md`) carries it
+natively the same as everything else. What a build still gates is only the
+old CrewChief dev client, which cannot load a bundle that imports
+`expo-camera` at all — and is not the runtime any more.
 
 ⚠ **The fixtures launch config carries a design photo.** `expo-mobile-fixtures`
 also sets `EXPO_PUBLIC_DESIGN_PHOTO_URL` to a file Metro serves from the
@@ -1415,7 +1424,7 @@ Vehicle plate runs under the status bar, so its top-right cut has nowhere to
 live — which corner, if any, the Vehicle plate cuts is one sentence from
 David.
 
-### 6.10 The loop stopped at round 23 — 8 of 9 lines ✅, B9 on a build, 11 Sep
+### 6.10 The loop stopped at round 23 — 8 of 9 lines ✅, B9 ~~on a build~~ (built 12 Sep, §6.16), 11 Sep
 
 Scores after the rebuild: 6 → 7 → 8 → 7. Round 23 marked **B2 ✅** (the cut
 measured present at native resolution, 24px legs at 45° — see
@@ -1424,6 +1433,10 @@ measured present at native resolution, 24px legs at 45° — see
 not another design round."* That frame needs `expo-camera` (§6.9). So the
 loop stops on the critic's own rule, one line short of the 9 David asked
 for, and the line it is short by is a build rather than a design.
+
+⚠ **Corrected 12 Sep:** it was not a build. The modules were installed on
+`main` the same morning (`0bdaf9f`) and Expo Go carries both; the viewfinder
+was built that afternoon and graded ✅ in round 34 (§6.16).
 
 ⚠ The 8 → 7 step is the critic's variance, not a regression: round 23's
 checklist is strictly better than round 22's (B2 moved 🟡 → ✅, nothing moved
@@ -2145,6 +2158,409 @@ B7."* Web's Service page is the one that has drifted from its own system
 - *The odometer field's formatting* ("66000" under "66,000 miles?"), the
   search placeholder's size, and the empty Due naming how a schedule is
   obtained — the critic's parking lot, unchanged.
+
+### 6.16 B9 is built — the viewfinder, rounds 34–36, 12 Sep
+
+The line §6.9 and §6.10 called *"on a build"* was not on one. `expo-camera`
+and `expo-haptics` landed on `main` in `0bdaf9f` that morning and both are
+bundled in Expo Go, so the frame the critic asked for in four consecutive
+rounds — *"hairline corner brackets, mono readout, CHOOSE FROM LIBRARY as
+the hairline secondary at its foot"* — was a JS change. `components/
+Viewfinder.tsx` is it, and `InvoiceScanScreen`'s idle frame is the
+viewfinder (`f80e4ba`). **Round 34 graded B9 ✅.** Scores 7 → 8 → 7 across
+rounds 34–36; the loop stopped on the critic's `Continue: no` — *"the
+surface has reached the brief."* Eight of nine lines ✅ with B3 not on this
+surface; the ninth (B6) is copy that lives in `packages/core`.
+
+⚠ **Shot on the iPhone 16 Plus, not the 16 Pro.** The simulator input tool's
+taps reached SpringBoard, Settings and system alerts on the Pro and never
+Expo Go's project surface there, before and after a reboot; on the Plus
+every tap landed. Same app, same fixtures, 1290×2796 instead of 1206×2622;
+the blind set normalises width. The Expo dev-tools button was switched off
+in Expo Go's dev menu before shooting (round 32's B7 🟡 was that chrome).
+
+**What the viewfinder is, and the four things it was careful about:**
+
+- The feed full-bleed under the header, four cyan hairline brackets (1pt,
+  24pt legs, inset by the page gutter), a readout row in the spec row's
+  grammar — PHOTOGRAPH THE INVOICE on the left, the camera's word on the
+  right — a CAPTURE primary with CHOOSE FROM LIBRARY beside it at one
+  height, and R49's caveat as one line at the foot. ⚠ The caveat stays
+  *before* the photograph, for the reason §6.15 gave: there is no review
+  step, lines file as they are read, and the critic's ask to move it to one
+  (rounds 31, 32, 34, 36) describes a screen that does not exist. What the
+  viewfinder took from the ask is the length — an explainer page became a
+  line.
+- **The brackets are cyan.** B7 gives cyan three jobs and a viewfinder's
+  frame is the focus of a capture; the critic's own picture of the screen
+  (`critique-32.md` §6) drew them cyan, and round 34 read them as *"focus"*
+  under B7. An off-white hairline would vanish on the white paper it frames;
+  `border.*` at 8–24% would vanish on everything. No text sits over the feed
+  — a live image has no contrast anybody can promise — so the readout is a
+  row on the graphite beneath, where `contrast.test.tsx` measures it.
+- **The readout prints only what the camera has said**: ASKING, CAMERA OFF
+  (sodium triangle, the Settings line, OPEN SETTINGS), STARTING, READY,
+  CAPTURING, CAMERA FAILED — and NO CAMERA, the simulator's word. ⚠ That one
+  is not read from the ready event: `CameraView.swift` dispatches
+  `onCameraReady` unconditionally once the props settle, so READY alone
+  would lie on the machine this is developed on. `getAvailableLensesAsync()`
+  reads `AVCaptureDevice`'s discovery session — empty on a simulator, never
+  on an iPhone — and is asked *inside* the ready handler, because the class
+  method answers `[]` when its native ref is unset and an effect racing the
+  mount could read that as "no camera" on a real phone. `Camera.
+  isAvailableAsync()` is web-only in 57 and throws on iOS; it is not the
+  check. With no lens the capture control stands down — `takePictureAsync`
+  returns a generated grey square there, and filing one against a car would
+  be a lie the upload cannot see — and the library is still on the frame.
+- **One firm haptic, at the press** (`Heavy`, before `takePictureAsync`),
+  counted by `InvoiceScanScreen.test.tsx`: the count fails on a second
+  impact anywhere on the path. The capture is the picker's `InvoiceFile` at
+  the picker's quality by construction — `INVOICE_QUALITY` moved out of
+  `pick-image.ts` into `media/invoice-image.ts`, read by both, and the guard
+  reads both call sites.
+
+**LEG-02 is asked at the door.** The sheet used to open when TAKE A PHOTO
+was pressed and hold the source so agreeing continued into the camera. The
+screen opens *on* the camera now, so the question is asked as it opens: the
+viewfinder is held (`live={false}` — nothing filmed, no permission alert
+stacked under the sheet) until it is answered, and agreeing arms it. The
+ordering the old comment argued for is kept exactly: consent before the
+camera points at anything. Declining stands the controls down — the frame
+stays, the note and "Change that" sit at its foot, no camera runs for
+nobody. Every camera route on the screen ("Take a photo", "Try another
+photo") lands on the viewfinder, never the system sheet; `pickImage`'s
+source narrows to `'library'`.
+
+⚠ **`Viewfinder.tsx` imports its two native modules directly**, and the
+seam `InvoiceScanScreen` kept for the picker does not extend to it: the
+seam existed because the dev client of 5 Aug predated the picker, and the
+same is true here — `ExpoCamera.js` requires its native module at import,
+so **the old CrewChief dev client cannot load a bundle containing this
+file.** Expo Go carries both modules, David's phone runs Expo Go, and the
+device build compiles them in. `jest.setup.js` stubs both the way it stubs
+the picker; `mobile-native-build-inputs.test.ts` lists both, the camera
+reusing the picker's `NSCameraUsageDescription` and the microphone
+deliberately *not* listed — `CameraView` is mounted in picture mode and the
+iOS module touches the audio device only when recording.
+
+**Round 34 — 7/10, B9 ✅, and three lines round 33 had passed marked
+partial** (B2 the unnamed root, B5 the pinned band's open edge, B6 the
+wrapped captions — all visible in round 33's frames, none raised then; the
+variance §6.10 recorded). Taken for round 35 (`292e03c`, `f10e5df`):
+
+- **The pinned band closes with a rule.** A hairline 12pt under SCAN
+  INVOICE, so the list passes under a rule the way it passes under the
+  collapsed title's — *"the search field is sliced in half in 03b."* The
+  rule that used to open each segment's first band (the odometer gate's,
+  the confirmed reading's, both empties') went with it, because two
+  hairlines with 20pt of nothing between them read as an empty band. ⚠ The
+  critic's other option — let the primary scroll with the list — is the
+  round-30 reading David has not ruled on (§6.15's list); the rule keeps
+  the decision open.
+- **The Service root names its car**, in the Advisor root's context line
+  (R52) and voice — mono caps, muted, pinned above the rail. Optional
+  because the route's `title` is; suppressed when pushed, where the back
+  label "‹ BMW M235I" already says it and a second copy 24pt beneath is the
+  two-names-on-one-screen `ScreenTitle` retired. ⚠ **The Plan root has the
+  same gap** and was not on this loop's surface; the one-liner is the same.
+- **The odometer field reads 66,000** and holds `66000`: `groupDigits` is
+  display, the value is digits, and `confirm` sends what it always parsed.
+- Cut: SCAN AN INVOICE → SCAN INVOICE on the nav title and the hub's row
+  (one name for the act); "mark something done on Needs" → "on Plan" in the
+  empty History (§6.15 had recorded it). Declined, with the reason: *"The
+  list below is worked out from this reading"* is the §10 statement that
+  the schedule is computed from an unconfirmed number, and its own test
+  holds it — asked for again in rounds 35 and 36, declined the same way.
+
+**Round 35 — 8/10, 8 ✅ / 1 🟡, `Continue: yes`** — *"one pass for the
+three named fixes would take it to 9; land them and stop."* One of the three
+was the implementer's and is landed (`0326396`): CHOOSE FROM LIBRARY takes
+the `outline` secondary beside CAPTURE at one height — the brief's own pair,
+the odometer gate's grammar. The other two are not the implementer's:
+
+- ⚠ **The Due row's caption (B6, the one open line).** *"Every 15,000 mi ·
+  Based on what you told us at sign-up"* orphans a word on every iPhone
+  width; the critic wants a mono token — `· SIGN-UP`, `· RECORDS`,
+  `· ESTIMATED`. The layout is already the caption's full width minus the
+  ADD word; a one-line caption needs shorter copy, and `SERVICE_BASIS_
+  LABELS` lives in `packages/core` precisely so both clients make one
+  claim. **Proposal for David/core:** a `SERVICE_BASIS_SHORT` beside the
+  sentences, same three meanings, for a row that has no room for a
+  sentence — web's `ServiceDueList` could take it too. Not written from a
+  worktree, which does not edit core.
+- *The filtered visit's total* — the critic re-raised §6.15's parking-lot
+  item under B6 (rounds 35 and 36): the head reads $678 of a $1,313
+  invoice while a search is active. Round 36 offers the second way out,
+  *"or drop the figure while a filter is active,"* which is the rule the
+  summary one band up already follows (round 32). The screen's docblock and
+  `ServiceHistoryScreen.test.tsx` hold the current reading; David's to
+  overturn.
+
+**Round 36 — 7/10, the same checklist, `Continue: no` — the loop stops.**
+No regression named for the 8 → 7 step (the critic's variance again), and
+its gap 2 reverses round 35's gap 2: the box it asked for beside CAPTURE is
+now the row to break up, with the library back to a mono caption beneath —
+the round-33 form. Neither is taken; the brief's own pair stands, and the
+reversal is the plateau signal. Gap 1's second half is the row-as-affordance
+declined three times in §6.15; its first half — ADD one step of ink quieter
+than the numerals — was round 33's change (`ghost` to `text.secondary`),
+graded ✅ then and 🟡 now. Recorded, not built. The sentence to carry: the
+remaining gaps *"will not move the score by a full point, and the surface
+has reached the brief."*
+
+**Parking lot, rounds 34–36 — for David:**
+
+- ~~*The scan screen's tab bar* (rounds 34, 36)~~ — **taken, 12 Sep 15:59
+  (`dad16c1`).** `TabBar` draws nothing on `InvoiceScan`, read off the
+  focused tab's nested route; the viewfinder's foot pays the bottom inset
+  the bar used to. Seen on the simulator: the act takes the frame, back to
+  Service brings the bar with it.
+- *The pinned stack* (rounds 34–36): plate, model line, rail and primary
+  hold ~26% of the screen once scrolled; the critic would collapse the model
+  line and the primary with the title and return them on scroll-up. The
+  same decision as §6.15's — which of round 30's two readings holds.
+- *Due-empty's "one button"*: the brief's empty state ends in one, and
+  NO SCHEDULE YET offers no way forward. What the button does is David's.
+- *The group head's sentence* ("Drive belt and tensioner, inspect is 3,000
+  miles overdue" over a row that says the same): the critic would drop it
+  when a section has one overdue item; §6.15 kept it as the notification
+  body the two must agree on. Unchanged, for the same reason.
+
+**B6 closed after the stop — the token beside the sentence, 12 Sep 15:48.**
+The one line the loop could not close from a worktree is closed from the
+main tree (`317e4a4`): `SERVICE_BASIS_SHORT` sits beside
+`SERVICE_BASIS_LABELS` in `packages/core/src/service-provenance.ts` —
+`RECORDS`, `SIGN-UP`, `ESTIMATED`, the critic's own tokens — and the guard
+holds each token to a word its sentence already says, so a token cannot
+claim more than the sentence does. The phone's Due row prints the token in
+the chrome's mono voice and speaks the sentence: it is the meta line's
+accessibility label. Measured on the iPhone 16 Pro simulator at 402pt:
+*"Every 15,000 mi · SIGN-UP"*, *"Every 5,000 mi or 12 months · RECORDS"*,
+*"Every 7,500 mi · ESTIMATED"* — every meta line one line, no orphan. The
+web's `ServiceDueList` keeps the sentence; it has room. Not re-judged: the
+loop stopped on its own rule, and this is exactly the change the critic
+prescribed. The frame is `~/Desktop/tappet-design-sync-2026-09-12/
+screens-service/01-due.png`, with 01b, 03 and 05 re-shot beside it.
+
+### 6.17 The row action, and the tab's add — rounds 37–41 over the catalogue and the Plan root, 13 Sep
+
+David, from his phone, on WHAT THIS CAR NEEDS: *"I really don't like the
+add and learn more CTA's. Are these in conformance with design system? If
+yes, we need to improve design system, then improve here. They're simply
+unclear, not obvious, not inviting."* And an hour later, on the Plan root
+with one row on it: *"i'm not happy with Add CTA. it looks like a nav
+element, like Account. But it's not, it's part of the core functionality
+of Plan."* One question, on two screens: what does an action look like on
+this phone when it is not the screen's single filled primary and is not
+chrome. The loop ran five rounds (`37-catalogue/` … `41-catalogue/`,
+`critique-37.md` … `critique-41.md`), on the iPhone 16 Pro (design sync)
+simulator under Expo Go, with the Plan root — empty and with rows — in
+every blind set beside the catalogue and the web's Plan page at 390px
+(`web-reference/plan-web-mobile.png`, new). **6 → 6 → 7 → 7 → 7**, and the
+loop stopped on its own two-flat-rounds rule. 2 ✅ / 7 🟡 became 5 ✅ with
+B6 the one open line (B2, B3, B9 are not on this surface). Blind rank moved
+from *phone empty root, catalogue, phone root with rows, web* to *phone
+root with rows, catalogue, phone empty root, web* — the web's Plan page
+last in every round: *"nested cards, tinted chips, pills."*
+
+**⚠ The controls conformed, and the phone was not drawing them.** Before
+round 37 could be shot, the first push of the catalogue after a launch
+rendered every `CutSurface` on the screen — forty of them — and not one
+received `onLayout`: forty renders, zero layout events, logged from the
+component. No chip had its hairline and no ADD had its box until the screen
+was left and opened again, or the rows remounted. `measure()` on the same
+views answered with their true size on the push where the event was
+silent, so the surface now asks once after mounting and takes whichever
+answer comes first (`CutSurface`, `0cb5b27`; `cut-geometry.test.tsx` holds
+the shape from a measurement alone and nothing when neither answers). Why
+the event is dropped on that push and not the next is not established; the
+fix is written against what was measured. It is very likely what David's
+phone showed him: ADD as a bare word beside LEARN MORE, two ghosts — which
+is exactly *"unclear, not obvious"*, and exactly the pair R39 had been
+written to escape.
+
+**The pattern — `RowActions`, the repeated row action.** The one-filled-
+primary rule leaves one case open: a list of things each of which can be
+taken. By 13 Sep the phone had answered it three ways on three screens (an
+outline box beside a ghost word on the catalogue; a ghost word alone on the
+Due table's meta line; a cyan-bordered box beside a sodium word on Needs),
+and the web a fourth (a filled primary on every card,
+`MaintenanceItemCard.tsx`). The spec, as landed and graded, for Design:
+
+- **The act is the brief's secondary at the small size** — `Button`
+  `outline` `small`: 48pt (`CONTROL_HEIGHT`, the field's height), mono caps
+  at 12pt, off-white hairline (`text.primary`), one 45° cut bottom-right at
+  `cut.control`, no fill. It sits at the **trailing edge of the row's last
+  line**, so the row ends where its control does and the box's right edge is
+  the rule the row's numeral ends on (B6).
+- **One box per row.** A second verb is the `ghost` word before it — mono
+  caps in `text.secondary`, the roots' chrome ink — so the box is where the
+  eye lands and the word is the step beneath. Never two boxes; never a
+  sodium box on every row (B7 gives sodium one job — the destructive
+  treatment belongs to the confirm the word opens).
+- **States.** Rest: the hairline. Pressed: a fill swap to `surface.raised`
+  inside the hairline — `outline` had no pressed fill at all until this
+  loop, as `ghost` had none until 12 Sep, and `primitives.test.tsx` now
+  holds every variant's pressed fill (the source scan reads `*Pressed`
+  style names and `Button`'s fills live in a map). Busy: the wait mark,
+  bare, at the rest width. **Done: a word, not a disabled verb** — the box
+  is replaced by a mono state word in `text.muted` (one step under the
+  ghost verb, so a done row is not a row with two verbs), no glyph (the
+  check-circle was *"an icon doing the job the system gives to a mono
+  word"*), held to at least the box's width and flush right so the verb
+  before it does not move when the state changes (measured in round 39:
+  "On the list" pushed LEARN MORE 64pt left). The word is **ADDED**, the Due
+  table's — one word for one state across the app; the sentence a reader
+  hears is still "X is on the list".
+- **The one-primary rule's carve-out: none.** The row action is the
+  secondary, so a screen keeps one filled primary — the catalogue's free-
+  text `ADD "…"` at its foot, the Plan root's ADD TO NEEDS.
+- **Leading content shares the line**, centred on the control's height: the
+  kind, as a bare mono word in `text.muted` (the Due row's basis token) — not
+  a chip. Round 40 read three cut hairlines on one line as three controls;
+  the row's one box is the act's.
+- ⚠ **The row itself is not the affordance**, on either list (asked for in
+  rounds 37, 39, 40 and 41). A tap that writes to Needs with no visible verb
+  is a write on a mis-scroll; a tap that opens the advisor spends a model
+  call (R39). The verb is visible, and it is a box because a bare word was
+  what read as "not obvious" from a phone.
+
+Where it landed: the catalogue (LEARN MORE / ADD → ADDED), the Needs list
+(REMOVE / DONE), both as the spec table's row — mono index, `type.ui`
+label, mono figure at the rule, the reason in the quiet sans beneath,
+`RowActions` on the last line. ⚠ The Due table's ADD (§6.15) is the
+pattern's *word* form and is not converted: its loop closed at 7 with the
+word graded ✅, and its meta line has no room for a 48pt box without
+growing every row past the 56pt rhythm. Whether the Due row should take the
+box is the open half of this pattern — **for Design**: the box where a row
+has a line of its own for its verbs, the word where the verb shares the
+numeral's meta line, or one form everywhere at a cost to the ledger. The
+Build ladder (`BuildScreen`, cards, a gauge with a needle) is pre-brief and
+was not on this surface; it takes `RowActions` when it joins the system.
+
+**The tab's add is its primary, not its chrome.** The Plan root's ADD was
+the Garage's ADD CAR copied to the token — a mono caps word at the band's
+trailing edge, and the same word in the native header when pushed. The
+chrome voice is what makes ADD CAR read as navigation, and on the Garage
+that is right: adding a car is occasional. On Plan the act is what the tab
+is for, and the Service root already says what that looks like: SCAN
+INVOICE, the full-width primary pinned under the rail on every state,
+closing the band with a rule. ADD TO NEEDS is that control (`PlanScreen`,
+`f46c8c6`) — on Needs only, since Mods carries its own ladder — and the
+pushed instance needs nothing of its own any more, because `RootScreen`
+renders the pinned block under a native header too; the `headerRight` copy
+and the `onEmptyChange` prop went with the word. The empty Needs state kept
+its caption and body and lost its second button (the redundancy the empty
+History resolved the same way, §6.15). **For David:** the critic asked in
+rounds 39, 40 and 41 for the populated state's add to stand down — a mono
+ADD in the "2 ITEMS" band, or a hairline secondary as the table's last
+row — on the brief's empty-state line (*"mono caption, sans body, one
+button"*, which a primary pinned above the caption reorders) and on weight
+(*"it outweighs the two items it serves"*). Declined, with the reason: a
+control that moves between the band and the chrome by the list's length is
+the "one control per state" rule that produced the word David rejected; a
+verb at the foot of a twenty-row list is the 11 Sep "i'm missing options to
+add" again; and the two roots now make one shape. It inherits §6.15's open
+question — whether a root's primary pins or scrolls — and whatever David
+rules there rules here.
+
+**What else closed, and the numbers:**
+
+- **`SearchField`** — the History list's search box as a primitive (the
+  cut, the cyan focus stroke, the cyan caret, the 16px floor), and the
+  catalogue takes it in place of a square `View` that had none of those.
+  Round 38 found the three defects the History's box had been cured of one
+  round at a time, again, on the second screen — the private-copy failure
+  the primitive set exists to end.
+- **One chip rule, then no chip.** The catalogue coloured a chip by the
+  research's severity (a High issue, a Critical service — the spec's own
+  rule); the Needs list coloured every issue; so the same item changed hue
+  between screens and a routine oil change wore the warning hue under a
+  head that already said DO FIRST. Neutral on both (round 39), then the
+  kind as a bare word (round 41). Urgency is the section; the chip family
+  keeps its rule elsewhere. ⚠ `wishlist-suggestions.ts` still says *"urgent
+  is the only value that may colour it"* — true of the value, no longer of
+  a chip; core's docblock to amend.
+- **The figure is mono and at the rule**, read back out of core's sentence:
+  `60,000–100,000 MI`, `5,000 MI / 12 MO`, `24 MO`, `EASY`; an issue's
+  several windows spanned first-low to last-high (the coils' "30,000 -
+  60,000 miles (plugs), 60,000 - 100,000 miles (coils)" is
+  `30,000–100,000 MI` — less than the sentence, nothing it did not say);
+  a numeric sentence never in the body; an empty slot rather than a dash
+  where nothing is known (a column of dashes read as *"a stray glyph"*).
+  **The figure travels with the item**: the catalogue writes core's note to
+  `source_data` — a `jsonb` the route passes through, written by nothing and
+  read by nothing (every live row `{}`, read 13 Sep) — and the Needs row
+  reads it back through the same `suggestionValue`, so "5,000 MI / 12 MO"
+  survives the trip. `wishlist-row.ts` holds the reading rules for both
+  screens.
+- **The heads take their face.** DO FIRST and EVERYTHING ELSE at
+  `displaySection`'s 20pt, as the Due table's heads are — at the 12pt
+  eyebrow the condensed face read as "tracked Inter caps" in three rounds,
+  §6.13's misread again — and a search count ("5 MATCHING") in the mono the
+  Needs summary speaks ("2 ITEMS", mono now; it was the sans eyebrow).
+- **The reason ends on a word, then on a sentence.** `numberOfLines={2}`
+  cut mid-word ("coolant loss, and p…" — *"an unedited default"*); the cut
+  is made at the last space inside 96 characters, and after the stop, at
+  the last full stop inside it where one lands (`clipWords`) — VANOS ends
+  "…affecting variable valve timing." whole. The Needs row takes the same
+  cut. ⚠ Declined: one sentence or none (round 41) — a High-severity
+  issue's one sentence is three lines, and the reason is the product's
+  argument, not decoration.
+- Measured: the ADD box is 48×48 at the rule; the state word ends at the
+  rule; every mono figure ends at the rule; LEARN MORE holds one x across
+  rows before and after an add.
+
+**Recorded deviations and open items — for Design:**
+
+- *The ghost as a third rung.* The brief names three treatments (primary
+  fill, secondary hairline, destructive hairline); the roots' chrome word
+  and this pattern's second verb are a fourth — mono caps in
+  `text.secondary`, no box, pressing to `surface.raised`. Round 39: *"the
+  brief's button vocabulary has no bare-text tertiary; REMOVE and LEARN
+  MORE add one — bless it or fold into secondary hairline."* It has carried
+  ADD CAR and ACCOUNT since 11 Sep and the Due table's ADD since round 33;
+  it needs a line in the system.
+- *REMOVE is soft, and the destructive step is the confirm.* Decided once,
+  as the critic asked: the word on the row is a ghost, never a sodium box
+  on every row; sodium belongs to the alert it opens. The critic's
+  alternative (round 41) — a native swipe with sodium on the revealed
+  action, so each row carries one boxed DONE — is a flow change and is
+  **David's**.
+- *The state word cannot go smaller.* Round 41 asked for the kind label a
+  size under the verbs; both are the 12pt mono label and 12 is `TYPE_MIN`,
+  the floor the whole phone holds. Ink is the step the system has.
+- *Chip and secondary share a silhouette* (round 39's parking lot) —
+  hairline plus cut, told apart by ink weight. The catalogue's kind left the
+  chip for that reason; the chip family elsewhere still shares the shape.
+- *LEARN MORE stays* — rounds 37, 39, 40, 41 asked for it cut, the row as
+  the disclosure. David's 23 Aug ask names both verbs; the row-as-affordance
+  reason is above; and the loop's job was to make the pair read as a pair,
+  which the blind rank says it now does. **For David**, with the critic's
+  count.
+- *Not built, ungraded:* sticky section heads on the scrolled catalogue;
+  ADDED as a tap-to-undo; one name for the destination across ADD TO NEEDS,
+  WHAT THIS CAR NEEDS and the empty copy; "Search" alone as the placeholder;
+  whether Plan needs its plate at all (the brief gives the plate to Garage
+  and Vehicle) — the critic's parking lot, unchanged.
+
+**What `packages/core` should own** (not written from a worktree, which
+does not edit core): a `value` on `WishlistSuggestion` built from the raw
+fields — the window, the interval, the difficulty — so the web prints the
+same figure the phone reads back out of `note` today
+(`apps/mobile/src/screens/wishlist-row.ts` is the interim, pinned against
+core's real templates); a `WishlistSourceData` beside `wishlist-source.ts`
+naming `{ note }` as what an add writes to `source_data`, with the web's
+dossier add writing the same key so an item added there carries its
+figure to the phone; and the `urgent`-colours-the-chip sentence in
+`wishlist-suggestions.ts` amended to "sorts and sections".
+
+**The fixture, for the next loop:** `dev/fixtures.ts` carries the M235i's
+own `known_issues` and `common_mods` as PostgREST returned them on 13 Sep
+(the catalogue had drawn one of its three kinds), and keeps what ADD writes
+for the session — the POST answered with the route's `{ wishlistItem }`
+including `source_data`, the GET newest-first, `DELETE ?itemId=` — so the
+Plan root can be shot with rows on it and the Needs row with its figure.
 
 ---
 

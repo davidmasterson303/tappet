@@ -1,12 +1,12 @@
-import { useContext, useLayoutEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { NavigationContext } from '@react-navigation/native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import Button from '../components/Button';
 import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
 import { BuildScreen } from './BuildScreen';
 import { WishlistScreen } from './WishlistScreen';
-import { PAGE_BODY, space, text, type, TARGET_MIN } from '../theme';
+import { PAGE_BODY, border, space } from '../theme';
 
 export type PlanSegment = 'needs' | 'mods';
 
@@ -65,67 +65,61 @@ export function PlanScreen({
     11 Sep: `RootScreen` draws it and collapses it into the mono nav title once
     the list has scrolled; the rail is `pinned` under the band. Each segment's
     scroller signs the scroll contract with `useRootScroll()`.
+
+    ── 13 Sep · the way to add is the tab's primary, not its chrome ──────────
+
+    The control was a mono caps word at the band's trailing edge — the
+    Garage's ADD CAR copied to the token, and the pushed instance put the same
+    word in the native header's right slot. David, on the root with rows:
+    *"i'm not happy with Add CTA. it looks like a nav element, like Account.
+    But it's not, it's part of the core functionality of Plan."* He is right
+    about both halves. The chrome voice is what makes ADD CAR read as
+    navigation, and on the Garage that is the right reading — adding a car is
+    occasional. On Plan, adding to the list is what the tab is *for*, and the
+    Service root already says what a tab's core act looks like: SCAN INVOICE,
+    the full-width primary pinned under the rail, present on every state and
+    every scroll position, closing the band with a rule. ADD TO NEEDS is that
+    control here — the screen's one filled primary — on the Needs segment
+    only, since Mods carries its own ladder with its own verbs.
+
+    Two things follow. The empty Needs state lost its SEE SUGGESTIONS button,
+    because two controls doing one job on a screen with nothing on it is the
+    redundancy the empty History resolved the same way (§6.15). And the
+    pushed instance (the car's hub → PLAN) needs nothing of its own any more:
+    `RootScreen` renders the pinned block under a native header too, so the
+    12 Sep `headerRight` copy and its "the control must be on both" note are
+    gone with the word they carried.
+
+    ⚠ This inherits the open question §6.15 and §6.16 record for Service —
+    whether a root's primary should pin or scroll with its list. Whatever
+    David rules there rules here; the two roots now make one shape.
   */
-  const pinned = showsMods ? (
-    <View style={styles.switcher}>
-      <Segmented
-        accessibilityLabel="Plan"
-        value={segment}
-        onChange={setSegment}
-        options={[
-          { value: 'needs', label: 'Needs' },
-          { value: 'mods', label: 'Mods' },
-        ]}
-      />
-    </View>
-  ) : null;
+  const pinned = (
+    <>
+      {showsMods ? (
+        <View style={styles.switcher}>
+          <Segmented
+            accessibilityLabel="Plan"
+            value={segment}
+            onChange={setSegment}
+            options={[
+              { value: 'needs', label: 'Needs' },
+              { value: 'mods', label: 'Mods' },
+            ]}
+          />
+        </View>
+      ) : null}
 
-  /*
-    ── ⚠ The way to add lives here, in the chrome, once rows exist ──────────
-
-    `WishlistScreen`'s empty state carries "See suggestions" and, by its own
-    note, hands the job to the nav bar's `+` once there are rows — "one
-    control per state". That `+` was the old stack header's, and the 11 Sep
-    tab rebuild replaced the header with `RootScreen`'s band. Nothing put the
-    control back: David, on his phone the same night, "i'm missing options to
-    add more items to my list". It is the Garage's "Add car" exactly — a mono
-    caps word at the band's trailing edge, `RootScreen`'s `trailing`, in the
-    voice B1 gives chrome — and only on Needs, since Mods has its own ladder.
-  */
-  const add =
-    segment === 'needs' ? (
-      <View style={styles.headerActions}>
-        <Pressable
-          onPress={onAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Add something this car needs"
-          style={styles.headerAction}
-        >
-          <Text style={styles.headerActionLabel}>Add</Text>
-        </Pressable>
-      </View>
-    ) : null;
-
-  /*
-    ── ⚠ Plan is a root *and* a pushed screen, and the control must be on both ──
-
-    The car's hub pushes this same screen (THIS CAR → PLAN) with a native
-    header, and `RootScreen` draws no band there — so the `trailing` slot
-    never renders and the first fix (12 Sep, morning) left the pushed Plan
-    with no way to add. David hit exactly that within the hour. When pushed,
-    the control goes into the native header's right slot instead: the same
-    word, the same chrome. `NavigationContext` is read the way `RootScreen`
-    reads it, so a screen mounted bare in a test still renders.
-  */
-  const navigation = useContext(NavigationContext);
-  const pushed = navigation?.canGoBack() ?? false;
-  useLayoutEffect(() => {
-    if (!pushed || !navigation) return;
-    navigation.setOptions({ headerRight: add ? () => add : undefined });
-  }, [pushed, navigation, add]);
+      {segment === 'needs' ? (
+        <View style={[styles.add, !showsMods && styles.addAlone]}>
+          <Button label="Add to Needs" accessibilityLabel="Add something this car needs" onPress={onAdd} />
+        </View>
+      ) : null}
+    </>
+  );
 
   return (
-    <RootScreen title="Plan" plate="plan" pinned={pinned} trailing={pushed ? null : add}>
+    <RootScreen title="Plan" plate="plan" pinned={pinned}>
       {segment === 'mods' && showsMods ? (
         <BuildScreen
           vehicleId={vehicleId}
@@ -139,7 +133,7 @@ export function PlanScreen({
           onOpenWishlist={() => setSegment('needs')}
         />
       ) : (
-        <WishlistScreen vehicleId={vehicleId} onSignOut={onSignOut} onAdd={onAdd} />
+        <WishlistScreen vehicleId={vehicleId} onSignOut={onSignOut} />
       )}
     </RootScreen>
   );
@@ -151,8 +145,17 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     paddingBottom: space.sm,
   },
-  // The Garage's header chrome, to the token — one voice for one job.
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  headerAction: { minHeight: TARGET_MIN, paddingTop: 6 },
-  headerActionLabel: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
+  /*
+    The Service root's `scan` band, to the number: full-bleed to the page
+    gutter, 12 beneath, and the hairline that closes the pinned block so the
+    list passes under a rule (§6.16, round 34). With no rail above it — a
+    stock car has no Mods — the control takes the rail's top air itself.
+  */
+  add: {
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: border.panel,
+  },
+  addAlone: { paddingTop: space.md },
 });
