@@ -429,7 +429,11 @@
 > (`25a182b`) — the server looks the item up in the dossier through core's
 > `suggestionsFor` and writes what the phone's catalogue writes, so a
 > Needs row reads the same from either client. Proven red first; the auth
-> ratchet still sees the guard.
+> ratchet still sees the guard. The twelve `dossier` rows written before
+> either client carried them — David's M235i oil change and the demo cars'
+> eleven from the June reseed — were backfilled from their own dossiers
+> (`scripts/backfill-needs-reasons.ts`, `87d25ac`, dry run then `--apply`);
+> the demo Plan page shows the reasons, read live.
 >
 > **Promoted:** `web-live` **74120328**, `demo-live` **c91fa290**; the demo
 > Plan page read live says NEEDS and never wishlist. The plates paragraph
