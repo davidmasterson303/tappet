@@ -16,7 +16,8 @@
 > ### ⚠ David's — the whole list, 13 Sep evening
 >
 > Everything Claude Code can do without you is done and live (`web-live`
-> **74120328**, `demo-live` **c91fa290**, `main` clean and pushed). Each
+> **976d1418**, `demo-live` **341f7e47** — the legal pages read "13 September
+> 2026" on both hosts, ® nowhere; `main` clean and pushed). Each
 > line below was checked against the artefact tonight, not copied forward;
 > the action is the exact thing to do, and the last column is what it opens.
 >
@@ -465,8 +466,10 @@
 > (`scripts/backfill-needs-reasons.ts`, `87d25ac`, dry run then `--apply`);
 > the demo Plan page shows the reasons, read live.
 >
-> **Promoted:** `web-live` **74120328**, `demo-live` **c91fa290**; the demo
-> Plan page read live says NEEDS and never wishlist. The plates paragraph
+> **Promoted:** `web-live` **74120328** then **976d1418** (the legal date),
+> `demo-live` **c91fa290** then **341f7e47**; the demo Plan page read live
+> says NEEDS and never wishlist, and `/privacy` and `/terms` on both hosts
+> say 13 September 2026. The plates paragraph
 > of 11 Sep said "dormant" for two days after the table, the retries and
 > the phone had all closed (`be745d8`).
 >
