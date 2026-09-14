@@ -22,13 +22,35 @@ import { acceptsThinkingLevel, type ThinkingLevelName } from '@tappet/core/ai/mo
  * ⛔ **This is not a fact that stays true on its own.** The same check found
  * Google forcing that account off postpay — *"This account is required to use
  * prepay billing. Switch now and purchase credits to prevent service
- * disruption."* If the credits run out, the account leaves paid standing, and
- * the Terms sentence quietly stops being true **before** anybody notices the
- * API has stopped answering. The failure is silent in the direction that
- * matters: a legal claim goes false while the product still looks fine.
+ * disruption."* The account went **prepay on 25 Aug**, and that is a one-way
+ * door: Google's own docs — *"switching from a Prepay billing plan to a
+ * Postpay billing plan is not supported."*
  *
- * Re-check the billing state before each release, and if it has lapsed, the
- * fix is the sentence in the Terms rather than a code change here.
+ * ── What $0 does (Cowork, 14 Sep, from Google's docs) ───────────────────────
+ *
+ * *"When your Prepay credit balance on the billing account hits $0, all API
+ * keys in all projects linked to that billing account will stop working
+ * simultaneously."* The Postpay path on the same billing account (a $100
+ * threshold, a valid card) does **not** catch it. So the failure is loud, not
+ * graceful, and not partial: every call in this file's callers — the advisor,
+ * the scan, onboarding research, the sweep's regeneration, plates — throws at
+ * once. Nothing in this tree degrades on billing; nothing should claim to.
+ *
+ * What that does to the product: the advisor route catches the throw and
+ * answers **502** with a sentence; the phone shows "The advisor could not
+ * answer that one … try again" and the web its `CLIENT_ERROR_FALLBACK`.
+ * Neither says why, and "try again" is the wrong advice for a balance — the
+ * one signal that names it is the canary (`consultant-health.ts` classes
+ * Google's 429 as `degraded`; the workflow exits 3 and CI goes red, every
+ * 5–8 h). A `RESOURCE_EXHAUSTED` from Google is not our 429: our own limiter
+ * answers 429 to the client, Google's arrives here as a throw.
+ *
+ * The Terms sentence is *not* what fails first any more — at $0 nothing is
+ * served, so nothing is served unbilled — which is the safer direction than
+ * the paragraph above feared. Balance ~$11 on 14 Sep at ~$0.66/day, roughly
+ * to the end of September; auto-reload is the only protection and is off.
+ * Re-check the balance before each release; on submission day it is not
+ * optional.
  */
 
 const apiKey = process.env.GEMINI_API_KEY || '';

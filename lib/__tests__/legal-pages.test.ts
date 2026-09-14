@@ -328,10 +328,14 @@ describe('who operates the service, and who to write to about it', () => {
       ⚠ Moved to 30 August with the operator becoming Southmoor Digital LLC.
       Unlike the 19 August bump, this one was written ahead of its own promote —
       and that promote then happened. Checked 6 Sep: the live policy serves
-      "Southmoor Digital LLC" and names David nowhere, so the literal below is a
-      date a reader can see, and it stays where it is.
+      "Southmoor Digital LLC" and names David nowhere.
+
+      ⚠ Moved to 13 September when that company was formed (Colorado SOS
+      `20268142644`, EIN issued the same morning) — the claim the pages had
+      carried for two weeks became true, which is the substance changing for a
+      reader (Cowork's ruling, 14 Sep). Promoted the same evening, MT.
     */
-    expect(LAST_UPDATED).toBe('30 August 2026');
+    expect(LAST_UPDATED).toBe('13 September 2026');
     expect(new Date(LAST_UPDATED).getTime()).not.toBeNaN();
     expect(new Date(LAST_UPDATED).getTime()).toBeGreaterThanOrEqual(
       new Date('14 August 2026').getTime(),
