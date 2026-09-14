@@ -26,10 +26,10 @@
 > | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
-> | 5 | **The Apple account** (with Cowork) | bank account → D-U-N-S → Individual → Organization → App Store Connect record → the two IAP products, with Cowork's naming; **nothing may create the product ids incidentally**. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
-> | 6 | **Gemini billing → prepay** | Google AI Studio; must be live on submission day. Unknown from the repo. | no model outage at review |
+> | 5 | **The Apple account** (with Cowork) | `D-U-N-S ⏳ (submitted 13 Sep, free Apple route, ~5 business days + 2) → Individual→Organization → ASC record → the two IAP products with Cowork's naming.` Nothing may create the ids incidentally. ⚠ The business bank account is parallel, not upstream — D&B does not ask for one. ⚠ The Organization switch resets `identifierForVendor` permanently and cannot be undone, so it must happen before launch, while the user count is zero. Entity facts: Southmoor Digital LLC, Colorado ID `20268142644`, Good Standing, formed 13 Sep 2026; EIN `42-5051703`. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
+> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws, the advisor answers 502 with "try again", and the canary is the only thing that names it. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
-> | 8 | **Cowork's own list** | Wayback saves of the live pages, the domain registrant (to the LLC), the GitHub About, the social handles, the mail test to `support@southmoordigital.com` (`lib/legal.ts` records it verified from an outside sender on 30 Aug — a fresh send is a minute if Cowork wants one). | — |
+> | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
 >
 > Not yours, and deliberately not built: a launch-time IAP reconciliation
 > (`store.ts` says why), a phone entry point to the dossier (a product
@@ -104,11 +104,12 @@
 >   `origin/main` — the whole IA pass, verified only by the session that wrote it.
 >   Pushed 11 Sep.
 > - ~~**`prepare/revert-operator-to-individual`**~~ — **deleted 13 Sep.**
->   Southmoor Digital LLC was formed that morning (Articles filed in Colorado,
->   EIN issued; Cowork's record). The operator the live policies have named
->   since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
->   App-Store-facing chain is now: bank account → D-U-N-S → Apple Individual →
->   Organization → App Store Connect record → IAP products.
+>   Southmoor Digital LLC was formed that morning (Colorado SOS `20268142644`,
+>   EIN `42-5051703`; Cowork's record). The operator the live policies have
+>   named since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
+>   App-Store-facing chain is: Articles ✅ → EIN ✅ → D-U-N-S ⏳ (13 Sep) →
+>   Apple Individual→Organization → ASC record → IAP products. The bank
+>   account is parallel, not upstream.
 > - `origin/web-live` and `origin/demo-live` still carried the `ignore =` key
 >   until the 11 Sep promote; `main` deleted it in `ea2f0de`. Netlify reads the
 >   config from the commit it builds, so the promote that carries the deletion is
@@ -431,8 +432,14 @@
 > issued — Cowork's record). `OPERATOR` has said so since 30 Aug; the
 > docblock now says when it became true (`e4f2c09`), and
 > `prepare/revert-operator-to-individual` is deleted, local and origin.
-> `LAST_UPDATED` did not move: the operator the documents name has not
-> changed, it has come into being.
+> `LAST_UPDATED` moved to **13 September 2026** on Cowork's 14 Sep ruling —
+> the claim the pages had carried for two weeks became true, which is the
+> substance changing for a reader — and shipped the same evening. Two
+> confirmations for Cowork's register: `extra.eas.projectId` has been
+> `a3f958b8-…` since `3f21f51` (12 Sep), and the ™ pass landed 13 Sep
+> (`76b3176`, `089c3c2`); its guard was proven red again tonight against
+> the real tree, one ® dropped into the Terms page and found at
+> `app/terms/page.tsx:8`. `lib/gemini.ts` now records what $0 prepay does.
 >
 > **The list is Needs everywhere a person can read it** (`a9081f5`). The 8
 > Sep pass renamed it on the pages and the board recorded "nowhere says
