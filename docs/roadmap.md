@@ -80,11 +80,12 @@
 > - **Six commits of 8 Sep were on one laptop.** Local `main` was six ahead of
 >   `origin/main` — the whole IA pass, verified only by the session that wrote it.
 >   Pushed 11 Sep.
-> - **`prepare/revert-operator-to-individual`** (6 Sep, one commit, "⛔ PREPARED,
->   NOT DEPLOYED") exists because Southmoor Digital LLC was **not in the Colorado
->   registry** while the live privacy page names it as operator. David is forming
->   the LLC with Cowork (11 Sep, "a few more days"); if that lands the branch is
->   deleted, if not it is merged. Everything App-Store-facing waits on it.
+> - ~~**`prepare/revert-operator-to-individual`**~~ — **deleted 13 Sep.**
+>   Southmoor Digital LLC was formed that morning (Articles filed in Colorado,
+>   EIN issued; Cowork's record). The operator the live policies have named
+>   since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
+>   App-Store-facing chain is now: bank account → D-U-N-S → Apple Individual →
+>   Organization → App Store Connect record → IAP products.
 > - `origin/web-live` and `origin/demo-live` still carried the `ignore =` key
 >   until the 11 Sep promote; `main` deleted it in `ea2f0de`. Netlify reads the
 >   config from the commit it builds, so the promote that carries the deletion is
@@ -179,16 +180,17 @@
 > and `jimp` cuts the derivatives because `sharp` is a dev dependency and this
 > project's Supabase plan has no image transforms.
 >
-> ⚠ **Dormant until David runs `20260912010000_…generations_plate.sql`** in
-> the SQL editor (`check-migrations --pending` shows it as the one pending
-> item). Then `POST /api/internal/plates/backfill` with `x-cron-secret`, again
-> until `scanned` is 0, gives every existing photo-less car its plate. The
-> garage query asks for `plate_key` with a 42703 fallback so a deploy before
-> the migration empties nothing — delete that retry once the table is live.
-> **The phone does not resolve `plate_key` yet** — queued behind the mobile
-> loop, whose lane it is. The rights posture is recorded in
-> `public/vehicles/CREDITS.md`; the prompt asks badges away and the model does
-> not always oblige.
+> ~~⚠ **Dormant until David runs `20260912010000_…generations_plate.sql`**~~
+> — **all three halves closed 12 Sep, re-read live 13 Sep** (CLAUDE.md §1):
+> `vehicle_plates` answers PostgREST with two `ready` rows drawn 09:26 that
+> morning (the 2 Series and the Accord's `honda/accord/7th-generation`, which
+> the one real car carries in `vehicles.plate_key`); the 42703 retries came
+> out in `86c573d`; the phone's API resolves the plate into `photo_url` and
+> says whether one is drawing (`c876ad2`, `c134bb6`), and since `1b5dde6` says
+> which kind of picture it is, so the plate is never graded as the owner's.
+> The three demo cars keep their stock images and need no plate. The rights
+> posture is recorded in `public/vehicles/CREDITS.md`; the prompt asks badges
+> away and the model does not always oblige.
 >
 > **Overnight into 12 Sep, in agent worktrees, merged and promoted:**
 >
@@ -254,8 +256,7 @@
 >   missing cell; "—" says "we cannot say").
 > - A fresh `MOBILE_TEST_TOKEN` + `MOBILE_TEST_VEHICLE_ID` — the contract
 >   script's credentialed half has not run since 2 Aug.
-> - The LLC (with Cowork, "a few more days"); `prepare/revert-operator-to-individual`
->   is deleted or merged on that answer.
+> - ~~The LLC~~ — formed 13 Sep; the revert branch is deleted.
 > - Mail-delivery test to `support@southmoordigital.com`; Gemini prepay.
 > - Refresh `EXPO_PUBLIC_DEV_PASSWORD` in `apps/mobile/.env` — the dev surfaces
 >   cover the loop, a real signed-in shot is still the fidelity check.
@@ -374,6 +375,63 @@
 > redirect must not make it look done.
 >
 > ---
+>
+> #### 13 Sep, evening — the stranded worktrees, read before they were removed (CLAUDE.md §4)
+>
+> Nine worktrees from other sessions sat beside `main`, seven with commits
+> it did not have. Each was read against the artefact:
+>
+> - **Merged:** `claude/charming-rubin-151bbe` — the wait instrument's sweep
+>   began at the centre and snapped back every pass (`resetBeforeIteration`;
+>   the flake session David started on 12 Sep, `ce1a4b4`); and
+>   `claude/beautiful-lamport-e99305` — the worktrees-ignore guard reads
+>   `.gitignore` alone (`a27ee4f`). ⚠ Merging the second showed that the
+>   12 Sep splash-guard edit had **deleted four cases** from
+>   `mobile-native-build-inputs.test.ts` (export compliance, the worktrees
+>   ignore, the API origin, the dev-client profile) by replacing "from the
+>   describe to the end of the file"; the suite was green on thirteen. All
+>   seventeen are back and pass.
+> - **Superseded, worktrees removed, branches kept:** `xenodochial-brattain`
+>   (the guard fix the merged one replaces), `sharp-dhawan` (18 Aug, the
+>   date-a-day-early fix — on `main` since 4 Sep), `zealous-banach` (8 Aug,
+>   code-split dashboard folds — the dashboard has been rebuilt since),
+>   `sad-greider` (12 Sep 03:23, the plate on the phone's routes — `main`
+>   did it that afternoon as `plate_status`), `ecstatic-lamport` (12 Sep
+>   03:18, the Health screen refusing a stale reading — `main`'s Health
+>   screen reads `healthVerdict` now; its one idea worth carrying is a
+>   single shared read of the filed services for the hub and Health),
+>   `friendly-lewin` (a staged deletion of a component that no longer exists).
+>
+> #### 13 Sep, later — the hub is a binnacle, the mark carries its claim
+>
+> **The hub** (drift §6.18): three fearless concepts as real screens; the
+> critic ranked CLUSTER first and the old row-list page **last**; the loop
+> refined CLUSTER 7 → 7 → 8 (`Continue: no`, `6ad53f2`). Under the plate the
+> car's readings are cells — HEALTH with its sentence inside, NEXT SERVICE
+> naming the job, RECALLS · HISTORY · PLAN on one baseline — SCAN INVOICE the
+> one primary, WHAT YOU TOLD US as indexed rows. Hand-offs landed from the
+> main tree (`1b5dde6`): `HealthVerdict.short` for the cell, and
+> `photo_kind` on both vehicle routes so a generation plate is no longer read
+> as the owner's photograph (it was graded twice and labelled CHANGE PHOTO).
+> The first attempt died on a rate limit mid-round; its commit was recovered
+> and its uncommitted rounds rebuilt — loops now commit every round.
+>
+> **The mark** (`76b3176`, `089c3c2`; Cowork's handoff): Tappet is claimed,
+> not registered. The trademark symbol sits once per surface — each web
+> masthead and the auth pages' lockup as a layout sibling of the wordmark,
+> the phone's Legal section — and one notice line, core's
+> `TRADEMARK_NOTICE`, in both web footers, the Terms, the Privacy policy and
+> the phone. `no-registered-mark.test.ts` refuses the registered symbol in
+> every spelling anywhere a customer can read, proven red with one dropped
+> in; it is the one line to change when the certificate arrives. Verified on
+> the live product host after the promote, not the deploy log: two symbols
+> on `/`, `/terms`, `/privacy`, the notice on each, the registered symbol
+> nowhere, the title untouched.
+>
+> Promoted: `web-live` **8700eb99**, `demo-live` **6d26f5f7** — both carry all
+> of it; the mark verified on `/`, `/login`, `/terms`, `/privacy` of both hosts. ⚠ A promote checks out release branches in this tree —
+> never edit tracked files while one runs; the 13 Sep demo promote failed
+> once on exactly that and was re-run.
 >
 > #### 13 Sep — David's phone feedback, worked through; two loops; both hostnames promoted
 >

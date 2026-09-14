@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('WISHLIST_CHECK_API:POST', error as Error, { vehicleId });
-      return NextResponse.json({ error: 'Failed to check wishlist' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not check Needs' }, { status: 500 });
     }
 
     const wishlistMap: Record<string, string> = {};

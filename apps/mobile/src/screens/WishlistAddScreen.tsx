@@ -477,7 +477,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
                   <RowActions
                     action={{
                       label: 'Add',
-                      accessibilityLabel: `Add ${suggestion.name} to the wishlist`,
+                      accessibilityLabel: `Add ${suggestion.name} to Needs`,
                       onPress: () =>
                         void add(suggestion.name, suggestion.type, suggestion.reason, suggestion.note, suggestion.value),
                       busy: working,
@@ -541,7 +541,7 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
             variant="primary"
             busy={busy === wishlistItemIdentifier(DEFAULT_TYPE, typed)}
             busyLabel="Adding"
-            accessibilityLabel={`Add ${typed} to the wishlist`}
+            accessibilityLabel={`Add ${typed} to Needs`}
             onPress={() => void add(typed, DEFAULT_TYPE)}
           />
         </View>

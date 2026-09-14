@@ -152,7 +152,7 @@ const ServiceItemsComponent = forwardRef<{ refreshWishlist: () => Promise<void> 
 
     if (result.success) {
       setItems(items.filter(i => i.id !== itemId));
-      toast.success('Removed from wishlist');
+      toast.success('Removed from Needs');
     } else {
       toast.error('Failed to remove item');
     }
@@ -301,8 +301,8 @@ const ServiceItemsComponent = forwardRef<{ refreshWishlist: () => Promise<void> 
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="wishlist">Wishlist</SelectItem>
-                          <SelectItem value="remove_from_wishlist">Remove from Wishlist</SelectItem>
+                          <SelectItem value="wishlist">Needs</SelectItem>
+                          <SelectItem value="remove_from_wishlist">Remove from Needs</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
@@ -438,7 +438,7 @@ const ServiceItemsComponent = forwardRef<{ refreshWishlist: () => Promise<void> 
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="wishlist">Wishlist</SelectItem>
+                    <SelectItem value="wishlist">Needs</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

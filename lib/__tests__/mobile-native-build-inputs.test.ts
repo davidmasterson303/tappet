@@ -23,7 +23,8 @@
  * committed without ever being executed, whose error surfaced on first use.
  */
 
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const MOBILE = join(__dirname, '..', '..', 'apps', 'mobile');
@@ -216,5 +217,147 @@ describe('a dark app must not launch through a white flash', () => {
       'utf8'
     );
     expect(theme).toMatch(/page: '#100F0D'/);
+  });
+});
+
+describe('declarations that only bite after the build', () => {
+  it('answers the export-compliance question in the binary', () => {
+    /*
+      EAS warned about this on build `29b4d76f` (5 Aug): without
+      `ITSAppUsesNonExemptEncryption`, App Store Connect stops and asks the
+      question by hand before the build can be distributed — a TestFlight
+      blocker that appears *after* a build has been spent, which is the whole
+      category this file exists for.
+
+      `false` is the correct answer and not a shortcut: the app's encryption is
+      HTTPS/TLS to Supabase and Netlify, plus Keychain via `expo-secure-store`,
+      and both are exempt. It would have to become `true` only if Tappet
+      shipped its own cryptography.
+    */
+    const infoPlist = appJson.ios?.infoPlist ?? {};
+
+    // Explicitly `false`, not merely falsy — an absent key is exactly the
+    // state that produced the warning, and `undefined` would satisfy a
+    // truthiness check written carelessly.
+    expect(infoPlist.ITSAppUsesNonExemptEncryption).toBe(false);
+  });
+
+  it('does not upload a second copy of the repo on every build', () => {
+    /*
+      EAS flagged a 172 MB project archive on the same build. The cause was not
+      `node_modules` or `.next` — both already ignored — but `.claude/worktrees`
+      at 433 MB, agent worktrees which are full checkouts of this repo living
+      inside it. Untracked and unignored means EAS packs them into every upload,
+      and there are fifteen builds a month.
+
+      Ignoring them took the archive from 172 MB to 18 MB of tracked files.
+
+      `git check-ignore` rather than a substring search of `.gitignore`: the
+      question is whether git *actually* excludes the path, and a later negation
+      pattern would defeat a text match while leaving the upload fat.
+
+      ⚠ And against a throwaway `GIT_DIR` rather than this repo's. `check-ignore`
+      also consults `.git/info/exclude` and the global excludes file — both
+      unversioned, both local to this machine — and `.git/info/exclude` here
+      carries `.claude/worktrees/` as well (it lives in the common git dir, so
+      every worktree sees it). With the line deleted from `.gitignore`, git here
+      still answered "ignored" — green on the one deletion this test exists to
+      catch (found 11 Sep) — while a fresh clone, which has only `.gitignore`,
+      would have shipped the fat upload. An empty bare repo as `GIT_DIR` has no
+      `info/exclude`, `core.excludesFile=/dev/null` blanks the global file, and
+      `GIT_WORK_TREE` keeps the `.gitignore` files being read as this tree's.
+      Its index is empty too, and that is what makes the second assertion below
+      real: `check-ignore` never reports a tracked file, so against the real
+      index a wholesale `.claude/` pattern would have passed it.
+    */
+    const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
+    const repoRoot = join(__dirname, '..', '..');
+
+    // Nothing of the caller's git context may reach the children either: a
+    // hook exports `GIT_INDEX_FILE`, which would quietly put the real index back.
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))
+    ) as NodeJS.ProcessEnv;
+
+    const gitDir = mkdtempSync(join(tmpdir(), 'tappet-check-ignore-'));
+    try {
+      execFileSync('git', ['init', '-q', '--bare', '--template=', gitDir], { env });
+
+      const ignored = (path: string) => {
+        try {
+          execFileSync(
+            'git',
+            ['-c', 'core.excludesFile=/dev/null', 'check-ignore', '-q', path],
+            { cwd: repoRoot, env: { ...env, GIT_DIR: gitDir, GIT_WORK_TREE: repoRoot } }
+          );
+          return true;
+        } catch (error) {
+          // 1 is git's "not ignored". Anything else is git failing to answer,
+          // which must not read as a verdict in either direction.
+          if ((error as { status?: number | null }).status === 1) return false;
+          throw error;
+        }
+      };
+
+      /*
+        ⚠ A path *inside* the directory, not the directory itself. The pattern is
+        `.claude/worktrees/` — trailing slash, directories only — and git can
+        only call a path a directory if it exists. It does in the main checkout
+        and does not in an agent's worktree, where this suite also runs, so the
+        bare directory came back unignored there while the pattern was fine
+        (found 11 Sep). A child path matches the pattern whether or not anything
+        is on disk, and it is the child paths — the checkouts — that EAS packs.
+      */
+      expect(ignored('.claude/worktrees/any-checkout')).toBe(true);
+
+      // The tracked file in the same directory must survive — it is what the
+      // preview tooling reads, and ignoring `.claude/` wholesale would take it.
+      expect(ignored('.claude/launch.json')).toBe(false);
+    } finally {
+      rmSync(gitDir, { recursive: true, force: true });
+    }
+  });
+
+  it('ships the same API origin in app.json and the code fallback', () => {
+    /*
+      `config.ts` hardcodes an origin as a last-resort fallback and says, in a
+      comment directly above it, that it "is kept in step with `app.json`
+      deliberately" — because a fallback pointing somewhere else "would send that
+      build to a different origin while looking like it worked". Nothing asserted
+      it until 6 Sep, when both moved from `crewchief.davidmasterson.co` to
+      `tappet.southmoordigital.com` and the invariant became a thing that had
+      just been edited twice by hand.
+
+      It belongs in this file rather than a runtime suite: the fallback only
+      fires when `expo.extra` is missing entirely, so no test that mounts the
+      app will ever take that branch, and the cost of the two disagreeing is a
+      binary that talks to the wrong host — a build already spent.
+    */
+    const config = readFileSync(join(MOBILE, 'src', 'config.ts'), 'utf8');
+
+    // The last string literal in the API_BASE_URL expression is the fallback.
+    const fallback = config
+      .slice(config.indexOf('export const API_BASE_URL'))
+      .match(/'(https:\/\/[^']+)'/)?.[1];
+
+    // Anti-vacuous: two undefineds are equal, and that must not read as agreement.
+    expect(fallback).toMatch(/^https:\/\//);
+    expect(appJson.extra?.apiBaseUrl).toMatch(/^https:\/\//);
+
+    expect(fallback).toBe(appJson.extra.apiBaseUrl);
+  });
+});
+
+describe('the build profile still targets the simulator', () => {
+  it('keeps developmentClient, which is what makes 15 builds a month enough', () => {
+    const eas = JSON.parse(readFileSync(join(MOBILE, 'eas.json'), 'utf8'));
+
+    /*
+      Without this the JavaScript is baked into the binary and every code
+      change costs a build — the month would be gone in two days, which is the
+      measurement `EAS_CONFIG_NOTES.md` records.
+    */
+    expect(eas.build.simulator.developmentClient).toBe(true);
+    expect(eas.build.simulator.ios.simulator).toBe(true);
   });
 });

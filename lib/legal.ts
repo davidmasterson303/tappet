@@ -79,7 +79,20 @@
  * whose date moves for a CSS edit teaches people the date means nothing.
  */
 
-/** The legal name the service is operated under — confirmed by David, 30 Aug. */
+/**
+ * The legal name the service is operated under — confirmed by David, 30 Aug.
+ *
+ * ── 13 Sep · the company exists ──────────────────────────────────────────────
+ *
+ * From 30 Aug to 13 Sep this named a company that had not been formed: the
+ * Colorado registry had no such entity while the live privacy page named it
+ * as operator, and `prepare/revert-operator-to-individual` stood ready to
+ * put the person back. Southmoor Digital LLC was formed on 13 Sep 2026
+ * (Articles filed in Colorado; EIN issued the same morning) — Cowork's
+ * record, in David's project folder. The name is true now, the revert
+ * branch is deleted, and `LAST_UPDATED` does not move: the operator the
+ * documents name has not changed, it has come into being.
+ */
 export const OPERATOR = 'Southmoor Digital LLC';
 
 /**

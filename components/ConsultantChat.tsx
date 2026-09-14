@@ -32,6 +32,7 @@ import { ADVISOR_NAME } from '@tappet/core/prompts';
 import { refusalCopy } from '@tappet/core/access';
 import { demoQuestionsFor } from '@tappet/core/demo-answers';
 import { isDemoMode } from '@/lib/demo-mode';
+import { planHref } from '@/lib/plan-entry';
 import { CONSULTANT_TITLE_MAX, normalizeConsultantTitle } from '@/lib/consultant-title';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
@@ -411,12 +412,12 @@ export default function ConsultantChat({
           });
           return next;
         });
-        toast.success(`Added "${action.name}" to wishlist`);
+        toast.success(`Added "${action.name}" to Needs`);
       } else {
-        toast.error(result.error || 'Failed to add to wishlist');
+        toast.error(result.error || 'Could not add that to Needs');
       }
     } catch {
-      toast.error('Failed to add to wishlist');
+      toast.error('Could not add that to Needs');
     } finally {
       setAddingWishlistItem(null);
     }
@@ -1368,7 +1369,7 @@ export default function ConsultantChat({
                     </div>
                     {msg.wishlistActions && msg.wishlistActions.length > 0 && (
                       <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
-                        <p className="text-xs font-semibold text-white/50 uppercase tracking-widest">Suggested for wishlist</p>
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-widest">Suggested for Needs</p>
                         {msg.wishlistActions.map((action: any, actionIdx: number) => {
                           const key = `${action.name}-${action.type}`;
                           const isAdded = addedWishlistItems.has(key);
@@ -1635,7 +1636,7 @@ export default function ConsultantChat({
                         <p className="text-xs text-white/50 mt-0.5">Get quotes from local shops</p>
                       </div>
                       <a
-                        href={`/dashboard/${vehicleId}?tab=wishlist`}
+                        href={planHref(vehicleId)}
                         className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
                         Get Quote

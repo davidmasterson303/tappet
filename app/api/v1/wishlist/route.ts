@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       logger.error('WISHLIST_API:GET', error as Error, { vehicleId });
-      return NextResponse.json({ error: 'Failed to fetch wishlist items' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not load Needs' }, { status: 500 });
     }
 
     return NextResponse.json({ wishlistItems });
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     if (existingItem) {
       return NextResponse.json(
-        { error: 'Item already in wishlist', itemId: existingItem.id },
+        { error: 'Already in Needs', itemId: existingItem.id },
         { status: 409 }
       );
     }
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       logger.error('WISHLIST_API:POST', error as Error, { vehicleId, itemType });
-      return NextResponse.json({ error: 'Failed to add item to wishlist' }, { status: 500 });
+      return NextResponse.json({ error: 'Could not add that to Needs' }, { status: 500 });
     }
 
     return NextResponse.json({ wishlistItem }, { status: 201 });
@@ -196,13 +196,13 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       logger.error('WISHLIST_API:DELETE', error as Error, { itemId });
-      return NextResponse.json({ error: 'Failed to delete wishlist item' }, { status: 400 });
+      return NextResponse.json({ error: 'Could not remove that from Needs' }, { status: 400 });
     }
 
     // A delete that matched nothing must not report success — that is the
     // exact bug pattern found in delete-maintenance-item (task 0.7).
     if (count === 0) {
-      return NextResponse.json({ error: 'Wishlist item not found' }, { status: 404 });
+      return NextResponse.json({ error: 'That item is not in Needs' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });

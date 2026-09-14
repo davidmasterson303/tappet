@@ -580,14 +580,14 @@ export function BuildScreen({
                   <View style={styles.actions}>
                     {added ? (
                       <Button
-                        label="On the wishlist"
+                        label="In Needs"
                         variant="outline"
                         onPress={onOpenWishlist}
                         style={styles.action}
                       />
                     ) : (
                       <Button
-                        label="Add to wishlist"
+                        label="Add to Needs"
                         variant="outline"
                         busy={working}
                         busyLabel="Adding"
