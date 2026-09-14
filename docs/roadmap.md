@@ -13,6 +13,103 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
+>
+> Written at the close of the 12–14 Sep session, every line checked against
+> the artefact on 14 Sep (CLAUDE.md §1). The block after this one is David's
+> list; everything below that is history and reads as such.
+>
+> #### Where everything is
+>
+> ```
+> main        this commit, tree clean, pushed (origin/main = HEAD)
+> web-live    976d1418   built 14 Sep 01:25 UTC   tappet.southmoordigital.com
+> demo-live   341f7e47   built 14 Sep 01:28 UTC   tappet-demo.davidmasterson.co
+>             both carry everything on main except this block; /privacy and
+>             /terms read "13 September 2026" on both hosts, ® nowhere
+> suites      root 217 / 3672 (+1 skipped) · mobile 39 / 751 in band, exit 0
+>             both tsc clean — run on HEAD, 14 Sep
+> sweep       sweep_runs: 14 Sep 17:00 UTC, ok, 2 vehicles, nothing to send
+> canary      ai_usage_events surface=canary: 14 Sep 04:39 and 12:31 UTC
+> worktrees   main only; no agent Metro on 809x (a stale http.server on
+>             8095 from the 12 Sep photo captures was stopped 14 Sep)
+> phone       Metro 8081 is NOT running — the app stops it when idle
+> ```
+>
+> #### Running the phone for the next thread
+>
+> - **Metro 8081** from the main session only, never an agent:
+>   `preview_start` → `expo-mobile` (it launches in this checkout). Restart
+>   it after any merge that *adds* files; edits hot-reload.
+> - **Expo Go** on the phone, `exp://<this Mac's LAN ip>:8081`. The 22 Aug
+>   dev client (`co.davidmasterson.crewchief`) cannot load `main` since B9
+>   put `expo-camera` at module scope in `Viewfinder.tsx`; the paywall reads
+>   `unavailable` in Expo Go by design (`store.ts`). The device build in
+>   `docs/runbook-eas-device-build.md` is the way off Expo Go — David's.
+> - **Fixtures** for captures and loops: `EXPO_PUBLIC_DESIGN_FIXTURES=1 CI=1
+>   npx expo start --port 809x --clear` from `apps/mobile` on a simulator with
+>   the floating dev-menu gear switched off (`defaults write host.exp.Exponent
+>   EXDevMenuShowFloatingActionButton -bool NO`). `apps/mobile/src/dev/
+>   fixtures.ts` is double-gated (`__DEV__` + the flag) and answers ADD PHOTO,
+>   threads, the odometer check-in, the plate status.
+> - The dev account in `apps/mobile/.env` returns `400` — sign in on the phone
+>   with David's own account; the API host is `app.json → extra.apiBaseUrl`
+>   (`tappet.southmoordigital.com`, i.e. `web-live`). **A phone change that
+>   needs a new `/api/v1/*` route must be promoted first** (CLAUDE.md §8).
+>
+> #### What the phone carries at HEAD, lane by lane
+>
+> | lane | state | where |
+> |---|---|---|
+> | Tab navigation | four roots with their own stacks, `backBehavior="none"`, `RootScreen` collapse, the account control a sibling of the navigator; the tab bar hides on `InvoiceScan` | `RootNavigator.tsx`, `TabBar.tsx` (11–12 Sep) |
+> | Garage → car hub | **CLUSTER** (drift §6.18): plate, identity band, cells — HEALTH with its sentence, NEXT SERVICE naming the job, RECALLS · HISTORY · PLAN — SCAN INVOICE the one primary, WHAT YOU TOLD US rows; `photo_kind` keeps a plate from being graded as the owner's photo | `VehicleDetailScreen.tsx`, `Binnacle.tsx`, `6ad53f2` `1b5dde6` |
+> | Service tab | 9 of 9 brief lines, 8/10; provenance tokens RECORDS / SIGN-UP / ESTIMATED spoken as sentences; **odometer asked at most monthly** with an assumed figure from the owner's miles a month (`mileageCheckIn` in core) | `ServiceMilestoneScreen.tsx`, `packages/core/src/mileage-tracking.ts` |
+> | Plan root + Needs | ADD TO NEEDS the primary under the rail; `RowActions` (REMOVE / DONE) on Needs rows; the row figure from core's `WishlistSuggestion.value` via `source_data`; **every surface says Needs** — guarded | `PlanScreen.tsx`, `WishlistScreen.tsx`, `wishlist-row.ts`, drift §6.17 |
+> | Catalogue (ADD) | search + three "file it as" chips, figures at the rule, `source: 'dossier'` (the table's CHECK) | `WishlistAddScreen.tsx` |
+> | Build / mods | mods-off card carries TURN MODIFICATIONS ON (writes what the web's switch writes) | `BuildScreen.tsx` |
+> | Advisor | **one place**: every Learn more / ask lands in the Advisor tab as a new thread keyed on arrival with ‹ PLAN (or the origin tab) pinned back; THREADS sheet lists, reopens, starts; HIDE KEYBOARD while the composer is up; composer meets the keyboard | `AdvisorScreen.tsx`, `AdvisorThreadsSheet.tsx`, `advisorThreadParams` |
+> | Scan (B9) | viewfinder brackets + capture haptic (`expo-camera`, `expo-haptics`); a paid-feature refusal opens the paywall | `Viewfinder.tsx`, `InvoiceScanScreen` |
+> | Paywall / IAP (E8) | `expo-iap` adapter built and unit-tested against the mocked module; `unavailable` in Expo Go, `none` on a device until ASC has products; **nothing bought, nothing proven on a device** | `apps/mobile/src/api/store.ts`, `usePaywall.ts`, 12 Sep evening block |
+> | Account | Legal section carries the ™ notice once; subscription re-read on an epoch after a purchase resolves | `AccountScreen.tsx` |
+>
+> #### The web and the API since 11 Sep (all live)
+>
+> Hostnames: the demo pair 301s to `tappet-demo` (`netlify.toml`, verified
+> by `promote-demo` after every deploy); **the product pair still serves
+> 200 and waits on David's yes.** The mark: ™ once per masthead and on the
+> auth lockup, `TRADEMARK_NOTICE` in both footers, Terms, Privacy and the
+> phone; ® refused everywhere by `no-registered-mark.test.ts` (proven red on
+> the real tree 13 Sep). Legal: `OPERATOR` Southmoor Digital LLC (formed 13
+> Sep), `LAST_UPDATED` 13 September 2026. Needs: the list is Needs in every
+> toast, alert, dialog, select, label and API error string; a web dossier add
+> writes the reason and figure (`lib/actions/wishlist.ts`); twelve older
+> rows backfilled. `/load-vehicle` serves `last_mileage_update_date`,
+> `photo_kind`, `plate_status`. Gemini: prepay since 25 Aug, one-way; at $0
+> every key stops at once — `lib/gemini.ts` says what the product does then.
+>
+> #### Guards added 11–14 Sep — what will fire, and why
+>
+> `needs-not-wishlist` (copy vs address) · `no-registered-mark` (® in any
+> spelling) · `hostname-redirects` (rules + the canary's host) ·
+> `mobile-one-advisor` (no stack pushes an advisor) · `wishlist-source` (the
+> table's three words) · `mileage-check-in` · `web-add-carries-the-dossier` ·
+> `advisor-thread` · `mobile-native-build-inputs` (17 cases, the four the 12
+> Sep edit dropped restored) · `await-deploy` · `RootScreen` (the ease stops
+> on unmount) · `Binnacle` · `fixtures`. Each carries its anti-vacuous case
+> (CLAUDE.md §5); when one fires, first ask whether it is right.
+>
+> #### Parked, deliberately — not on David's list
+>
+> - A shared single read of the filed services for the hub and Health (an
+>   optimisation carried from a superseded worktree).
+> - A launch-time IAP reconciliation (`store.ts` says why not).
+> - A phone entry point to the dossier (a product question that only matters
+>   once `PAID_FEATURES_ENFORCED` flips).
+> - The phone's add-failure alert reads its title twice ("Could not add
+>   that" / "Could not add that to Needs") — the API sentence is shared with
+>   the web toast, so the fix is a phone-side body, not a shorter sentence.
+> - The critic's parking lots in drift §6.17 and §6.18 — rulings, David's.
+>
 > ### ⚠ David's — the whole list, 13 Sep evening
 >
 > Everything Claude Code can do without you is done and live (`web-live`

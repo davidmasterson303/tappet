@@ -26,6 +26,12 @@ available:
   (`cluster-geometry.test.ts`). The guard is real and lives in
   `build-progress.test.ts`. Checking the claim and finding nothing nearly
   produced a "fix" the same paragraph asks you not to make.
+- It said **"nowhere says Wishlist"** — verified by rendering the pages,
+  which is where toasts, alerts, dialog titles, select options, spoken labels
+  and API error strings do not appear. Five days later the phone showed
+  David "Failed to add item to wishlist", the route's own words, and 43
+  sentences still said it. Copy that only appears on failure is not on a
+  rendered page; scan the source (`needs-not-wishlist.test.ts`).
 
 So: read the code, query the database, hit the endpoint. Then fix the board —
 a stale board is not neutral, it buys work that is already done and hides what
@@ -256,7 +262,12 @@ concluding the deploy failed has already cost real time.
 - **CocoaPods cannot be installed on this machine** (Ruby 2.6 vs ≥3.0, no
   Homebrew). Never propose it. EAS cloud builds route around it.
 - Cap every spending path, and make exhaustion degrade the feature rather than
-  break it.
+  break it. ⚠ That is *our* caps. **Google's prepay is the exception and it
+  cannot be made graceful**: the Gemini billing account went prepay on 25 Aug
+  (a one-way door), and at $0 every API key on it stops at once — the Postpay
+  path on the same account does not catch it. Every model call throws, the
+  advisor answers 502 with "try again", and only the canary names it.
+  `lib/gemini.ts` carries the facts; the balance is David's to keep.
 
 ## 10. Do not invent precision
 
