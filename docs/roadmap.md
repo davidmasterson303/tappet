@@ -402,6 +402,40 @@
 >   single shared read of the filed services for the hub and Health),
 >   `friendly-lewin` (a staged deletion of a component that no longer exists).
 >
+> #### 13 Sep, evening — the operator exists, the list is Needs everywhere, the web add carries the dossier
+>
+> **Southmoor Digital LLC was formed this morning** (Articles filed, EIN
+> issued — Cowork's record). `OPERATOR` has said so since 30 Aug; the
+> docblock now says when it became true (`e4f2c09`), and
+> `prepare/revert-operator-to-individual` is deleted, local and origin.
+> `LAST_UPDATED` did not move: the operator the documents name has not
+> changed, it has come into being.
+>
+> **The list is Needs everywhere a person can read it** (`a9081f5`). The 8
+> Sep pass renamed it on the pages and the board recorded "nowhere says
+> Wishlist" from rendering them — which is where toasts, alerts, dialog
+> titles, select options, accessibility labels and API error strings do
+> not appear. 43 sentences across the web, the API, core and the phone
+> still said wishlist, including the route's own "Failed to add item to
+> wishlist" the phone showed David. `needs-not-wishlist.test.ts` scans
+> every customer-facing tree, comments stripped, and tells copy from an
+> address (`wishlist_items`, `/api/v1/wishlist`, the hook, the route name
+> keep their names); proven against a fixture and red on all 43 first. It
+> also found the advisor's "Get Quote" link still pointing at
+> `?tab=wishlist`, a parameter nothing had read since the list moved to
+> the Plan tab — `planHref` now.
+>
+> **An item added from the web dossier carries its reason and figure**
+> (`25a182b`) — the server looks the item up in the dossier through core's
+> `suggestionsFor` and writes what the phone's catalogue writes, so a
+> Needs row reads the same from either client. Proven red first; the auth
+> ratchet still sees the guard.
+>
+> **Promoted:** `web-live` **74120328**, `demo-live` **c91fa290**; the demo
+> Plan page read live says NEEDS and never wishlist. The plates paragraph
+> of 11 Sep said "dormant" for two days after the table, the retries and
+> the phone had all closed (`be745d8`).
+>
 > #### 13 Sep, later — the hub is a binnacle, the mark carries its claim
 >
 > **The hub** (drift §6.18): three fearless concepts as real screens; the
