@@ -13,6 +13,29 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ David's — the whole list, 13 Sep evening
+>
+> Everything Claude Code can do without you is done and live (`web-live`
+> **74120328**, `demo-live` **c91fa290**, `main` clean and pushed). Each
+> line below was checked against the artefact tonight, not copied forward;
+> the action is the exact thing to do, and the last column is what it opens.
+>
+> | # | yours | the action | unblocks |
+> |---|---|---|---|
+> | 1 | **The product-pair redirect** | Say **yes** (one word). Then Claude Code adds `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co` → `tappet.southmoordigital.com` as `[[redirects]]`, extends the guard, promotes `web-live`, and curls the old hosts. Safe: the only device build ever (22 Aug dev client) takes its API host from Metro's manifest, so no installed app writes to the old host. | the last two hostnames retired; nothing else waits on it |
+> | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
+> | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
+> | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
+> | 5 | **The Apple account** (with Cowork) | bank account → D-U-N-S → Individual → Organization → App Store Connect record → the two IAP products, with Cowork's naming; **nothing may create the product ids incidentally**. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
+> | 6 | **Gemini billing → prepay** | Google AI Studio; must be live on submission day. Unknown from the repo. | no model outage at review |
+> | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
+> | 8 | **Cowork's own list** | Wayback saves of the live pages, the domain registrant (to the LLC), the GitHub About, the social handles, the mail test to `support@southmoordigital.com` (`lib/legal.ts` records it verified from an outside sender on 30 Aug — a fresh send is a minute if Cowork wants one). | — |
+>
+> Not yours, and deliberately not built: a launch-time IAP reconciliation
+> (`store.ts` says why), a phone entry point to the dossier (a product
+> question, named in the E8 block), a shared single read of filed services
+> for the hub and Health (an optimisation carried from a superseded worktree).
+>
 > ### ⚠ START HERE — 11 Sep 2026, five threads reconciled
 >
 > Written at the start of the 11 Sep session, after a week in which nothing was
