@@ -185,7 +185,7 @@ describe('acting on a suggestion', () => {
     const { view } = await mount();
 
     await view.findByText('Cobb Accessport V3');
-    await user.press(view.getAllByLabelText(/Add to wishlist/i)[0]);
+    await user.press(view.getAllByLabelText(/Add to Needs/i)[0]);
 
     const call = request.mock.calls.find(([path, init]) => path === '/wishlist' && init?.method === 'POST');
     expect(call).toBeTruthy();
@@ -204,7 +204,7 @@ describe('acting on a suggestion', () => {
     const { view } = await mount();
 
     await view.findByText('Whiteline sway bars');
-    await user.press(view.getAllByLabelText(/Add to wishlist/i)[1]);
+    await user.press(view.getAllByLabelText(/Add to Needs/i)[1]);
 
     const call = request.mock.calls.find(([path, init]) => path === '/wishlist' && init?.method === 'POST');
     expect(String((call?.[1]?.body as Record<string, unknown>)?.description)).not.toBe('');
@@ -216,7 +216,7 @@ describe('acting on a suggestion', () => {
     const { view } = await mount();
 
     await view.findByText('Cobb Accessport V3');
-    view.getByLabelText(/On the wishlist/i);
+    view.getByLabelText(/In Needs/i);
   });
 
   it('takes a decline, and keeps a way back', async () => {

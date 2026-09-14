@@ -71,7 +71,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
     queryFn: async () => {
       const response = await fetch(`/api/v1/wishlist?vehicleId=${vehicleId}`);
       const data = await response.json();
-      if (!response.ok) throw new Error('Failed to load wishlist');
+      if (!response.ok) throw new Error('Could not load Needs');
       return data.wishlistItems || [];
     },
     staleTime: 0,
@@ -109,7 +109,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
       const data = await response.json();
       if (response.ok && data.success) {
         queryClient.invalidateQueries({ queryKey: ['wishlist', vehicleId] });
-        toast.success('Item removed from wishlist');
+        toast.success('Removed from Needs');
       } else {
         logger.error('WISHLIST_SECTION:DELETE', new Error(data.error || 'Delete failed'));
         toast.error(data.error || 'Failed to remove item');
@@ -137,7 +137,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
   const handleAddSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['wishlist', vehicleId] });
     setShowAddDialog(false);
-    toast.success('Item added to wishlist!');
+    toast.success('Added to Needs');
   };
 
   const handleViewQuote = (quote: any) => {
@@ -259,7 +259,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
             <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
               <ListChecks className="h-6 w-6 text-white/25" />
             </div>
-            <p className="text-sm font-medium text-white/50 mb-1">Your wishlist is empty</p>
+            <p className="text-sm font-medium text-white/50 mb-1">Nothing in Needs yet</p>
             <p className="text-xs text-white/50 mb-5 max-w-xs leading-relaxed">
               Track repairs, upgrades, and modifications you want done on your vehicle.
             </p>

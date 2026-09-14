@@ -5145,7 +5145,7 @@ export async function moveServiceItemToHistory(
 
     if (deleteError) {
       console.error('[Move to History] Delete error:', deleteError);
-      return { success: false, error: 'Failed to remove from wishlist (maintenance record created)' };
+      return { success: false, error: 'The record was saved, but that item could not be removed from Needs' };
     }
 
     return { success: true, data: maintenanceItem };

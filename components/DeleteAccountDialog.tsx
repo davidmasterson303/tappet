@@ -164,7 +164,7 @@ export function DeleteAccountDialog({
               <span className="num font-semibold text-foreground">{vehicleCount}</span>{' '}
               {vehicleCount === 1 ? 'vehicle' : 'vehicles'} and their full history
             </li>
-            <li>All maintenance records, wishlists and cost data</li>
+            <li>All maintenance records, Needs and cost data</li>
             <li>Every uploaded invoice and photo</li>
             <li>Your conversations with the AI consultant</li>
             <li>Your profile and sign-in credentials</li>

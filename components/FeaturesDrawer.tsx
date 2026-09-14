@@ -67,7 +67,7 @@ const FEATURES = [
   },
   {
     icon: ListChecks,
-    label: 'Wishlist',
+    label: 'Needs',
     badge: 'Planning',
     heading: 'A queue for everything the car needs',
     body:
@@ -79,7 +79,7 @@ const FEATURES = [
     badge: 'Savings',
     heading: 'Arrive with the job already written down',
     body:
-      'Pick items off the wishlist and get a quote request you can hand to a shop. Bundling related work is where the labour savings are, so the draft groups it for you.',
+      'Pick items off Needs and get a quote request you can hand to a shop. Bundling related work is where the labour savings are, so the draft groups it for you.',
   },
   {
     icon: Zap,

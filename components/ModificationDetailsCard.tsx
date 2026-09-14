@@ -62,9 +62,9 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
 
     if (result.success) {
       setAddedToWishlist(true);
-      toast.success('Added to wishlist');
+      toast.success('Added to Needs');
     } else {
-      toast.error(result.error || 'Failed to add to wishlist');
+      toast.error(result.error || 'Could not add that to Needs');
     }
     setIsAddingToWishlist(false);
   };

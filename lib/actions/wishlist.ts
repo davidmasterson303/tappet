@@ -60,13 +60,13 @@ export async function addItemToWishlist(
         return { success: true, alreadyExisted: true };
       }
       logger.error('WISHLIST:ADD_ERROR', error as Error, { vehicleId, itemType });
-      return { success: false, error: 'Failed to add to wishlist' };
+      return { success: false, error: 'Could not add that to Needs' };
     }
 
     return { success: true, data };
   } catch (error) {
     logger.error('WISHLIST:ADD_EXCEPTION', error as Error, { vehicleId, itemType });
-    return { success: false, error: 'Failed to add to wishlist' };
+    return { success: false, error: 'Could not add that to Needs' };
   }
 }
 
