@@ -44,7 +44,7 @@ export const CONTEXT_KIND_LABELS: Record<ContextKind, string> = {
   service: 'Service records',
   issues: 'Issue history',
   mods: 'Mod profile',
-  wishlist: 'Wishlist',
+  wishlist: 'Needs',
   recalls: 'Recall data',
 };
 

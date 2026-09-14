@@ -96,7 +96,7 @@ export function AddWishlistItemDialog({
       } else {
         const data = await response.json();
         if (response.status === 409) {
-          toast.error('This item is already in your wishlist');
+          toast.error('That is already in Needs');
         } else {
           toast.error(data.error || 'Failed to add item');
         }

@@ -198,7 +198,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
           onSignOut();
           return;
         }
-        setState({ kind: 'error', message: apiError.message ?? 'Could not load the wishlist' });
+        setState({ kind: 'error', message: apiError.message ?? 'Could not load Needs' });
       } finally {
         setRefreshing(false);
       }
@@ -230,7 +230,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         a dialog; a swipe-to-delete with no restore on a small screen is how
         someone loses a list they built over a month.
       */
-      Alert.alert('Remove from wishlist?', `"${item.item_name}" will be removed.`, [
+      Alert.alert('Remove from Needs?', `"${item.item_name}" will be removed.`, [
         { text: 'Keep', style: 'cancel' },
         {
           text: 'Remove',
@@ -318,7 +318,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
   if (state.kind === 'error') {
     return (
       <View style={styles.centre}>
-        <Text style={styles.errorTitle}>Could not load the wishlist</Text>
+        <Text style={styles.errorTitle}>Could not load Needs</Text>
         <Text style={styles.errorBody}>{state.message}</Text>
         <Pressable style={styles.button} onPress={() => void load()} accessibilityRole="button">
           <Text style={styles.buttonText}>Try again</Text>
@@ -479,7 +479,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 }}
                 secondary={{
                   label: 'Remove',
-                  accessibilityLabel: `Remove ${item.item_name} from the wishlist`,
+                  accessibilityLabel: `Remove ${item.item_name} from Needs`,
                   onPress: () => remove(item),
                 }}
               >

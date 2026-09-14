@@ -1,8 +1,12 @@
 'use server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { logger } from '@tappet/core/logger';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
+import type { WishlistSourceData } from '@tappet/core/wishlist-source';
+import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
 
 /*
  * These are 'use server' exports, which Next.js compiles into POST endpoints
@@ -28,6 +32,59 @@ const CATEGORY_MAP: Record<WishlistItemType, string> = {
   modification: 'modification',
 };
 
+/**
+ * The reason and the figure the phone's catalogue writes with an item, looked
+ * up from the dossier the server already holds.
+ *
+ * ── 13 Sep · the same row from either client ────────────────────────────────
+ *
+ * `WishlistAddScreen` sends three things with an add: the name, the reason
+ * (`description` — its own comment: six weeks later a row reading "Charge
+ * pipe" has lost the only thing that made it a recommendation) and the
+ * figure (`source_data.note` / `.value` — the interval, the mileage window,
+ * the effort — which the Needs row prints in its numeral column). The web's
+ * dossier cards sent the name alone, so an item added here read bare on
+ * the phone: nothing beneath, an empty slot at the rule. Same dossier,
+ * same car, two rows.
+ *
+ * Core already turns the dossier into suggestions, each under the identifier
+ * every client shares; this finds the one being added and writes what core
+ * says. Nothing is written for a name the dossier does not carry, or for a
+ * figure it does not have — and a dossier that will not read costs the row
+ * its reason, never the owner their item.
+ */
+async function dossierFields(
+  client: SupabaseClient,
+  vehicleId: string,
+  itemIdentifier: string
+): Promise<{ description?: string; source_data?: WishlistSourceData }> {
+  try {
+    const { data } = await client
+      .from('vehicle_knowledge_base')
+      .select('known_issues,maintenance_schedule,common_mods')
+      .eq('vehicle_id', vehicleId)
+      .maybeSingle();
+    const suggestion = suggestionsFor(data).find((s) => s.identifier === itemIdentifier);
+    if (!suggestion) return {};
+
+    const sourceData: WishlistSourceData = {
+      ...(suggestion.note ? { note: suggestion.note } : {}),
+      ...(suggestion.value ? { value: suggestion.value } : {}),
+    };
+    return {
+      description: suggestion.reason,
+      ...(Object.keys(sourceData).length > 0 ? { source_data: sourceData } : {}),
+    };
+  } catch (error) {
+    logger.warn('WISHLIST:DOSSIER_UNREAD', 'The dossier did not read; the item is written without its reason', {
+      vehicleId,
+      itemIdentifier,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {};
+  }
+}
+
 export async function addItemToWishlist(
   vehicleId: string,
   itemName: string,
@@ -51,6 +108,7 @@ export async function addItemToWishlist(
         item_identifier: itemIdentifier,
         category: CATEGORY_MAP[itemType],
         source: 'dossier',
+        ...(await dossierFields(client, vehicleId, itemIdentifier)),
       })
       .select()
       .single();
@@ -60,13 +118,13 @@ export async function addItemToWishlist(
         return { success: true, alreadyExisted: true };
       }
       logger.error('WISHLIST:ADD_ERROR', error as Error, { vehicleId, itemType });
-      return { success: false, error: 'Failed to add to wishlist' };
+      return { success: false, error: 'Could not add that to Needs' };
     }
 
     return { success: true, data };
   } catch (error) {
     logger.error('WISHLIST:ADD_EXCEPTION', error as Error, { vehicleId, itemType });
-    return { success: false, error: 'Failed to add to wishlist' };
+    return { success: false, error: 'Could not add that to Needs' };
   }
 }
 

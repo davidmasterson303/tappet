@@ -201,12 +201,25 @@ function useSweep(live: boolean) {
         }),
       ]);
 
+    /*
+      ⚠ `resetBeforeIteration: false`, and the `setValue` is why. The loop's
+      default calls `reset()` on its sequence before *every* pass, the first
+      included, and `AnimatedValue.resetAnimation` restores the value the
+      `Animated.Value` was constructed with — twelve o'clock, not the foot
+      this has just set. Under the default the pip left the centre at half
+      speed, arrived at the head, swung to the foot and snapped back to the
+      centre every 2.6s, with the foot's flash lighting while the pip sat at
+      twelve o'clock (measured on the fake clock, 12 Sep; `Working.test.tsx`
+      drives the swing to its terminals). Without the reset each traverse
+      begins where the last one ended: at a terminal.
+    */
     offset.setValue(PIP_FOOT);
     const sweep = Animated.loop(
       Animated.sequence([
         Animated.parallel([traverse(PIP_HEAD), flash(footFlash)]),
         Animated.parallel([traverse(PIP_FOOT), flash(headFlash)]),
-      ])
+      ]),
+      { resetBeforeIteration: false }
     );
     sweep.start();
 

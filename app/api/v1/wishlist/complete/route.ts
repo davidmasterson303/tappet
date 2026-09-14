@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (fetchError || !wishlistItem) {
       logger.error('WISHLIST_COMPLETE:FETCH', fetchError as Error, { itemId });
       return NextResponse.json(
-        { error: 'Wishlist item not found' },
+        { error: 'That item is not in Needs' },
         { status: 404 }
       );
     }

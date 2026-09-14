@@ -171,7 +171,7 @@ describe('describeCompletion', () => {
   it('names the destination, not just the outcome', () => {
     const text = describeCompletion('Front brake pads', draft());
     expect(text.toLowerCase()).toContain('service history');
-    expect(text.toLowerCase()).toContain('leaves the wishlist');
+    expect(text).toContain('leaves Needs');
   });
 
   it('names who did the work', () => {

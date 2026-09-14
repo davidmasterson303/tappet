@@ -235,7 +235,7 @@ describe('filtering as you type', () => {
     await view.findByText('K&N Drop-in Air Filter');
     await user.type(view.getByLabelText("Search suggestions"), 'clunk over bumps');
 
-    await view.findByLabelText('Add clunk over bumps to the wishlist');
+    await view.findByLabelText('Add clunk over bumps to Needs');
     view.getByText(/Nothing we know about matches/i);
   });
 });
@@ -252,7 +252,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('K&N Drop-in Air Filter');
-    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to the wishlist'));
+    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect(posted()![1]?.body).toMatchObject({
@@ -271,7 +271,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('Fuel injector seals');
-    await user.press(view.getByLabelText('Add Fuel injector seals to the wishlist'));
+    await user.press(view.getByLabelText('Add Fuel injector seals to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect(posted()![1]?.body).toMatchObject({
@@ -288,7 +288,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('Fuel injector seals');
-    await user.press(view.getByLabelText('Add Fuel injector seals to the wishlist'));
+    await user.press(view.getByLabelText('Add Fuel injector seals to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect(String((posted()![1]?.body as Record<string, unknown>).description)).toMatch(/fire risk/i);
@@ -306,7 +306,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('Engine Oil (0W-20 Full Synthetic)');
-    await user.press(view.getByLabelText('Add Engine Oil (0W-20 Full Synthetic) to the wishlist'));
+    await user.press(view.getByLabelText('Add Engine Oil (0W-20 Full Synthetic) to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     // Both of core's strings travel: the sentence and, since core builds it, the figure itself.
@@ -319,7 +319,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('Fuel injector seals');
-    await user.press(view.getByLabelText('Add Fuel injector seals to the wishlist'));
+    await user.press(view.getByLabelText('Add Fuel injector seals to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect((posted()![1]?.body as Record<string, unknown>).sourceData).toBeUndefined();
@@ -333,7 +333,7 @@ describe('adding — the claims that moved from the composer', () => {
     await view.findByText('K&N Drop-in Air Filter');
     await user.type(view.getByLabelText("Search suggestions"), '   ');
 
-    expect(view.queryByLabelText(/^Add {3}to the wishlist$/)).toBeNull();
+    expect(view.queryByLabelText(/^Add {3}to Needs$/)).toBeNull();
     expect(posted()).toBeUndefined();
   });
 
@@ -349,7 +349,7 @@ describe('adding — the claims that moved from the composer', () => {
 
     await view.findByText('K&N Drop-in Air Filter');
     await user.type(view.getByLabelText("Search suggestions"), 'Wipers');
-    await user.press(await view.findByLabelText('Add Wipers to the wishlist'));
+    await user.press(await view.findByLabelText('Add Wipers to Needs'));
 
     await waitFor(() => expect(posted()).toBeDefined());
     expect(posted()![1]?.body).toMatchObject({ itemName: 'Wipers', itemType: 'maintenance' });
@@ -375,7 +375,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { view } = await mount();
 
     await view.findByText('K&N Drop-in Air Filter');
-    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to the wishlist'));
+    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to Needs'));
 
     // Flips to the on-list state rather than showing an error about a state
     // the person already has.
@@ -409,7 +409,7 @@ describe('adding — the claims that moved from the composer', () => {
     const { props, view } = await mount();
 
     await view.findByText('K&N Drop-in Air Filter');
-    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to the wishlist'));
+    await user.press(view.getByLabelText('Add K&N Drop-in Air Filter to Needs'));
 
     await waitFor(() => expect(props.onSignOut).toHaveBeenCalled());
   });
@@ -420,7 +420,7 @@ describe('adding — the claims that moved from the composer', () => {
 
     await view.findByText('K&N Drop-in Air Filter');
     view.getByText('Added');
-    expect(view.queryByLabelText('Add K&N Drop-in Air Filter to the wishlist')).toBeNull();
+    expect(view.queryByLabelText('Add K&N Drop-in Air Filter to Needs')).toBeNull();
   });
 });
 

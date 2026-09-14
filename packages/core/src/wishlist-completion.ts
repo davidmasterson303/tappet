@@ -159,7 +159,7 @@ export function describeCompletion(itemName: string, draft: CompletionDraft): st
 
   const cost = total > 0 ? ` for ${formatWhole(total)}` : '';
 
-  return `“${itemName}” goes into this car's service history as done by ${who}${cost}, and leaves the wishlist.`;
+  return `“${itemName}” goes into this car's service history as done by ${who}${cost}, and leaves Needs.`;
 }
 
 /** Whole pounds/dollars, no decimals — this is a summary, not an invoice. */

@@ -684,7 +684,7 @@ describe('the wishlist', () => {
       <WishlistScreen vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58" onSignOut={jest.fn()} />
     );
 
-    await view.findByText('Could not load the wishlist');
+    await view.findByText('Could not load Needs');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 });

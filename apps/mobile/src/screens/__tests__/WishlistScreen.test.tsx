@@ -127,7 +127,7 @@ describe('removing an item', () => {
     const { view } = await mount();
 
     await view.findByText('Front brake pads');
-    await user.press(view.getByLabelText('Remove Front brake pads from the wishlist'));
+    await user.press(view.getByLabelText('Remove Front brake pads from Needs'));
 
     expect(alertSpy).toHaveBeenCalled();
     expect(String(alertSpy.mock.calls[0][0])).toMatch(/remove/i);
@@ -144,7 +144,7 @@ describe('removing an item', () => {
     const { view } = await mount();
 
     await view.findByText('Front brake pads');
-    await user.press(view.getByLabelText('Remove Front brake pads from the wishlist'));
+    await user.press(view.getByLabelText('Remove Front brake pads from Needs'));
 
     expect(
       request.mock.calls.some(([, init]) => (init as { method?: string })?.method === 'DELETE')
@@ -159,7 +159,7 @@ describe('removing an item', () => {
     const { view } = await mount();
 
     await view.findByText('Front brake pads');
-    await user.press(view.getByLabelText('Remove Front brake pads from the wishlist'));
+    await user.press(view.getByLabelText('Remove Front brake pads from Needs'));
 
     const buttons = alertSpy.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
     const destructive = buttons.find((b) => /remove|delete/i.test(b.text ?? ''));
@@ -327,7 +327,7 @@ describe('the row as a spec table, with the pattern’s verbs — round 37', () 
     expect(flat(view.getByText('Known issue').props.style).color).toBe(text.muted);
 
     const done = view.getByLabelText('Mark Front brake pads done');
-    const remove = view.getByLabelText('Remove Front brake pads from the wishlist');
+    const remove = view.getByLabelText('Remove Front brake pads from Needs');
     expect(done.props.accessibilityRole).toBe('button');
     expect(remove.props.accessibilityRole).toBe('button');
 
