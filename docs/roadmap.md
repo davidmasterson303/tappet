@@ -13,6 +13,29 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ David's — the whole list, 13 Sep evening
+>
+> Everything Claude Code can do without you is done and live (`web-live`
+> **74120328**, `demo-live` **c91fa290**, `main` clean and pushed). Each
+> line below was checked against the artefact tonight, not copied forward;
+> the action is the exact thing to do, and the last column is what it opens.
+>
+> | # | yours | the action | unblocks |
+> |---|---|---|---|
+> | 1 | **The product-pair redirect** | Say **yes** (one word). Then Claude Code adds `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co` → `tappet.southmoordigital.com` as `[[redirects]]`, extends the guard, promotes `web-live`, and curls the old hosts. Safe: the only device build ever (22 Aug dev client) takes its API host from Metro's manifest, so no installed app writes to the old host. | the last two hostnames retired; nothing else waits on it |
+> | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
+> | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
+> | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
+> | 5 | **The Apple account** (with Cowork) | `D-U-N-S ⏳ (submitted 13 Sep, free Apple route, ~5 business days + 2) → Individual→Organization → ASC record → the two IAP products with Cowork's naming.` Nothing may create the ids incidentally. ⚠ The business bank account is parallel, not upstream — D&B does not ask for one. ⚠ The Organization switch resets `identifierForVendor` permanently and cannot be undone, so it must happen before launch, while the user count is zero. Entity facts: Southmoor Digital LLC, Colorado ID `20268142644`, Good Standing, formed 13 Sep 2026; EIN `42-5051703`. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
+> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws, the advisor answers 502 with "try again", and the canary is the only thing that names it. | no model outage at review |
+> | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
+> | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
+>
+> Not yours, and deliberately not built: a launch-time IAP reconciliation
+> (`store.ts` says why), a phone entry point to the dossier (a product
+> question, named in the E8 block), a shared single read of filed services
+> for the hub and Health (an optimisation carried from a superseded worktree).
+>
 > ### ⚠ START HERE — 11 Sep 2026, five threads reconciled
 >
 > Written at the start of the 11 Sep session, after a week in which nothing was
@@ -81,11 +104,12 @@
 >   `origin/main` — the whole IA pass, verified only by the session that wrote it.
 >   Pushed 11 Sep.
 > - ~~**`prepare/revert-operator-to-individual`**~~ — **deleted 13 Sep.**
->   Southmoor Digital LLC was formed that morning (Articles filed in Colorado,
->   EIN issued; Cowork's record). The operator the live policies have named
->   since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
->   App-Store-facing chain is now: bank account → D-U-N-S → Apple Individual →
->   Organization → App Store Connect record → IAP products.
+>   Southmoor Digital LLC was formed that morning (Colorado SOS `20268142644`,
+>   EIN `42-5051703`; Cowork's record). The operator the live policies have
+>   named since 30 Aug exists; `lib/legal.ts` says so beside `OPERATOR`. The
+>   App-Store-facing chain is: Articles ✅ → EIN ✅ → D-U-N-S ⏳ (13 Sep) →
+>   Apple Individual→Organization → ASC record → IAP products. The bank
+>   account is parallel, not upstream.
 > - `origin/web-live` and `origin/demo-live` still carried the `ignore =` key
 >   until the 11 Sep promote; `main` deleted it in `ea2f0de`. Netlify reads the
 >   config from the commit it builds, so the promote that carries the deletion is
@@ -401,6 +425,50 @@
 >   screen reads `healthVerdict` now; its one idea worth carrying is a
 >   single shared read of the filed services for the hub and Health),
 >   `friendly-lewin` (a staged deletion of a component that no longer exists).
+>
+> #### 13 Sep, evening — the operator exists, the list is Needs everywhere, the web add carries the dossier
+>
+> **Southmoor Digital LLC was formed this morning** (Articles filed, EIN
+> issued — Cowork's record). `OPERATOR` has said so since 30 Aug; the
+> docblock now says when it became true (`e4f2c09`), and
+> `prepare/revert-operator-to-individual` is deleted, local and origin.
+> `LAST_UPDATED` moved to **13 September 2026** on Cowork's 14 Sep ruling —
+> the claim the pages had carried for two weeks became true, which is the
+> substance changing for a reader — and shipped the same evening. Two
+> confirmations for Cowork's register: `extra.eas.projectId` has been
+> `a3f958b8-…` since `3f21f51` (12 Sep), and the ™ pass landed 13 Sep
+> (`76b3176`, `089c3c2`); its guard was proven red again tonight against
+> the real tree, one ® dropped into the Terms page and found at
+> `app/terms/page.tsx:8`. `lib/gemini.ts` now records what $0 prepay does.
+>
+> **The list is Needs everywhere a person can read it** (`a9081f5`). The 8
+> Sep pass renamed it on the pages and the board recorded "nowhere says
+> Wishlist" from rendering them — which is where toasts, alerts, dialog
+> titles, select options, accessibility labels and API error strings do
+> not appear. 43 sentences across the web, the API, core and the phone
+> still said wishlist, including the route's own "Failed to add item to
+> wishlist" the phone showed David. `needs-not-wishlist.test.ts` scans
+> every customer-facing tree, comments stripped, and tells copy from an
+> address (`wishlist_items`, `/api/v1/wishlist`, the hook, the route name
+> keep their names); proven against a fixture and red on all 43 first. It
+> also found the advisor's "Get Quote" link still pointing at
+> `?tab=wishlist`, a parameter nothing had read since the list moved to
+> the Plan tab — `planHref` now.
+>
+> **An item added from the web dossier carries its reason and figure**
+> (`25a182b`) — the server looks the item up in the dossier through core's
+> `suggestionsFor` and writes what the phone's catalogue writes, so a
+> Needs row reads the same from either client. Proven red first; the auth
+> ratchet still sees the guard. The twelve `dossier` rows written before
+> either client carried them — David's M235i oil change and the demo cars'
+> eleven from the June reseed — were backfilled from their own dossiers
+> (`scripts/backfill-needs-reasons.ts`, `87d25ac`, dry run then `--apply`);
+> the demo Plan page shows the reasons, read live.
+>
+> **Promoted:** `web-live` **74120328**, `demo-live` **c91fa290**; the demo
+> Plan page read live says NEEDS and never wishlist. The plates paragraph
+> of 11 Sep said "dormant" for two days after the table, the retries and
+> the phone had all closed (`be745d8`).
 >
 > #### 13 Sep, later — the hub is a binnacle, the mark carries its claim
 >

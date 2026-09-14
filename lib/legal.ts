@@ -87,11 +87,17 @@
  * From 30 Aug to 13 Sep this named a company that had not been formed: the
  * Colorado registry had no such entity while the live privacy page named it
  * as operator, and `prepare/revert-operator-to-individual` stood ready to
- * put the person back. Southmoor Digital LLC was formed on 13 Sep 2026
- * (Articles filed in Colorado; EIN issued the same morning) — Cowork's
- * record, in David's project folder. The name is true now, the revert
- * branch is deleted, and `LAST_UPDATED` does not move: the operator the
- * documents name has not changed, it has come into being.
+ * put the person back. Southmoor Digital LLC was formed on 13 Sep 2026 —
+ * Colorado SOS ID `20268142644`, Good Standing, filed 09:29 MT; EIN
+ * `42-5051703` issued the same morning (Cowork's record, verified against
+ * the primary sources). The name is true now and the revert branch is
+ * deleted. The standing instruction — not to move this line to the LLC
+ * until the filing was confirmed — is satisfied rather than violated: the
+ * line moved early, and the filing caught up.
+ *
+ * `LAST_UPDATED` moves with it (Cowork's ruling, 14 Sep): for a reader the
+ * document's claim about who operates the service became true on 13 Sep,
+ * and the date says from which publication that is so.
  */
 export const OPERATOR = 'Southmoor Digital LLC';
 
@@ -124,8 +130,18 @@ export const CONTACT_EMAIL = 'support@southmoordigital.com';
  * Two substance changes shipping together are one publication, and a date that
  * ticks per edit rather than per publication is the same defect in the other
  * direction.
+ *
+ * ── 13 September · the operator exists ──────────────────────────────────────
+ *
+ * Moved once more, and for the same reason as 30 August: the substance of the
+ * document is who operates the service. From 30 Aug to 13 Sep the pages named
+ * a company that was not yet in the Colorado registry; on 13 Sep it was
+ * formed, and this is the publication from which the named operator is the
+ * operator that exists. Shipped the same evening (MT), so the literal is the
+ * formation date as well as the ship date — a coincidence, not a rule: the
+ * rule is still the day the promote runs.
  */
-export const LAST_UPDATED = '30 August 2026';
+export const LAST_UPDATED = '13 September 2026';
 
 /**
  * Where Apple sends someone to stop a subscription.
