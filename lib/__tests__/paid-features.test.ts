@@ -299,15 +299,31 @@ describe('every paid path is gated', () => {
 
   it('leaves the demo consultant ungated', () => {
     /*
-      The demo reaches the consultant through its own budget and must keep doing
-      so — a portfolio piece with its own ceiling, not an account. A paywall on
+      The demo answers from a fixed list and must keep doing so without a
+      paywall in front of it — a portfolio piece, not an account. A paywall on
       it is a paywall on the page recruiters are sent to.
+
+      ── ⚠ Re-anchored 17 Sep; the slice had been empty since 30 Aug ─────────
+
+      This used to slice from `const demo = await checkDemoBudget()` to the
+      advisor's `checkFeatureAccess`. On 30 Aug the demo advisor stopped
+      calling a model and stopped checking the demo budget — the only
+      `checkDemoBudget()` left in the file is the demo *quote's*, five
+      thousand lines *after* the gate. `slice(6807, 1280)` is the empty
+      string, and the empty string contains no paywall. Green for eighteen
+      days on nothing (CLAUDE.md §5). The demo branch is now anchored on the
+      line that is actually its start, and the slice is asserted non-empty.
     */
     const actions = readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8');
-    const demoBranch = actions.slice(
-      actions.indexOf('const demo = await checkDemoBudget()'),
-      actions.indexOf("checkFeatureAccess(access.userId, 'advisor')")
-    );
+    const start = actions.indexOf('const sample = demoAnswerFor(');
+    const end = actions.indexOf("checkFeatureAccess(access.userId, 'advisor')");
+
+    // Anti-vacuous: both anchors exist, in this order, with code between.
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const demoBranch = actions.slice(start, end);
+    expect(demoBranch).toMatch(/isSample: true/);
+
     expect(demoBranch).not.toMatch(/checkFeatureAccess/);
   });
 });

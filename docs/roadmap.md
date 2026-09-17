@@ -28,13 +28,15 @@
 >   "budget exhausted, demo" message for the advisor describes a path that
 >   cannot spend. Not reversed — that would need David's word.
 > - **`DEMO_BUDGET` bounds the demo *quote*** (`generateQuoteRequestV2`, two
->   calls at default thinking), not advisor turns — and **neither quote call
->   is metered**, so the ceiling reads a gauge those calls never write. The
->   constants are cut 5× as decided (60k / 300k, ≈ $0.45 / $2.25) and the
->   docblock says exactly this; `ai-budget.test.ts` reads its arithmetic back.
->   `checkDemoBudget` now reads `surface = 'demo'` only, so the front door and
->   the canary stop spending the demo's allowance. The meter is a task chip —
->   it needs a purpose migration, which is the SQL editor.
+>   calls at default thinking), not advisor turns — and, that morning,
+>   **neither quote call was metered**, so the ceiling read a gauge those
+>   calls never wrote. The constants are cut 5× as decided (60k / 300k,
+>   ≈ $0.45 / $2.25) and `advisor-failure-states.test.ts` reads the
+>   docblock's arithmetic back (this bullet first named `ai-budget.test.ts`,
+>   which pins the floor, not the lines). `checkDemoBudget` now reads
+>   `surface = 'demo'` only, so the front door and the canary stop spending
+>   the demo's allowance. **The meter landed the same afternoon** — the block
+>   below — and needs one SQL-editor trip before it writes a row.
 > - **`/api/health/consultant` and `/api/health/ai` are live on both hosts.**
 >   `{"error":"Not found"}` is the route's own 404 for a caller without the
 >   secret (`route.ts`, "an unauthenticated caller should not learn that a
@@ -67,6 +69,73 @@
 > "Sorry, I encountered an error" is live until `promote-web` then
 > `promote-demo` (CLAUDE.md §8). No new `/api/v1/*` route, so the phone needs
 > nothing promoted first.
+>
+> #### 17 Sep, afternoon — the quote writes the meter it is read against
+>
+> Four premises from the morning's handoff, each checked against the artefact
+> before anything was built, and all four held — plus a fifth the check
+> turned up:
+>
+> 1. `ai_usage_events` had **490 rows and none from the quote path**
+>    (PostgREST, `SUPABASE_SECRET_KEY`): nine purposes from 2 Aug plus one
+>    `quote_check`. `estimateCosts` and `generateEmailDraft` followed neither
+>    `generateContent` with `recordAiUsageInBackground`.
+> 2. So `checkDemoBudget` summed rows the demo quote never wrote.
+> 3. The owner branch of `generateQuoteRequestV2` had **no
+>    `checkMonthlyBudget`** — and `every-generation-has-a-ceiling.test.ts`'s
+>    `CEILING_ELSEWHERE` said it did, because it checked that the *file*
+>    contained the word. `app/actions.ts` contains it eleven times.
+> 4. `paid-features.test.ts` "leaves the demo consultant ungated" sliced from
+>    an anchor at line 6807 to one at line 1280: the empty string, green
+>    since 30 Aug on nothing.
+> 5. **`validateConsultantDocument`** — the consultant's upload check, a
+>    vision call — was in the same shape as the quote: no meter, no ceiling
+>    in its caller, and the same file-level `CEILING_ELSEWHERE` entry
+>    vouching for it. Found by making that test read the calling function's
+>    body, which is what it now does.
+>
+> What shipped:
+>
+> ```
+> packages/core/src/ai/usage.ts             quote_estimate · quote_email ·
+>                                           document_validation
+> supabase/migrations/20260917120000_…      the CHECK, redefined — ⚠ David's SQL trip
+> app/actions.ts                            both quote calls at LOW via withThinking,
+>                                           metered with the caller's userId + vehicleId
+>                                           threaded in (QuoteCaller); the owner branch
+>                                           checks checkMonthlyBudget; uploadConsultantDocument
+>                                           checks it; validateConsultantDocument is metered
+> packages/core/src/ai/budget.ts            DEMO_BUDGET's arithmetic re-derived:
+>                                           27 quotes/day, 136/month of ~2,200
+> every-generation-has-a-ceiling.test.ts    CEILING_ELSEWHERE names the caller and reads
+>                                           its body, comments stripped; a second scan
+>                                           requires a meter in every calling function,
+>                                           no exemptions — both proven red on HEAD's tree
+> paid-features · demo-quote-generation ·   re-anchored, non-empty, branch-precise;
+> advisor-failure-states · ai-budget        the docblock and its assertions moved together
+> ```
+>
+> **Measured, not guessed** (14 Flash calls, ≈ $0.12, nothing written): a
+> three-item quote on the Accord demo car cost **~3,370** output-equivalent
+> tokens as shipped — three-quarters of it thinking at a level nobody set —
+> **~2,220 at LOW**, ~740 at MINIMAL. Every sample validated; across eleven
+> estimates the totals ran $447–534 low and $856–968 high with no level
+> standing apart. LOW on both, the consultant's level. Not MINIMAL: one
+> MINIMAL email put markdown bold into a body `EmailDraftDisplay` shows in a
+> `<pre>` and copies verbatim. One sample is a reason, not a finding; the
+> numbers are in the call-site comments for the re-tune.
+>
+> ⚠ **Until the migration is applied, the meter is still empty.** Every
+> quote and upload check runs exactly as before; each usage write fails the
+> CHECK, is dropped with an `AI_USAGE:WRITE_FAILED` warn, and the request
+> is unaffected. The rows — and the ceiling meaning anything — start the
+> day David runs it. **Not promoted**, same as the morning's block.
+>
+> Left as found, and worth knowing: `validateConsultantDocument` still runs
+> at the default config and thinking level. `lib/gemini.ts`'s
+> `classificationConfig` docblock names it as the motivating case and the
+> call never took it — a vision call nobody has measured, so nothing was
+> guessed.
 >
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
@@ -183,6 +252,7 @@
 > | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws; since 17 Sep the advisor answers **503 `advisor-unavailable`** — "retrying will not help, and we are alerted to it" — on both clients once promoted, and the canary names the balance in its CI detail line. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
 > | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
+> | 9 | **One migration, 17 Sep** | Paste `supabase/migrations/20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql` into the SQL editor and run it. It swaps the `ai_usage_events` purpose CHECK for a superset (three values added); same shape as the 3 Aug one, which ran clean. Not time-sensitive the way the 2 Aug one was — nothing breaks while it waits — but **until it runs the demo quote's meter writes nothing** (each write fails the CHECK and is dropped with a warn), so `DEMO_BUDGET` stays a constant on an empty gauge and the D2 dataset misses every owner quote. Verify — after this change is promoted, since both hosts still serve the 14 Sep builds: a demo quote on `tappet-demo`, then `ai_usage_events` has `quote_estimate` and `quote_email` rows with `surface = 'demo'`. | the demo ceiling can trip; quotes and upload checks in the price dataset |
 >
 > Not yours, and deliberately not built: a launch-time IAP reconciliation
 > (`store.ts` says why), a phone entry point to the dossier (a product
