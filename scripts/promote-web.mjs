@@ -44,8 +44,10 @@
  */
 
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { retriedNote, runSuite } from './lib/run-suite.mjs';
 import { awaitDeploy } from './lib/await-deploy.mjs';
+import { retiredHostsFor, verifyHostRedirects } from './lib/host-redirects.mjs';
 
 const APPLY = process.argv.includes('--apply');
 
@@ -231,6 +233,42 @@ const live = await awaitDeploy({
 });
 
 if (!live) process.exit(1);
+
+/*
+  ── 17 Sep · the retired product hostnames must now redirect ───────────────
+
+  The same check `promote-demo` has run for its pair since 12 Sep, for the
+  same reason: a rule in a file is not a redirect on a host. This pair was
+  retired last because its host takes the app's API writes and a 301 turns a
+  POST into a GET — so the thing worth knowing after this deploy is that the
+  old hosts answer 301 to the primary and the primary still answers 200. The
+  list comes from the file; an empty list is said, never counted as a pass.
+*/
+const toml = readFileSync(new URL('../netlify.toml', import.meta.url), 'utf8');
+if (retiredHostsFor(toml, SITE).length === 0) {
+  warn('netlify.toml names no host that redirects to the product — nothing to verify');
+} else {
+  const redirects = await verifyHostRedirects({ toml, primary: SITE });
+  for (const c of redirects.checked) {
+    const line = `${c.host} → ${c.status}${c.location ? ` ${c.location}` : ''}`;
+    if (redirects.failures.some((f) => f.startsWith(c.host))) bad(line);
+    else ok(line);
+  }
+  if (redirects.failures.length > 0) {
+    console.log(`
+⚠ ${SITE} is serving ${mergeCommit.slice(0, 8)}, but a retired hostname is not redirecting:
+
+${redirects.failures.map((f) => `  ${f}`).join('\n')}
+
+Nothing is broken for a visitor — the old host serves the same site — but
+the phone's API host is the one that must not be ambiguous. Check that this
+deploy's \`netlify.toml\` carries the \`[[redirects]]\` rules (Netlify
+dashboard → tappet-web → Deploys → the build log lists the rules it
+processed), and re-run \`curl -sI https://<old host>/\` by hand.
+`);
+    process.exit(1);
+  }
+}
 
 console.log(`
 \x1b[32m${SITE} is live on ${mergeCommit.slice(0, 8)}.\x1b[0m
