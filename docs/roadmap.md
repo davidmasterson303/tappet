@@ -109,24 +109,31 @@
 > unpaid account costs nothing that calls a model. A lapse drops to the free
 > tier, not to read-only. Built the same day:
 >
-> - **Three of the four ungated model paths are gated** — the health summary
->   → `advisor`, powertrain options → `dossier`, performance stats →
->   `dossier` — each below its cache read so a lapsed owner keeps what the
->   row holds, each returning E6's wire. `model-paths-behind-the-gate.test.ts`
->   reads every function's *body* (proven red by removing the health gate)
->   and `performance-stats.test.ts` mounts the refusal.
+> - **Two of the four ungated model paths are gated** — powertrain options →
+>   `dossier`, performance stats → `dossier` — each below its cache read so a
+>   lapsed owner keeps what the row holds, each returning E6's wire.
+>   `model-paths-behind-the-gate.test.ts` reads every function's *body* and
+>   `performance-stats.test.ts` mounts the refusal.
 > - ⚠ **The fourth — the quote's two calls → `advisor` — waits on the
 >   metering session** (`claude/inspiring-hodgkin-3c09bb`), which is editing
 >   `generateQuoteRequestV2` as this is written; it is added the moment that
 >   lands rather than merged over it.
-> - ⚠ **Health scores are therefore paid.** The score on the garage card and
->   the hub's HEALTH cell is `generateVehicleHealthSummary`'s own
->   `healthScore`; a free account's garage shows no score (the `null` state,
->   never `0`). `pricing.ts` had left it outside the gate as "the free
->   product's whole face"; measured at 274–789 output-equivalent tokens a
->   summary, at most one a car a day. Un-gating it is three lines and
->   `FREE_MONTHLY_COST_USD` was sized for exactly that — David's call, put to
->   him with the number.
+> - **Health scores are FREE** — David, the same evening, with the number in
+>   front of him. The score was gated under the advisor for about two hours
+>   because "gate the four" was executed as written; it is
+>   `generateVehicleHealthSummary`'s own `healthScore`, the garage card's
+>   ring, "the free product's whole face" (`pricing.ts`), and without it the
+>   free tier is a spreadsheet with a car photo. 274–789 output-equivalent
+>   tokens a summary, half a cent, once a car a day, bounded by
+>   `FREE_MONTHLY_COST_USD`. **Final split: free = garage · service log ·
+>   mileage · health score; paid = advisor · recalls · invoice scanning ·
+>   dossier (incl. powertrain options and performance stats).** Derived, not
+>   hand-edited: `health-score` is in `FREE_FEATURES`, so the paywall's free
+>   list and the refusal's kept clause carry it; the advisor's blurb is back
+>   to the advisor and `model-paths-behind-the-gate.test.ts` fails if any
+>   paid blurb ever names a free feature (one destination mention allowed,
+>   listed) or if a gate reappears in the health summary — both proven red.
+>   Slot 1 stays the garage with scores, captioned free.
 > - `access.ts` rewritten for B (the table, the copy, a guard that it agrees
 >   with `paid-features.ts`); `pricing.ts`'s "SUPERSEDED 30 Aug" section and
 >   `paid-features.ts`'s "no free tier" docblock replaced; the advisor's

@@ -73,15 +73,19 @@ describe('what is sold', () => {
     expect([...PAID_FEATURES]).toEqual(['advisor', 'invoice-scanning', 'dossier', 'recalls']);
   });
 
-  it('leaves the owner’s own records readable', () => {
+  it('the free tier — the record, and the health score', () => {
     /*
-      ⚠ This list is no longer "the free tier" — there is not one as of 30 Aug.
-      It is what a **lapsed** account keeps, and the argument is unchanged: a
-      garage that stops working when a subscription ends is a hostage, and the
-      records in it are the owner's own. Everything on it is stored rather than
-      generated, so showing it costs nothing.
+      17 Sep, David: free = garage · service log · mileage · health score.
+      The first three are stored rather than generated, so showing them costs
+      nothing, and the argument for them is unchanged: a garage that stops
+      working when a subscription ends is a hostage, and the records in it
+      are the owner's own. The fourth is the free tier's one model call —
+      half a cent a summary, once a car a day, bounded by the free ceiling —
+      kept free because without it the free tier is a spreadsheet with a car
+      photo. `paid-features.ts` and `model-paths-behind-the-gate.test.ts`
+      carry the reasoning and the guard.
     */
-    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage']);
+    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage', 'health-score']);
   });
 
   it('puts recalls behind the paywall — David’s call, 30 Aug', () => {

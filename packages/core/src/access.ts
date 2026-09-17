@@ -45,12 +45,15 @@
  * ── What the free tier is, and is not ───────────────────────────────────────
  *
  * Reading, writing, exporting and deleting one's own records — the garage, the
- * service log, mileage. None of it calls a model, and `paid-features.ts`
- * argues the records are the owner's own whatever they pay. What it does not
- * include is anything that calls a model (the advisor and its health score,
- * invoice scanning, the dossier) and, by David's call, recall alerts — the
- * refresh and the notification; every recall already stored stays readable.
- * Apple's 5.1.1(v) requires the deletion path regardless of billing state.
+ * service log, mileage — and the health score, which is the one thing in the
+ * free tier that calls a model, kept free by David on 17 Sep with the cost in
+ * front of him and bounded by `FREE_MONTHLY_COST_USD` rather than by this
+ * table. `paid-features.ts` argues the records are the owner's own whatever
+ * they pay. What the free tier does not include is the paid model features
+ * (the advisor, invoice scanning, the dossier) and, by David's call, recall
+ * alerts — the refresh and the notification; every recall already stored
+ * stays readable. Apple's 5.1.1(v) requires the deletion path regardless of
+ * billing state.
  */
 
 /** Who is asking. */
@@ -65,7 +68,12 @@ export type Capability =
   | 'read-own-records'
   /** Add or change them — a service record, a mileage reading, a wishlist item. */
   | 'write-own-records'
-  /** Anything that calls a model: the advisor and its health score, invoice extraction, the dossier. */
+  /**
+   * Anything that calls a model as a paid feature: the advisor, invoice
+   * extraction, the dossier. ⚠ Not the health score — that is the free tier's
+   * one model call, bounded by the free ceiling rather than by this table
+   * (`paid-features.ts`, 17 Sep).
+   */
   | 'generate'
   /** Take the data out, in a form the owner keeps. */
   | 'export'

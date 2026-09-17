@@ -2209,28 +2209,26 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     }
 
     /*
-      ── The gate, 17 Sep — the health score is part of the subscription ──────
+      ── ⚠ Deliberately NOT behind the feature gate — the health score is free ──
 
-      This was the one model path left outside `checkFeatureAccess` on
-      purpose: `ai/pricing.ts` called the health dial "the free product's
-      whole face" and sized `FREE_MONTHLY_COST_USD` for it. David's decision
-      of 17 Sep — the fork resolved as "keep the free tier, gate every model
-      path" — puts it behind the gate with the other three, so an account
-      that has not paid makes no model call at all. The score on the garage
-      card and the hub's HEALTH cell is this call's `healthScore`, so a free
-      account's garage shows no score rather than a stale or invented one
-      (`null` is never `0`).
+      This is the free tier's one model call, and the only path in the tree
+      that spends without `checkFeatureAccess`. Decided twice on 17 Sep: gated
+      under the advisor for about two hours when "gate the four" was executed
+      as written, then reversed by David with the cost in front of him. The
+      score on the garage card and the hub's HEALTH cell is this call's
+      `healthScore`; without it the free tier is a spreadsheet with a car
+      photo. `ai/pricing.ts` had it right — "the health dial is the free
+      product's whole face" — and had sized `FREE_MONTHLY_COST_USD` for it:
+      274–789 output-equivalent tokens a summary, half a cent, at most once a
+      car a day through the cache above, bounded by the free ceiling
+      (`checkMonthlyBudget` below) rather than the gate.
 
-      ⚠ Below the cache read, like the budget: a lapsed owner's last summary
-      is their own record and stays served; what stops is regenerating it.
-      Sold as the advisor — it is the advisor's standing read of this car
-      from its records, and `PAID_FEATURE_COPY.advisor` says so.
+      `model-paths-behind-the-gate.test.ts` fails if a gate ever appears in
+      this function, and `FREE_FEATURES` in `paid-features.ts` carries
+      `health-score` so every sentence that lists what is free says so. If it
+      ever costs real money, gating it is three lines — and by then there is
+      revenue to argue against.
     */
-    const healthGate = featureRefusal(await checkFeatureAccess(access.userId, 'advisor'));
-    if (healthGate) {
-      return { success: false, error: healthGate.error, code: healthGate.code, feature: healthGate.feature };
-    }
-
     if (!budget.allowed) {
       return { success: false, error: budgetMessage(budget) };
     }

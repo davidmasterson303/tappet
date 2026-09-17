@@ -15,26 +15,37 @@
  * to the next top-level function, the gate must be called with that path's
  * feature, before the model is, and the refusal must carry E6's wire.
  *
- * ── The decision, David's, 17 Sep ───────────────────────────────────────────
+ * ── The decision, David's, 17 Sep — twice ───────────────────────────────────
  *
- * The fork resolved as "keep the free tier, gate every model path": an
- * account that has not paid costs nothing that calls a model. The four:
+ * The fork resolved as "keep the free tier, gate the model paths": an
+ * account that has not paid costs nothing that calls a model, with one
+ * exception chosen with the cost in front of him. The four:
  *
- *   generateVehicleHealthSummary   → advisor    the score and the narrative
  *   fetchPowertrainOptions         → dossier    research about the model
  *   recomputePerformanceStats      → dossier    stock and modified figures
  *   generateQuoteRequestV2         → advisor    a second opinion on a quote
+ *   generateVehicleHealthSummary   → FREE       the free tier's whole face;
+ *                                               half a cent, once a car a day,
+ *                                               bounded by the free ceiling
  *
- * The third is proven by mounting it in `performance-stats.test.ts`; the two
- * in `actions.ts` are read here, because importing that module in a test
- * means importing the world. The fourth lands with the quote path's metering
+ * The health score was gated under the advisor for two hours on 17 Sep
+ * because "gate the four" was executed as written; it is asserted *ungated*
+ * below so the reversal cannot quietly un-reverse. `recomputePerformanceStats`
+ * is proven by mounting it in `performance-stats.test.ts`; the paths in
+ * `actions.ts` are read here, because importing that module in a test means
+ * importing the world. The quote gate lands with the quote path's metering
  * (`task_b2e011b4`), which is editing that function as this is written.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { PAID_FEATURES } from '@tappet/core/paid-features';
+import {
+  FREE_FEATURES,
+  FREE_FEATURE_COPY,
+  PAID_FEATURES,
+  PAID_FEATURE_COPY,
+} from '@tappet/core/paid-features';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (...path: string[]) => readFileSync(join(ROOT, ...path), 'utf8');
@@ -53,12 +64,76 @@ const ACTIONS = stripComments(read('app', 'actions.ts'));
 const PERF = stripComments(read('lib', 'performance-stats.ts'));
 
 const GATED: Array<[string, string, string]> = [
-  ['generateVehicleHealthSummary', 'advisor', ACTIONS],
   ['fetchPowertrainOptions', 'dossier', ACTIONS],
   ['recomputePerformanceStats', 'dossier', PERF],
 ];
 
-describe('the four model paths that were outside the gate', () => {
+describe('the health score is free — the one model path outside the gate, on purpose', () => {
+  const body = bodyOf(ACTIONS, 'generateVehicleHealthSummary');
+
+  it('calls the model with no feature gate in front of it', () => {
+    expect(body).toContain('generateContent(');
+    expect(body).not.toMatch(/checkFeatureAccess\(/);
+  });
+
+  it('is bounded by the free ceiling instead, below the cache', () => {
+    // Half a cent a summary is still a bill; `FREE_MONTHLY_COST_USD` is what
+    // bounds it, through the monthly ceiling every metered path checks.
+    const cached = body.indexOf('cached: true');
+    const ceiling = body.indexOf('if (!budget.allowed)');
+    expect(cached).toBeGreaterThan(-1);
+    expect(ceiling).toBeGreaterThan(cached);
+    expect(body).toMatch(/checkMonthlyBudget\(access\.userId\)/);
+  });
+
+  it('is named in FREE_FEATURES, so every sentence that lists what is free carries it', () => {
+    expect(FREE_FEATURES).toContain('health-score');
+    expect(FREE_FEATURE_COPY['health-score'].label).toBe('Health score');
+  });
+
+  it('no paid feature’s paywall sentence names a free feature', () => {
+    /*
+      The advisor's blurb named the health score for the two hours the score
+      was gated under it, and the recall refusal called recall alerts free
+      for eighteen days after they moved to paid — both hand-written sentences
+      nobody re-checked against the list they described. So every paid blurb
+      is held against every free label, on every run, both ways.
+    */
+    const noun = (label: string) => label.replace(/^(Your|The) /, '').toLowerCase();
+    /*
+      A paid sentence may name a free feature as its *destination* — invoice
+      scanning reads a receipt "into your service log" — and that is the one
+      shape allowed, listed here so a new mention has to be added on purpose
+      rather than slipping in as a subject. The advisor's two-hour blurb made
+      the health score its subject; no entry here would have let it through.
+    */
+    const DESTINATION_MENTIONS: Partial<Record<(typeof PAID_FEATURES)[number], readonly (typeof FREE_FEATURES)[number][]>> = {
+      'invoice-scanning': ['service-log'],
+    };
+    for (const paid of PAID_FEATURES) {
+      const sentence = `${PAID_FEATURE_COPY[paid].label} ${PAID_FEATURE_COPY[paid].blurb}`.toLowerCase();
+      for (const free of FREE_FEATURES) {
+        if (DESTINATION_MENTIONS[paid]?.includes(free)) continue;
+        expect(`${paid} names ${free}: ${sentence.includes(noun(FREE_FEATURE_COPY[free].label))}`).toBe(
+          `${paid} names ${free}: false`
+        );
+      }
+    }
+    for (const free of FREE_FEATURES) {
+      const sentence = `${FREE_FEATURE_COPY[free].label} ${FREE_FEATURE_COPY[free].blurb}`.toLowerCase();
+      for (const paid of PAID_FEATURES) {
+        expect(`${free} names ${paid}: ${sentence.includes(noun(PAID_FEATURE_COPY[paid].label))}`).toBe(
+          `${free} names ${paid}: false`
+        );
+      }
+    }
+    // Anti-vacuous: the sentence that shipped for two hours fails this reader.
+    const twoHours = 'A health score for each car from its own records, and answers about a noise, a quote or a job.';
+    expect(twoHours.toLowerCase().includes(noun(FREE_FEATURE_COPY['health-score'].label))).toBe(true);
+  });
+});
+
+describe('the model paths that went behind the gate', () => {
   it.each(GATED)('%s calls the gate for %s, before the model, and returns the wire', (name, feature, source) => {
     const body = bodyOf(source, name);
     const gate = body.search(new RegExp(`checkFeatureAccess\\([^)]*'${feature}'\\)`));
@@ -70,14 +145,6 @@ describe('the four model paths that were outside the gate', () => {
     // E6's wire: the refusal leaves with its code and feature, written out.
     expect(body).toMatch(/code: \w+\.code, feature: \w+\.feature/);
     expect((PAID_FEATURES as readonly string[]).includes(feature)).toBe(true);
-  });
-
-  it('the health summary refuses below the cache read — a lapsed owner keeps the last one', () => {
-    const body = bodyOf(ACTIONS, 'generateVehicleHealthSummary');
-    const cached = body.indexOf('cached: true');
-    const gate = body.search(/checkFeatureAccess\([^)]*'advisor'\)/);
-    expect(cached).toBeGreaterThan(-1);
-    expect(gate).toBeGreaterThan(cached);
   });
 
   it('powertrain options refuse above their cache — the gate is on the feature, not the call', () => {
@@ -105,21 +172,17 @@ describe('the four model paths that were outside the gate', () => {
   });
 
   it('can still detect the shape that shipped, so this is not vacuous', () => {
-    // The health summary as it was: budget, cache, model — no gate.
+    // Powertrain options as they were: session, budget, cache, model — no gate.
     const before = `
-export async function generateVehicleHealthSummary(vehicleId: string, forceRefresh: boolean = false) {
-    const budget = await checkMonthlyBudget(access.userId);
-    if (hoursSinceGenerated < 24) {
-      return { success: true, data: existingHealth, cached: true };
-    }
-    if (!budget.allowed) {
-      return { success: false, error: budgetMessage(budget) };
-    }
-    const result = await genAI.models.generateContent({
+export async function fetchPowertrainOptions(year: number) {
+    const session = await requireSession();
+    const budget = await checkMonthlyBudget(session.userId);
+    const cached = powertrainCache.get(cacheKey);
+    const response = await genAI.models.generateContent({
 export async function fetchAllVehicles() {`;
-    const body = bodyOf(before, 'generateVehicleHealthSummary');
+    const body = bodyOf(before, 'fetchPowertrainOptions');
     expect(body).toContain('generateContent(');
-    expect(body.search(/checkFeatureAccess\([^)]*'advisor'\)/)).toBe(-1);
+    expect(body.search(/checkFeatureAccess\([^)]*'dossier'\)/)).toBe(-1);
     // And the reader stops at the next function rather than running to the end.
     expect(body).not.toContain('fetchAllVehicles');
   });

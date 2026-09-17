@@ -26,7 +26,6 @@ import RecallHistoryModal from './RecallHistoryModal';
 import { useCountUp } from '@/hooks/use-count-up';
 import { useHealthBand, getHealthBand } from '@/hooks/use-health-band';
 import { isDemoVehicleId } from '@tappet/core/demo';
-import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
 
 interface HealthSummaryProps {
   vehicleId: string;
@@ -472,10 +471,6 @@ export default function HealthSummary({
       toast.success('Health summary updated');
       invalidateDashboardCache(vehicleId);
       router.refresh();
-    } else if (retryCannotHelp(result.code) && result.error) {
-      // A gate refusal is not a failed update: the sentence names what is
-      // part of Plus and what stays free, and "failed" would be wrong twice.
-      toast.info(result.error);
     } else {
       toast.error('Failed to update health summary');
     }

@@ -222,11 +222,14 @@ export function paidMonthlyOutputTokens(): number {
  * this ceiling had to cover them without covering an abuse case.
  *
  * David's decision of 17 Sep — the fork resolved as "keep the free tier, gate
- * every model path" — puts all four behind the gate (`PaidFeature` lists
- * where each went). Once the switch flips, a free account's legitimate model
- * use is **zero**, which is what the 30 Aug "no free tier" was reaching for
- * by a costlier route. The garage, the service log and mileage are database
- * writes; a free account is close to free to serve.
+ * the model paths" — puts three of the four behind the gate (`PaidFeature`
+ * lists where each went) and **keeps the health score free**, on purpose and
+ * with the number in front of him: 274–789 output-equivalent tokens a
+ * summary, half a cent, at most once a car a day. So once the switch flips a
+ * free account's legitimate model use is exactly that path, and this
+ * constant is its ceiling — which is what it was sized for on 24 Aug. The
+ * garage, the service log and mileage are database writes; a free account is
+ * close to free to serve, and this file says how close.
  *
  * At the 400,000-token ceiling the un-enforced exposure is still about
  * **$3.00 a month per free account against zero revenue** — more than the net
@@ -277,11 +280,10 @@ export const FREE_MONTHLY_COST_USD = 0.25;
  * So the constants below are live rather than placeholders-until-deletion,
  * and they mean this: `TIERS.free` bounds the un-enforced period, when a free
  * account still reaches every model path; `freeMonthlyOutputTokensWhenGated`
- * is what it drops to once the gate is on and a free account's legitimate
- * model use is zero — a fuse, kept small and positive because `budget.ts`
- * reads a non-positive ceiling as "no ceiling", and sized so that if the
- * health score is ever un-gated (`paid-features.ts` says how), it covers
- * that path and nothing else.
+ * is what it drops to once the gate is on and a free account's one legitimate
+ * model path is the health score — sized for exactly that path, nothing
+ * else, and kept positive because `budget.ts` reads a non-positive ceiling
+ * as "no ceiling".
  */
 
 /**
