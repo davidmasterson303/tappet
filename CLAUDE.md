@@ -265,9 +265,10 @@ concluding the deploy failed has already cost real time.
   break it. ⚠ That is *our* caps. **Google's prepay is the exception and it
   cannot be made graceful**: the Gemini billing account went prepay on 25 Aug
   (a one-way door), and at $0 every API key on it stops at once — the Postpay
-  path on the same account does not catch it. Every model call throws, the
-  advisor answers 502 with "try again", and only the canary names it.
-  `lib/gemini.ts` carries the facts; the balance is David's to keep.
+  path on the same account does not catch it. Every model call throws; the
+  advisor answers 503 `advisor-unavailable` ("retrying will not help") and
+  the canary names it in CI. `lib/gemini.ts` carries the facts; the balance
+  is David's to keep.
 
 ## 10. Do not invent precision
 

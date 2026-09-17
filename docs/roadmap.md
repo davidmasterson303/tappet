@@ -13,6 +13,61 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
+>
+> From Cowork's 14 Sep prompt ("keep it live, tighten the cap, fix the failure
+> states"). Three of its premises were checked against the artefact before
+> anything was built, and three were stale — recorded here so nobody re-derives
+> them the same way:
+>
+> - **The demo advisor makes no model call.** Since 30 Aug (`demo-answers.ts`,
+>   David's own words) it answers a fixed list and refuses the rest with
+>   `DEMO_UNANSWERED`. Verified on `tappet-demo` 17 Sep: a sample question
+>   answers 200 with the sample; anything else 502'd. So "the advisor stays
+>   live on the demo" was already the case in the only form it has, and a
+>   "budget exhausted, demo" message for the advisor describes a path that
+>   cannot spend. Not reversed — that would need David's word.
+> - **`DEMO_BUDGET` bounds the demo *quote*** (`generateQuoteRequestV2`, two
+>   calls at default thinking), not advisor turns — and **neither quote call
+>   is metered**, so the ceiling reads a gauge those calls never write. The
+>   constants are cut 5× as decided (60k / 300k, ≈ $0.45 / $2.25) and the
+>   docblock says exactly this; `ai-budget.test.ts` reads its arithmetic back.
+>   `checkDemoBudget` now reads `surface = 'demo'` only, so the front door and
+>   the canary stop spending the demo's allowance. The meter is a task chip —
+>   it needs a purpose migration, which is the SQL editor.
+> - **`/api/health/consultant` and `/api/health/ai` are live on both hosts.**
+>   `{"error":"Not found"}` is the route's own 404 for a caller without the
+>   secret (`route.ts`, "an unauthenticated caller should not learn that a
+>   token-spending endpoint exists"). The canary has rows every ~6 h through
+>   17 Sep 11:29 UTC.
+>
+> What *was* observably wrong on the demo, seen live: a typed question got
+> **"Sorry, I encountered an error. Please try again."** under Jay's byline,
+> with "Written by AI from this car's records" and a Copy button beneath it —
+> the web discarded `result.error` on every failure. That, and the product
+> path's "try again" for a spent allowance or a prepay balance at $0, is what
+> shipped as this change:
+>
+> ```
+> packages/core/src/ai/advisor-failure.ts   the registry: needs-subscription ·
+>                                           budget-exhausted · advisor-unavailable ·
+>                                           demo-unanswered; retryCannotHelp(code)
+> packages/core/src/ai/model-failure.ts     Google's throw → quota / credential /
+>                                           transient; shared with the canary
+> lib/gemini.ts                             classifyGeminiFailure (the SDK's shape)
+> app/api/v1/consultant/route.ts            402 · 429 · 503 · 422; 502 only uncoded
+> components/ConsultantChat.tsx             the server's sentence, as a failure turn
+>                                           (no byline, no disclosure, no Copy;
+>                                           drift §14.10); never replayed as history
+> apps/mobile …/AdvisorScreen.tsx           the code branch before any status
+> lib/__tests__/advisor-failure-states.test.ts   proven red twice, then green
+> ```
+>
+> **Not promoted.** Both hosts still serve the 14 Sep builds; the demo's
+> "Sorry, I encountered an error" is live until `promote-web` then
+> `promote-demo` (CLAUDE.md §8). No new `/api/v1/*` route, so the phone needs
+> nothing promoted first.
+>
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
 > Written at the close of the 12–14 Sep session, every line checked against
@@ -125,7 +180,7 @@
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
 > | 5 | **The Apple account** (with Cowork) | `D-U-N-S ⏳ (submitted 13 Sep, free Apple route, ~5 business days + 2) → Individual→Organization → ASC record → the two IAP products with Cowork's naming.` Nothing may create the ids incidentally. ⚠ The business bank account is parallel, not upstream — D&B does not ask for one. ⚠ The Organization switch resets `identifierForVendor` permanently and cannot be undone, so it must happen before launch, while the user count is zero. Entity facts: Southmoor Digital LLC, Colorado ID `20268142644`, Good Standing, formed 13 Sep 2026; EIN `42-5051703`. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
-> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws, the advisor answers 502 with "try again", and the canary is the only thing that names it. | no model outage at review |
+> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws; since 17 Sep the advisor answers **503 `advisor-unavailable`** — "retrying will not help, and we are alerted to it" — on both clients once promoted, and the canary names the balance in its CI detail line. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
 > | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
 >
