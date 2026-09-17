@@ -63,10 +63,25 @@
 > lib/__tests__/advisor-failure-states.test.ts   proven red twice, then green
 > ```
 >
-> **Not promoted.** Both hosts still serve the 14 Sep builds; the demo's
-> "Sorry, I encountered an error" is live until `promote-web` then
-> `promote-demo` (CLAUDE.md §8). No new `/api/v1/*` route, so the phone needs
-> nothing promoted first.
+> **Promoted 17 Sep, on David's word**, and read back from the hosts:
+>
+> ```
+> web-live    faf8fffe   built 17 Sep 16:47 UTC   tappet.southmoordigital.com
+> demo-live   f79b2d58   built 17 Sep 16:52 UTC   tappet-demo.davidmasterson.co
+>             POST /api/v1/consultant, demo car, off-list question → 422
+>             {"code":"demo-unanswered"} on both; the rendered demo thread
+>             shows the sentence as a failure turn — no byline, no disclosure
+> ```
+>
+> ⚠ `promote-demo` refused once — "tests failed twice" — while the metering
+> task's session was running its own jest in `.claude/worktrees/`. Direct run
+> seconds later: 218 / 3713 in 5.7 s; the rerun promoted. The gate's two
+> starved runs are the 11 Sep flake wearing a promote, not a regression.
+>
+> **In flight:** the quote-path meter (`claude/inspiring-hodgkin-3c09bb`,
+> spawned from this session) — when it lands it brings a purpose migration,
+> which is the SQL editor, and only then can `DEMO_BUDGET` trip on the calls
+> it bounds.
 >
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
@@ -80,6 +95,7 @@
 > main        this commit, tree clean, pushed (origin/main = HEAD)
 > web-live    976d1418   built 14 Sep 01:25 UTC   tappet.southmoordigital.com
 > demo-live   341f7e47   built 14 Sep 01:28 UTC   tappet-demo.davidmasterson.co
+>             ⚠ superseded 17 Sep — faf8fffe / f79b2d58, see the block above
 >             both carry everything on main except this block; /privacy and
 >             /terms read "13 September 2026" on both hosts, ® nowhere
 > suites      root 217 / 3672 (+1 skipped) · mobile 39 / 751 in band, exit 0

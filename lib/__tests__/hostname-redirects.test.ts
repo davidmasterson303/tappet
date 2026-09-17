@@ -16,10 +16,15 @@
  * now answers with a `Location:`. A canary that POSTs to a 301 is downgraded
  * to a GET and fails loudly; a README link that 301s works and looks stale.
  *
- * ⚠ What this cannot prove is the deploy. `promote-demo.mjs` asks the live
- * hosts after the merge commit is served, through the same
- * `scripts/lib/host-redirects.mjs` this suite imports — one parser, one
- * verifier, pinned here against fixtures and a fake `fetch`.
+ * ⚠ What this cannot prove is the deploy. `promote-demo.mjs` and, since 17
+ * Sep, `promote-web.mjs` ask the live hosts after the merge commit is served,
+ * through the same `scripts/lib/host-redirects.mjs` this suite imports — one
+ * parser, one verifier, pinned here against fixtures and a fake `fetch`.
+ *
+ * The product pair joined the retired list on 17 Sep, on David's word, after
+ * the demo pair was verified live and the phone was shown to name the new
+ * host in both places it can (`app.json`, the `config.ts` fallback) — the
+ * last assertion below is that check, kept.
  */
 
 import { readFileSync } from 'node:fs';
@@ -34,17 +39,19 @@ const PRODUCT_PRIMARY = 'tappet.southmoordigital.com';
 const RETIRED: Record<string, string> = {
   'crewchief-demo.davidmasterson.co': DEMO_PRIMARY,
   'wellkept-demo.davidmasterson.co': DEMO_PRIMARY,
-};
-
-/**
- * The product pair is not retired yet — its host takes the app's API writes
- * and a 301 turns a POST into a GET — but if a rule for either ever appears,
- * it may only point here.
- */
-const PRODUCT_RETIRABLE: Record<string, string> = {
+  // The product pair followed on 17 Sep, on David's word, after the demo pair
+  // was verified live and no installed build called the old host (CLAUDE.md §8).
   'crewchief.davidmasterson.co': PRODUCT_PRIMARY,
   'wellkept.southmoordigital.com': PRODUCT_PRIMARY,
 };
+
+/**
+ * Every host a retired rule may point at. A product host may only ever go to
+ * the App Store hostname, a demo host only to the demo's — a rule that sent
+ * the phone's API host to the demo would answer every write with the demo's
+ * read-only refusal.
+ */
+const PRIMARY_FOR: Record<string, string> = RETIRED;
 
 import {
   hostOf as host,
@@ -151,7 +158,7 @@ describe('the retired hostnames redirect', () => {
     expect(nothing.checked).toEqual([]);
   });
 
-  it('sends every retired demo host to the demo primary, permanently and forced', () => {
+  it('sends every retired host to its primary, permanently and forced', () => {
     for (const [retired, primary] of Object.entries(RETIRED)) {
       const rule = hostRules.find((r) => host(r.from) === retired);
       expect(rule).toBeDefined();
@@ -164,11 +171,11 @@ describe('the retired hostnames redirect', () => {
     }
   });
 
-  it('never points a product host anywhere but the App Store hostname', () => {
+  it('never points a host anywhere but its own primary, and never retires a primary', () => {
     for (const rule of hostRules) {
       const from = host(rule.from);
-      if (from in PRODUCT_RETIRABLE) expect(host(rule.to)).toBe(PRODUCT_RETIRABLE[from]);
-      // And no rule may retire a primary.
+      expect(from in PRIMARY_FOR).toBe(true);
+      expect(host(rule.to)).toBe(PRIMARY_FOR[from]);
       expect([DEMO_PRIMARY, PRODUCT_PRIMARY]).not.toContain(from);
     }
   });
@@ -195,5 +202,21 @@ describe('the retired hostnames redirect', () => {
     expect(demoLink).not.toBeNull();
     expect(retiredHosts).not.toContain(host(demoLink![1]));
     expect(host(demoLink![1])).toBe(DEMO_PRIMARY);
+
+    /*
+      The phone. Its every write goes to `apiBaseUrl`, and a 301 turns a POST
+      into a GET — the reason the product pair was retired last. Both the
+      configured host and the fallback that fires when `extra` is missing
+      must be the primary; either pointing at a retired host is a build that
+      cannot save anything and reports success for every read.
+    */
+    const appJson = JSON.parse(readFileSync(join(ROOT, 'apps', 'mobile', 'app.json'), 'utf8'));
+    const apiBaseUrl = appJson.expo?.extra?.apiBaseUrl as string;
+    expect(host(apiBaseUrl)).toBe(PRODUCT_PRIMARY);
+    const config = readFileSync(join(ROOT, 'apps', 'mobile', 'src', 'config.ts'), 'utf8');
+    const fallback = config.match(/\?\?[\s\S]*?'(https:\/\/[^']+)';/);
+    expect(fallback).not.toBeNull();
+    expect(host(fallback![1])).toBe(PRODUCT_PRIMARY);
+    expect(retiredHosts).not.toContain(host(fallback![1]));
   });
 });
