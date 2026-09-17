@@ -83,6 +83,11 @@
 > which is the SQL editor, and only then can `DEMO_BUDGET` trip on the calls
 > it bounds.
 >
+> **Item 1 closed, 17 Sep 17:45 UTC.** `web-live` **1d069e00** carries the
+> product pair's `[[redirects]]`; both old hosts 301 to the primary (GET and
+> POST alike), the primary serves 200. The demo stays on **f79b2d58** — the
+> rules are host-scoped and inert there, so no build was spent on it.
+>
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
 > Written at the close of the 12–14 Sep session, every line checked against
@@ -191,7 +196,7 @@
 >
 > | # | yours | the action | unblocks |
 > |---|---|---|---|
-> | 1 | **The product-pair redirect** | Say **yes** (one word). Then Claude Code adds `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co` → `tappet.southmoordigital.com` as `[[redirects]]`, extends the guard, promotes `web-live`, and curls the old hosts. Safe: the only device build ever (22 Aug dev client) takes its API host from Metro's manifest, so no installed app writes to the old host. | the last two hostnames retired; nothing else waits on it |
+> | 1 | ~~**The product-pair redirect**~~ | **Done 17 Sep** on your yes: `[[redirects]]` for both, the guard retires the pair and checks the phone's two hosts, `promote-web` verifies its pair after the deploy. `web-live` **1d069e00**; `curl -sI` — both old hosts 301 to `tappet.southmoordigital.com` with the path kept, POST 301s too (why nothing may write there), primary 200. | the last two hostnames retired; nothing waited on it |
 > | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
