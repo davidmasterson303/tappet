@@ -364,6 +364,33 @@ describe('provenance', () => {
 
     expect(view.queryByText('Based on')).toBeNull();
   });
+
+  it('says so when the answer was written in advance, and keeps the disclosure — 17 Sep', async () => {
+    /*
+      The demo's pre-written answers carry `isSample` (`demo-answers.ts`), and
+      until 17 Sep the route dropped the flag and this screen never read it —
+      so through the API a sample arrived as a model's reading of the car.
+      Nothing on the phone reaches one today; the label is here for the day a
+      demo garage is, and the words are the web's, from core.
+    */
+    ask.mockResolvedValue({ sessionId: 'demo-session', response: 'Book the CVT fluid.', contextKinds: [], isSample: true });
+
+    const view = await renderAdvisor();
+    await view.findByText('Book the CVT fluid.');
+
+    expect(view.getByText(/sample answer, written in advance/)).toBeTruthy();
+    expect(view.getByText(/Written by AI/)).toBeTruthy();
+  });
+
+  it('does not call a model’s answer a sample', async () => {
+    // Anti-vacuous: the flag is what draws the label, not the answer.
+    ask.mockResolvedValue({ sessionId: 's1', response: 'Book the CVT fluid.', contextKinds: [] });
+
+    const view = await renderAdvisor();
+    await view.findByText('Book the CVT fluid.');
+
+    expect(view.queryByText(/written in advance/)).toBeNull();
+  });
 });
 
 describe('contrast', () => {

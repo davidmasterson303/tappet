@@ -33,6 +33,7 @@ import {
   PAID_FEATURES,
   PAID_FEATURE_COPY,
   decideFeatureAccess,
+  featureUpsellMessage,
   isPaidFeature,
   type PaidFeature,
 } from '@tappet/core/paid-features';
@@ -265,6 +266,30 @@ describe('the paywall and the gate are one list', () => {
 
     // Anti-vacuous: the stripper leaves real JSX alone.
     expect(body).toMatch(/PAID_FEATURE_COPY\[feature\]/);
+  });
+
+  it('the refusal names what is kept from the list, and never a paid feature — 17 Sep', () => {
+    /*
+      The sentence was typed out and said "recall alerts stay free" for
+      eighteen days after `recalls` moved to paid. Read off `FREE_FEATURES`
+      now, so the list and the sentence cannot part again; and asserted
+      against `PAID_FEATURE_COPY`, so no paid label can be called free.
+    */
+    const keptClause = (sentence: string) => sentence.slice(sentence.indexOf('Tappet Plus.') + 'Tappet Plus.'.length).toLowerCase();
+    for (const feature of PAID_FEATURES) {
+      const sentence = featureUpsellMessage(feature);
+      expect(sentence).toContain(`${PAID_FEATURE_COPY[feature].label} is part of Tappet Plus.`);
+      const kept = keptClause(sentence);
+      for (const free of FREE_FEATURES) {
+        expect(kept).toContain(FREE_FEATURE_COPY[free].label.replace(/^Your /, '').toLowerCase());
+      }
+      for (const paid of PAID_FEATURES) {
+        expect(kept).not.toContain(PAID_FEATURE_COPY[paid].label.toLowerCase().replace(/^the /, ''));
+      }
+    }
+    // Anti-vacuous: the same reader against the sentence that shipped.
+    const before = 'The advisor is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.';
+    expect(keptClause(before)).toContain(PAID_FEATURE_COPY.recalls.label.toLowerCase());
   });
 
   it('no longer exports the multiple from budget', () => {

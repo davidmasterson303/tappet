@@ -50,6 +50,14 @@ export interface AdvisorAnswer {
   /** Always present, and always the id to send with the next message. */
   sessionId: string;
   response: string;
+  /**
+   * True when the answer was written in advance rather than generated — the
+   * demo's pre-written answers (`@tappet/core/demo-answers`). The screen must
+   * say so at the point it is shown; a sample presented as a model's reading
+   * of this car is the defect that file exists to prevent. Absent means a
+   * model wrote it.
+   */
+  isSample?: true;
   /** What the server loaded and put in front of the model. Rendered "Based on". */
   contextKinds: ContextKind[];
   /**
@@ -119,6 +127,7 @@ export async function askAdvisor({
     response?: unknown;
     contextKinds?: unknown;
     estimate?: unknown;
+    isSample?: unknown;
   }>('/consultant', {
     method: 'POST',
     body: {
@@ -153,6 +162,7 @@ export async function askAdvisor({
     // and differently in an `'estimate' in answer` check, and this is a field
     // whose whole contract is that absent means absent.
     ...(estimate ? { estimate } : {}),
+    ...(body.isSample === true ? { isSample: true as const } : {}),
   };
 }
 

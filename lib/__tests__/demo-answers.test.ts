@@ -204,4 +204,38 @@ describe('the label that keeps it honest', () => {
     */
     expect(refusalCopy('demo', 'generate')).toMatch(/written in advance/i);
   });
+
+  it('the API route forwards the flag, so a phone can label what the web labels — 17 Sep', () => {
+    /*
+      Found on the live demo host: `POST /api/v1/consultant` answered a sample
+      question with `success`, `response`, `contextKinds`, `wishlistActions` —
+      and no `isSample`. The web never noticed because it calls the action
+      directly. Through the route, the only surface a phone can reach the
+      demo by, a pre-written answer arrived indistinguishable from a model's.
+    */
+    const route = readFileSync(
+      join(__dirname, '..', '..', 'app', 'api', 'v1', 'consultant', 'route.ts'),
+      'utf8'
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+    const success = route.slice(route.indexOf('success: true,'), route.indexOf('} as ApiResponse);', route.indexOf('success: true,')));
+    expect(success).toMatch(/\.\.\.\(result\.isSample \? \{ isSample: true \} : \{\}\)/);
+    // Anti-vacuous: the same reader against the shape that shipped.
+    const before = `
+      contextKinds: result.contextKinds ?? [],
+      wishlistActions: result.wishlistActions ?? [],
+      ...(result.estimate ? { estimate: result.estimate } : {}),
+    } as ApiResponse);`;
+    expect(before).not.toMatch(/isSample/);
+    expect(success.length).toBeGreaterThan(40);
+  });
+
+  it('the phone reads it off the wire and renders the same sentence the web does', () => {
+    const client = readFileSync(join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'api', 'consultant.ts'), 'utf8');
+    expect(client).toMatch(/body\.isSample === true \? \{ isSample: true as const \} : \{\}/);
+    const screen = readFileSync(join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens', 'AdvisorScreen.tsx'), 'utf8')
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+    expect(screen).toMatch(/turn\.isSample \? <Text[^>]*>\{refusalCopy\('demo', 'generate'\)\}<\/Text> : null/);
+    // And above the disclosure, not instead of it: the two answer different questions.
+    expect(screen.indexOf("refusalCopy('demo', 'generate')")).toBeLessThan(screen.indexOf("adviceDisclosure('consultant')}</Text>"));
+  });
 });

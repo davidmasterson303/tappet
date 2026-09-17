@@ -212,7 +212,16 @@ export function decideFeatureAccess(params: {
  * whole point of the pricing change is that a customer can tell what they are
  * buying; a refusal that says "you have reached your monthly allowance" would
  * put the old model back in the one place the customer actually reads.
+ *
+ * ⚠ The list of what is kept is **derived from `FREE_FEATURES`**, since 17 Sep.
+ * It was typed out — "your garage, service log, mileage and recall alerts stay
+ * free" — and kept promising recall alerts for eighteen days after this file
+ * moved them to paid. A refusal that names a paid feature as free is the one
+ * sentence a customer reads on the day they decide, and it was wrong. The
+ * list above is the list; this sentence reads it.
  */
 export function featureUpsellMessage(feature: PaidFeature): string {
-  return `${PAID_FEATURE_COPY[feature].label} is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.`;
+  const kept = FREE_FEATURES.map((f) => FREE_FEATURE_COPY[f].label.replace(/^Your /, '').toLowerCase());
+  const list = kept.length > 1 ? `${kept.slice(0, -1).join(', ')} and ${kept[kept.length - 1]}` : kept[0];
+  return `${PAID_FEATURE_COPY[feature].label} is part of Tappet Plus. Your ${list} stay free.`;
 }
