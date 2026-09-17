@@ -4,6 +4,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { isDemoVehicleId } from '@tappet/core/demo';
+import { retryCannotHelp, type AdvisorFailureCode } from '@tappet/core/ai/advisor-failure';
 import {
   sendConsultantMessage,
   createConsultantSession,
@@ -54,6 +55,46 @@ interface ConsultantRequestBody {
 
 /** Keeps a single message from becoming an unbounded prompt. */
 const MAX_MESSAGE_LENGTH = 4000;
+
+/**
+ * The status each coded failure goes out with. 502 is deliberately absent.
+ *
+ * ── Three meanings had one status — 17 Sep ──────────────────────────────────
+ *
+ * Everything the action would not do left here as 502, and the phone renders
+ * 502 as "could not answer that one — try again". `ai/advisor-failure.ts`
+ * carries the argument for why that is wrong advice for each of these; this
+ * table is where the argument meets HTTP.
+ *
+ * The clients branch on the code, never on the number, so the numbers are
+ * chosen for the reader of a log or a status dashboard rather than for the
+ * app:
+ *
+ *   402   a purchase is the answer (E6's wire, unchanged)
+ *   429   the account's allowance is spent for the month. The same status
+ *         as our per-minute limiter, on purpose: both are quotas on a clock,
+ *         and RFC 6585 is what a 429 means. The code says which clock.
+ *         Not a 5xx — a customer over their allowance is not us failing,
+ *         and a 5xx here would put every heavy user into an error rate.
+ *   503   the model cannot be reached for a reason that is ours: Google's
+ *         quota or the prepay balance, or a rejected key. We *are*
+ *         unavailable, and 503 is the honest number for a monitor to see.
+ *   422   the demo holds a fixed set of answers and this question was not
+ *         one. Well-formed, understood, cannot be processed.
+ *   502   stays what it was: a failure to answer that a retry might fix.
+ *         It is the only exit without a code, and that absence is the
+ *         contract the clients read.
+ *
+ * `Record<AdvisorFailureCode, number>`: a code added to the registry without
+ * a status here does not compile, and `advisor-failure-states.test.ts` fails
+ * if any of these is ever 502.
+ */
+const FAILURE_STATUS: Record<AdvisorFailureCode, number> = {
+  'needs-subscription': 402,
+  'budget-exhausted': 429,
+  'advisor-unavailable': 503,
+  'demo-unanswered': 422,
+};
 
 export async function POST(request: NextRequest): Promise<Response> {
   logger.info('API:CONSULTANT', 'Consultant message received');
@@ -161,12 +202,35 @@ export async function POST(request: NextRequest): Promise<Response> {
         paywall on the code rather than on the status. `feature-gate.ts`
         carries the shape; `PAID_FEATURES_ENFORCED` decides whether it is ever
         returned, and it is off.
+
+        ⚠ 17 Sep: the same argument applied to three more exits the 502 was
+        flattening — `FAILURE_STATUS` above names them. The gate is not
+        touched by that; it stays off.
       */
       if (result.code === 'needs-subscription') {
         logger.info('API:CONSULTANT', 'Consultant refused: needs subscription', { vehicleId });
         return Response.json(
           { success: false, error: result.error, code: result.code, feature: result.feature },
           { status: 402 }
+        );
+      }
+
+      /*
+        ── The other three — a spent allowance, an unreachable model, the
+        demo's fixed list — leave with their code and their sentence, and a
+        status from the table above. The phone shows the sentence rather than
+        its retry copy; the web shows it rather than its fallback. Only a
+        failure with **no** code reaches the 502 below, because only that
+        one is worth a retry.
+      */
+      if (retryCannotHelp(result.code)) {
+        logger.warn('API:CONSULTANT', 'Consultant could not answer, and a retry would not help', {
+          vehicleId,
+          code: result.code,
+        });
+        return Response.json(
+          { success: false, error: result.error, code: result.code },
+          { status: FAILURE_STATUS[result.code] }
         );
       }
 

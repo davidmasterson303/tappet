@@ -28,6 +28,8 @@
  * distinction does not need to be made to gate correctly.
  */
 
+import { CREDENTIAL_MARKERS, QUOTA_MARKER } from './ai/model-failure';
+
 export type ConsultantHealthStatus = 'good' | 'broken' | 'degraded';
 
 export interface ConsultantHealth {
@@ -47,19 +49,18 @@ export const CLIENT_ERROR_FALLBACK = 'Sorry, I encountered an error. Please try 
  */
 const DEGRADED_HTTP = [429, 500, 502, 503, 504];
 
-/**
- * Google error markers that mean our credential is wrong, missing or stale.
- *
- * All three are `broken`. §22's lesson is that they are not reliably
- * distinguishable from one another — and for gating they do not need to be,
- * because the response to every one of them is the same: do not promote.
- */
-const CREDENTIAL_MARKERS = [
-  'UNAUTHENTICATED',
-  'ACCESS_TOKEN_TYPE_UNSUPPORTED',
-  'API_KEY_INVALID',
-  'PERMISSION_DENIED',
-];
+/*
+  Google error markers that mean our credential is wrong, missing or stale.
+
+  All of them are `broken`. §22's lesson is that they are not reliably
+  distinguishable from one another — and for gating they do not need to be,
+  because the response to every one of them is the same: do not promote.
+
+  The list itself moved to `ai/model-failure.ts` on 17 Sep, where the advisor
+  route reads the same markers to decide whether to tell a person to retry.
+  One list, so the monitor and the product cannot disagree about what a
+  rejected credential looks like.
+*/
 
 export interface RoundTripResult {
   /** HTTP status from our own consultant call, or 0 if the request threw. */
@@ -126,10 +127,21 @@ export function classifyRoundTrip(
   }
 
   if (DEGRADED_HTTP.includes(result.httpStatus)) {
+    /*
+      A 429 carrying `RESOURCE_EXHAUSTED` is named in the detail, because since
+      25 Aug it has two readings and only one of them is Google being busy: the
+      billing account is prepay, and at $0 every key on it stops at once
+      (`lib/gemini.ts`). The reason token stays `UPSTREAM_429` — the canary
+      script branches on `status` and prints `reason`, and this is the line
+      somebody reads in a red CI run. It should say where to look.
+    */
+    const quota = error.includes(QUOTA_MARKER);
     return {
       status: 'degraded',
       reason: `UPSTREAM_${result.httpStatus}`,
-      detail: `Gemini returned HTTP ${result.httpStatus}. Retried once already.`,
+      detail: quota
+        ? `Gemini returned HTTP ${result.httpStatus} ${QUOTA_MARKER}. Retried once already. The project quota, or the prepay balance at $0 — check the balance first (lib/gemini.ts).`
+        : `Gemini returned HTTP ${result.httpStatus}. Retried once already.`,
     };
   }
 

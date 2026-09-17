@@ -31,6 +31,8 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { ADVISOR_NAME } from '@tappet/core/prompts';
 import { refusalCopy } from '@tappet/core/access';
 import { demoQuestionsFor } from '@tappet/core/demo-answers';
+import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
+import { CLIENT_ERROR_FALLBACK } from '@tappet/core/consultant-health';
 import { isDemoMode } from '@/lib/demo-mode';
 import { planHref } from '@/lib/plan-entry';
 import { CONSULTANT_TITLE_MAX, normalizeConsultantTitle } from '@/lib/consultant-title';
@@ -727,7 +729,10 @@ export default function ConsultantChat({
       vehicleId,
       sessionId: currentSessionId || 'demo-session',
       message: userMessage || 'Please review the attached document(s).',
-      messageHistory: messages,
+      // A failure turn is the product speaking, not Jay. Replayed as history
+      // it would go back to the model attributed to the advisor — "Sorry, I
+      // encountered an error" as something Jay once said about this car.
+      messageHistory: messages.filter((m: any) => !m.isFailure),
       attachedDocuments: uploadedDocs,
     });
 
@@ -778,12 +783,36 @@ export default function ConsultantChat({
         router.refresh();
       }
     } else {
+      /*
+        ── Three failures wore one apology — 17 Sep ──────────────────────────
+
+        Every `success: false` rendered "Sorry, I encountered an error. Please
+        try again." with `result.error` thrown away. On the demo that put an
+        apology and a retry under Jay's byline for any question off the fixed
+        list — seen live on 17 Sep, one keystroke in — and on the product it
+        told somebody over their monthly allowance, or facing a prepay balance
+        at $0, to try again.
+
+        The server now sends a `code` with every failure a retry cannot fix
+        (`@tappet/core/ai/advisor-failure`), and the sentence beside it is
+        written to be shown. So: a coded failure shows the server's words; an
+        uncoded one keeps the fallback, which is the only case where "try
+        again" is honest. `isFailure` marks the turn so it renders as the
+        product speaking — no byline, no "written by AI", no Copy — and is
+        never replayed to the model as something Jay said.
+
+        `CLIENT_ERROR_FALLBACK` is the constant the canary matches on: a 200
+        carrying it is classed `broken`. Spelling it here by hand is how the
+        two would drift.
+      */
+      const refused = retryCannotHelp(result.code) && typeof result.error === 'string';
       setMessages([
         ...optimisticMessages,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
+          content: refused ? result.error : CLIENT_ERROR_FALLBACK,
           timestamp: new Date().toISOString(),
+          isFailure: true,
         },
       ]);
     }
@@ -1218,7 +1247,7 @@ export default function ConsultantChat({
                     in the monospace register. `·` rather than a space so the
                     name and the time read as one stamp.
                   */}
-                  {msg.role === 'assistant' && (
+                  {msg.role === 'assistant' && !msg.isFailure && (
                     <div className="mono flex items-center gap-2 mb-1.5 text-xs uppercase tracking-widest text-white/50">
                       <span>{ADVISOR_NAME}</span>
                       <span aria-hidden="true">·</span>
@@ -1256,7 +1285,18 @@ export default function ConsultantChat({
                           Cyan because the brief reserves it for information,
                           and this is the surface's only sustained block of it.
                         */
-                        : 'measure overflow-hidden border-l-2 border-[color:var(--info)] pl-4 text-white'
+                        : msg.isFailure
+                          /*
+                            A failure turn is the product speaking, not Jay
+                            diagnosing: the rule goes neutral and the text
+                            steps back. It keeps the answer's position so the
+                            thread still reads as call and response, and the
+                            byline above is withheld so "Jay is unavailable"
+                            is not said by Jay. Logged for Design in
+                            `docs/design-system-drift.md` §14.10.
+                          */
+                          ? 'measure overflow-hidden border-l-2 border-white/20 pl-4 text-white/70'
+                          : 'measure overflow-hidden border-l-2 border-[color:var(--info)] pl-4 text-white'
                     }
                   >
                     {msg.documents && msg.documents.length > 0 && (
@@ -1500,6 +1540,14 @@ export default function ConsultantChat({
                     says one thing on one client is this codebase's most
                     repeated defect applied to the sentence that limits
                     liability.
+
+                    ⚠ Every *answer*. A failure turn (`isFailure`) is not
+                    written by AI from this car's records — it is the product
+                    saying the allowance is spent, or the model unreachable —
+                    and the disclosure under it was a false claim in the
+                    direction that makes the true ones read as boilerplate.
+                    Seen live on the demo, 17 Sep, under "Sorry, I encountered
+                    an error".
                   */}
                   {msg.role === 'assistant' && msg.content && msg.isSample && (
                     /*
@@ -1542,7 +1590,7 @@ export default function ConsultantChat({
                       the suite does not, because the suite does not typecheck.
                       And do not spell that comment form out here either: its
                       closing sequence ends the comment you are writing. */}
-                  {msg.role === 'assistant' && msg.content && (
+                  {msg.role === 'assistant' && msg.content && !msg.isFailure && (
                     <p className="mono measure mt-3 border-t border-white/8 pt-2 text-xs leading-normal text-white/50">
                       {adviceDisclosure('consultant')}
                     </p>
@@ -1554,7 +1602,7 @@ export default function ConsultantChat({
                     no hover to reveal them. Same rule as the garage card's
                     edit pencil; see .turn-actions in globals.css.
                   */}
-                  {msg.role === 'assistant' && msg.content && (
+                  {msg.role === 'assistant' && msg.content && !msg.isFailure && (
                     <div className="turn-actions flex items-center gap-1 mt-1.5">
                       <button
                         onClick={() => handleCopyTurn(msg.content, index)}

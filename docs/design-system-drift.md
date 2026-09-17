@@ -3260,3 +3260,32 @@ entry comes out with it.
   any wait, and it stays: measured on 22 Aug (`VehicleResearchStatus`), which
   the brief records so it is not relitigated. Nothing else prints a number,
   because `ai_usage_events` carries no latency column.
+
+### 14.10 The advisor's failure turn is the product speaking, not Jay — 17 Sep, for Design
+
+Until 17 Sep every failed turn in the web thread rendered as an answer: Jay's
+byline, the cyan rule, "Sorry, I encountered an error. Please try again.",
+then the "Written by AI from this car's records" disclosure and a Copy button
+under it. On the demo that was reachable one keystroke in — a typed question
+off the fixed list — and the disclosure under an error was a false claim in
+the direction that makes the true ones read as boilerplate.
+
+The server now sends a `code` with every failure a retry cannot fix
+(`packages/core/src/ai/advisor-failure.ts`) and the sentence beside it is
+written to be shown. The thread renders that turn as a **failure turn**:
+
+- **position** — the answer's slot, so the thread still reads as call and
+  response;
+- **no byline** — "Jay is unavailable right now" must not be said by Jay;
+- **the rule goes neutral** — `border-white/20` for the cyan info rule, and
+  the text steps back to `text-white/70`;
+- **no disclosure, no Copy** — nothing here was written by AI, and there is
+  nothing worth copying.
+
+Unruled: whether the failure turn wants the sodium the brief keeps off every
+wait (§14.7 is the same question from the instrument's side), and whether a
+spent allowance and an unreachable model should look different from each
+other. Both were left identical on purpose — one treatment for "the product
+is speaking" until Design says otherwise. `components/ConsultantChat.tsx`
+carries the flag (`isFailure`); the phone shows the same sentences under the
+composer, where its refusals already live, and needed no new treatment.

@@ -592,3 +592,62 @@ describe('when the advisor is refused as a paid feature — E6’s wire, off', (
     stop();
   });
 });
+
+describe('when asking again cannot help — the other three codes, 17 Sep', () => {
+  /*
+    `@tappet/core/ai/advisor-failure` is the registry. Each of these arrives
+    with a status the screen also has a retry line for — the spent allowance
+    is a 429, the same number as our per-minute limiter — and the server's
+    sentence is the only thing that may be shown. The screen reads the code
+    before it reads the status; `advisor-failure-states.test.ts` pins the
+    order in the source, this mounts the screen and reads what it says.
+
+    Proven red first: with the code branch moved below the 429 branch, the
+    first case rendered "Try again in a minute" about a month.
+  */
+  const cases = [
+    {
+      code: 'budget-exhausted',
+      status: 429,
+      message: 'You have used this month’s AI allowance. It resets on October 1.',
+      shown: /this month’s AI allowance/,
+    },
+    {
+      code: 'advisor-unavailable',
+      status: 503,
+      message: 'Jay is unavailable right now. This is on our side — retrying will not help, and we are alerted to it.',
+      shown: /retrying will not help/,
+    },
+    {
+      code: 'demo-unanswered',
+      status: 422,
+      message: 'The demo answers a fixed set of questions about these three cars, written in advance.',
+      shown: /fixed set of questions/,
+    },
+  ] as const;
+
+  it.each(cases)('$code: shows the server’s sentence and never a retry line', async ({ code, status, message, shown }) => {
+    ask.mockRejectedValue(new ApiRequestError({ status, message, code }));
+    const upgrade = jest.fn();
+    const stop = onUpgradeRequested(upgrade);
+
+    const view = await renderAdvisor('Is this quote fair?');
+
+    expect(await view.findByText(shown)).toBeTruthy();
+    expect(view.queryByText(/try again/i)).toBeNull();
+    expect(upgrade).not.toHaveBeenCalled();
+    // The question stays in the composer, like every other refusal.
+    expect(view.getByDisplayValue('Is this quote fair?')).toBeTruthy();
+
+    stop();
+  });
+
+  it('still reads a bare 429 as our own limiter — the code is what tells them apart', async () => {
+    // Anti-vacuous: the same status without the code keeps the retry line.
+    ask.mockRejectedValue(new ApiRequestError({ status: 429, message: 'Too many requests' }));
+
+    const view = await renderAdvisor();
+
+    expect(await view.findByText(/try again in a minute/i)).toBeTruthy();
+  });
+});

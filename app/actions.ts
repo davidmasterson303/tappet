@@ -9,9 +9,11 @@ import {
   flashConfig,
   classificationConfig,
   withThinking,
+  classifyGeminiFailure,
 } from '@/lib/gemini';
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
 import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
+import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
 import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
@@ -1244,7 +1246,10 @@ export async function sendConsultantMessage(params: {
       */
       const sample = demoAnswerFor(params.vehicleId, params.message);
       if (!sample) {
-        return { success: false, error: DEMO_UNANSWERED };
+        // Coded, so neither client invites a retry on a fixed list — the
+        // route answers 422 and the web shows the sentence instead of
+        // "Sorry, I encountered an error" (`ai/advisor-failure.ts`).
+        return { success: false, error: DEMO_UNANSWERED, code: 'demo-unanswered' as const };
       }
 
       return {
@@ -1280,7 +1285,9 @@ export async function sendConsultantMessage(params: {
 
       const budget = await checkMonthlyBudget(access.userId);
       if (!budget.allowed) {
-        return { success: false, error: budgetMessage(budget) };
+        // The sentence names the reset date; the code keeps the route from
+        // answering it with a 502 the phone reads as "try again".
+        return { success: false, error: budgetMessage(budget), code: 'budget-exhausted' as const };
       }
     }
 
@@ -1681,6 +1688,30 @@ export async function sendConsultantMessage(params: {
     return { success: true, response, contextKinds, wishlistActions, estimate, performanceUpdated, invoiceProcessed, invoiceItemsProcessed, issueUpdates, modUpdates };
   } catch (error) {
     console.error('Consultant message error:', error);
+
+    /*
+      ── Which throws are worth a retry — 17 Sep ───────────────────────────
+
+      Everything that threw in here came back as one sentence, the route
+      answered it with 502, and both clients said "try again". For a cold
+      function or Google overloaded that is right. For Google's
+      `RESOURCE_EXHAUSTED` — the project quota, or the prepay balance at $0,
+      which stops every key on the account at once (`lib/gemini.ts`) — and
+      for a rejected credential, it is advice that cannot work, and it was the
+      only thing the screen said. `classifyGeminiFailure` reads the throw;
+      the ones a person cannot fix by asking again leave with a code, and the
+      route and both clients branch on it (`ai/advisor-failure.ts`).
+    */
+    const failure = classifyGeminiFailure(error);
+    if (!failure.retryable) {
+      logger.error('CONSULTANT:MODEL_UNAVAILABLE', error as Error, {
+        kind: failure.kind,
+        status: failure.status,
+        marker: failure.marker,
+      });
+      return { success: false, error: ADVISOR_UNAVAILABLE_MESSAGE, code: 'advisor-unavailable' as const };
+    }
+
     return { success: false, error: 'Failed to get response from consultant' };
   }
 }
