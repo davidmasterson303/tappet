@@ -83,6 +83,24 @@
 > which is the SQL editor, and only then can `DEMO_BUDGET` trip on the calls
 > it bounds.
 >
+> **Cowork's demo-mode question, answered from the tree** (`Claude outputs/
+> CLAUDE_CODE_REPLY_demo_and_aso_2026-09-17.md`, 17 Sep). The phone has no
+> demo: first launch is `SignInScreen`, and `apps/mobile` never calls the API
+> anonymously. `access.ts`'s four states are a policy table nothing enforces —
+> `permits()` has one consumer, the web's demo copy. What enforces is the
+> feature gate (off; advisor / dossier / invoice-scan when on) and demo
+> read-only. **"A lapse drops to read only" is unimplemented**, and with the
+> gate on **four model paths stay free**: `generateVehicleHealthSummary`,
+> `fetchPowertrainOptions`, the quote's two calls, `performance-stats`. Fixed
+> today (`6d11d2b`): the route dropped `isSample`, so a sample reached any API
+> client unlabelled — forwarded now, and the phone renders the web's label;
+> and `featureUpsellMessage` called recall alerts free 18 days after they
+> moved to paid — derived from `FREE_FEATURES` now. **David's fork:** build
+> the 30 Aug read-only rule (+ a phone demo garage), or keep the free garage
+> the binary has and say so in the register; either way gate the four model
+> paths before the switch flips. The listing draft names no free tier but
+> says "recalls for your VIN" twice — year/make/model (§10).
+>
 > **Item 1 closed, 17 Sep 17:45 UTC.** `web-live` **1d069e00** carries the
 > product pair's `[[redirects]]`; both old hosts 301 to the primary (GET and
 > POST alike), the primary serves 200. The demo stays on **f79b2d58** — the
