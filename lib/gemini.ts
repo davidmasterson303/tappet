@@ -1,5 +1,6 @@
 import { GoogleGenAI, ThinkingLevel, type GenerateContentConfig } from '@google/genai';
 import { acceptsThinkingLevel, type ThinkingLevelName } from '@tappet/core/ai/models';
+import { classifyModelFailure, type ModelFailure } from '@tappet/core/ai/model-failure';
 
 /**
  * ⚠ LEG-01 — the key below is what makes a published promise true or false.
@@ -36,14 +37,24 @@ import { acceptsThinkingLevel, type ThinkingLevelName } from '@tappet/core/ai/mo
  * the scan, onboarding research, the sweep's regeneration, plates — throws at
  * once. Nothing in this tree degrades on billing; nothing should claim to.
  *
- * What that does to the product: the advisor route catches the throw and
- * answers **502** with a sentence; the phone shows "The advisor could not
- * answer that one … try again" and the web its `CLIENT_ERROR_FALLBACK`.
- * Neither says why, and "try again" is the wrong advice for a balance — the
- * one signal that names it is the canary (`consultant-health.ts` classes
- * Google's 429 as `degraded`; the workflow exits 3 and CI goes red, every
- * 5–8 h). A `RESOURCE_EXHAUSTED` from Google is not our 429: our own limiter
- * answers 429 to the client, Google's arrives here as a throw.
+ * What that does to the product, since 17 Sep: `classifyGeminiFailure` below
+ * reads the throw, and a `RESOURCE_EXHAUSTED` (Google's 429) or a rejected
+ * credential goes out of the advisor as `code: 'advisor-unavailable'` with
+ * `ADVISOR_UNAVAILABLE_MESSAGE` — "retrying will not help" — rather than the
+ * 502 both clients rendered as "try again" (`ai/advisor-failure.ts` carries
+ * the argument). The canary still names it independently:
+ * `consultant-health.ts` classes the 429 as `degraded` and quotes the marker
+ * in its detail; the workflow exits 2 and CI goes red, every 6 h. ⚠ A
+ * `RESOURCE_EXHAUSTED` from Google is **not our 429**: our own limiter
+ * answers 429 to the client before any model is called, Google's arrives here
+ * as a throw. `ai/model-failure.ts` is the one table that tells them apart.
+ *
+ * ⚠ Until 17 Sep this paragraph said the advisor "answers 502 with 'try
+ * again'", which was true and was the defect: a copy fault on the product
+ * path that reached David as "the advisor on the demo is broken". The demo
+ * advisor makes no model call at all (`demo-answers.ts`, 30 Aug), so it
+ * cannot fail this way; what a balance at $0 takes out is the **product**
+ * advisor, the scan, onboarding research, the sweep and the plates.
  *
  * The Terms sentence is *not* what fails first any more — at $0 nothing is
  * served, so nothing is served unbilled — which is the safer direction than
@@ -159,4 +170,29 @@ export function withThinking<T extends GenerateContentConfig>(
 ): T & Pick<GenerateContentConfig, 'thinkingConfig'> {
   if (!acceptsThinkingLevel(model)) return base;
   return { ...base, thinkingConfig: { thinkingLevel: ThinkingLevel[level] } };
+}
+
+/**
+ * What a throw from `genAI` means, and whether the person who asked can do
+ * anything about it.
+ *
+ * The SDK's `ApiError` carries the HTTP status as `status` and Google's JSON
+ * body stringified as `message` — `"status":"RESOURCE_EXHAUSTED"` and the
+ * credential markers ride inside it. This is the one place that knows that
+ * shape; the decision table is `@tappet/core/ai/model-failure`, pure and
+ * shared with the canary's classifier, for the same reason `withThinking`
+ * keeps the SDK's enum out of core: the policy must not depend on Google's
+ * client to be tested.
+ *
+ * Anything that is not an `ApiError` — a timeout, our own database, a bug —
+ * has no status and classifies as transient, where "try again" is the honest
+ * default.
+ */
+export function classifyGeminiFailure(error: unknown): ModelFailure {
+  const status =
+    typeof error === 'object' && error !== null && typeof (error as { status?: unknown }).status === 'number'
+      ? (error as { status: number }).status
+      : null;
+  const message = error instanceof Error ? error.message : String(error);
+  return classifyModelFailure({ status, message });
 }

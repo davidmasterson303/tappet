@@ -78,7 +78,7 @@ After that the build runs non-interactively and is Claude Code's.
      products are **not yet available** until App Store Connect has them —
      it must not crash and must not show a price it did not get from Apple.
    - `tappet://` opens the app (Safari address bar).
-4. Note the build id and date under the roadmap's "Open, and David's".
+4. Note the build id and date on the roadmap's "David's — the whole list" row 2, and strike the row.
 
 ⚠ Expo Go keeps working for everything that is not a native module, and is
 still the faster loop for pure JS. The dev client is for the three things

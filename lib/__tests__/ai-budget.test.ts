@@ -235,18 +235,35 @@ describe('the demo has a ceiling too, and it degrades rather than breaking', () 
     expect(demoBudgetMessage(d)).not.toContain('tomorrow');
   });
 
-  it('leaves the daily cap far above what a portfolio link produces', () => {
-    // ~600 output-equivalent tokens per consultant turn, measured 2 Aug. If
-    // this ever drops below a couple of hundred turns a day it has stopped
-    // being a fuse and started being a product limit.
-    expect(budget.dailyOutputTokens / 600).toBeGreaterThan(200);
+  it('leaves the daily cap above what a portfolio link produces', () => {
+    /*
+      ⚠ Re-based 17 Sep. This floor was "a couple of hundred consultant turns
+      at ~600 tokens" — and the demo consultant has not spent against this
+      pool since 30 Aug, when it moved to pre-written answers. What spends
+      here now is the demo quote: two calls at default thinking, never
+      metered, so never measured. The floor is therefore ten quotes at 6,000
+      a quote — an *upper* estimate, labelled as one, until the meter on that
+      path exists and replaces it (`DEMO_BUDGET`'s docblock). Ten quotes on
+      the busiest day a portfolio link has is still a fuse, not a product
+      limit; a visitor runs one if any.
+
+      The 5× cut to 60,000 was David's decision, put to him with the
+      alternatives on 14 Sep.
+    */
+    expect(budget.dailyOutputTokens).toBeGreaterThanOrEqual(10 * 6_000);
+    // And nowhere near what the canary alone could spend: four calls a day at
+    // ~330 tokens (measured 15–17 Sep), even before it stopped sharing the pool.
+    expect(budget.dailyOutputTokens).toBeGreaterThan(20 * 4 * 330);
   });
 
   it('keeps the month worth more than a single day, and bounded', () => {
     expect(budget.monthlyOutputTokens).toBeGreaterThan(budget.dailyOutputTokens);
-    // A month of days at the daily cap would be ~4.5M. The monthly cap is the
-    // real bound, and it is the one that keeps the worst case near $11.
+    // A month of days at the daily cap would be ~1.9M. The monthly cap is the
+    // real bound, and it is the one that keeps the worst case near $2.
     expect(budget.monthlyOutputTokens).toBeLessThan(31 * budget.dailyOutputTokens);
+    // Several days at the daily cap before the month closes — one bad
+    // afternoon must not silence the demo's quotes for three weeks.
+    expect(budget.monthlyOutputTokens / budget.dailyOutputTokens).toBeGreaterThanOrEqual(5);
   });
 
   it('treats an unconfigured ceiling as no ceiling, never as silence', () => {

@@ -126,30 +126,61 @@ export const TIERS: Record<TierName, Tier> = {
  * piece. That argument protects the wrong thing: an unbounded bill is not safer
  * than a quiet consultant.
  *
+ * ── ⚠ What this pool bounds now, and what it does not — 17 Sep ──────────────
+ *
+ * **Not the advisor.** Since 30 Aug the demo consultant makes no model call:
+ * it answers from `demo-answers.ts` and refuses anything else with
+ * `DEMO_UNANSWERED` (`sendConsultantMessage`'s demo branch says why). The
+ * sizing below used to be argued in consultant turns, and a prompt written on
+ * 14 Sep still was — "100 turns is roughly 10–20 real visitor conversations".
+ * On this pool that unit is dead. Checked against `ai_usage_events` on 17 Sep:
+ * the last `surface = 'demo'` consultant row is 24 Aug, and nothing anonymous
+ * but the canary has been metered since.
+ *
+ * What still spends here is the demo **quote** — `generateQuoteRequestV2`,
+ * two model calls (`estimateCosts`, `generateEmailDraft`) at the model's
+ * default thinking level. ⚠ **Neither call is metered.** No
+ * `recordAiUsageInBackground` follows either `generateContent`, so this
+ * ceiling reads a meter those calls never write and cannot trip on them. It
+ * is a real constant on an empty gauge until a purpose migration lands
+ * (`AI_USAGE_PURPOSES` is a CHECK constraint, so that is David's SQL trip);
+ * the docblock says so rather than the assertion beneath it passing over a
+ * dead derivation. `checkDemoBudget` reads `surface = 'demo'` only, so the
+ * front door (`surface = 'anonymous'`, its own ceiling) and the canary
+ * (`surface = 'canary'`, ~1,300 tokens a day) no longer spend this allowance.
+ *
  * ── Two windows, and the daily one is the important half ────────────────────
  *
  * A monthly cap alone fails badly. One bad afternoon exhausts it and the demo's
- * consultant is dead for three weeks — precisely the outcome worth avoiding on
- * a page recruiters are sent to. A daily cap turns that into "quiet until
+ * quotes are dead for three weeks — precisely the outcome worth avoiding on a
+ * page recruiters are sent to. A daily cap turns that into "quiet until
  * tomorrow", which is survivable, and bounds the month anyway. Whichever binds
  * first wins.
  *
  * ── The arithmetic behind the numbers ───────────────────────────────────────
  *
- * Measured 2 Aug: a consultant turn runs roughly 450 thinking + 150 output ≈
- * 600 output-equivalent tokens, and Flash output bills around $7.50/M — about
- * $0.0045 a turn.
+ * Cut 5× on 17 Sep, David's decision after the alternatives were put to him.
+ * The daily has to absorb the day the link is posted somewhere busy; the
+ * monthly is the actual bill and can be cut harder. Flash output bills around
+ * $7.50/M, and the only anonymous calls ever measured here ran 390–600
+ * output-equivalent tokens (the front-door check, 6 Aug; consultant turns,
+ * 2 Aug). A demo quote is two calls at default thinking and has **not** been
+ * measured — the meter above is what would measure it — so the per-call
+ * figure is the measured one, and the quote count is an estimate labelled as
+ * one:
  *
- *   daily      150,000 ≈   250 turns ≈  $1.13/day
- *   monthly  1,500,000 ≈ 2,500 turns ≈ $11.25/month
+ *   daily       60,000 ≈   100 calls of ~600 ≈  $0.45/day
+ *   monthly    300,000 ≈   500 calls of ~600 ≈  $2.25/month
  *
- * 250 consultant turns in a day is far more than a portfolio link produces, so
- * an honest visitor never meets the limit. The worst case stops being unbounded
- * and becomes about eleven dollars.
+ * At a guessed 3–6k a quote that is 10–20 quotes a day, and a quote is a
+ * deliberate multi-step act that a visitor runs once if at all. The worst case
+ * stops being unbounded and becomes about two dollars a month.
+ * `ai-budget.test.ts` reads the two lines above and fails if they stop
+ * agreeing with the constants.
  */
 export const DEMO_BUDGET = {
-  dailyOutputTokens: 150_000,
-  monthlyOutputTokens: 1_500_000,
+  dailyOutputTokens: 60_000,
+  monthlyOutputTokens: 300_000,
 } as const;
 
 /** The fraction of the budget at which a user is told they are approaching it. */
@@ -455,6 +486,13 @@ export function decideDemoBudget(
  * recruiter to read — and every other part of the page still works, because
  * the garage, the dossiers, the service history and the cost tables are all
  * real stored data that never touches a model.
+ *
+ * ⚠ It names quotes, not the consultant, and not Jay. This sentence is only
+ * reachable from the demo quote path — the demo advisor has not spent against
+ * this pool since 30 Aug — and until 17 Sep it promised "the consultant is
+ * back tomorrow" about a consultant that was never away. A message that
+ * names the wrong feature reads as broken in the other direction: the visitor
+ * goes to the advisor, finds it answering, and concludes the cap is a bug.
  */
 export function demoBudgetMessage(decision: DemoBudgetDecision): string {
   const horizon = decision.exhausted === 'month' ? 'next month' : 'tomorrow';
@@ -463,7 +501,7 @@ export function demoBudgetMessage(decision: DemoBudgetDecision): string {
     `This is a shared public demo, and its AI allowance for ${
       decision.exhausted === 'month' ? 'this month' : 'today'
     } has been used. ` +
-    `The consultant is back ${horizon}. Everything else on this page is real data and still works.`
+    `Quotes are back ${horizon}. Everything else on this page is real data and still works.`
   );
 }
 
