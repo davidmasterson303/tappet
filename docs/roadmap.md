@@ -13,10 +13,163 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
+>
+> From Cowork's 14 Sep prompt ("keep it live, tighten the cap, fix the failure
+> states"). Three of its premises were checked against the artefact before
+> anything was built, and three were stale — recorded here so nobody re-derives
+> them the same way:
+>
+> - **The demo advisor makes no model call.** Since 30 Aug (`demo-answers.ts`,
+>   David's own words) it answers a fixed list and refuses the rest with
+>   `DEMO_UNANSWERED`. Verified on `tappet-demo` 17 Sep: a sample question
+>   answers 200 with the sample; anything else 502'd. So "the advisor stays
+>   live on the demo" was already the case in the only form it has, and a
+>   "budget exhausted, demo" message for the advisor describes a path that
+>   cannot spend. Not reversed — that would need David's word.
+> - **`DEMO_BUDGET` bounds the demo *quote*** (`generateQuoteRequestV2`, two
+>   calls at default thinking), not advisor turns — and **neither quote call
+>   is metered**, so the ceiling reads a gauge those calls never write. The
+>   constants are cut 5× as decided (60k / 300k, ≈ $0.45 / $2.25) and the
+>   docblock says exactly this; `ai-budget.test.ts` reads its arithmetic back.
+>   `checkDemoBudget` now reads `surface = 'demo'` only, so the front door and
+>   the canary stop spending the demo's allowance. The meter is a task chip —
+>   it needs a purpose migration, which is the SQL editor.
+> - **`/api/health/consultant` and `/api/health/ai` are live on both hosts.**
+>   `{"error":"Not found"}` is the route's own 404 for a caller without the
+>   secret (`route.ts`, "an unauthenticated caller should not learn that a
+>   token-spending endpoint exists"). The canary has rows every ~6 h through
+>   17 Sep 11:29 UTC.
+>
+> What *was* observably wrong on the demo, seen live: a typed question got
+> **"Sorry, I encountered an error. Please try again."** under Jay's byline,
+> with "Written by AI from this car's records" and a Copy button beneath it —
+> the web discarded `result.error` on every failure. That, and the product
+> path's "try again" for a spent allowance or a prepay balance at $0, is what
+> shipped as this change:
+>
+> ```
+> packages/core/src/ai/advisor-failure.ts   the registry: needs-subscription ·
+>                                           budget-exhausted · advisor-unavailable ·
+>                                           demo-unanswered; retryCannotHelp(code)
+> packages/core/src/ai/model-failure.ts     Google's throw → quota / credential /
+>                                           transient; shared with the canary
+> lib/gemini.ts                             classifyGeminiFailure (the SDK's shape)
+> app/api/v1/consultant/route.ts            402 · 429 · 503 · 422; 502 only uncoded
+> components/ConsultantChat.tsx             the server's sentence, as a failure turn
+>                                           (no byline, no disclosure, no Copy;
+>                                           drift §14.10); never replayed as history
+> apps/mobile …/AdvisorScreen.tsx           the code branch before any status
+> lib/__tests__/advisor-failure-states.test.ts   proven red twice, then green
+> ```
+>
+> **Not promoted.** Both hosts still serve the 14 Sep builds; the demo's
+> "Sorry, I encountered an error" is live until `promote-web` then
+> `promote-demo` (CLAUDE.md §8). No new `/api/v1/*` route, so the phone needs
+> nothing promoted first.
+>
+> ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
+>
+> Written at the close of the 12–14 Sep session, every line checked against
+> the artefact on 14 Sep (CLAUDE.md §1). The block after this one is David's
+> list; everything below that is history and reads as such.
+>
+> #### Where everything is
+>
+> ```
+> main        this commit, tree clean, pushed (origin/main = HEAD)
+> web-live    976d1418   built 14 Sep 01:25 UTC   tappet.southmoordigital.com
+> demo-live   341f7e47   built 14 Sep 01:28 UTC   tappet-demo.davidmasterson.co
+>             both carry everything on main except this block; /privacy and
+>             /terms read "13 September 2026" on both hosts, ® nowhere
+> suites      root 217 / 3672 (+1 skipped) · mobile 39 / 751 in band, exit 0
+>             both tsc clean — run on HEAD, 14 Sep
+> sweep       sweep_runs: 14 Sep 17:00 UTC, ok, 2 vehicles, nothing to send
+> canary      ai_usage_events surface=canary: 14 Sep 04:39 and 12:31 UTC
+> worktrees   main only; no agent Metro on 809x (a stale http.server on
+>             8095 from the 12 Sep photo captures was stopped 14 Sep)
+> phone       Metro 8081 is NOT running — the app stops it when idle
+> ```
+>
+> #### Running the phone for the next thread
+>
+> - **Metro 8081** from the main session only, never an agent:
+>   `preview_start` → `expo-mobile` (it launches in this checkout). Restart
+>   it after any merge that *adds* files; edits hot-reload.
+> - **Expo Go** on the phone, `exp://<this Mac's LAN ip>:8081`. The 22 Aug
+>   dev client (`co.davidmasterson.crewchief`) cannot load `main` since B9
+>   put `expo-camera` at module scope in `Viewfinder.tsx`; the paywall reads
+>   `unavailable` in Expo Go by design (`store.ts`). The device build in
+>   `docs/runbook-eas-device-build.md` is the way off Expo Go — David's.
+> - **Fixtures** for captures and loops: `EXPO_PUBLIC_DESIGN_FIXTURES=1 CI=1
+>   npx expo start --port 809x --clear` from `apps/mobile` on a simulator with
+>   the floating dev-menu gear switched off (`defaults write host.exp.Exponent
+>   EXDevMenuShowFloatingActionButton -bool NO`). `apps/mobile/src/dev/
+>   fixtures.ts` is double-gated (`__DEV__` + the flag) and answers ADD PHOTO,
+>   threads, the odometer check-in, the plate status.
+> - The dev account in `apps/mobile/.env` returns `400` — sign in on the phone
+>   with David's own account; the API host is `app.json → extra.apiBaseUrl`
+>   (`tappet.southmoordigital.com`, i.e. `web-live`). **A phone change that
+>   needs a new `/api/v1/*` route must be promoted first** (CLAUDE.md §8).
+>
+> #### What the phone carries at HEAD, lane by lane
+>
+> | lane | state | where |
+> |---|---|---|
+> | Tab navigation | four roots with their own stacks, `backBehavior="none"`, `RootScreen` collapse, the account control a sibling of the navigator; the tab bar hides on `InvoiceScan` | `RootNavigator.tsx`, `TabBar.tsx` (11–12 Sep) |
+> | Garage → car hub | **CLUSTER** (drift §6.18): plate, identity band, cells — HEALTH with its sentence, NEXT SERVICE naming the job, RECALLS · HISTORY · PLAN — SCAN INVOICE the one primary, WHAT YOU TOLD US rows; `photo_kind` keeps a plate from being graded as the owner's photo | `VehicleDetailScreen.tsx`, `Binnacle.tsx`, `6ad53f2` `1b5dde6` |
+> | Service tab | 9 of 9 brief lines, 8/10; provenance tokens RECORDS / SIGN-UP / ESTIMATED spoken as sentences; **odometer asked at most monthly** with an assumed figure from the owner's miles a month (`mileageCheckIn` in core) | `ServiceMilestoneScreen.tsx`, `packages/core/src/mileage-tracking.ts` |
+> | Plan root + Needs | ADD TO NEEDS the primary under the rail; `RowActions` (REMOVE / DONE) on Needs rows; the row figure from core's `WishlistSuggestion.value` via `source_data`; **every surface says Needs** — guarded | `PlanScreen.tsx`, `WishlistScreen.tsx`, `wishlist-row.ts`, drift §6.17 |
+> | Catalogue (ADD) | search + three "file it as" chips, figures at the rule, `source: 'dossier'` (the table's CHECK) | `WishlistAddScreen.tsx` |
+> | Build / mods | mods-off card carries TURN MODIFICATIONS ON (writes what the web's switch writes) | `BuildScreen.tsx` |
+> | Advisor | **one place**: every Learn more / ask lands in the Advisor tab as a new thread keyed on arrival with ‹ PLAN (or the origin tab) pinned back; THREADS sheet lists, reopens, starts; HIDE KEYBOARD while the composer is up; composer meets the keyboard | `AdvisorScreen.tsx`, `AdvisorThreadsSheet.tsx`, `advisorThreadParams` |
+> | Scan (B9) | viewfinder brackets + capture haptic (`expo-camera`, `expo-haptics`); a paid-feature refusal opens the paywall | `Viewfinder.tsx`, `InvoiceScanScreen` |
+> | Paywall / IAP (E8) | `expo-iap` adapter built and unit-tested against the mocked module; `unavailable` in Expo Go, `none` on a device until ASC has products; **nothing bought, nothing proven on a device** | `apps/mobile/src/api/store.ts`, `usePaywall.ts`, 12 Sep evening block |
+> | Account | Legal section carries the ™ notice once; subscription re-read on an epoch after a purchase resolves | `AccountScreen.tsx` |
+>
+> #### The web and the API since 11 Sep (all live)
+>
+> Hostnames: the demo pair 301s to `tappet-demo` (`netlify.toml`, verified
+> by `promote-demo` after every deploy); **the product pair still serves
+> 200 and waits on David's yes.** The mark: ™ once per masthead and on the
+> auth lockup, `TRADEMARK_NOTICE` in both footers, Terms, Privacy and the
+> phone; ® refused everywhere by `no-registered-mark.test.ts` (proven red on
+> the real tree 13 Sep). Legal: `OPERATOR` Southmoor Digital LLC (formed 13
+> Sep), `LAST_UPDATED` 13 September 2026. Needs: the list is Needs in every
+> toast, alert, dialog, select, label and API error string; a web dossier add
+> writes the reason and figure (`lib/actions/wishlist.ts`); twelve older
+> rows backfilled. `/load-vehicle` serves `last_mileage_update_date`,
+> `photo_kind`, `plate_status`. Gemini: prepay since 25 Aug, one-way; at $0
+> every key stops at once — `lib/gemini.ts` says what the product does then.
+>
+> #### Guards added 11–14 Sep — what will fire, and why
+>
+> `needs-not-wishlist` (copy vs address) · `no-registered-mark` (® in any
+> spelling) · `hostname-redirects` (rules + the canary's host) ·
+> `mobile-one-advisor` (no stack pushes an advisor) · `wishlist-source` (the
+> table's three words) · `mileage-check-in` · `web-add-carries-the-dossier` ·
+> `advisor-thread` · `mobile-native-build-inputs` (17 cases, the four the 12
+> Sep edit dropped restored) · `await-deploy` · `RootScreen` (the ease stops
+> on unmount) · `Binnacle` · `fixtures`. Each carries its anti-vacuous case
+> (CLAUDE.md §5); when one fires, first ask whether it is right.
+>
+> #### Parked, deliberately — not on David's list
+>
+> - A shared single read of the filed services for the hub and Health (an
+>   optimisation carried from a superseded worktree).
+> - A launch-time IAP reconciliation (`store.ts` says why not).
+> - A phone entry point to the dossier (a product question that only matters
+>   once `PAID_FEATURES_ENFORCED` flips).
+> - The phone's add-failure alert reads its title twice ("Could not add
+>   that" / "Could not add that to Needs") — the API sentence is shared with
+>   the web toast, so the fix is a phone-side body, not a shorter sentence.
+> - The critic's parking lots in drift §6.17 and §6.18 — rulings, David's.
+>
 > ### ⚠ David's — the whole list, 13 Sep evening
 >
 > Everything Claude Code can do without you is done and live (`web-live`
-> **74120328**, `demo-live` **c91fa290**, `main` clean and pushed). Each
+> **976d1418**, `demo-live` **341f7e47** — the legal pages read "13 September
+> 2026" on both hosts, ® nowhere; `main` clean and pushed). Each
 > line below was checked against the artefact tonight, not copied forward;
 > the action is the exact thing to do, and the last column is what it opens.
 >
@@ -27,7 +180,7 @@
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
 > | 5 | **The Apple account** (with Cowork) | `D-U-N-S ⏳ (submitted 13 Sep, free Apple route, ~5 business days + 2) → Individual→Organization → ASC record → the two IAP products with Cowork's naming.` Nothing may create the ids incidentally. ⚠ The business bank account is parallel, not upstream — D&B does not ask for one. ⚠ The Organization switch resets `identifierForVendor` permanently and cannot be undone, so it must happen before launch, while the user count is zero. Entity facts: Southmoor Digital LLC, Colorado ID `20268142644`, Good Standing, formed 13 Sep 2026; EIN `42-5051703`. | `expo-iap` returning `ready`; one sandbox purchase; `PAID_FEATURES_ENFORCED` |
-> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws, the advisor answers 502 with "try again", and the canary is the only thing that names it. | no model outage at review |
+> | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws; since 17 Sep the advisor answers **503 `advisor-unavailable`** — "retrying will not help, and we are alerted to it" — on both clients once promoted, and the canary names the balance in its CI detail line. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
 > | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
 >
@@ -465,8 +618,10 @@
 > (`scripts/backfill-needs-reasons.ts`, `87d25ac`, dry run then `--apply`);
 > the demo Plan page shows the reasons, read live.
 >
-> **Promoted:** `web-live` **74120328**, `demo-live` **c91fa290**; the demo
-> Plan page read live says NEEDS and never wishlist. The plates paragraph
+> **Promoted:** `web-live` **74120328** then **976d1418** (the legal date),
+> `demo-live` **c91fa290** then **341f7e47**; the demo Plan page read live
+> says NEEDS and never wishlist, and `/privacy` and `/terms` on both hosts
+> say 13 September 2026. The plates paragraph
 > of 11 Sep said "dormant" for two days after the table, the retries and
 > the phone had all closed (`be745d8`).
 >

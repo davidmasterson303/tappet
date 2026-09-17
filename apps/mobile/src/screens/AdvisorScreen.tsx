@@ -315,6 +315,23 @@ export function AdvisorScreen({
         */
         setError(apiError.message);
         requestUpgrade('advisor');
+      } else if (apiError instanceof ApiRequestError && apiError.retryCannotHelp) {
+        /*
+          ── The other three — 17 Sep ─────────────────────────────────────────
+
+          A spent monthly allowance, a model that cannot be reached (Google's
+          quota, the prepay balance at $0, a rejected key), the demo's fixed
+          list. Each arrives with a code and a sentence written to be shown,
+          and none of them is helped by asking again — so the server's words
+          go under the composer as they are, and neither retry line below is
+          reachable.
+
+          ⚠ Before the status branches, on purpose. The spent allowance is a
+          429, and so is our per-minute limiter; read by status alone it would
+          say "try again in a minute" about a month.
+          `@tappet/core/ai/advisor-failure` is the registry.
+        */
+        setError(apiError.message);
       } else if (apiError.status === 401) {
         setError('Your session ended. Sign in again to keep talking.');
         onSignOut();

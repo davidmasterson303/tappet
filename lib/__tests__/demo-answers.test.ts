@@ -166,7 +166,8 @@ describe('the wiring: the demo path spends nothing and says what it is', () => {
     const body = strip(ACTIONS);
 
     expect(body).toMatch(/const sample = demoAnswerFor\(params\.vehicleId, params\.message\)/);
-    expect(body).toMatch(/if \(!sample\) \{\s*return \{ success: false, error: DEMO_UNANSWERED \}/);
+    // Coded since 17 Sep, so neither client invites a retry on a fixed list.
+    expect(body).toMatch(/if \(!sample\) \{\s*return \{ success: false, error: DEMO_UNANSWERED, code: 'demo-unanswered' as const \}/);
     expect(body).toMatch(/response: sample\.answer/);
     expect(body).toMatch(/isSample: true/);
   });

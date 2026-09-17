@@ -110,6 +110,19 @@ async function readTier(client: ReturnType<typeof getServiceRoleClient>, userId:
  * Anonymous traffic is one pool — there is no account to key on and that is
  * the point: the demo is a single shared resource with a single bill.
  *
+ * ── Keyed on `surface = 'demo'` since 17 Sep, not on `user_id IS NULL` ──────
+ *
+ * The null-user predicate was the demo when it was written and is three
+ * surfaces now: the demo, the front door (`surface = 'anonymous'`, which has
+ * `checkFrontDoorBudget` and a 2M/day ceiling of its own) and the canary
+ * (`surface = 'canary'`, four calls a day). `FRONT_DOOR_BUDGET`'s docblock
+ * predicted exactly this — "the moment the front door opens, that predicate
+ * matches both surfaces" — and the door opened on 6 Aug. With `DEMO_BUDGET`
+ * cut 5× the same day, a busy front-door afternoon would have closed the
+ * demo's quotes, which is the more abusable surface spending the portfolio
+ * piece's allowance. `deriveSurface` writes `demo` for any null-user call
+ * against a seeded vehicle, so this is the demo's own rows and nothing else.
+ *
  * One query, two windows. Today's rows are a subset of this month's, so
  * fetching the month once and partitioning in memory costs one round trip
  * instead of two. The row count is bounded by the cap itself, which is the
@@ -128,6 +141,7 @@ export async function checkDemoBudget(): Promise<DemoBudgetDecision> {
       .from('ai_usage_events')
       .select('output_tokens, thoughts_tokens, created_at')
       .is('user_id', null)
+      .eq('surface', 'demo')
       .gte('created_at', since);
 
     if (error) {

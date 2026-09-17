@@ -1,5 +1,6 @@
 import { API_BASE_URL, API_PREFIX } from '../config';
 import { getAccessToken } from '../auth/session';
+import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
 
 /**
  * The only way this app talks to Tappet.
@@ -99,6 +100,21 @@ export class ApiRequestError extends Error {
    */
   get needsSubscription(): boolean {
     return this.code === 'needs-subscription';
+  }
+
+  /**
+   * The server said what happened and that asking again cannot change it.
+   *
+   * True for every code in `@tappet/core/ai/advisor-failure` — a spent
+   * allowance, an unreachable model, the demo's fixed list, and the gate
+   * above. A screen reads this **before** it reads `status`, because the
+   * statuses overlap with ones that do mean "try again": the spent monthly
+   * allowance is a 429, and so is our per-minute limiter. The code is what
+   * tells them apart, and the sentence that came with it is written to be
+   * shown as it is.
+   */
+  get retryCannotHelp(): boolean {
+    return retryCannotHelp(this.code);
   }
 
   /**
