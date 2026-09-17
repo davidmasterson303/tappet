@@ -45,16 +45,51 @@
  */
 
 /**
- * The three features a subscription unlocks.
+ * The features a subscription unlocks.
  *
- * ⚠ These are exactly the three that call a model. That is not a coincidence to
- * be maintained by hand — it is the reason the gate is drawn here, and a fourth
- * paid feature that costs nothing to run would be a price rise wearing a
- * feature's clothes.
+ * ⚠ Every model call in the tree is sold under one of these. That is not a
+ * coincidence to be maintained by hand — it is the reason the gate is drawn
+ * here, and a paid feature that costs nothing to run would be a price rise
+ * wearing a feature's clothes. (`recalls` is the deliberate exception, David's
+ * call — see `FREE_FEATURE_COPY` below.)
+ *
+ * ── 17 Sep · the four paths that were outside, and where they went ──────────
+ *
+ * "Exactly the three that call a model" was written on 24 Aug and was not true
+ * of the tree: four model paths sat outside `checkFeatureAccess`, and with the
+ * switch flipped an unpaid account would still have spent on all of them.
+ * David's decision of 17 Sep — keep the free tier, gate every model path, so
+ * an account that has not paid costs nothing — put each under the feature
+ * it belongs to:
+ *
+ *   `generateVehicleHealthSummary`   → advisor    the score and the narrative
+ *                                                 are the advisor's standing
+ *                                                 read of this car from its
+ *                                                 records; the blurb says so
+ *   `fetchPowertrainOptions`         → dossier    research about the model,
+ *                                                 fired beside the dossier's own
+ *   `recomputePerformanceStats`      → dossier    stock and modified figures —
+ *                                                 research about the car
+ *   `generateQuoteRequestV2`'s two   → advisor    "a second opinion on a quote"
+ *                                                 is the advisor's job
+ *
+ * `model-paths-behind-the-gate.test.ts` reads each function's body and fails
+ * if the gate ever leaves it. ⚠ The health score was outside *on purpose* —
+ * `ai/pricing.ts` called the dial "the free product's whole face" — and that
+ * is the one consequence of this worth stating: a free account's garage
+ * shows no score. Measured at 274–789 output-equivalent tokens a summary,
+ * once a car a day at most; if David wants the face back, the gate in
+ * `generateVehicleHealthSummary` is three lines and `FREE_MONTHLY_COST_USD`
+ * was sized for exactly it.
  */
 export type PaidFeature = 'advisor' | 'invoice-scanning' | 'dossier' | 'recalls';
 
-/** What stays free, named so the paywall can say it without inventing a list. */
+/**
+ * What stays free, named so the paywall can say it without inventing a list.
+ *
+ * The free tier, since 17 Sep by decision rather than by accident — see
+ * `FREE_FEATURE_COPY` for the day it was "no free tier" and why that reversed.
+ */
 export type FreeFeature = 'garage' | 'service-log' | 'mileage';
 
 export interface FeatureCopy {
@@ -67,7 +102,12 @@ export interface FeatureCopy {
 export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
   advisor: {
     label: 'The advisor',
-    blurb: 'Ask about a noise, a quote or a job, with your car’s history in front of it.',
+    /*
+      Names the health score since 17 Sep, because the gate sells it here: a
+      paywall that gates a thing it does not name is selling blind. Product
+      copy — David's to re-word; the claim it makes must survive.
+    */
+    blurb: 'A health score for each car from its own records, and answers about a noise, a quote or a job — with your car’s history in front of it.',
   },
   'invoice-scanning': {
     label: 'Invoice scanning',
@@ -84,15 +124,27 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
 };
 
 /**
- * What an account keeps without paying, and it is deliberately a real product.
+ * What an account has without paying, and it is deliberately a real product.
  *
- * ── ⚠ These are the *readable* features, not a free tier ────────────────────
+ * ── The free tier — decided 17 Sep, and it reverses 30 Aug ──────────────────
  *
- * There is no free tier as of 30 Aug. What this list is now is what a **lapsed**
- * account keeps: a garage that stops working when a subscription ends is a
- * hostage, and the records in it are the owner's own. Everything here is
- * something Tappet stored rather than generated, so none of it costs
- * anything to keep showing somebody.
+ * On 30 Aug David said *"I don't want a free tier"*, and this docblock read
+ * "there is no free tier; this list is what a **lapsed** account keeps". That
+ * decision was driven by cost — a prospect who has not paid should cost
+ * exactly zero — and the tree never implemented it: no write path ever
+ * consulted entitlement, so an account that never paid could add cars, log
+ * service and track mileage exactly like one that had lapsed. The binary
+ * had a free tier of garage, service log and mileage all along.
+ *
+ * On 17 Sep David chose to keep it, and the reasoning is that the premise
+ * dissolved rather than being overruled: once every model path is behind
+ * `checkFeatureAccess` (the four that were not, listed at `PaidFeature`),
+ * garage, service log and mileage are database writes with no model call
+ * behind them, and an unpaid account costs about nothing to serve — which is
+ * what the 30 Aug decision was for. A lapse drops to this tier, not to
+ * read-only, which needs no fourth state and is kinder besides: a garage that
+ * stops working when a subscription ends is a hostage, and the records in it
+ * are the owner's own. `access.ts` carries the states and their copy.
  *
  * ── ⚠ Recalls moved to paid on 30 Aug, and the argument against is kept ─────
  *

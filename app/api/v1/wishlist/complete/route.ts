@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
         recomputePerformanceStats({
           vehicleId: wishlistItem.vehicle_id,
           client,
+          userId: access.userId,
           isDemo: false,
         }).catch(err => {
           logger.error('WISHLIST_COMPLETE:PERF_RECALC', err as Error, { vehicleId: wishlistItem.vehicle_id });

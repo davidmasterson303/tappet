@@ -101,6 +101,40 @@
 > paths before the switch flips. The listing draft names no free tier but
 > says "recalls for your VIN" twice — year/make/model (§10).
 >
+> **The fork is decided — B, and the gate (David, 17 Sep, via Cowork).** The
+> free tier stays: **free = garage · service log · mileage; paid = advisor ·
+> recalls · invoice scanning · dossier.** It reverses 30 Aug's "no free tier"
+> because that decision's premise dissolved rather than being overruled: it
+> was about cost, and with every model path behind `checkFeatureAccess` an
+> unpaid account costs nothing that calls a model. A lapse drops to the free
+> tier, not to read-only. Built the same day:
+>
+> - **Three of the four ungated model paths are gated** — the health summary
+>   → `advisor`, powertrain options → `dossier`, performance stats →
+>   `dossier` — each below its cache read so a lapsed owner keeps what the
+>   row holds, each returning E6's wire. `model-paths-behind-the-gate.test.ts`
+>   reads every function's *body* (proven red by removing the health gate)
+>   and `performance-stats.test.ts` mounts the refusal.
+> - ⚠ **The fourth — the quote's two calls → `advisor` — waits on the
+>   metering session** (`claude/inspiring-hodgkin-3c09bb`), which is editing
+>   `generateQuoteRequestV2` as this is written; it is added the moment that
+>   lands rather than merged over it.
+> - ⚠ **Health scores are therefore paid.** The score on the garage card and
+>   the hub's HEALTH cell is `generateVehicleHealthSummary`'s own
+>   `healthScore`; a free account's garage shows no score (the `null` state,
+>   never `0`). `pricing.ts` had left it outside the gate as "the free
+>   product's whole face"; measured at 274–789 output-equivalent tokens a
+>   summary, at most one a car a day. Un-gating it is three lines and
+>   `FREE_MONTHLY_COST_USD` was sized for exactly that — David's call, put to
+>   him with the number.
+> - `access.ts` rewritten for B (the table, the copy, a guard that it agrees
+>   with `paid-features.ts`); `pricing.ts`'s "SUPERSEDED 30 Aug" section and
+>   `paid-features.ts`'s "no free tier" docblock replaced; the advisor's
+>   paywall blurb names the health score it now sells (product copy —
+>   David's to re-word).
+> - Still E8: the sweep does not read `RECALL_ALERTS_AFTER_LAPSE`; no write
+>   path needs gating any more, by decision.
+>
 > **Item 1 closed, 17 Sep 17:45 UTC.** `web-live` **1d069e00** carries the
 > product pair's `[[redirects]]`; both old hosts 301 to the primary (GET and
 > POST alike), the primary serves 200. The demo stays on **f79b2d58** — the

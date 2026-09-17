@@ -27,6 +27,7 @@
 
 import { genAI, flashStructuredConfig } from '@/lib/gemini';
 import { recordAiUsageInBackground } from '@/lib/ai-usage';
+import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { logger } from '@tappet/core/logger';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -42,7 +43,12 @@ export interface PerformanceStats {
 
 export type PerformanceStatsResult =
   | { ok: true; cached: boolean; stats: PerformanceStats }
-  | { ok: false; status: number; error: string };
+  /*
+    `code` and `feature` ride with a refusal from the gate — E6's wire, so the
+    route forwards them and a client can open the paywall on the code rather
+    than read a 402 as a failure. Absent on every other failure.
+  */
+  | { ok: false; status: number; error: string; code?: FeatureRefusal['code']; feature?: FeatureRefusal['feature'] };
 
 export function extractJSON(text: string): Record<string, unknown> {
   const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -74,11 +80,20 @@ export function computeModHash(items: string[]): string {
 export async function recomputePerformanceStats({
   vehicleId,
   client,
+  userId,
   isDemo,
   forceRefresh = false,
 }: {
   vehicleId: string;
   client: SupabaseClient;
+  /**
+   * Whose account is about to spend, or `null` when nobody is signed in.
+   * Read by the feature gate only — the docblock above still holds:
+   * authorization is the caller's, and this proves nothing about access.
+   * Added 17 Sep with the gate, because the alternative was three callers
+   * each remembering to gate, which is how this path went ungated at all.
+   */
+  userId: string | null;
   isDemo: boolean;
   forceRefresh?: boolean;
 }): Promise<PerformanceStatsResult> {
@@ -146,6 +161,17 @@ export async function recomputePerformanceStats({
     };
   }
 
+  /*
+    The gate, 17 Sep — below every cached return, so what a free or lapsed
+    account already has on the row keeps serving; what stops is the model
+    call that would refresh it. Sold as the dossier: stock and modified
+    figures are research about the car, the same kind the dossier is.
+  */
+  const gate = featureRefusal(await checkFeatureAccess(userId, 'dossier'));
+  if (gate) {
+    return { ok: false, status: 402, error: gate.error, code: gate.code, feature: gate.feature };
+  }
+
   const prompt = buildPrompt(vehicle, itemList, needsStockStats);
 
   const result = await genAI.models.generateContent({
@@ -154,11 +180,11 @@ export async function recomputePerformanceStats({
     config: flashStructuredConfig,
   });
   /*
-    The owner comes off the vehicle row rather than the signature. This function
-    takes no `userId` — its docblock is explicit that the caller proved access
-    before reaching here — and threading one through purely for the meter would
-    put a metering concern into an authorization contract that is deliberately
-    narrow. `select('*')` already has the row.
+    The owner comes off the vehicle row rather than the signature. The `userId`
+    the gate reads arrived 17 Sep and says who is *spending*; the row says
+    whose *car* it is, and for a meter that prices accounts the row is the
+    truth — the two only differ if a caller lied, and the row cannot.
+    `select('*')` already has it.
 
     Note the model here is a hardcoded 2.5 literal, which is why it takes no
     thinking level. `model-tiering.test.ts` only forbids literals in

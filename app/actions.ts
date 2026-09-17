@@ -14,7 +14,7 @@ import {
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
 import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
 import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
-import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
+import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
 import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@tappet/core/prompts';
@@ -805,12 +805,35 @@ export async function fetchPowertrainOptions(
   make: string,
   model: string,
   trim?: string
-): Promise<{ success: boolean; data?: { engine_options: string[]; transmission_options: string[]; drivetrain_options: string[] }; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: { engine_options: string[]; transmission_options: string[]; drivetrain_options: string[] };
+  error?: string;
+  // E6's wire — present only on a gate refusal, so a caller can tell a refusal
+  // from a failure. `lib/feature-gate.ts` says why it is written out, not spread.
+  code?: FeatureRefusal['code'];
+  feature?: FeatureRefusal['feature'];
+}> {
   try {
     // Gemini-backed: authenticate before spending.
     const session = await requireSession();
     if (!session.ok) {
       return { success: false, error: session.error };
+    }
+
+    /*
+      The gate, 17 Sep. Powertrain options are the dossier's research about
+      the model — the same call `researchVehicleDossier` is gated for, fired
+      beside it — so they are sold as the dossier. Before the cache on
+      purpose: the gate is on the feature, not the call, and a free account
+      served a cached list on a popular car would be getting the feature.
+      Every caller already degrades: the selector shows its manual fields
+      and `generateVehicleDossier` says "a car without them is a slightly
+      poorer form, not a wrong one".
+    */
+    const gate = featureRefusal(await checkFeatureAccess(session.userId, 'dossier'));
+    if (gate) {
+      return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
     }
 
     /*
@@ -1217,7 +1240,8 @@ export async function sendConsultantMessage(params: {
 
         David: *"I don't want a free tier. I think we should have a demo
         view/mode without real LLM calls so prospects can explore the app
-        without costing anything."*
+        without costing anything."* (The free tier was kept on 17 Sep — see
+        `paid-features.ts`; the demo's half of this stands.)
 
         This branch used to check a shared ceiling and then call Gemini — the
         only unauthenticated path to a model in the application, and about $11 a
@@ -2182,6 +2206,29 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
           return { success: true, data: existingHealth, cached: true };
         }
       }
+    }
+
+    /*
+      ── The gate, 17 Sep — the health score is part of the subscription ──────
+
+      This was the one model path left outside `checkFeatureAccess` on
+      purpose: `ai/pricing.ts` called the health dial "the free product's
+      whole face" and sized `FREE_MONTHLY_COST_USD` for it. David's decision
+      of 17 Sep — the fork resolved as "keep the free tier, gate every model
+      path" — puts it behind the gate with the other three, so an account
+      that has not paid makes no model call at all. The score on the garage
+      card and the hub's HEALTH cell is this call's `healthScore`, so a free
+      account's garage shows no score rather than a stale or invented one
+      (`null` is never `0`).
+
+      ⚠ Below the cache read, like the budget: a lapsed owner's last summary
+      is their own record and stays served; what stops is regenerating it.
+      Sold as the advisor — it is the advisor's standing read of this car
+      from its records, and `PAID_FEATURE_COPY.advisor` says so.
+    */
+    const healthGate = featureRefusal(await checkFeatureAccess(access.userId, 'advisor'));
+    if (healthGate) {
+      return { success: false, error: healthGate.error, code: healthGate.code, feature: healthGate.feature };
     }
 
     if (!budget.allowed) {
@@ -4491,6 +4538,7 @@ export async function uploadInvoice(formData: FormData) {
         recomputePerformanceStats({
           vehicleId,
           client,
+          userId: access.userId,
           isDemo: false,
           forceRefresh: true,
         }).catch((statsError: unknown) => {

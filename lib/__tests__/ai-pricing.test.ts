@@ -156,11 +156,14 @@ describe('⛔ the gap between what is shipped and what was asked for', () => {
 
   it('a free account can still cost real money against no revenue', () => {
     /*
-      `paid-features.ts` says the three paid features "are exactly the three
-      that call a model". Health summary generation also calls one and is
-      deliberately not gated — the dial is the free product's face — so a free
-      account has a legitimate paid-for-by-us path, and today's ceiling bounds
-      it at about $3.00 a month. That is more than an annual subscriber nets.
+      Until `PAID_FEATURES_ENFORCED` flips, a free account reaches every model
+      path in the product and this ceiling is the only thing bounding it — at
+      about $3.00 a month, more than an annual subscriber nets. Since 17 Sep
+      every model path is behind the gate (the health summary included; it
+      had been left outside as "the free product's face"), so once the switch
+      flips a free account's legitimate model use is zero and this ceiling is
+      defence in depth. The assertion is about the un-enforced period, which
+      is the one the app is in.
     */
     expect(worstCaseMonthlyCostUsd(TIERS.free.monthlyOutputTokens)).toBeGreaterThan(
       netMonthlyFloorUsd()
