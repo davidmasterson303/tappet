@@ -6887,6 +6887,9 @@ export async function generateQuoteRequestV2(
     costBreakdown: CostEstimate;
   };
   error?: string;
+  // E6's wire — present only on a gate refusal (`lib/feature-gate.ts`).
+  code?: FeatureRefusal['code'];
+  feature?: FeatureRefusal['feature'];
 }> {
   console.log('[QUOTE_V2] Starting quote generation', {
     vehicleId,
@@ -6961,6 +6964,23 @@ export async function generateQuoteRequestV2(
         above and here are the whole reason `demo-quote-generation.test.ts`
         checks that neither reaches the other's path.
       */
+      /*
+        ── The gate, 17 Sep — the fourth of the four model paths ─────────────
+
+        Sold as the advisor: "a second opinion on a quote" is the advisor's
+        job in the listing and on the paywall, and this is two model calls
+        for an owner who has not paid. Above the budget for the same reason
+        `sendConsultantMessage` puts it there — the gate asks *may they use
+        it at all*, the budget whether this call is affordable — and inside
+        the owner branch only: the demo above reaches quotes through its own
+        pool and must keep doing so. `PAID_FEATURES_ENFORCED` decides whether
+        this is ever returned, and it is off.
+      */
+      const gate = featureRefusal(await checkFeatureAccess(access.userId, 'advisor'));
+      if (gate) {
+        return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
+      }
+
       const budget = await checkMonthlyBudget(access.userId);
       if (!budget.allowed) {
         return { success: false, error: budgetMessage(budget) };

@@ -80,10 +80,12 @@
 > seconds later: 218 / 3713 in 5.7 s; the rerun promoted. The gate's two
 > starved runs are the 11 Sep flake wearing a promote, not a regression.
 >
-> **In flight:** the quote-path meter (`claude/inspiring-hodgkin-3c09bb`,
-> spawned from this session) — when it lands it brings a purpose migration,
-> which is the SQL editor, and only then can `DEMO_BUDGET` trip on the calls
-> it bounds.
+> **Landed 18 Sep:** the quote-path meter (`98096e5`, from the session
+> spawned here). ⚠ **Its migration is the SQL editor —**
+> `20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql`;
+> until it is applied the three new purposes fail the CHECK and are dropped
+> with `AI_USAGE:WRITE_FAILED`, and `DEMO_BUDGET` still cannot trip. Neither
+> host carries any of this until a promote.
 >
 > **Cowork's demo-mode question, answered from the tree** (`Claude outputs/
 > CLAUDE_CODE_REPLY_demo_and_aso_2026-09-17.md`, 17 Sep). The phone has no
@@ -116,10 +118,11 @@
 >   lapsed owner keeps what the row holds, each returning E6's wire.
 >   `model-paths-behind-the-gate.test.ts` reads every function's *body* and
 >   `performance-stats.test.ts` mounts the refusal.
-> - ⚠ **The fourth — the quote's two calls → `advisor` — waits on the
->   metering session** (`claude/inspiring-hodgkin-3c09bb`), which is editing
->   `generateQuoteRequestV2` as this is written; it is added the moment that
->   lands rather than merged over it.
+> - **The fourth — the quote's two calls → `advisor` — landed 18 Sep**
+>   (`98096e5` merged the metering session's `c53b852` clean; the gate sits
+>   in the owner branch above the budget, demo untouched; guard proven red).
+>   All four model paths that were outside the gate are now behind it, and
+>   the health score is the one model call deliberately in front of it.
 > - **Health scores are FREE** — David, the same evening, with the number in
 >   front of him. The score was gated under the advisor for about two hours
 >   because "gate the four" was executed as written; it is

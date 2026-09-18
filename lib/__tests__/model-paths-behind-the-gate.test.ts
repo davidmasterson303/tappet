@@ -33,8 +33,9 @@
  * below so the reversal cannot quietly un-reverse. `recomputePerformanceStats`
  * is proven by mounting it in `performance-stats.test.ts`; the paths in
  * `actions.ts` are read here, because importing that module in a test means
- * importing the world. The quote gate lands with the quote path's metering
- * (`task_b2e011b4`), which is editing that function as this is written.
+ * importing the world. The quote gate landed on 18 Sep, once the quote path's
+ * metering (`task_b2e011b4`) had merged; it sits in the owner branch only —
+ * the demo reaches quotes through its own pool.
  */
 
 import { readFileSync } from 'node:fs';
@@ -66,6 +67,7 @@ const PERF = stripComments(read('lib', 'performance-stats.ts'));
 const GATED: Array<[string, string, string]> = [
   ['fetchPowertrainOptions', 'dossier', ACTIONS],
   ['recomputePerformanceStats', 'dossier', PERF],
+  ['generateQuoteRequestV2', 'advisor', ACTIONS],
 ];
 
 describe('the health score is free — the one model path outside the gate, on purpose', () => {
@@ -137,7 +139,9 @@ describe('the model paths that went behind the gate', () => {
   it.each(GATED)('%s calls the gate for %s, before the model, and returns the wire', (name, feature, source) => {
     const body = bodyOf(source, name);
     const gate = body.search(new RegExp(`checkFeatureAccess\\([^)]*'${feature}'\\)`));
-    const model = body.indexOf('generateContent(');
+    // The quote's two model calls live in `estimateCosts` and
+    // `generateEmailDraft`; the action calls those, so the call is the model.
+    const model = body.search(/generateContent\(|await estimateCosts\(/);
 
     expect(`${name}: gate ${gate > -1 ? 'found' : 'MISSING'}`).toBe(`${name}: gate found`);
     expect(`${name}: model ${model > -1 ? 'found' : 'MISSING'}`).toBe(`${name}: model found`);
