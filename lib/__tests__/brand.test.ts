@@ -331,6 +331,25 @@ describe('every line fits inside the box it is drawn in', () => {
     expect(LOCKUP.width).toBeLessThan(LOCKUP.widthFull);
   });
 
+  it('both runtime components draw the full lockup in the full box — 18 Sep', () => {
+    /*
+      The file was fixed on 7 Sep and so was the web component. The phone's
+      was not, and nothing here read it: the sign-in screen of every build
+      since the rename showed `SOUTHMOOR DIGI` under the wordmark, and the
+      first simulator frame of the App Store shoot is where it was seen. The
+      shipped SVG is one drawing; the two components are the ones people see.
+    */
+    for (const file of [
+      join(ROOT, 'components', 'brand', 'BrandLockup.tsx'),
+      join(ROOT, 'apps', 'mobile', 'src', 'components', 'BrandLockup.tsx'),
+    ]) {
+      const source = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(`${file}: ${/const boxWidth = full \? LOCKUP\.widthFull : LOCKUP\.width;/.test(source)}`).toBe(`${file}: true`);
+      expect(source).toMatch(/viewBox=\{`0 0 \$\{boxWidth\} \$\{boxHeight\}`\}/);
+      expect(source).not.toMatch(/viewBox=\{`0 0 \$\{LOCKUP\.width\} /);
+    }
+  });
+
   it('can still detect a box that crops its own contents', () => {
     /*
       §5's anti-vacuous half. Both cases above are `toBeGreaterThanOrEqual` and
