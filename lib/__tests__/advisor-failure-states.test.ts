@@ -335,8 +335,14 @@ describe('DEMO_BUDGET — the docblock’s arithmetic is the constants’', () =
   */
   const source = read('packages', 'core', 'src', 'ai', 'budget.ts');
   const block = source.slice(source.indexOf("The public demo's own ceiling"), source.indexOf('export const DEMO_BUDGET'));
+  /*
+    The unit is "quotes" since 17 Sep — the per-quote figure was measured and
+    the docblock stopped counting in single calls. "calls" is still accepted,
+    and the per-unit figure may carry a thousands comma, so a re-tune that
+    reverts to either shape is still read rather than silently unmatched.
+  */
   const line = (window: 'daily' | 'monthly') => {
-    const match = new RegExp(`\\*\\s+${window}\\s+([\\d,]+)\\s+≈\\s+([\\d,]+) calls of ~(\\d+)\\s+≈\\s+\\$([\\d.]+)/(day|month)`).exec(block);
+    const match = new RegExp(`\\*\\s+${window}\\s+([\\d,]+)\\s+≈\\s+([\\d,]+) (?:calls|quotes) of ~([\\d,]+)\\s+≈\\s+\\$([\\d.]+)/(day|month)`).exec(block);
     if (!match) throw new Error(`no arithmetic line for ${window}`);
     const n = (s: string) => Number(s.replace(/,/g, ''));
     return { tokens: n(match[1]), calls: n(match[2]), perCall: n(match[3]), dollars: Number(match[4]) };
@@ -353,10 +359,39 @@ describe('DEMO_BUDGET — the docblock’s arithmetic is the constants’', () =
     expect(dollars).toBeCloseTo((tokens / 1_000_000) * 7.5, 2);
   });
 
-  it('says what the pool bounds and does not — quotes, not the advisor, and an unmetered path', () => {
+  it('says what the pool bounds and does not — quotes, not the advisor, and a metered path', () => {
     expect(block).toMatch(/\*\*Not the advisor\.\*\*/);
-    expect(block).toMatch(/Neither call is metered/);
     expect(block).not.toMatch(/eleven dollars/);
+
+    /*
+      Until 17 Sep this asserted "Neither call is metered" — true, and the
+      docblock said so rather than passing over a dead derivation. The meter
+      exists now, under two purposes, and the sentence that replaced it has
+      to say two things: which rows the ceiling reads, and that they start
+      only when the purpose migration is applied.
+    */
+    expect(block).not.toMatch(/Neither call is metered/);
+    expect(block).toMatch(/quote_estimate/);
+    expect(block).toMatch(/quote_email/);
+    expect(block).toMatch(/20260917120000/);
+    expect(block).toMatch(/AI_USAGE:WRITE_FAILED/);
+  });
+
+  it('the per-quote figure is measured, and the measurement is the one the calls run at', () => {
+    /*
+      The arithmetic lines are read back above; this pins their provenance.
+      The docblock says the figure was measured at LOW, so both calls must
+      actually run at LOW — a docblock measured at one level over code
+      running at another is the `MIN_WIDTH.short` failure with a date on it.
+    */
+    expect(block).toMatch(/measured on 17 Sep/);
+    expect(block).toMatch(/at the LOW level both calls now run at/);
+
+    const actions = rendered(read('app', 'actions.ts'));
+    const estimate = actions.slice(actions.indexOf('async function estimateCosts('), actions.indexOf('async function generateEmailDraft('));
+    const email = actions.slice(actions.indexOf('async function generateEmailDraft('), actions.indexOf('function isSupabaseAuthError('));
+    expect(estimate).toMatch(/withThinking\(flashStructuredConfig, FLASH_MODEL, 'LOW'\)/);
+    expect(email).toMatch(/withThinking\(flashConfig, FLASH_MODEL, 'LOW'\)/);
   });
 
   it('the pool is the demo’s own surface', () => {
