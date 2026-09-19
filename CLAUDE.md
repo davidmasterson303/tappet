@@ -50,7 +50,12 @@ the one that works. PostgREST cannot see `information_schema` and there is no
 `exec_sql` RPC, so grant-level facts need the SQL editor — which is David's.
 
 A column that does not exist returns `42703`. That is the cheapest applied/not
-check there is.
+check there is. And a `23502` names the column an insert forgot: the phone's
+ADD CAR docblock said a car added there "carries no VIN in the database" —
+`vin` was `NOT NULL`, it carried no row, and the form saved nothing for six
+weeks while its source-scan test stayed green (19 Sep,
+`create-vehicle-route.test.ts`). A dry insert with an impossible `user_id`
+walks the constraints for free: it fails on the FK last.
 
 ## 3. Only the diff proves the commit
 

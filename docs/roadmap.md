@@ -46,9 +46,29 @@
 >   `usersEntitledTo(owners, 'recalls')` once per page and skips the recall
 >   half for owners the gate refuses; service reminders stay free. E8's one
 >   remaining code piece; the `UNGATED` allowlist is empty.
+> - ⛔ **The phone's ADD CAR has never saved a car.** Found 19 Sep adding the
+>   2003 Accord to David's account for the recall frame: first the form and
+>   the route refused 170,000 miles as a "jump" from a baseline of `0`
+>   (`0865457` — a first reading has no baseline), then the server answered
+>   500. `vehicles.vin` is `text UNIQUE NOT NULL` from the first schema and
+>   `POST /api/v1/vehicles` never supplied it, so every submit since 8 Aug
+>   was refused whole, with the column's name in a function log nobody read.
+>   The table showed it — five rows, all wizard or demo seed — and two phone
+>   docblocks said a car added there "carries no VIN in the database": the
+>   schema stated from a file read (CLAUDE.md §2). The route's test is a
+>   source scan and could not know. **The migration is one line and yours:**
+>   `20260919160000_a_car_added_from_the_phone_may_have_no_vin.sql` drops
+>   the `NOT NULL` (UNIQUE stays; NULLs are distinct under it). The route
+>   now carries the VIN the phone decoded — normalised, refused in the
+>   field's own words when malformed — `null` when there is none, and a
+>   taken VIN answers 409 rather than 500. The 2003 Accord in the table is
+>   the **App Review account's** (`crewchief.support+appreview@`, added 21
+>   Aug through the wizard), not David's — so "add the Accord back" is a
+>   phone save against a nullable column, and the frame waits on the trip.
 >
-> **Still yours:** sign in on the 18.5 simulator (the cars are on your
-> account); the metering migration in the SQL editor; a promote after it.
+> **Still yours:** the vin migration above (ADD CAR is dead on every build
+> until it runs); the metering migration in the SQL editor; then the phone
+> can add the Accord and the recall frame gets shot.
 >
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >

@@ -32,13 +32,16 @@ import {
  * and shippable without moving a release branch that publishes the API live
  * apps depend on.
  *
- * ⚠ **What that costs, written down rather than discovered later:** the VIN is
- * decoded but **not stored**. `POST /api/v1/vehicles` reads `year`, `make`,
- * `model`, `trim` and mileage and constructs its insert from those alone — it
- * has no `vin` field — so a car added this way carries no VIN in the database.
- * The decode is a *typing aid* today. Giving the column a value is a route
- * change and therefore a promote, and it is worth doing; it is deliberately not
- * smuggled into this one.
+ * ⚠ **What that cost, and what it turned out to hide.** Until 19 Sep this
+ * paragraph said the VIN was decoded but **not stored** — `POST
+ * /api/v1/vehicles` had no `vin` field, "so a car added this way carries no
+ * VIN in the database", and giving the column a value was "a route change and
+ * therefore a promote, deliberately not smuggled into this one". The premise
+ * was the schema read from a file. In the database `vehicles.vin` was `NOT
+ * NULL`, so the insert without it was refused outright: the form saved no car
+ * at all, from the day it shipped. The route change happened on 19 Sep because
+ * it had to; it carries the VIN this decode produced when there is one, and
+ * `null` when there is not. The decode is no longer only a typing aid.
  *
  * ── Failure is quiet here, and that is a decision ───────────────────────────
  *
