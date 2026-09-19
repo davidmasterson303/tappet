@@ -5,6 +5,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
@@ -403,6 +404,27 @@ export async function PATCH(request: NextRequest): Promise<Response> {
  * and a first-run flow that asks for a VIN and a drivetrain before showing
  * anything is a first-run flow people abandon.
  *
+ * ── ⚠ The VIN — and the six weeks this route saved nothing ─────────────────
+ *
+ * "Everything else has a sensible default" was written from the wizard's
+ * point of view, and it was wrong about one column: `vehicles.vin` was
+ * `NOT NULL` from the first schema, because the wizard opens with a decode
+ * and always has one. This insert never named it, so from 8 Aug to 19 Sep
+ * every car added on the phone answered 500 "Could not save the vehicle",
+ * with the column's name in a function log nobody read. The table showed it
+ * — five rows, all from the wizard or the demo seed — and the phone's own
+ * docblocks said a car added this way "carries no VIN in the database",
+ * which was the claim CLAUDE.md §2 forbids: the schema stated from a file
+ * read. It carried no row.
+ *
+ * `20260919160000_a_car_added_from_the_phone_may_have_no_vin.sql` drops the
+ * `NOT NULL`; `UNIQUE` stays, and NULLs are distinct under it. This route
+ * now carries the VIN when the phone decoded one — normalised, and refused
+ * with the field's own words when malformed — and `null` when it did not.
+ * Never `''`: an empty string is a value, and UNIQUE would let exactly one
+ * car in the whole product have it. A 500 here with `"vin"` in the log after
+ * 19 Sep means the migration has not been applied, not that this regressed.
+ *
  * ── `user_id` is never accepted from the caller ─────────────────────────────
  *
  * Ownership comes from the verified session. `createVehicle`'s own comment
@@ -475,11 +497,25 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
+  /*
+    Optional, and the same rule the phone's field shows while it is typed:
+    `vinProblem` is null for nothing and for seventeen valid characters, and
+    a sentence for anything between. The check digit is deliberately not
+    asked here — see `vinProblem`'s docblock for why a client stricter than
+    NHTSA refuses genuine imports.
+  */
+  const vin = typeof body.vin === 'string' ? normaliseVin(body.vin) : '';
+  const vinTrouble = vinProblem(vin);
+  if (vinTrouble) {
+    return Response.json({ success: false, error: vinTrouble } as ApiResponse, { status: 422 });
+  }
+
   const client = getServiceRoleClient();
 
   const { data: vehicle, error } = await client
     .from('vehicles')
     .insert({
+      vin: vin || null,
       year,
       make,
       model,
@@ -496,6 +532,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
     .select('id,year,make,model')
     .single();
+
+  if (error?.code === '23505') {
+    /*
+      `vin` is the only UNIQUE column besides the key, so this is a VIN that
+      is already somebody's car — possibly this owner's, added twice. Said
+      plainly rather than as a 500: the number is on the windscreen, and the
+      fix is theirs to make.
+    */
+    return Response.json(
+      { success: false, error: 'A car with that VIN is already in a garage.' } as ApiResponse,
+      { status: 409 }
+    );
+  }
 
   if (error || !vehicle) {
     logger.error('API:CREATE_VEHICLE', new Error(error?.message ?? 'Insert returned no row'), {

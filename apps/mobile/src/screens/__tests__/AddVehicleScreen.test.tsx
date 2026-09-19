@@ -613,3 +613,53 @@ describe('the VIN, which fills the form and never gates it', () => {
     expect(mockDecode).not.toHaveBeenCalled();
   });
 });
+
+describe('the VIN reaches the row — until 19 Sep neither it nor the car did', () => {
+  /*
+    The screen's docblock said the VIN was "decoded and not stored" because
+    the route had no `vin` field. The column was NOT NULL, so the route's
+    insert was refused whole: this form saved no car from the day it shipped.
+    The route now takes the field, and these pin what the form sends it.
+  */
+  it('sends the VIN it was given, normalised, when the owner typed one', async () => {
+    const user = userEvent.setup();
+    mockApi.mockResolvedValue({ vehicle: { id: 'v1' } } as never);
+
+    const { view } = mount();
+    const resolved = await view;
+    // Lower case with a dash, as people type them; the row gets the standard form.
+    await user.type(resolved.getByLabelText('VIN, 17 characters'), 'wba1j7c51-fv253855');
+    await fillTheCar(user, resolved);
+    await user.press(resolved.getByLabelText('Add to my garage'));
+
+    expect(mockApi.mock.calls[0][1]?.body).toMatchObject({ vin: 'WBA1J7C51FV253855' });
+  });
+
+  it('sends null when there is none — never the empty string, which UNIQUE allows once', async () => {
+    const user = userEvent.setup();
+    mockApi.mockResolvedValue({ vehicle: { id: 'v1' } } as never);
+
+    const { view } = mount();
+    await fillTheCar(user, await view);
+    await user.press((await view).getByLabelText('Add to my garage'));
+
+    const body = mockApi.mock.calls[0][1]?.body as Record<string, unknown>;
+    expect('vin' in body).toBe(true);
+    expect(body.vin).toBeNull();
+  });
+
+  it('refuses a half-typed VIN in the field\'s own words, without spending a round trip', async () => {
+    // Sent as typed rather than dropped: a partial VIN silently discarded is
+    // an owner who believes they gave one.
+    const user = userEvent.setup();
+    const { view } = mount();
+    const resolved = await view;
+
+    await user.type(resolved.getByLabelText('VIN, 17 characters'), 'WBA1J7C51');
+    await fillTheCar(user, resolved);
+    await user.press(resolved.getByLabelText('Add to my garage'));
+
+    expect(mockApi).not.toHaveBeenCalled();
+    expect(JSON.stringify(resolved.toJSON())).toMatch(/8 to go/);
+  });
+});

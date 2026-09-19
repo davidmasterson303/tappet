@@ -138,13 +138,17 @@ import { interFace } from '../theme/fonts';
  *     field that still accepts free text — see `Suggest` for the argument, and
  *     §10 for why a picker would be the wrong control for data this shape.
  *
- * ⚠ **The VIN is decoded and not stored.** `POST /api/v1/vehicles` builds its
- * insert from year, make, model, trim and mileage, and has no `vin` field, so
- * a car added here carries no VIN in the database — the decode is a typing aid.
- * Giving that column a value is a route change, and a route change is a
- * `web-live` promote before any build that depends on it. `api/vpic.ts` carries
- * the full reasoning; it is repeated here because this is the screen where
- * somebody will reasonably expect the VIN to have been saved.
+ * ⚠ **The VIN is stored, since 19 Sep — and before that this form saved
+ * nothing.** Until then this docblock said the VIN was "decoded and not
+ * stored", because `POST /api/v1/vehicles` had no `vin` field, "so a car
+ * added here carries no VIN in the database". That was the schema stated from
+ * a file read, and the database disagreed: `vehicles.vin` was `NOT NULL`, so
+ * a car added here carried no *row* — every submit from 8 Aug answered 500
+ * "Could not save the vehicle", and the table had never held a phone-made
+ * car. Found adding a 2003 Accord for an App Store frame. The migration
+ * (`20260919160000`) makes the column nullable and the route now carries what
+ * this field decoded, or `null` when it is empty. `api/vpic.ts` carries the
+ * rest of the reasoning.
  */
 
 interface Props {
@@ -337,6 +341,19 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
       return;
     }
 
+    /*
+      The VIN, on the same footing: the field has shown `vinProblem`'s words
+      since the character was typed, and the route refuses with the same
+      words. Sent as typed rather than dropped when half-typed — a partial
+      VIN silently discarded is an owner who believes they gave one.
+    */
+    const typedVin = normaliseVin(vin);
+    const vinTrouble = vinProblem(typedVin);
+    if (vinTrouble) {
+      setError(vinTrouble);
+      return;
+    }
+
     setBusy(true);
     setError(null);
 
@@ -344,6 +361,7 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
       const body = await apiRequest<{ vehicle?: { id: string } }>('/vehicles', {
         method: 'POST',
         body: {
+          vin: typedVin || null,
           year: yearNumber,
           make: chosenMake,
           model: chosenModel,
