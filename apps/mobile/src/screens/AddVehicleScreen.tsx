@@ -329,7 +329,9 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
       reading without spending a round trip, and the server can refuse it
       regardless because a client is not a guarantee.
     */
-    const decision = validateMileageUpdate({ current: 0, next: reading });
+    // `null`, not 0: a first reading has no baseline, and 0 made every car
+    // past 100,000 miles a "jump" the form refused (19 Sep, a 2003 Accord).
+    const decision = validateMileageUpdate({ current: null, next: reading });
     if (!decision.ok) {
       setError(decision.message ?? 'Check that reading.');
       return;

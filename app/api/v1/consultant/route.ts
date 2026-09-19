@@ -270,6 +270,18 @@ export async function POST(request: NextRequest): Promise<Response> {
         never inferred. Absent has to arrive as absent.
       */
       ...(result.estimate ? { estimate: result.estimate } : {}),
+      /*
+        ⚠ Whether this answer was written in advance rather than generated —
+        the demo, which makes no model call (`demo-answers.ts`). Dropped here
+        until 17 Sep, so through this route a sample arrived indistinguishable
+        from a model answer while the web, which calls the action directly,
+        labelled it. `demo-answers.ts` puts an unlabelled sample beside the
+        scan sweep that depicted an examination nobody ran, and it is right:
+        the label is the honesty of the whole demo, and the route is the only
+        surface a phone can reach it through. Present only when true, like
+        `estimate`, so absent means "a model wrote this" and never "unknown".
+      */
+      ...(result.isSample ? { isSample: true } : {}),
     } as ApiResponse);
   } catch (error) {
     logger.error('API:CONSULTANT', error as Error);

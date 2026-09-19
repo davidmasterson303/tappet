@@ -5,6 +5,7 @@ import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getServiceRoleClient } from '@/lib/supabase';
+import { usersEntitledTo } from '@/lib/feature-gate';
 import { backfillPlates } from '@/lib/plates';
 import { sendToAccount } from '@/lib/push-send';
 import { normaliseRecalls } from '@tappet/core/recalls';
@@ -227,6 +228,8 @@ export async function POST(request: NextRequest) {
   }> = [];
   /** Vehicle rows kept by id, so a generated car can be re-evaluated without re-reading it. */
   const scanned = new Map<string, { row: VehicleRow; name: string }>();
+  /** Cars whose owner the gate refused recall alerts to — reported, not stored. */
+  let recallsGated = 0;
 
   for (let page = 0; ; page += 1) {
     const { data: vehicles, error } = await client
@@ -243,6 +246,21 @@ export async function POST(request: NextRequest) {
 
     if (!vehicles || vehicles.length === 0) break;
 
+    /*
+      ── Recall alerts are paid — 17 Sep ───────────────────────────────────
+
+      The refresh and the notification are the paid feature; every recall
+      already stored stays readable on the car. So the recall half of the
+      walk is skipped for owners the gate refuses, and the service half —
+      what is due by mileage, a free feature — runs for everyone. One
+      entitlement read per page (`usersEntitledTo`), the same verdict the
+      single check gives. Off until `PAID_FEATURES_ENFORCED`, when this
+      returns every owner; `access.ts` names the decision and the argument
+      that lost to it.
+    */
+    const owners = vehicles.map((v) => v.user_id as string | null).filter((id): id is string => !!id);
+    const recallsAllowed = await usersEntitledTo(owners, 'recalls');
+
     for (const vehicle of vehicles) {
       /*
         Demo cars are seeded fixtures nobody owns. A notification about one
@@ -257,7 +275,11 @@ export async function POST(request: NextRequest) {
       const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'your car';
       scanned.set(vehicle.id, { row: vehicle, name });
 
-      await collectRecalls(client, vehicle, name, recallCandidates, refreshCandidates);
+      if (recallsAllowed.has(vehicle.user_id)) {
+        await collectRecalls(client, vehicle, name, recallCandidates, refreshCandidates);
+      } else {
+        recallsGated += 1;
+      }
       await collectService(client, vehicle, name, today, serviceCandidates, generationCandidates);
     }
 
@@ -504,7 +526,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  logger.info('CRON:SWEEP', 'Sweep complete', { ...summary });
+  logger.info('CRON:SWEEP', 'Sweep complete', { ...summary, recallsGated });
 
   await recordSweepRun(client, summary);
 

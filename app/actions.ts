@@ -14,7 +14,7 @@ import {
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
 import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
 import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
-import { checkFeatureAccess, featureRefusal } from '@/lib/feature-gate';
+import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
 import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@tappet/core/prompts';
@@ -37,7 +37,7 @@ import {
 } from '@tappet/core/mod-detail-cache';
 import { platformClientIp } from '@tappet/core/client-ip';
 import { recomputePerformanceStats } from '@/lib/performance-stats';
-import { recordAiUsageInBackground } from '@/lib/ai-usage';
+import { recordAiUsageInBackground, type AiUsageContext } from '@/lib/ai-usage';
 import { downloadStoredFile } from '@/lib/storage-objects';
 import { loadConsultantContext, loadedContextKinds } from '@/lib/consultant-context';
 import { normalizeConsultantTitle } from '@/lib/consultant-title';
@@ -805,12 +805,35 @@ export async function fetchPowertrainOptions(
   make: string,
   model: string,
   trim?: string
-): Promise<{ success: boolean; data?: { engine_options: string[]; transmission_options: string[]; drivetrain_options: string[] }; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: { engine_options: string[]; transmission_options: string[]; drivetrain_options: string[] };
+  error?: string;
+  // E6's wire — present only on a gate refusal, so a caller can tell a refusal
+  // from a failure. `lib/feature-gate.ts` says why it is written out, not spread.
+  code?: FeatureRefusal['code'];
+  feature?: FeatureRefusal['feature'];
+}> {
   try {
     // Gemini-backed: authenticate before spending.
     const session = await requireSession();
     if (!session.ok) {
       return { success: false, error: session.error };
+    }
+
+    /*
+      The gate, 17 Sep. Powertrain options are the dossier's research about
+      the model — the same call `researchVehicleDossier` is gated for, fired
+      beside it — so they are sold as the dossier. Before the cache on
+      purpose: the gate is on the feature, not the call, and a free account
+      served a cached list on a popular car would be getting the feature.
+      Every caller already degrades: the selector shows its manual fields
+      and `generateVehicleDossier` says "a car without them is a slightly
+      poorer form, not a wrong one".
+    */
+    const gate = featureRefusal(await checkFeatureAccess(session.userId, 'dossier'));
+    if (gate) {
+      return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
     }
 
     /*
@@ -1217,7 +1240,8 @@ export async function sendConsultantMessage(params: {
 
         David: *"I don't want a free tier. I think we should have a demo
         view/mode without real LLM calls so prospects can explore the app
-        without costing anything."*
+        without costing anything."* (The free tier was kept on 17 Sep — see
+        `paid-features.ts`; the demo's half of this stands.)
 
         This branch used to check a shared ceiling and then call Gemini — the
         only unauthenticated path to a model in the application, and about $11 a
@@ -2184,6 +2208,27 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
       }
     }
 
+    /*
+      ── ⚠ Deliberately NOT behind the feature gate — the health score is free ──
+
+      This is the free tier's one model call, and the only path in the tree
+      that spends without `checkFeatureAccess`. Decided twice on 17 Sep: gated
+      under the advisor for about two hours when "gate the four" was executed
+      as written, then reversed by David with the cost in front of him. The
+      score on the garage card and the hub's HEALTH cell is this call's
+      `healthScore`; without it the free tier is a spreadsheet with a car
+      photo. `ai/pricing.ts` had it right — "the health dial is the free
+      product's whole face" — and had sized `FREE_MONTHLY_COST_USD` for it:
+      274–789 output-equivalent tokens a summary, half a cent, at most once a
+      car a day through the cache above, bounded by the free ceiling
+      (`checkMonthlyBudget` below) rather than the gate.
+
+      `model-paths-behind-the-gate.test.ts` fails if a gate ever appears in
+      this function, and `FREE_FEATURES` in `paid-features.ts` carries
+      `health-score` so every sentence that lists what is free says so. If it
+      ever costs real money, gating it is three lines — and by then there is
+      revenue to argue against.
+    */
     if (!budget.allowed) {
       return { success: false, error: budgetMessage(budget) };
     }
@@ -4491,6 +4536,7 @@ export async function uploadInvoice(formData: FormData) {
         recomputePerformanceStats({
           vehicleId,
           client,
+          userId: access.userId,
           isDemo: false,
           forceRefresh: true,
         }).catch((statsError: unknown) => {
@@ -4731,6 +4777,18 @@ async function validateConsultantDocument(
         },
       ],
     });
+    /*
+      Metered since 17 Sep — found unmetered in the same audit as the quote's
+      two calls, and given its purpose in the same migration. The ceiling is
+      the caller's (`uploadConsultantDocument`), which authorizes for write,
+      so `access.userId` here is always an owner and the row is `account`.
+      Still at the default config and thinking level: a vision call nobody
+      has measured, and `lib/gemini.ts` says what guessing costs.
+    */
+    recordAiUsageInBackground(
+      { purpose: 'document_validation', model: FLASH_VISION_MODEL, userId: access.userId, vehicleId },
+      result.usageMetadata
+    );
 
     const response = result.text || '';
     const validationData = extractJSON(response);
@@ -4764,6 +4822,19 @@ export async function uploadConsultantDocument(formData: FormData) {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    /*
+      The ceiling for the vision call in `validateConsultantDocument`, which
+      this is the only caller of. Missing until 17 Sep for the reason the
+      quote's was: the exemption in `every-generation-has-a-ceiling.test.ts`
+      named this file as where the ceiling lived, and the file contains the
+      word. After authorization and before the bytes are read, like every
+      other metered action here.
+    */
+    const budget = await checkMonthlyBudget(access.userId);
+    if (!budget.allowed) {
+      return { success: false, error: budgetMessage(budget) };
     }
 
     const client = access.client;
@@ -5262,6 +5333,18 @@ interface CostEstimate {
 }
 
 /**
+ * Whose traffic a quote call was, for the meter.
+ *
+ * Threaded in from `generateQuoteRequestV2` rather than re-derived here,
+ * because `deriveSurface` files a call with no `userId` as `anonymous` — and
+ * an owner's quote filed there is real spend missing from the price dataset,
+ * the exact wrong bucket `lib/ai-usage.ts` exists to keep it out of. The
+ * caller has already resolved both; an internal step should not resolve them
+ * again and risk resolving them differently.
+ */
+type QuoteCaller = Pick<AiUsageContext, 'userId' | 'vehicleId'>;
+
+/**
  * ── ⚠ Not exported, and that is the fix (SEC-02 / FN-04) ────────────────────
  *
  * `app/actions.ts` carries `'use server'`, so **every export in it compiles
@@ -5281,11 +5364,22 @@ interface CostEstimate {
  * Dropping the `export` is the actual fix and it is strictly better: the
  * capability stays, the endpoint goes, and the authorization that matters is
  * the one its caller already performs on a vehicle it owns.
+ *
+ * ── The ceiling is the caller's; the meter is here — 17 Sep ─────────────────
+ *
+ * `generateQuoteRequestV2` checks the allowance before calling this — the
+ * demo pool for a seeded car, the owner's monthly ceiling otherwise — so this
+ * does not check it again. What this *must* do is record what it spent,
+ * because until 17 Sep nothing on the quote path did: `checkDemoBudget` read
+ * a gauge these two calls never wrote, and `ai_usage_events` had no quote
+ * row at all among 490. `every-generation-has-a-ceiling.test.ts` now reads
+ * the ceiling in the calling function's body and the meter in this one.
  */
 async function estimateCosts(
   vehicle: any,
   serviceItems: any[],
-  zipCode: string
+  zipCode: string,
+  caller: QuoteCaller
 ): Promise<{ success: boolean; data?: CostEstimate; error?: string }> {
   try {
     const itemsList = serviceItems.map((item, idx) =>
@@ -5342,6 +5436,21 @@ Return ONLY valid JSON with no additional text.`;
           return await genAI.models.generateContent({
             model: FLASH_MODEL,
             contents: prompt,
+            /*
+              Ran at the model's default until 17 Sep — no config at all, so
+              neither the structured temperature nor a thinking level. Measured
+              that day on a three-item quote, output-equivalent tokens per call:
+              default ~1,850 (74% of it thinking), LOW ~1,310, MINIMAL ~490.
+              Across eleven samples the totals ran $447–534 low and
+              $856–968 high with no level standing apart from the rest, so
+              LOW — the consultant's, the health summary's and the front
+              door's level — is a 30% cut with no observed change. MINIMAL
+              was as coherent and summed correctly,
+              but nothing here measures whether the *numbers* are right, and
+              an estimate is a range someone acts on; it is left for a
+              re-tune with real rows behind it.
+            */
+            config: withThinking(flashStructuredConfig, FLASH_MODEL, 'LOW'),
           });
         },
         {
@@ -5374,6 +5483,11 @@ Return ONLY valid JSON with no additional text.`;
       console.error('[Estimate Costs] Invalid response object:', result);
       throw new Error('Invalid response object from API');
     }
+
+    recordAiUsageInBackground(
+      { purpose: 'quote_estimate', model: FLASH_MODEL, ...caller },
+      result.usageMetadata
+    );
 
     console.log('[Estimate Costs] Response object keys:', Object.keys(result));
 
@@ -5449,10 +5563,14 @@ Return ONLY valid JSON with no additional text.`;
  * Dropping the `export` is the actual fix and it is strictly better: the
  * capability stays, the endpoint goes, and the authorization that matters is
  * the one its caller already performs on a vehicle it owns.
+ *
+ * Ceiling in the caller, meter here — the same arrangement as `estimateCosts`
+ * directly above, and for the same 17 Sep reason.
  */
 async function generateEmailDraft(
   vehicle: any,
   serviceItems: any[],
+  caller: QuoteCaller,
   additionalNotes?: string
 ): Promise<{ success: boolean; data?: string; error?: string }> {
   try {
@@ -5497,6 +5615,17 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
         return await genAI.models.generateContent({
           model: FLASH_MODEL,
           contents: prompt,
+          /*
+            Measured 17 Sep, same session as `estimateCosts`: default ~1,510
+            output-equivalent tokens of which 85% was thinking — about a
+            200-word letter — LOW ~910, MINIMAL ~250. Every sample landed in
+            the 150–250 words the prompt asks for. LOW, not MINIMAL, because
+            the one MINIMAL sample read by eye put markdown bold into a body
+            `EmailDraftDisplay` renders in a `<pre>` and copies verbatim, and
+            no LOW sample did. One sample is not a finding; it is a reason to
+            take the 40% rather than the 83% until there are rows to read.
+          */
+          config: withThinking(flashConfig, FLASH_MODEL, 'LOW'),
         });
       },
       {
@@ -5521,6 +5650,11 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
       console.error('[Generate Email Draft] Invalid response object:', result);
       throw new Error('Invalid response object from API');
     }
+
+    recordAiUsageInBackground(
+      { purpose: 'quote_email', model: FLASH_MODEL, ...caller },
+      result.usageMetadata
+    );
 
     const emailText = result.text;
     if (!emailText || typeof emailText !== 'string') {
@@ -6753,6 +6887,9 @@ export async function generateQuoteRequestV2(
     costBreakdown: CostEstimate;
   };
   error?: string;
+  // E6's wire — present only on a gate refusal (`lib/feature-gate.ts`).
+  code?: FeatureRefusal['code'];
+  feature?: FeatureRefusal['feature'];
 }> {
   console.log('[QUOTE_V2] Starting quote generation', {
     vehicleId,
@@ -6807,6 +6944,46 @@ export async function generateQuoteRequestV2(
       const demo = await checkDemoBudget();
       if (!demo.allowed) {
         return { success: false, error: demoBudgetMessage(demo) };
+      }
+    } else {
+      /*
+        ── The owner's own ceiling — 17 Sep ───────────────────────────────────
+
+        Every other Gemini-backed action checks `checkMonthlyBudget` after
+        authorization (`generateVehicleHealthSummary` is the reference), and
+        this one did not. `every-generation-has-a-ceiling.test.ts` believed
+        it did: its exemption for the two internal calls named this *file* as
+        the place the ceiling lives, and the file does contain the word —
+        five thousand lines away, in other functions. So an owner past their
+        allowance could keep generating quotes, two model calls at a time,
+        while the advisor refused them. That test now reads this function's
+        body, not the file.
+
+        Not the demo's caps and not shared with them: the demo pool is one
+        anonymous bucket, this is the account's own line, and the two branches
+        above and here are the whole reason `demo-quote-generation.test.ts`
+        checks that neither reaches the other's path.
+      */
+      /*
+        ── The gate, 17 Sep — the fourth of the four model paths ─────────────
+
+        Sold as the advisor: "a second opinion on a quote" is the advisor's
+        job in the listing and on the paywall, and this is two model calls
+        for an owner who has not paid. Above the budget for the same reason
+        `sendConsultantMessage` puts it there — the gate asks *may they use
+        it at all*, the budget whether this call is affordable — and inside
+        the owner branch only: the demo above reaches quotes through its own
+        pool and must keep doing so. `PAID_FEATURES_ENFORCED` decides whether
+        this is ever returned, and it is off.
+      */
+      const gate = featureRefusal(await checkFeatureAccess(access.userId, 'advisor'));
+      if (gate) {
+        return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
+      }
+
+      const budget = await checkMonthlyBudget(access.userId);
+      if (!budget.allowed) {
+        return { success: false, error: budgetMessage(budget) };
       }
     }
 
@@ -6873,8 +7050,17 @@ export async function generateQuoteRequestV2(
       }
     }
 
+    /*
+      The meter's context, resolved once here and handed to both calls.
+      `access.userId` is null on the demo path, which `deriveSurface` files as
+      `demo` for a seeded car — the rows `checkDemoBudget` reads. For an owner
+      it is their id, and the row lands in `account`, the only bucket the
+      price dataset is built from.
+    */
+    const caller: QuoteCaller = { userId: access.userId, vehicleId };
+
     console.log('[QUOTE_V2] Estimating costs');
-    const costResult = await estimateCosts(vehicle, serviceItems, zipCode);
+    const costResult = await estimateCosts(vehicle, serviceItems, zipCode, caller);
     if (!costResult.success || !costResult.data) {
       console.error('[QUOTE_V2] Cost estimation failed:', costResult.error);
       return {
@@ -6884,7 +7070,7 @@ export async function generateQuoteRequestV2(
     }
 
     console.log('[QUOTE_V2] Generating email draft');
-    const emailResult = await generateEmailDraft(vehicle, serviceItems, additionalNotes);
+    const emailResult = await generateEmailDraft(vehicle, serviceItems, caller, additionalNotes);
     if (!emailResult.success || !emailResult.data) {
       console.error('[QUOTE_V2] Email generation failed:', emailResult.error);
       return {

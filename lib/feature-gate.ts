@@ -110,6 +110,69 @@ export async function checkFeatureAccess(
 }
 
 /**
+ * Which of these accounts may use a paid feature — the batch form of
+ * `checkFeatureAccess`, for the nightly sweep.
+ *
+ * ── Why a batch, and why it lives here ──────────────────────────────────────
+ *
+ * The sweep walks every vehicle in the product in pages of 200 and, since
+ * 17 Sep, recall alerts are paid — the refresh and the notification stop with
+ * the subscription, by David's call (`access.ts`, `RECALL_ALERTS_AFTER_LAPSE`).
+ * Asking `checkFeatureAccess` once per vehicle would be a query per car every
+ * night; this is one query per page. The verdict per account is the same
+ * `entitlesFeature` the single check uses, so the two cannot disagree.
+ *
+ * **Not enforced → every id**, which is tonight's behaviour and stays it until
+ * `PAID_FEATURES_ENFORCED` flips. Enforced and the table cannot be read →
+ * **nobody**, the direction the single check fails in and for the same reason
+ * — with one honest difference named here: what a closed failure withholds
+ * from a subscriber that night is a safety notice, not a feature. It is logged
+ * at warn with the count, and the next night's sweep tries again; a notice
+ * delayed a day is recoverable, a paid feature given away is not.
+ */
+export async function usersEntitledTo(
+  userIds: readonly string[],
+  feature: PaidFeature
+): Promise<Set<string>> {
+  const ids = Array.from(new Set(userIds.filter((id): id is string => typeof id === 'string' && id.length > 0)));
+  if (!enforced()) return new Set(ids);
+  if (ids.length === 0) return new Set();
+
+  try {
+    const client = getServiceRoleClient();
+    const { data, error } = await client
+      .from('account_entitlements')
+      .select('user_id, tier, expires_at')
+      .in('user_id', ids);
+
+    if (error) {
+      logger.warn('FEATURE_GATE:ENTITLEMENT_BATCH_READ_FAILED', 'Could not read entitlements; treating every account as free', {
+        feature,
+        accounts: ids.length,
+        message: error.message,
+      });
+      return new Set();
+    }
+
+    const byUser = new Map<string, { tier: string | null; expiresAt: string | null }>();
+    for (const row of data ?? []) {
+      byUser.set(row.user_id as string, { tier: row.tier as string | null, expiresAt: row.expires_at as string | null });
+    }
+
+    // A missing row is the ordinary case — an account only gets one when it
+    // buys something — and `entitlesFeature(null, …)` reads it as free.
+    return new Set(ids.filter((id) => entitlesFeature(byUser.get(id) ?? null, feature, { enforced: true }).state === 'allowed'));
+  } catch (err) {
+    logger.warn('FEATURE_GATE:BATCH_THREW', 'Feature gate threw; treating every account as free', {
+      feature,
+      accounts: ids.length,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    return new Set();
+  }
+}
+
+/**
  * What a refused call returns, beside `success: false`.
  *
  * ── E6's wire — the machine-readable half of a refusal ──────────────────────

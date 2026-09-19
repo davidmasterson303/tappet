@@ -59,10 +59,15 @@ describe('POST /api/v1/vehicles', () => {
     expect(post).not.toMatch(/body\.user_?[iI]d/);
   });
 
-  it('reuses the mileage rule rather than growing a second opinion', () => {
-    // A first reading is an increase from nothing, so the correction path does
-    // not apply and the bounds do.
-    expect(post).toMatch(/validateMileageUpdate\(\{\s*current:\s*0/);
+  it('reuses the mileage rule rather than growing a second opinion — as a first reading', () => {
+    /*
+      `current: null`, never `0`. With `0` the jump check read any first
+      reading past 100,000 as a typo and this route answered 422 — a 2003
+      Accord at 170,000, refused on 19 Sep with "check the digits".
+      `mileage-update.test.ts` pins the rule at a value that trips the jump.
+    */
+    expect(post).toMatch(/validateMileageUpdate\(\{\s*current:\s*null/);
+    expect(post).not.toMatch(/validateMileageUpdate\(\{\s*current:\s*0/);
   });
 
   it('does not await the dossier research', () => {

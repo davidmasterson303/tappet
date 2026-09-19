@@ -209,7 +209,10 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
           was the last place still round, so the landing page was advertising a
           product it no longer looked like.
 
-          Nothing says "free": whether there is a free tier is undecided.
+          Nothing says "free" yet. Decided 17 Sep: there is one — garage,
+          service log and mileage, with every model path behind Plus
+          (`paid-features.ts`). Whether the landing says so is copy for David
+          and Cowork; the listing's name change is the same decision.
         */}
         <motion.div
           className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-12"

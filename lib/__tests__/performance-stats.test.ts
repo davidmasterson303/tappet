@@ -29,6 +29,18 @@ jest.mock('@/lib/gemini', () => ({
   flashStructuredConfig: {},
 }));
 
+/*
+  The gate, mocked at its seam. `checkFeatureAccess` answers `not-enforced`
+  by default — the switch is off in every environment this runs in — and one
+  case below turns it to a refusal to prove the model is never reached.
+  `featureRefusal` is the real one: it is the shape being tested.
+*/
+const checkFeatureAccess = jest.fn(async (..._args: unknown[]) => ({ state: 'not-enforced' as const }));
+jest.mock('@/lib/feature-gate', () => ({
+  ...jest.requireActual('@/lib/feature-gate'),
+  checkFeatureAccess: (...args: unknown[]) => checkFeatureAccess(...args),
+}));
+
 /**
  * Minimal Supabase stand-in. `select`/`eq`/`update` chain; the object itself
  * is thenable, so both `await client.from(t).select().eq()` and
@@ -84,6 +96,7 @@ describe('a demo vehicle never reaches the model', () => {
     const result = await recomputePerformanceStats({
       vehicleId: 'demo-1',
       client,
+      userId: null,
       isDemo: true,
     });
 
@@ -106,7 +119,7 @@ describe('a demo vehicle never reaches the model', () => {
   it('writes nothing back to shared demo data', async () => {
     const client = fakeClient({ vehicles: { data: DEMO_VEHICLE, error: null } });
 
-    await recomputePerformanceStats({ vehicleId: 'demo-1', client, isDemo: true });
+    await recomputePerformanceStats({ vehicleId: 'demo-1', client, userId: null, isDemo: true });
 
     expect(client.updates).toHaveLength(0);
   });
@@ -118,6 +131,7 @@ describe('a demo vehicle never reaches the model', () => {
     await recomputePerformanceStats({
       vehicleId: 'demo-1',
       client,
+      userId: null,
       isDemo: true,
       forceRefresh: true,
     });
@@ -143,11 +157,50 @@ describe('an unchanged service history never reaches the model', () => {
     const result = await recomputePerformanceStats({
       vehicleId: 'owned-1',
       client,
+      userId: 'owner-1',
       isDemo: false,
     });
 
     expect(generateContent).not.toHaveBeenCalled();
     expect(result).toMatchObject({ ok: true, cached: true });
+  });
+
+  it('refuses before the model when the account is not entitled — 17 Sep', async () => {
+    /*
+      The fourth of the four paths that sat outside the gate. Below every
+      cached return, so what the row already holds keeps serving; above the
+      model, so a free account never spends. The refusal carries E6's wire
+      (`code`, `feature`) so the route forwards it and a client can open the
+      paywall on the code rather than read a 402 as a failure.
+    */
+    checkFeatureAccess.mockResolvedValueOnce({
+      state: 'needs-subscription',
+      feature: 'dossier',
+      message: 'The vehicle dossier is part of Tappet Plus.',
+    } as never);
+    const client = fakeClient({
+      vehicles: { data: OWNED_VEHICLE, error: null },
+      modification_tracking: { data: [{ mod_name: 'Downpipe' }], error: null },
+      maintenance_line_items: { data: [], error: null },
+    });
+
+    const result = await recomputePerformanceStats({
+      vehicleId: 'owned-1',
+      client,
+      userId: 'owner-1',
+      isDemo: false,
+    });
+
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      status: 402,
+      error: 'The vehicle dossier is part of Tappet Plus.',
+      code: 'needs-subscription',
+      feature: 'dossier',
+    });
+    expect(checkFeatureAccess).toHaveBeenCalledWith('owner-1', 'dossier');
+    expect(client.updates).toEqual([]);
   });
 
   it('calls the model once the history changes', async () => {
@@ -167,6 +220,7 @@ describe('an unchanged service history never reaches the model', () => {
     const result = await recomputePerformanceStats({
       vehicleId: 'owned-1',
       client,
+      userId: 'owner-1',
       isDemo: false,
     });
 
@@ -183,6 +237,7 @@ describe('a missing vehicle is a 404, not a crash', () => {
     const result = await recomputePerformanceStats({
       vehicleId: 'nope',
       client,
+      userId: 'owner-1',
       isDemo: false,
     });
 

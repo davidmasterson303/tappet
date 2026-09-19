@@ -13,6 +13,43 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 18–19 Sep 2026 — the store shoot, and what stood in its way
+>
+> Cowork's screenshot prompt (`Claude outputs/CLAUDE_CODE_PROMPT` 18 Sep) is
+> answered in `CLAUDE_CODE_REPLY_screenshots_2026-09-18.md`. The short form:
+>
+> - **A simulator build registers nothing at Apple; a device build registers
+>   the App ID on `P4873P8FQ9` but never the ASC record.** Apple's own page
+>   frames Individual→Organization as a *migration request* on the existing
+>   membership (`migrate-individual-account`, founder + D-U-N-S) — the repo's
+>   "fresh enrolment and an app transfer" (`lib/legal.ts`, ~30 Aug) was an
+>   assumption. Either way an unattached App ID is a deletable step, not a
+>   trap. Shoot from the simulator; ask the Team ID question on the form.
+> - **No build needed for the shoot**: Expo Go on a simulator runs `main`
+>   against `web-live`. EAS quota untouched.
+> - ⛔ **The iOS 18.4 simulator runtime cannot reach Supabase from an app**
+>   — `fetch failed: The network connection was lost` / `cannot parse
+>   response` while Safari in the same simulator loads it (Apple's bug;
+>   supabase #35943 / #35041). Every simulator here ran 18.4 and the
+>   fixture-driven loops never touched the network. It reached David as "my
+>   password isn't working". **iOS 18.5 (22F77) is installed** and
+>   "iPhone 16 Pro Max (18.5)" `512B450F-…` is the shoot device: 1320×2868,
+>   the 6.9" size App Store Connect requires. The download and the aborted
+>   18.3/18.2 probes filled the disk; the 18.4 runtime (8.2 GB) is now the
+>   thing to delete — David's, since the design-loop devices sit on it.
+> - **Found on the first frame, fixed (`7252158`)**: the phone drew the full
+>   lockup in the narrow box, so every build since the rename read
+>   "SOUTHMOOR DIGI" on sign-in. `brand.test.ts` now reads both components.
+> - **The quote gate landed (`94077bb`)** on the metering merge (`98096e5`);
+>   all four model paths are behind the gate, the health score in front.
+> - **Recall alerts are enforced (`8f9c4d4`)**: the sweep asks
+>   `usersEntitledTo(owners, 'recalls')` once per page and skips the recall
+>   half for owners the gate refuses; service reminders stay free. E8's one
+>   remaining code piece; the `UNGATED` allowlist is empty.
+>
+> **Still yours:** sign in on the 18.5 simulator (the cars are on your
+> account); the metering migration in the SQL editor; a promote after it.
+>
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >
 > From Cowork's 14 Sep prompt ("keep it live, tighten the cap, fix the failure
@@ -28,13 +65,15 @@
 >   "budget exhausted, demo" message for the advisor describes a path that
 >   cannot spend. Not reversed — that would need David's word.
 > - **`DEMO_BUDGET` bounds the demo *quote*** (`generateQuoteRequestV2`, two
->   calls at default thinking), not advisor turns — and **neither quote call
->   is metered**, so the ceiling reads a gauge those calls never write. The
->   constants are cut 5× as decided (60k / 300k, ≈ $0.45 / $2.25) and the
->   docblock says exactly this; `ai-budget.test.ts` reads its arithmetic back.
->   `checkDemoBudget` now reads `surface = 'demo'` only, so the front door and
->   the canary stop spending the demo's allowance. The meter is a task chip —
->   it needs a purpose migration, which is the SQL editor.
+>   calls at default thinking), not advisor turns — and, that morning,
+>   **neither quote call was metered**, so the ceiling read a gauge those
+>   calls never wrote. The constants are cut 5× as decided (60k / 300k,
+>   ≈ $0.45 / $2.25) and `advisor-failure-states.test.ts` reads the
+>   docblock's arithmetic back (this bullet first named `ai-budget.test.ts`,
+>   which pins the floor, not the lines). `checkDemoBudget` now reads
+>   `surface = 'demo'` only, so the front door and the canary stop spending
+>   the demo's allowance. **The meter landed the same afternoon** — the block
+>   below — and needs one SQL-editor trip before it writes a row.
 > - **`/api/health/consultant` and `/api/health/ai` are live on both hosts.**
 >   `{"error":"Not found"}` is the route's own 404 for a caller without the
 >   secret (`route.ts`, "an unauthenticated caller should not learn that a
@@ -78,10 +117,144 @@
 > seconds later: 218 / 3713 in 5.7 s; the rerun promoted. The gate's two
 > starved runs are the 11 Sep flake wearing a promote, not a regression.
 >
-> **In flight:** the quote-path meter (`claude/inspiring-hodgkin-3c09bb`,
-> spawned from this session) — when it lands it brings a purpose migration,
-> which is the SQL editor, and only then can `DEMO_BUDGET` trip on the calls
-> it bounds.
+> **Landed 18 Sep:** the quote-path meter (`98096e5`, from the session
+> spawned here). ⚠ **Its migration is the SQL editor —**
+> `20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql`;
+> until it is applied the three new purposes fail the CHECK and are dropped
+> with `AI_USAGE:WRITE_FAILED`, and `DEMO_BUDGET` still cannot trip. Neither
+> host carries any of this until a promote.
+>
+> **Cowork's demo-mode question, answered from the tree** (`Claude outputs/
+> CLAUDE_CODE_REPLY_demo_and_aso_2026-09-17.md`, 17 Sep). The phone has no
+> demo: first launch is `SignInScreen`, and `apps/mobile` never calls the API
+> anonymously. `access.ts`'s four states are a policy table nothing enforces —
+> `permits()` has one consumer, the web's demo copy. What enforces is the
+> feature gate (off; advisor / dossier / invoice-scan when on) and demo
+> read-only. **"A lapse drops to read only" is unimplemented**, and with the
+> gate on **four model paths stay free**: `generateVehicleHealthSummary`,
+> `fetchPowertrainOptions`, the quote's two calls, `performance-stats`. Fixed
+> today (`6d11d2b`): the route dropped `isSample`, so a sample reached any API
+> client unlabelled — forwarded now, and the phone renders the web's label;
+> and `featureUpsellMessage` called recall alerts free 18 days after they
+> moved to paid — derived from `FREE_FEATURES` now. **David's fork:** build
+> the 30 Aug read-only rule (+ a phone demo garage), or keep the free garage
+> the binary has and say so in the register; either way gate the four model
+> paths before the switch flips. The listing draft names no free tier but
+> says "recalls for your VIN" twice — year/make/model (§10).
+>
+> **The fork is decided — B, and the gate (David, 17 Sep, via Cowork).** The
+> free tier stays: **free = garage · service log · mileage; paid = advisor ·
+> recalls · invoice scanning · dossier.** It reverses 30 Aug's "no free tier"
+> because that decision's premise dissolved rather than being overruled: it
+> was about cost, and with every model path behind `checkFeatureAccess` an
+> unpaid account costs nothing that calls a model. A lapse drops to the free
+> tier, not to read-only. Built the same day:
+>
+> - **Two of the four ungated model paths are gated** — powertrain options →
+>   `dossier`, performance stats → `dossier` — each below its cache read so a
+>   lapsed owner keeps what the row holds, each returning E6's wire.
+>   `model-paths-behind-the-gate.test.ts` reads every function's *body* and
+>   `performance-stats.test.ts` mounts the refusal.
+> - **The fourth — the quote's two calls → `advisor` — landed 18 Sep**
+>   (`98096e5` merged the metering session's `c53b852` clean; the gate sits
+>   in the owner branch above the budget, demo untouched; guard proven red).
+>   All four model paths that were outside the gate are now behind it, and
+>   the health score is the one model call deliberately in front of it.
+> - **Health scores are FREE** — David, the same evening, with the number in
+>   front of him. The score was gated under the advisor for about two hours
+>   because "gate the four" was executed as written; it is
+>   `generateVehicleHealthSummary`'s own `healthScore`, the garage card's
+>   ring, "the free product's whole face" (`pricing.ts`), and without it the
+>   free tier is a spreadsheet with a car photo. 274–789 output-equivalent
+>   tokens a summary, half a cent, once a car a day, bounded by
+>   `FREE_MONTHLY_COST_USD`. **Final split: free = garage · service log ·
+>   mileage · health score; paid = advisor · recalls · invoice scanning ·
+>   dossier (incl. powertrain options and performance stats).** Derived, not
+>   hand-edited: `health-score` is in `FREE_FEATURES`, so the paywall's free
+>   list and the refusal's kept clause carry it; the advisor's blurb is back
+>   to the advisor and `model-paths-behind-the-gate.test.ts` fails if any
+>   paid blurb ever names a free feature (one destination mention allowed,
+>   listed) or if a gate reappears in the health summary — both proven red.
+>   Slot 1 stays the garage with scores, captioned free.
+> - `access.ts` rewritten for B (the table, the copy, a guard that it agrees
+>   with `paid-features.ts`); `pricing.ts`'s "SUPERSEDED 30 Aug" section and
+>   `paid-features.ts`'s "no free tier" docblock replaced; the advisor's
+>   paywall blurb names the health score it now sells (product copy —
+>   David's to re-word).
+> - Still E8: the sweep does not read `RECALL_ALERTS_AFTER_LAPSE`; no write
+>   path needs gating any more, by decision.
+>
+> **Item 1 closed, 17 Sep 17:45 UTC.** `web-live` **1d069e00** carries the
+> product pair's `[[redirects]]`; both old hosts 301 to the primary (GET and
+> POST alike), the primary serves 200. The demo stays on **f79b2d58** — the
+> rules are host-scoped and inert there, so no build was spent on it.
+>
+> #### 17 Sep, afternoon — the quote writes the meter it is read against
+>
+> Four premises from the morning's handoff, each checked against the artefact
+> before anything was built, and all four held — plus a fifth the check
+> turned up:
+>
+> 1. `ai_usage_events` had **490 rows and none from the quote path**
+>    (PostgREST, `SUPABASE_SECRET_KEY`): nine purposes from 2 Aug plus one
+>    `quote_check`. `estimateCosts` and `generateEmailDraft` followed neither
+>    `generateContent` with `recordAiUsageInBackground`.
+> 2. So `checkDemoBudget` summed rows the demo quote never wrote.
+> 3. The owner branch of `generateQuoteRequestV2` had **no
+>    `checkMonthlyBudget`** — and `every-generation-has-a-ceiling.test.ts`'s
+>    `CEILING_ELSEWHERE` said it did, because it checked that the *file*
+>    contained the word. `app/actions.ts` contains it eleven times.
+> 4. `paid-features.test.ts` "leaves the demo consultant ungated" sliced from
+>    an anchor at line 6807 to one at line 1280: the empty string, green
+>    since 30 Aug on nothing.
+> 5. **`validateConsultantDocument`** — the consultant's upload check, a
+>    vision call — was in the same shape as the quote: no meter, no ceiling
+>    in its caller, and the same file-level `CEILING_ELSEWHERE` entry
+>    vouching for it. Found by making that test read the calling function's
+>    body, which is what it now does.
+>
+> What shipped:
+>
+> ```
+> packages/core/src/ai/usage.ts             quote_estimate · quote_email ·
+>                                           document_validation
+> supabase/migrations/20260917120000_…      the CHECK, redefined — ⚠ David's SQL trip
+> app/actions.ts                            both quote calls at LOW via withThinking,
+>                                           metered with the caller's userId + vehicleId
+>                                           threaded in (QuoteCaller); the owner branch
+>                                           checks checkMonthlyBudget; uploadConsultantDocument
+>                                           checks it; validateConsultantDocument is metered
+> packages/core/src/ai/budget.ts            DEMO_BUDGET's arithmetic re-derived:
+>                                           27 quotes/day, 136/month of ~2,200
+> every-generation-has-a-ceiling.test.ts    CEILING_ELSEWHERE names the caller and reads
+>                                           its body, comments stripped; a second scan
+>                                           requires a meter in every calling function,
+>                                           no exemptions — both proven red on HEAD's tree
+> paid-features · demo-quote-generation ·   re-anchored, non-empty, branch-precise;
+> advisor-failure-states · ai-budget        the docblock and its assertions moved together
+> ```
+>
+> **Measured, not guessed** (14 Flash calls, ≈ $0.12, nothing written): a
+> three-item quote on the Accord demo car cost **~3,370** output-equivalent
+> tokens as shipped — three-quarters of it thinking at a level nobody set —
+> **~2,220 at LOW**, ~740 at MINIMAL. Every sample validated; across eleven
+> estimates the totals ran $447–534 low and $856–968 high with no level
+> standing apart. LOW on both, the consultant's level. Not MINIMAL: one
+> MINIMAL email put markdown bold into a body `EmailDraftDisplay` shows in a
+> `<pre>` and copies verbatim. One sample is a reason, not a finding; the
+> numbers are in the call-site comments for the re-tune.
+>
+> ⚠ **Until the migration is applied, the meter is still empty.** Every
+> quote and upload check runs exactly as before; each usage write fails the
+> CHECK, is dropped with an `AI_USAGE:WRITE_FAILED` warn, and the request
+> is unaffected. The rows — and the ceiling meaning anything — start the
+> day David runs it. **Not promoted**, same as the morning's block.
+>
+> Left as found, and worth knowing: `validateConsultantDocument` still runs
+> at the default config and thinking level. `lib/gemini.ts`'s
+> `classificationConfig` docblock names it as the motivating case and the
+> call never took it — a vision call nobody has measured, so nothing was
+> guessed.
 >
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
@@ -191,7 +364,7 @@
 >
 > | # | yours | the action | unblocks |
 > |---|---|---|---|
-> | 1 | **The product-pair redirect** | Say **yes** (one word). Then Claude Code adds `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co` → `tappet.southmoordigital.com` as `[[redirects]]`, extends the guard, promotes `web-live`, and curls the old hosts. Safe: the only device build ever (22 Aug dev client) takes its API host from Metro's manifest, so no installed app writes to the old host. | the last two hostnames retired; nothing else waits on it |
+> | 1 | ~~**The product-pair redirect**~~ | **Done 17 Sep** on your yes: `[[redirects]]` for both, the guard retires the pair and checks the phone's two hosts, `promote-web` verifies its pair after the deploy. `web-live` **1d069e00**; `curl -sI` — both old hosts 301 to `tappet.southmoordigital.com` with the path kept, POST 301s too (why nothing may write there), primary 200. | the last two hostnames retired; nothing waited on it |
 > | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
@@ -199,6 +372,7 @@
 > | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws; since 17 Sep the advisor answers **503 `advisor-unavailable`** — "retrying will not help, and we are alerted to it" — on both clients once promoted, and the canary names the balance in its CI detail line. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
 > | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
+> | 9 | **One migration, 17 Sep** | Paste `supabase/migrations/20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql` into the SQL editor and run it. It swaps the `ai_usage_events` purpose CHECK for a superset (three values added); same shape as the 3 Aug one, which ran clean. Not time-sensitive the way the 2 Aug one was — nothing breaks while it waits — but **until it runs the demo quote's meter writes nothing** (each write fails the CHECK and is dropped with a warn), so `DEMO_BUDGET` stays a constant on an empty gauge and the D2 dataset misses every owner quote. Verify — after this change is promoted, since both hosts still serve the 14 Sep builds: a demo quote on `tappet-demo`, then `ai_usage_events` has `quote_estimate` and `quote_email` rows with `surface = 'demo'`. | the demo ceiling can trip; quotes and upload checks in the price dataset |
 >
 > Not yours, and deliberately not built: a launch-time IAP reconciliation
 > (`store.ts` says why), a phone entry point to the dossier (a product

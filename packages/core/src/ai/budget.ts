@@ -138,16 +138,20 @@ export const TIERS: Record<TierName, Tier> = {
  * but the canary has been metered since.
  *
  * What still spends here is the demo **quote** — `generateQuoteRequestV2`,
- * two model calls (`estimateCosts`, `generateEmailDraft`) at the model's
- * default thinking level. ⚠ **Neither call is metered.** No
- * `recordAiUsageInBackground` follows either `generateContent`, so this
- * ceiling reads a meter those calls never write and cannot trip on them. It
- * is a real constant on an empty gauge until a purpose migration lands
- * (`AI_USAGE_PURPOSES` is a CHECK constraint, so that is David's SQL trip);
- * the docblock says so rather than the assertion beneath it passing over a
- * dead derivation. `checkDemoBudget` reads `surface = 'demo'` only, so the
- * front door (`surface = 'anonymous'`, its own ceiling) and the canary
- * (`surface = 'canary'`, ~1,300 tokens a day) no longer spend this allowance.
+ * two model calls (`estimateCosts`, `generateEmailDraft`). ⚠ Until 17 Sep
+ * **neither call was metered**: no `recordAiUsageInBackground` followed
+ * either `generateContent`, so this ceiling read a meter those calls never
+ * wrote and could not trip on them — a real constant on an empty gauge, and
+ * `ai_usage_events` had no quote row among 490. They now record as
+ * `quote_estimate` and `quote_email` with the caller's id threaded in, so a
+ * seeded car's quote lands in `surface = 'demo'` — the rows `checkDemoBudget`
+ * sums — and an owner's in `account`. ⚠ **The rows start the day the
+ * purpose migration is applied** (`20260917120000`, David's SQL trip): until
+ * then the CHECK refuses the two values, each write is dropped with an
+ * `AI_USAGE:WRITE_FAILED` warn, and the gauge stays empty. `checkDemoBudget`
+ * reads `surface = 'demo'` only, so the front door (`surface = 'anonymous'`,
+ * its own ceiling) and the canary (`surface = 'canary'`, ~1,300 tokens a day)
+ * do not spend this allowance.
  *
  * ── Two windows, and the daily one is the important half ────────────────────
  *
@@ -162,21 +166,26 @@ export const TIERS: Record<TierName, Tier> = {
  * Cut 5× on 17 Sep, David's decision after the alternatives were put to him.
  * The daily has to absorb the day the link is posted somewhere busy; the
  * monthly is the actual bill and can be cut harder. Flash output bills around
- * $7.50/M, and the only anonymous calls ever measured here ran 390–600
- * output-equivalent tokens (the front-door check, 6 Aug; consultant turns,
- * 2 Aug). A demo quote is two calls at default thinking and has **not** been
- * measured — the meter above is what would measure it — so the per-call
- * figure is the measured one, and the quote count is an estimate labelled as
- * one:
+ * $7.50/M. The per-quote figure below was **measured on 17 Sep**, not from
+ * rows — none can exist until the migration above is applied — but directly:
+ * the two prompts verbatim, the Accord demo car, three needs, two samples per
+ * call at the LOW level both calls now run at. Output-equivalent tokens
+ * (output + thinking): the estimate ~1,310, the email ~910, so a quote is
+ * ~2,200. At the default the calls shipped with it was ~3,370, three-quarters
+ * of it thinking — inside the "3–6k" this paragraph guessed before, and now
+ * a number rather than a guess. A quote with more items costs more — the
+ * estimate writes a block per item — and that slope has not been measured.
  *
- *   daily       60,000 ≈   100 calls of ~600 ≈  $0.45/day
- *   monthly    300,000 ≈   500 calls of ~600 ≈  $2.25/month
+ *   daily       60,000 ≈    27 quotes of ~2,200 ≈  $0.45/day
+ *   monthly    300,000 ≈   136 quotes of ~2,200 ≈  $2.25/month
  *
- * At a guessed 3–6k a quote that is 10–20 quotes a day, and a quote is a
- * deliberate multi-step act that a visitor runs once if at all. The worst case
- * stops being unbounded and becomes about two dollars a month.
- * `ai-budget.test.ts` reads the two lines above and fails if they stop
- * agreeing with the constants.
+ * Twenty-seven quotes a day on a page where a quote is a deliberate multi-step
+ * act a visitor runs once if at all. The worst case stops being unbounded and
+ * becomes about two dollars a month. `advisor-failure-states.test.ts` reads
+ * the two lines above and fails if they stop agreeing with the constants (the
+ * previous sentence here named `ai-budget.test.ts`, which pins the floor, not
+ * the lines); when a month of real `surface = 'demo'` rows exists, re-derive
+ * the ~2,200 from them and replace this paragraph's provenance with the query.
  */
 export const DEMO_BUDGET = {
   dailyOutputTokens: 60_000,

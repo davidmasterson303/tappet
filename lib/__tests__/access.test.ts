@@ -1,20 +1,23 @@
 /**
- * No free tier, and a lapse drops to read-only.
+ * The free tier, and a lapse drops to it.
  *
  * @jest-environment node
  *
- * Both are David's decisions of 30 Aug, and between them they replace a tier
- * system with an access system. The assertions here are about the two
- * properties that make that safe rather than merely different:
+ * David's decision of 17 Sep, replacing 30 Aug's "no free tier, a lapse drops
+ * to read-only" — which this file asserted for eighteen days while nothing in
+ * the product enforced it. The assertions here are about the two properties
+ * that make the free tier safe rather than merely generous:
  *
  *   **Nobody unpaid can spend money.** `canGenerate` is false for every state
- *   except `subscribed`. That is what makes the pricing model's "worst case per
- *   prospect is zero" a fact rather than an intention.
+ *   except `subscribed`, and — the half that was missing — the same answer
+ *   comes out of `paid-features.ts`, which is what the gate at every model
+ *   path actually reads. A policy table nothing enforces is what this file
+ *   was until 17 Sep.
  *
- *   **Nobody is locked out of their own records.** Reading, exporting and
- *   deleting survive a lapse, because the argument in `paid-features.ts` — that
- *   a garage which stops working when a subscription ends is a hostage — was
- *   never about tiers.
+ *   **Nobody is locked out of their own records.** Reading, writing, exporting
+ *   and deleting all survive a lapse, because the argument in
+ *   `paid-features.ts` — that a garage which stops working when a
+ *   subscription ends is a hostage — was never about tiers.
  */
 
 import {
@@ -25,6 +28,8 @@ import {
   type AccessState,
   type Capability,
 } from '@tappet/core/access';
+import { entitlesFeature } from '@tappet/core/entitlement';
+import { FREE_FEATURES } from '@tappet/core/paid-features';
 
 const STATES: AccessState[] = ['demo', 'subscribed', 'lapsed', 'unsubscribed'];
 
@@ -46,9 +51,46 @@ describe('only a subscriber can spend money', () => {
   });
 });
 
-describe('a lapse takes the writing, never the reading', () => {
-  const KEPT: Capability[] = ['read-own-records', 'export', 'delete-account'];
-  const LOST: Capability[] = ['write-own-records', 'generate'];
+describe('the policy table and the gate give one answer — 17 Sep', () => {
+  /*
+    This file was a policy table nothing enforced for eighteen days. The gate
+    reads `entitlement.ts` → `paid-features.ts`, never this module, so the two
+    are held to the same verdict here: for every state, what an account's
+    record resolves to under the gate must permit exactly what the table
+    permits, for the model paths and for recall alerts.
+  */
+  const RECORD: Record<AccessState, Parameters<typeof entitlesFeature>[0]> = {
+    demo: null,
+    unsubscribed: null,
+    subscribed: { tier: 'paid', expiresAt: '2099-01-01T00:00:00Z' },
+    lapsed: { tier: 'paid', expiresAt: '2020-01-01T00:00:00Z' },
+  };
+
+  it.each(STATES)('%s: generating', (state) => {
+    const gate = entitlesFeature(RECORD[state], 'advisor', { enforced: true });
+    expect(`${state}: ${gate.state === 'allowed'}`).toBe(`${state}: ${canGenerate(state)}`);
+  });
+
+  it.each(STATES)('%s: recall alerts', (state) => {
+    const gate = entitlesFeature(RECORD[state], 'recalls', { enforced: true });
+    expect(`${state}: ${gate.state === 'allowed'}`).toBe(`${state}: ${permits(state, 'recall-alerts')}`);
+  });
+
+  it('what the table calls the free tier is what paid-features calls free', () => {
+    // The record — garage, service log, mileage — and the health score, the
+    // free tier's one model call (`paid-features.ts` says why). The table
+    // permits reading and writing the record without a subscription.
+    expect(FREE_FEATURES).toEqual(['garage', 'service-log', 'mileage', 'health-score']);
+    for (const state of ['lapsed', 'unsubscribed'] as const) {
+      expect(permits(state, 'write-own-records')).toBe(true);
+      expect(permits(state, 'read-own-records')).toBe(true);
+    }
+  });
+});
+
+describe('a lapse takes the generating, never the record', () => {
+  const KEPT: Capability[] = ['read-own-records', 'write-own-records', 'export', 'delete-account'];
+  const LOST: Capability[] = ['generate', 'recall-alerts'];
 
   it.each(KEPT)('lapsed keeps %s', (capability) => {
     expect(permits('lapsed', capability)).toBe(true);
@@ -106,16 +148,20 @@ describe('a refusal says what happened and what changes it', () => {
     expect(refusalCopy('subscribed', 'generate')).toBeNull();
   });
 
-  it('tells a lapsed owner their records are still there', () => {
+  it('tells a lapsed owner their records are still there, in both refusals', () => {
     /*
       The sentence that matters most in this file. Somebody whose subscription
       ended is deciding whether their two years of history is gone, and a
       refusal that does not answer that reads as one that took it.
     */
-    const copy = refusalCopy('lapsed', 'write-own-records');
-
-    expect(copy).toMatch(/records stay readable and exportable/i);
-    expect(copy).toMatch(/renew/i);
+    for (const capability of ['generate', 'recall-alerts'] as const) {
+      const copy = refusalCopy('lapsed', capability);
+      expect(`${capability}: ${copy}`).toMatch(/still here/i);
+      expect(`${capability}: ${copy}`).toMatch(/subscription has ended/i);
+    }
+    // And writing is not refused at all — the free tier keeps the record.
+    expect(refusalCopy('lapsed', 'write-own-records')).toBeNull();
+    expect(refusalCopy('unsubscribed', 'write-own-records')).toBeNull();
   });
 
   it('never tells a demo visitor their subscription ended', () => {

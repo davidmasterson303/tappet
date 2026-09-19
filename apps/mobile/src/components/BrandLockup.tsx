@@ -84,15 +84,24 @@ export default function BrandLockup({
   }
 
   const full = chosen === 'full';
+  /*
+    ⚠ Both measures are per-variant — the same fix the web's `BrandLockup`
+    took on 7 Sep, and this file did not. `TAPPET` is one short word, so the
+    maker line is the wider drawing; drawn in `LOCKUP.width` it crops to
+    `SOUTHMOOR DIGI` in silence, and it did, on the sign-in screen of every
+    build since the rename. Found 18 Sep on the first simulator frame of the
+    App Store shoot. `brand.test.ts` now reads both components for this.
+  */
+  const boxWidth = full ? LOCKUP.widthFull : LOCKUP.width;
   const boxHeight = full ? LOCKUP.heightFull : LOCKUP.heightShort;
-  const height = Math.round((width * boxHeight) / LOCKUP.width);
+  const height = Math.round((width * boxHeight) / boxWidth);
 
   return (
     <View
       accessibilityRole="image"
       accessibilityLabel={full ? `${BRAND_NAME} by ${MAKER_NAME}` : BRAND_NAME}
     >
-      <Svg width={width} height={height} viewBox={`0 0 ${LOCKUP.width} ${boxHeight}`}>
+      <Svg width={width} height={height} viewBox={`0 0 ${boxWidth} ${boxHeight}`}>
         {/*
           The mark is centred on the wordmark's cap band in both lockups — one
           rule, so the plate does not move when the maker line appears.

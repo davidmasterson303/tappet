@@ -12,11 +12,14 @@
 /**
  * The purposes a Gemini call can be recorded under.
  *
- * One per call site as of 2 Aug 2026. Mirrors the CHECK constraint in
- * `20260802150000_meter_ai_usage_per_account.sql` and is held in step with it by
- * `ai-usage.test.ts` — a purpose the application knows and the database
- * refuses is a write that fails at runtime, on the one path that is not allowed
- * to disturb a request.
+ * One per call site as of 2 Aug 2026. Mirrors the CHECK constraint first
+ * written in `20260802150000_meter_ai_usage_per_account.sql` — and last
+ * redefined by whichever migration in the corpus did so most recently, which
+ * is what `ai-usage.test.ts` reads to hold the two in step. A purpose the
+ * application knows and the database refuses is a write that fails at
+ * runtime, on the one path that is not allowed to disturb a request: the row
+ * is dropped with an `AI_USAGE:WRITE_FAILED` warn and the request proceeds,
+ * so the only symptom is a cost report quietly missing one feature.
  *
  * Adding one means a migration. That is the correct amount of friction for a
  * vocabulary the cost reports are grouped by; the alternative is 'consultant',
@@ -46,6 +49,28 @@ export const AI_USAGE_PURPOSES = [
     Added by `20260803210000_the_front_door_spends_on_its_own_line.sql`.
   */
   'quote_check',
+  /*
+    17 Sep. The demo quote's two calls (`estimateCosts`, `generateEmailDraft`
+    in `generateQuoteRequestV2`) had never been metered — `checkDemoBudget`
+    was reading a gauge nothing on that path wrote, and the only purposes
+    ever recorded in `ai_usage_events` were the nine above plus the front
+    door. Two purposes rather than one `quote`, for the reason the canary
+    taught (`AI_USAGE_SURFACES` below): the estimate is a structured JSON
+    call and the email is prose, they cost differently — measured 17 Sep at
+    ~1,300 and ~900 output-equivalent tokens at LOW — and a blended average
+    across two populations describes neither.
+
+    `document_validation` is the consultant's upload check
+    (`validateConsultantDocument`): a vision call that the same audit found
+    with neither meter nor ceiling. It rides in the same migration because
+    the CHECK constraint is one SQL-editor trip, and a second trip for one
+    value is the friction this vocabulary is supposed to have, not more.
+
+    Added by `20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql`.
+  */
+  'quote_estimate',
+  'quote_email',
+  'document_validation',
 ] as const;
 
 export type AiUsagePurpose = (typeof AI_USAGE_PURPOSES)[number];

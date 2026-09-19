@@ -7,6 +7,11 @@
  * view/mode without real LLM calls so prospects can explore the app without
  * costing anything."*
  *
+ * ⚠ The first sentence was reversed on 17 Sep — the free tier (garage,
+ * service log, mileage) was kept, with every model path behind the gate;
+ * `paid-features.ts` carries the reasoning. The second sentence is this file,
+ * and it stands: the demo makes no model call.
+ *
  * The demo consultant used to make real Gemini calls against a shared ceiling —
  * about $11 a month of exposure to anybody who found the URL. Prospects are now
  * the largest unpaid population in the product, so that arrangement gets worse

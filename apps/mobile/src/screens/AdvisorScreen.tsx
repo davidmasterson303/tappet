@@ -29,6 +29,7 @@ import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { refusalCopy } from '@tappet/core/access';
 import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
@@ -113,6 +114,8 @@ type Turn =
        * that renders on ordinary advice would show a price nobody inferred.
        */
       estimate?: ConsultantEstimate;
+      /** Written in advance, not generated — labelled where it is shown. */
+      isSample?: true;
     };
 
 /**
@@ -283,6 +286,7 @@ export function AdvisorScreen({
           text: answer.response,
           kinds: answer.contextKinds,
           ...(answer.estimate ? { estimate: answer.estimate } : {}),
+          ...(answer.isSample ? { isSample: true as const } : {}),
         },
       ]);
       // Only now, because the question is only safely somewhere else once the
@@ -878,6 +882,19 @@ function TurnView({ turn }: { turn: Turn }) {
       {turn.estimate ? <EstimateWell estimate={turn.estimate} /> : null}
 
       {/*
+        ⚠ A pre-written answer says so, above the disclosure and not instead
+        of it — the two sentences answer different questions, "who wrote this"
+        and "when". The words are `refusalCopy('demo', 'generate')`, the same
+        line the web puts under its samples, so the two clients cannot label
+        one answer two ways. Nothing on the phone reaches a sample today (the
+        garage lists only the signed-in owner's cars), but the route forwards
+        the flag since 17 Sep and the screen must honour it the day a demo
+        garage arrives here — a sample presented as a model's reading of this
+        car is the defect `demo-answers.ts` exists to prevent.
+      */}
+      {turn.isSample ? <Text style={styles.sampleLabel}>{refusalCopy('demo', 'generate')}</Text> : null}
+
+      {/*
         ── ⚠ UX-16 / LEG-05 · the disclosure, where the advice is ────────────
 
         **The product never said its advice was AI-generated**, and the safety
@@ -1007,6 +1024,7 @@ const styles = StyleSheet.create({
     may be. Same treatment as `ProvenanceRow` above it.
   */
   disclosure: { ...type.label, letterSpacing: 0, lineHeight: 16, color: text.muted },
+  sampleLabel: { ...type.label, letterSpacing: 0, lineHeight: 16, color: text.secondary, fontStyle: 'italic' },
   advisorText: { ...type.body, color: text.primary },
   /* Weight only. A brighter colour as well would make ordinary text read as dimmed. */
   advisorBold: { fontFamily: interFace('700'), fontWeight: '700' },
