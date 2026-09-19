@@ -50,8 +50,22 @@ const MAX_PLAUSIBLE_MILEAGE = 2_000_000;
  */
 const MAX_SINGLE_JUMP = 100_000;
 
+/**
+ * @param current  What is already recorded, or **`null` for a first reading**.
+ *
+ * ⚠ A first reading has no baseline, and passing `0` as one was a bug on
+ * both surfaces that add a car (19 Sep): the jump check read a 2003 Accord at
+ * 170,000 as "over 100,000 miles since the last reading — check the digits"
+ * and refused it — on the phone, and again at `POST /api/v1/vehicles`. No
+ * car past 100,000 could be added, with a message that blamed the owner's
+ * typing. The comment at the route said "the correction path does not apply
+ * and the bounds do", and was right about the bounds and wrong about the
+ * jump. With `null`, only the checks that need no baseline run: a whole
+ * number, within range. The relative checks — backwards, jump — need a
+ * reading to be relative to.
+ */
 export function validateMileageUpdate(params: {
-  current: number;
+  current: number | null;
   next: unknown;
   isCorrection?: boolean;
 }): MileageDecision {
@@ -68,6 +82,9 @@ export function validateMileageUpdate(params: {
       message: 'That reading looks out of range — check the digits.',
     };
   }
+
+  // A first reading: nothing to be below, nothing to jump from.
+  if (current === null) return { ok: true };
 
   if (next < current && !isCorrection) {
     return {

@@ -457,13 +457,17 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   /*
-    Mileage reuses `validateMileageUpdate` against a current of 0 rather than
-    growing a second opinion about what a plausible odometer reading is. A first
-    reading is only ever an increase from nothing, so the correction path does
-    not apply and the bounds do.
+    Mileage reuses `validateMileageUpdate` rather than growing a second opinion
+    about what a plausible odometer reading is — with `current: null`, which
+    is what a first reading is. ⚠ Until 19 Sep this passed `0`, on the
+    reasoning that "a first reading is only ever an increase from nothing, so
+    the correction path does not apply and the bounds do". The bounds did;
+    so did the jump check, and every car past 100,000 miles was refused here
+    with 422 and "check the digits". The phone made the same call. The web's
+    wizard goes through a different action and never saw it.
   */
   const mileage = Number(body.currentMileage ?? 0);
-  const mileageCheck = validateMileageUpdate({ current: 0, next: mileage });
+  const mileageCheck = validateMileageUpdate({ current: null, next: mileage });
   if (!mileageCheck.ok) {
     return Response.json(
       { success: false, error: mileageCheck.message } as ApiResponse,
