@@ -13,6 +13,43 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 18–19 Sep 2026 — the store shoot, and what stood in its way
+>
+> Cowork's screenshot prompt (`Claude outputs/CLAUDE_CODE_PROMPT` 18 Sep) is
+> answered in `CLAUDE_CODE_REPLY_screenshots_2026-09-18.md`. The short form:
+>
+> - **A simulator build registers nothing at Apple; a device build registers
+>   the App ID on `P4873P8FQ9` but never the ASC record.** Apple's own page
+>   frames Individual→Organization as a *migration request* on the existing
+>   membership (`migrate-individual-account`, founder + D-U-N-S) — the repo's
+>   "fresh enrolment and an app transfer" (`lib/legal.ts`, ~30 Aug) was an
+>   assumption. Either way an unattached App ID is a deletable step, not a
+>   trap. Shoot from the simulator; ask the Team ID question on the form.
+> - **No build needed for the shoot**: Expo Go on a simulator runs `main`
+>   against `web-live`. EAS quota untouched.
+> - ⛔ **The iOS 18.4 simulator runtime cannot reach Supabase from an app**
+>   — `fetch failed: The network connection was lost` / `cannot parse
+>   response` while Safari in the same simulator loads it (Apple's bug;
+>   supabase #35943 / #35041). Every simulator here ran 18.4 and the
+>   fixture-driven loops never touched the network. It reached David as "my
+>   password isn't working". **iOS 18.5 (22F77) is installed** and
+>   "iPhone 16 Pro Max (18.5)" `512B450F-…` is the shoot device: 1320×2868,
+>   the 6.9" size App Store Connect requires. The download and the aborted
+>   18.3/18.2 probes filled the disk; the 18.4 runtime (8.2 GB) is now the
+>   thing to delete — David's, since the design-loop devices sit on it.
+> - **Found on the first frame, fixed (`7252158`)**: the phone drew the full
+>   lockup in the narrow box, so every build since the rename read
+>   "SOUTHMOOR DIGI" on sign-in. `brand.test.ts` now reads both components.
+> - **The quote gate landed (`94077bb`)** on the metering merge (`98096e5`);
+>   all four model paths are behind the gate, the health score in front.
+> - **Recall alerts are enforced (`8f9c4d4`)**: the sweep asks
+>   `usersEntitledTo(owners, 'recalls')` once per page and skips the recall
+>   half for owners the gate refuses; service reminders stay free. E8's one
+>   remaining code piece; the `UNGATED` allowlist is empty.
+>
+> **Still yours:** sign in on the 18.5 simulator (the cars are on your
+> account); the metering migration in the SQL editor; a promote after it.
+>
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >
 > From Cowork's 14 Sep prompt ("keep it live, tighten the cap, fix the failure
