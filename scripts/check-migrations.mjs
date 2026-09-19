@@ -180,7 +180,30 @@ for (const file of files) {
   const probes = probesFor(statements(file));
 
   if (probes.length === 0) {
-    rows.push({ file, state: 'no probe', detail: 'policies, grants or functions only' });
+    /*
+      Two kinds hide in here and they are not equally blind. A policy, grant
+      or function is a dashboard read. A **constraint** can be probed by hand
+      with a dry insert — one that omits the column, or carries the new
+      value — *provided a later constraint is certain to refuse the row*: on
+      `vehicles` an impossible `user_id` fails the FK, so the answer is 23502
+      before the migration and 23503 after (CLAUDE.md §2, 19 Sep). ⚠ Where
+      no such backstop exists the same insert succeeds and writes a row, and
+      `ai_usage_events.user_id` has no `REFERENCES` in the corpus — so this
+      script does not run the probe itself. Both migrations on David's list
+      on 19 Sep were constraints, filed here with the policies, which is how
+      "no probe" read as "no way to know". Named separately so the next
+      person knows a hand probe exists, and checks the backstop first.
+    */
+    const constraint = /DROP\s+NOT\s+NULL|SET\s+NOT\s+NULL|ADD\s+CONSTRAINT|DROP\s+CONSTRAINT|CHECK\s*\(/i.test(
+      statements(file)
+    );
+    rows.push({
+      file,
+      state: 'no probe',
+      detail: constraint
+        ? 'constraint only — a hand dry-insert can tell, if an FK will refuse the row (CLAUDE.md §2)'
+        : 'policies, grants or functions only',
+    });
     continue;
   }
 
