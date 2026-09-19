@@ -70,7 +70,7 @@ describe('usersEntitledTo — the batch form of the gate', () => {
 
   it('not enforced: every owner, and no query — tonight is last night', async () => {
     const owners = await usersEntitledTo(['a', 'b', 'a', ''], 'recalls');
-    expect([...owners].sort()).toEqual(['a', 'b']);
+    expect(Array.from(owners).sort()).toEqual(['a', 'b']);
     expect(inCalls).toEqual([]);
   });
 
@@ -80,7 +80,7 @@ describe('usersEntitledTo — the batch form of the gate', () => {
 
     const owners = await usersEntitledTo(['paid-1', 'lapsed-1', 'never-1'], 'recalls');
 
-    expect([...owners]).toEqual(['paid-1']);
+    expect(Array.from(owners)).toEqual(['paid-1']);
     expect(inCalls).toHaveLength(1);
     expect(inCalls[0]).toEqual(['user_id', ['paid-1', 'lapsed-1', 'never-1']]);
   });
