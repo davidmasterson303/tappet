@@ -130,12 +130,16 @@ describe('what is sold', () => {
       `RECALL_ALERTS_AFTER_LAPSE = false` and lives in the nightly sweep. That
       is E8 work, because enforcement is off until there is something to buy.
     */
-    const UNGATED: Record<string, string> = {
-      recalls:
-        'gate belongs in the sweep’s refresh and notify, not the read path — E8',
-    };
+    /*
+      Empty since 19 Sep: `recalls` sat here as "gate belongs in the sweep's
+      refresh and notify, not the read path — E8" until the sweep asked
+      `usersEntitledTo(owners, 'recalls')` once per page
+      (`recall-alerts-are-paid.test.ts`). The allowlist stays as a type so the
+      next exemption has to be written down with its reason.
+    */
+    const UNGATED: Record<string, string> = {};
 
-    const sources = ['app/actions.ts', 'lib/vehicle-research.ts']
+    const sources = ['app/actions.ts', 'lib/vehicle-research.ts', 'app/api/internal/notify-sweep/route.ts']
       .map((file) =>
         readFileSync(join(__dirname, '..', '..', file), 'utf8')
       )
@@ -144,9 +148,10 @@ describe('what is sold', () => {
     // Anti-vacuous: the scan must be able to see the gates that do exist.
     expect(sources).toMatch(/checkFeatureAccess\([^)]*'advisor'\)/);
 
+    // The single check at a call site, or the sweep's batch form of it.
     const missing = PAID_FEATURES.filter(
       (feature) =>
-        !new RegExp(`checkFeatureAccess\\([^)]*'${feature}'\\)`).test(sources) &&
+        !new RegExp(`(checkFeatureAccess|usersEntitledTo)\\([^)]*'${feature}'\\)`).test(sources) &&
         !(feature in UNGATED)
     );
 
