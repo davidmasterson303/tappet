@@ -27,6 +27,16 @@ describe('unshout', () => {
     );
   });
 
+  it('gives a name it was handed in capitals one capital, and leaves a short one as it is', () => {
+    // Seen live: `Manufacturer` is "TRADESONIC" on the same rows that shout.
+    expect(unshout('CERTAIN TRADESONIC COMBINATION LAMPS SOLD AS REPLACEMENT LAMPS FOR USE ON THE ABOVE LISTED VEHICLES.', ['TRADESONIC'])).toBe(
+      'Certain Tradesonic combination lamps sold as replacement lamps for use on the above listed vehicles.'
+    );
+    expect(unshout('BMW OF NORTH AMERICA IS RECALLING CERTAIN MODEL YEAR 2015 M235I VEHICLES EQUIPPED WITH THE N55.', ['BMW', 'K2 MOTOR'])).toBe(
+      'BMW of north america is recalling certain model year 2015 M235I vehicles equipped with the N55.'
+    );
+  });
+
   it('starts a new sentence after a line break, and keeps a phone number and a date whole', () => {
     expect(unshout('K2 MOTOR WILL NOTIFY OWNERS AND OFFER A FULL REFUND.  THE RECALL BEGAN ON DECEMBER 17, 2008.\nOWNERS MAY CONTACT K2 MOTOR AT 1-909-839-2992.')).toBe(
       'K2 motor will notify owners and offer a full refund.  The recall began on december 17, 2008.\nOwners may contact K2 motor at 1-909-839-2992.'
