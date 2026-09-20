@@ -99,11 +99,47 @@
 >   it more wrong. The probe is the reconciliation; the script now labels
 >   constraint migrations as probeable-by-hand, with the FK precondition.
 >
-> **Still yours:** move the reviewer's email to
-> `support+appreview@southmoordigital.com` (the admin-API command is in the
-> reply; my session refused the write) and then the credentials in App Store
-> Connect's review notes; the comped entitlement row above, or say so and it
-> is one insert; the metering migration `20260917120000` in the SQL editor;
+> ### ⚠ 20 Sep 2026 — the phone path is real, and the wait narrates it
+>
+> Cowork's reframe (`CLAUDE_CODE_REPLY_phone_path_2026-09-20.md`): the
+> research gap was a launch blocker, not a roadmap line. Landed and live on
+> `web-live` (`cc0ea00f`):
+>
+> - **Research from the phone** (`a46d219`): `POST /api/v1/research` →
+>   `netlify/functions/research-background.mts` (the plate library's shape:
+>   fifteen minutes, imports nothing, NHTSA first, the Pro call over REST,
+>   every decision through `claim · recalls · store · fail`);
+>   `POST /api/v1/health` for the score. `lib/vehicle-research.ts` is split at
+>   the model call; the web and the sweep keep their behaviour. In-flight
+>   rule: `last_research_date` moved off `created_at`, younger than 4 min.
+> - **The research log** (`@tappet/core/research-milestones`): every line
+>   quotes a row the API returned — decode (the plate), NHTSA, sort, dossier,
+>   schedule, score — so it cannot depict work that has not happened; failure
+>   is a line; the phone's `Working` ledger gained the answer line and a
+>   failed state; readings seat into their cells (`Seat`). Watched live on a
+>   2012 Camry: rows at 6 s / 32 s / score; **the decode line stuck on
+>   Toyota's `xv50` plate** — found by the recording, not the tests — fixed
+>   (`7d95916`). Recording in `screenshots-2026-09-19/`.
+> - **Next service projected at research time** (`b2cf3b8`): the columns were
+>   the sweep's alone, so every new car read "No schedule yet" for a day.
+> - **The garage now refetches on focus** (`c06980e`): a car added on the
+>   phone was missing from it until the app was killed — MOB-09's one gap.
+> - Every duration promise on the phone is gone; `no-duration-promises.test.ts`.
+> - The reviewer account is comped (`tier: 'paid', expires_at: null`, proven
+>   against `entitlesFeature`); the Apple-migration wording is sourced
+>   (`f85abb6`); the 503 is in the create route's docblock.
+>
+> **Journey walk, phone-only:** sign-up and delete-account need a fresh
+> account and a password (David); the paywall needs enforcement and the
+> device build; **the phone cannot remove a car** (no `DELETE /api/v1/vehicles`
+> — the web has `deleteVehicle`). Everything else on the list has a route the
+> phone calls and a row that changes.
+>
+> **Still yours:** make `appreview@southmoordigital.com` at iCloud, then the
+> admin-API command in the reply, then App Store Connect's review credentials;
+> the ledger question (restore the CLI ledger, or formalise the probe in
+> CLAUDE.md §2 — Code recommends formalising); the fresh-account run with Code
+> driving; the metering migration `20260917120000`;
 > `xcrun simctl status_bar 512B450F-… clear` after the shoot.
 >
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends

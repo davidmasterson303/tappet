@@ -63,6 +63,12 @@ export interface ResearchRunner {
 
 type Phase = 'idle' | 'running' | 'settled';
 
+/** A reading, or the honest "could not say" row — either is a score that exists. */
+function hasScore(observation: ResearchObservation): boolean {
+  const health = observation.health;
+  return Boolean(health && (typeof health.health_score === 'number' || health.last_generated));
+}
+
 export function useResearchRunner(params: {
   vehicleId: string;
   /** What the screen has, or `null` while it is still loading. */
@@ -121,15 +127,26 @@ export function useResearchRunner(params: {
     } else if (status === 'failed') {
       started.current = true;
       setPhase('settled');
+    } else if ((status === 'completed' || status === 'unsupported') && !hasScore(observation)) {
+      /*
+        Researched but never scored — a car the web or the sweep researched,
+        or one researched before the phone could ask (the Accord, 20 Sep: a
+        day after it was added, "No score yet" under copy saying its page
+        shows the work running, and nothing ran). No trigger is posted; the
+        dossier exists. The run is the score alone, and the log says so:
+        five lines already answered, one running.
+      */
+      started.current = true;
+      startedAt.current = now();
+      setPhase('running');
     }
-  }, [observation, phase, start, status]);
+  }, [now, observation, phase, start, status]);
 
   /* The score: asked once, after the dossier, when no reading exists. */
   useEffect(() => {
     if (phase !== 'running' || !observation || healthAsked.current) return;
     const dossierDone = status === 'completed' || status === 'unsupported';
-    const hasScore = Boolean(observation.health && (typeof observation.health.health_score === 'number' || observation.health.last_generated));
-    if (!dossierDone || hasScore) return;
+    if (!dossierDone || hasScore(observation)) return;
     healthAsked.current = true;
     void (async () => {
       try {
