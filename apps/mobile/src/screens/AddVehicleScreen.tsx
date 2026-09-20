@@ -737,8 +737,8 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
           told that reads the empty dossier as a broken app.
         */}
         <Text style={styles.footnote}>
-          Your car appears straight away. We look up its known issues and service schedule in
-          the background — that takes a few seconds.
+          Your car appears straight away. Its research runs behind it, and its page shows each
+          step as it lands.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

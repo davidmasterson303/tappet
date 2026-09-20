@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   ActionSheetIOS,
@@ -59,6 +59,10 @@ import Svg, { Path } from 'react-native-svg';
 import { TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import type { ResearchObservation } from '@tappet/core/research-milestones';
+import ResearchLog from '../components/ResearchLog';
+import Seat from '../components/Seat';
+import { useResearchRunner } from '../components/useResearchRunner';
 import { monoFace } from '../theme/fonts';
 
 /*
@@ -160,7 +164,10 @@ interface Vehicle {
   plate_status?: PlateStatus | null;
   /* Both embedded shapes accepted, for the reason GarageScreen sets out. */
   vehicle_health_summary?: HealthSummary | HealthSummary[] | null;
-  nhtsa_data?: { recalls?: unknown[] | null } | { recalls?: unknown[] | null }[] | null;
+  nhtsa_data?:
+    | { recalls?: unknown[] | null; lookup_status?: string | null }
+    | { recalls?: unknown[] | null; lookup_status?: string | null }[]
+    | null;
   /**
    * The stored next-service columns, written by the nightly sweep.
    *
@@ -219,6 +226,11 @@ function summariseWishlist(
   };
 }
 
+/** The no-motion counterpart of `Seat`: the same children, no wrapper. */
+function PlainLanding({ children }: { children: ReactNode }) {
+  return <>{children}</>;
+}
+
 function first<T>(value: T | T[] | null | undefined): T | undefined {
   if (Array.isArray(value)) return value[0];
   return value ?? undefined;
@@ -258,6 +270,22 @@ function humanise(value: string): string {
  */
 interface Knowledge {
   common_mods?: Array<{ name: string; purpose?: string; difficulty?: string }> | null;
+  /*
+    The research log's inputs (20 Sep): what the dossier has, in the log's
+    own words — `research-milestones.ts` quotes these and nothing else.
+  */
+  research_status?: string | null;
+  engine_type?: string | null;
+  transmission_type?: string | null;
+  known_issues?: unknown;
+  maintenance_schedule?: unknown;
+}
+
+/** The generation plate's row, for the log's first line. `null` is no plate. */
+interface Plate {
+  generation?: string | null;
+  year_from?: number | null;
+  year_to?: number | null;
 }
 
 /**
@@ -304,6 +332,7 @@ type State =
       drivers: HealthDriver[];
       history: HealthReading[];
       knowledge: Knowledge | null;
+      plate: Plate | null;
       counts: HubCounts;
     }
   | { status: 'missing' }
@@ -450,8 +479,16 @@ export function VehicleDetailScreen({
   const bands = heroBands(heroH);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    /*
+      `quiet` (20 Sep): the research runner re-reads this screen every few
+      seconds while a job runs, and neither the opening dial nor the
+      pull-to-refresh indicator belongs on a poll — the log is the wait's
+      instrument, and a second one flashing above it would be noise.
+    */
+    async (isRefresh = false, quiet = false) => {
+      if (quiet) {
+        // nothing to show: the rows arriving is the whole feedback
+      } else if (isRefresh) setRefreshing(true);
       else setState({ status: 'loading' });
 
       // A photo error does not survive a reload — `AlertBanner` is an alert
@@ -483,6 +520,7 @@ export function VehicleDetailScreen({
             health_drivers?: HealthDriver[];
             health_history?: HealthReading[];
             knowledge?: Knowledge | null;
+            plate?: Plate | null;
           }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
           apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
             `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
@@ -529,6 +567,7 @@ export function VehicleDetailScreen({
           drivers: Array.isArray(body.health_drivers) ? body.health_drivers : [],
           history: Array.isArray(body.health_history) ? body.health_history : [],
           knowledge: body.knowledge ?? null,
+          plate: body.plate ?? null,
           counts,
         });
       } catch (error) {
@@ -544,7 +583,7 @@ export function VehicleDetailScreen({
           unauthorized: apiError.status === 401,
         });
       } finally {
-        setRefreshing(false);
+        if (!quiet) setRefreshing(false);
       }
     },
     [vehicleId],
@@ -566,6 +605,37 @@ export function VehicleDetailScreen({
     the first focus too rather than being clever about skipping it.
   */
   useRefetchOnFocus(load);
+
+  /*
+    ── The research, narrated (20 Sep) ─────────────────────────────────────
+
+    A car whose knowledge base is still `pending` is researched from here —
+    `useResearchRunner` posts the trigger the phone never had, polls this
+    screen quietly, asks for the score once the dossier lands, and stops on
+    a result or a stated failure. What it shows is assembled by
+    `@tappet/core/research-milestones` from the rows below and nothing else,
+    which is why the log cannot claim work that has not happened. The
+    observation is rebuilt on every render; it is a handful of field reads.
+  */
+  const observation: ResearchObservation | null =
+    state.status === 'ok'
+      ? {
+          vehicle: {
+            year: state.vehicle.year ?? 0,
+            make: state.vehicle.make ?? '',
+            model: state.vehicle.model ?? '',
+            current_mileage: state.vehicle.current_mileage ?? null,
+            next_service_label: state.vehicle.next_service_label ?? null,
+            next_service_at_miles: state.vehicle.next_service_at_miles ?? null,
+          },
+          plate: state.plate,
+          knowledge: state.knowledge,
+          nhtsa: first(state.vehicle.nhtsa_data) ?? null,
+          health: first(state.vehicle.vehicle_health_summary) ?? null,
+        }
+      : null;
+  const quietReload = useCallback(() => load(false, true), [load]);
+  const research = useResearchRunner({ vehicleId, observation, reload: quietReload });
 
   /**
    * Add or replace this car's photograph.
@@ -785,6 +855,14 @@ export function VehicleDetailScreen({
   }
 
   const { vehicle, counts } = state;
+
+  /*
+    The bay fills in (Pattern B, 20 Sep): while the research log is on this
+    screen, a reading that arrives seats into its cell — `Seat`, a short
+    ease-out to a definite stop. On an ordinary open nothing "arrives"; the
+    values are rendered plain, and the wrapper is a fragment.
+  */
+  const Landing = research.visible ? Seat : PlainLanding;
 
   const health = first(vehicle.vehicle_health_summary);
   const score = typeof health?.health_score === 'number' ? health.health_score : null;
@@ -1250,6 +1328,8 @@ export function VehicleDetailScreen({
             photograph. `VehicleDetailScreen.test.tsx` holds "never over the
             car".
           */}
+          {research.visible ? <ResearchLog runner={research} style={styles.researchLog} /> : null}
+
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
               <BinnacleCell
@@ -1264,6 +1344,7 @@ export function VehicleDetailScreen({
               >
                 {score !== null && band ? (
                   <>
+                    <Landing>
                     <View style={styles.reading}>
                       {/*
                         ⚠ 6 Sep · B3 and B7: the reading stopped wearing the
@@ -1274,6 +1355,7 @@ export function VehicleDetailScreen({
                       <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
                       <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
                     </View>
+                    </Landing>
                     {/*
                       13 Sep: the stale caveat in a cell's worth of words —
                       the critic's most repeated cut across three rounds was
@@ -1312,9 +1394,11 @@ export function VehicleDetailScreen({
                 }. Opens what is due.`}
               >
                 {nextService.kind === 'known' ? (
-                  <Text style={styles.serviceName} numberOfLines={3}>
-                    {nextService.service}
-                  </Text>
+                  <Landing>
+                    <Text style={styles.serviceName} numberOfLines={3}>
+                      {nextService.service}
+                    </Text>
+                  </Landing>
                 ) : null}
                 <Text style={[styles.count, styles.timing]} numberOfLines={3}>
                   {serviceDue}
@@ -1346,7 +1430,9 @@ export function VehicleDetailScreen({
                 }
               >
                 {recallsChecked ? (
-                  <Text style={[styles.count, openRecallCount === 0 && styles.countEmpty]}>{openRecallCount}</Text>
+                  <Landing>
+                    <Text style={[styles.count, openRecallCount === 0 && styles.countEmpty]}>{openRecallCount}</Text>
+                  </Landing>
                 ) : null}
               </BinnacleCell>
               <BinnacleCell
@@ -1703,6 +1789,8 @@ const styles = StyleSheet.create({
   switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },
+  /* The research log, in the page gutter above the readings. */
+  researchLog: { paddingHorizontal: space.lg, paddingTop: space.lg },
 
   body: { padding: space.lg, gap: space.md },
 

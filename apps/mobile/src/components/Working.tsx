@@ -389,7 +389,13 @@ const STAGE_MARK = 8;
 
 function StageMark({ state }: { state: WorkingStage['state'] }) {
   const ring =
-    state === 'done' ? text.primary : state === 'active' ? register.accent : border.fieldHover;
+    state === 'done'
+      ? text.primary
+      : state === 'active'
+        ? register.accent
+        : state === 'failed'
+          ? status.attention
+          : border.fieldHover;
   return (
     <Svg width={STAGE_MARK} height={STAGE_MARK} style={styles.stageMark}>
       <Circle
@@ -398,7 +404,8 @@ function StageMark({ state }: { state: WorkingStage['state'] }) {
         r={STAGE_MARK / 2 - 0.5}
         stroke={ring}
         strokeWidth={1}
-        fill={state === 'done' ? text.primary : 'none'}
+        /* Failed is a filled sodium dot: a definite stop, in the warning ink. */
+        fill={state === 'done' ? text.primary : state === 'failed' ? status.attention : 'none'}
       />
     </Svg>
   );
@@ -420,29 +427,49 @@ function Ledger({ stages, footer }: { stages: WorkingStage[]; footer?: ReactNode
             ? styles.inkActive
             : stage.state === 'done'
               ? styles.inkDone
-              : styles.inkPending;
+              : stage.state === 'failed'
+                ? styles.inkFailed
+                : styles.inkPending;
+        const spoken =
+          stage.state === 'done'
+            ? 'done'
+            : stage.state === 'active'
+              ? 'in progress'
+              : stage.state === 'failed'
+                ? 'did not finish'
+                : 'not started';
         return (
           <View
             key={stage.label}
             style={styles.stage}
             /*
               The state is spoken as well as drawn — a screen reader gets
-              "done" or "in progress" after the label rather than a dot.
+              "done" or "in progress" after the label rather than a dot, and
+              the answer after that, so the log is heard as it is read.
             */
             accessible
-            accessibilityLabel={`${stage.label} — ${
-              stage.state === 'done'
-                ? 'done'
-                : stage.state === 'active'
-                  ? 'in progress'
-                  : 'not started'
-            }`}
+            accessibilityLabel={`${stage.label} — ${spoken}${stage.answer ? `. ${stage.answer}` : ''}`}
           >
-            <Text style={[styles.stageIndex, ink]}>{String(index + 1).padStart(2, '0')}</Text>
-            <Text style={[styles.stageLabel, ink]} numberOfLines={1}>
-              {stage.label}
-            </Text>
-            <StageMark state={stage.state} />
+            <View style={styles.stageRow}>
+              <Text style={[styles.stageIndex, ink]}>{String(index + 1).padStart(2, '0')}</Text>
+              <Text style={[styles.stageLabel, ink]} numberOfLines={1}>
+                {stage.label}
+              </Text>
+              <StageMark state={stage.state} />
+            </View>
+            {/*
+              The answer, under the asking (20 Sep). Body sans rather than
+              the mono label: it is a sentence about the car, not a state.
+              It exists only once the step came back — the assembler's rule —
+              so its arrival is the one thing on this panel that can honestly
+              be read as progress.
+            */}
+            {stage.answer ? (
+              <Text style={[styles.stageAnswer, stage.state === 'failed' && styles.inkFailed]}>
+                {'\u2192 '}
+                {stage.answer}
+              </Text>
+            ) : null}
           </View>
         );
       })}
@@ -647,20 +674,25 @@ const styles = StyleSheet.create({
     borderTopColor: border.panel,
   },
   stage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.lg,
     paddingVertical: space.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: border.panel,
   },
+  stageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+  },
   stageIndex: { ...type.mono, ...TABULAR },
   stageLabel: { ...type.monoLabel, flexShrink: 1 },
-  /* Done: filled off-white. Active: a cyan ring. Pending: a grey ring. */
+  /* The answer sits under the label, indented past the index. */
+  stageAnswer: { ...type.body, color: text.secondary, paddingTop: space.xs, paddingLeft: space.xl },
+  /* Done: filled off-white. Active: a cyan ring. Pending: a grey ring. Failed: a filled sodium dot. */
   stageMark: { marginLeft: 'auto' },
   inkDone: { color: text.primary },
   inkActive: { color: register.accent },
   inkPending: { color: text.muted },
+  inkFailed: { color: status.attention },
   /* A real count, in off-white, under the rows. */
   footer: { ...type.monoLabel, color: text.primary, paddingTop: space.md },
 });

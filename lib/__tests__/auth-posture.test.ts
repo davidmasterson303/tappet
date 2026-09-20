@@ -320,6 +320,20 @@ const ROUTE_POSTURE: Record<
   'app/api/internal/plates/store/route.ts': 'secret-gated',
   'app/api/internal/plates/fail/route.ts': 'secret-gated',
   'app/api/internal/plates/backfill/route.ts': 'secret-gated',
+  /*
+    Research from the phone (20 Sep). The four internal routes are the
+    background function's only way to claim, fetch recalls for, store and
+    fail a car's research; they gate through `requireInternalSecret` like
+    the plate routes, and the claim route is where the gate and the ceiling
+    run (`prepareResearch`). The two v1 routes are the phone's: the trigger
+    and the score, both vehicle-scoped, because each spends on a car.
+  */
+  'app/api/internal/research/claim/route.ts': 'secret-gated',
+  'app/api/internal/research/recalls/route.ts': 'secret-gated',
+  'app/api/internal/research/store/route.ts': 'secret-gated',
+  'app/api/internal/research/fail/route.ts': 'secret-gated',
+  'app/api/v1/research/route.ts': 'vehicle-scoped',
+  'app/api/v1/health/route.ts': 'vehicle-scoped',
   'app/api/v1/plates/ensure/route.ts': 'session',
   /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini

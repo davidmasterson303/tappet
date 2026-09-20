@@ -441,13 +441,23 @@ export async function PATCH(request: NextRequest): Promise<Response> {
  * request body reads as authoritative even when the handler ignores it, which
  * is one careless edit away from being trusted.
  *
- * ── Research is not awaited ─────────────────────────────────────────────────
+ * ── Research is not awaited — and, since 20 Sep, the phone starts it ────────
  *
  * The dossier generation measured ~23s on a warm server. Holding the response
  * open for it would put a half-minute spinner between "add my car" and seeing
  * anything. The row is returned immediately and the knowledge base fills in
- * behind it — `research_status: 'pending'` is what `VehicleInsights` already
- * watches for, so the existing machinery does the rest.
+ * behind it.
+ *
+ * ⚠ Until 20 Sep this paragraph ended "`research_status: 'pending'` is what
+ * `VehicleInsights` already watches for, so the existing machinery does the
+ * rest." `VehicleInsights` is a **web** component calling a cookie-authenticated
+ * action; the phone can never reach it, and nothing else started the research.
+ * So the first car ever saved from the phone (19 Sep — the night this route
+ * first worked at all) sat at "No score yet" until its page was opened on the
+ * web, and a phone-only owner's car would have waited for the nightly sweep,
+ * under a form that promised "a few seconds". The phone now posts
+ * `/api/v1/research` when it opens a pending car and narrates what lands
+ * (`research-milestones.ts`); `lib/research-job.ts` carries the shape.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   const identifier = getClientIdentifier(request);

@@ -334,8 +334,8 @@ export function HealthScreen({
             says "we cannot say" rather than guessing a default.
           */
           <Text style={styles.summary}>
-            No score yet. We work one out once we have looked this car over — that happens a
-            few seconds after it is added, and again as work is recorded.
+            No score yet. We work one out once the research has looked this car over — its
+            own page shows that running — and again as work is recorded.
           </Text>
         )}
       </Card>

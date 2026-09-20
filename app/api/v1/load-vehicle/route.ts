@@ -88,6 +88,16 @@ function embedded<T>(value: unknown): T | undefined {
   One column, and it is what lets the screen refuse to present an out-of-date
   reading as a current one.
 */
+/*
+  `lookup_status` rides with the recalls since 20 Sep, for the research log:
+  a row with `failed` is "NHTSA did not answer", and without the status a
+  phone could only tell "asked" from "not asked" by the row's presence. The
+  core note saying the column "does not exist in the live database" is stale
+  — it is there and reads `matched` (checked 20 Sep). ⚠ Outside the
+  concatenation, as the garage route's own warning says: the contract guard
+  strips quotes and whitespace and a comment between the literals becomes
+  column names.
+*/
 const VEHICLE_COLUMNS =
   'id,year,make,model,trim,color,vin,current_mileage,avg_miles_per_month,' +
   /*
@@ -100,7 +110,7 @@ const VEHICLE_COLUMNS =
   'image_url,custom_image_url,performance_mindedness,ownership_objective,' +
   'vehicle_status,focal_point_x,focal_point_y,created_at,updated_at,plate_key,' +
   'next_service_label,next_service_at_miles,next_service_due_on,' +
-  'nhtsa_data(recalls),' +
+  'nhtsa_data(recalls,lookup_status),' +
   'recall_actions(campaign_number,addressed_at),' +
   'vehicle_health_summary(health_score,summary,red_flags,last_generated)';
 
@@ -239,6 +249,31 @@ export async function GET(request: NextRequest): Promise<Response> {
       )).get(vehicleId) ?? null;
 
     /*
+      The plate's generation, for the research log's first line (20 Sep):
+      "Decoding the 2003 Honda Accord → 7th generation, 2003–2007." is a fact
+      the create route already established (`ensurePlate`) before the car was
+      even returned, and it is the one line the log can print the moment it
+      opens. Read from the library row rather than parsed out of `plate_key`,
+      because the years live only on the row. `null` when the car has no
+      plate — the log says "Filed as a …" and nothing more.
+    */
+    let plate: { generation: string | null; year_from: number | null; year_to: number | null } | null = null;
+    if (vehicle.plate_key) {
+      const { data: plateRow } = await supabase
+        .from('vehicle_plates')
+        .select('generation, year_from, year_to')
+        .eq('key', vehicle.plate_key as string)
+        .maybeSingle();
+      if (plateRow) {
+        plate = {
+          generation: (plateRow.generation as string | null) ?? null,
+          year_from: (plateRow.year_from as number | null) ?? null,
+          year_to: (plateRow.year_to as number | null) ?? null,
+        };
+      }
+    }
+
+    /*
       ── The drivers, and how each one fails ────────────────────────────────
 
       `historyResult.error` is **not** fatal and must not be. A demo read runs
@@ -290,6 +325,12 @@ export async function GET(request: NextRequest): Promise<Response> {
         photo_kind: vehiclePhotoKind(vehicleId, photoColumns, photo_url),
         plate_status,
       },
+      /*
+        The plate library row's generation and years — see above. Top level
+        beside `knowledge`, like the drivers: derived from another table, not
+        a column a caller could write back.
+      */
+      plate,
       knowledge: knowledgeData,
       /*
         Top level rather than folded into `vehicle`. These are *derived* and the

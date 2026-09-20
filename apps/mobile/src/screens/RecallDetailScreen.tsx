@@ -619,8 +619,8 @@ export function RecallDetailScreen({
               on the screen a recall notification opens.
             */
             <Text style={styles.body14}>
-              {healthClaim('recall', '', false).text} We fetch it from NHTSA shortly after a
-              vehicle is added — open this screen again in a minute.
+              {healthClaim('recall', '', false).text} We fetch it from NHTSA as part of the
+              car's research — its own page shows that running.
             </Text>
           )}
         </Card>

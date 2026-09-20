@@ -1250,3 +1250,56 @@ function hasHouseGrade(tree: unknown): boolean {
     expect(alert).not.toHaveBeenCalled();
   });
 });
+
+describe('the research log (20 Sep)', () => {
+  /*
+    The first car ever saved from the phone sat at "No score yet" because
+    nothing a phone could reach started its research. This screen now does,
+    and narrates it from the rows — `useResearchRunner.test.tsx` holds the
+    runner; these hold the screen's part: the log is there for a pending
+    car, the trigger is posted once, and a researched car never sees it.
+  */
+  function respondResearch(status: 'pending' | 'completed') {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1',
+            year: 2003,
+            make: 'Honda',
+            model: 'Accord',
+            current_mileage: 170_000,
+            vehicle_health_summary: status === 'completed' ? { health_score: 61, summary: 'Fair.' } : null,
+            nhtsa_data: status === 'completed' ? { recalls: [], lookup_status: 'matched' } : null,
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: status, known_issues: status === 'completed' ? [1] : undefined },
+        } as never;
+      }
+      if (path === '/research') return { state: 'researching' } as never;
+      return {} as never;
+    });
+  }
+
+  it('opens the log on a pending car, posts the trigger once, and prints the plate line at once', async () => {
+    respondResearch('pending');
+    const { view } = await mount();
+    await waitFor(() => expect(view.queryByTestId('research-log')).not.toBeNull());
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(1));
+    expect(request.mock.calls.find(([p]) => p === '/research')?.[1]).toMatchObject({ method: 'POST', body: { vehicleId: 'v1' } });
+    // The one line that can be true the moment the screen opens.
+    view.getByText('→ 7th generation, 2003–2007.');
+    view.getByLabelText('Asking NHTSA about open campaigns — in progress');
+    // And the cells beneath are honest about not having the rows yet.
+    view.getByText('No score yet');
+  });
+
+  it('never shows the log, and never posts, for a car already researched', async () => {
+    respondResearch('completed');
+    const { view } = await mount();
+    await waitFor(() => view.getByText('61'));
+    expect(view.queryByTestId('research-log')).toBeNull();
+    expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(0);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+});
