@@ -409,8 +409,19 @@ export function GarageScreen({
     await recordPrimerDismissed(new Date().toISOString().slice(0, 10));
   }, []);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+  const load = useCallback(async (isRefresh = false, quiet = false) => {
+    /*
+      ── Quiet, since 20 Sep ──────────────────────────────────────────────────
+
+      The focus refetch added this morning (`c06980e`) fixed a missing car and
+      introduced "OPENING THE GARAGE" on every return to the tab — the
+      opening dial over a list the screen already had, for ~0.7 s, caught on
+      a 10 Hz burst. A quiet reload keeps the bays on screen and swaps the
+      data underneath; the dial is for the first open only.
+    */
+    if (quiet) {
+      // Nothing to show: the rows changing is the whole feedback.
+    } else if (isRefresh) setRefreshing(true);
     else setState({ status: 'loading' });
 
     try {
@@ -433,6 +444,8 @@ export function GarageScreen({
       setState({ status: 'ok', vehicles });
     } catch (error) {
       const apiError = error as ApiRequestError;
+      // A quiet refetch that fails keeps the bays; the next open reloads properly.
+      if (quiet) return;
       setState({
         status: 'error',
         message: apiError.message,

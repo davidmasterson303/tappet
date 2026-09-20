@@ -1,4 +1,4 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { everHadVehicle, recordEverHadVehicle } from '../../onboarding/first-run-storage';
 
@@ -569,5 +569,54 @@ describe('the next-service row', () => {
 
     await view.findByText(/M235i/);
     expect(view.queryByLabelText(/^Next service:/)).toBeNull();
+  });
+});
+
+describe('coming back into view (20 Sep)', () => {
+  /*
+    The focus refetch (`c06980e`, this morning) fixed a car missing from the
+    garage and introduced "OPENING THE GARAGE" over the bays on every return
+    to the tab — the opening dial for a request the screen did not need to
+    show, caught on a 10 Hz burst. The hook now calls the loader quietly;
+    this drives the focus event through a mock navigation and holds the bays
+    on screen throughout.
+  */
+  const { NavigationContext } = jest.requireActual('@react-navigation/native');
+
+  it('refetches quietly — the bays stay, the dial never appears, the data still swaps', async () => {
+    const listeners: Array<() => void> = [];
+    const navigation = {
+      canGoBack: () => false,
+      setOptions: jest.fn(),
+      navigate: jest.fn(),
+      addListener: jest.fn((event: string, cb: () => void) => {
+        if (event === 'focus') listeners.push(cb);
+        return () => {};
+      }),
+      isFocused: () => true,
+    };
+    request.mockResolvedValueOnce({ vehicles: [M235I] } as never);
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <GarageScreen accessToken="t" email="owner@example.test" onSignOut={jest.fn()} onOpenVehicle={jest.fn()} onAddVehicle={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText('2015 BMW M235i');
+    expect(listeners).toHaveLength(1);
+
+    // A second car appeared elsewhere; the focus refetch brings it in.
+    let release: (value: unknown) => void = () => {};
+    request.mockReturnValueOnce(new Promise((resolve) => (release = resolve)) as never);
+    await act(async () => {
+      listeners[0]();
+    });
+    // In flight: the bays are still there and no dial has replaced them.
+    view.getByText('2015 BMW M235i');
+    expect(view.queryByText('Opening the garage')).toBeNull();
+
+    await act(async () => {
+      release({ vehicles: [M235I, { ...M235I, id: 'v2', year: 2003, make: 'Honda', model: 'Accord' }] });
+    });
+    await view.findByText('2003 Honda Accord');
   });
 });

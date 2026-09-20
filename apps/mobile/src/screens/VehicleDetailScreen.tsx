@@ -488,8 +488,15 @@ export function VehicleDetailScreen({
       pull-to-refresh indicator belongs on a poll — the log is the wait's
       instrument, and a second one flashing above it would be noise.
     */
-    async (isRefresh = false, quiet = false) => {
-      if (quiet) {
+    async (isRefresh = false, quiet = false, lean = false) => {
+      /*
+        `quiet`: no loading UI — the focus refetch and every reload after a
+        write (20 Sep; the opening dial over content the screen already had
+        was a spinner on every back-navigation). `lean`: the vehicle alone,
+        for the research runner's poll — three requests a poll was 72 a
+        minute against a limiter of 60. Lean is always quiet.
+      */
+      if (quiet || lean) {
         // nothing to show: the rows arriving is the whole feedback
       } else if (isRefresh) setRefreshing(true);
       else setState({ status: 'loading' });
@@ -534,13 +541,13 @@ export function VehicleDetailScreen({
             knowledge?: Knowledge | null;
             plate?: Plate | null;
           }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
-          quiet
-            ? Promise.reject(new Error('quiet'))
+          lean
+            ? Promise.reject(new Error('lean'))
             : apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
                 `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
               ),
-          quiet
-            ? Promise.reject(new Error('quiet'))
+          lean
+            ? Promise.reject(new Error('lean'))
             : apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
                 `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
               ),
@@ -585,10 +592,10 @@ export function VehicleDetailScreen({
           knowledge: body.knowledge ?? null,
           plate: body.plate ?? null,
         };
-        // A quiet reload did not ask for the counts: keep the last full read's.
+        // A lean reload did not ask for the counts: keep the last full read's.
         setState((previous) => ({
           ...next,
-          counts: quiet && previous.status === 'ok' ? previous.counts : counts,
+          counts: lean && previous.status === 'ok' ? previous.counts : counts,
         }));
       } catch (error) {
         const apiError = error as ApiRequestError;
@@ -597,13 +604,15 @@ export function VehicleDetailScreen({
           setState({ status: 'missing' });
           return;
         }
+        // A quiet refetch that fails keeps what is on screen; the next open reloads.
+        if (quiet || lean) return;
         setState({
           status: 'error',
           message: apiError.message,
           unauthorized: apiError.status === 401,
         });
       } finally {
-        if (!quiet) setRefreshing(false);
+        if (!quiet && !lean) setRefreshing(false);
       }
     },
     [vehicleId],
@@ -654,8 +663,8 @@ export function VehicleDetailScreen({
           health: first(state.vehicle.vehicle_health_summary) ?? null,
         }
       : null;
-  const quietReload = useCallback(() => load(false, true), [load]);
-  const research = useResearchRunner({ vehicleId, observation, reload: quietReload });
+  const leanReload = useCallback(() => load(false, true, true), [load]);
+  const research = useResearchRunner({ vehicleId, observation, reload: leanReload });
 
   /**
    * Add or replace this car's photograph.
@@ -680,7 +689,7 @@ export function VehicleDetailScreen({
 
       setUploading(true);
       await uploadVehiclePhoto(vehicleId, file);
-      await load(true);
+      await load(false, true); // quiet: the photo swaps in place (20 Sep)
     } catch (error) {
       setPhotoError({
         headline: 'That photo was not saved',
@@ -736,7 +745,7 @@ export function VehicleDetailScreen({
 
     try {
       await removeVehiclePhoto(vehicleId);
-      await load(true);
+      await load(false, true); // quiet: the photo swaps in place (20 Sep)
     } catch (error) {
       setState((current) =>
         current.status === 'ok'

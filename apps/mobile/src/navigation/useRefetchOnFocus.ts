@@ -39,7 +39,11 @@ import { NavigationContext } from '@react-navigation/native';
  * before. The hook order is unconditional either way.
  */
 export function useRefetchOnFocus(
-  reload: () => void,
+  /**
+   * The screen's loader. Called as `reload(false, true)` — not a pull, and
+   * **quiet**: see below.
+   */
+  reload: (isRefresh?: boolean, quiet?: boolean) => unknown,
   { enabled = true }: { enabled?: boolean } = {}
 ) {
   const navigation = useContext(NavigationContext);
@@ -70,6 +74,18 @@ export function useRefetchOnFocus(
       is how it survived four graded rounds. Nothing threw; the list was simply
       lower than it had been, which reads as layout.
     */
-    return navigation.addListener('focus', () => reload());
+    /*
+      ── ⚠ 20 Sep · quiet, or it is a spinner on every back-navigation ────────
+
+      `reload()` with no arguments was the *opening* load: every loader's
+      default mode sets its loading state, so coming back to any subscribed
+      screen showed the wait dial over content the screen already had —
+      "OPENING THE GARAGE" for ~0.7 s on a 10 Hz burst, and the same on six
+      other screens since MOB-09. The focus refetch is now the loader's
+      quiet mode: keep what is on screen, swap the data underneath. The rule
+      lives here, in the one place every focus refetch goes through, and
+      `screens-refetch-on-focus.test.ts` holds each loader to honouring it.
+    */
+    return navigation.addListener('focus', () => reload(false, true));
   }, [navigation, reload, enabled]);
 }

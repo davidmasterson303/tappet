@@ -76,7 +76,8 @@ describe('the root names its car', () => {
       same name under it is the two-names-on-one-screen `ScreenTitle` retired.
       `canGoBack()` is the question `RootScreen` asks, so they cannot disagree.
     */
-    const navigation = { canGoBack: () => true } as never;
+    // `addListener` because the milestone screen inside subscribes to focus (20 Sep).
+    const navigation = { canGoBack: () => true, addListener: () => () => {} } as never;
     const view = await render(
       <NavigationContext.Provider value={navigation}>
         <ServiceScreen
