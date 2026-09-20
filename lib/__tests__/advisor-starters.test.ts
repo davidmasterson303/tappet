@@ -95,6 +95,10 @@ describe('inSentence', () => {
     expect(inSentence('VANOS Solenoid Replacement')).toBe('VANOS solenoid replacement');
     expect(inSentence('PCV valve')).toBe('PCV valve');
     expect(inSentence('  N55 Oil  Filter Housing ')).toBe('N55 oil filter housing');
+    // Seen live on the Accord: the bracketed word kept its capital.
+    expect(inSentence('Automatic transmission (V6 Models)')).toBe('automatic transmission (V6 models)');
+    expect(inSentence('Rear Main Seal, Oil Leak')).toBe('rear main seal, oil leak');
+    expect(inSentence('"Mass Airflow" Sensor')).toBe('"mass airflow" sensor');
     expect(inSentence('')).toBeNull();
     expect(inSentence(null)).toBeNull();
   });

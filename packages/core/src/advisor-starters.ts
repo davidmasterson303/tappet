@@ -104,8 +104,14 @@ function recallQuestion(openRecalls: unknown): string | null {
 export function inSentence(label: string | null | undefined): string | null {
   const trimmed = (label ?? '').trim().replace(/\s+/g, ' ');
   if (!trimmed) return null;
+  // Punctuation around a word is not part of it: "(V6 Models)" is "(V6 models)".
   return trimmed
     .split(' ')
-    .map((word) => (/^[A-Z][a-z]+$/.test(word) ? word.toLowerCase() : word))
+    .map((word) => {
+      const parts = /^([^A-Za-z0-9]*)([A-Za-z0-9]+)([^A-Za-z0-9]*)$/.exec(word);
+      if (!parts) return word;
+      const [, lead, core, trail] = parts;
+      return lead + (/^[A-Z][a-z]+$/.test(core) ? core.toLowerCase() : core) + trail;
+    })
     .join(' ');
 }
