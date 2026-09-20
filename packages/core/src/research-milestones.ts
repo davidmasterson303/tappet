@@ -101,12 +101,28 @@ export interface ResearchObservation {
   stalled?: boolean;
 }
 
-/** Ordinal words for the generation, from the plate's `7th-generation` key. */
-function generationPhrase(generation: string | null | undefined): string | null {
+/**
+ * The plate's generation, in words. The library keys a generation the way
+ * the make does: Honda's Accord is `7th-generation`, Toyota's Camry is
+ * `xv50` and BMW's 2 Series is `f22` — chassis codes, which owners use. An
+ * ordinal reads as "7th generation"; a short code is set in capitals as the
+ * maker writes it; anything else has its hyphens opened up.
+ *
+ * ⚠ Found live, 20 Sep, on the first car this log ran for: the first
+ * version knew only the ordinal form, so the Camry's decode line stayed
+ * *active* with every other step done — the very failure this module
+ * exists to prevent, on its own first line. A generation this cannot phrase
+ * still has years, and the line must settle on those.
+ */
+export function generationPhrase(generation: string | null | undefined): string | null {
   if (!generation) return null;
-  const match = /^(\d+)(st|nd|rd|th)-generation$/.exec(generation);
-  if (!match) return null;
-  return `${match[1]}${match[2]} generation`;
+  const ordinal = /^(\d+)(st|nd|rd|th)-generation$/.exec(generation);
+  if (ordinal) return `${ordinal[1]}${ordinal[2]} generation`;
+  const plain = generation.replace(/-/g, ' ').trim();
+  if (!plain) return null;
+  // A chassis code: short, letters and digits, no spaces — F22, XV50, W205.
+  if (/^[a-z]{1,3}\d{1,4}[a-z]?$/i.test(plain)) return plain.toUpperCase();
+  return plain.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function miles(n: number): string {
@@ -161,15 +177,23 @@ export function researchMilestones(observed: ResearchObservation): ResearchMiles
   const name = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
   const status = observed.knowledge?.research_status ?? 'pending';
 
-  const decode: ResearchMilestone = { key: 'decode', label: `Decoding the ${name}`, state: 'pending' };
+  /*
+    Always done: the car exists, so the decode has an answer the moment the
+    screen opens — the plate's generation and years when the library has
+    them, otherwise the fact that it is filed. It was `pending` for a plate
+    without a phraseable generation until 20 Sep, which left the line active
+    forever on the first car it ran for (see `generationPhrase`).
+  */
+  const decode: ResearchMilestone = { key: 'decode', label: `Decoding the ${name}`, state: 'done' };
   const generation = generationPhrase(observed.plate?.generation);
-  if (generation && observed.plate?.year_from && observed.plate?.year_to) {
-    decode.answer = `${generation}, ${observed.plate.year_from}–${observed.plate.year_to}.`;
-    decode.state = 'done';
-  } else if (observed.plate === null || observed.plate === undefined) {
+  if (observed.plate?.year_from && observed.plate?.year_to) {
+    const span = `${observed.plate.year_from}–${observed.plate.year_to}`;
+    decode.answer = generation ? `${generation}, ${span}.` : `A ${span} car, by its plate.`;
+  } else if (generation) {
+    decode.answer = `${generation}.`;
+  } else {
     // No plate is not a failure: the car is on file under its own name.
     decode.answer = `Filed as a ${name}.`;
-    decode.state = 'done';
   }
 
   const recalls: ResearchMilestone = { key: 'recalls', label: 'Asking NHTSA about open campaigns', state: 'pending' };

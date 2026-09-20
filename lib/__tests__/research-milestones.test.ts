@@ -12,6 +12,7 @@
  */
 
 import {
+  generationPhrase,
   largestRecallSystem,
   researchHasFailure,
   researchLine,
@@ -185,6 +186,29 @@ describe('the marginalia is sourced or absent', () => {
   it('says nothing when nothing true is on file — never filler', () => {
     expect(researchMarginalia({ vehicle: ACCORD, plate: null, nhtsa: null })).toBeNull();
     expect(researchMarginalia({ vehicle: ACCORD, plate: { generation: null }, nhtsa: { recalls: [], lookup_status: 'matched' } })).toBeNull();
+  });
+});
+
+describe('the decode line can never stay pending — found live on the first car', () => {
+  it('phrases a chassis code, an ordinal, and a worded slug', () => {
+    expect(generationPhrase('xv50')).toBe('XV50');
+    expect(generationPhrase('f22')).toBe('F22');
+    expect(generationPhrase('7th-generation')).toBe('7th generation');
+    expect(generationPhrase('third-generation-facelift')).toBe('Third Generation Facelift');
+    expect(generationPhrase(null)).toBeNull();
+  });
+
+  it('is done on a Toyota plate — the 2012 Camry, whose key is xv50', () => {
+    const m = byKey({ vehicle: { year: 2012, make: 'Toyota', model: 'Camry' }, plate: { generation: 'xv50', year_from: 2012, year_to: 2017 }, nhtsa: null });
+    expect(m.decode).toMatchObject({ state: 'done', answer: 'XV50, 2012–2017.' });
+    expect(m.recalls.state).toBe('active');
+  });
+
+  it('is done even when the plate carries years but no generation it can phrase, or neither', () => {
+    expect(byKey({ vehicle: ACCORD, plate: { generation: null, year_from: 2003, year_to: 2007 } }).decode).toMatchObject({ state: 'done', answer: 'A 2003–2007 car, by its plate.' });
+    expect(byKey({ vehicle: ACCORD, plate: { generation: null, year_from: null, year_to: null } }).decode).toMatchObject({ state: 'done', answer: 'Filed as a 2003 Honda Accord.' });
+    // Every observation in this file leaves decode done — never the running step.
+    expect(researchMilestones({ vehicle: ACCORD, plate: { generation: 'nonsense here' } }).find((m) => m.key === 'decode')!.state).toBe('done');
   });
 });
 
