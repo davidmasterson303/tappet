@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   Pressable,
   RefreshControl,
@@ -465,6 +466,22 @@ export function GarageScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /*
+    ── ⚠ 20 Sep · the garage did not know a car had been added ─────────────
+
+    MOB-09 subscribed every screen a write elsewhere can change — except this
+    one, on the reasoning that the garage is the tab root and reloads when
+    the app does. It does not reload when a car is added: ADD CAR replaces
+    itself with the new car's detail, and coming back here found the list as
+    it was before, one bay short, until the app was killed. Seen live on the
+    first car ever saved from the phone (the Accord, 19 Sep) and again on the
+    20 Sep verification run. A garage that does not show the car you just
+    added is the "did anything actually happen" defect on the product's
+    front page. Same hook, same argument; `screens-refetch-on-focus.test.ts`
+    now lists this screen.
+  */
+  useRefetchOnFocus(load);
 
   /*
     ── The header is rendered in every state, and that is a compliance fix ────
