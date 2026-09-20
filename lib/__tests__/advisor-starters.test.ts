@@ -52,15 +52,33 @@ describe('advisorStarters', () => {
     const one = advisorStarters({ nextService: 'Brake Fluid Flush' });
     expect(one).toHaveLength(3);
     expect(one[0]).toBe('What does the brake fluid flush that is due next involve?');
-    expect(one.slice(1)).toEqual(GENERIC_STARTERS.slice(0, 2));
+    // The generic lines of the two slots the rows left empty — never the
+    // next-service one, which would ask the first question twice.
+    expect(one.slice(1)).toEqual(GENERIC_STARTERS.slice(1));
     expect(new Set(one).size).toBe(3);
+  });
+
+  it('a car with a service and an issue but no open recalls asks about recalls generically — the M235i, seen live', () => {
+    const lines = advisorStarters({
+      nextService: 'Engine Oil & Filter Change',
+      knownIssues: [{ part: 'Electric water pump / thermostat', severity: 'High' }],
+      openRecalls: [],
+    });
+    expect(lines).toEqual([
+      'What does the engine oil & filter change that is due next involve?',
+      'Is the electric water pump / thermostat something I should worry about?',
+      'Are there any recalls I should know about?',
+    ]);
+    expect(lines).not.toContain('What should I do at the next service?');
   });
 
   it('counts only the campaigns it is given — the caller decides which are open', () => {
     // Marked-repaired campaigns are the phone's `openRecalls` to drop; a
-    // caller passing an empty list gets no recall question at all.
+    // caller passing an empty list gets no count — only the slot's generic
+    // question, which claims nothing.
     const lines = advisorStarters({ openRecalls: [] });
-    expect(lines.some((l) => l.includes('recall'))).toBe(false);
+    expect(lines.some((l) => /open recalls? involving/.test(l))).toBe(false);
+    expect(lines).toContain('Are there any recalls I should know about?');
   });
 
   it('never offers the list that shipped for a car it does not describe', () => {
