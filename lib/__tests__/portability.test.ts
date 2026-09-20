@@ -262,6 +262,7 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/supabase.ts': 'constructs Supabase clients',
   'lib/plates.ts': 'builds a service-role Supabase client for the plate library',
   'lib/research-job.ts': 'reaches Supabase through lib/supabase and posts to the background function',
+  'lib/next-service.ts': 'reaches Supabase through lib/supabase to project and store the next service',
   'lib/internal-secret.ts': 'node:crypto timingSafeEqual — the internal routes\' gate, server-only',
   'lib/api-auth.ts': 'Supabase, and reads next/headers',
   'lib/account-data.ts': 'reaches Supabase through lib/supabase',
