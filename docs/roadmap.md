@@ -135,6 +135,51 @@
 > — the web has `deleteVehicle`). Everything else on the list has a route the
 > phone calls and a row that changes.
 >
+> ### ⚠ 20 Sep 2026, evening — every QE finding fixed, and proven on the host
+>
+> - **§1 and §2 of the QE report, all of it, on `main` and on `web-live`
+>   (`050e2df5`).** Sixteen commits `655a63c`…`83b60ec`; the report's new
+>   *Resolution* section is the table — commit, guard, live check per
+>   finding. The shape of the fixes, since they will be read as precedent:
+>   a focus refetch is **quiet** (`load(false, true)` keeps what is on
+>   screen — `screens-refetch-on-focus.test.ts` pins every subscribed
+>   screen's gate); a write **reloads quietly** and re-seeds local state from
+>   rows; mark-done **writes the odometer, re-projects and stamps the score
+>   stale** (`mark-done-closes-the-loop.test.ts`); the bay **refuses a stale
+>   reading** and the car re-reads one on open; a **`CrashBoundary`** at the
+>   root posts to `/api/v1/client-errors` (`CLIENT_CRASH` in the function
+>   logs — the only crash reporting until a native SDK earns a build);
+>   the advisor's starters come **from rows** (`advisor-starters.ts`:
+>   service due, worst issue, largest open recall system, slot-wise
+>   generics); `vehicle_status` is **null unless asked** (migration
+>   `20260920120000` drops the default — **David's to apply**; both inserts
+>   already write null); the Account row is **a status** (`subscription-
+>   status.ts` — "renews" only when Apple's flag says so); NHTSA's pre-2011
+>   capitals are **lowered to sentences** (`unshout.ts`, phone and web) and
+>   the recall card is **memoised** (one tap, one render — the test reads
+>   three with the memo removed); the request layer **joins an in-flight
+>   GET and retries a read once** on offline/502/503/504, never a write,
+>   never a timeout.
+> - **Proven live, not read:** the M235i's stale score (bay notice → 70 FAIR
+>   → 82 GOOD in ~4 s, row stamped); back-navigation on a 45-frame burst
+>   with no instrument; the Accord's oil change marked done from the plan —
+>   `mileage_at_service 170000`, costs `null`, next service moved to Tire
+>   Rotation, score re-read to 52 — then reverted. Four more defects found
+>   *by* the proof and fixed the same hour: the mark-done sheet opened blank
+>   and kept the last item's draft (mounted once with the screen — keyed
+>   now, `33d164f`), its sentence ran off the screen, "1 service record
+>   were filed", and two casing slips in the derived copy.
+> - **Deliberately not done:** `expo-image` and a crash SDK (native — a
+>   build each); a FlatList for the recalls (a section of Health's
+>   ScrollView, R16 — memoised instead until a sixty-campaign model scrolls
+>   badly); the §4.1 journey smoke test (needs the reviewer password as a CI
+>   secret — David's call).
+>
+> **Still yours:** apply `20260920120000`; the reviewer mailbox and email
+> change; the ledger question; the fresh-account run; the metering
+> migration; `xcrun simctl status_bar 512B450F-… clear`; and whether §4.1
+> gets its secret.
+>
 > ### ⚠ 20 Sep 2026, afternoon — the QE report, and removing a car removes its receipts
 >
 > - **`MOBILE_QE_REPORT_2026-09-20.md`** — a static sweep, a reachability
