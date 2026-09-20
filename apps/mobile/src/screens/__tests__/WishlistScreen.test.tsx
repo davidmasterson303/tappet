@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { WishlistScreen } from '../WishlistScreen';
 import { brand, status, text } from '../../theme';
@@ -235,6 +235,44 @@ describe('marking an item done', () => {
     expect(init.body!.isDIY).toBe(true);
     // A blank cost is omitted rather than sent as a claimed zero.
     expect(init.body).not.toHaveProperty('partsCost');
+  });
+
+  it('opens on the car’s odometer even though the reading arrives after the screen (seen live, 20 Sep)', async () => {
+    /*
+      The sheet is mounted with the screen and built its draft once, before
+      `/load-vehicle` had answered — so the field opened blank on every car,
+      and the record it produced could not move a miles interval. Keyed on
+      the item now: each opening is a fresh sheet, built from what is known.
+    */
+    let answerVehicle: (v: unknown) => void = () => {};
+    request.mockImplementation(async (path: string, init?: { method?: string }) => {
+      if (String(path).startsWith('/load-vehicle')) return new Promise((resolve) => { answerVehicle = resolve; }) as never;
+      if (!init?.method || init.method === 'GET') return { wishlistItems: [item()] } as never;
+      return {} as never;
+    });
+    const user = userEvent.setup();
+    const { view } = await mount();
+    const resolved = await view;
+    await resolved.findByText('Front brake pads');
+
+    await act(async () => answerVehicle({ vehicle: { current_mileage: 170_000 } }));
+    await user.press(resolved.getByLabelText('Mark Front brake pads done'));
+
+    expect((await resolved.findByLabelText('Odometer at the time of the work')).props.value).toBe('170000');
+  });
+
+  it('opens clean for the next item — nothing typed for the last one waits in it', async () => {
+    listReturns([item(), item({ id: 'w2', item_name: 'Brake fluid exchange' })]);
+    const user = userEvent.setup();
+    const { view } = await mount();
+    const resolved = await view;
+
+    await user.press(resolved.getByLabelText('Mark Front brake pads done'));
+    await user.type(await resolved.findByLabelText('Shop'), 'Blackmarket Motorsports');
+    await user.press(resolved.getByText('Cancel'));
+
+    await user.press(resolved.getByLabelText('Mark Brake fluid exchange done'));
+    expect((await resolved.findByLabelText('Shop')).props.value).toBe('');
   });
 
   it('refuses to send when a shop did the work and none was named', async () => {

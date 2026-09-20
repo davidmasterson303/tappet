@@ -18,9 +18,13 @@ import { largestRecallSystem } from './research-milestones';
  *   2. the worst known issue           (`vehicle_knowledge_base.known_issues`)
  *   3. the largest open recall system  (the campaigns not marked repaired)
  *
- * and a slot that no row can fill takes a generic question that claims
- * nothing about the car. A car with nothing on file gets three of those,
- * which is honest: the advisor still answers them from what it can find.
+ * and a slot that no row can fill takes that slot's generic question, which
+ * claims nothing about the car. A car with nothing on file gets three of
+ * those, which is honest: the advisor still answers them from what it can
+ * find. Slot-wise rather than a pool, because the M235i — a next service, a
+ * known issue, no open recalls — otherwise read "What does the oil change
+ * that is due next involve?" over "What should I do at the next service?",
+ * the same question twice (seen live, 20 Sep).
  *
  * ⚠ The recall line names the *open* campaigns, which the caller decides —
  * the phone's `openRecalls` drops the ones marked repaired. Counting a
@@ -37,30 +41,24 @@ export interface StarterRows {
   openRecalls?: unknown;
 }
 
-/** Questions that assume nothing about the car, for the slots the rows cannot fill. */
+/** Questions that assume nothing about the car, one per slot, for the rows that cannot fill it. */
 export const GENERIC_STARTERS: readonly string[] = [
   'What should I do at the next service?',
   'What are the most common problems with this car?',
-  'What should I check before a long drive?',
+  'Are there any recalls I should know about?',
 ];
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /**
- * Up to three questions, the derived ones first. Never fewer than three and
- * never a duplicate: a generic line is skipped when a derived one already
- * asks it.
+ * Three questions, the derived ones first, then the generic line of each
+ * slot the rows could not fill.
  */
 export function advisorStarters(rows: StarterRows): string[] {
-  const derived = [nextServiceQuestion(rows.nextService), knownIssueQuestion(rows.knownIssues), recallQuestion(rows.openRecalls)].filter(
-    (q): q is string => q !== null
-  );
-  const out = [...derived];
-  for (const generic of GENERIC_STARTERS) {
-    if (out.length >= 3) break;
-    if (!out.includes(generic)) out.push(generic);
-  }
-  return out.slice(0, 3);
+  const slots = [nextServiceQuestion(rows.nextService), knownIssueQuestion(rows.knownIssues), recallQuestion(rows.openRecalls)];
+  const derived = slots.filter((q): q is string => q !== null);
+  const generic = slots.flatMap((q, i) => (q === null ? [GENERIC_STARTERS[i]] : []));
+  return [...derived, ...generic];
 }
 
 function nextServiceQuestion(label: string | null | undefined): string | null {
@@ -106,8 +104,14 @@ function recallQuestion(openRecalls: unknown): string | null {
 export function inSentence(label: string | null | undefined): string | null {
   const trimmed = (label ?? '').trim().replace(/\s+/g, ' ');
   if (!trimmed) return null;
+  // Punctuation around a word is not part of it: "(V6 Models)" is "(V6 models)".
   return trimmed
     .split(' ')
-    .map((word) => (/^[A-Z][a-z]+$/.test(word) ? word.toLowerCase() : word))
+    .map((word) => {
+      const parts = /^([^A-Za-z0-9]*)([A-Za-z0-9]+)([^A-Za-z0-9]*)$/.exec(word);
+      if (!parts) return word;
+      const [, lead, core, trail] = parts;
+      return lead + (/^[A-Z][a-z]+$/.test(core) ? core.toLowerCase() : core) + trail;
+    })
     .join(' ');
 }

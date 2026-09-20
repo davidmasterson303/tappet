@@ -301,10 +301,14 @@ export function healthVerdict(params: {
     to postdate anything.
   */
   if (filed !== null && (generated === null || generated < filed)) {
+    const one = params.serviceCount === 1;
     const missed =
       params.serviceCount !== null && params.serviceCount > 0
         ? plural(params.serviceCount, 'service record', 'service records')
         : 'service records';
+    // "your 1 service record were filed" — seen live on the Accord, 20 Sep.
+    const were = one ? 'was' : 'were';
+    const them = one ? 'it' : 'them';
 
     /*
       ⚠ `inputs` is empty here, deliberately — 11 Sep. The screen prints them
@@ -318,8 +322,8 @@ export function healthVerdict(params: {
     */
     return {
       state: 'stale',
-      text: `This reading was taken before your ${missed} were filed, so it does not account for them.`,
-      short: `Read before ${missed} were filed.`,
+      text: `This reading was taken before your ${missed} ${were} filed, so it does not account for ${them}.`,
+      short: `Read before ${missed} ${were} filed.`,
       inputs: [],
     };
   }

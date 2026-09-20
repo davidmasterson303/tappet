@@ -232,6 +232,19 @@ describe('healthVerdict', () => {
     expect(verdict.short).not.toContain('complete lack');
   });
 
+  it('agrees with one record — "was filed", "account for it" (seen live on the Accord, 20 Sep)', () => {
+    const verdict = healthVerdict({
+      summary: SUMMARY,
+      generatedAt: '2000-01-01T00:00:00.000Z',
+      serviceCount: 1,
+      newestFiledAt: '2026-09-20T21:50:31.600899+00:00',
+      openRecalls: 24,
+    });
+    expect(verdict.state).toBe('stale');
+    expect(verdict.text).toBe('This reading was taken before your 1 service record was filed, so it does not account for it.');
+    expect(verdict.short).toBe('Read before 1 service record was filed.');
+  });
+
   it('has no short caveat for a reading that needs none', () => {
     const current = healthVerdict({
       summary: SUMMARY,

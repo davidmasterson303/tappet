@@ -539,7 +539,15 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         ))
       )}
 
+      {/*
+        Keyed on the item, so each opening is a fresh sheet (seen live, 20
+        Sep). Mounted once with the screen, the sheet built its draft before
+        the odometer had been read — the field opened blank on every car —
+        and kept the draft between items, so the shop and costs typed for one
+        job were waiting in the sheet for the next.
+      */}
       <MarkDoneSheet
+        key={doneItem?.id ?? 'closed'}
         visible={doneItem !== null}
         itemName={doneItem?.item_name ?? ''}
         currentMileage={odometer}

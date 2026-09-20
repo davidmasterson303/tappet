@@ -60,7 +60,12 @@ export function unshout(value: string | null | undefined, keep: ReadonlyArray<st
   for (const name of keep) {
     for (const word of (name ?? '').split(/\s+/)) {
       const bare = word.replace(/[^A-Za-z0-9']/g, '');
-      if (bare.length > 1) names.set(bare.toUpperCase(), bare);
+      if (bare.length < 2) continue;
+      // A name the caller has only in capitals — NHTSA's `Manufacturer` is
+      // "TRADESONIC" on the same rows — is a name, so it takes one capital.
+      // Three letters or fewer stay as given: BMW, GM, K2.
+      const known = /^[A-Z]{4,}$/.test(bare) ? bare.charAt(0) + bare.slice(1).toLowerCase() : bare;
+      names.set(bare.toUpperCase(), known);
     }
   }
 
