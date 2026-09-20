@@ -31,6 +31,21 @@ import { apiRequest, ApiRequestError } from '../../api/client';
  * `userEvent` throughout, never `fireEvent` — see `AddVehicleScreen.test.tsx`.
  */
 
+/*
+  The real `Card`, counted. QE 2.12: every card used to re-render on any
+  state change — opening one notice re-drew the other twenty-three. The
+  count below is the proof that it no longer does.
+*/
+const mockCardRenders = jest.fn();
+jest.mock('../../components/Card', () => {
+  const actual = jest.requireActual('../../components/Card');
+  const Counted = (props: Record<string, unknown>) => {
+    mockCardRenders();
+    return actual.default(props);
+  };
+  return { __esModule: true, default: Counted };
+});
+
 jest.mock('../../api/client', () => {
   const actual = jest.requireActual('../../api/client');
   return { ...actual, apiRequest: jest.fn() };
@@ -563,6 +578,52 @@ describe('the strings this card prints', () => {
     await view.findByText('Airbags — side/window, head');
     // The raw code survives at provenance weight — a service desk knows it.
     view.getByText('AIR BAGS:SIDE/WINDOW:HEAD');
+  });
+
+  it('lowers a campaign that arrives in capitals to sentences, and sends the advisor the raw one (QE 2.12)', async () => {
+    /*
+      12 of the Accord's 24 campaigns — every one filed before 2011 — shout.
+      The card reads them as sentences; the car's name and the manufacturer
+      are the proper nouns it can keep. The raw string is what the advisor
+      is given, so the model reads the record and not our rewording.
+    */
+    respond([
+      rawRecall({
+        Component: 'EXTERIOR LIGHTING:HEADLIGHTS',
+        Manufacturer: 'K2 Motor',
+        Summary: 'K2 MOTOR IS RECALLING 1,921 AFTERMARKET HEADLAMPS SOLD FOR USE ON CERTAIN HONDA ACCORD VEHICLES.  THESE HEADLAMPS ARE MISSING THE AMBER SIDE REFLEX REFLECTOR.',
+        Consequence: 'WITHOUT THE AMBER SIDE REFLEX REFLECTORS, THE LIGHTING VISIBILITY MAY BE AFFECTED, POSSIBLY RESULTING IN A VEHICLE CRASH.',
+        Remedy: 'K2 MOTOR WILL NOTIFY OWNERS AND OFFER A FULL REFUND.  OWNERS MAY CONTACT K2 MOTOR AT 1-909-839-2992.',
+      }),
+    ]);
+    const { view, props } = await mount();
+
+    await view.findByText(
+      'K2 Motor is recalling 1,921 aftermarket headlamps sold for use on certain Honda Accord vehicles.  These headlamps are missing the amber side reflex reflector.'
+    );
+    await userEvent.press(view.getByLabelText(/Show the full notice/));
+    view.getByText('Without the amber side reflex reflectors, the lighting visibility may be affected, possibly resulting in a vehicle crash.');
+    view.getByText('K2 Motor will notify owners and offer a full refund.  Owners may contact K2 Motor at 1-909-839-2992.');
+
+    await userEvent.press(view.getByLabelText(/Ask the advisor about the/));
+    expect(props.onAskAdvisor).toHaveBeenCalledWith('v1', expect.stringContaining('K2 MOTOR IS RECALLING'));
+  });
+
+  it('re-renders the card that was tapped and no other (QE 2.12)', async () => {
+    respond([
+      rawRecall({ NHTSACampaignNumber: '20V000001', Component: 'FUEL PUMP' }),
+      rawRecall({ NHTSACampaignNumber: '20V000002', Component: 'STEERING' }),
+      rawRecall({ NHTSACampaignNumber: '20V000003', Component: 'SERVICE BRAKES' }),
+    ]);
+    const { view } = await mount();
+    await view.findByText('Steering');
+    mockCardRenders.mockClear();
+
+    await userEvent.press(view.getAllByLabelText(/Show the full notice/)[1]);
+    view.getByLabelText(/Hide the full notice for the Steering recall/);
+
+    // One card changed; one card drew. Before the memo this was three.
+    expect(mockCardRenders).toHaveBeenCalledTimes(1);
   });
 
   it('never reads the taxonomy string out loud', async () => {
