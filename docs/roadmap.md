@@ -66,9 +66,45 @@
 >   Aug through the wizard), not David's — so "add the Accord back" is a
 >   phone save against a nullable column, and the frame waits on the trip.
 >
-> **Still yours:** the vin migration above (ADD CAR is dead on every build
-> until it runs); the metering migration in the SQL editor; then the phone
-> can add the Accord and the recall frame gets shot.
+> - **20 Sep, 00:07 UTC — the vin migration is applied (`23503` on the FK;
+>   Cowork's `information_schema` read agrees) and the 2003 Accord is on
+>   David's account: `fbe7fad5-…`, `vin: null`, the first car ever saved
+>   from the phone.** Frames shot: `05-recalls-open-accord.png` (24 open, a
+>   genuine airbag-inflator campaign, §10 line in shot) and the two-bay
+>   garage (`01a`/`01b`, "1 of 2" / "2 of 2"). The reply is
+>   `CLAUDE_CODE_REPLY_review_prep_2026-09-19.md`.
+> - ⛔ **A car added on the phone is never researched.** The route seeds
+>   `research_status: 'pending'` and its docblock says `VehicleInsights`
+>   picks that up — a *web* component calling a cookie-authenticated server
+>   action. No `/api/v1/*` route and nothing on the phone starts the
+>   dossier, so a phone-only owner sees "No score yet / No schedule yet / no
+>   recall count" indefinitely, under copy promising it "takes a few
+>   seconds". Recalls alone arrive the next day (the sweep treats a car with
+>   no `nhtsa_data` row as a refresh candidate). The Accord's research ran
+>   only because its `/vehicle-info` page was opened on the web. Invisible
+>   until tonight — no phone car had ever existed to hit it. Needs a
+>   `/api/v1` trigger the phone calls after creation; ~23 s, so not inside
+>   the create route (Netlify functions freeze after the response — a
+>   background function or a polled job, to be decided).
+> - **The reviewer account is not entitled anywhere.** `account_entitlements`
+>   is empty; paid features work for `crewchief.support+appreview@` only
+>   because `PAID_FEATURES_ENFORCED` is unset on `web-live` (David's row-less
+>   account ran `vehicle_dossier` tonight). A comped row — `tier: 'paid'`,
+>   `expires_at: null`, which `entitlement.ts:83` already reads as a grant —
+>   makes the Notes-for-Review claim true and survives E8's flip. David's
+>   call; one insert.
+> - **The migration ledger is not a thing to repair.** `schema_migrations`
+>   has been silent since 29 Jun (`check-migrations.mjs:55`); every migration
+>   since is hand-applied and absent from it. Marking one present would make
+>   it more wrong. The probe is the reconciliation; the script now labels
+>   constraint migrations as probeable-by-hand, with the FK precondition.
+>
+> **Still yours:** move the reviewer's email to
+> `support+appreview@southmoordigital.com` (the admin-API command is in the
+> reply; my session refused the write) and then the credentials in App Store
+> Connect's review notes; the comped entitlement row above, or say so and it
+> is one insert; the metering migration `20260917120000` in the SQL editor;
+> `xcrun simctl status_bar 512B450F-… clear` after the shoot.
 >
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >
