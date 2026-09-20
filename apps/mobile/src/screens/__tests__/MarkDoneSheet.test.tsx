@@ -32,6 +32,7 @@ const PROPS = {
   /** Injected, because the sheet deliberately has no clock of its own. */
   today: '2026-08-16',
   saving: false,
+  currentMileage: null as number | null,
   onCancel: jest.fn(),
   onConfirm: jest.fn(),
 };
