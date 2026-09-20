@@ -158,6 +158,29 @@ describe('a purchase, end to end', () => {
     expect(iap.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
   });
 
+  it('opens clean the next time — the last answer does not wait on the screen (20 Sep)', async () => {
+    const purchase = applePurchase({ productId: MONTHLY, purchaseToken: 'signed' });
+    iap.requestPurchase.mockImplementation(async () => {
+      iap.__emit('purchase-updated', purchase);
+      return purchase;
+    });
+    verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
+    await render(<PaywallHost />);
+    await act(async () => {
+      requestUpgrade('advisor');
+    });
+    await userEvent.press(await screen.findByText('£7.99 / month'));
+    await screen.findByText('Your subscription is active.');
+
+    await userEvent.press(screen.getByLabelText('Close'));
+    await act(async () => {
+      requestUpgrade('advisor');
+    });
+
+    await screen.findByText('£7.99 / month');
+    expect(screen.queryByText('Your subscription is active.')).toBeNull();
+  });
+
   it('does not say active, and does not finish, when the server could not record it', async () => {
     const purchase = applePurchase({ productId: MONTHLY, purchaseToken: 'signed' });
     iap.requestPurchase.mockImplementation(async () => {
