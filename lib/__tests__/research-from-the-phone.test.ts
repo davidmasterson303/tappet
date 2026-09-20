@@ -60,9 +60,10 @@ beforeEach(() => {
   seeded.row = null;
   updates.length = 0;
   triggered.length = 0;
+  // No URL/CRON_SECRET: the trigger takes the in-process branch (jest is
+  // already NODE_ENV=test, so it runs the mocked local job rather than warn).
   delete process.env.URL;
   delete process.env.CRON_SECRET;
-  process.env.NODE_ENV = 'test';
 });
 
 describe('the in-flight rule — a fact the row already carries', () => {
