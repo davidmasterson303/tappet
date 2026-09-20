@@ -48,6 +48,7 @@ import TabBar from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
 import { VehicleProfileScreen } from '../screens/VehicleProfileScreen';
+import { RemoveVehicleScreen } from '../screens/RemoveVehicleScreen';
 import { surface, text, type } from '../theme';
 
 /**
@@ -282,6 +283,8 @@ type DossierScreens = {
     is a URL that can be put in front of someone who did not mean to open it.
   */
   VehicleProfile: { vehicleId: string; title?: string };
+  /** The removal confirmation (20 Sep) — reached from the car, never a deep link. */
+  RemoveVehicle: { vehicleId: string; title?: string };
 };
 
 /**
@@ -902,6 +905,12 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
                 title: route.params.title,
               })
             }
+            onRemove={() =>
+              navigation.navigate('RemoveVehicle', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+              })
+            }
             // The same seam as the garage's. See `pick-image.ts`.
             pickPhoto={() => pickVehiclePhoto('library')}
           />
@@ -957,6 +966,23 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       {planScreen(onSignOut)}
       {invoiceScreens(onSignOut)}
       {wishlistAddScreen(onSignOut)}
+
+      <Stack.Screen name="RemoveVehicle" options={{ title: 'REMOVE THIS CAR' }}>
+        {({ route, navigation }) => (
+          <RemoveVehicleScreen
+            vehicleId={route.params.vehicleId}
+            onSignOut={onSignOut}
+            /*
+              The car is gone: straight to the garage, which refetches on
+              focus and no longer shows it. `popToTop` rather than `goBack`,
+              because the screen behind this one is the car's own, and a car
+              that no longer exists answers 404 to the reload it would do.
+            */
+            onRemoved={() => navigation.popToTop()}
+            onKeep={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
 
       <Stack.Screen name="VehicleProfile" options={{ title: 'WHAT YOU TOLD US' }}>
         {({ route, navigation }) => (

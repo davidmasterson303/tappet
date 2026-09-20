@@ -162,6 +162,7 @@ async function mount(
     onOpenHealth: jest.fn(),
     onOpenMilestone: jest.fn(),
     onOpenProfile: jest.fn(),
+    onRemove: jest.fn(),
     ...extra,
   };
   return { props, view: await render(withSafeArea(<VehicleDetailScreen {...props} />, metrics)) };
@@ -1301,5 +1302,18 @@ describe('the research log (20 Sep)', () => {
     expect(view.queryByTestId('research-log')).toBeNull();
     expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(0);
     expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+});
+
+describe('removing the car (20 Sep)', () => {
+  it('offers the removal last on the sheet, and it opens the confirmation rather than acting', async () => {
+    respond();
+    const user = userEvent.setup();
+    const { props, view } = await mount();
+    await waitFor(() => view.getByText('Remove this car'));
+    await user.press(view.getByText('Remove this car'));
+    expect(props.onRemove).toHaveBeenCalledTimes(1);
+    // Nothing was deleted from here — the confirmation is where that happens.
+    expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(false);
   });
 });

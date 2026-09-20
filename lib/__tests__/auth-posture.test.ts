@@ -334,6 +334,13 @@ const ROUTE_POSTURE: Record<
   'app/api/internal/research/fail/route.ts': 'secret-gated',
   'app/api/v1/research/route.ts': 'vehicle-scoped',
   'app/api/v1/health/route.ts': 'vehicle-scoped',
+  /*
+    Removing a car from the phone (20 Sep). GET is the inventory the
+    confirmation quotes, DELETE the removal; both take a write intent, so the
+    demo is refused on both — reading what a demo car's removal would take
+    is a question the demo cannot act on.
+  */
+  'app/api/v1/vehicle-removal/route.ts': 'vehicle-scoped',
   'app/api/v1/plates/ensure/route.ts': 'session',
   /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini
