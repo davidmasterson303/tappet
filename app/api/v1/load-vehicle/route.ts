@@ -3,6 +3,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { projectNextService } from '@/lib/next-service';
 import { platePresence, resolveVehiclePhoto, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 import { driversForVehicle } from '@tappet/core/health-drivers';
 
@@ -289,6 +290,33 @@ export async function GET(request: NextRequest): Promise<Response> {
     */
     const schedule = knowledgeData?.maintenance_schedule;
     const history = historyResult.error ? [] : (historyResult.data ?? []);
+
+    /*
+      ── A schedule on file and nothing projected: project it now (20 Sep) ──
+
+      `next_service_*` was written by the nightly sweep alone until today, and
+      by the research store since; a car researched before today — the Accord,
+      a day after it was added — still read "No schedule yet" with a nine-line
+      schedule in its knowledge base. The projection is the sweep's own maths
+      and costs three reads; doing it on the first read that finds it missing
+      covers every existing car on both clients. Best-effort and never for the
+      demo, whose rows are read-only by construction (`authorizeVehicleAccess`
+      refuses a write intent on them, and this write would go round that).
+    */
+    if (
+      !access.isDemo &&
+      !vehicle.next_service_label &&
+      Array.isArray(schedule) &&
+      schedule.length > 0 &&
+      typeof vehicle.current_mileage === 'number' &&
+      vehicle.current_mileage > 0
+    ) {
+      const projected = await projectNextService(vehicleId);
+      if (projected) {
+        vehicle.next_service_label = projected.service;
+        vehicle.next_service_at_miles = projected.dueAtMiles;
+      }
+    }
 
     /*
       ⚠ The assembly moved into `driversForVehicle` — D10.

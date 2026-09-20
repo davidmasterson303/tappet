@@ -53,6 +53,15 @@ describe('starting', () => {
     expect(calls('/research')).toHaveLength(1);
   });
 
+  it('scores a researched car that was never scored — no trigger, just the score', async () => {
+    const { result } = await mount({ vehicle: ACCORD, plate: PLATE, knowledge: { research_status: 'completed', known_issues: [1] }, nhtsa: { recalls: [], lookup_status: 'matched' }, health: null });
+    await act(async () => {});
+    expect(calls('/research')).toHaveLength(0);
+    expect(calls('/health')).toHaveLength(1);
+    expect(result.current.visible).toBe(true);
+    expect(result.current.milestones.find((m) => m.key === 'score')!.state).toBe('active');
+  });
+
   it('does nothing for a car already researched', async () => {
     const { result } = await mount({ vehicle: ACCORD, plate: PLATE, knowledge: { research_status: 'completed' }, nhtsa: { recalls: [], lookup_status: 'matched' }, health: { health_score: 70 } });
     await act(async () => {});
