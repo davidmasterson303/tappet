@@ -36,6 +36,12 @@ import { WishlistAddScreen } from '../screens/WishlistAddScreen';
 import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
 import { GarageScreen } from '../screens/GarageScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
+import { DescribeCarScreen } from '../screens/DescribeCarScreen';
+import { OwnerAnswersScreen } from '../screens/OwnerAnswersScreen';
+import { ScanVinScreen } from '../screens/ScanVinScreen';
+import { TypeVinScreen } from '../screens/TypeVinScreen';
+import type { CarIdentity } from '../onboarding/car-identity';
+import type { Prefill } from '../onboarding/useVinDecode';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import AccountControl from './AccountControl';
@@ -144,6 +150,22 @@ type DossierScreens = {
     be put in front of someone who did not mean to.
   */
   AddVehicle: undefined;
+  /*
+    ── 20 Sep · the first run is two screens and the doors between them ─────
+
+    `AddVehicle` is the doors; each door is its own pushed screen so the
+    native back gesture is the way out of it; the decode narrates on the
+    door's own screen; and every route into the second screen carries the
+    identified car as a param (`CarIdentity` is plain data on purpose). A
+    door `replace`s itself with the answers screen, so back from there is
+    the doors and not a log that has already run. None of these are
+    deep-linkable, for the reason `AddVehicle` is not.
+  */
+  AddVehicleScan: undefined;
+  AddVehicleType: undefined;
+  /** The escape hatch, with whatever a failed decode read. */
+  AddVehicleDescribe: { vin?: string; prefill?: Prefill } | undefined;
+  AddVehicleAnswers: { identity: CarIdentity };
   /*
     `title` is optional because a deep link cannot supply one — see `linking`
     below. It stays a param rather than being dropped: a tap from the garage
@@ -790,6 +812,45 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       <Stack.Screen name="AddVehicle" options={{ title: 'ADD A CAR' }}>
         {({ navigation }) => (
           <AddVehicleScreen
+            onScan={() => navigation.navigate('AddVehicleScan')}
+            onType={() => navigation.navigate('AddVehicleType')}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleScan" options={{ title: 'SCAN THE STICKER' }}>
+        {({ navigation }) => (
+          <ScanVinScreen
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+            onType={() => navigation.replace('AddVehicleType')}
+            onDescribe={(carry) => navigation.replace('AddVehicleDescribe', carry)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleType" options={{ title: 'TYPE THE VIN' }}>
+        {({ navigation }) => (
+          <TypeVinScreen
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+            onDescribe={(carry) => navigation.replace('AddVehicleDescribe', carry)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleDescribe" options={{ title: 'DESCRIBE THE CAR' }}>
+        {({ route, navigation }) => (
+          <DescribeCarScreen
+            vin={route.params?.vin}
+            prefill={route.params?.prefill}
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleAnswers" options={{ title: 'ABOUT YOUR CAR' }}>
+        {({ route, navigation }) => (
+          <OwnerAnswersScreen
+            identity={route.params.identity}
             onSignOut={onSignOut}
             /*
               `replace`, not `navigate`. Going back to a form that has already

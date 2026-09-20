@@ -59,6 +59,16 @@
       ],
       "cwd": "apps/mobile",
       "autoPort": true
+    },
+    {
+      "name": "expo-mobile-spare",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "exec npx expo start --port \"$PORT\" --clear"
+      ],
+      "cwd": "apps/mobile",
+      "autoPort": true
     }
   ]
 }

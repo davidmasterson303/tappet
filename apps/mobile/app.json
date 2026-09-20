@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.southmoordigital.tappet",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "Tappet uses the camera so you can photograph a service invoice and have its line items read for you.",
+        "NSCameraUsageDescription": "Tappet uses the camera to read the VIN barcode on your car's door-jamb sticker, and so you can photograph a service invoice and have its line items read for you.",
         "NSPhotoLibraryUsageDescription": "Tappet needs your photo library so you can choose a picture of your car, or attach a service invoice you have already photographed.",
         "ITSAppUsesNonExemptEncryption": false
       },

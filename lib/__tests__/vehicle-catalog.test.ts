@@ -23,12 +23,15 @@ import {
   VIN_LENGTH,
   canonicalName,
   catalogKey,
+  describeDecodedVin,
+  engineFromVpic,
   isPlausibleModelYear,
   modelYears,
   parseVpicDecode,
   parseVpicModels,
   suggestNames,
   vinCheckDigitMatches,
+  vinFromBarcode,
   vinProblem,
   vpicDecodeUrl,
   vpicModelsUrl,
@@ -152,6 +155,91 @@ describe('VIN', () => {
   });
 });
 
+describe('the VIN inside a barcode read', () => {
+  /*
+    The label on the door jamb is a label, not a number: Code 39 wraps its
+    payload in `*`, the AIAG convention prefixes a VIN with `I`, and a Data
+    Matrix may carry neighbours. Each case is a shape a reader genuinely
+    returns; the last two are the ambiguity the function refuses to guess at.
+  */
+  const ACCORD = '1HGCM82633A004352';
+
+  it('takes the bare number, and the number wrapped in sentinels', () => {
+    expect(vinFromBarcode(ACCORD)).toBe(ACCORD);
+    expect(vinFromBarcode(`*${ACCORD}*`)).toBe(ACCORD);
+    expect(vinFromBarcode(`I${ACCORD}`)).toBe(ACCORD);
+    expect(vinFromBarcode(`vin: ${ACCORD}\n`)).toBe(ACCORD);
+  });
+
+  it('chooses the window whose check digit agrees when letters run into the number', () => {
+    // "VIN" shares V and N with the alphabet; only the I is dropped, so the run
+    // is eighteen characters and the check digit is what picks the right one.
+    expect(vinFromBarcode(`VIN${ACCORD}`)).toBe(ACCORD);
+  });
+
+  it('returns an exact seventeen even when position 9 disagrees — an import is not refused', () => {
+    const importVin = 'JF1VA1E60G9800001';
+    expect(vinCheckDigitMatches(importVin)).toBe(false);
+    expect(vinFromBarcode(`*${importVin}*`)).toBe(importVin);
+  });
+
+  it('refuses what it cannot place: too short, or a long run with no agreeing window', () => {
+    expect(vinFromBarcode('')).toBeNull();
+    expect(vinFromBarcode('1HGCM82633A00435')).toBeNull();
+    // Twenty letters, no window of seventeen whose ninth agrees: ambiguous,
+    // so not claimed. (The first fixture tried here was twenty digits, and one
+    // of its four windows agreed by chance — a one-in-eleven event per window,
+    // which is exactly why agreement chooses and never proves.)
+    expect(vinFromBarcode('ABCDEFGHJKLMNPRSTUVW')).toBeNull();
+    // A shop's part barcode is not a VIN, and must not become one.
+    expect(vinFromBarcode('SKU-000123')).toBeNull();
+  });
+});
+
+describe('the decode as a sentence', () => {
+  it('prints the engine only as far as NHTSA states it', () => {
+    // Live rows, 20 Sep 2026: the Accord states its layout, the M235i does not.
+    expect(
+      engineFromVpic({ DisplacementL: '2.998832712', EngineCylinders: '6', EngineConfiguration: 'V-Shaped' })
+    ).toBe('3.0L V6');
+    expect(engineFromVpic({ DisplacementL: '3.0', EngineCylinders: '6', EngineConfiguration: '' })).toBe(
+      '3.0L 6-cylinder'
+    );
+    expect(engineFromVpic({ DisplacementL: '2', EngineCylinders: '4', EngineConfiguration: 'In-Line' })).toBe(
+      '2.0L inline 4'
+    );
+    expect(engineFromVpic({ DisplacementL: '', EngineCylinders: '', EngineConfiguration: '' })).toBeNull();
+  });
+
+  it('names the car in the garage’s order and never prints "unknown" for a missing part', () => {
+    expect(
+      describeDecodedVin({ year: 2003, make: 'Honda', model: 'Accord', trim: 'EX-V6', confidence: 'clean', engine: '3.0L V6' })
+    ).toBe('2003 Honda Accord EX-V6, 3.0L V6.');
+    expect(
+      describeDecodedVin({ year: 2015, make: 'BMW', model: 'M235i', trim: null, confidence: 'clean', engine: null })
+    ).toBe('2015 BMW M235i.');
+  });
+
+  it('reads the engine off a live-shaped row', () => {
+    const decoded = parseVpicDecode({
+      Results: [
+        {
+          ErrorCode: '0',
+          ModelYear: '2003',
+          Make: 'HONDA',
+          Model: 'Accord',
+          Trim: 'EX-V6',
+          DisplacementL: '2.998832712',
+          EngineCylinders: '6',
+          EngineConfiguration: 'V-Shaped',
+        },
+      ],
+    });
+    expect(decoded?.engine).toBe('3.0L V6');
+    expect(decoded && describeDecodedVin(decoded)).toBe('2003 Honda Accord EX-V6, 3.0L V6.');
+  });
+});
+
 describe('reading vPIC, which is a third party over a network', () => {
   it('survives the shape a make with nothing for that year returns', () => {
     // ⚠ `Results` is `null`, not `[]`. Scion in 2021 answers exactly this, and
@@ -206,6 +294,9 @@ describe('reading vPIC, which is a third party over a network', () => {
       model: 'Accord',
       trim: 'LX',
       confidence: 'suspect',
+      // The fixture carries no engine fields, and an absent engine is `null`
+      // rather than a guess — `engineFromVpic` has its own cases below.
+      engine: null,
     });
   });
 

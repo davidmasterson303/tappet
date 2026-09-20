@@ -19,6 +19,10 @@ import { WishlistAddScreen } from '../WishlistAddScreen';
 import { ServiceMilestoneScreen } from '../ServiceMilestoneScreen';
 import { SignInScreen } from '../SignInScreen';
 import { AddVehicleScreen } from '../AddVehicleScreen';
+import { TypeVinScreen } from '../TypeVinScreen';
+import { DescribeCarScreen } from '../DescribeCarScreen';
+import { OwnerAnswersScreen } from '../OwnerAnswersScreen';
+import { decodeVin } from '../../api/vpic';
 import { apiRequest, ApiRequestError } from '../../api/client';
 import { auditText, belowFloor, contrastRatio, SCREEN_BACKGROUND } from '../../test-support/contrast';
 
@@ -54,6 +58,15 @@ import { auditText, belowFloor, contrastRatio, SCREEN_BACKGROUND } from '../../t
  * Use `userEvent` for every interaction, and await it. `fireEvent` works when
  * awaited but nothing in this app needs it.
  */
+
+/*
+  vPIC is a third party over the network; the typed door's decode is answered
+  per case so the named and the failed log can both be measured.
+*/
+jest.mock('../../api/vpic', () => ({
+  decodeVin: jest.fn(),
+  fetchModels: jest.fn().mockResolvedValue([]),
+}));
 
 jest.mock('../../api/client', () => {
   const actual = jest.requireActual('../../api/client');
@@ -840,40 +853,84 @@ describe('sign-up', () => {
   });
 });
 
-describe('add a car', () => {
-  it('reads at AA in the disabled state it opens in', async () => {
-    // The form is empty on arrival, so the submit button renders in its
-    // unavailable fill — the state a new user actually meets first.
-    const view = await render(
-      <AddVehicleScreen onAdded={jest.fn()} onSignOut={jest.fn()} />
-    );
+/*
+  ── Add a car: four screens since 20 Sep ────────────────────────────────────
 
-    await view.findByText('Add to my garage');
+  The doors, the typed door in its three states (empty, the log named, the
+  log failed), the described car, and the answers screen with both a chosen
+  and an unchosen chip. The scan door's frame is `Viewfinder`, measured with
+  the invoice scan above; its log is the same `DecodeLog` the typed door
+  mounts here.
+*/
+describe('add a car', () => {
+  const ACCORD = '1HGCM82633A004352';
+  const identity = {
+    vin: ACCORD,
+    year: 2003,
+    make: 'Honda',
+    model: 'Accord',
+    trim: 'EX-V6',
+    engine: '3.0L V6',
+    source: 'typed' as const,
+  };
+
+  it('reads at AA on the doors', async () => {
+    const view = await render(<AddVehicleScreen onScan={jest.fn()} onType={jest.fn()} />);
+    await view.findByText('Scan the sticker');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 
-  it('reads at AA with the form filled and both choices rendered', async () => {
+  it('reads at AA on the typed door, empty and with the decode named', async () => {
+    const user = userEvent.setup();
+    (decodeVin as jest.Mock).mockResolvedValue({ status: 'decoded', car: { ...identity, trim: 'EX-V6', confidence: 'clean' } });
+    const view = await render(<TypeVinScreen onIdentified={jest.fn()} onDescribe={jest.fn()} />);
+
+    await view.findByText('Read the car off it');
+    expect(belowFloor(auditText(view))).toEqual([]);
+
+    await user.type(view.getByLabelText('VIN'), ACCORD);
+    await user.press(view.getByLabelText('Read the car off it'));
+    await view.findByText("That's my car");
+    // The named answer, the done rows and the confirm control — different inks from the empty state.
+    expect(view.getByText('→ 2003 Honda Accord EX-V6, 3.0L V6.')).toBeTruthy();
+    expect(belowFloor(auditText(view))).toEqual([]);
+  });
+
+  it('reads at AA on a stated decode failure', async () => {
+    const user = userEvent.setup();
+    (decodeVin as jest.Mock).mockResolvedValue({ status: 'unplaced' });
+    const view = await render(<TypeVinScreen onIdentified={jest.fn()} onDescribe={jest.fn()} />);
+
+    await user.type(view.getByLabelText('VIN'), 'ZZZZZZZZZZZZZZZZZ');
+    await user.press(view.getByLabelText('Read the car off it'));
+    await view.findByText('Not identified');
+    expect(view.getByText(/NHTSA has nothing for that number/)).toBeTruthy();
+    expect(belowFloor(auditText(view))).toEqual([]);
+  });
+
+  it('reads at AA on the described car, with a carried number and the fields filled', async () => {
     const user = userEvent.setup();
     const view = await render(
-      <AddVehicleScreen onAdded={jest.fn()} onSignOut={jest.fn()} />
+      <DescribeCarScreen vin="JF1VA1E60G98" prefill={{ year: 2016, make: 'Subaru' }} onIdentified={jest.fn()} />
     );
 
-    await user.type(view.getByLabelText('Model year'), '2020');
-    await user.type(view.getByLabelText('Make'), 'Subaru');
     await user.type(view.getByLabelText('Model'), 'WRX');
+    // The half-typed number's problem line and the enabled continue, both measured.
+    expect(view.getByLabelText('Continue').props.accessibilityState).toMatchObject({ disabled: false });
+    expect(belowFloor(auditText(view))).toEqual([]);
+  });
 
-    /*
-      The submit is the whole reason to fill the form: it changes fill between
-      `submitOff` and `submit`, and the enabled one is what this case exists to
-      measure. Asserted rather than assumed — everything else on this screen
-      renders identically empty or full, so without this the case would measure
-      the disabled state again under a name that says otherwise.
-    */
-    expect(view.getByLabelText('Add to my garage').props.accessibilityState).toMatchObject({
-      disabled: false,
-    });
+  it('reads at AA on the answers screen, disabled on arrival and enabled once the odometer is in', async () => {
+    const user = userEvent.setup();
+    const view = await render(<OwnerAnswersScreen identity={identity} onAdded={jest.fn()} onSignOut={jest.fn()} />);
 
-    // Both the selected and unselected chip, since they are different fills.
+    await view.findByText('Add to my garage');
+    expect(belowFloor(auditText(view))).toEqual([]);
+
+    await user.type(view.getByLabelText('Odometer, miles'), '94800');
+    await user.press(view.getByLabelText('Just done'));
+    expect(view.getByLabelText('Add to my garage').props.accessibilityState).toMatchObject({ disabled: false });
+    // Both the chosen and the unchosen chip, since they are different inks.
     await view.findByText('Not for me');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
