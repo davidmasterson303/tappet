@@ -176,9 +176,14 @@
 >   secret — David's call).
 >
 > **Still yours:** apply `20260920120000`; the reviewer mailbox and email
-> change; the ledger question; the fresh-account run; the metering
-> migration; `xcrun simctl status_bar 512B450F-… clear`; and whether §4.1
-> gets its secret.
+> change; the ledger question; the fresh-account run — **with the reviewer
+> account signed in on the phone, which nobody has done yet** (every proof
+> this week was on David's account; its entitlement row was proven against
+> a function, not a screen); the metering migration; `xcrun simctl
+> status_bar 512B450F-… clear`. §4.1's smoke test gets **a dedicated CI
+> account seeded like the reviewer's, never the reviewer's password** —
+> the repo is public, a workflow log is permanent, and that one credential
+> leaking is a conversation with App Review (Cowork, 20 Sep).
 >
 > ### ⚠ 20 Sep 2026, afternoon — the QE report, and removing a car removes its receipts
 >
