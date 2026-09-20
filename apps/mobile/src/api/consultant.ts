@@ -233,3 +233,40 @@ export async function loadAdvisorThread(
     turns,
   };
 }
+
+/**
+ * The rows the empty thread's opening questions are drawn from — one
+ * `load-vehicle` read, kept to the four fields `advisorStarters` reads.
+ *
+ * QE 2.1 (20 Sep): the questions used to be a static list under a heading
+ * that claimed they were about this car. The screen derives them now; this
+ * is the read. `nhtsa_data` arrives as an object or a one-element array
+ * depending on the join, the same as everywhere else the phone reads it.
+ */
+export interface StarterSource {
+  nextService: string | null;
+  knownIssues: unknown;
+  recalls: unknown;
+  recallActions: Array<{ campaign_number?: string | null }>;
+}
+
+export async function loadStarterSource(vehicleId: string): Promise<StarterSource> {
+  const body = await apiRequest<{
+    vehicle?: {
+      next_service_label?: unknown;
+      nhtsa_data?: { recalls?: unknown } | { recalls?: unknown }[] | null;
+      recall_actions?: unknown;
+    };
+    knowledge?: { known_issues?: unknown } | null;
+  }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`);
+  const vehicle = body.vehicle ?? {};
+  const nhtsa = Array.isArray(vehicle.nhtsa_data) ? vehicle.nhtsa_data[0] : vehicle.nhtsa_data;
+  return {
+    nextService: typeof vehicle.next_service_label === 'string' ? vehicle.next_service_label : null,
+    knownIssues: body.knowledge?.known_issues ?? null,
+    recalls: nhtsa?.recalls ?? null,
+    recallActions: Array.isArray(vehicle.recall_actions)
+      ? (vehicle.recall_actions as Array<{ campaign_number?: string | null }>)
+      : [],
+  };
+}
