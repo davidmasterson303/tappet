@@ -120,8 +120,9 @@ export function generationPhrase(generation: string | null | undefined): string 
   if (ordinal) return `${ordinal[1]}${ordinal[2]} generation`;
   const plain = generation.replace(/-/g, ' ').trim();
   if (!plain) return null;
-  // A chassis code: short, letters and digits, no spaces — F22, XV50, W205.
-  if (/^[a-z]{1,3}\d{1,4}[a-z]?$/i.test(plain)) return plain.toUpperCase();
+  // A chassis code: short, no spaces — F22, XV50, W205, and Mazda's bare BK
+  // (found live on the 2009 Mazda3, whose key is `bk`: it read "Bk").
+  if (/^[a-z]{1,3}\d{1,4}[a-z]?$/i.test(plain) || /^[a-z]{2,3}$/i.test(plain)) return plain.toUpperCase();
   return plain.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

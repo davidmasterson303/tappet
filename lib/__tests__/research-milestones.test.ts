@@ -192,6 +192,7 @@ describe('the marginalia is sourced or absent', () => {
 describe('the decode line can never stay pending — found live on the first car', () => {
   it('phrases a chassis code, an ordinal, and a worded slug', () => {
     expect(generationPhrase('xv50')).toBe('XV50');
+    expect(generationPhrase('bk')).toBe('BK');
     expect(generationPhrase('f22')).toBe('F22');
     expect(generationPhrase('7th-generation')).toBe('7th generation');
     expect(generationPhrase('third-generation-facelift')).toBe('Third Generation Facelift');

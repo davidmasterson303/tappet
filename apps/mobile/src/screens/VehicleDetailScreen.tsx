@@ -517,6 +517,15 @@ export function VehicleDetailScreen({
           They run together rather than in sequence, so the wait is the slowest
           one rather than the sum of four.
         */
+        /*
+          ⚠ A quiet reload asks for the vehicle alone (20 Sep). The research
+          runner polls every 2.5 s, and three requests a poll is 72 a minute
+          against a `default` limiter of 60 per client — so on the first car
+          the log ran for end to end, the score request arrived at the ceiling
+          and the last line read "Too many requests. Please slow down." The
+          counts beside the hub rows do not change while research runs; the
+          poll wants the rows the log reads, which all ride on `load-vehicle`.
+        */
         const [vehicleResult, servicesResult, wishlistResult] = await Promise.allSettled([
           apiRequest<{
             vehicle?: Vehicle;
@@ -525,12 +534,16 @@ export function VehicleDetailScreen({
             knowledge?: Knowledge | null;
             plate?: Plate | null;
           }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
-          apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
-            `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
-          ),
-          apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
-            `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
-          ),
+          quiet
+            ? Promise.reject(new Error('quiet'))
+            : apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
+                `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
+              ),
+          quiet
+            ? Promise.reject(new Error('quiet'))
+            : apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
+                `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
+              ),
         ]);
 
         if (vehicleResult.status === 'rejected') throw vehicleResult.reason;
@@ -564,15 +577,19 @@ export function VehicleDetailScreen({
           route predates this field should render a health card without drivers,
           not a screen that throws.
         */
-        setState({
-          status: 'ok',
+        const next = {
+          status: 'ok' as const,
           vehicle: body.vehicle,
           drivers: Array.isArray(body.health_drivers) ? body.health_drivers : [],
           history: Array.isArray(body.health_history) ? body.health_history : [],
           knowledge: body.knowledge ?? null,
           plate: body.plate ?? null,
-          counts,
-        });
+        };
+        // A quiet reload did not ask for the counts: keep the last full read's.
+        setState((previous) => ({
+          ...next,
+          counts: quiet && previous.status === 'ok' ? previous.counts : counts,
+        }));
       } catch (error) {
         const apiError = error as ApiRequestError;
         // 404 is a state, not a failure — see the header.
