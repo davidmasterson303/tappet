@@ -539,12 +539,14 @@ export function BuildScreen({
                 {state.mods.length === 0
                   ? /*
                       Nothing known, rather than nothing to do. The knowledge
-                      base fills in a few seconds after a car is added, and a
+                      base fills in once a car's research has run, and a
                       screen that says "no suggestions" about a lookup that has
                       not run is the recall screen's 21 Aug defect in another
-                      place.
+                      place. No duration is promised (20 Sep): "shortly" and
+                      "in a minute" were claims the app could not keep, and the
+                      car's own page now shows the research working.
                     */
-                    'We have not worked out what suits this car yet. That fills in shortly after a car is added — pull down in a minute.'
+                    'We have not worked out what suits this car yet. That fills in once its research has run — the car\'s page shows it working.'
                   : 'You have said no to everything we had. Anything you dismissed is below.'}
               </Text>
             </Card>

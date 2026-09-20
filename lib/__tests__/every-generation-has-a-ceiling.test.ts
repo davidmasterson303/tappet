@@ -91,7 +91,27 @@ const CALL_SITE_FILES = [
  * posture, which the file itself admits asserts nothing — and which is how a
  * whole class of unguarded action stayed invisible.
  */
-const CEILING_ELSEWHERE: Record<string, { file: string; caller: string; controls: string[] }> = {
+/*
+  ── `via` — a ceiling applied by a helper the caller runs first (20 Sep) ───
+
+  `researchVehicleDossier` was split at the model call so the phone's
+  background function could reach the gate, the ceiling and the prompt
+  through a route (`prepareResearch`) without importing the file. The call to
+  Gemini stayed in `researchVehicleDossier`; the ceiling moved into
+  `prepareResearch`, which that function calls before anything else. The
+  honest entry says so: the caller's body must call `via`, and `via`'s body
+  must apply the controls — both body-anchored, so neither a caller that
+  stops calling the helper nor a helper that loses the check stays green.
+  Duplicating `checkMonthlyBudget` into the caller to satisfy the old shape
+  would have been the second copy this file exists to keep from drifting.
+*/
+const CEILING_ELSEWHERE: Record<string, { file: string; caller: string; via?: string; controls: string[] }> = {
+  researchVehicleDossier: {
+    file: join('lib', 'vehicle-research.ts'),
+    caller: 'researchVehicleDossier',
+    via: 'prepareResearch',
+    controls: ['checkMonthlyBudget', 'checkFeatureAccess'],
+  },
   // Two branches, two ceilings: the demo pool for a seeded car, the owner's
   // monthly allowance otherwise. Both must be in the one calling function.
   estimateCosts: {
@@ -237,11 +257,22 @@ describe('every Gemini call site is metered', () => {
       and so does a ceiling that exists in the same file but in some other
       function, which is the shape the first version of this test missed.
     */
-    for (const [name, { file, caller, controls }] of Object.entries(CEILING_ELSEWHERE)) {
+    for (const [name, { file, caller, via, controls }] of Object.entries(CEILING_ELSEWHERE)) {
       const body = code(bodyOf(read(file), caller));
 
       // A caller the walker cannot find is an entry that asserts nothing.
       expect([name, caller, body.length > 0]).toEqual([name, caller, true]);
+      if (via) {
+        // The exempted function *is* the caller; what it must do is run the
+        // helper that carries the ceiling, and the helper must carry it.
+        expect([name, caller, body.includes(`${via}(`)]).toEqual([name, caller, true]);
+        const helper = code(bodyOf(read(file), via));
+        expect([name, via, helper.length > 0]).toEqual([name, via, true]);
+        for (const control of controls) {
+          expect([name, via, control, helper.includes(control)]).toEqual([name, via, control, true]);
+        }
+        continue;
+      }
       expect([name, caller, body.includes(`${name}(`)]).toEqual([name, caller, true]);
       for (const control of controls) {
         // Plain inclusion, not `control(`: the canary's control is an env

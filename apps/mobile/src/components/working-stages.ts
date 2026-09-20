@@ -14,7 +14,7 @@
  * rendering, and so the model of a stage has no React in it.
  */
 
-export type WorkingStageState = 'done' | 'active' | 'pending';
+export type WorkingStageState = 'done' | 'active' | 'pending' | 'failed';
 
 export interface WorkingStage {
   label: string;
@@ -23,6 +23,14 @@ export interface WorkingStage {
    * passed is the invoice scanner's UX-15 defect again.
    */
   state: WorkingStageState;
+  /**
+   * The answer the step came back with — "24 on file." — rendered under the
+   * label once it exists (20 Sep, the research log). A stage with an answer
+   * is `done` or `failed`; a running one has none. The coupling is enforced
+   * where the stages are assembled (`@tappet/core/research-milestones`), and
+   * this component only draws what it is handed.
+   */
+  answer?: string;
 }
 
 /**
@@ -80,4 +88,17 @@ export function scanStages(phase: ScanPhase, source: 'camera' | 'library'): Work
 export function scanLine(phase: ScanPhase, source: 'camera' | 'library'): string {
   const active = scanStages(phase, source).find((stage) => stage.state === 'active');
   return active?.label ?? 'Reading the invoice';
+}
+
+/**
+ * The research log's rows — `@tappet/core/research-milestones` is the whole
+ * argument and the whole rule: every answer quotes a row the API handed the
+ * client, so this cannot depict work that has not happened. The mapping here
+ * is one to one; it exists so the screen imports a stage list and not a
+ * milestone list, like every other wait on the phone.
+ */
+export function researchStages(
+  milestones: ReadonlyArray<{ label: string; answer?: string; state: WorkingStageState }>
+): WorkingStage[] {
+  return milestones.map(({ label, answer, state }) => ({ label, answer, state }));
 }

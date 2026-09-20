@@ -60,6 +60,16 @@ const MARKERS: Array<{ name: string; re: RegExp }> = [
 const ALLOWED: Record<string, string> = {
   'apps/mobile/src/components/Working.tsx':
     'The wait instrument itself: the ignition sweep is an Animated.loop of two eased traverses, and it is the one loop the app draws.',
+  /*
+    The research runner's interval (20 Sep) is a poll, not a stage clock: it
+    only calls the screen's loader, and every line of the log is derived
+    from the rows that come back (`@tappet/core/research-milestones`). It
+    advances nothing. `useResearchRunner.test.tsx` pins exactly that — "it
+    asks; it never marks a line done itself" — and the same interval is what
+    ends the wait honestly, in a stated failure, when the deadline passes.
+  */
+  'apps/mobile/src/components/useResearchRunner.ts':
+    'A poll that asks the API and never advances a stage: the ledger is derived from the rows the reload returns, and the deadline it enforces ends in a stated failure rather than a spinner.',
 };
 
 /**

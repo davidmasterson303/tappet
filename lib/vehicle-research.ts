@@ -148,13 +148,285 @@ export interface ResearchOutcome {
 }
 
 /**
- * Generate and store a vehicle's dossier.
+ * The research, split at the model call — 20 Sep.
+ *
+ * ── Why three pieces where there was one ────────────────────────────────────
+ *
+ * Until 20 Sep this was one function: gate, budget, already-done check, the
+ * Pro call with its retries, the parse, the write, NHTSA. Its two callers —
+ * the web action with a person waiting, and the sweep at 3 am — both run it
+ * in-process, and that is where the phone could not follow. A car added on
+ * the phone had nothing to start its research: `VehicleInsights` is a web
+ * component on a cookie-authenticated action, no `/api/v1` route existed,
+ * and the create route cannot hold a 23–60 s call (it is not awaited there,
+ * for the reason `enrichVehicle` records — work after a response on this
+ * platform may be frozen with it). So a phone-only owner saw "No score yet"
+ * until the sweep found the car the next night, under a form that promised
+ * "a few seconds". Found the night the first phone car was ever saved.
+ *
+ * The phone's path is `netlify/functions/research-background.mts`, a
+ * background function that may run for fifteen minutes and imports nothing
+ * with a repo alias — the plate library's doctrine. It cannot import this
+ * file. So the model call is the one thing it does itself, over REST, and
+ * everything that decides anything is reached through secret-guarded routes
+ * that call the three pieces below:
+ *
+ *   prepareResearch        gate · budget · already-done · the prompt
+ *   storeResearchResponse  parse · validate · write · stats
+ *   markResearchFailed     the row goes to 'failed', which stops the sweep
+ *                          retrying it nightly forever
+ *
+ * `researchVehicleDossier` is the in-process composition of the same three
+ * with the retry policy between them, and its two callers keep exactly the
+ * behaviour they were written against. One parse, one write, one place.
+ *
+ * ── NHTSA first, on the phone's path ────────────────────────────────────────
+ *
+ * In-process the recall fetch runs last, after the dossier. The background
+ * function asks NHTSA *before* the model, because it answers in seconds and
+ * the research log (`research-milestones.ts`) turns that into two true lines
+ * about the person's car while the long call runs. `storeResearchResponse`
+ * takes `fetchRecalls` so the in-process path keeps its order and the
+ * phone's path does not fetch twice.
+ */
+
+export type ResearchPreparation =
+  | {
+      ok: true;
+      prompt: string;
+      model: string;
+      /** The SDK config, which is also the REST `generationConfig` — the same keys. */
+      generationConfig: typeof proStructuredConfig;
+    }
+  | { ok: false; outcome: ResearchOutcome };
+
+/**
+ * Everything that has to be true before a Pro call is worth making: the
+ * gate, the ceiling, and whether this car already has its dossier.
  *
  * `userId` is the account the spend is attributed to. It is passed explicitly
  * rather than derived, because the sweep has no session to derive it from and a
  * silently-null attribution would put real spend outside the metering that D2's
  * pricing is decided on. The sweep passes the vehicle's owner, which is the
  * honest answer: it is that person's car and that person's bill.
+ */
+export async function prepareResearch(
+  vehicle: VehicleForResearch,
+  userId: string | null
+): Promise<ResearchPreparation> {
+  const vehicleId = vehicle.id;
+  /*
+    ⚠ **PERF-06, and this is the one that mattered most.** This is the single
+    most expensive call in the application — the Pro model with
+    `maxOutputTokens: 32768` — and it had **no ceiling in front of it at all**.
+    A user past their tier limit could keep generating dossiers indefinitely.
+
+    `userId` is `null` for the demo path and for the sweep, and both are
+    allowed through deliberately: the demo has its own separate ceiling, and
+    the sweep is capped at `SWEEP_GENERATE_CAP` cars a night by construction.
+    A monthly per-user budget has no user to charge in either case.
+  */
+  if (userId) {
+    /*
+      The dossier is one of the three paid features — the pricing decision of
+      24 Aug — and this function is what builds it.
+
+      ⚠ Inside the same `if (userId)` as the budget, and for the same two
+      reasons: the demo has its own ceiling, and the nightly sweep is capped
+      by construction. Neither has an account to charge or to check, and
+      gating the sweep would quietly stop it refreshing dossiers for accounts
+      that *are* entitled.
+
+      ⚠ Enforcement is off until there is something to buy. See
+      `lib/feature-gate.ts`.
+    */
+    const gate = featureRefusal(await checkFeatureAccess(userId, 'dossier'));
+    if (gate) {
+      logger.warn('RESEARCH:NOT_ENTITLED', 'Dossier is a paid feature; not researching', {
+        vehicleId,
+        userId,
+      });
+      return { ok: false, outcome: { success: false, error: gate.error, code: gate.code, feature: gate.feature } };
+    }
+
+    const budget = await checkMonthlyBudget(userId);
+    if (!budget.allowed) {
+      logger.warn('RESEARCH:BUDGET_SPENT', 'Monthly AI budget spent; not researching', {
+        vehicleId,
+        userId,
+      });
+      return { ok: false, outcome: { success: false, error: budgetMessage(budget) } };
+    }
+  }
+
+  const client = getServiceRoleClient();
+
+  /*
+    ── Do not pay twice for a dossier this vehicle already has ──────────────
+
+    ⚠ Added 22 Aug, from a live run that cost the discovery. Research for a
+    new Accord **succeeded** — full dossier written, 24 NHTSA recalls stored,
+    `research_status = 'completed'` — while the browser was told it had
+    failed, because the request outlived its response and `enrichVehicle`
+    came back with no body at all. The screen showed the failure state and a
+    retry button.
+
+    Pressing it went straight from the authorization check to the prompt.
+    Nothing between the two asked whether the work had already been done, so
+    a retry on a *successful* dossier spent another Pro call — the most
+    expensive one in the product, ~4,900 tokens, measured the same day. The
+    only reason it did not happen is that nobody pressed the button.
+
+    ⚠ **The retry button is not wrong and this does not disable it.** Only
+    `completed` short-circuits. A `failed` or `pending` row still generates,
+    which is exactly what that button is for: its purpose is a dossier that
+    is missing, and a missing dossier is not what this guard sees.
+
+    Deliberately no `force` option. There is no caller that wants one today,
+    and a flag whose only user is a future maybe is a flag that gets passed
+    `true` by the next person in a hurry. Re-research is a real need when it
+    arrives — it should arrive with its own reasoning about staleness.
+  */
+  const { data: existing } = await client
+    .from('vehicle_knowledge_base')
+    .select('research_status, last_research_date')
+    .eq('vehicle_id', vehicleId)
+    .maybeSingle();
+
+  if (existing?.research_status === 'completed') {
+    logger.info('RESEARCH:ALREADY_DONE', 'Dossier already generated; not spending again', {
+      vehicleId,
+      lastResearchDate: existing.last_research_date,
+    });
+    return { ok: false, outcome: { success: true, alreadyResearched: true } };
+  }
+
+  return {
+    ok: true,
+    prompt: VEHICLE_RESEARCH_PROMPT(vehicle.year, vehicle.make, vehicle.model),
+    model: PRO_MODEL,
+    generationConfig: proStructuredConfig,
+  };
+}
+
+/** `retry` is a parse or validation failure — the model may format better on a second pass. */
+export type StoreOutcome = ResearchOutcome & { retry?: boolean };
+
+/**
+ * The model's answer, checked and written. Parse and validation failures
+ * come back as `retry: true` and write nothing; the caller decides whether
+ * to spend again. Everything after a valid parse is the write that used to
+ * end `researchVehicleDossier`, unchanged.
+ */
+export async function storeResearchResponse(
+  vehicle: VehicleForResearch,
+  responseText: string,
+  options: { fetchRecalls: boolean; attempt?: number }
+): Promise<StoreOutcome> {
+  const vehicleId = vehicle.id;
+  const client = getServiceRoleClient();
+
+  let parsed: z.infer<typeof VehicleDataSchema>;
+  try {
+    parsed = VehicleDataSchema.parse(extractJSON(responseText || ''));
+  } catch (error) {
+    logger.warn('RESEARCH:ATTEMPT_FAILED', 'Research attempt failed', {
+      vehicleId,
+      attempt: options.attempt ?? 1,
+      error: error instanceof Error ? error.message : String(error),
+      type: error instanceof SyntaxError ? 'JSON_PARSE' : error instanceof z.ZodError ? 'VALIDATION' : 'OTHER',
+    });
+    return { success: false, retry: true, error: error instanceof Error ? error.message : String(error) };
+  }
+
+  if (parsed.known_issues.length === 0) {
+    await client
+      .from('vehicle_knowledge_base')
+      .update({ research_status: 'unsupported' })
+      .eq('vehicle_id', vehicleId);
+    return { success: true, unsupported: true };
+  }
+
+  const { data: existingKb } = await client
+    .from('vehicle_knowledge_base')
+    .select('engine_type, transmission_type, drivetrain')
+    .eq('vehicle_id', vehicleId)
+    .maybeSingle();
+
+  const updateData: Record<string, unknown> = {
+    known_issues: parsed.known_issues,
+    maintenance_schedule: parsed.maintenance_schedule,
+    fluid_specs: parsed.fluid_specs,
+    common_mods: parsed.common_mods,
+    reliability_score: parsed.reliability_score,
+    interesting_facts: parsed.interesting_facts || [],
+    research_status: 'completed',
+    last_research_date: new Date().toISOString(),
+  };
+
+  if (!existingKb?.engine_type && parsed.powertrain?.engine_type) {
+    updateData.engine_type = parsed.powertrain.engine_type;
+  }
+  if (!existingKb?.transmission_type && parsed.powertrain?.transmission_type) {
+    updateData.transmission_type = parsed.powertrain.transmission_type;
+  }
+  if (!existingKb?.drivetrain && parsed.powertrain?.drivetrain) {
+    updateData.drivetrain = parsed.powertrain.drivetrain;
+  }
+
+  const { error: updateError } = await client
+    .from('vehicle_knowledge_base')
+    .update(updateData)
+    .eq('vehicle_id', vehicleId);
+
+  if (updateError) {
+    logger.error('RESEARCH:SAVE_FAILED', new Error(updateError.message), { vehicleId });
+    return { success: false, error: 'Failed to save research data' };
+  }
+
+  if (
+    parsed.performance_stats &&
+    (parsed.performance_stats.horsepower ||
+      parsed.performance_stats.torque ||
+      parsed.performance_stats.zero_to_sixty)
+  ) {
+    const { error: vehicleUpdateError } = await client
+      .from('vehicles')
+      .update({
+        stock_hp: parsed.performance_stats.horsepower || null,
+        stock_torque: parsed.performance_stats.torque || null,
+        stock_zero_to_sixty: parsed.performance_stats.zero_to_sixty || null,
+      })
+      .eq('id', vehicleId);
+
+    if (vehicleUpdateError) {
+      logger.error('RESEARCH:STATS_FAILED', new Error(vehicleUpdateError.message), { vehicleId });
+      return { success: false, error: 'Failed to save performance stats' };
+    }
+  }
+
+  if (options.fetchRecalls) {
+    await fetchNHTSARecalls(vehicleId, vehicle.year, vehicle.make, vehicle.model);
+  }
+
+  return { success: true, data: parsed };
+}
+
+/**
+ * The row goes to 'failed' rather than being left at 'pending', and that
+ * write is what stops the sweep retrying this car every night forever —
+ * `vehiclesToGenerate` only ever selects 'pending'.
+ */
+export async function markResearchFailed(vehicleId: string): Promise<void> {
+  await getServiceRoleClient()
+    .from('vehicle_knowledge_base')
+    .update({ research_status: 'failed' })
+    .eq('vehicle_id', vehicleId);
+}
+
+/**
+ * Generate and store a vehicle's dossier, in-process — the web action and
+ * the sweep. The three pieces above with the retry policy between them.
  */
 export async function researchVehicleDossier(
   vehicle: VehicleForResearch,
@@ -171,100 +443,15 @@ export async function researchVehicleDossier(
   const timeoutMs = options.timeoutMs ?? RESEARCH_TIMEOUT_MS;
 
   try {
-    /*
-      ⚠ **PERF-06, and this is the one that mattered most.** This is the single
-      most expensive call in the application — the Pro model with
-      `maxOutputTokens: 32768` — and it had **no ceiling in front of it at all**.
-      A user past their tier limit could keep generating dossiers indefinitely.
-
-      `userId` is `null` for the demo path and for the sweep, and both are
-      allowed through deliberately: the demo has its own separate ceiling, and
-      the sweep is capped at `SWEEP_GENERATE_CAP` cars a night by construction.
-      A monthly per-user budget has no user to charge in either case.
-    */
-    if (userId) {
-      /*
-        The dossier is one of the three paid features — the pricing decision of
-        24 Aug — and this function is what builds it.
-
-        ⚠ Inside the same `if (userId)` as the budget, and for the same two
-        reasons: the demo has its own ceiling, and the nightly sweep is capped
-        by construction. Neither has an account to charge or to check, and
-        gating the sweep would quietly stop it refreshing dossiers for accounts
-        that *are* entitled.
-
-        ⚠ Enforcement is off until there is something to buy. See
-        `lib/feature-gate.ts`.
-      */
-      const gate = featureRefusal(await checkFeatureAccess(userId, 'dossier'));
-      if (gate) {
-        logger.warn('RESEARCH:NOT_ENTITLED', 'Dossier is a paid feature; not researching', {
-          vehicleId,
-          userId,
-        });
-        return { success: false, error: gate.error, code: gate.code, feature: gate.feature };
-      }
-
-      const budget = await checkMonthlyBudget(userId);
-      if (!budget.allowed) {
-        logger.warn('RESEARCH:BUDGET_SPENT', 'Monthly AI budget spent; not researching', {
-          vehicleId,
-          userId,
-        });
-        return { success: false, error: budgetMessage(budget) };
-      }
-    }
-
-    const client = getServiceRoleClient();
-
-    /*
-      ── Do not pay twice for a dossier this vehicle already has ──────────────
-
-      ⚠ Added 22 Aug, from a live run that cost the discovery. Research for a
-      new Accord **succeeded** — full dossier written, 24 NHTSA recalls stored,
-      `research_status = 'completed'` — while the browser was told it had
-      failed, because the request outlived its response and `enrichVehicle`
-      came back with no body at all. The screen showed the failure state and a
-      retry button.
-
-      Pressing it went straight from the authorization check to the prompt.
-      Nothing between the two asked whether the work had already been done, so
-      a retry on a *successful* dossier spent another Pro call — the most
-      expensive one in the product, ~4,900 tokens, measured the same day. The
-      only reason it did not happen is that nobody pressed the button.
-
-      ⚠ **The retry button is not wrong and this does not disable it.** Only
-      `completed` short-circuits. A `failed` or `pending` row still generates,
-      which is exactly what that button is for: its purpose is a dossier that
-      is missing, and a missing dossier is not what this guard sees.
-
-      Deliberately no `force` option. There is no caller that wants one today,
-      and a flag whose only user is a future maybe is a flag that gets passed
-      `true` by the next person in a hurry. Re-research is a real need when it
-      arrives — it should arrive with its own reasoning about staleness.
-    */
-    const { data: existing } = await client
-      .from('vehicle_knowledge_base')
-      .select('research_status, last_research_date')
-      .eq('vehicle_id', vehicleId)
-      .maybeSingle();
-
-    if (existing?.research_status === 'completed') {
-      logger.info('RESEARCH:ALREADY_DONE', 'Dossier already generated; not spending again', {
-        vehicleId,
-        lastResearchDate: existing.last_research_date,
-      });
-      return { success: true, alreadyResearched: true };
-    }
-
-    const prompt = VEHICLE_RESEARCH_PROMPT(vehicle.year, vehicle.make, vehicle.model);
+    const prepared = await prepareResearch(vehicle, userId);
+    if (!prepared.ok) return prepared.outcome;
 
     const researchStartedAt = Date.now();
     let attempt = 0;
-    let parsed = null;
-    let lastError = null;
+    let stored: StoreOutcome | null = null;
+    let lastError: unknown = null;
 
-    while (attempt < 3 && !parsed) {
+    while (attempt < 3 && !stored) {
       try {
         const waitTime = Math.pow(2, attempt) * 1000;
         if (attempt > 0) {
@@ -274,9 +461,9 @@ export async function researchVehicleDossier(
         const response = await withTimeout(
           () =>
             genAI.models.generateContent({
-              model: PRO_MODEL,
-              contents: prompt,
-              config: proStructuredConfig,
+              model: prepared.model,
+              contents: prepared.prompt,
+              config: prepared.generationConfig,
             }),
           timeoutMs,
           'vehicle research'
@@ -286,12 +473,20 @@ export async function researchVehicleDossier(
         // exactly the calls that cost the most — and D6 (eager vs lazy dossier
         // generation) is decided on this number.
         recordAiUsageInBackground(
-          { purpose: 'vehicle_dossier', model: PRO_MODEL, userId, vehicleId },
+          { purpose: 'vehicle_dossier', model: prepared.model, userId, vehicleId },
           response.usageMetadata
         );
 
-        const jsonData = extractJSON(response.text || '');
-        parsed = VehicleDataSchema.parse(jsonData);
+        const outcome = await storeResearchResponse(vehicle, response.text || '', {
+          fetchRecalls: true,
+          attempt: attempt + 1,
+        });
+        if (outcome.retry) {
+          lastError = new Error(outcome.error ?? 'parse failure');
+          attempt++;
+          continue;
+        }
+        stored = outcome;
 
         logger.info('RESEARCH:ATTEMPT_OK', 'Research validated', {
           vehicleId,
@@ -304,12 +499,7 @@ export async function researchVehicleDossier(
           vehicleId,
           attempt: attempt + 1,
           error: error instanceof Error ? error.message : String(error),
-          type:
-            error instanceof SyntaxError
-              ? 'JSON_PARSE'
-              : error instanceof z.ZodError
-                ? 'VALIDATION'
-                : 'OTHER',
+          type: 'OTHER',
         });
 
         /*
@@ -327,93 +517,15 @@ export async function researchVehicleDossier(
       }
     }
 
-    if (!parsed) {
+    if (!stored) {
       logger.error('RESEARCH:EXHAUSTED', lastError instanceof Error ? lastError : new Error(String(lastError)), {
         vehicleId,
       });
-
-      /*
-        The row goes to 'failed' rather than being left at 'pending', and that
-        write is what stops the sweep retrying this car every night forever.
-        `vehiclesToGenerate` only ever selects 'pending'.
-      */
-      await client
-        .from('vehicle_knowledge_base')
-        .update({ research_status: 'failed' })
-        .eq('vehicle_id', vehicleId);
-
+      await markResearchFailed(vehicleId);
       return { success: false, error: 'Failed to generate vehicle research after 3 attempts' };
     }
 
-    if (parsed.known_issues.length === 0) {
-      await client
-        .from('vehicle_knowledge_base')
-        .update({ research_status: 'unsupported' })
-        .eq('vehicle_id', vehicleId);
-      return { success: true, unsupported: true };
-    }
-
-    const { data: existingKb } = await client
-      .from('vehicle_knowledge_base')
-      .select('engine_type, transmission_type, drivetrain')
-      .eq('vehicle_id', vehicleId)
-      .maybeSingle();
-
-    const updateData: Record<string, unknown> = {
-      known_issues: parsed.known_issues,
-      maintenance_schedule: parsed.maintenance_schedule,
-      fluid_specs: parsed.fluid_specs,
-      common_mods: parsed.common_mods,
-      reliability_score: parsed.reliability_score,
-      interesting_facts: parsed.interesting_facts || [],
-      research_status: 'completed',
-      last_research_date: new Date().toISOString(),
-    };
-
-    if (!existingKb?.engine_type && parsed.powertrain?.engine_type) {
-      updateData.engine_type = parsed.powertrain.engine_type;
-    }
-    if (!existingKb?.transmission_type && parsed.powertrain?.transmission_type) {
-      updateData.transmission_type = parsed.powertrain.transmission_type;
-    }
-    if (!existingKb?.drivetrain && parsed.powertrain?.drivetrain) {
-      updateData.drivetrain = parsed.powertrain.drivetrain;
-    }
-
-    const { error: updateError } = await client
-      .from('vehicle_knowledge_base')
-      .update(updateData)
-      .eq('vehicle_id', vehicleId);
-
-    if (updateError) {
-      logger.error('RESEARCH:SAVE_FAILED', new Error(updateError.message), { vehicleId });
-      return { success: false, error: 'Failed to save research data' };
-    }
-
-    if (
-      parsed.performance_stats &&
-      (parsed.performance_stats.horsepower ||
-        parsed.performance_stats.torque ||
-        parsed.performance_stats.zero_to_sixty)
-    ) {
-      const { error: vehicleUpdateError } = await client
-        .from('vehicles')
-        .update({
-          stock_hp: parsed.performance_stats.horsepower || null,
-          stock_torque: parsed.performance_stats.torque || null,
-          stock_zero_to_sixty: parsed.performance_stats.zero_to_sixty || null,
-        })
-        .eq('id', vehicleId);
-
-      if (vehicleUpdateError) {
-        logger.error('RESEARCH:STATS_FAILED', new Error(vehicleUpdateError.message), { vehicleId });
-        return { success: false, error: 'Failed to save performance stats' };
-      }
-    }
-
-    await fetchNHTSARecalls(vehicleId, vehicle.year, vehicle.make, vehicle.model);
-
-    return { success: true, data: parsed };
+    return stored;
   } catch (error) {
     logger.error('RESEARCH:UNEXPECTED', error as Error, { vehicleId });
     return { success: false, error: 'An unexpected error occurred' };

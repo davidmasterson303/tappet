@@ -383,9 +383,8 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
           in another place.
         */
         <Text style={styles.empty}>
-          We have not worked out what {state.name} needs yet. That fills in shortly after a car is
-          added — pull back and open this again in a minute. You can still type anything in above
-          and add it.
+          We have not worked out what {state.name} needs yet. That fills in once the car's research
+          has run — its page shows it working. You can still type anything in above and add it.
         </Text>
       ) : null}
 

@@ -48,6 +48,19 @@ const ALLOWED_CALLERS: Record<string, string> = {
   // No user exists by construction. Authorized by CRON_SECRET compared in
   // constant time at the route boundary, and bounded by SWEEP_GENERATE_CAP.
   'app/api/internal/notify-sweep/route.ts': 'CRON_SECRET + SWEEP_GENERATE_CAP',
+  /*
+    The phone's path (20 Sep). `lib/research-job.ts` is reached only through
+    `/api/v1/research` (authorizeVehicleAccess + the per-vehicle AI limiter)
+    and the secret-guarded claim route; the three internal routes below are
+    the background function's, gated by `requireInternalSecret` — CRON_SECRET
+    compared in constant time at the route boundary — and the gate and the
+    ceiling run inside `prepareResearch` at claim time, before any prompt is
+    handed out. Nothing on this path spends without a claimed job.
+  */
+  'lib/research-job.ts': 'reached through authorizeVehicleAccess (v1) or requireInternalSecret (claim)',
+  'app/api/internal/research/recalls/route.ts': 'requireInternalSecret',
+  'app/api/internal/research/store/route.ts': 'requireInternalSecret',
+  'app/api/internal/research/fail/route.ts': 'requireInternalSecret',
 };
 
 const SEARCH_DIRS = ['app', 'components', 'lib', 'hooks', 'netlify', 'packages'];
@@ -123,6 +136,17 @@ describe('researchVehicleDossier has a closed caller list', () => {
     const sweep = readFileSync(join(ROOT, 'app/api/internal/notify-sweep/route.ts'), 'utf8');
     expect(sweep).toContain('CRON_SECRET');
     expect(sweep).toContain('vehiclesToGenerate');
+
+    for (const route of ['recalls', 'store', 'fail', 'claim']) {
+      const source = readFileSync(join(ROOT, `app/api/internal/research/${route}/route.ts`), 'utf8');
+      expect([route, source.includes('requireInternalSecret(request)')]).toEqual([route, true]);
+    }
+    const trigger = readFileSync(join(ROOT, 'app/api/v1/research/route.ts'), 'utf8');
+    expect(trigger).toContain('authorizeVehicleAccess');
+    expect(trigger).toContain("checkRateLimit(`research:");
+    // And the claim really does run the gate and the ceiling before handing out a prompt.
+    const job = readFileSync(join(ROOT, 'lib/research-job.ts'), 'utf8');
+    expect(job).toContain('prepareResearch(');
   });
 
   it('is not exported from a "use server" module', () => {
