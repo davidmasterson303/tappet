@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   Linking,
@@ -24,6 +24,7 @@ import {
 } from '../api/recalls';
 import Working from '../components/Working';
 import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
+import { unshout } from '@tappet/core/unshout';
 import {
   componentPlainName,
   hasRemedy,
@@ -242,8 +243,21 @@ export function RecallDetailScreen({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       try {
@@ -309,6 +323,12 @@ export function RecallDetailScreen({
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         if (error instanceof ApiRequestError && error.status === 404) {
           setState({ kind: 'gone' });
           return;
@@ -627,267 +647,24 @@ export function RecallDetailScreen({
       )}
 
       {ordered.map((recall, index) => {
-        const markedOn = markOf(recall);
-        const working = busyCampaign !== null && busyCampaign === recall.campaignNumber;
         /* Same key the card is rendered under, so the disclosure state follows it. */
         const cardKey = recall.campaignNumber ?? `recall-${index}`;
-
         return (
-        <Card
-          key={recall.campaignNumber ?? `recall-${index}`}
-          style={[styles.cardGap, markedOn ? styles.cardMarked : null]}
-        >
-          {/*
-            ── R28 · the headline is a name, not NHTSA's enum ────────────────
-
-            It rendered `AIR BAGS:SIDE/WINDOW:HEAD` — the taxonomy string,
-            verbatim, in caps, as the title of the most serious card in the
-            product. `componentPlainName` maps the system and lower-cases the
-            qualifiers; the raw string survives at the foot of this card, beside
-            the campaign number, because it is what a service desk recognises.
-          */}
-          {plainComponent(recall) ? (
-            <Text style={styles.component}>{plainComponent(recall)}</Text>
-          ) : null}
-
-          {/*
-            ── R30 · lead with the notice, then offer to act on it ───────────
-
-            NHTSA's summary is a 90-word manufacturer paragraph, and it used to
-            render in full alongside `What could happen` and `How it gets fixed`
-            — three levels of prose at once, at low contrast, which is how a
-            screen ends up read by nobody.
-
-            Three lines here, expandable. Enough to know what is wrong before
-            being asked to act on it, which is the whole of **R27**: this card
-            used to offer "Mark as repaired" *above* any description of the
-            defect.
-          */}
-          {recall.summary ? (
-            <Text style={styles.summary} numberOfLines={expanded.has(cardKey) ? undefined : 3}>
-              {recall.summary}
-            </Text>
-          ) : null}
-
-          {/*
-            ── The two actions ───────────────────────────────────────────────
-
-            The recall spec is explicit that this card's "job is to drive an
-            action, not to explain a notice", so they stay high — above the
-            detail sections and the advisor row, and one line of summary below
-            the name of the defect. That single line is the correction: the spec
-            argues for prominence, and R27 is about **sequence**, and they are
-            reconcilable.
-
-            ⚠ Neither is `.btn-primary`. Both are outline controls, because a
-            filled cyan button here would read as *the* recommended action — and
-            this product does not know whether an owner should be booking a
-            dealer or recording work they have already had done.
-          */}
-          {markedOn ? (
-            /*
-              The claim, in the owner's own terms, with the way back beside it.
-
-              ⚠ Not "Repaired". Nothing here verified anything: NHTSA matches
-              recalls on year/make/model rather than VIN, so the strongest true
-              sentence is that *you said so, on this date*. §10, on the screen
-              where overstating is most expensive.
-            */
-            <View style={styles.markedRow}>
-              <Text style={styles.markedText}>
-                You marked this repaired on {calendarDate(markedOn)}
-              </Text>
-              {/*
-                ⚠ `Button`, not a hand-rolled `Pressable` that swaps its label
-                for a spinner. That pattern loses the control's accessible name
-                at the exact moment something is happening — RN derives the name
-                from the `<Text>` descendants, so a busy control announces as
-                bare "button". `mobile-busy-controls-named.test.ts` caught this
-                one on its first draft; the primitive keeps the name and sets
-                `accessibilityState.busy` alongside it.
-              */}
-              <Button
-                label="Undo"
-                variant="outline"
-                busy={working}
-                busyLabel=""
-                accessibilityLabel={`Undo marking the ${plainComponent(recall) ?? 'recall'} repaired`}
-                onPress={() =>
-                  recall.campaignNumber && void setAddressed(recall.campaignNumber, false)
-                }
-              />
-            </View>
-          ) : (
-            <View style={styles.actions}>
-              <Button
-                label="Find a dealer"
-                variant="outline"
-                onPress={() => findDealer(state.make)}
-                style={styles.action}
-              />
-              {/*
-                Only offered when the campaign has a number. The mark is stored
-                against `(vehicle_id, campaign_number)`, so a recall that
-                arrived without one has nothing to key on — and a button that
-                silently does nothing is worse than one that is not there.
-              */}
-              {recall.campaignNumber ? (
-                <Button
-                  label="Mark as repaired"
-                  variant="outline"
-                  busy={working}
-                  busyLabel="Marking"
-
-                  onPress={() => void setAddressed(recall.campaignNumber!, true)}
-                  style={styles.action}
-                />
-              ) : null}
-            </View>
-          )}
-
-          {/*
-            ── R30 · the detail, behind one disclosure ───────────────────────
-
-            `What could happen` and `How it gets fixed` are the two questions an
-            owner has after "what is wrong", and both are worth having — but
-            rendering all of it at once is what made none of it read. One
-            control opens the lot, including the rest of the summary above.
-          */}
-          {(recall.consequence || hasRemedy(recall)) && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: expanded.has(cardKey) }}
-              accessibilityLabel={`${expanded.has(cardKey) ? 'Hide' : 'Show'} the full notice for the ${
-                plainComponent(recall) ?? 'recall'
-              } recall`}
-              onPress={() => toggleExpanded(cardKey)}
-              style={styles.disclosure}
-            >
-              <Text style={styles.disclosureText}>
-                {expanded.has(cardKey) ? 'Hide the full notice' : 'Read the full notice'}
-              </Text>
-              <Icon
-                name={expanded.has(cardKey) ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={text.muted}
-              />
-            </Pressable>
-          )}
-
-          {expanded.has(cardKey) && (
-            <>
-              {recall.consequence && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>What could happen</Text>
-                  <Text style={styles.body14}>{recall.consequence}</Text>
-                </View>
-              )}
-
-              {/*
-                Asked, not assumed. The stored payloads predate this field, so on
-                the demo cars this section is simply absent rather than empty.
-              */}
-              {hasRemedy(recall) && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>How it gets fixed</Text>
-                  <Text style={styles.body14}>{recall.remedy}</Text>
-                </View>
-              )}
-            </>
-          )}
-
-          {/*
-            ── R28 · the raw string, kept where it belongs ───────────────────
-
-            NHTSA's own component code is what a service desk will recognise and
-            what a campaign lookup is done against, so it is not discarded — it
-            sits here at provenance weight, beside the campaign number, rather
-            than as the card's headline.
-          */}
-          <View style={styles.metaRow}>
-            {recall.campaignNumber && (
-              <Text style={styles.meta}>Campaign {recall.campaignNumber}</Text>
-            )}
-            {recall.reportedOn && (
-              /* "Issued 14 Mar 2024", per the spec — not the raw ISO string. */
-              <Text style={styles.meta}>Issued {calendarDate(recall.reportedOn)}</Text>
-            )}
-            {/*
-              ⚠ 6 Sep: this was cut as a duplicate and **restored**, because it
-              is not one.
-
-              The head above prints `componentPlainName(recall)` — the mapped,
-              readable form. This prints `recall.component`, the raw NHTSA
-              taxonomy string, and the docblock on the head says why: it "is what
-              a service desk recognises". `AIR BAGS:SIDE/WINDOW:HEAD` at the head
-              is unreadable; the same string at the foot is what you quote on the
-              phone.
-
-              The critique reported "FUEL SYSTEM printed twice per recall" and it
-              was looking at exactly that on screen — because the *fixture* used
-              `Component: 'FUEL SYSTEM'`, a value where the raw and mapped forms
-              coincide. The screenshot was honest and the conclusion drawn from it
-              was wrong, which is a fixture defect rather than a design one.
-              `dev/fixtures.ts` now carries real taxonomy strings.
-            */}
-            {recall.component && <Text style={styles.meta}>{recall.component}</Text>}
-          </View>
-
-          {/*
-            ── R32 · the differentiator, at the card's foot, on a divider ────
-
-            It was the last thing on a long card with nothing separating it from
-            the metadata above, so the one control that leads to what this
-            product does best read as a footnote. A rule and a quiet row is the
-            system's own treatment for an action that closes a card.
-
-            It carries this specific recall as the question rather than opening
-            an empty thread.
-          */}
-          {/*
-            ⚠ 6 Sep · B4 and B5: the primitive, not a hand-rolled `Pressable`.
-
-            This was a filled graphite block with a centred sans label — a third
-            button style the brief does not have, which the critique listed for
-            cutting as "a third button style… Advisor is a tab away". It is the
-            same defect as the `quiet` variant removed in the same round: a
-            filled rectangle that is neither the primary nor the secondary.
-
-            `outline` is the brief's secondary, and going through `Button` also
-            buys the 45° cut, the mono caps label, the 44pt floor and the busy
-            naming rule that `mobile-busy-controls-named` enforces — none of
-            which a bespoke `Pressable` gets for free.
-          */}
-          {/*
-            ── ⚠ 6 Sep: `ghost`, so two recalls stop making six 48pt buttons ───
-
-            R32's argument above is about *placement* and it still holds — this
-            is the differentiator, it belongs at the card's foot on a rule, and
-            it carries this recall as the question rather than opening an empty
-            thread.
-
-            What changed is weight. These cards repeat per recall, so an
-            `outline` here meant three equal-weight controls per card and, at two
-            open recalls, six 48pt buttons on one screen — the critique called it
-            a button farm and it was right: nothing was ranked.
-
-            `ghost` ranks them. FIND A DEALER and MARK AS REPAIRED act on the
-            recall; this one leaves for a conversation about it. Advisor is also
-            a tab away, which is the critique's other point and the reason this
-            is the one to demote rather than cut.
-          */}
-          <Button
-            label="Ask the advisor about this"
-            variant="ghost"
-            accessibilityLabel={`Ask the advisor about the ${plainComponent(recall) ?? 'recall'} recall`}
-            onPress={() =>
-              onAskAdvisor(
-                vehicleId,
-                `What does this recall mean for my ${state.name}? ${recall.summary ?? recall.component ?? ''}`
-              )
-            }
+          <RecallCard
+            key={cardKey}
+            recall={recall}
+            cardKey={cardKey}
+            markedOn={markOf(recall)}
+            working={busyCampaign !== null && busyCampaign === recall.campaignNumber}
+            expanded={expanded.has(cardKey)}
+            make={state.make}
+            name={state.name}
+            vehicleId={vehicleId}
+            onSetAddressed={setAddressed}
+            onFindDealer={findDealer}
+            onToggle={toggleExpanded}
+            onAskAdvisor={onAskAdvisor}
           />
-        </Card>
         );
       })}
 
@@ -900,6 +677,317 @@ export function RecallDetailScreen({
     </Container>
   );
 }
+
+/**
+ * One campaign's card, memoised (QE 2.12, 20 Sep).
+ *
+ * The list is every campaign on record — 24 on a 2003 Accord — and each card
+ * carries two buttons, a disclosure and an advisor row. Rendered inline in
+ * the screen's map, every one of them re-rendered on every state change:
+ * opening one notice re-drew the other twenty-three, and marking one
+ * repaired did the same twice (busy, then done). `memo` with props that are
+ * primitives and `useCallback`-stable handlers means a tap re-renders the
+ * card it landed on and nothing else.
+ *
+ * ⚠ Not a `FlatList`. Embedded under Health this is a section of the host's
+ * `ScrollView` (R16), and a virtualised list inside a scroller on the same
+ * axis is the defect that note describes. Turning Health into a header-list
+ * is the shape that would earn virtualisation, and it is a refactor of the
+ * host rather than this file; until a model with sixty campaigns is seen
+ * scrolling badly, the memo is the fix the finding supports.
+ */
+const RecallCard = memo(function RecallCard({
+  recall,
+  cardKey,
+  markedOn,
+  working,
+  expanded,
+  make,
+  name,
+  vehicleId,
+  onSetAddressed,
+  onFindDealer,
+  onToggle,
+  onAskAdvisor,
+}: {
+  recall: NormalisedRecall;
+  cardKey: string;
+  markedOn: string | null;
+  working: boolean;
+  expanded: boolean;
+  make: string | null;
+  name: string;
+  vehicleId: string;
+  onSetAddressed: (campaignNumber: string, addressed: boolean) => Promise<void>;
+  onFindDealer: (make: string | null) => void;
+  onToggle: (key: string) => void;
+  onAskAdvisor: Props['onAskAdvisor'];
+}) {
+  /*
+    NHTSA's pre-2011 campaigns arrive in capitals (12 of the Accord's 24);
+    `unshout` lowers them to sentences and leaves prose alone. The car's
+    name and the manufacturer are the proper nouns it can keep. Display
+    only: the advisor row below still sends the raw summary.
+  */
+  const names = [name, make, recall.manufacturer];
+  const summary = unshout(recall.summary, names);
+  const consequence = unshout(recall.consequence, names);
+  const remedy = unshout(recall.remedy, names);
+  return (
+    <Card style={[styles.cardGap, markedOn ? styles.cardMarked : null]}>
+      {/*
+        ── R28 · the headline is a name, not NHTSA's enum ────────────────
+
+        It rendered `AIR BAGS:SIDE/WINDOW:HEAD` — the taxonomy string,
+        verbatim, in caps, as the title of the most serious card in the
+        product. `componentPlainName` maps the system and lower-cases the
+        qualifiers; the raw string survives at the foot of this card, beside
+        the campaign number, because it is what a service desk recognises.
+      */}
+      {plainComponent(recall) ? (
+        <Text style={styles.component}>{plainComponent(recall)}</Text>
+      ) : null}
+
+      {/*
+        ── R30 · lead with the notice, then offer to act on it ───────────
+
+        NHTSA's summary is a 90-word manufacturer paragraph, and it used to
+        render in full alongside `What could happen` and `How it gets fixed`
+        — three levels of prose at once, at low contrast, which is how a
+        screen ends up read by nobody.
+
+        Three lines here, expandable. Enough to know what is wrong before
+        being asked to act on it, which is the whole of **R27**: this card
+        used to offer "Mark as repaired" *above* any description of the
+        defect.
+      */}
+      {recall.summary ? (
+        <Text style={styles.summary} numberOfLines={expanded ? undefined : 3}>
+          {summary}
+        </Text>
+      ) : null}
+
+      {/*
+        ── The two actions ───────────────────────────────────────────────
+
+        The recall spec is explicit that this card's "job is to drive an
+        action, not to explain a notice", so they stay high — above the
+        detail sections and the advisor row, and one line of summary below
+        the name of the defect. That single line is the correction: the spec
+        argues for prominence, and R27 is about **sequence**, and they are
+        reconcilable.
+
+        ⚠ Neither is `.btn-primary`. Both are outline controls, because a
+        filled cyan button here would read as *the* recommended action — and
+        this product does not know whether an owner should be booking a
+        dealer or recording work they have already had done.
+      */}
+      {markedOn ? (
+        /*
+          The claim, in the owner's own terms, with the way back beside it.
+
+          ⚠ Not "Repaired". Nothing here verified anything: NHTSA matches
+          recalls on year/make/model rather than VIN, so the strongest true
+          sentence is that *you said so, on this date*. §10, on the screen
+          where overstating is most expensive.
+        */
+        <View style={styles.markedRow}>
+          <Text style={styles.markedText}>
+            You marked this repaired on {calendarDate(markedOn)}
+          </Text>
+          {/*
+            ⚠ `Button`, not a hand-rolled `Pressable` that swaps its label
+            for a spinner. That pattern loses the control's accessible name
+            at the exact moment something is happening — RN derives the name
+            from the `<Text>` descendants, so a busy control announces as
+            bare "button". `mobile-busy-controls-named.test.ts` caught this
+            one on its first draft; the primitive keeps the name and sets
+            `accessibilityState.busy` alongside it.
+          */}
+          <Button
+            label="Undo"
+            variant="outline"
+            busy={working}
+            busyLabel=""
+            accessibilityLabel={`Undo marking the ${plainComponent(recall) ?? 'recall'} repaired`}
+            onPress={() =>
+              recall.campaignNumber && void onSetAddressed(recall.campaignNumber, false)
+            }
+          />
+        </View>
+      ) : (
+        <View style={styles.actions}>
+          <Button
+            label="Find a dealer"
+            variant="outline"
+            onPress={() => onFindDealer(make)}
+            style={styles.action}
+          />
+          {/*
+            Only offered when the campaign has a number. The mark is stored
+            against `(vehicle_id, campaign_number)`, so a recall that
+            arrived without one has nothing to key on — and a button that
+            silently does nothing is worse than one that is not there.
+          */}
+          {recall.campaignNumber ? (
+            <Button
+              label="Mark as repaired"
+              variant="outline"
+              busy={working}
+              busyLabel="Marking"
+
+              onPress={() => void onSetAddressed(recall.campaignNumber!, true)}
+              style={styles.action}
+            />
+          ) : null}
+        </View>
+      )}
+
+      {/*
+        ── R30 · the detail, behind one disclosure ───────────────────────
+
+        `What could happen` and `How it gets fixed` are the two questions an
+        owner has after "what is wrong", and both are worth having — but
+        rendering all of it at once is what made none of it read. One
+        control opens the lot, including the rest of the summary above.
+      */}
+      {(recall.consequence || hasRemedy(recall)) && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: expanded }}
+          accessibilityLabel={`${expanded ? 'Hide' : 'Show'} the full notice for the ${
+            plainComponent(recall) ?? 'recall'
+          } recall`}
+          onPress={() => onToggle(cardKey)}
+          style={styles.disclosure}
+        >
+          <Text style={styles.disclosureText}>
+            {expanded ? 'Hide the full notice' : 'Read the full notice'}
+          </Text>
+          <Icon
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={text.muted}
+          />
+        </Pressable>
+      )}
+
+      {expanded && (
+        <>
+          {recall.consequence && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>What could happen</Text>
+              <Text style={styles.body14}>{consequence}</Text>
+            </View>
+          )}
+
+          {/*
+            Asked, not assumed. The stored payloads predate this field, so on
+            the demo cars this section is simply absent rather than empty.
+          */}
+          {hasRemedy(recall) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>How it gets fixed</Text>
+              <Text style={styles.body14}>{remedy}</Text>
+            </View>
+          )}
+        </>
+      )}
+
+      {/*
+        ── R28 · the raw string, kept where it belongs ───────────────────
+
+        NHTSA's own component code is what a service desk will recognise and
+        what a campaign lookup is done against, so it is not discarded — it
+        sits here at provenance weight, beside the campaign number, rather
+        than as the card's headline.
+      */}
+      <View style={styles.metaRow}>
+        {recall.campaignNumber && (
+          <Text style={styles.meta}>Campaign {recall.campaignNumber}</Text>
+        )}
+        {recall.reportedOn && (
+          /* "Issued 14 Mar 2024", per the spec — not the raw ISO string. */
+          <Text style={styles.meta}>Issued {calendarDate(recall.reportedOn)}</Text>
+        )}
+        {/*
+          ⚠ 6 Sep: this was cut as a duplicate and **restored**, because it
+          is not one.
+
+          The head above prints `componentPlainName(recall)` — the mapped,
+          readable form. This prints `recall.component`, the raw NHTSA
+          taxonomy string, and the docblock on the head says why: it "is what
+          a service desk recognises". `AIR BAGS:SIDE/WINDOW:HEAD` at the head
+          is unreadable; the same string at the foot is what you quote on the
+          phone.
+
+          The critique reported "FUEL SYSTEM printed twice per recall" and it
+          was looking at exactly that on screen — because the *fixture* used
+          `Component: 'FUEL SYSTEM'`, a value where the raw and mapped forms
+          coincide. The screenshot was honest and the conclusion drawn from it
+          was wrong, which is a fixture defect rather than a design one.
+          `dev/fixtures.ts` now carries real taxonomy strings.
+        */}
+        {recall.component && <Text style={styles.meta}>{recall.component}</Text>}
+      </View>
+
+      {/*
+        ── R32 · the differentiator, at the card's foot, on a divider ────
+
+        It was the last thing on a long card with nothing separating it from
+        the metadata above, so the one control that leads to what this
+        product does best read as a footnote. A rule and a quiet row is the
+        system's own treatment for an action that closes a card.
+
+        It carries this specific recall as the question rather than opening
+        an empty thread.
+      */}
+      {/*
+        ⚠ 6 Sep · B4 and B5: the primitive, not a hand-rolled `Pressable`.
+
+        This was a filled graphite block with a centred sans label — a third
+        button style the brief does not have, which the critique listed for
+        cutting as "a third button style… Advisor is a tab away". It is the
+        same defect as the `quiet` variant removed in the same round: a
+        filled rectangle that is neither the primary nor the secondary.
+
+        `outline` is the brief's secondary, and going through `Button` also
+        buys the 45° cut, the mono caps label, the 44pt floor and the busy
+        naming rule that `mobile-busy-controls-named` enforces — none of
+        which a bespoke `Pressable` gets for free.
+      */}
+      {/*
+        ── ⚠ 6 Sep: `ghost`, so two recalls stop making six 48pt buttons ───
+
+        R32's argument above is about *placement* and it still holds — this
+        is the differentiator, it belongs at the card's foot on a rule, and
+        it carries this recall as the question rather than opening an empty
+        thread.
+
+        What changed is weight. These cards repeat per recall, so an
+        `outline` here meant three equal-weight controls per card and, at two
+        open recalls, six 48pt buttons on one screen — the critique called it
+        a button farm and it was right: nothing was ranked.
+
+        `ghost` ranks them. FIND A DEALER and MARK AS REPAIRED act on the
+        recall; this one leaves for a conversation about it. Advisor is also
+        a tab away, which is the critique's other point and the reason this
+        is the one to demote rather than cut.
+      */}
+      <Button
+        label="Ask the advisor about this"
+        variant="ghost"
+        accessibilityLabel={`Ask the advisor about the ${plainComponent(recall) ?? 'recall'} recall`}
+        onPress={() =>
+          onAskAdvisor(
+            vehicleId,
+            `What does this recall mean for my ${name}? ${recall.summary ?? recall.component ?? ''}`
+          )
+        }
+      />
+    </Card>
+  );
+});
 
 const styles = StyleSheet.create({
   /*

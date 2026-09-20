@@ -1317,3 +1317,29 @@ describe('removing the car (20 Sep)', () => {
     expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(false);
   });
 });
+
+describe('the research poll is one request (20 Sep)', () => {
+  it('a quiet reload asks for the vehicle alone — three a poll was 72 a minute against a limiter of 60', async () => {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: { id: 'v1', year: 2009, make: 'Mazda', model: 'Mazda3', current_mileage: 95_000, vehicle_health_summary: null, nhtsa_data: null },
+          plate: { generation: 'bk', year_from: 2003, year_to: 2009 },
+          knowledge: { research_status: 'pending' },
+        } as never;
+      }
+      if (path === '/research') return { state: 'researching' } as never;
+      return {} as never;
+    });
+    const { view } = await mount();
+    await waitFor(() => expect(view.queryByTestId('research-log')).not.toBeNull());
+    // The mount's own three requests and the trigger are done; what follows is the poll.
+    await waitFor(() => expect(request.mock.calls.some(([p]) => p === '/research')).toBe(true));
+    const before = request.mock.calls.length;
+    // One poll (2.5 s), on the real clock: only `/load-vehicle` may be asked.
+    await waitFor(() => expect(request.mock.calls.length).toBeGreaterThan(before), { timeout: 6_000 });
+    const polled = request.mock.calls.slice(before).map(([p]) => String(p).split('?')[0]);
+    expect(polled.every((p) => p === '/load-vehicle')).toBe(true);
+    expect(polled.some((p) => p === '/load-maintenance-data' || p === '/wishlist')).toBe(false);
+  });
+});

@@ -3,6 +3,7 @@
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
+import { threadTitle } from '@tappet/core/thread-title';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
   genAI,
@@ -345,6 +346,9 @@ export async function createVehicle(vehicleData: {
         avg_miles_per_month: vehicleData.avg_miles_per_month,
         performance_mindedness: vehicleData.performance_mindedness,
         driving_style: vehicleData.driving_style,
+        // Not asked by the wizard, so not answered — see the phone's route
+        // (QE 2.2). The dashboard's chip reads null as "Set Status".
+        vehicle_status: null,
         user_id: user.id,
       })
       .select()
@@ -1001,9 +1005,7 @@ export async function createConsultantSession(vehicleId: string, title: string) 
 
 export async function generateSessionTitle(message: string) {
   try {
-    const words = message.split(' ').slice(0, 6).join(' ');
-    const title = words.length > 40 ? words.slice(0, 40) + '...' : words;
-    return title || 'New Chat';
+    return threadTitle(message);
   } catch (error) {
     return 'New Chat';
   }

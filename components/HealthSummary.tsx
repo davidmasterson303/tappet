@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { healthClaim, mayReassure, type HealthClaim } from '@tappet/core/health-claims';
-import type { HealthDriver, HealthDriverKey } from '@tappet/core/health-drivers';
+import { DRIVERS_NOTE, type HealthDriver, type HealthDriverKey } from '@tappet/core/health-drivers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -446,6 +446,12 @@ function HealthFactorRows({
           )}
         </div>
       ))}
+      {/*
+        One line under the rows, from core, so the phone says the same (QE
+        2.8): the score marks an empty history down; the drivers are what the
+        records show. A reader who adds them up cannot, and is told why.
+      */}
+      <p className="px-4 py-3 text-xs leading-relaxed text-white/50">{DRIVERS_NOTE}</p>
     </div>
   );
 }

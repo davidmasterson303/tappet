@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
+import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
@@ -178,6 +179,41 @@ export async function GET(request: NextRequest): Promise<Response> {
       getServiceRoleClient(),
     );
 
+    /*
+      ── The records behind the score, so the bay can refuse a stale one ──────
+
+      QE 1.5 (20 Sep): the M235i's row was the pre-FN-01 constant — 70,
+      `last_generated` 2000-01-01, "complete lack of documented maintenance"
+      beside five filed line items — deliberately stamped stale, and the bay
+      drew a 70 FAIR dial with nothing qualifying it while the detail screen
+      applied `healthVerdict` and said "read before 5 service records were
+      filed". The verdict needs the newest filing time; this is one query for
+      the garage, folded per car. `null` when the read fails: the verdict
+      then has no evidence of staleness and leaves the reading alone, which
+      is the same degrade `load-vehicle` makes.
+    */
+    const records = new Map<string, { count: number; newestFiledAt: string | null }>();
+    let recordsKnown = true;
+    if (rows.length > 0) {
+      const { data: filed, error: filedError } = await getServiceRoleClient()
+        .from('maintenance_line_items')
+        .select('vehicle_id, created_at')
+        .in('vehicle_id', rows.map((row) => row.id));
+      if (filedError) {
+        recordsKnown = false;
+        logger.warn('API:GET_VEHICLES', 'Could not read the records behind the scores', { error: filedError.message });
+      } else {
+        for (const item of filed ?? []) {
+          const id = item.vehicle_id as string;
+          const at = (item.created_at as string | null) ?? null;
+          const held = records.get(id) ?? { count: 0, newestFiledAt: null };
+          held.count += 1;
+          if (at && (held.newestFiledAt === null || at > held.newestFiledAt)) held.newestFiledAt = at;
+          records.set(id, held);
+        }
+      }
+    }
+
     const vehicles = rows.map((row) => {
       const { custom_image_url, ...vehicle } = row;
       const photo_url = photos.get(row.id) ?? null;
@@ -188,6 +224,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         // or the plate — so the garage grades only the owner's. Additive.
         photo_kind: vehiclePhotoKind(row.id, row as VehiclePhotoColumns, photo_url),
         plate_status: plates.get(row.id) ?? null,
+        // 20 Sep: the service records behind the score, for `healthVerdict`.
+        // Additive; `null` means the read failed, not that there are none.
+        records: recordsKnown ? (records.get(row.id) ?? { count: 0, newestFiledAt: null }) : null,
       };
     });
 
@@ -365,6 +404,13 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       last_mileage_update_date: new Date().toISOString(),
     })
     .eq('id', vehicleId);
+
+  /*
+    A new reading moves what is due (20 Sep). The projection was the
+    sweep's nightly write, so a confirmed odometer changed the NEXT SERVICE
+    cell the next day; it is the sweep's own maths, best-effort, run now.
+  */
+  if (!writeError) await projectNextService(vehicleId as string);
 
   if (writeError) {
     logger.error('API:PATCH_VEHICLE', new Error(writeError.message), { vehicleId });
@@ -547,6 +593,17 @@ export async function POST(request: NextRequest): Promise<Response> {
         that reads them.
       */
       performance_mindedness: body.wantsModifications === false ? 'stock' : 'mild',
+      /*
+        ⚠ Named as null on purpose (QE 2.2, 20 Sep). The column carries
+        `DEFAULT 'daily_driver'` (migration 20260314163304), so an insert that
+        leaves it out gets an answer the owner never gave — and the hero then
+        printed "USE · Daily Driver" and the profile screen pre-selected it
+        under "these are the answers you gave". Nothing here asks how the car
+        is used; `null` is "not said", which every reader of this column
+        already renders as nothing. The default itself is dropped by
+        20260920120000; the explicit null is right with or without it.
+      */
+      vehicle_status: null,
       user_id: caller.userId,
     })
     .select('id,year,make,model')

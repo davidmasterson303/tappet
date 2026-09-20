@@ -37,7 +37,8 @@ export interface Vehicle {
   avg_miles_per_month?: number;
   focal_point_x?: number;
   focal_point_y?: number;
-  vehicle_status?: 'daily_driver' | 'weekend' | 'stored' | 'for_sale';
+  /** `null` is "not said" — the column has no default since 20260920120000 (QE 2.2). */
+  vehicle_status?: 'daily_driver' | 'weekend' | 'stored' | 'for_sale' | null;
   is_demo?: boolean;
   created_at?: string;
   updated_at?: string;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   ActionSheetIOS,
+  Platform,
   Alert,
   Animated,
   RefreshControl,
@@ -488,8 +489,15 @@ export function VehicleDetailScreen({
       pull-to-refresh indicator belongs on a poll — the log is the wait's
       instrument, and a second one flashing above it would be noise.
     */
-    async (isRefresh = false, quiet = false) => {
-      if (quiet) {
+    async (isRefresh = false, quiet = false, lean = false) => {
+      /*
+        `quiet`: no loading UI — the focus refetch and every reload after a
+        write (20 Sep; the opening dial over content the screen already had
+        was a spinner on every back-navigation). `lean`: the vehicle alone,
+        for the research runner's poll — three requests a poll was 72 a
+        minute against a limiter of 60. Lean is always quiet.
+      */
+      if (quiet || lean) {
         // nothing to show: the rows arriving is the whole feedback
       } else if (isRefresh) setRefreshing(true);
       else setState({ status: 'loading' });
@@ -517,6 +525,15 @@ export function VehicleDetailScreen({
           They run together rather than in sequence, so the wait is the slowest
           one rather than the sum of four.
         */
+        /*
+          ⚠ A quiet reload asks for the vehicle alone (20 Sep). The research
+          runner polls every 2.5 s, and three requests a poll is 72 a minute
+          against a `default` limiter of 60 per client — so on the first car
+          the log ran for end to end, the score request arrived at the ceiling
+          and the last line read "Too many requests. Please slow down." The
+          counts beside the hub rows do not change while research runs; the
+          poll wants the rows the log reads, which all ride on `load-vehicle`.
+        */
         const [vehicleResult, servicesResult, wishlistResult] = await Promise.allSettled([
           apiRequest<{
             vehicle?: Vehicle;
@@ -525,12 +542,16 @@ export function VehicleDetailScreen({
             knowledge?: Knowledge | null;
             plate?: Plate | null;
           }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
-          apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
-            `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
-          ),
-          apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
-            `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
-          ),
+          lean
+            ? Promise.reject(new Error('lean'))
+            : apiRequest<{ maintenanceLineItems?: Array<{ created_at?: string | null }> }>(
+                `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
+              ),
+          lean
+            ? Promise.reject(new Error('lean'))
+            : apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
+                `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
+              ),
         ]);
 
         if (vehicleResult.status === 'rejected') throw vehicleResult.reason;
@@ -564,15 +585,19 @@ export function VehicleDetailScreen({
           route predates this field should render a health card without drivers,
           not a screen that throws.
         */
-        setState({
-          status: 'ok',
+        const next = {
+          status: 'ok' as const,
           vehicle: body.vehicle,
           drivers: Array.isArray(body.health_drivers) ? body.health_drivers : [],
           history: Array.isArray(body.health_history) ? body.health_history : [],
           knowledge: body.knowledge ?? null,
           plate: body.plate ?? null,
-          counts,
-        });
+        };
+        // A lean reload did not ask for the counts: keep the last full read's.
+        setState((previous) => ({
+          ...next,
+          counts: lean && previous.status === 'ok' ? previous.counts : counts,
+        }));
       } catch (error) {
         const apiError = error as ApiRequestError;
         // 404 is a state, not a failure — see the header.
@@ -580,13 +605,15 @@ export function VehicleDetailScreen({
           setState({ status: 'missing' });
           return;
         }
+        // A quiet refetch that fails keeps what is on screen; the next open reloads.
+        if (quiet || lean) return;
         setState({
           status: 'error',
           message: apiError.message,
           unauthorized: apiError.status === 401,
         });
       } finally {
-        if (!quiet) setRefreshing(false);
+        if (!quiet && !lean) setRefreshing(false);
       }
     },
     [vehicleId],
@@ -635,10 +662,24 @@ export function VehicleDetailScreen({
           knowledge: state.knowledge,
           nhtsa: first(state.vehicle.nhtsa_data) ?? null,
           health: first(state.vehicle.vehicle_health_summary) ?? null,
+          /*
+            The verdict's own question, asked here so the runner can re-read
+            a score the records have overtaken (QE 1.5 / 2.15): an invoice
+            filed or a job marked done stamps the score stale, and until
+            20 Sep the phone showed the caveat forever.
+          */
+          scoreStale:
+            healthVerdict({
+              summary: first(state.vehicle.vehicle_health_summary)?.summary,
+              generatedAt: first(state.vehicle.vehicle_health_summary)?.last_generated,
+              serviceCount: state.counts.services,
+              newestFiledAt: state.counts.servicesFiledAt,
+              openRecalls: null,
+            }).state === 'stale',
         }
       : null;
-  const quietReload = useCallback(() => load(false, true), [load]);
-  const research = useResearchRunner({ vehicleId, observation, reload: quietReload });
+  const leanReload = useCallback(() => load(false, true, true), [load]);
+  const research = useResearchRunner({ vehicleId, observation, reload: leanReload });
 
   /**
    * Add or replace this car's photograph.
@@ -663,7 +704,7 @@ export function VehicleDetailScreen({
 
       setUploading(true);
       await uploadVehiclePhoto(vehicleId, file);
-      await load(true);
+      await load(false, true); // quiet: the photo swaps in place (20 Sep)
     } catch (error) {
       setPhotoError({
         headline: 'That photo was not saved',
@@ -719,7 +760,7 @@ export function VehicleDetailScreen({
 
     try {
       await removeVehiclePhoto(vehicleId);
-      await load(true);
+      await load(false, true); // quiet: the photo swaps in place (20 Sep)
     } catch (error) {
       setState((current) =>
         current.status === 'ok'
@@ -780,6 +821,32 @@ export function VehicleDetailScreen({
       return;
     }
 
+    /*
+      One confirm, and it says what the owner gets rather than asking
+      "are you sure?". The car does not go blank — it stands on its
+      plate, which is the thing David wanted to see and could not.
+    */
+    const confirmRemove = () =>
+      Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+        { text: 'Keep', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
+      ]);
+
+    /*
+      ⚠ `ActionSheetIOS` is iOS only (QE 2.10): on Android it is undefined
+      and "Change photo" would throw on the tap. Android is not a launch
+      target, and the day it is, this is the one line that would have
+      crashed it. The same three choices as an alert elsewhere.
+    */
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Photo', undefined, [
+        { text: 'Change photo', onPress: () => void onAddPhoto() },
+        { text: 'Remove photo', style: 'destructive', onPress: confirmRemove },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
+
     ActionSheetIOS.showActionSheetWithOptions(
       {
         options: ['Change photo', 'Remove photo', 'Cancel'],
@@ -789,17 +856,7 @@ export function VehicleDetailScreen({
       },
       (index) => {
         if (index === 0) void onAddPhoto();
-        if (index === 1) {
-          /*
-            One confirm, and it says what the owner gets rather than asking
-            "are you sure?". The car does not go blank — it stands on its
-            plate, which is the thing David wanted to see and could not.
-          */
-          Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
-            { text: 'Keep', style: 'cancel' },
-            { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
-          ]);
-        }
+        if (index === 1) confirmRemove();
       },
     );
   }, [state, onAddPhoto, onRemovePhoto]);
@@ -1347,7 +1404,8 @@ export function VehicleDetailScreen({
               >
                 {score !== null && band ? (
                   <>
-                    <Landing>
+                    {/* Keyed on the reading's time, so a re-read seats in like a first one. */}
+                    <Landing key={health?.last_generated ?? 'reading'}>
                     <View style={styles.reading}>
                       {/*
                         ⚠ 6 Sep · B3 and B7: the reading stopped wearing the

@@ -1,4 +1,4 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { everHadVehicle, recordEverHadVehicle } from '../../onboarding/first-run-storage';
 
@@ -569,5 +569,93 @@ describe('the next-service row', () => {
 
     await view.findByText(/M235i/);
     expect(view.queryByLabelText(/^Next service:/)).toBeNull();
+  });
+});
+
+describe('coming back into view (20 Sep)', () => {
+  /*
+    The focus refetch (`c06980e`, this morning) fixed a car missing from the
+    garage and introduced "OPENING THE GARAGE" over the bays on every return
+    to the tab — the opening dial for a request the screen did not need to
+    show, caught on a 10 Hz burst. The hook now calls the loader quietly;
+    this drives the focus event through a mock navigation and holds the bays
+    on screen throughout.
+  */
+  const { NavigationContext } = jest.requireActual('@react-navigation/native');
+
+  it('refetches quietly — the bays stay, the dial never appears, the data still swaps', async () => {
+    const listeners: Array<() => void> = [];
+    const navigation = {
+      canGoBack: () => false,
+      setOptions: jest.fn(),
+      navigate: jest.fn(),
+      addListener: jest.fn((event: string, cb: () => void) => {
+        if (event === 'focus') listeners.push(cb);
+        return () => {};
+      }),
+      isFocused: () => true,
+    };
+    request.mockResolvedValueOnce({ vehicles: [M235I] } as never);
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <GarageScreen accessToken="t" email="owner@example.test" onSignOut={jest.fn()} onOpenVehicle={jest.fn()} onAddVehicle={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText('2015 BMW M235i');
+    expect(listeners).toHaveLength(1);
+
+    // A second car appeared elsewhere; the focus refetch brings it in.
+    let release: (value: unknown) => void = () => {};
+    request.mockReturnValueOnce(new Promise((resolve) => (release = resolve)) as never);
+    await act(async () => {
+      listeners[0]();
+    });
+    // In flight: the bays are still there and no dial has replaced them.
+    view.getByText('2015 BMW M235i');
+    expect(view.queryByText('Opening the garage')).toBeNull();
+
+    await act(async () => {
+      release({ vehicles: [M235I, { ...M235I, id: 'v2', year: 2003, make: 'Honda', model: 'Accord' }] });
+    });
+    await view.findByText('2003 Honda Accord');
+  });
+});
+
+describe('a stale score on the bay (QE 1.5, 20 Sep)', () => {
+  /*
+    The M235i's row is the pre-FN-01 constant — 70, read 2000-01-01 — and the
+    bay drew it as a reading while the detail screen, one tap away, said
+    "read before 5 service records were filed". Same verdict on both now.
+  */
+  it('draws no dial for a reading the records have overtaken, and says why', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'A complete lack of documented maintenance.', last_generated: '2000-01-01T00:00:00.000Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    expect(view.queryByText('70')).toBeNull();
+    view.getByText('Score out of date — opens the car to refresh it');
+    expect(view.queryByText('No score yet')).toBeNull();
+  });
+
+  it('still draws a current reading — one taken after the newest record', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'Fair.', last_generated: '2026-09-20T12:00:00Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    view.getByText('70');
   });
 });

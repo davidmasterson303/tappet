@@ -94,6 +94,13 @@ export interface ResearchObservation {
   /** The client asked for a score and was refused — its message. */
   healthFailure?: string | null;
   /**
+   * The score on file was read before the newest record was filed
+   * (`healthVerdict`'s `stale`), so it is being re-read: the line is
+   * running until a fresh row lands. Never a clock — the caller decides
+   * this from `last_generated` against the records.
+   */
+  scoreStale?: boolean;
+  /**
    * The client's own deadline has passed with something still active. The
    * server cannot know this; the client can, and must say so rather than
    * keep an animation running over nothing.
@@ -120,8 +127,9 @@ export function generationPhrase(generation: string | null | undefined): string 
   if (ordinal) return `${ordinal[1]}${ordinal[2]} generation`;
   const plain = generation.replace(/-/g, ' ').trim();
   if (!plain) return null;
-  // A chassis code: short, letters and digits, no spaces — F22, XV50, W205.
-  if (/^[a-z]{1,3}\d{1,4}[a-z]?$/i.test(plain)) return plain.toUpperCase();
+  // A chassis code: short, no spaces — F22, XV50, W205, and Mazda's bare BK
+  // (found live on the 2009 Mazda3, whose key is `bk`: it read "Bk").
+  if (/^[a-z]{1,3}\d{1,4}[a-z]?$/i.test(plain) || /^[a-z]{2,3}$/i.test(plain)) return plain.toUpperCase();
   return plain.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -265,7 +273,9 @@ export function researchMilestones(observed: ResearchObservation): ResearchMiles
 
   const score: ResearchMilestone = { key: 'score', label: 'Scoring condition', state: 'pending' };
   const health = observed.health ?? null;
-  if (health && typeof health.health_score === 'number') {
+  if (observed.scoreStale && !observed.healthFailure) {
+    // A reading the records have overtaken is not an answer; it is being re-read.
+  } else if (health && typeof health.health_score === 'number') {
     const band = getHealthBandJudgement(health.health_score);
     score.answer = `${health.health_score} · ${band.label}.`;
     score.state = 'done';

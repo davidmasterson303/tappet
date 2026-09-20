@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 
 import { COMPACT_SIZE, WorkingMark } from './src/components/Working';
+import CrashBoundary from './src/components/CrashBoundary';
 import { register, surface } from './src/theme';
 import { FONT_ASSETS } from './src/theme/font-assets';
 
@@ -115,6 +116,13 @@ export default function App() {
       screen added outside the stack quietly gets none.
     */
     <SafeAreaProvider>
+      {/*
+        The boundary sits inside the safe area and outside the gate (20 Sep):
+        a throw anywhere below — the navigator, a screen, the sign-in form —
+        renders the recovery screen in place of the tree, and "Try again"
+        remounts it with the session untouched. See `CrashBoundary`.
+      */}
+      <CrashBoundary>
       <View style={styles.root}>
         {session === undefined || !fontsReady ? (
           /*
@@ -180,6 +188,7 @@ export default function App() {
         )}
         <StatusBar style="light" />
       </View>
+      </CrashBoundary>
     </SafeAreaProvider>
   );
 }

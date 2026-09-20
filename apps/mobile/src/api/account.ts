@@ -26,6 +26,10 @@ export interface AccountSubscription {
    * or a support conversation can tell the two apart.
    */
   certain: boolean;
+  /** The period's end, when live; absent from an older API. See `subscriptionStatusLine`. */
+  until?: string | null;
+  /** Apple's auto-renew flag, when live; display only. */
+  renews?: boolean | null;
 }
 
 /**

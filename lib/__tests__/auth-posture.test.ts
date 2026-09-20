@@ -341,6 +341,14 @@ const ROUTE_POSTURE: Record<
     is a question the demo cannot act on.
   */
   'app/api/v1/vehicle-removal/route.ts': 'vehicle-scoped',
+  /*
+    The phone's crash report (20 Sep, QE 1.4). Public on purpose — a crash on
+    the sign-in screen is still a crash — and its whole surface is: write a
+    bounded line into our log, rate-limited per client. No table, no model,
+    no read path. Read the front-door entry above before accepting this one;
+    it passes the same test: an abuser can make us log.
+  */
+  'app/api/v1/client-errors/route.ts': 'public',
   'app/api/v1/plates/ensure/route.ts': 'session',
   /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini

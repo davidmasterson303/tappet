@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink, AlertCircle, HelpCircle } from 'lucide-react';
 import { healthClaim } from '@tappet/core/health-claims';
 import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { unshout } from '@tappet/core/unshout';
 
 interface RecallHistoryModalProps {
   recalls: any[];
@@ -112,7 +113,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                         <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
                         <h3 className="font-semibold text-foreground">{recall.Component || 'Component Unknown'}</h3>
                       </div>
-                      <p className="text-sm text-slate-700 mb-3">{recall.Summary || recall.Description || 'No summary available'}</p>
+                      <p className="text-sm text-slate-700 mb-3">{unshout(recall.Summary || recall.Description, [recall.Manufacturer]) || 'No summary available'}</p>
                       <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground mb-3">
                         {recall.NHTSACampaignNumber && (
                           <div>

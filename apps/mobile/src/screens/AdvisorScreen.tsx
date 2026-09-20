@@ -15,9 +15,12 @@ import {
   askAdvisor,
   listAdvisorThreads,
   loadAdvisorThread,
+  loadStarterSource,
   MAX_MESSAGE_LENGTH,
   type AdvisorThread,
 } from '../api/consultant';
+import { advisorStarters, GENERIC_STARTERS } from '@tappet/core/advisor-starters';
+import { openRecalls } from './verdict-inputs';
 import AdvisorThreadsSheet from '../components/AdvisorThreadsSheet';
 import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
@@ -228,6 +231,34 @@ export function AdvisorScreen({
       live = false;
     };
   }, []);
+
+  /*
+    The opening questions, drawn from the car's rows (QE 2.1). `null` is
+    "still reading": the empty state draws no rows until the read lands, so
+    a generic list is never seen being replaced by the real one. A read that
+    fails falls back to the questions that claim nothing about the car.
+  */
+  const [starters, setStarters] = useState<string[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadStarterSource(vehicleId)
+      .then((source) => {
+        if (!live) return;
+        setStarters(
+          advisorStarters({
+            nextService: source.nextService,
+            knownIssues: source.knownIssues,
+            openRecalls: openRecalls(source.recalls, source.recallActions),
+          })
+        );
+      })
+      .catch(() => {
+        if (live) setStarters([...GENERIC_STARTERS]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [vehicleId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -609,7 +640,7 @@ export function AdvisorScreen({
               keyExtractor={(turn) => turn.id}
               contentContainerStyle={styles.transcript}
               renderItem={({ item }) => <TurnView turn={item} />}
-              ListEmptyComponent={<AdvisorEmptyState onPick={setDraft} />}
+              ListEmptyComponent={<AdvisorEmptyState starters={starters} onPick={setDraft} />}
               /*
                 Content-size rather than a call after each setState: the answer's
                 height is not known until it has laid out, and scrolling before that
@@ -940,11 +971,16 @@ function TurnView({ turn }: { turn: Turn }) {
  * how the primitive reached 15 Aug with zero callers while four screens rolled
  * their own.
  */
-const STARTERS = [
-  'Is the timing chain something I should worry about?',
-  'What should I do at the next service?',
-  'Is $1,400 fair for front control arms?',
-];
+/*
+  ── 20 Sep · the questions are the car's ────────────────────────────────────
+
+  Three fixed questions lived here — a timing chain, "the next service", and
+  "$1,400 for front control arms" — offered to every car under a heading that
+  said they were about this one. `@tappet/core/advisor-starters` derives them
+  from the rows now (the service due next, the worst known issue, the largest
+  open recall system) and the screen passes them down; `null` while the read
+  is in flight draws the copy and no rows.
+*/
 
 /**
  * ── R50: the starters are rows, and R54: they sit near the composer ─────────
@@ -969,7 +1005,13 @@ const STARTERS = [
  * They moved out of `EmptyState.children` rather than that rule being relaxed —
  * the primitive still takes no controls.
  */
-function AdvisorEmptyState({ onPick }: { onPick: (question: string) => void }) {
+function AdvisorEmptyState({
+  starters,
+  onPick,
+}: {
+  starters: string[] | null;
+  onPick: (question: string) => void;
+}) {
   return (
     <View style={styles.emptyWrap}>
       <EmptyState
@@ -980,7 +1022,7 @@ function AdvisorEmptyState({ onPick }: { onPick: (question: string) => void }) {
       />
 
       <View style={styles.starters}>
-        {STARTERS.map((question) => (
+        {(starters ?? []).map((question) => (
           <Pressable
             key={question}
             onPress={() => onPick(question)}

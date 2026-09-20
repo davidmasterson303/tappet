@@ -1229,7 +1229,16 @@ function invoiceScreens(onSignOut: () => void) {
         to `route.name` when there is none, which is how six screens came to
         read "‹ VehicleDetail" on 23 Aug.
       */}
-      <Stack.Screen name="InvoiceDetail" options={{ title: 'INVOICE' }}>
+      <Stack.Screen
+        name="InvoiceDetail"
+        /*
+          RECORD for a visit that was typed in — a job marked done on the
+          Plan — and INVOICE only for lines read off a scanned document
+          (QE 2.7, 20 Sep): a DIY oil change opened under a title naming a
+          document that does not exist.
+        */
+        options={({ route }) => ({ title: route.params.visit.scanned ? 'INVOICE' : 'RECORD' })}
+      >
         {({ route }) => (
           <InvoiceDetailScreen visit={route.params.visit} vehicleId={route.params.vehicleId} />
         )}

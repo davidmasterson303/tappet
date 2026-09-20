@@ -3,7 +3,7 @@ import { act, fireEvent, render, userEvent, waitFor } from '@testing-library/rea
 import { Keyboard } from 'react-native';
 
 import { AdvisorScreen } from '../AdvisorScreen';
-import { askAdvisor, listAdvisorThreads, loadAdvisorThread } from '../../api/consultant';
+import { askAdvisor, listAdvisorThreads, loadAdvisorThread, loadStarterSource } from '../../api/consultant';
 import { auditText, belowFloor } from '../../test-support/contrast';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
@@ -44,12 +44,28 @@ jest.mock('../../onboarding/ai-consent', () => ({
 
 jest.mock('../../api/consultant', () => {
   const actual = jest.requireActual('../../api/consultant');
-  return { ...actual, askAdvisor: jest.fn(), listAdvisorThreads: jest.fn(), loadAdvisorThread: jest.fn() };
+  return {
+    ...actual,
+    askAdvisor: jest.fn(),
+    listAdvisorThreads: jest.fn(),
+    loadAdvisorThread: jest.fn(),
+    loadStarterSource: jest.fn(),
+  };
 });
 
 const ask = askAdvisor as jest.MockedFunction<typeof askAdvisor>;
 const listThreads = listAdvisorThreads as jest.MockedFunction<typeof listAdvisorThreads>;
 const loadThread = loadAdvisorThread as jest.MockedFunction<typeof loadAdvisorThread>;
+const starterSource = loadStarterSource as jest.MockedFunction<typeof loadStarterSource>;
+
+/*
+  The opening questions read the car's rows (QE 2.1). Most cases here are
+  about answers, so the default source is a car with nothing on file — the
+  generic questions — and the empty-state cases below set a real one.
+*/
+beforeEach(() => {
+  starterSource.mockResolvedValue({ nextService: null, knownIssues: null, recalls: null, recallActions: [] });
+});
 
 /** The shape of a real answer, including the exact strings that shipped raw. */
 const ANSWER = [
@@ -420,7 +436,7 @@ describe('the advisor before anyone has asked anything', () => {
   it('offers its starters as rows that write into the composer', async () => {
     const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
 
-    const starter = view.getByLabelText(
+    const starter = await view.findByLabelText(
       'Start with: What should I do at the next service?'
     );
 
@@ -436,6 +452,41 @@ describe('the advisor before anyone has asked anything', () => {
       'What should I do at the next service?'
     );
     expect(ask).not.toHaveBeenCalled();
+  });
+
+  it('asks about this car — the rows, not a list (QE 2.1)', async () => {
+    starterSource.mockResolvedValue({
+      nextService: 'Timing Belt and Water Pump',
+      knownIssues: [{ part: 'Automatic transmission', severity: 'High' }],
+      recalls: [
+        { NHTSACampaignNumber: '19V001000', Component: 'AIR BAGS:FRONTAL', Summary: 'Inflator.' },
+        { NHTSACampaignNumber: '19V002000', Component: 'AIR BAGS:FRONTAL', Summary: 'Inflator.' },
+        { NHTSACampaignNumber: '20V003000', Component: 'STEERING', Summary: 'Repaired already.' },
+      ],
+      recallActions: [{ campaign_number: '20V003000' }],
+    });
+    const view = await render(<AdvisorScreen vehicleId="accord" onSignOut={jest.fn()} />);
+
+    await view.findByLabelText('Start with: What does the timing belt and water pump that is due next involve?');
+    view.getByLabelText('Start with: Is the automatic transmission something I should worry about?');
+    // Two airbag campaigns open; the steering one is marked repaired and not counted.
+    view.getByLabelText('Start with: What do the 2 open recalls involving the airbags mean for this car?');
+    expect(view.queryByText('Is the timing chain something I should worry about?')).toBeNull();
+    expect(view.queryByText('Is $1,400 fair for front control arms?')).toBeNull();
+    expect(starterSource).toHaveBeenCalledWith('accord');
+  });
+
+  it('draws no questions until the rows have been read, then the honest ones when they cannot be', async () => {
+    let settle: (v: never) => void = () => {};
+    starterSource.mockImplementation(
+      () => new Promise((_, reject) => { settle = reject as (v: never) => void; })
+    );
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    expect(view.queryAllByLabelText(/^Start with: /)).toHaveLength(0);
+
+    await act(async () => settle(new Error('offline') as never));
+    await view.findByLabelText('Start with: What should I do at the next service?');
+    expect(view.getAllByLabelText(/^Start with: /)).toHaveLength(3);
   });
 
   it('reads left, all the way down', async () => {

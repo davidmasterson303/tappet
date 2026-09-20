@@ -10,6 +10,7 @@
  * without one of them noticing.
  */
 
+import { THREAD_TITLE_MAX } from '@tappet/core/thread-title';
 import { CONSULTANT_TITLE_MAX, normalizeConsultantTitle } from '../consultant-title';
 
 describe('a usable title', () => {
@@ -102,11 +103,12 @@ describe('refusals', () => {
 describe('the cap', () => {
   it('is the two-line rail, not the auto-title', () => {
     /*
-      `generateSessionTitle` truncates at 40 characters plus an ellipsis. The
-      cap must sit above that with room, or a title the product wrote itself
-      would be refused the moment somebody opened it to edit one word.
+      `generateSessionTitle` cuts at a word boundary inside `THREAD_TITLE_MAX`
+      (48 since 20 Sep; it was 40 characters mid-word). The cap must sit above
+      that with room, or a title the product wrote itself would be refused
+      the moment somebody opened it to edit one word.
     */
-    expect(CONSULTANT_TITLE_MAX).toBeGreaterThan(43);
+    expect(CONSULTANT_TITLE_MAX).toBeGreaterThan(THREAD_TITLE_MAX);
     expect(CONSULTANT_TITLE_MAX).toBe(80);
   });
 });

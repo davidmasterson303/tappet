@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import ClusterGauge from '../components/ClusterGauge';
 import { BAY_DIAL } from '../components/GarageBay';
 import HealthDrivers from '../components/HealthDrivers';
+import { DRIVERS_NOTE } from '@tappet/core/health-drivers';
 import HealthHistory, { type HealthReading } from '../components/HealthHistory';
 import Plinth from '../components/Plinth';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -126,8 +127,21 @@ export function HealthScreen({
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       try {
@@ -210,6 +224,12 @@ export function HealthScreen({
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         if (error instanceof ApiRequestError && error.status === 404) {
           setState({ kind: 'gone' });
           return;
@@ -344,6 +364,16 @@ export function HealthScreen({
         <Card>
           <SectionHeader title="What is driving it" />
           <HealthDrivers drivers={state.drivers} />
+          {/*
+            ── ⚠ Two readings that do not add up, said plainly (QE 2.8) ────────
+
+            The Accord read 50 · Needs attention above drivers of 95 / 1 / 97.
+            The score is the model's sentence about the records — it marks
+            an empty history down — and the drivers are computed from what
+            is on file. A reader adds them up and cannot. Rather than hide
+            either, one line says what each one is.
+          */}
+          <Text style={styles.driversNote}>{DRIVERS_NOTE}</Text>
         </Card>
       )}
 
@@ -436,4 +466,5 @@ const styles = StyleSheet.create({
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
   summary: { ...type.body, color: text.secondary },
   footnote: { ...type.value, color: text.muted },
+  driversNote: { ...type.value, color: text.muted, paddingTop: space.md, lineHeight: 19 },
 });

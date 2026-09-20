@@ -1,6 +1,7 @@
 'use client';
 
 import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { unshout } from '@tappet/core/unshout';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check } from 'lucide-react';
@@ -165,7 +166,8 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                       */}
                       {recall.Summary && (
                         <p className="text-xs text-white/55 mt-1 leading-relaxed">
-                          {recall.Summary}
+                          {/* Pre-2011 campaigns arrive in capitals; lowered to sentences, prose untouched (QE 2.12). */}
+                          {unshout(recall.Summary, [recall.Manufacturer])}
                         </p>
                       )}
                       {campaignNum && (

@@ -5,6 +5,7 @@ import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import Field from '../components/Field';
 import { apiRequest, ApiRequestError } from '../api/client';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import {
@@ -268,8 +269,15 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const [added, setAdded] = useState<string[]>([]);
   const [adding, setAdding] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setState({ kind: 'loading' });
+  const load = useCallback(async (isRefresh = false, quiet = false) => {
+    /*
+      Quiet, since 20 Sep: this screen is refetched on focus (it was not —
+      "ADDED" was a local set, so a service marked done elsewhere still read
+      ADDED here), and a focus refetch must not replace the list with the
+      wait dial. `isRefresh` is accepted for the hook's signature; there is no
+      pull-to-refresh on this screen.
+    */
+    if (!quiet && !isRefresh) setState({ kind: 'loading' });
     try {
       /*
         Two requests, in parallel, and only one of them may fail the screen.
@@ -284,12 +292,25 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         blank a screen that a push notification just opened. Handled separately
         so it cannot.
       */
-      const [body, history] = await Promise.all([
+      const [body, history, needs] = await Promise.all([
         apiRequest<VehicleResponse>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
         apiRequest<MaintenanceResponse>(
           `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
         ).catch(() => null),
+        /*
+          The needs list, so ADDED is a fact about the plan rather than a
+          memory of this visit (20 Sep). A failed read is an empty list: the
+          button still works, and a 409 on it is treated as added.
+        */
+        apiRequest<{ wishlistItems?: Array<{ item_identifier?: string | null }> }>(
+          `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
+        ).catch(() => ({ wishlistItems: [] })),
       ]);
+      const onThePlan = new Set(
+        (Array.isArray(needs?.wishlistItems) ? needs.wishlistItems : []).flatMap((item) =>
+          typeof item?.item_identifier === 'string' ? [item.item_identifier] : []
+        )
+      );
 
       const vehicle = body.vehicle;
       const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : 0;
@@ -330,6 +351,12 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       });
       setReading(String(checkIn.assumed));
       setConfirmed(!checkIn.ask);
+      // What the plan already holds, by identifier; a local add joins this set.
+      setAdded(
+        (Array.isArray(rawSchedule) ? (rawSchedule as ScheduleEntry[]) : [])
+          .map((entry) => entry.service)
+          .filter((service) => onThePlan.has(wishlistItemIdentifier('maintenance', service)))
+      );
     } catch (error) {
       const apiError = error as ApiRequestError;
       /*
@@ -344,6 +371,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         onSignOut();
         return;
       }
+      // A quiet refetch that fails keeps what is on screen; the next open reloads.
+      if (quiet) return;
       setState({ kind: 'error', message: apiError.message ?? 'Could not load this car' });
     }
   }, [vehicleId, onSignOut]);
@@ -351,6 +380,9 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Quiet on focus: a service marked done elsewhere leaves ADDED here (20 Sep).
+  useRefetchOnFocus(load);
 
   const confirm = useCallback(async () => {
     if (state.kind !== 'ready' || saving) return;

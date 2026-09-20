@@ -131,8 +131,21 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
   const [filter, setFilter] = useState('');
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       try {
@@ -157,6 +170,12 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         /*
           An error is shown rather than an empty list. "No service history" and
           "we could not load the service history" look identical as a blank
@@ -218,7 +237,8 @@ export function ServiceHistoryScreen({ vehicleId, onScan, onOpenVisit, onSignOut
                     method: 'POST',
                     body: { itemId: record.id, itemType: 'maintenance_line_item' },
                   });
-                  await load(true);
+                  // Quiet: the list stays where it is and the row leaves it (20 Sep).
+                  await load(false, true);
                 } catch (error) {
                   const apiError = error as ApiRequestError;
                   /*
