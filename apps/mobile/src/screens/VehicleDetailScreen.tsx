@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   ActionSheetIOS,
+  Platform,
   Alert,
   Animated,
   RefreshControl,
@@ -820,6 +821,32 @@ export function VehicleDetailScreen({
       return;
     }
 
+    /*
+      One confirm, and it says what the owner gets rather than asking
+      "are you sure?". The car does not go blank — it stands on its
+      plate, which is the thing David wanted to see and could not.
+    */
+    const confirmRemove = () =>
+      Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+        { text: 'Keep', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
+      ]);
+
+    /*
+      ⚠ `ActionSheetIOS` is iOS only (QE 2.10): on Android it is undefined
+      and "Change photo" would throw on the tap. Android is not a launch
+      target, and the day it is, this is the one line that would have
+      crashed it. The same three choices as an alert elsewhere.
+    */
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Photo', undefined, [
+        { text: 'Change photo', onPress: () => void onAddPhoto() },
+        { text: 'Remove photo', style: 'destructive', onPress: confirmRemove },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
+
     ActionSheetIOS.showActionSheetWithOptions(
       {
         options: ['Change photo', 'Remove photo', 'Cancel'],
@@ -829,17 +856,7 @@ export function VehicleDetailScreen({
       },
       (index) => {
         if (index === 0) void onAddPhoto();
-        if (index === 1) {
-          /*
-            One confirm, and it says what the owner gets rather than asking
-            "are you sure?". The car does not go blank — it stands on its
-            plate, which is the thing David wanted to see and could not.
-          */
-          Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
-            { text: 'Keep', style: 'cancel' },
-            { text: 'Remove', style: 'destructive', onPress: () => void onRemovePhoto() },
-          ]);
-        }
+        if (index === 1) confirmRemove();
       },
     );
   }, [state, onAddPhoto, onRemovePhoto]);

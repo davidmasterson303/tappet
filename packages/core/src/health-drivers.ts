@@ -481,3 +481,20 @@ export function driversSupportAScore(drivers: HealthDriver[]): boolean {
   if (drivers.length === 0) return false;
   return drivers.some((driver) => driver.score !== null);
 }
+
+/**
+ * The line under the drivers, on both clients.
+ *
+ * ── Why the score and the drivers can disagree, and why that is said ────────
+ *
+ * QE 2.8 (20 Sep): the Accord read 50 · Needs attention above drivers of
+ * 95 / 1 / 97. Both are honest. The score is the model's assessment of the
+ * *records* — an empty history is marked down, because a car nobody has
+ * documented is a car nobody can vouch for — while each driver is computed
+ * from what is on file: nothing overdue across nine tracked services is 95
+ * whether or not a receipt proves it. A reader adds them up and cannot, so
+ * one sentence says what each one is rather than hiding either. The web's
+ * drivers table shows the same line, from here, so the two cannot drift.
+ */
+export const DRIVERS_NOTE =
+  'The score is the assessment of the records on file — an empty history marks it down. The drivers are what those records show today.';

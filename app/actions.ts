@@ -3,6 +3,7 @@
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
+import { threadTitle } from '@tappet/core/thread-title';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
   genAI,
@@ -1001,9 +1002,7 @@ export async function createConsultantSession(vehicleId: string, title: string) 
 
 export async function generateSessionTitle(message: string) {
   try {
-    const words = message.split(' ').slice(0, 6).join(' ');
-    const title = words.length > 40 ? words.slice(0, 40) + '...' : words;
-    return title || 'New Chat';
+    return threadTitle(message);
   } catch (error) {
     return 'New Chat';
   }

@@ -61,6 +61,8 @@ export interface ExtractedVehicle {
   year?: number | null;
   make?: string | null;
   model?: string | null;
+  /** The route's own sentence for it, when that is what arrived — see `asVehicle`. */
+  label?: string;
 }
 
 export type InvoiceUploadResult =
@@ -223,6 +225,21 @@ export async function uploadInvoice({
 }
 
 function asVehicle(value: unknown): ExtractedVehicle | null {
+  /*
+    ── ⚠ The route sends a sentence, not an object (QE 2.14, 20 Sep) ─────────
+
+    `uploadInvoice` joins year, make, model and colour into one string on
+    both sides of the mismatch — "2020 Subaru WRX", "2009 Mazda Mazda3" —
+    and this parser wanted `{ year, make, model }`, so both came back null
+    and the prompt read "This invoice looks like it is for an unrecognised
+    vehicle, but you are adding it to an unrecognised vehicle." The check
+    had fired correctly; the sentence named neither car. A string is the
+    label; an object is still read the way it was.
+  */
+  if (typeof value === 'string') {
+    const label = value.trim();
+    return label.length > 0 && label !== 'Unknown vehicle' ? { year: null, make: null, model: null, label } : null;
+  }
   if (!value || typeof value !== 'object') return null;
   const { year, make, model } = value as Record<string, unknown>;
   return {

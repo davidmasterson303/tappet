@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import ClusterGauge from '../components/ClusterGauge';
 import { BAY_DIAL } from '../components/GarageBay';
 import HealthDrivers from '../components/HealthDrivers';
+import { DRIVERS_NOTE } from '@tappet/core/health-drivers';
 import HealthHistory, { type HealthReading } from '../components/HealthHistory';
 import Plinth from '../components/Plinth';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -363,6 +364,16 @@ export function HealthScreen({
         <Card>
           <SectionHeader title="What is driving it" />
           <HealthDrivers drivers={state.drivers} />
+          {/*
+            ── ⚠ Two readings that do not add up, said plainly (QE 2.8) ────────
+
+            The Accord read 50 · Needs attention above drivers of 95 / 1 / 97.
+            The score is the model's sentence about the records — it marks
+            an empty history down — and the drivers are computed from what
+            is on file. A reader adds them up and cannot. Rather than hide
+            either, one line says what each one is.
+          */}
+          <Text style={styles.driversNote}>{DRIVERS_NOTE}</Text>
         </Card>
       )}
 
@@ -455,4 +466,5 @@ const styles = StyleSheet.create({
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
   summary: { ...type.body, color: text.secondary },
   footnote: { ...type.value, color: text.muted },
+  driversNote: { ...type.value, color: text.muted, paddingTop: space.md, lineHeight: 19 },
 });

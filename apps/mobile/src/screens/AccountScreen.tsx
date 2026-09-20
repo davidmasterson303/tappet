@@ -214,7 +214,14 @@ export function AccountScreen({
           presented as a modal (`onClose`), which is a different question from
           what the screen is called. `ScreenTitle` is the name now.
         */}
-          <Pressable onPress={handleClose} hitSlop={12} disabled={deleting}>
+          <Pressable
+            onPress={handleClose}
+            hitSlop={12}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Done, close account"
+            accessibilityState={{ disabled: deleting }}
+          >
             <Text style={[styles.close, deleting && styles.disabledText]}>Done</Text>
           </Pressable>
         </View>

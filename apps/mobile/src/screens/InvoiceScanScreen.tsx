@@ -126,6 +126,7 @@ type State =
 
 function describeVehicle(vehicle: ExtractedVehicle | null): string {
   if (!vehicle) return 'an unrecognised vehicle';
+  if (vehicle.label) return vehicle.label;
   const parts = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : 'an unrecognised vehicle';
 }

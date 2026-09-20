@@ -451,9 +451,16 @@ export function AddVehicleScreen({ onAdded, onSignOut }: Props) {
           to attach to — a new route, and therefore a `web-live` promote (§8).
           Recorded in `docs/design-system-drift.md` rather than left implicit.
         */}
+        {/*
+          ⚠ Recalls are matched on year, make and model, not VIN (CLAUDE.md
+          §10). Until 20 Sep this line promised "every recall filed against
+          it" — the claim that tells an owner their specific car is clear when
+          only its model was checked, on the first screen a new user reads.
+          `no-vin-recall-claims.test.ts` keeps it out.
+        */}
         <Text style={styles.vinLead}>
-          A VIN gets the exact build — engine, trim, factory options, and every recall filed
-          against it.
+          A VIN gets the exact build — engine, trim and factory options. Recalls are matched to
+          the year, make and model either way.
         </Text>
 
         <View style={styles.vinBlock}>
