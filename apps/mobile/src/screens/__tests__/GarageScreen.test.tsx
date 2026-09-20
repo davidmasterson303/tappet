@@ -620,3 +620,42 @@ describe('coming back into view (20 Sep)', () => {
     await view.findByText('2003 Honda Accord');
   });
 });
+
+describe('a stale score on the bay (QE 1.5, 20 Sep)', () => {
+  /*
+    The M235i's row is the pre-FN-01 constant — 70, read 2000-01-01 — and the
+    bay drew it as a reading while the detail screen, one tap away, said
+    "read before 5 service records were filed". Same verdict on both now.
+  */
+  it('draws no dial for a reading the records have overtaken, and says why', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'A complete lack of documented maintenance.', last_generated: '2000-01-01T00:00:00.000Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    expect(view.queryByText('70')).toBeNull();
+    view.getByText('Score out of date — opens the car to refresh it');
+    expect(view.queryByText('No score yet')).toBeNull();
+  });
+
+  it('still draws a current reading — one taken after the newest record', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'Fair.', last_generated: '2026-09-20T12:00:00Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    view.getByText('70');
+  });
+});

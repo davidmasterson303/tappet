@@ -179,6 +179,41 @@ export async function GET(request: NextRequest): Promise<Response> {
       getServiceRoleClient(),
     );
 
+    /*
+      ── The records behind the score, so the bay can refuse a stale one ──────
+
+      QE 1.5 (20 Sep): the M235i's row was the pre-FN-01 constant — 70,
+      `last_generated` 2000-01-01, "complete lack of documented maintenance"
+      beside five filed line items — deliberately stamped stale, and the bay
+      drew a 70 FAIR dial with nothing qualifying it while the detail screen
+      applied `healthVerdict` and said "read before 5 service records were
+      filed". The verdict needs the newest filing time; this is one query for
+      the garage, folded per car. `null` when the read fails: the verdict
+      then has no evidence of staleness and leaves the reading alone, which
+      is the same degrade `load-vehicle` makes.
+    */
+    const records = new Map<string, { count: number; newestFiledAt: string | null }>();
+    let recordsKnown = true;
+    if (rows.length > 0) {
+      const { data: filed, error: filedError } = await getServiceRoleClient()
+        .from('maintenance_line_items')
+        .select('vehicle_id, created_at')
+        .in('vehicle_id', rows.map((row) => row.id));
+      if (filedError) {
+        recordsKnown = false;
+        logger.warn('API:GET_VEHICLES', 'Could not read the records behind the scores', { error: filedError.message });
+      } else {
+        for (const item of filed ?? []) {
+          const id = item.vehicle_id as string;
+          const at = (item.created_at as string | null) ?? null;
+          const held = records.get(id) ?? { count: 0, newestFiledAt: null };
+          held.count += 1;
+          if (at && (held.newestFiledAt === null || at > held.newestFiledAt)) held.newestFiledAt = at;
+          records.set(id, held);
+        }
+      }
+    }
+
     const vehicles = rows.map((row) => {
       const { custom_image_url, ...vehicle } = row;
       const photo_url = photos.get(row.id) ?? null;
@@ -189,6 +224,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         // or the plate — so the garage grades only the owner's. Additive.
         photo_kind: vehiclePhotoKind(row.id, row as VehiclePhotoColumns, photo_url),
         plate_status: plates.get(row.id) ?? null,
+        // 20 Sep: the service records behind the score, for `healthVerdict`.
+        // Additive; `null` means the read failed, not that there are none.
+        records: recordsKnown ? (records.get(row.id) ?? { count: 0, newestFiledAt: null }) : null,
       };
     });
 

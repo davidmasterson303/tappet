@@ -109,6 +109,7 @@ export interface BayVehicle {
 export default function GarageBay({
   vehicle,
   score,
+  staleReading = false,
   index,
   total,
   stats,
@@ -132,6 +133,12 @@ export default function GarageBay({
   today: string;
   /** Health score, or null when the car has none. Null is not zero. */
   score?: number | null;
+  /**
+   * The car has a reading, and the records have overtaken it (20 Sep). The
+   * screen withholds `score` in that case; this says why the dial is empty,
+   * so "No score yet" is not printed over a car that has one.
+   */
+  staleReading?: boolean;
   /** Zero-based position, for the batten. */
   index: number;
   total: number;
@@ -404,9 +411,11 @@ export default function GarageBay({
         ) : (
           /*
             No score is not a zero, and it is not an empty dial either. A dial
-            drawn at 0 asserts a reading; this says there is none.
+            drawn at 0 asserts a reading; this says there is none — or, since
+            20 Sep, that the one there is was read before the records on file
+            and is being re-read when the car is opened (QE 1.5).
           */
-          <Text style={styles.noScore}>No score yet</Text>
+          <Text style={styles.noScore}>{staleReading ? 'Score out of date — opens the car to refresh it' : 'No score yet'}</Text>
         )}
       </View>
 

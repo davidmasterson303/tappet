@@ -82,6 +82,14 @@ export function useResearchRunner(params: {
   const now = params.now ?? Date.now;
 
   const [phase, setPhase] = useState<Phase>('idle');
+  /*
+    A stale-score refresh runs without the log (QE 1.5 / 2.15, 20 Sep): the
+    cell already says "read before N records were filed", which is true
+    while the Flash call runs, and the new reading seats in when it lands.
+    Six rows of ledger for one four-second step would be noise on every open
+    of a car that has just had a record filed.
+  */
+  const [quietRun, setQuietRun] = useState(false);
   const [healthFailure, setHealthFailure] = useState<string | null>(null);
   const [stalled, setStalled] = useState(false);
   const startedAt = useRef<number | null>(null);
@@ -101,6 +109,7 @@ export function useResearchRunner(params: {
     healthAsked.current = false;
     setHealthFailure(null);
     setStalled(false);
+    setQuietRun(false);
     startedAt.current = now();
     setPhase('running');
     try {
@@ -139,6 +148,17 @@ export function useResearchRunner(params: {
       started.current = true;
       startedAt.current = now();
       setPhase('running');
+    } else if ((status === 'completed' || status === 'unsupported') && observation.scoreStale) {
+      /*
+        Scored, and overtaken: a record was filed (an invoice, a job marked
+        done) and the score was stamped stale — the web refreshes it on the
+        next view, and until 20 Sep the phone never did. The same one-step
+        run as above, without the log.
+      */
+      started.current = true;
+      startedAt.current = now();
+      setQuietRun(true);
+      setPhase('running');
     }
   }, [now, observation, phase, start, status]);
 
@@ -146,7 +166,7 @@ export function useResearchRunner(params: {
   useEffect(() => {
     if (phase !== 'running' || !observation || healthAsked.current) return;
     const dossierDone = status === 'completed' || status === 'unsupported';
-    if (!dossierDone || hasScore(observation)) return;
+    if (!dossierDone || (hasScore(observation) && !observation.scoreStale)) return;
     healthAsked.current = true;
     void (async () => {
       try {
@@ -186,7 +206,7 @@ export function useResearchRunner(params: {
   }, [start]);
 
   return {
-    visible: phase !== 'idle',
+    visible: phase !== 'idle' && !quietRun,
     milestones,
     line: milestones.length > 0 ? researchLine(milestones) : '',
     marginalia: observation ? researchMarginalia(observation) : null,

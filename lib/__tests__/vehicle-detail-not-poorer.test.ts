@@ -98,3 +98,24 @@ describe('the vehicle detail endpoint', () => {
     expect(list).toContain('nhtsa_data');
   });
 });
+
+describe('the garage carries the records behind each score (QE 1.5, 20 Sep)', () => {
+  /*
+    The bay applies `healthVerdict` like the detail screen, which needs the
+    newest filing time; the garage route reads it in one query and folds it
+    per car as `records: { count, newestFiledAt }`, `null` when the read fails.
+  */
+  const route = readFileSync(join(__dirname, '..', '..', 'app', 'api', 'v1', 'vehicles', 'route.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ');
+  const get = route.slice(route.indexOf('export async function GET'), route.indexOf('export async function PATCH'));
+
+  it('reads maintenance_line_items once for the garage and folds the newest filing per car', () => {
+    expect(get).toMatch(/\.from\('maintenance_line_items'\)[\s\S]{0,120}\.in\('vehicle_id', rows\.map\(\(row\) => row\.id\)\)/);
+    expect(get).toMatch(/records: recordsKnown \? \(records\.get\(row\.id\) \?\? \{ count: 0, newestFiledAt: null \}\) : null/);
+  });
+
+  it('a failed read is null, never "no records"', () => {
+    expect(get).toMatch(/if \(filedError\) \{\s*recordsKnown = false;/);
+  });
+});

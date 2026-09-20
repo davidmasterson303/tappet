@@ -145,6 +145,19 @@ describe('failure is a line, not a spinner', () => {
     expect(m.score).toMatchObject({ state: 'failed', answer: 'Too many AI requests. Try again in 30s.' });
   });
 
+  it('a stale score is not an answer — the line runs until a fresh row lands', () => {
+    const m = byKey({
+      vehicle: ACCORD,
+      plate: PLATE,
+      knowledge: { research_status: 'completed' },
+      nhtsa: { recalls: [], lookup_status: 'matched' },
+      health: { health_score: 70, last_generated: '2000-01-01T00:00:00.000Z' },
+      scoreStale: true,
+    });
+    expect(m.score.state).toBe('active');
+    expect(m.score.answer).toBeUndefined();
+  });
+
   it('a score row without a number is the honest "could not say", and is done', () => {
     const m = byKey({
       vehicle: ACCORD,

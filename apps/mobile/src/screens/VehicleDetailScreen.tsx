@@ -661,6 +661,20 @@ export function VehicleDetailScreen({
           knowledge: state.knowledge,
           nhtsa: first(state.vehicle.nhtsa_data) ?? null,
           health: first(state.vehicle.vehicle_health_summary) ?? null,
+          /*
+            The verdict's own question, asked here so the runner can re-read
+            a score the records have overtaken (QE 1.5 / 2.15): an invoice
+            filed or a job marked done stamps the score stale, and until
+            20 Sep the phone showed the caveat forever.
+          */
+          scoreStale:
+            healthVerdict({
+              summary: first(state.vehicle.vehicle_health_summary)?.summary,
+              generatedAt: first(state.vehicle.vehicle_health_summary)?.last_generated,
+              serviceCount: state.counts.services,
+              newestFiledAt: state.counts.servicesFiledAt,
+              openRecalls: null,
+            }).state === 'stale',
         }
       : null;
   const leanReload = useCallback(() => load(false, true, true), [load]);
@@ -1373,7 +1387,8 @@ export function VehicleDetailScreen({
               >
                 {score !== null && band ? (
                   <>
-                    <Landing>
+                    {/* Keyed on the reading's time, so a re-read seats in like a first one. */}
+                    <Landing key={health?.last_generated ?? 'reading'}>
                     <View style={styles.reading}>
                       {/*
                         ⚠ 6 Sep · B3 and B7: the reading stopped wearing the

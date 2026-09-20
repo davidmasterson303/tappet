@@ -33,6 +33,7 @@ import { shouldShowPushPrimer } from '@tappet/core/push-priming';
 import { shouldShowFirstRun } from '@tappet/core/first-run';
 import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-storage';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { healthVerdict } from '@tappet/core/health-claims';
 import { normaliseRecalls } from '@tappet/core/recalls';
 import { localToday } from '@tappet/core/garage-next-service';
 
@@ -75,6 +76,8 @@ interface HealthSummary {
   health_score?: number | null;
   summary?: string | null;
   red_flags?: unknown[] | null;
+  /** When the reading was taken — what `healthVerdict` compares to the records. */
+  last_generated?: string | null;
 }
 
 interface Vehicle {
@@ -98,6 +101,8 @@ interface Vehicle {
     health band and looks like missing data instead of a shape mismatch.
   */
   vehicle_health_summary?: HealthSummary | HealthSummary[] | null;
+  /** The service records behind the score (20 Sep). `null` when the read failed. */
+  records?: { count: number; newestFiledAt: string | null } | null;
   nhtsa_data?: { recalls?: unknown[] | null } | { recalls?: unknown[] | null }[] | null;
   /**
    * Campaigns this owner has marked repaired — embedded by the route.
@@ -170,7 +175,7 @@ function VehicleBay({
   onOpenService?: () => void;
 }) {
   const health = first(vehicle.vehicle_health_summary);
-  const score = typeof health?.health_score === 'number' ? health.health_score : null;
+  const rawScore = typeof health?.health_score === 'number' ? health.health_score : null;
 
   /*
     ── Open recalls, and two corrections in one line ─────────────────────────
@@ -195,6 +200,28 @@ function VehicleBay({
   const recallCount = normaliseRecalls(first(vehicle.nhtsa_data)?.recalls).filter(
     (recall) => !recall.campaignNumber || !marked.has(recall.campaignNumber)
   ).length;
+
+  /*
+    ── The same verdict the detail screen applies (QE 1.5, 20 Sep) ───────────
+
+    The M235i's row is the pre-FN-01 constant — 70, `last_generated`
+    2000-01-01 — deliberately stamped stale, and this bay drew a 70 FAIR dial
+    with nothing qualifying it while the detail screen, one tap away, said
+    "read before 5 service records were filed". CLAUDE.md §6: a missing score
+    must never render as a reading, and a stale one is a reading the records
+    have overtaken. The garage payload carries the records behind each score
+    since today, so the bay can ask `healthVerdict` the question the detail
+    asks, and draw no dial for a stale answer.
+  */
+  const verdict = healthVerdict({
+    summary: health?.summary,
+    generatedAt: health?.last_generated,
+    serviceCount: vehicle.records?.count ?? null,
+    newestFiledAt: vehicle.records?.newestFiledAt ?? null,
+    openRecalls: recallCount,
+  });
+  const stale = verdict.state === 'stale';
+  const score = stale ? null : rawScore;
 
   /*
     ⚠ 6 Sep · B2: the strip's cells, assembled here because only the screen knows
@@ -227,6 +254,7 @@ function VehicleBay({
       */
       today={localToday()}
       score={score}
+      staleReading={stale}
       index={index}
       total={total}
       stats={stats}

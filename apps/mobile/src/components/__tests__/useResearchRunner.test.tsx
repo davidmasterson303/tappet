@@ -62,6 +62,37 @@ describe('starting', () => {
     expect(result.current.milestones.find((m) => m.key === 'score')!.state).toBe('active');
   });
 
+  it('re-reads a stale score quietly — refreshed, and no log on screen (QE 1.5 / 2.15)', async () => {
+    const { result, rerender } = await mount({
+      vehicle: ACCORD,
+      plate: PLATE,
+      knowledge: { research_status: 'completed', known_issues: [1] },
+      nhtsa: { recalls: [], lookup_status: 'matched' },
+      health: { health_score: 70, last_generated: '2000-01-01T00:00:00.000Z' },
+      scoreStale: true,
+    });
+    await act(async () => {});
+    expect(calls('/research')).toHaveLength(0);
+    expect(calls('/health')).toHaveLength(1);
+    expect(calls('/health')[0][1]).toMatchObject({ body: { vehicleId: 'v1', refresh: true } });
+    // Without the ledger: the cell's own caveat is the honest state meanwhile.
+    expect(result.current.visible).toBe(false);
+    // The fresh row lands; the run settles.
+    await rerender({
+      observation: {
+        vehicle: ACCORD,
+        plate: PLATE,
+        knowledge: { research_status: 'completed', known_issues: [1] },
+        nhtsa: { recalls: [], lookup_status: 'matched' },
+        health: { health_score: 61, last_generated: '2026-09-20T12:00:00Z' },
+        scoreStale: false,
+      },
+    });
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(calls('/health')).toHaveLength(1);
+  });
+
   it('does nothing for a car already researched', async () => {
     const { result } = await mount({ vehicle: ACCORD, plate: PLATE, knowledge: { research_status: 'completed' }, nhtsa: { recalls: [], lookup_status: 'matched' }, health: { health_score: 70 } });
     await act(async () => {});
