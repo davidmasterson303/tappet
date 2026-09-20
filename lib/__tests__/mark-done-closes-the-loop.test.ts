@@ -19,6 +19,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { completionPayload, emptyCompletion } from '@tappet/core/wishlist-completion';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (...p: string[]) => readFileSync(join(ROOT, ...p), 'utf8');
@@ -29,6 +30,13 @@ const post = complete.slice(complete.indexOf('export async function POST'));
 const insert = post.slice(post.indexOf(".from('maintenance_line_items')"), post.indexOf('.select()', post.indexOf(".from('maintenance_line_items')")));
 
 describe('the record carries what the schedule reads from', () => {
+  it('the sheet sends the field the route writes — one name on both sides', () => {
+    // The client half sends `mileageAtService`; the route reads exactly that.
+    const payload = completionPayload('item', { ...emptyCompletion('2026-09-20', 170_000), isDIY: true });
+    expect(payload.mileageAtService).toBe(170_000);
+    expect(post).toMatch(/\bmileageAtService\b/);
+  });
+
   it('writes the odometer at the time of the work', () => {
     expect(post).toMatch(/mileageAtService,/);
     expect(insert).toMatch(/mileage_at_service:\s*mileage,/);
