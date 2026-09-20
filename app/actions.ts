@@ -2,6 +2,7 @@
 
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
+import { removeVehicle } from '@/lib/vehicle-deletion';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
   genAI,
@@ -1799,35 +1800,26 @@ export async function deleteVehicle(vehicleId: string): Promise<DeleteVehicleRes
   const startTime = new Date().toISOString();
 
   try {
-    // Cascades through every child table. Without an ownership check this
-    // destroyed any vehicle in the database given only its id.
+    // Without an ownership check this destroyed any vehicle in the database
+    // given only its id.
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, vehicleId, error: access.error };
     }
 
-    const client = access.client;
-
-    const { error: vehicleError, data } = await client
-      .from('vehicles')
-      .delete()
-      .eq('id', vehicleId)
-      .select();
-
-    if (vehicleError) {
-      return {
-        success: false,
-        vehicleId,
-        error: `Failed to delete vehicle: ${vehicleError.message || 'Unknown error'}`,
-      };
-    }
-
-    if (!data || data.length === 0) {
-      return {
-        success: false,
-        vehicleId,
-        error: 'Vehicle not found or already deleted',
-      };
+    /*
+      ⚠ Until 20 Sep this deleted the row here and trusted the cascade —
+      "Cascades through every child table", and it does; a cascade reaches
+      rows, not a bucket. Every receipt photograph a deleted car ever had
+      stayed in storage (proven with a probe object that outlived its row),
+      while account deletion, a different implementation, purged them. One
+      path now: `removeVehicle` purges the objects first and refuses the
+      removal if it cannot, then deletes the row. The phone's
+      `DELETE /api/v1/vehicle-removal` runs the same function.
+    */
+    const outcome = await removeVehicle(vehicleId);
+    if (!outcome.ok) {
+      return { success: false, vehicleId, error: outcome.error };
     }
 
     return {

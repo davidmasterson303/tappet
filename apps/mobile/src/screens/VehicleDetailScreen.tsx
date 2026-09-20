@@ -384,6 +384,7 @@ export function VehicleDetailScreen({
   onOpenHealth,
   onOpenMilestone,
   onOpenProfile,
+  onRemove,
   pickPhoto,
 }: {
   vehicleId: string;
@@ -418,6 +419,8 @@ export function VehicleDetailScreen({
   onOpenMilestone: () => void;
   /** The owner's four onboarding answers, editable. */
   onOpenProfile: () => void;
+  /** The removal confirmation (20 Sep). */
+  onRemove: () => void;
   /**
    * The picker seam — this screen never imports `expo-image-picker`.
    *
@@ -1527,6 +1530,24 @@ export function VehicleDetailScreen({
               <BandRow label="What you told us" onPress={onOpenProfile} last />
             )}
           </View>
+          {/*
+            ── Remove this car (20 Sep) ─────────────────────────────────────
+
+            The phone could not remove a car until today — no route, and the
+            web's own delete left the receipt photographs in the bucket. The
+            control is last on the sheet, in the delete variant, and it opens
+            a confirmation that quotes what would go rather than asking "are
+            you sure?" — `RemoveVehicleScreen`.
+          */}
+          <View style={styles.remove}>
+            <Button
+              label="Remove this car"
+              variant="delete"
+              size="small"
+              onPress={onRemove}
+              accessibilityLabel="Remove this car from your garage. Asks first."
+            />
+          </View>
         </Animated.View>
       </Animated.ScrollView>
 
@@ -1789,6 +1810,7 @@ const styles = StyleSheet.create({
   switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },
+  remove: { paddingHorizontal: space.lg, paddingBottom: space.h2, alignItems: 'flex-start' },
   /* The research log, in the page gutter above the readings. */
   researchLog: { paddingHorizontal: space.lg, paddingTop: space.lg },
 

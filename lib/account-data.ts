@@ -1,10 +1,9 @@
 import { getServiceRoleClient } from '@/lib/supabase';
 import { requireSession } from '@/lib/api-auth';
-import { vehicleStoragePrefixes } from '@tappet/core/storage-paths';
+import { purgeVehicleStorage } from '@/lib/storage-purge';
 import { logger } from '@tappet/core/logger';
 import { hasLiveEntitlement, readFailureMeansNoSubscription } from '@tappet/core/entitlement';
 
-const DOCUMENTS_BUCKET = 'vehicle-documents';
 
 /**
  * Account data export and deletion.
@@ -295,93 +294,6 @@ export async function exportAccountData() {
 // ---------------------------------------------------------------------------
 // Deletion
 // ---------------------------------------------------------------------------
-
-/**
- * Prefixes under which a vehicle's files can live.
- *
- * The prefixes come from `lib/storage-paths.ts`, which is the module that
- * writes them. This file used to carry its own identical copy — two
- * definitions of where a user's data lives, which is the arrangement that
- * makes a deletion sweep quietly stop matching the uploader.
- */
-
-/**
- * List every object under a prefix, descending into subfolders.
- *
- * Supabase's list() returns one level at a time, and consultant documents sit
- * two levels deep (`consultant-docs/{vehicleId}/{sessionId}/{file}`). A
- * single-level list silently returns the session folders as if they were
- * files, so nothing gets removed and nothing reports an error.
- */
-async function listObjectsRecursive(
-  client: ReturnType<typeof getServiceRoleClient>,
-  prefix: string,
-  depth = 0
-): Promise<{ paths: string[]; failures: string[] }> {
-  // Guard against a pathological tree; real paths are at most 3 deep.
-  if (depth > 4) return { paths: [], failures: [] };
-
-  const { data: entries, error } = await client.storage
-    .from(DOCUMENTS_BUCKET)
-    .list(prefix, { limit: 1000 });
-
-  if (error) return { paths: [], failures: [`${prefix}: ${error.message}`] };
-  if (!entries || entries.length === 0) return { paths: [], failures: [] };
-
-  const paths: string[] = [];
-  const failures: string[] = [];
-
-  for (const entry of entries) {
-    const full = `${prefix}/${entry.name}`;
-    // Supabase marks folders by returning a null id.
-    if (entry.id === null) {
-      const nested = await listObjectsRecursive(client, full, depth + 1);
-      paths.push(...nested.paths);
-      failures.push(...nested.failures);
-    } else {
-      paths.push(full);
-    }
-  }
-
-  return { paths, failures };
-}
-
-/**
- * Remove every storage object belonging to a set of vehicles.
- *
- * Was previously a single-level list of `{vehicleId}/` only, which missed
- * vehicle photos and consultant documents entirely — they survived account
- * deletion as orphaned blobs holding exactly the personal data the user asked
- * to have removed. The unit tests did not catch it because they mocked
- * storage with one flat convention.
- */
-async function purgeVehicleStorage(
-  client: ReturnType<typeof getServiceRoleClient>,
-  vehicleIds: string[]
-): Promise<{ removed: number; failures: string[] }> {
-  let removed = 0;
-  const failures: string[] = [];
-
-  for (const vehicleId of vehicleIds) {
-    for (const prefix of vehicleStoragePrefixes(vehicleId)) {
-      const { paths, failures: listFailures } = await listObjectsRecursive(client, prefix);
-      failures.push(...listFailures);
-      if (paths.length === 0) continue;
-
-      const { error: removeError } = await client.storage
-        .from(DOCUMENTS_BUCKET)
-        .remove(paths);
-
-      if (removeError) {
-        failures.push(`${prefix}: ${removeError.message}`);
-        continue;
-      }
-      removed += paths.length;
-    }
-  }
-
-  return { removed, failures };
-}
 
 /**
  * Permanently delete the caller's account and all associated data.
