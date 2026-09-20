@@ -135,12 +135,50 @@
 > — the web has `deleteVehicle`). Everything else on the list has a route the
 > phone calls and a row that changes.
 >
+> ### ⚠ 20 Sep 2026, afternoon — the QE report, and removing a car removes its receipts
+>
+> - **`MOBILE_QE_REPORT_2026-09-20.md`** — a static sweep, a reachability
+>   audit and a live walk of every reversible action on David's account, each
+>   write verified in the database. Six fix-before-submission findings, the
+>   worst being **every focus-subscribed screen blanks to its loading state on
+>   every back-navigation** (a spinner on every return — the brief's opposite),
+>   **marking a service done does not move its due date** (no mileage written,
+>   no re-projection, no re-score), **no error boundary in the app**, and
+>   **the garage bay draws a stale or neutral score as a reading**. Also: the
+>   add form's "every recall filed against it" (VIN — §10), the advisor's three
+>   static "questions about this car", a DB default shown as the owner's
+>   answer, the Account screen never saying whether you are subscribed. §4 of
+>   the report is the answer to "how can we be sure": a journey smoke test on
+>   the reviewer account after every promote, asserting rows.
+> - **Removing a car removes its receipts (`ef58f6f`, live on `bd9e8c33`).**
+>   Cowork's LEG-09 brief: David's policy sentence — *delete the vehicle and
+>   its receipts go with it* — named an action the phone did not offer and the
+>   web did not perform. Probed first: the web's `deleteVehicle` left a probe
+>   receipt in the bucket after its row was gone; account deletion's private
+>   purge removed one. One path now — `lib/vehicle-deletion.ts` (objects
+>   first, refused if any cannot go, then the row), `lib/storage-purge.ts`
+>   shared with account deletion, `GET|DELETE /api/v1/vehicle-removal`, and
+>   the phone's `RemoveVehicleScreen`, whose confirmation quotes rows ("4 open
+>   recalls · 4 service records · 1 receipt photograph · its health score and
+>   maintenance schedule"). **Proven on the host:** a Mazda3 added, scanned
+>   and removed from the phone — object present before, absent after; the
+>   web action on a probe car — same; account deletion on a throwaway user
+>   — same. The bucket holds only the M235i's folder; nothing had leaked
+>   historically. `ai_usage_events.vehicle_id` is SET NULL by its migration
+>   and stays so: the spend survives, the identity does not.
+>   **The policy sentence may be published.**
+> - **The research poll tripped the default limiter on its first end-to-end
+>   run (`b4482b2`)** — three requests a poll was 72 a minute against 60, and
+>   the score's line read "Too many requests". The stated-failure design
+>   worked; the failure was real. A quiet reload is one request now.
+>
 > **Still yours:** make `appreview@southmoordigital.com` at iCloud, then the
 > admin-API command in the reply, then App Store Connect's review credentials;
 > the ledger question (restore the CLI ledger, or formalise the probe in
 > CLAUDE.md §2 — Code recommends formalising); the fresh-account run with Code
-> driving; the metering migration `20260917120000`;
-> `xcrun simctl status_bar 512B450F-… clear` after the shoot.
+> driving; the metering migration `20260917120000`; the QE report's §1 items,
+> in the order it lists them; `xcrun simctl status_bar 512B450F-… clear`
+> after the shoot.
 >
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >
