@@ -187,6 +187,46 @@ describe('POST /api/v1/vehicles', () => {
     });
   });
 
+  describe('the use of the car — a default is not an answer (QE 2.2)', () => {
+    /*
+      `vehicle_status DEFAULT 'daily_driver'` since 14 Mar, and nothing in
+      either create path asks. The hero printed the default as "USE · Daily
+      Driver" and the profile screen pre-selected it as an answer the owner
+      gave. Both inserts name the column as null now; the migration drops
+      the default so the next insert that forgets cannot acquire one.
+    */
+    const insert = post.slice(post.indexOf(".from('vehicles')"), post.indexOf(".select('id,year,make,model')"));
+
+    it('the phone route inserts null, never a use nobody stated', () => {
+      expect(insert).toMatch(/vehicle_status:\s*null,/);
+      expect(insert).not.toMatch(/vehicle_status:\s*'daily_driver'/);
+    });
+
+    it('the web wizard does the same', () => {
+      const actions = code(readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8'));
+      const create = actions.slice(actions.indexOf('.from(\'vehicles\')\n      .insert({'));
+      const body = create.slice(0, create.indexOf('.select()'));
+      expect(body).toMatch(/usage_profile: vehicleData\.usage_profile/); // anchored to the right insert
+      expect(body).toMatch(/vehicle_status:\s*null,/);
+    });
+
+    it('the migration drops the default and leaves the rows alone', () => {
+      const added = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260314163304_20260314_add_vehicle_status_and_health_history.sql'),
+        'utf8'
+      );
+      const migration = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260920120000_a_cars_use_is_the_owners_answer_or_nothing.sql'),
+        'utf8'
+      );
+      // Anti-vacuous: the default this drops is really in the earlier file.
+      expect(added).toMatch(/vehicle_status TEXT DEFAULT 'daily_driver'/);
+      expect(migration).toMatch(/ALTER TABLE vehicles ALTER COLUMN vehicle_status DROP DEFAULT;/);
+      expect(migration).not.toMatch(/UPDATE vehicles/i);
+      expect(migration).not.toMatch(/DROP CONSTRAINT/i);
+    });
+  });
+
   describe('the Track A2a service baseline', () => {
     it('is built by core rather than assembled here', () => {
       // Which date "in the last 6 months" resolves to is a product rule with a

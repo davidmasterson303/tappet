@@ -346,6 +346,9 @@ export async function createVehicle(vehicleData: {
         avg_miles_per_month: vehicleData.avg_miles_per_month,
         performance_mindedness: vehicleData.performance_mindedness,
         driving_style: vehicleData.driving_style,
+        // Not asked by the wizard, so not answered — see the phone's route
+        // (QE 2.2). The dashboard's chip reads null as "Set Status".
+        vehicle_status: null,
         user_id: user.id,
       })
       .select()

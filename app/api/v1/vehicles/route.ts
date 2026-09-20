@@ -593,6 +593,17 @@ export async function POST(request: NextRequest): Promise<Response> {
         that reads them.
       */
       performance_mindedness: body.wantsModifications === false ? 'stock' : 'mild',
+      /*
+        ⚠ Named as null on purpose (QE 2.2, 20 Sep). The column carries
+        `DEFAULT 'daily_driver'` (migration 20260314163304), so an insert that
+        leaves it out gets an answer the owner never gave — and the hero then
+        printed "USE · Daily Driver" and the profile screen pre-selected it
+        under "these are the answers you gave". Nothing here asks how the car
+        is used; `null` is "not said", which every reader of this column
+        already renders as nothing. The default itself is dropped by
+        20260920120000; the explicit null is right with or without it.
+      */
+      vehicle_status: null,
       user_id: caller.userId,
     })
     .select('id,year,make,model')
