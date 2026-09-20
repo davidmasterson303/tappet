@@ -64,6 +64,18 @@ export const dynamic = 'force-dynamic';
  *
  * The server's clock matters: a device with a wound-forward date could
  * otherwise talk itself out of the warning.
+ *
+ * ── 20 Sep · two more fields, for a sentence (QE 2.3) ───────────────────────
+ *
+ * The Account screen's "Subscription" row read as a paywall link, not a
+ * status. It now says "Not subscribed" / "Active until …" / "Active — renews
+ * …", which needs the period's end and Apple's auto-renew flag — the two
+ * display-only columns the 18 Aug migration added for exactly that sentence.
+ * Neither is a billing identifier; the transaction ids still stay here. Both
+ * are sent only when the subscription is live, and `renews` is passed
+ * through as Apple left it (`null` = never told), because
+ * `subscriptionStatusLine` in core is what turns it into words and it must
+ * not be able to say "renews" on the phone's own authority.
  */
 export async function GET(): Promise<Response> {
   const session = await requireSession();
@@ -76,7 +88,7 @@ export async function GET(): Promise<Response> {
   const client = getServiceRoleClient();
   const { data, error } = await client
     .from('account_entitlements')
-    .select('tier, expires_at')
+    .select('tier, expires_at, auto_renew_status')
     .eq('user_id', session.userId)
     .maybeSingle();
 
@@ -102,7 +114,15 @@ export async function GET(): Promise<Response> {
     data ? { tier: data.tier as string | null, expiresAt: data.expires_at as string | null } : null
   );
 
-  return Response.json({ success: true, subscription: { live, certain: true } });
+  return Response.json({
+    success: true,
+    subscription: {
+      live,
+      certain: true,
+      until: live ? ((data?.expires_at as string | null) ?? null) : null,
+      renews: live ? ((data?.auto_renew_status as boolean | null) ?? null) : null,
+    },
+  });
 }
 
 export async function DELETE(request: NextRequest): Promise<Response> {

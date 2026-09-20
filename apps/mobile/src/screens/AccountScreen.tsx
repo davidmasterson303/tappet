@@ -5,7 +5,8 @@ import { API_BASE_URL } from '../config';
 import Button from '../components/Button';
 import Field from '../components/Field';
 
-import { deleteAccount, getSubscription } from '../api/account';
+import { deleteAccount, getSubscription, type AccountSubscription } from '../api/account';
+import { subscriptionStatusLine } from '@tappet/core/subscription-status';
 import { ApiRequestError } from '../api/client';
 import ScreenTitle from '../components/ScreenTitle';
 import { PAGE_BODY, border, brand, radius, space, status, surface, text, type } from '../theme';
@@ -92,9 +93,15 @@ export function AccountScreen({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscribed, setSubscribed] = useState(false);
+  /*
+    The whole answer, for the Subscription row's sentence (QE 2.3). `null`
+    is "not read yet", and the row keeps its neutral name until it is.
+  */
+  const [subscription, setSubscription] = useState<AccountSubscription | null>(null);
 
   const confirmed = isDeletionConfirmed(confirmText);
   const notice = subscriptionNotice(subscribed);
+  const standing = subscription ? subscriptionStatusLine(subscription) : null;
 
   /*
     E5. Read on open rather than on mount: this is a modal that outlives a
@@ -121,8 +128,10 @@ export function AccountScreen({
     if (visible === false) return;
 
     let cancelled = false;
-    void getSubscription().then((subscription) => {
-      if (!cancelled) setSubscribed(subscription.live);
+    void getSubscription().then((answer) => {
+      if (cancelled) return;
+      setSubscribed(answer.live);
+      setSubscription(answer);
     });
 
     return () => {
@@ -250,6 +259,16 @@ export function AccountScreen({
           what the paywall can do today — show plans, and restore — because
           nothing is on sale yet and the paywall says so itself when it opens.
           "Subscribe now" here would be a promise the next screen breaks.
+
+          ── 20 Sep · the row is a status first (QE 2.3) ──────────────────
+
+          It read "Tappet Plus" for everyone, which is the paywall's name and
+          not an answer to the question the heading asks. The first line is
+          now what the server said — "Not subscribed", "Active until …",
+          "Active — renews …" (`subscriptionStatusLine`) — and the paywall's
+          name moves to the detail. Until the read lands, or when the server
+          could not read the row, the line stays the neutral name: a status
+          it does not have is not drawn.
         */}
         {onSubscribe ? (
           <View style={styles.legal}>
@@ -258,12 +277,17 @@ export function AccountScreen({
               onPress={onSubscribe}
               disabled={deleting}
               accessibilityRole="button"
-              accessibilityLabel="Tappet Plus, plans and restore purchases"
+              accessibilityLabel={
+                standing
+                  ? `${standing}. Tappet Plus, plans and restore purchases`
+                  : 'Tappet Plus, plans and restore purchases'
+              }
               style={styles.legalRow}
             >
-              <Text style={styles.legalText}>Tappet Plus</Text>
+              <Text style={styles.legalText}>{standing ?? 'Tappet Plus'}</Text>
               <Text style={styles.rowDetail}>
-                See plans, or restore a subscription bought on another device.
+                {standing ? 'Tappet Plus — see plans' : 'See plans'}, or restore a subscription bought on
+                another device.
               </Text>
             </Pressable>
           </View>

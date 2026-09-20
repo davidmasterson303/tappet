@@ -382,9 +382,52 @@ describe('the way to the paywall — E8', () => {
     const onSubscribe = jest.fn();
     const resolved = await mount({ onSubscribe }).view;
 
-    await userEvent.press(resolved.getByLabelText('Tappet Plus, plans and restore purchases'));
+    await userEvent.press(resolved.getByLabelText(/Tappet Plus, plans and restore purchases/));
 
     expect(onSubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  describe('the row is a status, not the paywall’s name — QE 2.3', () => {
+    /*
+      "SUBSCRIPTION — Tappet Plus" for an account with no entitlement row was
+      the link's name where a status belongs; before enforcement flips it is
+      confusing, after it is wrong. The first line is what the server said.
+    */
+    it('says "Not subscribed" to the ordinary account, and still opens the paywall', async () => {
+      const onSubscribe = jest.fn();
+      const resolved = await mount({ onSubscribe }).view;
+
+      const row = await resolved.findByLabelText(/^Not subscribed\. Tappet Plus, plans and restore purchases$/);
+      expect(resolved.getByText('Not subscribed')).toBeTruthy();
+      expect(resolved.getByText(/Tappet Plus — see plans, or restore a subscription/)).toBeTruthy();
+      await userEvent.press(row);
+      expect(onSubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when the period ends, and "renews" only when Apple said so', async () => {
+      mockSubscription.mockResolvedValue({ live: true, certain: true, until: '2026-10-20T14:00:00Z', renews: true });
+      const resolved = await mount({ onSubscribe: jest.fn() }).view;
+      await resolved.findByText('Active — renews Oct 20, 2026');
+
+      mockSubscription.mockResolvedValue({ live: true, certain: true, until: '2026-10-20T14:00:00Z', renews: null });
+      const ended = await mount({ onSubscribe: jest.fn() }).view;
+      await ended.findByText('Active until Oct 20, 2026');
+    });
+
+    it('says "Active" alone for a grant with no period end', async () => {
+      mockSubscription.mockResolvedValue({ live: true, certain: true, until: null, renews: null });
+      const resolved = await mount({ onSubscribe: jest.fn() }).view;
+      await resolved.findByText('Active');
+      expect(resolved.queryByText(/renews|until/)).toBeNull();
+    });
+
+    it('keeps the neutral name when the server could not read the row', async () => {
+      mockSubscription.mockResolvedValue({ live: true, certain: false });
+      const resolved = await mount({ onSubscribe: jest.fn() }).view;
+      await waitFor(() => expect(mockSubscription).toHaveBeenCalled());
+      expect(resolved.getByText('Tappet Plus')).toBeTruthy();
+      expect(resolved.queryByText(/Not subscribed|Active/)).toBeNull();
+    });
   });
 
   it('promises only what the paywall can do today', async () => {
