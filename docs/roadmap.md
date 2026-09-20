@@ -1228,8 +1228,10 @@
 > The operator is the LLC and the address is on its domain. Two things are not settled and
 > both are recorded in that file's header: **no company address appears in either document**,
 > and **the Apple membership is still Individual**, so the store listing will name David
-> while the policy names the company. Closing that is a D-U-N-S, a fresh enrolment and an app
-> transfer — not a code change.
+> while the policy names the company. Closing that is Apple's Individual → Organization
+> *migration request* on the existing membership (founder + D-U-N-S; documents may be asked
+> for) — not a re-enrolment, not an app transfer, and not a code change. Corrected 19 Sep
+> with the source in `lib/legal.ts`; the timeline is unknown and no number replaces the old one.
 >
 > ⚠ `LAST_UPDATED` is **30 August 2026** and that is a ship date. If the promote slips past
 > today, the constant and the pin in `legal-pages.test.ts` both move to the day it runs.
@@ -1437,9 +1439,10 @@
 > file is a promise until that promote runs; if it slips past 30 Aug, the date moves with it.
 >
 > ⚠ The Apple membership is still **Individual**, so the store listing names David while the
-> policy names the LLC. Closing that is a D-U-N-S, a fresh enrolment and an app transfer —
-> not a code change. And no company address appears in either document, because nobody has
-> given one.
+> policy names the LLC. Closing that is Apple's Individual → Organization migration request
+> on the existing membership (founder + D-U-N-S) — corrected 19 Sep, sourced in
+> `lib/legal.ts`; "a fresh enrolment and an app transfer" was unsourced and wrong. And no
+> company address appears in either document, because nobody has given one.
 >
 > #### ⏳ Incoming from Design — a six-part Well Kept package
 >

@@ -425,6 +425,15 @@ export async function PATCH(request: NextRequest): Promise<Response> {
  * car in the whole product have it. A 500 here with `"vin"` in the log after
  * 19 Sep means the migration has not been applied, not that this regressed.
  *
+ * ⚠ **One 503 on record (20 Sep, 00:06 UTC).** The first submit after the
+ * migration answered 503 with no JSON body — the phone showed its fallback
+ * "Request failed (503)" — and no row was written; the identical retry
+ * seconds later succeeded. Nothing on this path answers 503, and the route
+ * was answering 401 to an unauthenticated POST at the same moment, so it was
+ * in front of the handler (a cold function or the gateway), not in it. One
+ * occurrence, not chased. If it recurs, the function log for that minute is
+ * the place — and the next person to see it will be a customer.
+ *
  * ── `user_id` is never accepted from the caller ─────────────────────────────
  *
  * Ownership comes from the verified session. `createVehicle`'s own comment
