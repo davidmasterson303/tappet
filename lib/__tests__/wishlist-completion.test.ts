@@ -19,6 +19,7 @@ import {
   completionPayload,
   describeCompletion,
   emptyCompletion,
+  parseMileage,
   parseCost,
   type CompletionDraft,
 } from '@tappet/core/wishlist-completion';
@@ -104,12 +105,44 @@ describe('completionProblems', () => {
   });
 });
 
+describe('the odometer on the sheet (20 Sep)', () => {
+  /*
+    A record with no mileage cannot move a miles interval: a service marked
+    done today read "due in 2,500 mi" a moment later, with ADD offered again.
+    The draft opens on the car's current reading and sends it.
+  */
+  it('opens on the car’s current reading, and blank when there is none', () => {
+    expect(emptyCompletion(TODAY, 170_000).mileage).toBe('170000');
+    expect(emptyCompletion(TODAY, null).mileage).toBe('');
+    expect(emptyCompletion(TODAY, 0).mileage).toBe('');
+    expect(emptyCompletion(TODAY).mileage).toBe('');
+  });
+
+  it('sends whole miles, tolerating the comma people type', () => {
+    expect(completionPayload('i', draft({ mileage: '170000' })).mileageAtService).toBe(170_000);
+    expect(completionPayload('i', draft({ mileage: '169,500' })).mileageAtService).toBe(169_500);
+    expect(completionPayload('i', draft({ mileage: '' }))).not.toHaveProperty('mileageAtService');
+    expect(parseMileage(' 12 000 ')).toBe(12_000);
+  });
+
+  it('is optional, but a typed value must be whole miles', () => {
+    expect(completionProblems(draft({ mileage: '' }), TODAY)).toEqual([]);
+    expect(completionProblems(draft({ mileage: '12.5' }), TODAY)).toEqual([
+      { field: 'mileage', message: 'Enter whole miles, or leave it blank.' },
+    ]);
+    expect(completionProblems(draft({ mileage: 'about 170k' }), TODAY)).toHaveLength(1);
+    expect(parseMileage('12.5')).toBeUndefined();
+    expect(parseMileage('-5')).toBeUndefined();
+  });
+});
+
 describe('completionPayload', () => {
   it('omits a blank cost rather than sending zero', () => {
     /*
-      The route reads `partsCost || 0`, so the stored column is `0` either way.
-      The difference is what the code *says*: an explicit zero is a claim the
-      job was free, and omission is "not recorded", which is true.
+      Since 20 Sep the route stores a blank cost as null (it read
+      `partsCost || 0` before, and every blank was a claim the job was free).
+      What the client sends is the honest half of that: an explicit zero is a
+      claim, and omission is "not recorded", which is true.
     */
     const payload = completionPayload('item-1', draft({ partsCost: '', laborCost: '' }));
 

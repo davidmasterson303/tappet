@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
+import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
@@ -365,6 +366,13 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       last_mileage_update_date: new Date().toISOString(),
     })
     .eq('id', vehicleId);
+
+  /*
+    A new reading moves what is due (20 Sep). The projection was the
+    sweep's nightly write, so a confirmed odometer changed the NEXT SERVICE
+    cell the next day; it is the sweep's own maths, best-effort, run now.
+  */
+  if (!writeError) await projectNextService(vehicleId as string);
 
   if (writeError) {
     logger.error('API:PATCH_VEHICLE', new Error(writeError.message), { vehicleId });

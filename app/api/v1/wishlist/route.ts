@@ -155,9 +155,14 @@ export async function POST(request: NextRequest) {
         item_identifier: itemIdentifier,
         description: description || null,
         category: category || null,
-        estimated_cost_parts: estimatedCostParts || 0,
-        estimated_cost_labor: estimatedCostLabor || 0,
-        estimated_labor_hours: estimatedLaborHours || 0,
+        /*
+          Null when not given, never 0 (20 Sep). `|| 0` stored "free" for
+          every item added without an estimate — a schedule ADD, most of them
+          — and a sum over the plan read it as one. CLAUDE.md §6.
+        */
+        estimated_cost_parts: typeof estimatedCostParts === 'number' ? estimatedCostParts : null,
+        estimated_cost_labor: typeof estimatedCostLabor === 'number' ? estimatedCostLabor : null,
+        estimated_labor_hours: typeof estimatedLaborHours === 'number' ? estimatedLaborHours : null,
         notes: notes || null,
         source: source || 'manual',
         source_data: sourceData || {},

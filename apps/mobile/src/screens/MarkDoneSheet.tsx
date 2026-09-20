@@ -45,16 +45,23 @@ export function MarkDoneSheet({
   saving,
   onCancel,
   onConfirm,
+  currentMileage = null,
 }: {
   visible: boolean;
   itemName: string;
+  /**
+   * The car's current reading, which the odometer field opens on (20 Sep).
+   * `null` when the caller does not know it: the field opens blank, and the
+   * record it produces cannot move a miles interval — the field says so.
+   */
+  currentMileage?: number | null;
   /** ISO date, injected so the sheet has no clock of its own. */
   today: string;
   saving: boolean;
   onCancel: () => void;
   onConfirm: (draft: CompletionDraft) => void;
 }) {
-  const [draft, setDraft] = useState<CompletionDraft>(() => emptyCompletion(today));
+  const [draft, setDraft] = useState<CompletionDraft>(() => emptyCompletion(today, currentMileage));
   const [showProblems, setShowProblems] = useState(false);
 
   const problems = useMemo(() => completionProblems(draft, today), [draft, today]);
@@ -149,6 +156,37 @@ export function MarkDoneSheet({
               accessibilityLabel="Service date"
               autoCapitalize="none"
               autoCorrect={false}
+            />
+          </FieldGroup>
+
+          {/*
+            ── The odometer (20 Sep) ─────────────────────────────────────────
+
+            A record with no mileage cannot move a miles interval, so a job
+            marked done stayed "due in 2,500 mi" with ADD offered again — the
+            loop the Plan exists for did not close. The field opens on the
+            car's current reading, the right answer for a job done today, and
+            is editable for the one done last week. A reading newer than the
+            car's becomes the car's reading. Blank is allowed and says what
+            it costs.
+          */}
+          <FieldGroup
+            label="Odometer at the time"
+            hint={
+              draft.mileage.trim().length === 0
+                ? 'Without it, this record cannot move a mileage-based due date.'
+                : undefined
+            }
+            problem={problemFor('mileage')}
+          >
+            <TextInput
+              style={[styles.input, styles.inputTight, problemFor('mileage') && styles.inputBad]}
+              value={draft.mileage}
+              onChangeText={(mileage) => set({ mileage })}
+              placeholder="Miles"
+              placeholderTextColor={text.muted}
+              keyboardType="number-pad"
+              accessibilityLabel="Odometer at the time of the work"
             />
           </FieldGroup>
 

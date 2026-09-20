@@ -182,3 +182,36 @@ describe('backing out', () => {
     expect(props.onConfirm).not.toHaveBeenCalled();
   });
 });
+
+describe('the odometer (20 Sep)', () => {
+  /*
+    A record with no mileage could not move a due date. The field opens on
+    the car's reading, is editable, and the draft carries it.
+  */
+  it('opens on the car’s current reading and sends it', async () => {
+    const user = userEvent.setup();
+    const { props, view } = await mount({ currentMileage: 170_000 });
+    expect(view.getByLabelText('Odometer at the time of the work').props.value).toBe('170000');
+    await user.press(view.getByText('I did it'));
+    await user.press(view.getByLabelText('Mark done'));
+    expect(props.onConfirm).toHaveBeenCalledTimes(1);
+    expect(props.onConfirm.mock.calls[0][0]).toMatchObject({ mileage: '170000', isDIY: true });
+  });
+
+  it('opens blank when the reading is unknown, and says what that costs', async () => {
+    const { view } = await mount({ currentMileage: null });
+    expect(view.getByLabelText('Odometer at the time of the work').props.value).toBe('');
+    view.getByText('Without it, this record cannot move a mileage-based due date.');
+  });
+
+  it('refuses a mileage that is not whole miles, in its own words', async () => {
+    const user = userEvent.setup();
+    const { props, view } = await mount({ currentMileage: 170_000 });
+    await user.press(view.getByText('I did it'));
+    await user.clear(view.getByLabelText('Odometer at the time of the work'));
+    await user.type(view.getByLabelText('Odometer at the time of the work'), '12.5');
+    await user.press(view.getByLabelText('Mark done'));
+    expect(props.onConfirm).not.toHaveBeenCalled();
+    view.getByText('Enter whole miles, or leave it blank.');
+  });
+});

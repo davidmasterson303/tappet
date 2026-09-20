@@ -172,6 +172,12 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [doneItem, setDoneItem] = useState<WishlistItem | null>(null);
+  /*
+    The car's current reading, for the Mark-done sheet's odometer field
+    (20 Sep). Read with the list; `null` until it arrives or if it cannot
+    be read, in which case the sheet opens blank and says what that costs.
+  */
+  const [odometer, setOdometer] = useState<number | null>(null);
   const [completing, setCompleting] = useState(false);
 
   const load = useCallback(
@@ -193,6 +199,14 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
       else setState({ kind: 'loading' });
 
       try {
+        void apiRequest<{ vehicle?: { current_mileage?: number | null } }>(
+          `/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`
+        )
+          .then((car) => {
+            const reading = car.vehicle?.current_mileage;
+            setOdometer(typeof reading === 'number' && reading > 0 ? reading : null);
+          })
+          .catch(() => undefined);
         const body = await apiRequest<{ wishlistItems?: WishlistItem[] }>(
           `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
         );
@@ -528,6 +542,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
       <MarkDoneSheet
         visible={doneItem !== null}
         itemName={doneItem?.item_name ?? ''}
+        currentMileage={odometer}
         today={new Date().toISOString().slice(0, 10)}
         saving={completing}
         onCancel={() => setDoneItem(null)}
