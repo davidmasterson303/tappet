@@ -172,7 +172,7 @@ export function MarkDoneSheet({
           */}
           <FieldGroup
             label="Odometer at the time"
-            hint={
+            note={
               draft.mileage.trim().length === 0
                 ? 'Without it, this record cannot move a mileage-based due date.'
                 : undefined
@@ -262,11 +262,20 @@ export function MarkDoneSheet({
 function FieldGroup({
   label,
   hint,
+  note,
   problem,
   children,
 }: {
   label: string;
+  /** A word beside the label — "Optional". A sentence goes in `note`. */
   hint?: string;
+  /**
+   * A sentence under the input. Seen live (20 Sep): the odometer's sentence
+   * sat beside its label in the row and ran off the right edge of the
+   * screen, unwrapped — a row that is `space-between` gives a long hint
+   * nowhere to go.
+   */
+  note?: string;
   problem?: string;
   children: React.ReactNode;
 }) {
@@ -277,6 +286,7 @@ function FieldGroup({
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
       {children}
+      {note && !problem ? <Text style={styles.note}>{note}</Text> : null}
       {problem ? <Text style={styles.problem}>{problem}</Text> : null}
     </View>
   );
@@ -327,6 +337,7 @@ const styles = StyleSheet.create({
   label: { color: text.secondary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
   hint: { color: text.muted, fontFamily: interFace('400'),
     fontSize: 12 },
+  note: { color: text.muted, fontFamily: interFace('400'), fontSize: 13, lineHeight: 18 },
   problem: { color: status.dangerText, fontFamily: interFace('400'),
     fontSize: 13, lineHeight: 18 },
 
