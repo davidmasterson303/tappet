@@ -1,5 +1,6 @@
 import { getServiceRoleClient } from '@/lib/supabase';
 import { checkMonthlyBudget } from '@/lib/ai-budget';
+import { projectNextService } from '@/lib/next-service';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { budgetMessage } from '@tappet/core/ai/budget';
 import {
@@ -404,6 +405,15 @@ export async function storeResearchResponse(
       return { success: false, error: 'Failed to save performance stats' };
     }
   }
+
+  /*
+    The next service, projected now rather than at 3 am (20 Sep). The
+    schedule just written and the odometer are all the projection needs;
+    without this the garage row said "No schedule yet" for a day. Best-effort
+    — `projectNextService` logs and returns null rather than failing a
+    research that succeeded.
+  */
+  await projectNextService(vehicleId);
 
   if (options.fetchRecalls) {
     await fetchNHTSARecalls(vehicleId, vehicle.year, vehicle.make, vehicle.model);
