@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { sinceLabel, tireReading } from '@tappet/core/tires';
+import { useTireRecords } from '@/hooks/useTireRecords';
 import { useWishlistData } from '@/hooks/useWishlistData';
 
 /**
@@ -79,11 +81,15 @@ function pluralise(n: number, word: string) {
 export default function DashboardNextSteps({
   vehicleId,
   knowledge,
+  currentMileage = null,
 }: {
   vehicleId: string;
   knowledge: any;
+  /** The car's odometer, for the tire row's reading. `null` draws no figure. */
+  currentMileage?: number | null;
 }) {
   const { data: wishlistItems } = useWishlistData(vehicleId);
+  const { data: tires } = useTireRecords(vehicleId);
 
   const schedule: unknown[] = knowledge?.maintenance_schedule ?? [];
   /*
@@ -110,10 +116,30 @@ export default function DashboardNextSteps({
     return total > 0 ? `${items} · ~$${Math.round(total).toLocaleString()}` : items;
   })();
 
+  /*
+    ── The tire set — the fourth leaf, 20 Sep ────────────────────────────────
+
+    The same shape as the two above: a real figure and a door, derived through
+    core so this row and the tire page cannot count differently. Undefined
+    while the query is in flight or the tables are not applied — never a dash,
+    never "0 miles". A set with no odometer to count to says only that a set is
+    on record.
+  */
+  const tiresDetail = (() => {
+    if (!tires || tires.unavailable) return undefined;
+    if (!tires.set) return 'No set on record';
+    const reading = tireReading(tires.set, tires.rotations, currentMileage);
+    const name = `${tires.set.brand} ${tires.set.line}`;
+    if (reading.since === null) return name;
+    const label = sinceLabel(reading.sinceBasis)?.toLowerCase() ?? 'miles';
+    return `${name} · ${reading.since.toLocaleString('en-US')} ${label}${reading.overrun ? ' · past your interval' : ''}`;
+  })();
+
   return (
     <div className="space-y-3">
       <Row href={`/documents/${vehicleId}`} title="Service" detail={dueDetail} cta="Due & history" />
       <Row href={`/plan/${vehicleId}`} title="Plan" detail={needsDetail} cta="Needs & mods" />
+      <Row href={`/tires/${vehicleId}`} title="Tires" detail={tiresDetail} cta="Set & rotations" />
     </div>
   );
 }

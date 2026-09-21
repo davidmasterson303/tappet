@@ -50,6 +50,8 @@ const MUST_REFETCH = [
   'RecallDetailScreen',
   'HealthScreen',
   'BuildScreen',
+  // 20 Sep: the tire set — three forms write behind it and each goes back on save.
+  'TiresScreen',
 ];
 
 describe('screens whose data can change while they are backgrounded', () => {

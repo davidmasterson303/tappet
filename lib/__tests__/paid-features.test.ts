@@ -84,8 +84,13 @@ describe('what is sold', () => {
       kept free because without it the free tier is a spreadsheet with a car
       photo. `paid-features.ts` and `model-paths-behind-the-gate.test.ts`
       carry the reasoning and the guard.
+
+      20 Sep: tires — the v1.1 tire tracker, David's call. A database write
+      plus a notification, free by the file's own rule; the advisor is the
+      paid hook. This is exactly the change the derived-blurb guard below
+      exists for, and it is the list that moves, never a sentence.
     */
-    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage', 'health-score']);
+    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage', 'health-score', 'tires']);
   });
 
   it('puts recalls behind the paywall — David’s call, 30 Aug', () => {

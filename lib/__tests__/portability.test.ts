@@ -261,6 +261,12 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/entitlement-store.ts': 'writes with the service role — reaches Supabase through lib/supabase',
   'lib/supabase.ts': 'constructs Supabase clients',
   'lib/plates.ts': 'builds a service-role Supabase client for the plate library',
+  /*
+    The tire tracker's one shared read (20 Sep): the set and its rotations,
+    for the route and the sweep. The decisions it feeds are in
+    `packages/core/src/tires.ts` and are portable; this is the query.
+  */
+  'lib/tires-store.ts': 'reads tire_sets and tire_rotations through a Supabase client',
   'lib/research-job.ts': 'reaches Supabase through lib/supabase and posts to the background function',
   'lib/next-service.ts': 'reaches Supabase through lib/supabase to project and store the next service',
   'lib/storage-purge.ts': 'lists and removes storage objects with the service role',

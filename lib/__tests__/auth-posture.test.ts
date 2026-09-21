@@ -228,6 +228,15 @@ const ROUTE_POSTURE: Record<
   */
   'app/api/v1/document-url/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/route.ts': 'vehicle-scoped',
+  /*
+    The tire tracker, v1.1 (20 Sep). 'vehicle-scoped': the set's GET and POST
+    resolve through `authorizeVehicleAccess` (the POST for `intent: 'write'`,
+    so a demo car is refused), and PATCH, the rotation POST and its DELETE
+    through `authorizeVehicleScopedRow` on `tire_sets` / `tire_rotations`,
+    both of which carry `vehicle_id` for exactly that lookup.
+  */
+  'app/api/v1/tires/route.ts': 'vehicle-scoped',
+  'app/api/v1/tires/rotations/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/check/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/complete/route.ts': 'vehicle-scoped',
   'app/api/v1/performance-stats/route.ts': 'vehicle-scoped',

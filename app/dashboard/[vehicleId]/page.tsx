@@ -409,7 +409,11 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
               </CollapsibleSection>
             )}
 
-            <DashboardNextSteps vehicleId={params.vehicleId} knowledge={data.knowledge} />
+            <DashboardNextSteps
+              vehicleId={params.vehicleId}
+              knowledge={data.knowledge}
+              currentMileage={typeof data.vehicle.current_mileage === 'number' ? data.vehicle.current_mileage : null}
+            />
           </div>
         </div>
         {/*

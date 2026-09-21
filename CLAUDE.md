@@ -109,6 +109,13 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
   the stylesheet keeps reviewing perfectly while applying to nothing. See
   `inclusive-affordances.test.ts`.
 - **A monitor that is not running reads as good news.** See rule 7.
+- **A component mounted for the app's lifetime derives its state once.** A
+  sheet rendered unconditionally with `visible` runs its `useState`
+  initialisers at the *screen's* mount — before the rows it reads have
+  arrived — and keeps them across openings. The mark-done sheet opened blank
+  and carried one item's shop to the next; the paywall showed "Your
+  subscription is active" to the next opener (20 Sep). Key it on the opening
+  (`33d164f`, `0dde57e`); the test is open, type, cancel, open another.
 - `null` is never `0`. A missing score, odometer or schedule is "we cannot say",
   and must never render as a reading.
 

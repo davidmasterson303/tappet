@@ -465,7 +465,13 @@ function Ledger({ stages, footer }: { stages: WorkingStage[]; footer?: ReactNode
               be read as progress.
             */}
             {stage.answer ? (
-              <Text style={[styles.stageAnswer, stage.state === 'failed' && styles.inkFailed]}>
+              <Text
+                style={[
+                  styles.stageAnswer,
+                  stage.mono && styles.stageAnswerMono,
+                  stage.state === 'failed' && styles.inkFailed,
+                ]}
+              >
                 {'\u2192 '}
                 {stage.answer}
               </Text>
@@ -687,6 +693,8 @@ const styles = StyleSheet.create({
   stageLabel: { ...type.monoLabel, flexShrink: 1 },
   /* The answer sits under the label, indented past the index. */
   stageAnswer: { ...type.body, color: text.secondary, paddingTop: space.xs, paddingLeft: space.xl },
+  /* A value for an answer — a VIN off a sticker — in the mono a value takes (B1). */
+  stageAnswerMono: { ...type.mono, fontSize: 15, lineHeight: 22, color: text.secondary },
   /* Done: filled off-white. Active: a cyan ring. Pending: a grey ring. Failed: a filled sodium dot. */
   stageMark: { marginLeft: 'auto' },
   inkDone: { color: text.primary },

@@ -123,15 +123,58 @@ export async function fetchModels(
 }
 
 /**
- * What a VIN says the car is, or `null` when nothing could be read off it.
+ * What NHTSA says a VIN is, or which of the two ways it could not say.
  *
- * `null` covers a network failure and a VIN NHTSA cannot place, deliberately
- * together: the caller's honest sentence is the same for both, and inventing a
- * distinction the owner cannot act on differently is noise. A VIN NHTSA
- * *complains* about but still decodes comes back populated with
- * `confidence: 'suspect'` — see `parseVpicDecode` for why that is kept.
+ * ── 20 Sep · two failures, told apart, because the next move differs ────────
+ *
+ * Until the rebuilt first run this returned `null` for a network failure and
+ * for a number NHTSA cannot place, on the reasoning that the old form's
+ * sentence was the same for both — fill the fields in below. There are no
+ * fields below any more: the decode is the identification, its log states
+ * what happened (`decodeStages`), and the two causes ask for different
+ * things. `unreachable` is worth trying again from a better signal; `unplaced`
+ * is not — the number is wrong or the car is unknown to NHTSA, and the way
+ * on is to read the sticker over or describe the car. So the outcome says
+ * which. A VIN NHTSA *complains* about but still decodes comes back `decoded`
+ * with `confidence: 'suspect'` — see `parseVpicDecode` for why that is kept.
  */
-export async function decodeVin(vin: string, signal?: AbortSignal): Promise<DecodedVin | null> {
+export type VinDecodeOutcome =
+  | { status: 'decoded'; car: DecodedVin }
+  /** NHTSA answered and identified nothing. */
+  | { status: 'unplaced' }
+  /** Offline, timed out, or an answer that was not JSON. */
+  | { status: 'unreachable' };
+
+/**
+ * The design loop's hold on the decode — capture only.
+ *
+ * NHTSA answers in ~200 ms, which is one frame the loop cannot shoot: the
+ * log's mid-run state (the first row done, the second active, the pip
+ * swinging) is over before a screenshot lands. Under the fixtures flag and
+ * a dev build, `EXPO_PUBLIC_DESIGN_DECODE_HOLD_MS` waits that long before
+ * NHTSA is asked, so the state exists for as long as a capture needs. Never
+ * in a release bundle (`__DEV__`), never without the fixtures flag, and it
+ * marks nothing — the rows still come from the real answer. The same trick
+ * `dev/fixtures.ts` plays with `EXPO_PUBLIC_DESIGN_PLATE_STATUS`.
+ */
+const DESIGN_DECODE_HOLD_MS =
+  __DEV__ && process.env.EXPO_PUBLIC_DESIGN_FIXTURES === '1'
+    ? Number(process.env.EXPO_PUBLIC_DESIGN_DECODE_HOLD_MS ?? 0) || 0
+    : 0;
+
+export async function decodeVin(vin: string, signal?: AbortSignal): Promise<VinDecodeOutcome> {
+  if (DESIGN_DECODE_HOLD_MS > 0) {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, DESIGN_DECODE_HOLD_MS);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+    if (signal?.aborted) return { status: 'unreachable' };
+  }
   const body = await readJson(vpicDecodeUrl(vin), signal);
-  return body ? parseVpicDecode(body) : null;
+  if (!body) return { status: 'unreachable' };
+  const car = parseVpicDecode(body);
+  return car ? { status: 'decoded', car } : { status: 'unplaced' };
 }

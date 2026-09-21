@@ -161,7 +161,18 @@ jest.mock('expo-camera', () => {
     React.useEffect(() => {
       if (__camera.ready) onCameraReady?.();
     }, [onCameraReady]);
-    return React.createElement(View, { testID: 'camera-view', style: props.style });
+    /*
+      The barcode props ride on the stub view (20 Sep), so a test can read
+      `onBarcodeScanned` off `getByTestId('camera-view')` and call it with a
+      result the way the native module would — and can assert it is
+      `undefined` once the screen has paused delivery.
+    */
+    return React.createElement(View, {
+      testID: 'camera-view',
+      style: props.style,
+      onBarcodeScanned: props.onBarcodeScanned,
+      barcodeScannerSettings: props.barcodeScannerSettings,
+    });
   });
 
   return {

@@ -135,7 +135,12 @@ function mountedVehicle(route: NavigationState['routes'][number]): string | unde
  * pads its own foot by the safe-area inset for the same reason the bar does:
  * without the bar the home indicator is its neighbour.
  */
-const ROUTES_WITHOUT_A_BAR = new Set(['InvoiceScan']);
+/*
+  20 Sep: the sticker door is the same act on the same frame — `ScanVinScreen`
+  is the viewfinder pointed at the door jamb — and it stands the bar down for
+  the same reason. The other add-a-car screens keep it: a form is a place.
+*/
+const ROUTES_WITHOUT_A_BAR = new Set(['InvoiceScan', 'AddVehicleScan']);
 
 /** The route the focused tab is showing — a pushed screen's name, or the tab's own. */
 export function focusedRouteName(state: Pick<BottomTabBarProps['state'], 'routes' | 'index'>): string {

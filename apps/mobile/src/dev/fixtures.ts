@@ -715,10 +715,52 @@ const THREAD_MESSAGES: Record<string, Array<{ role: 'user' | 'assistant'; conten
   ],
 };
 
+/**
+ * The design car's tire set — §0.8 of the tire loop's shared frame, transposed
+ * onto the M235i's odometer (20 Sep).
+ *
+ * The worked example is a 2019 Golf R at 78,412 miles; the design car reads
+ * 66,000. Every figure below is the example's, shifted by that difference, so
+ * the frame the loop graded — `ON THIS SET 24,180 MI`, `11,400` since,
+ * `PAST 5,400 MI`, a run of 78.83pt on a 353pt axis — is what the simulator
+ * shows on the car every other fixture already draws. Rows are the route's
+ * shape (`app/api/v1/tires/route.ts`); `EXPO_PUBLIC_DESIGN_EMPTY=tires` shows
+ * the no-set state, and `=interval` the set with no interval entered.
+ */
+const TIRE_SET = {
+  id: 'set-design',
+  vehicle_id: M235I.id,
+  brand: 'Michelin',
+  line: 'Pilot Sport 4S',
+  size_front: '245/35R19',
+  size_rear: '245/35R19',
+  installed_on: '2025-03-12',
+  install_odometer: M235I.current_mileage - 24_180,
+  purchase_place: 'Discount Tire',
+  rotation_interval_miles: 6_000,
+  interval_source: 'owner',
+  treadwear_miles_entered: 45_000,
+  provenance: 'invoice',
+  retired_at: null,
+};
+const TIRE_ROTATIONS = [
+  { id: 'rot-1', set_id: TIRE_SET.id, rotated_on: '2025-06-28', odometer: M235I.current_mileage - 18_272, provenance: 'invoice' },
+  { id: 'rot-2', set_id: TIRE_SET.id, rotated_on: '2025-11-09', odometer: M235I.current_mileage - 11_400, provenance: 'typed' },
+];
+
 export function fixtureFor(
   path: string,
   request: { method?: string; body?: unknown } = {}
 ): unknown | undefined {
+  if (path.startsWith('/tires')) {
+    /* Writes fall through to the network — a canned "saved" would be a screenshot that lies. */
+    if (request.method && request.method !== 'GET') return undefined;
+    if (DESIGN_EMPTY.has('tires')) return { set: null, rotations: [] };
+    if (DESIGN_EMPTY.has('interval')) {
+      return { set: { ...TIRE_SET, rotation_interval_miles: null, interval_source: null }, rotations: TIRE_ROTATIONS };
+    }
+    return { set: TIRE_SET, rotations: TIRE_ROTATIONS };
+  }
   if (path.startsWith('/upload-photo')) {
     if (request.method === 'DELETE') {
       addedPhotoUri = null;

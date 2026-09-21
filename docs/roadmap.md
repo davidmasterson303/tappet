@@ -135,6 +135,188 @@
 > — the web has `deleteVehicle`). Everything else on the list has a route the
 > phone calls and a row that changes.
 >
+>
+> ### ⚠ 20 Sep 2026, night — adding a car is two screens, and the car identifies itself
+>
+> Cowork's brief (`Claude outputs/ONBOARDING_REDESIGN_2026-09-20.md`): the
+> phone's add form is gone; the first screen is doors and the car reads its
+> own number. **Commit A is on `main` (`3d611c5`)** — JS-only, no route, no
+> build — and its three premises were checked against the artefact first:
+> `vehicles.vin` is nullable and UNIQUE (two dry inserts: `23505` on the
+> duplicate before `23503` on the FK); the research reads `year, make, model`
+> — **trim is not loaded** (`lib/research-job.ts`), so the brief's
+> "year/make/model/trim" overstated it and the argument survives on the
+> strings alone; the research log is live.
+>
+> - **Screen one** (`AddVehicleScreen.tsx`): the web's VIN plate under the
+>   header, then the doors as bands — SCAN THE STICKER and TYPE IT. **No form
+>   field in any state**, asserted by render and by a root source scan with
+>   an anti-vacuous control (`first-run-doors.test.ts`). PHOTOGRAPH A
+>   DOCUMENT lands with `/api/v1/vin-from-image` (§8; Commit B).
+> - **The sticker door** is `Viewfinder` in barcode mode (code39 / code128 /
+>   datamatrix / pdf417; `vinFromBarcode` strips the label's sentinels and
+>   prefers the window whose check digit agrees; one haptic; delivery paused
+>   after a read; the tab bar stands down). **JS-only as far as this machine
+>   can show**: `expo-camera` 57 routes *all* scanning through the optional
+>   `ExpoCameraZXingProvider` pod, which is in Expo Go 57.0.5's binary and
+>   autolinks for EAS. The simulator has no camera — **the first live read is
+>   the phone's, and it has not happened yet.**
+> - **The typed door** is the web's hero field (64pt / 24pt mono, the cyan
+>   ramp a real `progressbar`); "I don't have the VIN" lives here, not on the
+>   doors. **The decode narrates** (`DecodeLog`, `decodeStages`): CHECKING THE
+>   NUMBER → the check-digit verdict / ASKING NHTSA WHAT THAT IS → the car as
+>   one sentence with its engine — every line a completed step, `decodeVin`
+>   now names *which* failure — and the named car is confirmed with THAT'S MY
+>   CAR before it becomes the row's unique key (one line to remove if it
+>   proves a speed bump).
+> - **Screen two** (`OwnerAnswersScreen.tsx`): the car in condensed caps,
+>   build and number in mono, the odometer (the only keyboard), the mods
+>   fork, one chip row — JUST DONE added to `BASELINE_AGE_OPTIONS` (one month,
+>   err old; sends the odometer as the service mileage), 6–12 MO kept because
+>   it is the band an oil change is most likely due in.
+> - **Walked live on a fresh account** (`crewchief.support+vin-onboarding-qe@`,
+>   created and deleted through the admin API, `design-loop/onboarding/
+>   live-run-2026-09-20/`): typed `JH4KA7561PC008269` → "1993 Acura Legend
+>   L, 3.2L V6." → THAT'S MY CAR → 128,500 · JUST DONE → saved. Rows:
+>   `vehicles.vin = JH4KA7561PC008269`, `performance_mindedness mild`,
+>   `vehicle_status null`; the baseline `mileage_at_service 128500`; the
+>   garage read "Engine Oil and Filter Change in 5,000 mi"; the plate drew
+>   and the research completed on the car's page. `ai_usage_events` was
+>   **empty at the save** and held only the research's two rows afterwards —
+>   the door is free, the dossier is metered as it always was. Then the
+>   reviewer's Accord VIN from the same account: **"A car with that VIN is
+>   already in a garage."** on screen two, answers kept, nothing saved (the
+>   22 Aug bounce is closed); a nonsense number: **NOT IDENTIFIED** with the
+>   reason and two ways on; DESCRIBE THE CAR INSTEAD opens the old fields
+>   with the number carried AS READ. Everything reverted.
+> - ⚠ **JUST DONE's date needs a `web-live` promote.** The baseline row came
+>   back `service_date: null`: `isBaselineAge('just-done')` is false on the
+>   deployed API, so it records the mileage and drops the age until the core
+>   change in `3d611c5` is promoted. Graceful, and exactly §8's shape — the
+>   phone ahead of the API. **The promote is David's; Commit B waits on it
+>   anyway.**
+> - ⚠ **Two things eat taps on the simulator MCP tool**: `simctl recordVideo`
+>   and a screenshot burst — every tap sent while either ran was lost, and
+>   taps sent under swap pressure land 5–15 s late (this Mac has 8 GB and was
+>   16 GB into swap with two simulators, a Metro each and the Cowork VM; the
+>   swap is what filled the disk to 43 MiB twice). One tap, a long settle, a
+>   native `simctl io screenshot`, and never `openurl booted` with two
+>   devices up — it picked the other session's target. A scaled MCP
+>   screenshot also rendered the VIN plate as black while the native capture
+>   showed it; verify at native scale before calling a frame blank.
+> - **Not yet:** the sticker read on a phone; the design loop's BRIEF round
+>   (`design-loop/onboarding/`); Commit B.
+>
+> ### 20 Sep 2026, night — the tire tracker (v1.1) is built; the migrations and six calls are David's
+>
+> Cowork's brief (`CLAUDE_CODE_PROMPT_tires_v1.1`, 20 Sep) opened with a gate —
+> *do not start before submission* — and David, told the gate was closed,
+> said build it. Built and committed in one commit, `014e268` (42 files),
+> against the graded frames in `design-loop/tires/` (8/10, round 4). ⚠ That
+> folder is **gitignored** (`.gitignore:92`, deliberately — the loop's PNGs
+> must not ship in the EAS upload), so the brief's "committed alongside this
+> file" is not true: the specification lives on this disk and in the Cowork
+> project only. Back it up there before it goes stale.
+>
+> - **Core** — `packages/core/src/tires.ts`: every figure on either screen
+>   and the axis it is drawn on derive from one object; `tires.test.ts`
+>   carries the axis ratchet (interval 7,000 moves the run *and* the
+>   caption; the round-2 failure is reconstructed so the proof has failed
+>   once). The interval is asked, never assumed — no default anywhere
+>   (`service-due.ts`'s argument, applied). `FREE_FEATURES` gains `'tires'`;
+>   the upsell sentence now reads *"…mileage tracking, health score and tires
+>   stay free"* because it is derived, and the two suites that pin the list
+>   moved with it.
+> - **Schema** — ⛔ **`20260920200000` and `20260920200100` are written and
+>   NOT applied** (probed: `PGRST205` on both tables, 20 Sep). Yours, in the
+>   SQL editor; `check-migrations.mjs --pending` lists exactly these two.
+>   Until then every tire route answers a named **503 `tires-unavailable`**,
+>   the phone and the web say "Tire records are not switched on yet" with no
+>   retry, the hub's TIRES door draws no figure, and the sweep logs **one**
+>   warning a night and skips the tire half. Nothing else is affected.
+> - **Sweep** — the third notification kind, in the existing
+>   `notify-sweep` with the shared cap and cooldown. Fires only when the
+>   *owner* entered the interval and the set is past it; stamps
+>   `tire_sets.rotation_notified_at`. The sentence is the brief's, verbatim,
+>   and it branches honestly for a set that has never been rotated.
+> - **Phone** — `Tires` under the car (hub row between the readings and the
+>   switches, not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96). Plate
+>   268, strip, title, `StripOdometer`, record rows with provenance marks,
+>   the staggered consequences, three entry screens, deep link
+>   `vehicle/:vehicleId/tires` held by `push-notification-links.test.ts`.
+>   `StripOdometer.test.tsx` proves the ratchet on rendered geometry —
+>   78.83pt, the critic's number. **Web**: `/tires/[vehicleId]` from the
+>   dashboard's rail (`DashboardNextSteps`), off-nav like Vehicle Info,
+>   protected in `PROTECTED_ROUTES` and the middleware matcher.
+> - ⚠ **Not yet seen on a device.** The disk filled twice during the build
+>   (the Cowork VM bundle and OS-update snapshots — not the simulators) and
+>   the 16 Pro Max was the onboarding session's, so the composition has been
+>   proven by tests and never photographed. The brief's own warning stands:
+>   *shoot it once with a real graded plate before you trust the balance* —
+>   `EXPO_PUBLIC_DESIGN_FIXTURES=1` serves the worked dataset on the M235i
+>   (`=interval` and `=tires` in `EXPO_PUBLIC_DESIGN_EMPTY` for the other two
+>   states).
+> - **Order of operations, unchanged by any of this:** apply the migrations →
+>   `promote-web` (the phone's `/api/v1/tires` must be live before a build
+>   calls it, CLAUDE.md §8) → `promote-demo`. No build is spent: everything
+>   here is JS.
+> - **Still David's, and deliberately not resolved by a default** (the
+>   brief's list, unchanged): `01` is a rank that renumbers on every add;
+>   `OFTEN HALVED` vs the sourced figure; a maximum length for `place` at
+>   entry; a visible "fitment checked" line; a legend for the three marks
+>   (the row's spoken label carries it meanwhile); *since* vs *past* for the
+>   11,400. Each is one function and its test.
+>
+> ### ⚠ 20 Sep 2026, evening — every QE finding fixed, and proven on the host
+>
+> - **§1 and §2 of the QE report, all of it, on `main` and on `web-live`
+>   (`050e2df5`).** Sixteen commits `655a63c`…`83b60ec`; the report's new
+>   *Resolution* section is the table — commit, guard, live check per
+>   finding. The shape of the fixes, since they will be read as precedent:
+>   a focus refetch is **quiet** (`load(false, true)` keeps what is on
+>   screen — `screens-refetch-on-focus.test.ts` pins every subscribed
+>   screen's gate); a write **reloads quietly** and re-seeds local state from
+>   rows; mark-done **writes the odometer, re-projects and stamps the score
+>   stale** (`mark-done-closes-the-loop.test.ts`); the bay **refuses a stale
+>   reading** and the car re-reads one on open; a **`CrashBoundary`** at the
+>   root posts to `/api/v1/client-errors` (`CLIENT_CRASH` in the function
+>   logs — the only crash reporting until a native SDK earns a build);
+>   the advisor's starters come **from rows** (`advisor-starters.ts`:
+>   service due, worst issue, largest open recall system, slot-wise
+>   generics); `vehicle_status` is **null unless asked** (migration
+>   `20260920120000` drops the default — **David's to apply**; both inserts
+>   already write null); the Account row is **a status** (`subscription-
+>   status.ts` — "renews" only when Apple's flag says so); NHTSA's pre-2011
+>   capitals are **lowered to sentences** (`unshout.ts`, phone and web) and
+>   the recall card is **memoised** (one tap, one render — the test reads
+>   three with the memo removed); the request layer **joins an in-flight
+>   GET and retries a read once** on offline/502/503/504, never a write,
+>   never a timeout.
+> - **Proven live, not read:** the M235i's stale score (bay notice → 70 FAIR
+>   → 82 GOOD in ~4 s, row stamped); back-navigation on a 45-frame burst
+>   with no instrument; the Accord's oil change marked done from the plan —
+>   `mileage_at_service 170000`, costs `null`, next service moved to Tire
+>   Rotation, score re-read to 52 — then reverted. Four more defects found
+>   *by* the proof and fixed the same hour: the mark-done sheet opened blank
+>   and kept the last item's draft (mounted once with the screen — keyed
+>   now, `33d164f`), its sentence ran off the screen, "1 service record
+>   were filed", and two casing slips in the derived copy.
+> - **Deliberately not done:** `expo-image` and a crash SDK (native — a
+>   build each); a FlatList for the recalls (a section of Health's
+>   ScrollView, R16 — memoised instead until a sixty-campaign model scrolls
+>   badly); the §4.1 journey smoke test (needs the reviewer password as a CI
+>   secret — David's call).
+>
+> **Still yours:** apply `20260920120000`; the reviewer mailbox and email
+> change; the ledger question; the fresh-account run — **with the reviewer
+> account signed in on the phone, which nobody has done yet** (every proof
+> this week was on David's account; its entitlement row was proven against
+> a function, not a screen); the metering migration; `xcrun simctl
+> status_bar 512B450F-… clear`. §4.1's smoke test gets **a dedicated CI
+> account seeded like the reviewer's, never the reviewer's password** —
+> the repo is public, a workflow log is permanent, and that one credential
+> leaking is a conversation with App Review (Cowork, 20 Sep).
+>
 > ### ⚠ 20 Sep 2026, afternoon — the QE report, and removing a car removes its receipts
 >
 > - **`MOBILE_QE_REPORT_2026-09-20.md`** — a static sweep, a reachability

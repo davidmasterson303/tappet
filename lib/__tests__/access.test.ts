@@ -77,10 +77,11 @@ describe('the policy table and the gate give one answer — 17 Sep', () => {
   });
 
   it('what the table calls the free tier is what paid-features calls free', () => {
-    // The record — garage, service log, mileage — and the health score, the
-    // free tier's one model call (`paid-features.ts` says why). The table
-    // permits reading and writing the record without a subscription.
-    expect(FREE_FEATURES).toEqual(['garage', 'service-log', 'mileage', 'health-score']);
+    // The record — garage, service log, mileage, and since 20 Sep the tire
+    // set — and the health score, the free tier's one model call
+    // (`paid-features.ts` says why). The table permits reading and writing
+    // the record without a subscription.
+    expect(FREE_FEATURES).toEqual(['garage', 'service-log', 'mileage', 'health-score', 'tires']);
     for (const state of ['lapsed', 'unsubscribed'] as const) {
       expect(permits(state, 'write-own-records')).toBe(true);
       expect(permits(state, 'read-own-records')).toBe(true);

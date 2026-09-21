@@ -115,7 +115,11 @@ const tabs = [
   it. Kept in a list of its own so `activeBreadcrumb` can still name the page a
   reader is standing on.
 */
-const OFF_NAV = [{ key: 'vehicle-info', label: 'Vehicle Info' }] as const;
+const OFF_NAV = [
+  { key: 'vehicle-info', label: 'Vehicle Info' },
+  /* The tire set (20 Sep) — reached from the dashboard's rail, not the bar; see app/tires. */
+  { key: 'tires', label: 'Tires' },
+] as const;
 
 export default function DashboardLayout({ vehicle, knowledge, currentPage, children, vehicleImage, healthSummary, contentSurface = 'panel', mobileLayout = 'page' }: DashboardLayoutProps) {
   const appShell = mobileLayout === 'app-shell';
