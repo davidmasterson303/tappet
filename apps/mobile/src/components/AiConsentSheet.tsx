@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import Button from './Button';
 import { PAGE_BODY, border, radius, space, surface, text, type } from '../theme';

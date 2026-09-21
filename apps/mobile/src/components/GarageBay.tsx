@@ -4,10 +4,10 @@ import {
   Easing,
   Pressable,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import Text, { typeScale } from './Text';
 
 import StatStrip, { type Stat } from './StatStrip';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
@@ -373,7 +373,8 @@ export default function GarageBay({
               and this guards it again.
             */}
             {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
-            <Text style={styles.name} numberOfLines={1}>
+            {/* One line at the design size; two once the person's text is larger (21 Sep), where "2003 HONDA ACCO…" was the alternative. */}
+            <Text style={styles.name} numberOfLines={typeScale() > 1 ? 2 : 1}>
               {name || 'Vehicle'}
             </Text>
             {stats ? <StatStrip stats={stats} /> : null}

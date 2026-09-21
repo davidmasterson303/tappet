@@ -1,6 +1,7 @@
 import CutSurface from './CutSurface';
 
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import { border, cut, radius, space, status, surface, text, type, TYPE_MIN } from '../theme';
 

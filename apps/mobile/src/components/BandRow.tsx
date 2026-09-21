@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import Icon from './Icon';
 import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '../theme';

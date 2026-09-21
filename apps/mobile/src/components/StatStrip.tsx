@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text, { typeScale } from './Text';
 
 import { TABULAR, border, space, text, type } from '../theme';
 
@@ -48,7 +49,8 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
           <Text style={styles.label} numberOfLines={1}>
             {stat.label}
           </Text>
-          <Text style={styles.value} numberOfLines={1}>
+          {/* A value wraps rather than losing its end once the text is larger (21 Sep: "Daily Dri…"). */}
+          <Text style={styles.value} numberOfLines={typeScale() > 1 ? 2 : 1}>
             {stat.value}
           </Text>
         </View>

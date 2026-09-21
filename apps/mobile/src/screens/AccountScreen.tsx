@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import { API_BASE_URL } from '../config';
 import Button from '../components/Button';
@@ -100,7 +101,8 @@ export function AccountScreen({
   const [subscription, setSubscription] = useState<AccountSubscription | null>(null);
 
   const confirmed = isDeletionConfirmed(confirmText);
-  const notice = subscriptionNotice(subscribed);
+  // Live and billed by Apple — a comped grant has nothing to cancel (21 Sep).
+  const notice = subscriptionNotice(subscribed && (subscription?.billedByApple ?? true));
   const standing = subscription ? subscriptionStatusLine(subscription) : null;
 
   /*

@@ -5,10 +5,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import Text from '../components/Text';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import Button from '../components/Button';

@@ -60,6 +60,22 @@ describe('the frame', () => {
     expect((await view).getByText('Scan the sticker')).toBeTruthy();
   });
 
+  it('targets a barcode-shaped band, not the whole frame, and says how close to hold it (seen live, 21 Sep)', async () => {
+    /*
+      The first real read took several tries: the corner brackets framed the
+      whole feed, so the label was held at arm's length and the barcode was
+      half the frame wide. In barcode mode the brackets bound the frame's
+      middle fifth — filling it with the barcode is the right distance.
+    */
+    const { view } = mount();
+    const band = (await view).getByTestId('viewfinder-brackets-band');
+    const flat = Object.assign({}, ...[band.props.style].flat(Infinity).filter(Boolean));
+    expect(flat.top).toBe('40%');
+    expect(flat.bottom).toBe('40%');
+    expect((await view).queryByTestId('viewfinder-brackets')).toBeNull();
+    (await view).getByText(/Move in until the barcode fills the brackets/);
+  });
+
   it('offers the keyboard beside the frame', async () => {
     const user = userEvent.setup();
     const { props, view } = mount();

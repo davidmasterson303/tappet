@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { ROLE_LADDER, roleLabel, type ModRole } from '@tappet/core/mod-progression';
 
 import { border, radius, register, space, surface, text, type } from '../theme';

@@ -88,7 +88,7 @@ export async function GET(): Promise<Response> {
   const client = getServiceRoleClient();
   const { data, error } = await client
     .from('account_entitlements')
-    .select('tier, expires_at, auto_renew_status')
+    .select('tier, expires_at, auto_renew_status, original_transaction_id, product_id')
     .eq('user_id', session.userId)
     .maybeSingle();
 
@@ -107,18 +107,29 @@ export async function GET(): Promise<Response> {
     logger.warn('API:ACCOUNT_GET', 'Could not read entitlement; warning anyway', {
       message: error.message,
     });
-    return Response.json({ success: true, subscription: { live: true, certain: false } });
+    return Response.json({ success: true, subscription: { live: true, certain: false, billedByApple: true } });
   }
 
   const live = hasLiveEntitlement(
     data ? { tier: data.tier as string | null, expiresAt: data.expires_at as string | null } : null
   );
 
+  /*
+    Whether Apple is the one charging (21 Sep). A comped grant — the App
+    Review account, a lifetime — has no transaction and no product, and the
+    deletion screen must not tell its owner "your subscription is billed by
+    Apple, cancel it first": on the reviewer's own account that sentence is
+    false on the screen Apple reads most carefully. The ids stay here; the
+    fact that they exist is all the phone is told.
+  */
+  const billedByApple = live && Boolean(data?.original_transaction_id || data?.product_id);
+
   return Response.json({
     success: true,
     subscription: {
       live,
       certain: true,
+      billedByApple,
       until: live ? ((data?.expires_at as string | null) ?? null) : null,
       renews: live ? ((data?.auto_renew_status as boolean | null) ?? null) : null,
     },

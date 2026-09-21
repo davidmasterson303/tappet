@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 

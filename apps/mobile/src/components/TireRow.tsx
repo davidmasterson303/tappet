@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import ProvenanceMark, { MARK, MARK_GAP, PROVENANCE_SPOKEN, type MarkProvenance } from './ProvenanceMark';
 import { SPEC_ROW, TABULAR, border, space, text, type } from '../theme';

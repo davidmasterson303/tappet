@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, RefreshControl, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Animated, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
+import Text from '../components/Text';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import {

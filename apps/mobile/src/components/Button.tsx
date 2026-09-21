@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import Text from './Text';
 
 import { CONTROL_HEIGHT, border, cut, register, space, status, surface, text, type } from '../theme';
 import { monoFace } from '../theme/fonts';

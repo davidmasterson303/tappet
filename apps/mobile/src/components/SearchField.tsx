@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { TextInput } from './Text';
 
 import { FIELD_FONT_MIN, TARGET_MIN, border, brand, cut, space, surface, text } from '../theme';
 import { interFace } from '../theme/fonts';

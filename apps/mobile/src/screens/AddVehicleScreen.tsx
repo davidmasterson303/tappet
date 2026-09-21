@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Image, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import Text from '../components/Text';
 import Svg, { Path } from 'react-native-svg';
 
 import BandRow from '../components/BandRow';

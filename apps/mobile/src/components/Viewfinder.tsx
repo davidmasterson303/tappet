@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import {
   CameraView,
   useCameraPermissions,
@@ -304,7 +305,24 @@ export default function Viewfinder({
           not as an SVG that needs a measured box: a bracket has no frame of
           its own to wait for.
         */}
-        <View style={styles.brackets} pointerEvents="none" testID="viewfinder-brackets">
+        {/*
+          ── 21 Sep · in barcode mode the brackets bound a band, not the frame ──
+
+          Live on the phone, the first sticker read took several tries: the
+          four corners framed the whole feed, so the natural thing was to fit
+          the whole label inside them from arm's length, and at that distance
+          the barcode is half the frame wide and the reader does not see it.
+          A barcode is wide and short, so its target is: the same hairline
+          brackets, bounding a band of the frame's middle. Filling the band
+          with the barcode is the right distance, and the copy under the
+          frame says so in the same words. The invoice frame keeps the full
+          corners — a receipt is the shape of the frame.
+        */}
+        <View
+          style={[styles.brackets, barcodes && styles.bracketsBand]}
+          pointerEvents="none"
+          testID={barcodes ? 'viewfinder-brackets-band' : 'viewfinder-brackets'}
+        >
           <View style={[styles.bracket, styles.topLeft]} />
           <View style={[styles.bracket, styles.topRight]} />
           <View style={[styles.bracket, styles.bottomLeft]} />
@@ -420,6 +438,8 @@ const styles = StyleSheet.create({
   */
   frame: { flex: 1, overflow: 'hidden', backgroundColor: surface.nav },
   brackets: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, margin: rhythm.page },
+  /* The barcode band: the frame's middle fifth, full page width. */
+  bracketsBand: { top: '40%', bottom: '40%' },
   bracket: {
     position: 'absolute',
     width: BRACKET_LEG,

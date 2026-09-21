@@ -6,10 +6,9 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import Text, { TextInput } from '../components/Text';
 
 import {
   askAdvisor,

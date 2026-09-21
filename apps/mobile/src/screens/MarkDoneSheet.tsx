@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text, { TextInput } from '../components/Text';
 import Field from '../components/Field';
 import { border, brand, radius, status, surface, text } from '../theme';
 

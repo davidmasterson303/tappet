@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { CX, CY, R, TRACK, VIEW_H, VIEW_W, pointAt } from '@tappet/core/cluster-geometry';
 import {

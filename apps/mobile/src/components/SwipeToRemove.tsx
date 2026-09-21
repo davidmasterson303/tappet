@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import { space, status, surface, type } from '../theme';
 

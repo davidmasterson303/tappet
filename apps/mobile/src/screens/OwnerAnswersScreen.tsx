@@ -5,9 +5,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 
 import Button from '../components/Button';
 import CutSurface from '../components/CutSurface';

@@ -26,6 +26,14 @@ export interface AccountSubscription {
    * or a support conversation can tell the two apart.
    */
   certain: boolean;
+  /**
+   * Whether Apple is charging for it (21 Sep). False for a comped grant, which
+   * has no transaction — the deletion warning names Apple and must not on
+   * one. Absent from an older API, which the screen reads as "assume so":
+   * a warning shown to a comped account is a confusing sentence, a warning
+   * withheld from a subscriber is a charge they cannot stop.
+   */
+  billedByApple?: boolean;
   /** The period's end, when live; absent from an older API. See `subscriptionStatusLine`. */
   until?: string | null;
   /** Apple's auto-renew flag, when live; display only. */
