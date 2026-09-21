@@ -172,10 +172,11 @@ describe('the primer copy', () => {
 
   it('does not promise anything the product cannot do', () => {
     /*
-      The product sends exactly two kinds of notification — service due and
-      recall — and both come from the nightly sweep. Copy implying real-time
-      alerts, or anything about offers or deals, would be a promise no code
-      keeps.
+      The product sends exactly three kinds of notification — service due,
+      recall, and (since 20 Sep) a tire set past the interval its owner
+      entered — and all three come from the nightly sweep. Copy implying
+      real-time alerts, or anything about offers or deals, would be a promise
+      no code keeps.
 
       ⚠ **Negations have to be stripped first, and the first version of this
       test did not.** The copy says "no offers, no news", which is a promise

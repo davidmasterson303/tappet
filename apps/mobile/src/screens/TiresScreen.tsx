@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, RefreshControl, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import {
@@ -160,6 +160,9 @@ export function TiresScreen({
   const insets = useContext(SafeAreaInsetsContext);
   const top = insets?.top ?? 0;
   const scrollY = useRef(new Animated.Value(0)).current;
+  /* The line's width before it is measured: the window less the sheet's two gutters. See `StripOdometer`. */
+  const { width: windowWidth } = useWindowDimensions();
+  const lineWidth = Math.max(0, windowWidth - 2 * rhythm.page);
 
   const load = useCallback(
     async (isRefresh = false, quiet = false) => {
@@ -378,7 +381,7 @@ export function TiresScreen({
 
               {reading && reading.since !== null ? (
                 <View style={styles.instrument}>
-                  <StripOdometer reading={reading} axis={axis} />
+                  <StripOdometer reading={reading} axis={axis} initialWidth={lineWidth} />
                 </View>
               ) : null}
 

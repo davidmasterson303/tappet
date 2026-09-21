@@ -70,12 +70,37 @@ const AXIS_TOP = TICK_TOP + TICK_HEIGHT / 2;
 const CAPTION_TOP = AXIS_TOP + 16;
 const TICK_WIDTH = 1.5;
 
-export default function StripOdometer({ reading, axis }: { reading: TireReading; axis: TireAxis | null }) {
-  const [width, setWidth] = useState(0);
+export default function StripOdometer({
+  reading,
+  axis,
+  initialWidth = 0,
+}: {
+  reading: TireReading;
+  axis: TireAxis | null;
+  /**
+   * The width the caller expects the line to get, so the first paint does
+   * not wait on a measurement.
+   *
+   * ── ⚠ Seen on the 16 Pro Max, 20 Sep ─────────────────────────────────────
+   *
+   * The first time the screen opened, `onLayout` never delivered a width:
+   * the line's block took its height and drew nothing — no axis, no ticks,
+   * no run, no caption — while every figure around it rendered. A fresh
+   * mount measured 408pt and drew correctly. Whatever swallowed the first
+   * event, a warning instrument that can silently paint blank is the failure
+   * CLAUDE.md §6 collects, so the line no longer depends on being measured
+   * to draw: the caller seeds the width it knows (the window less its own
+   * gutters) and the measurement, when it arrives, corrects it. `0` keeps
+   * the old behaviour for a caller that has nothing to seed.
+   */
+  initialWidth?: number;
+}) {
+  const [measured, setMeasured] = useState(0);
+  const width = measured > 0 ? measured : Math.max(0, initialWidth);
 
   const onLayout = (event: LayoutChangeEvent) => {
     const next = Math.round(event.nativeEvent.layout.width * 100) / 100;
-    if (next !== width) setWidth(next);
+    if (next > 0 && next !== measured) setMeasured(next);
   };
 
   if (reading.since === null) return null;

@@ -1577,29 +1577,6 @@ export function VehicleDetailScreen({
           </Binnacle>
 
           {/*
-            ── Tires — the fourth leaf, as a row of the spec table (20 Sep) ─
-
-            Not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96 and the
-            second row already holds three, so a fourth would be under the
-            floor on every phone. A `BandRow` is the system's destination row
-            — the same door WHAT YOU TOLD US uses below — and it carries what
-            is behind it the way the cells do: the miles since the last
-            rotation, and the sodium `△` only when the set is past the
-            interval its owner entered. No set, no reading: the row is the
-            door and nothing else, never a dash.
-          */}
-          <View style={styles.tiresRow}>
-            <BandRow
-              label={TIRE_COPY.tires}
-              count={tiresCount}
-              warning={Boolean(counts.tires?.overrun)}
-              onPress={onOpenTires ?? (() => {})}
-              accessibilityLabel={tiresSpoken}
-              last
-            />
-          </View>
-
-          {/*
             ── The switches ─────────────────────────────────────────────────
 
             Two acts at the panel's foot, and the scan is the one primary.
@@ -1648,6 +1625,35 @@ export function VehicleDetailScreen({
             known for would be lying by omission. A missing answer is a
             missing row, never a dash.
           */}
+          {/*
+            ── Tires — the fourth leaf, as a row of the spec table (20 Sep) ─
+
+            Not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96 and the
+            second row already holds three, so a fourth would be under the
+            floor on every phone. And not between the readings and the
+            switches: seen on the 16 Pro Max the moment it was put there, the
+            row pushed both switches under the tab bar — the fold round 44
+            measured so the panel's two rows end on it and the switches sit
+            just under. So it heads the lower sheet instead, first of the rows
+            below the acts, in the idiom of the rows that follow it.
+
+            A `BandRow` is the system's destination row — the same door WHAT
+            YOU TOLD US uses — and it carries what is behind it the way the
+            cells do: the miles since the last rotation, and the sodium `△`
+            only when the set is past the interval its owner entered. No set,
+            no reading: the row is the door and nothing else, never a dash.
+          */}
+          <View style={styles.tiresRow}>
+            <BandRow
+              label={TIRE_COPY.tires}
+              count={tiresCount}
+              warning={Boolean(counts.tires?.overrun)}
+              onPress={onOpenTires ?? (() => {})}
+              accessibilityLabel={tiresSpoken}
+              last
+            />
+          </View>
+
           <View style={styles.answers}>
             {answers.length > 0 ? <SectionHeader title="What you told us" /> : null}
             {answers.length > 0 ? (
@@ -1943,8 +1949,8 @@ const styles = StyleSheet.create({
   timing: { fontSize: 15, lineHeight: 20 },
 
   /* ── The switches, and the foot ─────────────────────────────────────── */
-  /* The tire row sits between the readings and the switches, on the page's gutter like the answers below. */
-  tiresRow: { paddingHorizontal: space.lg, marginTop: space.md },
+  /* The tire row heads the lower sheet, on the page's gutter like the answers it precedes. */
+  tiresRow: { paddingHorizontal: space.lg, paddingBottom: space.xxl },
   switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },
