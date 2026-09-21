@@ -304,6 +304,7 @@ export default function ClusterGauge({
   const readoutSize = Math.round(width * (isCard ? 60 / 172 : HERO_NUMERAL));
   const readoutLine = Math.round(readoutSize * 1.02);
   const readoutTop = 0.5 * width - readoutLine / 2;
+  const verdictSize = isCard ? type.label.fontSize : Math.round(width * 0.07);
 
   return (
     <View
@@ -446,7 +447,15 @@ export default function ClusterGauge({
           {
             /* B7: the state word is ink, not a hue, unless it is a warning. */
             color: arcInk,
-            fontSize: isCard ? type.label.fontSize : Math.round(width * 0.07),
+            fontSize: verdictSize,
+            /*
+              ⚠ The line grows with the size. `monoLabel` is 12 on a 16 line;
+              the hero set the size to 13 and kept the 16, and JetBrains Mono's
+              ascenders — 1.32 of the size — ran past the line box, so "GOOD"
+              drew with its tops sliced off: "GUUD", on every garage bay, at
+              native scale (21 Sep, David's eye). 1.4 clears the face.
+            */
+            lineHeight: Math.round(verdictSize * 1.4),
           },
         ]}
       >
