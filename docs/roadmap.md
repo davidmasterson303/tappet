@@ -136,6 +136,58 @@
 > phone calls and a row that changes.
 >
 >
+> ### ⚠ 21 Sep 2026, afternoon — the first device build, and what a real phone found
+>
+> **The device build exists.** `eas build --profile device` run twice today,
+> David at the keyboard for Apple's half (personal team `P4873P8FQ9`,
+> profile `FYKGD5RXT7`, certificate `…408655` and push key `YY6GZ4J4H5`
+> reused, App ID registered — the portal work Apple said the migration
+> would block). The first build (`e287d62f`) crashed at dyld: the
+> precompiled `ExpoCamera 57.0.5` wanted a `willDestroy` that
+> `expo-modules-core 57.0.8` did not export — the drift `expo start` had
+> been warning about. Packages aligned (`4a3f038`, core 57.0.18), rebuilt
+> non-interactively (`b7a9f6e9`), installed over the cable and launched
+> with the console attached: it runs. The reviewer account was seeded the
+> same morning (`scripts/seed-review-account.mjs`), its health summary
+> regenerated to 88 with the preamble gone from every recommendation on
+> every car, and the reply to Apple Developer Support sent (case
+> 102969823175 — "we're ready").
+>
+> **David's walk on the phone, and what it found** — every one fixed the
+> same afternoon, all phone JS except the last:
+>
+> - The sticker scan took several tries: the corner brackets framed the
+>   whole feed, so the label was held at arm's length and the barcode was
+>   half the frame wide. The frame targets a barcode-shaped band now and
+>   the copy says how close (`0b89073`).
+> - The research log stayed open after the work — a screen's worth above
+>   the car's page with nothing to close it. Settled, it folds to one row
+>   and opens on a tap; a failure never folds (`ac1fb46`).
+> - A two-page Dinan invoice: page 2 took the server 28 s, the phone gave
+>   up at 30 and said "try again" while the server finished and filed 16
+>   lines. Ninety seconds now, and a timeout never invites a rescan
+>   (`c187717`). **Multi-page invoices** are a board item, and the durable
+>   shape for both is the research runner's: accept, file the row, extract
+>   in a background function, narrate the poll.
+> - Larger Text one notch either way and "the app looked totally broken"
+>   — every designed row clipped. The app's own `Text` scales sizes by the
+>   system multiplier clamped to [1, 1.35]; the accessibility sizes are a
+>   stated cap, and the honest version (a layout that reflows) is a design
+>   decision not yet made (`cce09d9`, 76 files).
+> - The paywall's bar sat under the Dynamic Island, and its headline said
+>   "Three features" over four rows (`8c1ff05`).
+> - The deletion screen told the App Review account "your subscription is
+>   billed by Apple, cancel it first" — a comped grant, nothing billed.
+>   `/api/v1/account` says who bills (`63005b6`, live on `80cbcce3`).
+>
+> Walked and sound: push token minted on the device, the sticker decode
+> to a saved car (2015 Forester, research complete in 50 s), the advisor
+> reasoning from an invoice filed ten minutes earlier, `tappet://` from
+> Safari, background and resume. Open from the walk: the "GOOD" word under
+> the garage dial looked mis-padded on the phone (not reproduced on the
+> simulator — a screenshot is needed); manual records from one visit list
+> as separate visits (the seed's shape, low).
+>
 > ### ⚠ 21 Sep 2026 — the two night threads audited and promoted; the physical device is next
 >
 > The onboarding redesign (`3d611c5`, `74920bd`, `330bc38`) and the tire
