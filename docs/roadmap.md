@@ -136,6 +136,76 @@
 > phone calls and a row that changes.
 >
 >
+> ### ⚠ 21 Sep 2026 — the two night threads audited and promoted; the physical device is next
+>
+> The onboarding redesign (`3d611c5`, `74920bd`, `330bc38`) and the tire
+> tracker (`014e268`, `2003788`, `5ed6ed3`, `61b889c`) were committed by
+> their own threads with explicit pathspecs and never pushed. Audited
+> together on the morning of the 21st, from a clean tree at `330bc38`:
+>
+> - **Green, all of it.** Root 234/234 (4,093 tests), mobile 50/50 (868),
+>   three typechecks clean, no lint error in any file the two threads
+>   touched. The one mobile failure on the first full run was the CPU-load
+>   flake (GarageScreen at 14.6 s, 15 GB of swap in use) and passed alone
+>   and on the rerun — the memory note, not the code.
+> - **No conflicts with the QE fixes of the 20th.** The four files both
+>   sides touched read as one: `RootNavigator` carries the QE `INVOICE`/`RECORD`
+>   title beside the four onboarding doors and the tire stack; `VehicleDetail`
+>   adds `/tires` as a fourth request on the full load and keeps the lean
+>   reload at one; `Working` draws a mono answer (the VIN) beside the sentence
+>   answers; `screens-refetch-on-focus` lists `TiresScreen` with the quiet
+>   gate; `no-vin-recall-claims` already reads `DescribeCarScreen`, which
+>   says "year, make and model are enough … to match its recalls" (§10).
+>   `POST /api/v1/vehicles` inserts the onboarding's `vin` and the QE's
+>   `vehicle_status: null` in one body — the fresh-account walk's rows
+>   (`vin = JH4KA…`, `vehicle_status null`) are both threads' work landing
+>   in one row.
+> - **JS and API only.** `package.json` is untouched on both sides; the one
+>   native-config change is `NSCameraUsageDescription` naming the VIN barcode
+>   (`app.json`). Expo Go runs every screen; the barcode read runs in Expo Go
+>   on a real phone (the simulator has no camera); the string reaches a
+>   binary only with the next EAS build.
+> - **Promoted: `web-live` serves `50455231`** (curled), carrying the tire
+>   routes (`/api/v1/tires` → 401 unauthenticated, 400 on a malformed id),
+>   the sweep's tire half, `just-done` in the baseline (the onboarding
+>   thread's "waits on a promote" — it no longer does), `/tires/:vehicleId`
+>   behind the middleware (307 to login), and the QE paywall key
+>   (`0dde57e`).
+> - **⚠ The tire tables do not exist on the host.** `tire_sets` and
+>   `tire_rotations` answer 404 (PGRST205); `check-migrations` reads both
+>   20 Sep tire migrations NOT APPLIED. Until David runs them the phone and
+>   web say "Tire records are not switched on yet" and the sweep skips the
+>   tire half with one warning a night — honest, and exactly the shape a
+>   reviewer would file as "feature does not work". **Apply before
+>   submission**, with `20260920120000` (the `vehicle_status` default).
+> - **⚠ No EAS build exists for Tappet at all.** `eas build:list` for
+>   `@masterson303/tappet` is empty (21 Sep); the 22 Aug dev client was the
+>   CrewChief slug. `docs/runbook-eas-device-build.md` is still the one
+>   build, still David's (Apple sign-in, team `P4873P8FQ9`), and it now also
+>   carries the camera string above. Nothing in either thread moved that
+>   gate; both are free on the far side of it.
+>
+> **Testing on the physical phone today, before any build:** Expo Go on the
+> iPhone, on the same Wi-Fi, against Metro on the Mac — every screen of both
+> features, including the sticker scan, and the API is `web-live`:
+>
+> ```
+> cd /Users/dm/Developer/crewchief/apps/mobile && npx expo start
+> ```
+>
+> then scan the QR from Expo Go (or open `exp://192.168.12.169:8081`). What
+> Expo Go cannot do stays what it was: the paywall says the store is not
+> available, and a push token may not mint.
+>
+> **For the store, in order:** the three migrations → the device build (the
+> runbook) → the reviewer walk on that build, now including ADD CAR by
+> sticker, by typed VIN and by description, JUST DONE, and TIRES → review
+> notes updated for those four (the reviewer account's password is in the
+> notes; a typeable one is worth setting first — see the 20 Sep evening
+> entry) → `production` profile and `eas submit`. The camera prompt the
+> reviewer sees is the new string; the tire blurb claims no outcome
+> (2.3.1, `paid-features.ts`); tires are free by the rule in that file.
+>
 > ### ⚠ 20 Sep 2026, night — adding a car is two screens, and the car identifies itself
 >
 > Cowork's brief (`Claude outputs/ONBOARDING_REDESIGN_2026-09-20.md`): the
