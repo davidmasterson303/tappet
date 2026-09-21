@@ -369,20 +369,35 @@ describe('the three failures that shared one sentence', () => {
     sent a tester to check their Wi-Fi while a serverless function was merely
     cold.
   */
-  it('says "too long" for a timeout, not "check your connection"', () => {
+  it('says the server may still be reading it on a timeout — never "try again" (21 Sep)', () => {
+    /*
+      On the device, a 21-line invoice took the server 28 s and the phone
+      gave up at 30 s; the server finished eight seconds later and filed 16
+      line items. The old sentence said "try again", and a retry is a new
+      document — the same lines twice. The budget is 90 s now, and the
+      sentence sends them to the service log first.
+    */
     const timedOut = new ApiRequestError({
       status: 0,
-      message: 'Tappet did not answer within 45 seconds.',
+      message: 'Tappet did not answer within 90 seconds.',
       origin: 'device',
       kind: 'timeout',
-      elapsedMs: 45_000,
+      elapsedMs: 90_000,
     });
 
-    expect(describeUploadError(timedOut)).toMatch(/too long/i);
+    expect(describeUploadError(timedOut)).toMatch(/still reading/i);
+    expect(describeUploadError(timedOut)).toMatch(/service log/i);
     expect(describeUploadError(timedOut)).not.toMatch(/connection/i);
-    // The photo is still on the phone, and saying so is the difference
-    // between a retry and a reshoot.
-    expect(describeUploadError(timedOut)).toMatch(/not lost/i);
+    expect(describeUploadError(timedOut)).not.toMatch(/try again/i);
+  });
+
+  it('gives the upload ninety seconds, not the read budget', () => {
+    const source = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'api', 'documents.ts'),
+      'utf8'
+    );
+    expect(source).toMatch(/timeoutMs: 90_000/);
+    expect(source).not.toMatch(/timeoutMs: 30_000/);
   });
 
   it('keeps "check your connection" for a genuine offline failure', () => {
