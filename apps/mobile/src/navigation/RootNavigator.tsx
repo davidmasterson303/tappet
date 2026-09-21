@@ -55,6 +55,11 @@ import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
 import { VehicleProfileScreen } from '../screens/VehicleProfileScreen';
 import { RemoveVehicleScreen } from '../screens/RemoveVehicleScreen';
+import { TiresScreen } from '../screens/TiresScreen';
+import { TireSetFormScreen } from '../screens/TireSetFormScreen';
+import { TireIntervalScreen } from '../screens/TireIntervalScreen';
+import { TireRotationScreen } from '../screens/TireRotationScreen';
+import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { surface, text, type } from '../theme';
 
 /**
@@ -307,6 +312,37 @@ type DossierScreens = {
   VehicleProfile: { vehicleId: string; title?: string };
   /** The removal confirmation (20 Sep) — reached from the car, never a deep link. */
   RemoveVehicle: { vehicleId: string; title?: string };
+  /**
+   * ── 20 Sep · Tires — the fourth leaf, v1.1 ────────────────────────────────
+   *
+   * The tire set on the car, beside Health · Service · Plan: a record, its
+   * own instrument, and the one push the feature sends. Linkable, because
+   * that push carries `tappet://vehicle/<id>/tires` (`tiresUrl` in core,
+   * held to this table by `push-notification-links.test.ts`). `title` is
+   * the car's name, for the way back while the vehicle loads.
+   *
+   * ⚠ The tab bar was considered and rejected for it in all three design
+   * concepts: the bar names tenses and places, not objects, and a tab for
+   * one car's consumable is a category error (`shared-frame.md` §0.11).
+   */
+  Tires: { vehicleId: string; title?: string };
+  /*
+    The three entry screens. Not deep-linkable, for the reason `AddVehicle`
+    is not: a URL that opens a form which writes rows is a URL that can be
+    put in front of someone who did not mean to open it. Each carries the
+    set it acts on as a param — plain data, read once on the way in — so a
+    form opens on what the tire screen was already showing rather than
+    refetching it.
+  */
+  TireSetForm: { vehicleId: string; title?: string; set?: TireSet | null };
+  TireInterval: { vehicleId: string; title?: string; set: TireSet };
+  TireRotation: {
+    vehicleId: string;
+    title?: string;
+    set: TireSet;
+    rotations: TireRotation[];
+    odometer: number | null;
+  };
 };
 
 /**
@@ -433,6 +469,8 @@ const garageLinks: PathConfig<DossierScreens> = {
     */
     RecallDetail: 'vehicle/:vehicleId/recalls',
     Health: 'vehicle/:vehicleId/health',
+    /* The tire-rotation push lands here (20 Sep). */
+    Tires: 'vehicle/:vehicleId/tires',
   },
 };
 
@@ -966,6 +1004,13 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
                 title: route.params.title,
               })
             }
+            /* The fourth leaf (20 Sep). */
+            onOpenTires={() =>
+              navigation.navigate('Tires', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+              })
+            }
             onRemove={() =>
               navigation.navigate('RemoveVehicle', {
                 vehicleId: route.params.vehicleId,
@@ -1027,6 +1072,78 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       {planScreen(onSignOut)}
       {invoiceScreens(onSignOut)}
       {wishlistAddScreen(onSignOut)}
+
+      {/*
+        ── 20 Sep · Tires — the fourth leaf ─────────────────────────────────
+
+        Header hidden, like the car's own: the plate runs under the status bar
+        and the screen floats `BackControl` over it. `title` here is the back
+        label of the three forms pushed from it, so they read `‹ TIRES`.
+      */}
+      <Stack.Screen name="Tires" options={{ headerShown: false, title: 'TIRES' }}>
+        {({ route, navigation }) => (
+          <TiresScreen
+            vehicleId={route.params.vehicleId}
+            title={route.params.title}
+            onSignOut={onSignOut}
+            onBack={() => navigation.goBack()}
+            onAddSet={() =>
+              navigation.navigate('TireSetForm', { vehicleId: route.params.vehicleId, title: route.params.title })
+            }
+            onEditSet={(set) =>
+              navigation.navigate('TireSetForm', { vehicleId: route.params.vehicleId, title: route.params.title, set })
+            }
+            onEnterInterval={(set) =>
+              navigation.navigate('TireInterval', { vehicleId: route.params.vehicleId, title: route.params.title, set })
+            }
+            onAddRotation={(set, rotations, odometer) =>
+              navigation.navigate('TireRotation', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+                set,
+                rotations,
+                odometer,
+              })
+            }
+          />
+        )}
+      </Stack.Screen>
+
+      {/*
+        The three forms. Each goes back on save — the tire screen refetches on
+        focus, so the record it returns to already carries the write.
+      */}
+      <Stack.Screen
+        name="TireSetForm"
+        options={({ route }) => ({ title: route.params.set ? 'WHAT YOU ENTERED' : 'ADD A TIRE SET' })}
+      >
+        {({ route, navigation }) => (
+          <TireSetFormScreen
+            vehicleId={route.params.vehicleId}
+            set={route.params.set ?? null}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="TireInterval" options={{ title: 'ENTER THE INTERVAL' }}>
+        {({ route, navigation }) => (
+          <TireIntervalScreen set={route.params.set} onSignOut={onSignOut} onSaved={() => navigation.goBack()} />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="TireRotation" options={{ title: 'ADD A ROTATION' }}>
+        {({ route, navigation }) => (
+          <TireRotationScreen
+            set={route.params.set}
+            rotations={route.params.rotations}
+            currentMileage={route.params.odometer}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
 
       <Stack.Screen name="RemoveVehicle" options={{ title: 'REMOVE THIS CAR' }}>
         {({ route, navigation }) => (

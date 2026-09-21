@@ -378,6 +378,44 @@ export function shouldRaiseService(params: {
   return days >= SERVICE_COOLDOWN_DAYS;
 }
 
+/**
+ * Whether this car's tire set is worth a push tonight — the third kind, 20 Sep.
+ *
+ * The same two gates as a service, in the same order, and one more in front:
+ *
+ *   - **the owner entered the interval.** Only an owner-entered interval
+ *     licenses "outside your warranty's terms" (`mayClaimWarrantyTerms`), and
+ *     a set with no interval has no obligation to be past — no notification,
+ *     no overrun, no sodium. `service-due.ts` deleted a generic interval
+ *     table so a sweep could never assert one; this gate is that decision
+ *     applied to tires, where the only source is the owner's own card.
+ *   - the set is genuinely past it (`overrun`)
+ *   - nothing was sent about this set inside the cooldown
+ *
+ * ⚠ The cooldown is `SERVICE_COOLDOWN_DAYS`, shared rather than a second
+ * number: a rotation, like an oil change, stays overdue until it is done, and
+ * "still overdue" is not news on the second night either. `shouldRaiseService`
+ * carries the unparseable-date rule and is called rather than copied, so the
+ * quiet direction stays one implementation.
+ */
+export function shouldRaiseTireRotation(params: {
+  /** `tireReading(...).overrun` — an interval was stated and the set is past it. */
+  overrun: boolean;
+  /** `mayClaimWarrantyTerms(reading.interval)` — the owner entered the interval. */
+  ownerEntered: boolean;
+  /** ISO date of the last tire notification for this set, or null. */
+  lastNotifiedOn: string | null;
+  /** ISO date. Injected so a sweep is testable without the clock. */
+  today: string;
+}): boolean {
+  if (!params.ownerEntered) return false;
+  return shouldRaiseService({
+    worthNotifying: params.overrun,
+    lastNotifiedOn: params.lastNotifiedOn,
+    today: params.today,
+  });
+}
+
 /** Whole days from `from` to `to`, or `null` if either is not a date. */
 export function daysBetween(from: string, to: string): number | null {
   const start = Date.parse(`${from.slice(0, 10)}T00:00:00Z`);

@@ -26,6 +26,7 @@ import { componentPlainName } from '@tappet/core/recalls';
 import { MINDEDNESS_LABELS, type Mindedness } from '@tappet/core/vehicle-profile';
 import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { healthVerdict } from '@tappet/core/health-claims';
+import { TIRE_COPY, sinceLabel, tireReading, tireRotationFromRow, tireSetFromRow, type TireRotationRow, type TireSetRow } from '@tappet/core/tires';
 import AlertBanner from '../components/AlertBanner';
 import BackControl from '../components/BackControl';
 import BandRow from '../components/BandRow';
@@ -290,6 +291,25 @@ interface Plate {
 }
 
 /**
+ * The tire row's reading, from the route's rows — through core, so the hub and
+ * the tire screen cannot count differently.
+ */
+function summariseTires(
+  body: { set?: TireSetRow | null; rotations?: TireRotationRow[] },
+  vehicle: { current_mileage?: number | null }
+): NonNullable<HubCounts['tires']> {
+  if (!body.set) return { absent: true, since: null, basis: null, overrun: false };
+  const odometer =
+    typeof vehicle.current_mileage === 'number' && vehicle.current_mileage > 0 ? vehicle.current_mileage : null;
+  const reading = tireReading(
+    tireSetFromRow(body.set),
+    (body.rotations ?? []).map(tireRotationFromRow),
+    odometer
+  );
+  return { absent: false, since: reading.since, basis: reading.sinceBasis, overrun: reading.overrun };
+}
+
+/**
  * What the hub's rows say is behind them.
  *
  * ── ⚠ Every field is nullable, and `null` means "we could not ask" ──────────
@@ -317,6 +337,14 @@ interface HubCounts {
    */
   servicesFiledAt: string | null;
   wishlist: { count: number; total: number } | null;
+  /**
+   * The tire set's reading for its row (20 Sep): miles since the last
+   * rotation (or the install), what that counts from, and whether the set is
+   * past the interval its owner entered. `null` when the request failed or
+   * the tables are not applied yet; `since: null` when there is a set with
+   * nothing to count from; `absent` when the car has no set on record.
+   */
+  tires: { absent: boolean; since: number | null; basis: 'rotation' | 'install' | null; overrun: boolean } | null;
 }
 
 /** One of the owner's answers, as the WHAT YOU TOLD US section rows it: a label and its value in the numeral column. */
@@ -385,6 +413,7 @@ export function VehicleDetailScreen({
   onOpenHealth,
   onOpenMilestone,
   onOpenProfile,
+  onOpenTires,
   onRemove,
   pickPhoto,
 }: {
@@ -420,6 +449,11 @@ export function VehicleDetailScreen({
   onOpenMilestone: () => void;
   /** The owner's four onboarding answers, editable. */
   onOpenProfile: () => void;
+  /**
+   * The tire set — the fourth leaf, v1.1 (20 Sep). Optional so the hub's
+   * suites, which predate it, still mount; the navigator always passes it.
+   */
+  onOpenTires?: () => void;
   /** The removal confirmation (20 Sep). */
   onRemove: () => void;
   /**
@@ -534,7 +568,7 @@ export function VehicleDetailScreen({
           counts beside the hub rows do not change while research runs; the
           poll wants the rows the log reads, which all ride on `load-vehicle`.
         */
-        const [vehicleResult, servicesResult, wishlistResult] = await Promise.allSettled([
+        const [vehicleResult, servicesResult, wishlistResult, tiresResult] = await Promise.allSettled([
           apiRequest<{
             vehicle?: Vehicle;
             health_drivers?: HealthDriver[];
@@ -551,6 +585,12 @@ export function VehicleDetailScreen({
             ? Promise.reject(new Error('lean'))
             : apiRequest<{ wishlistItems?: Array<Record<string, unknown>> }>(
                 `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
+              ),
+          /* The tire set, for its row — subordinate like the other two counts. */
+          lean
+            ? Promise.reject(new Error('lean'))
+            : apiRequest<{ set?: TireSetRow | null; rotations?: TireRotationRow[] }>(
+                `/tires?vehicleId=${encodeURIComponent(vehicleId)}`
               ),
         ]);
 
@@ -575,6 +615,7 @@ export function VehicleDetailScreen({
             wishlistResult.status === 'fulfilled'
               ? summariseWishlist(wishlistResult.value.wishlistItems)
               : null,
+          tires: tiresResult.status === 'fulfilled' ? summariseTires(tiresResult.value, body.vehicle) : null,
         };
         /*
           `health_drivers` is top level rather than folded into `vehicle`,
@@ -1061,6 +1102,20 @@ export function VehicleDetailScreen({
   const historyCount =
     counts.services === null ? null : `${counts.services}`;
 
+  /*
+    The tires row's figure: the reading, in the strip's own format, or nothing.
+    `null` is "we cannot say" and draws no count — a set with no odometer to
+    count to must not read as 0 miles since a rotation.
+  */
+  const tiresCount =
+    counts.tires && counts.tires.since !== null ? `${counts.tires.since.toLocaleString('en-US')} MI` : null;
+  const tiresSpoken = (() => {
+    if (!counts.tires || counts.tires.absent) return 'Tires. No set on record.';
+    if (counts.tires.since === null) return 'Tires.';
+    const label = sinceLabel(counts.tires.basis)?.toLowerCase() ?? 'miles';
+    return `Tires, ${counts.tires.since.toLocaleString('en-US')} ${label}${counts.tires.overrun ? ', past your interval' : ''}.`;
+  })();
+
   const wishlistCount =
     counts.wishlist === null
       ? null
@@ -1522,6 +1577,29 @@ export function VehicleDetailScreen({
           </Binnacle>
 
           {/*
+            ── Tires — the fourth leaf, as a row of the spec table (20 Sep) ─
+
+            Not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96 and the
+            second row already holds three, so a fourth would be under the
+            floor on every phone. A `BandRow` is the system's destination row
+            — the same door WHAT YOU TOLD US uses below — and it carries what
+            is behind it the way the cells do: the miles since the last
+            rotation, and the sodium `△` only when the set is past the
+            interval its owner entered. No set, no reading: the row is the
+            door and nothing else, never a dash.
+          */}
+          <View style={styles.tiresRow}>
+            <BandRow
+              label={TIRE_COPY.tires}
+              count={tiresCount}
+              warning={Boolean(counts.tires?.overrun)}
+              onPress={onOpenTires ?? (() => {})}
+              accessibilityLabel={tiresSpoken}
+              last
+            />
+          </View>
+
+          {/*
             ── The switches ─────────────────────────────────────────────────
 
             Two acts at the panel's foot, and the scan is the one primary.
@@ -1865,6 +1943,8 @@ const styles = StyleSheet.create({
   timing: { fontSize: 15, lineHeight: 20 },
 
   /* ── The switches, and the foot ─────────────────────────────────────── */
+  /* The tire row sits between the readings and the switches, on the page's gutter like the answers below. */
+  tiresRow: { paddingHorizontal: space.lg, marginTop: space.md },
   switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },

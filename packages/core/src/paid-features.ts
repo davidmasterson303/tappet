@@ -91,7 +91,7 @@ export type PaidFeature = 'advisor' | 'invoice-scanning' | 'dossier' | 'recalls'
  * `health-score` is the one entry that calls a model; `PaidFeature` says why
  * it is here and not there.
  */
-export type FreeFeature = 'garage' | 'service-log' | 'mileage' | 'health-score';
+export type FreeFeature = 'garage' | 'service-log' | 'mileage' | 'health-score' | 'tires';
 
 export interface FeatureCopy {
   /** The name on the paywall. Title case, no trailing punctuation. */
@@ -196,6 +196,23 @@ export const FREE_FEATURE_COPY: Record<FreeFeature, FeatureCopy> = {
     label: 'Health score',
     blurb: 'A read on each car from its own records, refreshed as you add to them.',
   },
+  /*
+    ── 20 Sep · the tire tracker, free by the rule above ───────────────────
+
+    David's call, made against the feature's own product case (v1.1 brief):
+    a tire set is a database write plus a notification, and the sentence at
+    the top of this file is the argument — a paid feature that costs nothing
+    to run would be a price rise wearing a feature's clothes. The paid hook
+    is the advisor, already gated: "is this wear pattern normal?" is a model
+    call about one car; "how many miles since the last rotation" is
+    arithmetic. The blurb says what it does and not what a warranty will do —
+    never a claim outcome, Guideline 2.3.1 — and the interval is the owner's,
+    which is why it says "you entered".
+  */
+  tires: {
+    label: 'Tires',
+    blurb: 'Your tire set and its rotations, with a nudge when you are past the interval you entered.',
+  },
 };
 
 const PAID: ReadonlySet<string> = new Set(Object.keys(PAID_FEATURE_COPY));
@@ -219,6 +236,7 @@ export const FREE_FEATURES: readonly FreeFeature[] = [
   'service-log',
   'mileage',
   'health-score',
+  'tires',
 ] as const;
 
 /**
