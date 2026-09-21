@@ -139,8 +139,14 @@ const M235I = {
   */
   vehicle_health_summary: {
     health_score: 70,
+    /*
+      21 Sep: the sentence no longer opens with "Based on your provided
+      service history" — that was the prompt's mandated preamble, on every
+      line of every real car, and the fixture kept rendering it in the design
+      loop after the prompt stopped asking for it (`health-recommendations.ts`).
+    */
     summary:
-      "Based on your provided service history, the vehicle's health is highly uncertain due to a complete lack of documented maintenance.",
+      "With no service records on file, the vehicle's health is highly uncertain — a complete lack of documented maintenance.",
     last_generated: '2026-07-30T01:05:47.583+00:00',
   },
   /*

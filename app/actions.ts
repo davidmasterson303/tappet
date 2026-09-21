@@ -23,6 +23,7 @@ import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONS
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
+import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
 import {
   firstNumber,
@@ -2312,6 +2313,14 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
       recorded, which is the number the score is meant to reflect.
     */
     const documentedWork = lineItems.length;
+    /*
+      Whether there is anything to reason from. Cowork, 21 Sep: with nothing
+      on file the model was asked to frame every recommendation as "based on
+      your provided service history" — including the one asking the owner to
+      upload one. The empty case gets its own sentence, once, and
+      `shapeRecommendations` guarantees the stored shape whatever came back.
+    */
+    const historyOnFile = completedService + pendingService + documentedWork > 0;
 
     const prompt = `You are an expert automotive consultant analyzing a vehicle's health based on the owner's provided service history and uploads.
 
@@ -2360,10 +2369,16 @@ Do not report on recalls. Whether this vehicle's recalls have been checked at
 all is a fact about our lookup, not about the car, and we write that sentence
 ourselves — see \`recall_status\` below. A model-authored "no recalls to date"
 would be rendered verbatim beside a vehicle NHTSA was never asked about.
-- recommendations (array of 2-3 actions based on their provided service history)
+- recommendations (array of 2-3 actions, each a direct imperative)
 
-Important: Frame all recommendations as "based on your provided service history". Only reference issues the owner has documented or common known issues. Leave fields empty/null if no data is available. Do not make assumptions about hidden problems.
-
+Ground every recommendation in the records listed above or in the known issues for this model. Do not recommend anything that presumes a fault nobody has documented. Write each recommendation as a direct imperative. Do not begin recommendations with a shared preamble, and do not restate the basis of the assessment in each one — it is stated once in the summary. Leave fields empty/null if no data is available. Do not make assumptions about hidden problems.
+${
+  historyOnFile
+    ? ''
+    : `
+There is no service history on file at all. Say so once, in the summary. Make the first recommendation exactly: "${NO_HISTORY_RECOMMENDATION}" — and do not cite a history that does not exist in any other recommendation.
+`
+}
 Format as valid JSON only, no markdown.`;
 
     const result = await genAI.models.generateContent({
@@ -2497,7 +2512,7 @@ Format as valid JSON only, no markdown.`;
         */
         summary: summary ?? healthData.summary,
         red_flags: redFlags ?? [],
-        recommendations: recommendations ?? healthData.recommendations,
+        recommendations: shapeRecommendations(recommendations ?? healthData.recommendations, { historyOnFile }),
         maintenance_status: firstString(parsed.maintenanceStatus, parsed.maintenance_status) ?? healthData.maintenance_status,
         /*
           ⚠ The model's `recallStatus` is **not** allowed to overwrite ours.

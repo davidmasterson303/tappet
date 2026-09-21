@@ -14,6 +14,13 @@ build on its own, and together they are worth exactly one.
 | B9 viewfinder + capture haptic — `expo-camera`, `expo-haptics` | `apps/mobile/package.json` | **only once B9 has merged to `main`** |
 | the store adapter — `expo-iap` | `apps/mobile/package.json` | **only once the IAP adapter has merged** |
 | `expo-notifications`, `expo-image-picker`, `expo-font` | already in the last builds | yes |
+| `NSCameraUsageDescription` naming the VIN barcode (the sticker door, 20 Sep) | `app.json` → `ios.infoPlist` | no — a string in the binary; Expo Go shows its own |
+
+⚠ Checked 21 Sep: `eas build:list` for `@masterson303/tappet` is **empty**.
+The 22 Aug device build was the CrewChief slug; nothing has been built for
+Tappet. All three `package.json` lines below print, so the wait is over — the
+build is the next step, and the two 20 Sep features (onboarding, tires) are
+JS and API and ride on it for free.
 
 ⚠ Run it **after** B9 and the adapter are on `main`, not before: a build
 without them is a second build a fortnight later. Check with

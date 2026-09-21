@@ -815,8 +815,9 @@ describe('the hero pullback', () => {
  * contradiction only exists where those two meet.
  */
 describe('the health verdict, against what the screen is holding', () => {
+  // The 23 Aug sentence, less the preamble the prompt used to mandate (21 Sep).
   const STALE_SUMMARY =
-    "Based on your provided service history, the vehicle's health is highly uncertain due to a complete lack of documented maintenance.";
+    "With no service records on file, the vehicle's health is highly uncertain — a complete lack of documented maintenance.";
 
   /** Three requests go out together; each gets the body it would really get. */
   function respondWith({
