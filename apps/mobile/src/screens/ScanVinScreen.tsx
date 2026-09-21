@@ -116,8 +116,8 @@ export function ScanVinScreen({
             </Text>
           ) : null}
           <Text style={styles.caveat}>
-            The white certification label inside the driver's door. The number is read on the phone —
-            nothing is photographed or sent.
+            The white certification label inside the driver's door. Move in until the barcode fills
+            the brackets. The number is read on the phone — nothing is photographed or sent.
           </Text>
         </View>
       }
