@@ -136,6 +136,77 @@
 > phone calls and a row that changes.
 >
 >
+> ### ⚠ 20 Sep 2026, night — adding a car is two screens, and the car identifies itself
+>
+> Cowork's brief (`Claude outputs/ONBOARDING_REDESIGN_2026-09-20.md`): the
+> phone's add form is gone; the first screen is doors and the car reads its
+> own number. **Commit A is on `main` (`3d611c5`)** — JS-only, no route, no
+> build — and its three premises were checked against the artefact first:
+> `vehicles.vin` is nullable and UNIQUE (two dry inserts: `23505` on the
+> duplicate before `23503` on the FK); the research reads `year, make, model`
+> — **trim is not loaded** (`lib/research-job.ts`), so the brief's
+> "year/make/model/trim" overstated it and the argument survives on the
+> strings alone; the research log is live.
+>
+> - **Screen one** (`AddVehicleScreen.tsx`): the web's VIN plate under the
+>   header, then the doors as bands — SCAN THE STICKER and TYPE IT. **No form
+>   field in any state**, asserted by render and by a root source scan with
+>   an anti-vacuous control (`first-run-doors.test.ts`). PHOTOGRAPH A
+>   DOCUMENT lands with `/api/v1/vin-from-image` (§8; Commit B).
+> - **The sticker door** is `Viewfinder` in barcode mode (code39 / code128 /
+>   datamatrix / pdf417; `vinFromBarcode` strips the label's sentinels and
+>   prefers the window whose check digit agrees; one haptic; delivery paused
+>   after a read; the tab bar stands down). **JS-only as far as this machine
+>   can show**: `expo-camera` 57 routes *all* scanning through the optional
+>   `ExpoCameraZXingProvider` pod, which is in Expo Go 57.0.5's binary and
+>   autolinks for EAS. The simulator has no camera — **the first live read is
+>   the phone's, and it has not happened yet.**
+> - **The typed door** is the web's hero field (64pt / 24pt mono, the cyan
+>   ramp a real `progressbar`); "I don't have the VIN" lives here, not on the
+>   doors. **The decode narrates** (`DecodeLog`, `decodeStages`): CHECKING THE
+>   NUMBER → the check-digit verdict / ASKING NHTSA WHAT THAT IS → the car as
+>   one sentence with its engine — every line a completed step, `decodeVin`
+>   now names *which* failure — and the named car is confirmed with THAT'S MY
+>   CAR before it becomes the row's unique key (one line to remove if it
+>   proves a speed bump).
+> - **Screen two** (`OwnerAnswersScreen.tsx`): the car in condensed caps,
+>   build and number in mono, the odometer (the only keyboard), the mods
+>   fork, one chip row — JUST DONE added to `BASELINE_AGE_OPTIONS` (one month,
+>   err old; sends the odometer as the service mileage), 6–12 MO kept because
+>   it is the band an oil change is most likely due in.
+> - **Walked live on a fresh account** (`crewchief.support+vin-onboarding-qe@`,
+>   created and deleted through the admin API, `design-loop/onboarding/
+>   live-run-2026-09-20/`): typed `JH4KA7561PC008269` → "1993 Acura Legend
+>   L, 3.2L V6." → THAT'S MY CAR → 128,500 · JUST DONE → saved. Rows:
+>   `vehicles.vin = JH4KA7561PC008269`, `performance_mindedness mild`,
+>   `vehicle_status null`; the baseline `mileage_at_service 128500`; the
+>   garage read "Engine Oil and Filter Change in 5,000 mi"; the plate drew
+>   and the research completed on the car's page. `ai_usage_events` was
+>   **empty at the save** and held only the research's two rows afterwards —
+>   the door is free, the dossier is metered as it always was. Then the
+>   reviewer's Accord VIN from the same account: **"A car with that VIN is
+>   already in a garage."** on screen two, answers kept, nothing saved (the
+>   22 Aug bounce is closed); a nonsense number: **NOT IDENTIFIED** with the
+>   reason and two ways on; DESCRIBE THE CAR INSTEAD opens the old fields
+>   with the number carried AS READ. Everything reverted.
+> - ⚠ **JUST DONE's date needs a `web-live` promote.** The baseline row came
+>   back `service_date: null`: `isBaselineAge('just-done')` is false on the
+>   deployed API, so it records the mileage and drops the age until the core
+>   change in `3d611c5` is promoted. Graceful, and exactly §8's shape — the
+>   phone ahead of the API. **The promote is David's; Commit B waits on it
+>   anyway.**
+> - ⚠ **Two things eat taps on the simulator MCP tool**: `simctl recordVideo`
+>   and a screenshot burst — every tap sent while either ran was lost, and
+>   taps sent under swap pressure land 5–15 s late (this Mac has 8 GB and was
+>   16 GB into swap with two simulators, a Metro each and the Cowork VM; the
+>   swap is what filled the disk to 43 MiB twice). One tap, a long settle, a
+>   native `simctl io screenshot`, and never `openurl booted` with two
+>   devices up — it picked the other session's target. A scaled MCP
+>   screenshot also rendered the VIN plate as black while the native capture
+>   showed it; verify at native scale before calling a frame blank.
+> - **Not yet:** the sticker read on a phone; the design loop's BRIEF round
+>   (`design-loop/onboarding/`); Commit B.
+>
 > ### 20 Sep 2026, night — the tire tracker (v1.1) is built; the migrations and six calls are David's
 >
 > Cowork's brief (`CLAUDE_CODE_PROMPT_tires_v1.1`, 20 Sep) opened with a gate —
