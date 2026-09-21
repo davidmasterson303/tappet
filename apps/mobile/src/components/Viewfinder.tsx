@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import {
   CameraView,
   useCameraPermissions,

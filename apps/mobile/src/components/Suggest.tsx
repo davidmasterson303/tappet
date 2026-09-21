@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View, type TextInputProps } from 'react-native';
+import { Pressable, StyleSheet, View, type TextInputProps } from 'react-native';
+import Text from './Text';
 
 import Field from './Field';
 import Working from './Working';

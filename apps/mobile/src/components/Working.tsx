@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import Text from './Text';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { R, TRACK, pointAt } from '@tappet/core/cluster-geometry';
 

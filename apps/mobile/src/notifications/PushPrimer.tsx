@@ -1,4 +1,5 @@
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import Button from '../components/Button';
 import { PUSH_PRIMER_COPY } from '@tappet/core/push-priming';

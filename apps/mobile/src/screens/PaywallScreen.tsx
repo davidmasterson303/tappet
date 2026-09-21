@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import AlertBanner, { type AlertTone } from '../components/AlertBanner';
 import Button from '../components/Button';

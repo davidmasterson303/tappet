@@ -5,10 +5,9 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import Text, { TextInput } from '../components/Text';
 
 import { API_BASE_URL } from '../config';
 import Button from '../components/Button';

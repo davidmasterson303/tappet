@@ -1,6 +1,7 @@
 import { NavigationContext } from '@react-navigation/native';
 import { useContext } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Text from './Text';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { space, text, type } from '../theme';

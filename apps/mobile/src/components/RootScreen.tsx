@@ -13,13 +13,13 @@ import {
   Animated,
   Easing,
   StyleSheet,
-  Text,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Text from './Text';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useReducedMotion } from '../motion/reduced-motion';

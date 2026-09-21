@@ -5,10 +5,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import Text, { TextInput } from '../components/Text';
+import type { TextInput as RNTextInput } from 'react-native';
 
 import Button from '../components/Button';
 import CutSurface from '../components/CutSurface';
@@ -66,7 +66,7 @@ export function TypeVinScreen({
 }) {
   const [vin, setVin] = useState('');
   const [focused, setFocused] = useState(false);
-  const input = useRef<TextInput>(null);
+  const input = useRef<RNTextInput>(null);
   const decode = useVinDecode('typed');
 
   /*

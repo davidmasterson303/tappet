@@ -309,3 +309,13 @@ jest.mock('expo-iap', () => {
     __listenerCount: (event) => listeners[event].size,
   };
 });
+
+/*
+  The person's text size, as the runner sees it: the design size. React
+  Native's preset mocks `PixelRatio.getFontScale` to 2, and since 21 Sep the
+  app's own `Text` scales its sizes by that (clamped to 1.35), so every test
+  asserting a `fontSize` would read the scaled figure. The tests describe the
+  design at ×1; `Text.test.tsx` is the one that sets the scale on purpose.
+*/
+const { PixelRatio } = require('react-native');
+PixelRatio.getFontScale = () => 1;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Working from '../components/Working';
