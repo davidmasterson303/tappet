@@ -128,7 +128,8 @@ export default function StripOdometer({
       </View>
 
       {axis ? (
-        <View style={styles.line} onLayout={onLayout} testID="odometer-axis">
+        /* The block reserves the caption's line only when there is a caption to put in it. */
+        <View style={[styles.line, !axis.run && styles.lineUncaptioned]} onLayout={onLayout} testID="odometer-axis">
           {width > 0 ? (
             <>
               <View style={styles.axis} />
@@ -180,6 +181,8 @@ const styles = StyleSheet.create({
   captionValue: { ...type.monoLabel, ...TABULAR, color: text.primary },
   /* The axis block: the float line, the ticks, the line and its one caption. */
   line: { height: CAPTION_TOP + type.mono.lineHeight, marginTop: space.sm },
+  /* No run, no caption: the block ends under the ticks. */
+  lineUncaptioned: { height: TICK_TOP + TICK_HEIGHT },
   /* A drawn instrument line — the hairline token at 1pt, never a word. */
   axis: { position: 'absolute', left: 0, right: 0, top: AXIS_TOP, height: 1, backgroundColor: text.nonText },
   /* The one sodium mark: 2pt, a line and never ink, over the axis so its length reads at the line's own scale. */
