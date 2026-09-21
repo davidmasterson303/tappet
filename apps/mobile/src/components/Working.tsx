@@ -510,7 +510,13 @@ export default function Working({
   value?: string;
   /** Real stages, in order. Omit when the work is one opaque call. */
   stages?: WorkingStage[];
-  variant?: 'full' | 'compact';
+  /**
+   * `ledger` is the receipt without the instrument (21 Sep): the rows and
+   * their answers, no dial, no line — for a wait that is over and has been
+   * folded behind its own heading (`ResearchLog`). Not a progress bar: the
+   * work is done, and it says so as text.
+   */
+  variant?: 'full' | 'compact' | 'ledger';
   /** Hold the sweep on its twelve-o'clock frame. Specimen and screenshots only. */
   frozen?: boolean;
   /**
@@ -536,6 +542,18 @@ export default function Working({
     from assistive technology, and the ledger's rows speak for themselves.
   */
   const announced = [line, value, detail].filter(Boolean).join('. ');
+
+  if (variant === 'ledger') {
+    return (
+      <View style={[styles.ledgerOnly, style]} testID="working-ledger">
+        {stages && stages.length > 0 ? (
+          <Ledger stages={stages} footer={children} />
+        ) : children ? (
+          <Text style={styles.footer}>{children}</Text>
+        ) : null}
+      </View>
+    );
+  }
 
   if (variant === 'compact') {
     return (
@@ -632,6 +650,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.xxl,
     gap: space.xl,
   },
+  ledgerOnly: { paddingBottom: space.lg },
   ruled: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,

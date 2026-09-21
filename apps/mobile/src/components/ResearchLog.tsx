@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import Button from './Button';
+import Icon from './Icon';
 import Working from './Working';
 import { researchStages } from './working-stages';
 import type { ResearchRunner } from './useResearchRunner';
-import { space } from '../theme';
+import { TARGET_MIN, border, space, text, type } from '../theme';
 
 /**
  * The research log — the wait instrument with the car's own facts landing
@@ -52,8 +53,24 @@ import { space } from '../theme';
  * watch a row change. Reduced motion stops the pip and changes nothing
  * else: the information is the text.
  */
+/*
+  ── 21 Sep · once settled, the log folds ────────────────────────────────────
+
+  Seen on the device, the first sticker-scanned car: the research finished
+  and the whole ledger stayed — dial, six lines with their answers, the
+  marginalia — a screen's worth above the car's own page, with nothing to
+  close it. The log is the *wait*; once the work is done its receipt is
+  worth keeping but not worth the fold. So a settled log draws as one row,
+  "Research complete" with a chevron, and opens on a tap to the same
+  ledger. The dial goes with the wait: a full ring after the fact is
+  decoration. A failed run does not fold — the failed line and its retry
+  are the thing that must be seen. And on the next open of the car there
+  is no log at all, because nothing is running (`useResearchRunner`).
+*/
 export default function ResearchLog({ runner, style }: { runner: ResearchRunner; style?: object }) {
   const announced = useRef<Set<string>>(new Set());
+  const [opened, setOpened] = useState(false);
+  const folded = runner.settled && !runner.failed;
 
   useEffect(() => {
     for (const milestone of runner.milestones) {
@@ -65,13 +82,41 @@ export default function ResearchLog({ runner, style }: { runner: ResearchRunner;
     }
   }, [runner.milestones]);
 
+  const steps = runner.milestones.length;
+  const foldRow = folded ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: opened }}
+      accessibilityLabel={`${runner.line}. ${opened ? 'Hide' : 'Show'} the ${steps} steps`}
+      onPress={() => setOpened((o) => !o)}
+      style={styles.fold}
+      testID="research-log-fold"
+    >
+      <Text style={styles.foldLabel}>{runner.line.toUpperCase()}</Text>
+      <View style={styles.foldRight}>
+        <Text style={styles.foldSteps}>{steps} STEPS</Text>
+        <Icon name={opened ? 'chevron-up' : 'chevron-down'} size={16} color={text.muted} />
+      </View>
+    </Pressable>
+  ) : null;
+
+  if (folded && !opened) {
+    return (
+      <View style={[styles.block, style]} testID="research-log">
+        {foldRow}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.block, style]} testID="research-log">
+      {foldRow}
       <Working
         line={runner.line}
         stages={researchStages(runner.milestones)}
         frozen={runner.settled}
         rule={false}
+        variant={folded ? 'ledger' : 'full'}
       >
         {runner.marginalia ?? undefined}
       </Working>
@@ -85,4 +130,17 @@ export default function ResearchLog({ runner, style }: { runner: ResearchRunner;
 const styles = StyleSheet.create({
   block: { gap: space.md },
   retry: { alignSelf: 'flex-start' },
+  fold: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: TARGET_MIN,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: border.panel,
+  },
+  foldLabel: { ...type.label, color: text.secondary },
+  foldRight: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  foldSteps: { ...type.mono, color: text.muted },
 });
