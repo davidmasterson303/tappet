@@ -204,10 +204,12 @@ async function main() {
   }
 
   if (newLines.length > 0) {
+    // PostgREST bulk insert wants every object to carry the same keys (PGRST102).
     const rows = newLines.map((r) => ({
       vehicle_id: V,
       quantity: 1,
       unit_cost: r.parts_cost ?? 0,
+      invoice_url: null,
       ...r,
       source_document_id: r.source === 'vision' ? docId : null,
     }));
