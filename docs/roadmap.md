@@ -135,6 +135,67 @@
 > — the web has `deleteVehicle`). Everything else on the list has a route the
 > phone calls and a row that changes.
 >
+>
+> ### 20 Sep 2026, night — the tire tracker (v1.1) is built; the migrations and six calls are David's
+>
+> Cowork's brief (`CLAUDE_CODE_PROMPT_tires_v1.1`, 20 Sep) opened with a gate —
+> *do not start before submission* — and David, told the gate was closed,
+> said build it. Built and committed in one commit, `014e268` (42 files),
+> against the graded frames in `design-loop/tires/` (8/10, round 4). ⚠ That
+> folder is **gitignored** (`.gitignore:92`, deliberately — the loop's PNGs
+> must not ship in the EAS upload), so the brief's "committed alongside this
+> file" is not true: the specification lives on this disk and in the Cowork
+> project only. Back it up there before it goes stale.
+>
+> - **Core** — `packages/core/src/tires.ts`: every figure on either screen
+>   and the axis it is drawn on derive from one object; `tires.test.ts`
+>   carries the axis ratchet (interval 7,000 moves the run *and* the
+>   caption; the round-2 failure is reconstructed so the proof has failed
+>   once). The interval is asked, never assumed — no default anywhere
+>   (`service-due.ts`'s argument, applied). `FREE_FEATURES` gains `'tires'`;
+>   the upsell sentence now reads *"…mileage tracking, health score and tires
+>   stay free"* because it is derived, and the two suites that pin the list
+>   moved with it.
+> - **Schema** — ⛔ **`20260920200000` and `20260920200100` are written and
+>   NOT applied** (probed: `PGRST205` on both tables, 20 Sep). Yours, in the
+>   SQL editor; `check-migrations.mjs --pending` lists exactly these two.
+>   Until then every tire route answers a named **503 `tires-unavailable`**,
+>   the phone and the web say "Tire records are not switched on yet" with no
+>   retry, the hub's TIRES door draws no figure, and the sweep logs **one**
+>   warning a night and skips the tire half. Nothing else is affected.
+> - **Sweep** — the third notification kind, in the existing
+>   `notify-sweep` with the shared cap and cooldown. Fires only when the
+>   *owner* entered the interval and the set is past it; stamps
+>   `tire_sets.rotation_notified_at`. The sentence is the brief's, verbatim,
+>   and it branches honestly for a set that has never been rotated.
+> - **Phone** — `Tires` under the car (hub row between the readings and the
+>   switches, not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96). Plate
+>   268, strip, title, `StripOdometer`, record rows with provenance marks,
+>   the staggered consequences, three entry screens, deep link
+>   `vehicle/:vehicleId/tires` held by `push-notification-links.test.ts`.
+>   `StripOdometer.test.tsx` proves the ratchet on rendered geometry —
+>   78.83pt, the critic's number. **Web**: `/tires/[vehicleId]` from the
+>   dashboard's rail (`DashboardNextSteps`), off-nav like Vehicle Info,
+>   protected in `PROTECTED_ROUTES` and the middleware matcher.
+> - ⚠ **Not yet seen on a device.** The disk filled twice during the build
+>   (the Cowork VM bundle and OS-update snapshots — not the simulators) and
+>   the 16 Pro Max was the onboarding session's, so the composition has been
+>   proven by tests and never photographed. The brief's own warning stands:
+>   *shoot it once with a real graded plate before you trust the balance* —
+>   `EXPO_PUBLIC_DESIGN_FIXTURES=1` serves the worked dataset on the M235i
+>   (`=interval` and `=tires` in `EXPO_PUBLIC_DESIGN_EMPTY` for the other two
+>   states).
+> - **Order of operations, unchanged by any of this:** apply the migrations →
+>   `promote-web` (the phone's `/api/v1/tires` must be live before a build
+>   calls it, CLAUDE.md §8) → `promote-demo`. No build is spent: everything
+>   here is JS.
+> - **Still David's, and deliberately not resolved by a default** (the
+>   brief's list, unchanged): `01` is a rank that renumbers on every add;
+>   `OFTEN HALVED` vs the sourced figure; a maximum length for `place` at
+>   entry; a visible "fitment checked" line; a legend for the three marks
+>   (the row's spoken label carries it meanwhile); *since* vs *past* for the
+>   11,400. Each is one function and its test.
+>
 > ### ⚠ 20 Sep 2026, evening — every QE finding fixed, and proven on the host
 >
 > - **§1 and §2 of the QE report, all of it, on `main` and on `web-live`
