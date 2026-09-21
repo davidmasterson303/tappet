@@ -101,7 +101,8 @@ export function AccountScreen({
   const [subscription, setSubscription] = useState<AccountSubscription | null>(null);
 
   const confirmed = isDeletionConfirmed(confirmText);
-  const notice = subscriptionNotice(subscribed);
+  // Live and billed by Apple — a comped grant has nothing to cancel (21 Sep).
+  const notice = subscriptionNotice(subscribed && (subscription?.billedByApple ?? true));
   const standing = subscription ? subscriptionStatusLine(subscription) : null;
 
   /*

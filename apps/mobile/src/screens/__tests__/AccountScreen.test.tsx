@@ -357,6 +357,26 @@ describe('the subscription warning — Guideline 3.1.2 / E5', () => {
     expect(mockDelete).toHaveBeenCalledTimes(1);
   });
 
+  it('says nothing about Apple on a comped grant — the App Review account (21 Sep)', async () => {
+    /*
+      The reviewer's entitlement is a hand-written row with no transaction.
+      "Your subscription is billed by Apple, cancel it first" on that account
+      is false on the screen Apple reads most carefully.
+    */
+    mockSubscription.mockResolvedValue({ live: true, certain: true, billedByApple: false, until: null, renews: null });
+    const { view } = mount({ onSubscribe: jest.fn() });
+    const resolved = await view;
+    await resolved.findByText('Active');
+    expect(resolved.queryByText(/does not cancel your subscription/i)).toBeNull();
+  });
+
+  it('keeps the warning when an older API does not say who bills', async () => {
+    mockSubscription.mockResolvedValue({ live: true, certain: true });
+    const { view } = mount();
+    const resolved = await view;
+    expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
+  });
+
   it('does not block deletion when the subscription read fails', async () => {
     /*
       The screen's job is deletion. A secondary read that fails must not take
