@@ -1627,6 +1627,46 @@ describe('the hub under three lenses (22 Sep)', () => {
     }
   });
 
+  it('bands a reading on a thin file as a thin history, not as a verdict on the car (22 Sep)', async () => {
+    /*
+      The reviewer's F-PACE: one record in 69,573 miles, read at 55, and the
+      dial said NEEDS ATTENTION in sodium — a verdict on the car where what
+      the app has is almost nothing to judge from. David's ruling. The score
+      is untouched; the word under it names the file.
+    */
+    const withRecords = (count: number) =>
+      request.mockImplementation((path: string) => {
+        if (path.startsWith('/load-maintenance-data')) {
+          return Promise.resolve({
+            maintenanceLineItems: Array.from({ length: count }, (_, i) => ({
+              id: String(i),
+              created_at: '2020-01-01T00:00:00Z',
+            })),
+          }) as never;
+        }
+        if (path.startsWith('/wishlist') || path.startsWith('/tires')) return Promise.resolve({}) as never;
+        return Promise.resolve({
+          vehicle: {
+            id: 'v1',
+            year: 2018,
+            make: 'Honda',
+            model: 'Accord',
+            vehicle_health_summary: { health_score: 55, summary: 'Fair.', last_generated: '2026-09-01T00:00:00Z' },
+          },
+        }) as never;
+      });
+
+    withRecords(1);
+    const { view } = await mount();
+    const thin = await view.findByLabelText(/^Health score 55 out of 100 — Thin history\./);
+    expect(within(thin).queryByText(/Attention/i)).toBeNull();
+
+    // Three records and the same score bands normally, so the case above means something.
+    withRecords(3);
+    const judged = await mount();
+    await judged.view.findByLabelText(/^Health score 55 out of 100 — Needs attention\./);
+  });
+
   it('makes the odometer’s note the ask once the reading is over a month old, and only then (22 Sep)', async () => {
     /*
       "in 4,500 mi" is counted from a reading, never from a guess; the value

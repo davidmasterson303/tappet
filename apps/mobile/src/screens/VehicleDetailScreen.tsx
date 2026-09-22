@@ -58,7 +58,7 @@ import {
 import Svg, { Line, Path } from 'react-native-svg';
 import { CONTROL_HEIGHT, TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
-import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { bandForReading, healthBandHex } from '@tappet/core/health-band';
 import type { ResearchObservation } from '@tappet/core/research-milestones';
 import ResearchLog from '../components/ResearchLog';
 import Seat from '../components/Seat';
@@ -838,7 +838,15 @@ export function VehicleDetailScreen({
 
   const health = first(vehicle.vehicle_health_summary);
   const score = typeof health?.health_score === 'number' ? health.health_score : null;
-  const band = score === null ? null : getHealthBandJudgement(score);
+  /*
+    ⚠ 22 Sep · banded against the file, not the score alone. The F-PACE's one
+    record in 69,573 miles read 55 and said NEEDS ATTENTION in sodium — a
+    verdict on the car, where what the app has is almost nothing to judge from
+    (David's ruling; `bandForReading` in core carries it). `counts.services`
+    is `null` while the count has not arrived, and then the ordinary band
+    stands: a missing count may not suppress a warning.
+  */
+  const band = score === null ? null : bandForReading(score, counts.services);
 
   /*
     ── The identity line, which is where the odometer belongs ────────────────
@@ -1574,6 +1582,7 @@ export function VehicleDetailScreen({
                         variant="card"
                         size={CELL_DIAL}
                         score={score}
+                        records={counts.services}
                       />
                     </View>
                     <View style={styles.healthText}>

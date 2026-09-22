@@ -1,4 +1,11 @@
-import { normaliseRecalls, type NormalisedRecall } from '@tappet/core/recalls';
+/**
+ * ⚠ `openRecalls` moved into `@tappet/core/recalls` on 22 Sep and is
+ * re-exported here so this file stays the phone's one import for the verdict's
+ * inputs. It moved because the **score** needed it: `recallDriver` counted
+ * every campaign on record while this counted the open ones, so marking a
+ * recall repaired moved the hub's cell and not the dial.
+ */
+export { openRecalls } from '@tappet/core/recalls';
 
 /**
  * The two inputs `healthVerdict` needs that the vehicle payload does not hand
@@ -50,29 +57,4 @@ export function newestFiledAt(items: Array<{ created_at?: string | null }>): str
   }
 
   return newest;
-}
-
-/**
- * The recalls still standing against a car — every campaign on its NHTSA
- * record that the owner has not marked repaired.
- *
- * Open is not the same number as recalls: a campaign the owner has marked
- * repaired is no longer counted, and that is the point of the whole recall
- * change — a badge that can never go down stops being read.
- *
- * ⚠ A missing or malformed `recall_actions` embed means **nothing is treated
- * as marked**. Erring the other way would hide an open safety notice on the
- * strength of a field that failed to arrive.
- */
-export function openRecalls(
-  rawRecalls: unknown,
-  actions: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null | undefined
-): NormalisedRecall[] {
-  const all = normaliseRecalls(rawRecalls);
-  const marked = new Set(
-    (actions ?? []).flatMap((action) =>
-      typeof action?.campaign_number === 'string' ? [action.campaign_number] : []
-    )
-  );
-  return all.filter((recall) => !recall.campaignNumber || !marked.has(recall.campaignNumber));
 }

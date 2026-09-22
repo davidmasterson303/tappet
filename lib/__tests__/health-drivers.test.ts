@@ -174,7 +174,7 @@ describe('recallDriver', () => {
     const driver = recallDriver([]);
 
     expect(driver.score).toBe(100);
-    expect(driver.detail).toBe('No recalls on record.');
+    expect(driver.detail).toBe('No open recalls on record.');
   });
 
   it('charges the first recall most', () => {
@@ -213,11 +213,41 @@ describe('recallDriver', () => {
     expect(driver.detail).not.toMatch(/do-not-drive/);
   });
 
-  it('says "on record" rather than "open", because completion is not tracked', () => {
-    // A recall the owner had fixed last year still counts. Conservative in the
-    // right direction, but the wording must not overclaim.
-    expect(recallDriver([recall()]).detail).toMatch(/on record/);
-    expect(recallDriver([recall()]).detail).not.toMatch(/\bopen\b/i);
+  it('counts what the owner has not marked repaired, and says "open" because it can (22 Sep)', () => {
+    /*
+      Until today this counted every campaign on record while the hub's cell
+      counted the open ones: marking five repaired moved the cell from 24 to
+      19 and left the dial where it was, under a sentence blaming the recalls
+      for it. David: *"a recall should improve a score once fixed."* So the
+      driver subtracts the marks, and only then may the wording say "open".
+    */
+    const two = [recall({ NHTSACampaignNumber: '21V123' }), recall({ NHTSACampaignNumber: '22V456' })];
+    const marked = [{ campaign_number: '21V123' }];
+
+    expect(recallDriver(two).detail).toBe('2 open recalls on record.');
+    expect(recallDriver(two, marked).detail).toBe('1 open recall on record.');
+    expect(recallDriver(two, marked).score!).toBeGreaterThan(recallDriver(two).score!);
+
+    // Every campaign marked is nothing outstanding, and it scores as such.
+    const all = [{ campaign_number: '21V123' }, { campaign_number: '22V456' }];
+    expect(recallDriver(two, all)).toMatchObject({ score: 100, nothingOutstanding: true });
+    expect(recallDriver(two, all).detail).toBe('No open recalls on record.');
+  });
+
+  it('treats a missing or malformed marks embed as nothing marked, never as cleared', () => {
+    /*
+      ⚠ The direction to be wrong in. A `recall_actions` read that failed must
+      not clear a safety notice; it must leave every campaign standing.
+    */
+    const one = [recall()];
+    const open = recallDriver(one).score;
+
+    expect(recallDriver(one, undefined).score).toBe(open);
+    expect(recallDriver(one, null).score).toBe(open);
+    expect(recallDriver(one, []).score).toBe(open);
+    expect(recallDriver(one, [null, { campaign_number: 42 } as never]).score).toBe(open);
+    // And the mark that does match still counts, so the cases above mean something.
+    expect(recallDriver(one, [{ campaign_number: '21V123' }]).score).toBe(100);
   });
 });
 
@@ -413,8 +443,8 @@ describe('the cause beside the verdict', () => {
 
   it('phrases recalls as the model\'s, never this car\'s', () => {
     const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
-    const driver = recallDriver([recall, recall]);
-    expect(driver.cause).toBe('2 recalls for this model');
+    const driver = recallDriver([recall, { ...recall, NHTSACampaignNumber: '22V456' }]);
+    expect(driver.cause).toBe('2 open recalls for this model');
     expect(driver.act).toBe('review them');
     expect(recallDriver([]).cause).toBeUndefined();
     expect(recallDriver(null).cause).toBeUndefined();

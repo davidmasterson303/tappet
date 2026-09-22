@@ -12,7 +12,7 @@ import {
   angleFor,
   pointAt,
 } from '@tappet/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { bandForReading, healthBandHex } from '@tappet/core/health-band';
 
 import { DIAL_MIN, TABULAR, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -181,6 +181,7 @@ export default function ClusterGauge({
   variant = 'hero',
   size,
   active = true,
+  records = null,
 }: {
   score: number;
   /**
@@ -193,8 +194,18 @@ export default function ClusterGauge({
   size?: number;
   /** Hold the sweep until the caller's own reveal has finished. */
   active?: boolean;
+  /**
+   * How many service records the car has, when the caller knows (22 Sep).
+   *
+   * Under `CONFIDENT_RECORDS` the state word names the **file** rather than
+   * judging the car — a 55 on one record said NEEDS ATTENTION in sodium about
+   * a vehicle the app has almost nothing on. `null` means the caller does not
+   * know, and then the ordinary band stands: a failed count must never
+   * suppress a real warning. `bandForReading` in core carries the argument.
+   */
+  records?: number | null;
 }) {
-  const band = getHealthBandJudgement(score);
+  const band = bandForReading(score, records);
   const colour = healthBandHex(band);
   /*
     ── ⚠ 6 Sep · B3 and B7: the arc is off-white unless something is wrong ────

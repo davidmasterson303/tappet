@@ -337,6 +337,19 @@ export async function GET(request: NextRequest): Promise<Response> {
         make.
       */
       recalls: embedded<{ recalls?: unknown }>(vehicle.nhtsa_data)?.recalls,
+      /*
+        ⚠ 22 Sep · the marks reach the score. They already travelled on this
+        response for the hub's open count (the rule at the top of this file);
+        the drivers counted every campaign on record, so an owner who marked
+        five repaired watched the cell fall and the dial hold still under a
+        sentence blaming the recalls. `recallDriver` subtracts them now.
+
+        A failed or absent embed arrives as `undefined`, which `openRecalls`
+        reads as "nothing marked" — never as "cleared".
+      */
+      recallActions: Array.isArray(vehicle.recall_actions)
+        ? (vehicle.recall_actions as Array<{ campaign_number?: unknown }>)
+        : null,
       currentMileage: vehicle.current_mileage as number | null,
       year: vehicle.year as number | null,
     });

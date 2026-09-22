@@ -18,7 +18,7 @@ import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
-import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { bandForReading } from '@tappet/core/health-band';
 import { healthVerdict } from '@tappet/core/health-claims';
 import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { space, text, type } from '../theme';
@@ -108,6 +108,13 @@ type State =
        * staleness otherwise, and the inputs the reading was worked out from.
        */
       verdict: ReturnType<typeof healthVerdict>;
+      /**
+       * How many service records are filed, or `null` while the read failed.
+       * The band is drawn against it (22 Sep): under three records the word
+       * names the file rather than judging the car, and the hub's dial one
+       * tap away must not say something different about the same number.
+       */
+      records: number | null;
       drivers: HealthDriver[];
       history: HealthReading[];
     };
@@ -197,6 +204,7 @@ export function HealthScreen({
             'this car',
           score: typeof health?.health_score === 'number' ? health.health_score : null,
           verdict,
+          records: filedItems === null ? null : filedItems.length,
           drivers: Array.isArray(data.health_drivers) ? data.health_drivers : [],
           history: Array.isArray(data.health_history) ? data.health_history : [],
         });
@@ -291,7 +299,7 @@ export function HealthScreen({
     );
   }
 
-  const band = state.score === null ? null : getHealthBandJudgement(state.score);
+  const band = state.score === null ? null : bandForReading(state.score, state.records);
 
   return (
     <ScrollView
@@ -336,7 +344,7 @@ export function HealthScreen({
               garage's, on the one screen that exists to explain the score.
               One dial, one size; the garage's constant, not a second copy.
             */}
-            <ClusterGauge score={state.score} size={BAY_DIAL} />
+            <ClusterGauge score={state.score} size={BAY_DIAL} records={state.records} />
             {/*
               `verdict.text`, never the stored summary — the same rule as the
               vehicle screen, which this screen used to break one tap away
