@@ -50,6 +50,14 @@ export type Stat = {
    * fact that goes stale monthly; UX U6). The press is the caller's.
    */
   door?: boolean;
+  /**
+   * The value in the absent ink — an ask standing where a fact would (22 Sep:
+   * "Tell us" under USE while the owner has not said how they use the car).
+   * The cell is not dropped, because this is not a reading we lack; it is a
+   * question the page has, and dropping it hid the question (IA's round-6
+   * parking lot: *"the only empty on the page that does not invite"*).
+   */
+  muted?: boolean;
 };
 
 export default function StatStrip({ stats }: { stats: Stat[] }) {
@@ -63,7 +71,7 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
             {stat.label}
           </Text>
           {/* A value wraps rather than losing its end once the text is larger (21 Sep: "Daily Dri…"). */}
-          <Text style={styles.value} numberOfLines={typeScale() > 1 ? 2 : 1}>
+          <Text style={[styles.value, stat.muted && styles.valueMuted]} numberOfLines={typeScale() > 1 ? 2 : 1}>
             {stat.value}
           </Text>
           {stat.note ? (
@@ -116,6 +124,7 @@ const styles = StyleSheet.create({
   */
   label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
   value: { ...type.mono, color: text.primary, ...TABULAR },
+  valueMuted: { color: text.muted },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */
   note: { ...type.monoLabel, color: text.muted, ...TABULAR, flexShrink: 1 },

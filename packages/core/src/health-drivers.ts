@@ -1,6 +1,6 @@
 import { evaluateSchedule, type DueStatus, type ServiceDue } from './service-due';
 import { historyLookups, type ServiceHistoryRow } from './service-history';
-import { normaliseRecalls, worstSeverity, type NormalisedRecall } from './recalls';
+import { openRecalls, worstSeverity, type NormalisedRecall } from './recalls';
 
 /**
  * What the health score is made of — the three drivers.
@@ -312,13 +312,24 @@ const CEILING: Record<string, number> = { 'do-not-drive': 5, 'park-outside': 25 
 /**
  * Open recalls against this vehicle.
  *
- * ⚠ **The product does not track recall completion**, so a recall the owner had
- * fixed last year still counts here. That is the conservative direction to be
- * wrong in — overstating a safety issue costs a wasted phone call to a dealer,
- * understating it costs the thing the recall was issued for — but it is a real
- * limitation and `detail` says "on record" rather than "open" because of it.
+ * ⚠ **NHTSA does not tell us a car was fixed** — it does not know, and recalls
+ * match on year/make/model, not VIN (§10). What closes a campaign here is the
+ * owner marking it repaired, which is their claim and is stored as one.
+ *
+ * ⚠ 22 Sep · **the marks count.** Until today this counted every campaign on
+ * record while the hub's cell counted the open ones, so marking five repaired
+ * moved the cell from 24 to 19 and left the dial where it was — under a
+ * sentence blaming the recalls for it. David: *"a recall should improve a
+ * score once fixed AND go into history."* Both halves shipped together: the
+ * mark now also files a service record (`api/v1/recalls`). An absent embed
+ * means nothing is marked (`openRecalls`), which keeps a failed read from
+ * clearing a safety notice.
  */
-export function recallDriver(raw: unknown): HealthDriver {
+export function recallDriver(
+  raw: unknown,
+  /** `recall_actions` rows — what the owner has told us they had done. */
+  actions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null
+): HealthDriver {
   const label = 'Recalls';
 
   /*
@@ -336,14 +347,19 @@ export function recallDriver(raw: unknown): HealthDriver {
     };
   }
 
-  const recalls: NormalisedRecall[] = normaliseRecalls(raw);
+  const recalls: NormalisedRecall[] = openRecalls(raw, actions);
 
   if (recalls.length === 0) {
+    /*
+      Every campaign either absent or marked repaired. The detail does not say
+      which, because the two are the same claim from this function's side: as
+      far as the owner has told us, nothing is outstanding.
+    */
     return {
       key: 'recalls',
       label,
       score: 100,
-      detail: 'No recalls on record.',
+      detail: 'No open recalls on record.',
       nothingOutstanding: true,
     };
   }
@@ -354,15 +370,15 @@ export function recallDriver(raw: unknown): HealthDriver {
 
   const score = clamp(ceiling === undefined ? 100 - penalty : Math.min(100 - penalty, ceiling));
 
-  let detail = `${plural(recalls.length, 'recall')} on record.`;
+  let detail = `${plural(recalls.length, 'open recall')} on record.`;
   if (worst === 'do-not-drive') detail += ' One is a do-not-drive.';
   else if (worst === 'park-outside') detail += ' One says park outside.';
   /*
-    The reason: campaigns for this model, never this VIN (§10). The hub
-    prints its own open count in place of this phrase — open minus what the
-    owner has marked — so one number means one thing on one screen.
+    The reason: campaigns for this model, never this VIN (§10). It is the same
+    number the hub's cell prints — both count what the owner has not marked —
+    so one number means one thing wherever it appears.
   */
-  const cause = `${plural(recalls.length, 'recall')} for this model`;
+  const cause = `${plural(recalls.length, 'open recall')} for this model`;
   const act = 'review them';
 
   return { key: 'recalls', label, score, detail, cause, act };
@@ -452,13 +468,15 @@ export function healthDrivers(params: {
   services: ServiceDue[];
   /** Raw `nhtsa_data.recalls`. Pass `null`/`undefined` when it was never fetched. */
   recalls: unknown;
+  /** `recall_actions` rows. Absent means nothing is marked, never "cleared". */
+  recallActions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null;
   currentMileage?: number | null;
   year?: number | null;
   today?: string;
 }): HealthDriver[] {
   return [
     maintenanceDriver(params.services),
-    recallDriver(params.recalls),
+    recallDriver(params.recalls, params.recallActions),
     mileageLoadDriver({
       currentMileage: params.currentMileage,
       year: params.year,
@@ -506,6 +524,12 @@ export function driversForVehicle(params: {
    * and they must not be collapsed.
    */
   recalls: unknown;
+  /**
+   * `recall_actions` rows for this vehicle — the campaigns the owner has said
+   * they had done (22 Sep). Absent means nothing is marked; a read that failed
+   * must never arrive here as "cleared".
+   */
+  recallActions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null;
   currentMileage?: number | null;
   year?: number | null;
   today?: string;
@@ -528,6 +552,7 @@ export function driversForVehicle(params: {
   return healthDrivers({
     services,
     recalls: params.recalls,
+    recallActions: params.recallActions,
     currentMileage: params.currentMileage,
     year: params.year,
     today: params.today,

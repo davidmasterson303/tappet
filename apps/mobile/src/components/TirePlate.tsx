@@ -4,7 +4,6 @@ import Svg, { Path } from 'react-native-svg';
 
 import { cornerCovers } from './CutSurface';
 import NightPlate from './NightPlate';
-import PhotoGrade from './PhotoGrade';
 import { cut, surface } from '../theme';
 
 /**
@@ -12,12 +11,13 @@ import { cut, surface } from '../theme';
  *
  * ── Whose photograph a tire set's plate carries ─────────────────────────────
  *
- * The **vehicle's**: the owner's photograph through the house grade, else the
- * car's generation plate, else the night street — exactly what the hub draws
- * over the same car, read off the same `photo_url` / `photo_kind` the vehicle
- * route already serves. `isOwnerPhoto` in `VehicleDetailScreen` carries the
- * rule for when the grade applies (only the owner's picture; a plate is
- * already the film, and grading it again lifts its blacks twice).
+ * The **vehicle's**: the owner's photograph as they shot it, else the car's
+ * generation plate, else the night street — exactly what the hub draws over
+ * the same car, read off the same `photo_url` the vehicle route serves.
+ * Until 22 Sep the owner's picture passed through a house grade here and on
+ * the hub; David, shown a daylight snapshot under it: *"I hate the new image
+ * style … let owners add their images if they prefer to our plate."* The
+ * plate is the house film; a photograph is the owner's.
  *
  * ── 268pt, on every screen in this feature ──────────────────────────────────
  *
@@ -49,12 +49,9 @@ export const PLATE_HEIGHT = 268;
 
 export default function TirePlate({
   photo,
-  graded,
 }: {
   /** Signed URL of the owner's photo or the generation plate, or null for the night street. */
   photo: string | null;
-  /** Whether `photo` is the owner's, and so passes through the house grade. */
-  graded: boolean;
 }) {
   const [width, setWidth] = useState(0);
 
@@ -72,10 +69,7 @@ export default function TirePlate({
       testID="tire-plate"
     >
       {photo ? (
-        <>
-          <Image source={{ uri: photo }} style={styles.image} resizeMode="cover" />
-          {graded ? <PhotoGrade /> : null}
-        </>
+        <Image source={{ uri: photo }} style={styles.image} resizeMode="cover" />
       ) : (
         <NightPlate />
       )}

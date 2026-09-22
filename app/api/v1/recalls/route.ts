@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { logger } from '@tappet/core/logger';
+import { normaliseRecalls, recallRecordDescription } from '@tappet/core/recalls';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
@@ -47,6 +48,35 @@ export const dynamic = 'force-dynamic';
  *   - The recall itself is never deleted or hidden by this route. It returns
  *     *what has been marked*; deciding that a marked recall drops out of the
  *     open count is the client's business, and the notice stays readable.
+ *
+ * ── ⚠ 22 Sep · a mark files a service record, and an undo takes it back ────
+ *
+ * David: *"a recall should improve a score once fixed AND go into history."*
+ * The score half is `recallDriver`, which subtracts marked campaigns as of
+ * 22 Sep. This half is here: a mark writes one `maintenance_line_items` row —
+ * the work was done on the car, and a score that rises with nothing in the
+ * record to show for it is a rise an owner cannot check.
+ *
+ * Three decisions the row's shape carries:
+ *
+ *   - `source: 'manual'` — "a person in the app said this happened", the value
+ *     `wishlist/complete` files a completion under. Not a new `'recall'`
+ *     source: `maintenance_line_items_source_check` permits four values and a
+ *     fifth is a migration, which is David's (probed 22 Sep — a `'recall'`
+ *     insert is refused `23514`, `'manual'` walks every constraint and fails
+ *     last on the FK).
+ *   - **No cost and no shop.** Nobody told us either. A recall repair is free
+ *     at a franchised dealer, but that is a fact about the campaign and not
+ *     about this visit, and `0` would print as a price (§10). Both columns
+ *     take null; the history screen omits what is absent.
+ *   - The campaign number is **in the description** (`recallRecordDescription`
+ *     in core), because there is no campaign column and the undo has to find
+ *     this row again. One function writes it so the two halves cannot drift.
+ *
+ * ⚠ **The record is not the mark.** If the insert fails the mark still stands:
+ * the safety claim is the thing being stored, and refusing it because a
+ * history row could not be written would lose the more important half. The
+ * failure is logged and the response says whether the record landed.
  *
  * ── The shape, and why GET returns a list rather than a count ───────────────
  *
@@ -201,7 +231,86 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   logger.info('RECALLS_API:MARKED', 'Recall marked as repaired by its owner', { vehicleId });
 
-  return NextResponse.json({ addressed: { campaignNumber, addressedAt } });
+  const recorded = await fileRecallRecord(vehicleId as string, campaignNumber, addressedAt);
+
+  return NextResponse.json({ addressed: { campaignNumber, addressedAt }, recorded });
+}
+
+/**
+ * The description this vehicle's row for a campaign carries — written once,
+ * read by the insert and by the undo, from our own NHTSA row.
+ *
+ * ⚠ The component name comes from **our** `nhtsa_data`, never the request: a
+ * client sends a campaign number and nothing else, and a description taken
+ * from a body would be free text written into the service history. A car
+ * whose NHTSA row is missing gets the number alone, which is true.
+ */
+async function describeRecallRecord(vehicleId: string, campaignNumber: string): Promise<string> {
+  const { data } = await getServiceRoleClient()
+    .from('nhtsa_data')
+    .select('recalls')
+    .eq('vehicle_id', vehicleId)
+    .maybeSingle();
+
+  const match = normaliseRecalls((data as { recalls?: unknown } | null)?.recalls).find(
+    (recall) => recall.campaignNumber === campaignNumber
+  );
+
+  return recallRecordDescription(campaignNumber, match?.component);
+}
+
+/**
+ * File the service record for a marked campaign. Returns whether it landed.
+ *
+ * ⚠ Never throws and never fails the mark — see the header.
+ *
+ * Idempotent with the upsert above it: marking a campaign twice must not file
+ * the record twice, so it looks for its own row first. The description is the
+ * key, which is what makes that lookup possible at all.
+ */
+async function fileRecallRecord(
+  vehicleId: string,
+  campaignNumber: string,
+  addressedAt: string
+): Promise<boolean> {
+  try {
+    const client = getServiceRoleClient();
+    const description = await describeRecallRecord(vehicleId, campaignNumber);
+
+    const { data: existing } = await client
+      .from('maintenance_line_items')
+      .select('id')
+      .eq('vehicle_id', vehicleId)
+      .eq('item_description', description)
+      .limit(1);
+
+    if (Array.isArray(existing) && existing.length > 0) return true;
+
+    const { error } = await client.from('maintenance_line_items').insert({
+      vehicle_id: vehicleId,
+      service_date: addressedAt,
+      item_description: description,
+      category: 'other',
+      quantity: 1,
+      /* Nobody told us either of these, and a 0 prints as a price (§10). */
+      shop_name: null,
+      total_cost: null,
+      unit_cost: null,
+      mileage_at_service: null,
+      notes: 'Marked repaired by the owner. Recalls are matched on year, make and model, not this VIN.',
+      source: 'manual',
+    });
+
+    if (error) {
+      logger.error('RECALLS_API:RECORD', new Error(error.message), { vehicleId, campaignNumber });
+      return false;
+    }
+
+    return true;
+  } catch (cause) {
+    logger.error('RECALLS_API:RECORD', cause as Error, { vehicleId, campaignNumber });
+    return false;
+  }
 }
 
 /**
@@ -235,6 +344,37 @@ export async function DELETE(request: NextRequest): Promise<Response> {
   if (error) {
     logger.error('RECALLS_API:DELETE', new Error(error.message), { vehicleId });
     return NextResponse.json({ error: 'Could not undo that' }, { status: 500 });
+  }
+
+  /*
+    ⚠ And the record the mark filed goes with it (22 Sep). A withdrawn claim
+    that leaves a service record behind is worse than never filing one: the
+    history would carry a repair the owner has just said did not happen, and
+    the score would keep the credit for it.
+
+    Both spellings are removed — the number alone and the number with its
+    component — because the row may have been filed while our NHTSA read was
+    missing and the component named later. A row an owner typed themselves
+    cannot collide: the description is generated and nothing in the app types
+    one.
+  */
+  try {
+    const described = await describeRecallRecord(vehicleId as string, campaignNumber);
+    /* Two spellings at most, and `Set` cannot be spread at this target. */
+    const bare = recallRecordDescription(campaignNumber);
+    const descriptions = described === bare ? [bare] : [described, bare];
+
+    const { error: recordError } = await getServiceRoleClient()
+      .from('maintenance_line_items')
+      .delete()
+      .eq('vehicle_id', vehicleId as string)
+      .in('item_description', descriptions);
+
+    if (recordError) {
+      logger.error('RECALLS_API:RECORD_UNDO', new Error(recordError.message), { vehicleId, campaignNumber });
+    }
+  } catch (cause) {
+    logger.error('RECALLS_API:RECORD_UNDO', cause as Error, { vehicleId, campaignNumber });
   }
 
   return NextResponse.json({ removed: campaignNumber });

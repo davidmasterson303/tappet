@@ -272,6 +272,42 @@ export function normaliseRecalls(raw: unknown): NormalisedRecall[] {
  * empty remedy section reads as "nobody knows how to fix this", which is a
  * worse claim than saying nothing.
  */
+/**
+ * The recalls still standing against a car — every campaign on its NHTSA
+ * record that the owner has not marked repaired.
+ *
+ * ── 22 Sep · one rule, because the score used the other number ─────────────
+ *
+ * This lived on the phone (`screens/verdict-inputs.ts`) and served the hub's
+ * cell and the garage chip. The **score** did not read it: `recallDriver`
+ * counted every campaign on record, so an owner who marked five repaired saw
+ * the cell fall to 19 and the dial stay where it was, under a sentence that
+ * said the recalls were holding it back. David: *"a recall should improve a
+ * score once fixed."* So the rule moves here, where the drivers are, and the
+ * phone imports it.
+ *
+ * ⚠ A missing or malformed `actions` embed means **nothing is treated as
+ * marked**. Erring the other way would hide an open safety notice on the
+ * strength of a field that failed to arrive.
+ *
+ * ⚠ A mark is the owner's claim, never a verification — recalls match on
+ * year/make/model, not VIN (§10), and `api/v1/recalls` refuses to upgrade
+ * what it stores. What this function counts is "campaigns you have not told
+ * us you had done", which is the most the product can honestly hold.
+ */
+export function openRecalls(
+  rawRecalls: unknown,
+  actions: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null | undefined
+): NormalisedRecall[] {
+  const all = normaliseRecalls(rawRecalls);
+  const marked = new Set(
+    (actions ?? []).flatMap((action) =>
+      typeof action?.campaign_number === 'string' ? [action.campaign_number] : []
+    )
+  );
+  return all.filter((recall) => !recall.campaignNumber || !marked.has(recall.campaignNumber));
+}
+
 export function hasRemedy(recall: NormalisedRecall): boolean {
   return recall.remedy !== null;
 }
@@ -348,6 +384,30 @@ const SYSTEMS: Record<string, string> = {
 function sentenceCase(value: string): string {
   const lower = value.toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/**
+ * The service record a marked recall files — the row's description, and the
+ * key the undo finds it by.
+ *
+ * ── 22 Sep · a fixed recall goes into the history ──────────────────────────
+ *
+ * David: *"a recall should improve a score once fixed AND go into history."*
+ * The first half is `recallDriver` counting open campaigns; this is the
+ * second. A recall repair is work done on the car, so it belongs in the
+ * record beside an oil change — and without it, an owner who marks four
+ * campaigns repaired watches their score rise with nothing to show for it.
+ *
+ * ⚠ The campaign number is **in the description**, not in a column of its
+ * own. `maintenance_line_items` has no campaign column and adding one is a
+ * migration; the number is the honest thing to print anyway ("Recall 23V-441
+ * — Fuel system"), and it is what `api/v1/recalls` matches on to take the row
+ * away again when the owner undoes the mark. Which is why this is one
+ * function: a description written in two places is an undo that misses.
+ */
+export function recallRecordDescription(campaignNumber: string, component?: string | null): string {
+  const named = componentPlainName(component ?? null, { short: true });
+  return named ? `Recall ${campaignNumber} — ${named}` : `Recall ${campaignNumber}`;
 }
 
 export function componentPlainName(

@@ -3039,6 +3039,208 @@ mobile guards 30/30, 296; tsc clean in both. Frames and critiques:
 `design-loop/mobile-ios/47-hub/` … `50-hub/`, `critique-47.md` …
 `critique-50.md`.
 
+### 6.21 The hub under three lenses — rounds 1–6, and the visual critic after them, 51–52 — 22 Sep
+
+David: *"i want critic to think about UI/UX of the page, the information
+architecture, and the value of the functionality… perhaps with 3
+subagents, one for each type of review. Get this page to a 9."* Three
+critics, then — `general-purpose` agents on the same model as the design
+critic, each in a fresh context with the frames and one shared frame of
+reference (`design-loop/mobile-ios/hub-lenses/lenses.md`: the studio
+standard, the product as data, the seven-section structure, and the
+lens). Round 1 was BRIEF mode — each wrote the studio version under its
+lens and a checklist, frozen as `brief-ux.md` (U1–U9), `brief-ia.md`
+(I1–I8) and `brief-value.md` (V1–V8); every later round was GRADE mode
+against it, gaps citing lines, three at most. The visual system stayed
+the design critic's (`brief.md`, §6.20) and the three were told not to
+spend a gap on it. Frames from the **reviewer account on the live API**,
+not the fixture: the 2003 Accord (11 records, 24 open recalls, a tire
+set, three answers) and the 2017 F-PACE (one record, 4 recalls, no set,
+one answer), at rest and scrolled, iPhone 16 Pro Max (18.5), Expo Go on
+the phone's Metro. Committed after every round; the three ran in
+parallel and each round's three critiques sit in `hub-lenses/round-0N-
+<lens>.md` beside its frames in `hub-lenses/0N/`.
+
+**The scores, UX / IA / value:** 5 / 5 / 5 → 6 / 7 / 6 → 7 / 8 / 7 →
+7 / **9** / 6 → 8 / 9 / 6 → 8 / 9 / 7. IA reached 9 in round 4 with
+every line ✅ and `Continue: no`, and held it through rounds 5 and 6
+while the other two lenses' gaps were taken around it. UX stopped at 8
+(two 🟡: U4, U6), value at 7 (three 🟡, one ❌: V6) — and the loop was
+stopped there rather than run on, because every gap left open on one
+lens is a line another lens closed by cutting it. The record is below;
+the disagreements are David's, not the implementer's.
+
+**Taken, by round** (`8a06116` · `70f0df4`, `dd2658d` · `570cf75`,
+`acf5015` · `679cea2`, `b26f680` · `ed5534c`, `9e5e9b1`):
+
+- **1 → 2.** All three briefs converged on the same page and it was
+  built in one round. HEALTH is a row: the card dial at its start, the
+  reading's cause beside it, one door for all of it. NEXT SERVICE by
+  its name — `displayServiceName` leaves the schedule tier and the
+  second spelling of "and" behind — with the owner's own months beside
+  the miles (`monthsAway`; 500 a month and 4,500 mi is "about 9
+  months"). The plate is the door to the car: a press on the name or
+  the strip opens THIS CAR, which gained the odometer as a field (its
+  own PATCH through `validateMileageUpdate`, the reading's age in its
+  hint) and the removal at its foot; MILEAGE on the strip says how old
+  it is. Counts carry a verdict, never a bare or dimmed 0. TIRES counts
+  down where an interval was entered. WHAT YOU TOLD US lists every
+  question, the unanswered as doors. ASK THE ADVISOR is gone (the
+  ADVISOR tab is beneath it) and ACCOUNT no longer floats over the
+  car's page.
+- **2 → 3.** The prime slot is SCAN INVOICE, always: round 2 had chosen
+  REVIEW RECALLS by state (value V6) and two lenses read it as a second
+  entrance to the △ RECALLS cell that evicts the record act on a 2003
+  Accord for good. The photograph's acts leave the hub for THIS CAR —
+  the lenses' cut, twice, *"an act slot spent on decoration"* — as two
+  plain buttons, Remove asking in the car's words; the hub's sheet went
+  with them (it existed because the nav held one control). The cause
+  beside the verdict is the weakest driver's own line. The plate wears
+  the door's mark, THIS CAR ›. The count cells stack the numeral over
+  its word ("24 to review" had truncated at the count's size in a third
+  of the row).
+- **3 → 4.** The cause is a sentence with its reason: core's drivers
+  carry `cause` and `act` in their own counts, and `holdingBack` names
+  an unjudged history before any scored driver. The model's paragraph
+  and the basis line are HEALTH's now, one tap through the cell — three
+  lenses read them as the counts told a second and third time, and the
+  paragraph pushed TIRES under the fold. "24 / open" ("to review" read
+  as an inbox that empties by being looked at); PLAN and HISTORY report,
+  TIRES invites with its reason. Every unanswered question says what
+  answering buys.
+- **4 → 5.** A thin history is a reason: `alsoHoldingBack` puts the open
+  recalls beside a maintenance cause, and — because a mileage-driven
+  schedule counts a service with no record from its next boundary,
+  `later` not `unknown`, so the drivers read the F-PACE's one record in
+  69,573 miles as nothing outstanding — the hub names a history under
+  three records from its own count (`ed5534c`). The match on the count:
+  "24 / open / this model", the year-make-model scope where the number
+  is, not only in a sentence that changes with the driver (§10).
+- **5 → 6.** The three cuts all three lenses agreed on: no imperative on
+  the HEALTH line (*"— scan an invoice, review them"* pointed past the
+  cell's door at two others and read as a to-do list; the cause is the
+  reading, SCAN INVOICE and △ RECALLS are the acts); the service row
+  says why there is no date rather than asking in a cell whose door does
+  not take the answer; one mark on the plate — the odometer's note keeps
+  its age and loses its own chevron.
+
+**Held — three lenses, one page, and where they contradict, for David:**
+
+- *The button.* Value V6 wants the prime act chosen by state — REVIEW
+  RECALLS on the Accord, SCAN INVOICE on a thin file, none when nothing
+  is pending — and calls the sentence-and-button disagreement its one
+  ❌. UX U1 and IA I2 want SCAN INVOICE as the hub's only button and
+  marked round 2's state-chosen slot as a second entrance to the cell
+  beneath it. The slot is the scan.
+- *PLAN's empty cell.* UX U4 wants the verb, "Plan work"; IA I5 wants a
+  sentence, never a command from a tab's cell, and round 3 cut the
+  verbs. It reads "Nothing planned yet".
+- *Provenance on the reading.* Value V1 wants "From 11 records." before
+  the cause on a healthy car; IA cut the basis line in round 3, and the
+  design critic cut it in round 48 — the counts row beneath is what a
+  reading was worked out from. There is none.
+- *The odometer's own door.* UX U6 wants "4 WK AGO ›" on the stale
+  line; IA I7 wants one door to the car's details, and round 6's cut
+  was two handles on one door. One mark, THIS CAR ›.
+- *The service row's ask.* Value V2 wants "tell us your miles a month
+  for a date ›" as a door into the answer; IA holds that a cell's door
+  goes where its legend says. The row explains; "Tell us ›" under MILES
+  A MONTH is the door.
+
+**Recorded deviations — for Design:**
+
+- *No ACCOUNT on the car root.* `AccountControl` is shown on every root
+  but the Car tab's (`RootNavigator`, `focusedTab !== 'CarTab'`); the
+  garage, one tab away, carries it, and 5.1.1(v)'s structure — a
+  sibling of the navigator no screen can swallow — is unchanged. The
+  brief's four-root line was already superseded by the fifth tab.
+- *The photograph's acts and the removal live on THIS CAR*, off the hub.
+- *No advisor button on the hub, and no prose*: the model's paragraph
+  and the basis line are the Health screen's; the hub's HEALTH cell
+  carries the cause line alone (`cause` style, primary ink).
+- *`StatStrip` takes a `note` under a value* (MILEAGE's age); the
+  identity block closes with a mono legend and chevron, THIS CAR ›,
+  over a press target the height of the block.
+- *The count cells stack* a 20pt mono numeral over its word at the
+  timing's size, with the scope beneath ("this model").
+- *`BandRow` has a muted count* ("Tell us") and a detail line for what
+  answering buys; the lower sheet is three rows under WHAT YOU TOLD US
+  and nothing else.
+- *`displayServiceName`* prints a schedule entry without its tier.
+
+**Parking lot — product questions the lenses parked, for David:**
+
+- *USE.* The Accord's strip carries "Daily Driver"; the F-PACE's drops
+  the column. Is it a fact of the car (then the empty slot is a door)
+  or the owner's answer (then it belongs in WHAT YOU TOLD US on both
+  cars, and the strip gives it up)?
+- *Marking a recall.* The open count falls as the owner marks repairs
+  — does the score move with it, and should the hub say so?
+- *A 55 on one record* reads as a verdict on the car, not on the file.
+  Should a history under three records carry a confidence band rather
+  than a health band?
+- *Countdowns age with the odometer:* "in 4,500 mi" is counted from a
+  reading four weeks old at 500 a month — nearer 4,000 today.
+- *SCAN INVOICE or ADD RECORD* in the slot — the camera path is the
+  named act; a record typed by hand is behind HISTORY.
+- *The 01–03 ordinals* on WHAT YOU TOLD US label nothing; the locked
+  visual brief's B6 keeps them.
+- *The F-PACE at rest:* its extra NEXT SERVICE line pushes the count
+  row's legends under the tab bar until a nudge.
+- *The cause and the cells beneath it can never disagree by one*, or
+  the hub reads as broken — the caption is derived from the same rows,
+  and `VehicleDetailScreen.test.tsx` pins it, but it is a rule worth
+  writing down.
+
+**The visual critic, after the lenses — rounds 51 and 52.** The visual
+loop had closed at 9 on round 50's page, and the lenses then changed the
+page six times with nobody grading the visual system. Round 51
+(`critique-51.md`) re-graded the lenses' page against `brief.md`: **nine
+lines ✅ for the first time** — B2's 🟡 gone with the plate untouched —
+and **8/10**, on three faults it measured at native scale, each checked
+against the frame before it was acted on (`scripts/frame-rows.swift`,
+new: per-row luminance of a native still, so a critic's "33pt" is read
+off the pixels rather than believed). *The count row's numerals 19pt
+apart* — 20, measured: `BinnacleCell` anchored to the foot, so a
+three-line cell's numeral floated under a four-line cell's; the value is
+pinned to the head now and the legend to the foot (`space-between`), and
+only the captions vary. *TIRES 33pt under its hairline* — 33.7: the
+band was `BINNACLE_CELL_MIN`'s 80 over 62pt of content, the stretch over
+the reading; the floor is `TARGET_MIN` now — every cell carries a value
+and a legend and clears the thumb by itself — and the band is 62, 16pt
+to its reading like every other. *141pt of graphite at the foot* — 103
+measured, and **not the padding**: the sheet's `minHeight` is the travel
+`sheetMinHeight` needs for the plate's name to fade and the nav title to
+arrive, and on the Max the content is shorter than that travel (the
+hub's own docblock: *"the tail it leaves under the foot is the price of
+the title arriving"*). The two paddings under the last row were 80 where
+the head is 24 and are one 24 now, which shows only on a display the
+content outgrows; the tail was handed to round 52 as a fact a still
+cannot carry, not shortened. Committed `f4ddb8f`. Round 52
+(`critique-52.md`): **9/10, nine ✅, `Continue: no`** — the count row on
+one cap line, TIRES 16pt to its reading, the tail read as *"the collapse
+mechanic showing through, not an element"*. Its one gap, verified at
+native as it asked: the scroll's end under the nav's foot reads as a
+clip, *"no rule visible"*. `frame-rows` finds the rule — `navPlate`'s
+bottom hairline in `border.panel`, row 317 at the weight of every band
+rule — so the gap is the token, not a missing rule: a 0.08 hairline at
+a scroll edge, which is the question §6.20 left for Design on the
+plate's bevel, asked again at the nav's foot. Not taken: one rule at
+`nonText` over six at `border.panel` is a second hairline idiom on one
+page. The critic's parking lot is David's: a nav-title crossfade keyed
+to the plate name's exit rather than to sheet travel (which would retire
+`sheetMinHeight` and the tail with it — a motion change across every
+hero screen), and one more stop on the owner-photo grade.
+
+**The numbers.** Mobile jest in band 54/54 suites, 923/923 tests; root
+mobile guards and the four core suites 34/34, 400; tsc clean in both.
+Server-side, `web-live` was promoted twice in the loop for the drivers'
+causes (`health_drivers` are computed on `/load-vehicle`): `740fa286`
+after round 4 and `7bd90035` after round 5; nothing in `packages/core`,
+`lib/` or `app/` changed after it, so the host carries everything the
+hub reads. Frames and critiques: `design-loop/mobile-ios/hub-lenses/`,
+`51-hub/`, `52-hub/`, `critique-51.md`, `critique-52.md`.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

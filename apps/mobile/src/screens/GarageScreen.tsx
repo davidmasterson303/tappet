@@ -251,6 +251,15 @@ function VehicleBay({
       */
       today={localToday()}
       score={score}
+      /*
+        ⚠ 22 Sep · the dial is banded against the file. A reading on a car
+        with fewer than three records names the file rather than judging the
+        car (`bandForReading`), and the count already travels on this payload
+        for the staleness rule above. Without it the bay would say NEEDS
+        ATTENTION about the same 55 the hub calls a thin history, one tap
+        apart — the disagreement this file's own docblock was written about.
+      */
+      records={vehicle.records?.count ?? null}
       staleReading={stale}
       stats={stats}
       active={active}

@@ -15,6 +15,12 @@
  *     phone with a wrong clock stamp "repaired in 2019" onto a 2024 campaign.
  *   - **`DELETE` exists and works.** A claim an owner can make and cannot
  *     unmake is a trap, and this is the tap most worth being able to undo.
+ *   - **A mark files a service record, and an undo takes it back** (22 Sep).
+ *     David: *"a recall should improve a score once fixed AND go into
+ *     history."* The score half is `recallDriver`; this is the other, and
+ *     what is worth asserting is the row's honesty — no invented cost or
+ *     shop, the component named from our own NHTSA row rather than from the
+ *     request — and that a withdrawn claim does not leave a repair behind.
  *
  * The campaign-number check gets its own block because it is the one string a
  * client controls that reaches a `TEXT` column with a `UNIQUE` constraint.
@@ -42,28 +48,71 @@ const authorize = authorizeVehicleAccess as jest.Mock;
 
 const VEHICLE = '11111111-2222-3333-4444-555555555555';
 
-/** The last upsert/delete this client was handed, so a test can read it. */
+/** What the route handed the database, so a test can read it back. */
 interface Seen {
   upserts: unknown[];
-  deleteFilters: Array<[string, unknown]>;
+  /** `[table, column, value]` — the table matters now that two are written. */
+  deleteFilters: Array<[string, string, unknown]>;
+  inserts: Array<[string, Record<string, unknown>]>;
+  /** Descriptions the undo asked `maintenance_line_items` to remove. */
+  removedDescriptions: string[];
 }
 
-function client(rows: unknown[] = []): Seen {
-  const seen: Seen = { upserts: [], deleteFilters: [] };
+/**
+ * A table-aware stand-in for the service-role client.
+ *
+ * ⚠ It answers **per table**, which the first version did not: one `from()`
+ * served every call, so the route's NHTSA read fell off a chain that had no
+ * `maybeSingle` and the whole record-filing branch threw into its own catch.
+ * The suite stayed green over a feature that never ran. `existingRecords`
+ * drives the idempotence case.
+ */
+function client(
+  rows: unknown[] = [],
+  {
+    recalls = [{ NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' }] as unknown,
+    existingRecords = [] as unknown[],
+    nhtsaMissing = false,
+  }: { recalls?: unknown; existingRecords?: unknown[]; nhtsaMissing?: boolean } = {}
+): Seen {
+  const seen: Seen = { upserts: [], deleteFilters: [], inserts: [], removedDescriptions: [] };
 
   serviceRole.mockReturnValue({
-    from: () => ({
-      select: () => ({
-        eq: () => ({ order: () => Promise.resolve({ data: rows, error: null }) }),
-      }),
+    from: (table: string) => ({
+      select: () => {
+        if (table === 'nhtsa_data') {
+          return {
+            eq: () => ({
+              maybeSingle: () =>
+                Promise.resolve({ data: nhtsaMissing ? null : { recalls }, error: null }),
+            }),
+          };
+        }
+        if (table === 'maintenance_line_items') {
+          const chain = {
+            eq: () => chain,
+            limit: () => Promise.resolve({ data: existingRecords, error: null }),
+          };
+          return chain;
+        }
+        return { eq: () => ({ order: () => Promise.resolve({ data: rows, error: null }) }) };
+      },
       upsert: (values: unknown) => {
         seen.upserts.push(values);
+        return Promise.resolve({ error: null });
+      },
+      insert: (values: Record<string, unknown>) => {
+        seen.inserts.push([table, values]);
         return Promise.resolve({ error: null });
       },
       delete: () => {
         const chain = {
           eq: (column: string, value: unknown) => {
-            seen.deleteFilters.push([column, value]);
+            seen.deleteFilters.push([table, column, value]);
+            return chain;
+          },
+          in: (column: string, values: string[]) => {
+            if (column === 'item_description') seen.removedDescriptions.push(...values);
             return chain;
           },
           then: (resolve: (r: { error: null }) => void) => resolve({ error: null }),
@@ -175,10 +224,8 @@ describe('the mark itself', () => {
       )
     );
 
-    expect(seen.deleteFilters).toEqual([
-      ['vehicle_id', VEHICLE],
-      ['campaign_number', '23V-441'],
-    ]);
+    expect(seen.deleteFilters).toContainEqual(['recall_actions', 'vehicle_id', VEHICLE]);
+    expect(seen.deleteFilters).toContainEqual(['recall_actions', 'campaign_number', '23V-441']);
   });
 
   it('reads the marks back as the clients expect them', async () => {
@@ -235,5 +282,158 @@ describe('the campaign number, which is the one string a client controls', () =>
     );
 
     expect(response.status).toBe(400);
+  });
+});
+
+/**
+ * ── The service record a mark files (22 Sep) ───────────────────────────────
+ *
+ * David: *"a recall should improve a score once fixed AND go into history."*
+ * A score that rises with nothing in the record to show for it is a rise the
+ * owner cannot check, so the mark writes one `maintenance_line_items` row.
+ */
+describe('the record the mark files', () => {
+  const described = 'Recall 23V-441 — Fuel system';
+
+  it('files one row, naming the campaign and the component from our own NHTSA data', async () => {
+    const seen = client();
+
+    const body = await (await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }))).json();
+
+    expect(body.recorded).toBe(true);
+    expect(seen.inserts).toHaveLength(1);
+    const [table, row] = seen.inserts[0];
+    expect(table).toBe('maintenance_line_items');
+    expect(row).toMatchObject({
+      vehicle_id: VEHICLE,
+      item_description: described,
+      service_date: new Date().toISOString().slice(0, 10),
+      /* The value the check constraint permits — a `'recall'` source is a migration. */
+      source: 'manual',
+    });
+  });
+
+  it('invents neither a price nor a shop', async () => {
+    /*
+      ⚠ Nobody told us either. A recall repair is free at a franchised dealer,
+      but that is a fact about the campaign rather than about this visit, and
+      a `0` renders as a price (§10). Both columns take null.
+    */
+    const seen = client();
+    await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }));
+
+    const [, row] = seen.inserts[0];
+    expect(row.total_cost).toBeNull();
+    expect(row.unit_cost).toBeNull();
+    expect(row.shop_name).toBeNull();
+    expect(row.mileage_at_service).toBeNull();
+    // And it says what it is, including the claim's limit.
+    expect(String(row.notes)).toMatch(/year, make and model, not this VIN/);
+  });
+
+  it('takes the number alone when we have no NHTSA row to name the part from', async () => {
+    const seen = client([], { nhtsaMissing: true });
+    await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }));
+
+    expect(seen.inserts[0][1].item_description).toBe('Recall 23V-441');
+  });
+
+  it('never takes the description from the request', async () => {
+    /*
+      A client sends a campaign number and nothing else. A description read
+      off the body would be free text written into the service history by
+      anything holding a token.
+    */
+    const seen = client();
+    await POST(
+      post({
+        vehicleId: VEHICLE,
+        campaignNumber: '23V-441',
+        itemDescription: 'Engine rebuild',
+        notes: 'paid $4,000',
+        totalCost: 4000,
+      })
+    );
+
+    const [, row] = seen.inserts[0];
+    expect(row.item_description).toBe(described);
+    expect(JSON.stringify(row)).not.toMatch(/Engine rebuild|4000/);
+  });
+
+  it('does not file it twice when the same campaign is marked again', async () => {
+    // The upsert above it is idempotent; this half has to be too, and the
+    // description is what makes the row findable.
+    const seen = client([], { existingRecords: [{ id: 'already' }] });
+
+    const body = await (await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }))).json();
+
+    expect(body.recorded).toBe(true);
+    expect(seen.inserts).toHaveLength(0);
+  });
+
+  it('keeps the mark when the record cannot be written', async () => {
+    /*
+      ⚠ The record is not the mark. The safety claim is the thing being
+      stored; refusing it because a history row failed would lose the more
+      important half. The response says which happened.
+    */
+    const seen = client();
+    serviceRole.mockReturnValue({
+      from: (table: string) => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () => Promise.resolve({ data: { recalls: [] }, error: null }),
+            order: () => Promise.resolve({ data: [], error: null }),
+          }),
+          limit: () => Promise.resolve({ data: [], error: null }),
+        }),
+        upsert: (values: unknown) => {
+          seen.upserts.push(values);
+          return Promise.resolve({ error: null });
+        },
+        insert: () => Promise.resolve({ error: { message: 'column missing' } }),
+      }),
+    });
+
+    const response = await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.addressed).toMatchObject({ campaignNumber: '23V-441' });
+    expect(body.recorded).toBe(false);
+    expect(seen.upserts).toHaveLength(1);
+  });
+
+  it('takes the record back when the owner undoes the mark', async () => {
+    /*
+      A withdrawn claim that leaves a service record behind is worse than
+      never filing one: the history would carry a repair the owner has just
+      said did not happen, and the score would keep the credit.
+    */
+    const seen = client();
+
+    await DELETE(
+      new NextRequest(
+        `https://tappet.test/api/v1/recalls?vehicleId=${VEHICLE}&campaignNumber=23V-441`,
+        { method: 'DELETE' }
+      )
+    );
+
+    expect(seen.deleteFilters).toContainEqual(['maintenance_line_items', 'vehicle_id', VEHICLE]);
+    // Both spellings: the row may have been filed before the NHTSA read landed.
+    expect(seen.removedDescriptions).toEqual([described, 'Recall 23V-441']);
+  });
+
+  it('removes the one spelling when there is nothing to name the part with', async () => {
+    const seen = client([], { nhtsaMissing: true });
+
+    await DELETE(
+      new NextRequest(
+        `https://tappet.test/api/v1/recalls?vehicleId=${VEHICLE}&campaignNumber=23V-441`,
+        { method: 'DELETE' }
+      )
+    );
+
+    expect(seen.removedDescriptions).toEqual(['Recall 23V-441']);
   });
 });

@@ -109,6 +109,7 @@ export interface BayVehicle {
 export default function GarageBay({
   vehicle,
   score,
+  records = null,
   staleReading = false,
   stats,
   active = true,
@@ -131,6 +132,12 @@ export default function GarageBay({
   today: string;
   /** Health score, or null when the car has none. Null is not zero. */
   score?: number | null;
+  /**
+   * The service records behind that score, or `null` when the count is not
+   * known. Under three the dial's word names the file instead of judging the
+   * car (22 Sep) — `bandForReading` in core carries the argument.
+   */
+  records?: number | null;
   /**
    * The car has a reading, and the records have overtaken it (20 Sep). The
    * screen withholds `score` in that case; this says why the dial is empty,
@@ -300,7 +307,6 @@ export default function GarageBay({
         <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
-            photoKind={vehicle.photo_kind}
             make={vehicle.make}
             busy={uploading}
             height={heroHeight}
@@ -388,7 +394,7 @@ export default function GarageBay({
             anyway: 22pt of gap that read as air. The export stays for the
             board's record; the bay does not draw it.
           */
-          <ClusterGauge score={score} size={BAY_DIAL} active={open} />
+          <ClusterGauge score={score} size={BAY_DIAL} active={open} records={records} />
         ) : (
           /*
             No score is not a zero, and it is not an empty dial either. A dial

@@ -30,7 +30,6 @@ import TireRow from '../components/TireRow';
 import Working from '../components/Working';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import { TABULAR, border, rhythm, space, surface, text, type } from '../theme';
-import { isOwnerPhoto } from './VehicleDetailScreen';
 
 /**
  * The tire set — the fourth leaf under the car, beside Health · Service · Plan.
@@ -122,7 +121,6 @@ interface Loaded {
   name: string;
   odometer: number | null;
   photo: string | null;
-  graded: boolean;
   set: TireSet | null;
   rotations: TireRotation[];
 }
@@ -194,7 +192,6 @@ export function TiresScreen({
           odometer:
             typeof vehicle.current_mileage === 'number' && vehicle.current_mileage > 0 ? vehicle.current_mileage : null,
           photo: vehicle.photo_url ?? null,
-          graded: isOwnerPhoto(vehicle),
           set: tiresResult.value.set,
           rotations: tiresResult.value.rotations,
         });
@@ -348,7 +345,7 @@ export function TiresScreen({
           />
         }
       >
-        <TirePlate photo={state.photo} graded={state.graded} />
+        <TirePlate photo={state.photo} />
 
         {stats.length > 0 ? <StatStrip stats={stats} /> : <View style={styles.plateRule} />}
 

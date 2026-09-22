@@ -1264,16 +1264,26 @@ describe('the photograph, on the hub', () => {
     expect(hasHouseGrade(view.toJSON())).toBe(false);
   });
 
-  it('grades the owner’s photograph, kind named or not', async () => {
+  it('draws the owner’s photograph as they shot it — no grade, kind named or not (David, 22 Sep)', async () => {
+    /*
+      Until 22 Sep the owner's picture took the house grade (lifted blacks,
+      split tone, a highlight pull, grain — every one a blend-mode layer). A
+      daylight snapshot of David's own car read as grey mud under it, and he
+      ruled: *"let owners add their images if they prefer to our plate."*
+      The photograph is theirs; the plate is the film.
+    */
     respond({ photo_url: PHOTO, photo_kind: 'owner' });
     const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-    expect(hasHouseGrade(view.toJSON())).toBe(true);
+    expect(hasHouseGrade(view.toJSON())).toBe(false);
 
     respond({ photo_url: PHOTO });
     const older = await mount();
     await older.view.findAllByText(/2018 Honda Accord/);
-    expect(hasHouseGrade(older.view.toJSON())).toBe(true);
+    expect(hasHouseGrade(older.view.toJSON())).toBe(false);
+
+    // The walker can still see a blend layer, so the two negatives above mean something.
+    expect(hasHouseGrade({ props: { style: [{ mixBlendMode: 'multiply' }] }, children: [] })).toBe(true);
   });
 
   it('carries no photo control — the plate opens THIS CAR, where the photograph is changed (22 Sep)', async () => {
@@ -1469,7 +1479,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('says what holds the score back, as a reason with its act, in the block\'s one word for recalls', async () => {
+  it('says what holds the score back, as a reason, in the block\'s one word for recalls', async () => {
     /*
       Round 3 of the lenses: "24 recalls on record." beside 88 GOOD read as a
       fact with a full stop, not a reason, and the same 24 was told three
@@ -1477,7 +1487,8 @@ describe('the hub under three lenses (22 Sep)', () => {
       and recalls are "open", in the hub's own count, for this model.
     */
     request.mockImplementation((path: string) => {
-      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      // Eleven records: a history thick enough that the drivers, not the count, name the cause.
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: Array.from({ length: 11 }, (_, i) => ({ id: i, created_at: '2026-08-01T00:00:00Z' })) }) as never;
       if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
       return Promise.resolve({
         vehicle: {
@@ -1500,7 +1511,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     await view.findAllByText(/2018 Honda Accord/);
 
     // The hub's own count — one open, one marked — never the driver's "on record".
-    await view.findByText('Held back by 1 open recall for this model — review them.');
+    await view.findByText('Held back by 1 open recall for this model.');
     expect(view.queryByText(/on record/)).toBeNull();
     // The model's prose is HEALTH's, one tap away: not on the hub beside a cause.
     expect(view.queryByText('Excellent history.')).toBeNull();
@@ -1510,7 +1521,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     expect(within(recalls).getByText('this model')).toBeTruthy();
   });
 
-  it('names a thin history first, with the recalls beside it, each with its act (round 4)', async () => {
+  it('names a thin history first, with the recalls beside it — the cause alone, no imperative (rounds 4–5)', async () => {
     /*
       The F-PACE: one record in 69,573 miles, four open recalls, 55. Three
       lenses read "4 open recalls" as an unconvincing sole reason; the
@@ -1537,19 +1548,145 @@ describe('the hub under three lenses (22 Sep)', () => {
     });
     const { view } = await mount();
     await view.findAllByText(/2017 Jaguar F-PACE/);
-    await view.findByText('Held back by 11 services with no record to count from and 2 open recalls for this model — scan an invoice, review them.');
+    // No maintenance rows served: the hub's own count is zero, and it leads.
+    await view.findByText('Held back by no records on file and 2 open recalls for this model.');
   });
 
-  it('asks for miles a month in the service row when a date is missing for want of it', async () => {
+  it('names one record on file before the drivers can, on a mileage-driven schedule', async () => {
+    /*
+      A service with no record is counted from the next interval boundary,
+      so the drivers read a one-record car as "nothing overdue" and name the
+      recalls; the record count is the hub's own fact and leads under three.
+    */
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [{ id: 1, created_at: '2026-08-01T00:00:00Z' }] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1', year: 2017, make: 'Jaguar', model: 'F-PACE', current_mileage: 69_573,
+          vehicle_health_summary: { health_score: 55, summary: 'Sparse history.', last_generated: '2026-09-20T00:00:00Z' },
+          nhtsa_data: { recalls: [] },
+        },
+        health_drivers: [
+          { key: 'maintenance', label: 'Maintenance', score: 100, detail: 'Nothing overdue, across 12 tracked services.', nothingOutstanding: true },
+          { key: 'recalls', label: 'Recalls', score: 100, detail: 'No recalls on record.', nothingOutstanding: true },
+        ],
+      }) as never;
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2017 Jaguar F-PACE/);
+    await view.findByText('Held back by one record on file.');
+  });
+
+  it('says nothing about the date where the owner never said how far they drive — the ask is under MILES A MONTH (22 Sep)', async () => {
+    /*
+      Rounds 5–6 printed "no date without your miles a month" under the
+      timing. It was the thin car's third NEXT SERVICE line and it pushed the
+      count row's legends under the tab bar at rest; David's ruling: an
+      unknown date is nothing (§10), and the ask lives where the answer does.
+    */
     respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: null });
     const { view } = await mount();
     const cell = await view.findByLabelText(/^Next service, Brake fluid, in 4,500 mi\./);
-    expect(within(cell).getByText('tell us miles a month for a date')).toBeTruthy();
+    expect(within(cell).queryByText(/miles a month/)).toBeNull();
+    expect(within(cell).getByText('in 4,500 mi')).toBeTruthy();
+    // The question, one door, with what answering buys.
+    view.getByLabelText('Miles a month: not answered yet. Dates your next service. Opens the question.');
+  });
 
-    respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: 500 });
-    const dated = await mount();
-    await dated.view.findByText('in 4,500 mi · about 9 months');
-    expect(dated.view.queryByText('tell us miles a month for a date')).toBeNull();
+  it('prints USE as the ask, in the absent ink, while the owner has not said how they use the car (22 Sep)', async () => {
+    /*
+      The cell used to drop, which left the question nowhere on the page —
+      USE lives on the strip so it is printed once, and the strip printed
+      nothing (IA, round 6: "the only empty on the page that does not
+      invite"). David: "Tell us".
+    */
+    // Every question answered but this one, so the page's only "Tell us" is the strip's.
+    const answered = { avg_miles_per_month: 500, performance_mindedness: 'stock', ownership_objective: 'Keep forever' };
+    respond({ ...answered, vehicle_status: null, trim: 'EX-L' });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    const ask = view.getByText('Tell us', { includeHiddenElements: true });
+    expect(readoutColor(ask)).toBe(text.muted);
+    expect(view.getByText('Use', { includeHiddenElements: true })).toBeTruthy();
+
+    respond({ ...answered, vehicle_status: 'daily_driver', trim: 'EX-L' });
+    const used = await mount();
+    await used.view.findAllByText(/2018 Honda Accord/);
+    expect(used.view.getByText('Daily Driver', { includeHiddenElements: true })).toBeTruthy();
+    expect(used.view.queryByText('Tell us', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('carries no ordinals on WHAT YOU TOLD US — three questions are not a record list (22 Sep)', async () => {
+    respond({ avg_miles_per_month: 500, performance_mindedness: 'stock', ownership_objective: 'Keep forever' });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    const miles = await view.findByLabelText(/^Miles a month: /);
+    for (const row of [miles, view.getByLabelText(/^Modifications: /), view.getByLabelText(/^Ownership: /)]) {
+      expect(within(row).queryByText(/^0[1-3]$/, { includeHiddenElements: true })).toBeNull();
+    }
+  });
+
+  it('bands a reading on a thin file as a thin history, not as a verdict on the car (22 Sep)', async () => {
+    /*
+      The reviewer's F-PACE: one record in 69,573 miles, read at 55, and the
+      dial said NEEDS ATTENTION in sodium — a verdict on the car where what
+      the app has is almost nothing to judge from. David's ruling. The score
+      is untouched; the word under it names the file.
+    */
+    const withRecords = (count: number) =>
+      request.mockImplementation((path: string) => {
+        if (path.startsWith('/load-maintenance-data')) {
+          return Promise.resolve({
+            maintenanceLineItems: Array.from({ length: count }, (_, i) => ({
+              id: String(i),
+              created_at: '2020-01-01T00:00:00Z',
+            })),
+          }) as never;
+        }
+        if (path.startsWith('/wishlist') || path.startsWith('/tires')) return Promise.resolve({}) as never;
+        return Promise.resolve({
+          vehicle: {
+            id: 'v1',
+            year: 2018,
+            make: 'Honda',
+            model: 'Accord',
+            vehicle_health_summary: { health_score: 55, summary: 'Fair.', last_generated: '2026-09-01T00:00:00Z' },
+          },
+        }) as never;
+      });
+
+    withRecords(1);
+    const { view } = await mount();
+    const thin = await view.findByLabelText(/^Health score 55 out of 100 — Thin history\./);
+    expect(within(thin).queryByText(/Attention/i)).toBeNull();
+
+    // Three records and the same score bands normally, so the case above means something.
+    withRecords(3);
+    const judged = await mount();
+    await judged.view.findByLabelText(/^Health score 55 out of 100 — Needs attention\./);
+  });
+
+  it('makes the odometer’s note the ask once the reading is over a month old, and only then (22 Sep)', async () => {
+    /*
+      "in 4,500 mi" is counted from a reading, never from a guess; the value
+      lens asked whether the countdown should age with the odometer. David's
+      ruling: keep counting from the real reading, and past a month make its
+      note the ask — the door's mark comes back on the stale line alone.
+    */
+    const sixWeeksAgo = new Date(Date.now() - 42 * 86_400_000).toISOString();
+    respond({ last_mileage_update_date: sixWeeksAgo });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    await view.findByText('6 wk ago · update');
+    view.getByLabelText(/Opens the car's details: .* The odometer was set 6 wk ago; update it there\./);
+
+    const threeWeeksAgo = new Date(Date.now() - 21 * 86_400_000).toISOString();
+    respond({ last_mileage_update_date: threeWeeksAgo });
+    const fresh = await mount();
+    await fresh.view.findByText('3 wk ago');
+    expect(fresh.view.queryByText(/update/)).toBeNull();
+    expect(fresh.view.queryByLabelText(/update it there/)).toBeNull();
   });
 
   it('carries no advisor button and no account word of its own', async () => {

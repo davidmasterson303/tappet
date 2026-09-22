@@ -33,7 +33,6 @@ import ClusterGauge from '../components/ClusterGauge';
 import DialChip from '../components/DialChip';
 import { NAV_BAND } from '../components/RootScreen';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
-import PhotoGrade from '../components/PhotoGrade';
 import PlateStatusLine from '../components/PlateStatusLine';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
@@ -59,7 +58,7 @@ import {
 import Svg, { Line, Path } from 'react-native-svg';
 import { CONTROL_HEIGHT, TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
-import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { bandForReading, healthBandHex } from '@tappet/core/health-band';
 import type { ResearchObservation } from '@tappet/core/research-milestones';
 import ResearchLog from '../components/ResearchLog';
 import Seat from '../components/Seat';
@@ -399,15 +398,42 @@ const CELL_DIAL = 120;
  * not "just now".
  */
 export function agoLabel(iso: string | null | undefined, now: Date = new Date()): string | null {
-  if (!iso) return null;
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return null;
-  const days = Math.max(0, Math.floor((now.getTime() - then) / 86_400_000));
+  const days = daysSince(iso, now);
+  if (days === null) return null;
   if (days < 1) return 'today';
   if (days < 7) return `${days} d ago`;
   if (days < 60) return `${Math.round(days / 7)} wk ago`;
   if (days < 365) return `${Math.round(days / 30.4)} mo ago`;
   return `${Math.round(days / 365)} yr ago`;
+}
+
+function daysSince(iso: string | null | undefined, now: Date): number | null {
+  if (!iso) return null;
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return null;
+  return Math.max(0, Math.floor((now.getTime() - then) / 86_400_000));
+}
+
+/**
+ * A reading older than this asks to be set again.
+ *
+ * ── 22 Sep · the countdown is measured from a reading, never from a guess ──
+ *
+ * "in 4,500 mi" is counted from 168,400, set four weeks ago; at 500 miles a
+ * month the truth is nearer 4,000. The value lens asked whether the countdown
+ * should age with the odometer. David's ruling, of three: never estimate a
+ * reading (§10 — an odometer the app invented would be a reading of nothing),
+ * keep counting from the real one, and **once it is over a month old, make
+ * its note the ask**: "6 wk ago · update ›", the plate's door landing on the
+ * odometer field. A month, because the countdown's other input is the
+ * owner's miles *a month*: a reading younger than the unit it is measured
+ * against is not stale by that measure.
+ */
+export const STALE_READING_DAYS = 31;
+
+export function readingIsStale(iso: string | null | undefined, now: Date = new Date()): boolean {
+  const days = daysSince(iso, now);
+  return days !== null && days > STALE_READING_DAYS;
 }
 
 /**
@@ -419,9 +445,11 @@ export function agoLabel(iso: string | null | undefined, now: Date = new Date())
  * `photo_url` set to its generation plate — and this screen read any
  * `photo_url` as the owner's: it graded the plate a second time and offered
  * CHANGE PHOTO over a car with no photo to change (found by the hub loop,
- * drift §6.18). The route now says which kind of picture it sent; only the
- * owner's takes the grade and the two-verb control. An older API sends no
- * kind, and then a `photo_url` is read as it always was.
+ * drift §6.18). The route now says which kind of picture it sent, and THIS
+ * CAR reads it to know whether there is a photograph to remove. An older API
+ * sends no kind, and then a `photo_url` is read as it always was. (Until 22
+ * Sep the owner's picture also took a house grade here; it is drawn as shot
+ * now — David's ruling, `BayRoom` carries the words.)
  */
 export function isOwnerPhoto(vehicle: {
   photo_url?: string | null;
@@ -810,7 +838,15 @@ export function VehicleDetailScreen({
 
   const health = first(vehicle.vehicle_health_summary);
   const score = typeof health?.health_score === 'number' ? health.health_score : null;
-  const band = score === null ? null : getHealthBandJudgement(score);
+  /*
+    ⚠ 22 Sep · banded against the file, not the score alone. The F-PACE's one
+    record in 69,573 miles read 55 and said NEEDS ATTENTION in sodium — a
+    verdict on the car, where what the app has is almost nothing to judge from
+    (David's ruling; `bandForReading` in core carries it). `counts.services`
+    is `null` while the count has not arrived, and then the ordinary band
+    stands: a missing count may not suppress a warning.
+  */
+  const band = score === null ? null : bandForReading(score, counts.services);
 
   /*
     ── The identity line, which is where the odometer belongs ────────────────
@@ -834,17 +870,33 @@ export function VehicleDetailScreen({
     only as true as 168,400, and nothing says when that was set"*). A note
     under the value says how long ago — "3 wk ago ›" — where the date is
     known (an eyebrow "MILEAGE · 3 WK AGO" truncated in a third of the
-    strip, and "set 3 wk ago ›" with the door's mark did too); the plate is
-    the door to setting it (`onOpenProfile`).
+    strip). The plate is the door to setting it (`onOpenProfile`), and THIS
+    CAR › under the strip is its one mark — round 5's IA and value lenses
+    cut the note's own chevron: two handles on one door.
   */
   const mileageAge = agoLabel(vehicle.last_mileage_update_date);
+  /* Over a month old, the note is the ask and wears the door's mark (`readingIsStale`). */
+  const mileageStale = readingIsStale(vehicle.last_mileage_update_date);
   const stats: Stat[] = (
     [
       typeof vehicle.current_mileage === 'number'
-        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ?? undefined, door: true }
+        ? {
+            label: 'Mileage',
+            value: `${miles.format(vehicle.current_mileage)} mi`,
+            note: mileageAge ? (mileageStale ? `${mileageAge} · update` : mileageAge) : undefined,
+            door: mileageStale,
+          }
         : null,
       vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
-      vehicle.vehicle_status ? { label: 'Use', value: humanise(vehicle.vehicle_status) } : null,
+      /*
+        USE is the owner's answer, and it lives on the strip rather than in
+        WHAT YOU TOLD US so it is printed once. Unanswered, the cell used to
+        drop, which hid the question on the F-PACE (IA, round 6). It is the
+        ask now, in the absent ink; the plate is the door (David, 22 Sep).
+      */
+      vehicle.vehicle_status
+        ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
+        : { label: 'Use', value: 'Tell us', muted: true },
     ] as Array<Stat | null>
   ).filter((cell): cell is Stat => cell !== null);
 
@@ -961,11 +1013,14 @@ export function VehicleDetailScreen({
     const months = ahead ? monthsAway(Number(ahead[1].replace(/,/g, '')), vehicle.avg_miles_per_month) : null;
     return months ? `${nextService.timing} · ${months}` : nextService.timing;
   })();
-  /* A distance to go with no date for want of the owner's miles a month: say so where the date would be. */
-  const serviceAsk =
-    nextService.kind === 'known' && /^in [\d,]+ mi$/.test(nextService.timing) && typeof vehicle.avg_miles_per_month !== 'number'
-      ? 'tell us miles a month for a date'
-      : null;
+  /*
+    ⚠ No line under the timing for want of the owner's miles a month (22 Sep,
+    David's ruling on the thin car). Rounds 5–6 printed "no date without your
+    miles a month" there; it was the F-PACE's third NEXT SERVICE line, and it
+    pushed the count row's legends under the tab bar at rest. An unknown date
+    shows as nothing — §10's rule — and the ask lives where the answer does:
+    "Tell us ›" under MILES A MONTH, with what answering buys beneath it.
+  */
 
   /*
     The recall cell's reading: "24 / open" — open campaigns minus what the
@@ -1015,19 +1070,40 @@ export function VehicleDetailScreen({
     const phrase = (driver: HealthDriver) =>
       driver.key === 'recalls'
         ? openRecallCount > 0
-          ? { reason: `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`, act: 'review them' }
+          ? `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`
           : null
-        : driver.cause
-          ? { reason: driver.cause, act: driver.act }
-          : null;
+        : driver.cause ?? null;
     const one = phrase(first);
     if (!one) return null;
-    // A thin history and open recalls share the blame: both named, both acts (round 4, all three lenses).
+    // A thin history and open recalls share the blame: both named (round 4, all three lenses).
     const second = alsoHoldingBack(drivers, first);
     const two = second ? phrase(second) : null;
-    const reasons = two ? `${one.reason} and ${two.reason}` : one.reason;
-    const acts = [one.act, two?.act].filter((a): a is string => Boolean(a));
-    return `Held back by ${reasons}${acts.length ? ` — ${acts.join(', ')}` : ''}.`;
+    /*
+      ⚠ No imperative on the line (round 5, all three lenses): "— review them"
+      pointed past the cell's one door at two others, and on the F-PACE the
+      comma splice read as a to-do list. The cause is the reading; SCAN
+      INVOICE top-right and △ RECALLS beneath are the acts, each its own door.
+    */
+    return `Held back by ${two ? `${one} and ${two}` : one}.`;
+  })();
+  /*
+    ⚠ The drivers cannot see a thin history on a mileage-driven schedule: a
+    service with no record is counted from the next interval boundary above
+    the odometer (`later`, not `unknown`), so the F-PACE — one record in
+    69,573 miles — reads "nothing overdue" to the maintenance driver and
+    names its recalls. The record count is the hub's own fact (value V1:
+    *"nothing near the 55 says it rests on one record"*); under three it is
+    the first reason, in its own number, with the recalls beside it.
+  */
+  const thinHistory =
+    counts.services !== null && counts.services < 3
+      ? counts.services === 0 ? 'no records on file' : counts.services === 1 ? 'one record on file' : `${counts.services} records on file`
+      : null;
+  const causeLine = (() => {
+    if (!thinHistory) return cause;
+    const recalls =
+      openRecallCount > 0 ? ` and ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model` : '';
+    return `Held back by ${thinHistory}${recalls}.`;
   })();
 
   /* The reading's sentence, beside the dial: a current reading's lead, whole sentences. See `leadOf`. */
@@ -1232,11 +1308,12 @@ export function VehicleDetailScreen({
           <HeroEmpty />
         )}
         {/*
-          B9: the owner's photograph passes through the house grade. Over the
-          image and under the dim and the bed, so the grade is the photograph's
-          and the contrast floor stays the floor.
+          ⚠ No house grade over the owner's photograph since 22 Sep — it is
+          drawn as they shot it, the dim and the bed over it as over a plate.
+          B9's grade made a daylight snapshot read as grey mud, and David,
+          shown one: *"let owners add their images if they prefer to our
+          plate."* `BayRoom` carries the ruling; `PhotoGrade` is gone.
         */}
-        {isOwnerPhoto(vehicle) ? <PhotoGrade /> : null}
 
         {/* The bay light going down as the floor comes up — shadow, not chrome. */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
@@ -1331,7 +1408,9 @@ export function VehicleDetailScreen({
           <Pressable
             onPress={onOpenProfile}
             accessibilityRole="button"
-            accessibilityLabel={`${name || 'This car'}. Opens the car's details: mileage, your answers, the photo, removal.`}
+            accessibilityLabel={`${name || 'This car'}. Opens the car's details: mileage, your answers, the photo, removal.${
+              mileageStale ? ` The odometer was set ${mileageAge}; update it there.` : ''
+            }`}
             style={[
               styles.detailsDoor,
               { bottom: bands.titleAnchor - HERO_SHEET_OVERLAP, height: identityHeight ?? bands.titleSize * 2 + 60 },
@@ -1491,7 +1570,7 @@ export function VehicleDetailScreen({
                 onPress={onOpenHealth}
                 accessibilityLabel={
                   score !== null && band
-                    ? `Health score ${score} out of 100 — ${band.label}.${cause ? ` ${cause}` : lead ? ` ${lead}` : ''} Opens what is driving it.`
+                    ? `Health score ${score} out of 100 — ${band.label}.${causeLine ? ` ${causeLine}` : lead ? ` ${lead}` : ''} Opens what is driving it.`
                     : 'Health, no score yet. Opens what is driving it.'
                 }
               >
@@ -1503,6 +1582,7 @@ export function VehicleDetailScreen({
                         variant="card"
                         size={CELL_DIAL}
                         score={score}
+                        records={counts.services}
                       />
                     </View>
                     <View style={styles.healthText}>
@@ -1524,9 +1604,9 @@ export function VehicleDetailScreen({
                         the drivers sit under the score without summing to it
                         (§10).
                       */}
-                      {cause ? <Text style={styles.cause}>{cause}</Text> : null}
+                      {causeLine ? <Text style={styles.cause}>{causeLine}</Text> : null}
                       {verdict.short ? <Text style={styles.summary}>{verdict.short}</Text> : null}
-                      {!cause && !verdict.short && lead ? <Text style={styles.summary}>{lead}</Text> : null}
+                      {!causeLine && !verdict.short && lead ? <Text style={styles.summary}>{lead}</Text> : null}
                     </View>
                   </View>
                 ) : (
@@ -1570,12 +1650,11 @@ export function VehicleDetailScreen({
                   {serviceDue}
                 </Text>
                 {/*
-                  The ask, in the row that needs the answer (value V2, round
-                  4): a distance with no date because the owner never said how
-                  far they drive. The door beneath — "Tell us ›" under MILES A
-                  MONTH — is where it is answered; this says why it is asked.
+                  Why there is no date, in the row (value V2, round 4) — as a
+                  reading, not an ask (IA, round 5: an ask in a cell whose door
+                  does not take the answer). The door that does is "Tell us ›"
+                  under MILES A MONTH, which says what answering buys.
                 */}
-                {serviceAsk ? <Text style={styles.countNote}>{serviceAsk}</Text> : null}
               </BinnacleCell>
             </BinnacleRow>
 
@@ -1725,8 +1804,11 @@ export function VehicleDetailScreen({
             {answers.map((answer, index) => (
               <BandRow
                 key={answer.label}
-                /* B6: a list of like rows carries the spec table's index. */
-                index={String(index + 1).padStart(2, '0')}
+                /*
+                  No index (22 Sep). B6 gives every *record* list its 01; three
+                  questions in no order are not one, and two critics read the
+                  ordinals as labelling nothing. David: follow the critic.
+                */
                 label={answer.label}
                 /* An unanswered question is the act, in the absent ink: "Tell us" (UX U7, round 2). */
                 count={answer.value ?? 'Tell us'}
@@ -1924,7 +2006,13 @@ const styles = StyleSheet.create({
 
   /* ── z2 · the sheet ───────────────────────────────────────────────────── */
   scroller: { flex: 1 },
-  scrollBody: { paddingBottom: space.h2 },
+  /*
+    ⚠ 24, from 40 over the section's own 40 (22 Sep, round 51): the page
+    ran 80pt of graphite past its last hairline — *"the page should stop
+    one band's padding below its last hairline"*. The section head enters
+    under 24pt of air; the page leaves under the same.
+  */
+  scrollBody: { paddingBottom: space.xxl },
   /**
    * Opaque, **square** top corners.
    *
@@ -2054,7 +2142,7 @@ const styles = StyleSheet.create({
 
   /* ── The lower sheet ──────────────────────────────────────────────────── */
   /* The answers head the lower sheet under the panel's 24pt of air (the Service root's figure). */
-  answers: { paddingHorizontal: space.lg, paddingTop: space.xxl, paddingBottom: space.h2 },
+  answers: { paddingHorizontal: space.lg, paddingTop: space.xxl },
   /* The research log, in the page gutter above the readings. */
   researchLog: { paddingHorizontal: space.lg, paddingTop: space.lg },
 

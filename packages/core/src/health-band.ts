@@ -33,7 +33,7 @@
  * decision and belongs in the roadmap, not in a local constant.
  */
 
-export type HealthBandName = 'good' | 'ok' | 'warn' | 'bad';
+export type HealthBandName = 'good' | 'ok' | 'warn' | 'bad' | 'thin';
 
 export interface HealthBandJudgement {
   name: HealthBandName;
@@ -97,6 +97,47 @@ const BANDS: ReadonlyArray<HealthBandJudgement & { min: number }> = [
  */
 export function getHealthBandJudgement(score: number): HealthBandJudgement {
   return BANDS.find((band) => score >= band.min) ?? BANDS[BANDS.length - 1];
+}
+
+/**
+ * ── 22 Sep · a reading on a thin file is not a verdict on the car ──────────
+ *
+ * The reviewer's F-PACE has **one** service record in 69,573 miles. The model
+ * read it at 55 and the dial said NEEDS ATTENTION in sodium — which an owner
+ * reads as *this car has problems*, when what the app actually knows is that
+ * it has almost nothing to go on. The value lens raised it; David ruled the
+ * thin-history state.
+ *
+ * So under three records the band is replaced, not the score: the number
+ * still stands (it is the model's reading and it is honest), and the word
+ * under it stops judging the car and names the file. No sodium either — a
+ * thin file is not a warning about the vehicle, and B7 gives sodium one job.
+ *
+ * ⚠ Three, because that is the number the hub already treats as thin (its
+ * cause line: "held back by one record on file"), and two places disagreeing
+ * about what counts as a thin history would be worse than either threshold.
+ *
+ * ⚠ An **unknown** count is not a thin one. A client that does not know how
+ * many records a car has passes `null` and gets the ordinary band: inventing
+ * a thin history from a failed read would suppress a real warning.
+ */
+export const CONFIDENT_RECORDS = 3;
+
+const THIN_HISTORY: HealthBandJudgement = {
+  name: 'thin',
+  /* The off-white ink — good news' colour, which is what the system uses for "no hue". */
+  rgb: '237,231,223',
+  label: 'Thin history',
+  short: 'Thin history',
+};
+
+/**
+ * The band to show for a reading, given how much of the car's history the app
+ * has seen. `records` is `null` when the caller does not know.
+ */
+export function bandForReading(score: number, records: number | null | undefined): HealthBandJudgement {
+  if (typeof records === 'number' && records < CONFIDENT_RECORDS) return THIN_HISTORY;
+  return getHealthBandJudgement(score);
 }
 
 /** `#rrggbb` for callers with no `rgba()` — React Native's StyleSheet, mainly. */
