@@ -108,12 +108,26 @@ export interface HealthDriver {
  * found nothing outstanding, has no cause to give.
  */
 export function holdingBack(drivers: readonly HealthDriver[]): HealthDriver | null {
-  const unjudged = drivers.find((d) => d.key === 'maintenance' && d.score === null && d.cause);
-  if (unjudged) return unjudged;
+  const maintenance = drivers.find((d) => d.key === 'maintenance');
+  // Unjudged, or judged on too few records: the history first, whatever the others score.
+  if (maintenance?.cause && (maintenance.score === null || maintenance.nothingOutstanding)) return maintenance;
   const scored = drivers.filter((d): d is HealthDriver & { score: number } => typeof d.score === 'number');
   if (scored.length === 0) return null;
   const weakest = scored.reduce((low, d) => (d.score < low.score ? d : low));
   return weakest.score < 100 && !weakest.nothingOutstanding && weakest.cause ? weakest : null;
+}
+
+/**
+ * The second reason, where one shares the blame: the recalls beside a thin
+ * history (22 Sep, the UX lens: *"naming two drivers when two share it —
+ * 'One record on file and 4 open recalls — add a record, review them'"*).
+ * Only recalls, and only beside the history: two scored drivers are one
+ * comparison, and the page names the loser.
+ */
+export function alsoHoldingBack(drivers: readonly HealthDriver[], first: HealthDriver | null): HealthDriver | null {
+  if (!first || first.key !== 'maintenance') return null;
+  const recalls = drivers.find((d) => d.key === 'recalls');
+  return recalls && typeof recalls.score === 'number' && recalls.score < 100 && recalls.cause ? recalls : null;
 }
 
 /* ── Maintenance ─────────────────────────────────────────────────────────── */
@@ -244,6 +258,18 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
       score: clamp(100 - penalty),
       detail,
       nothingOutstanding: true,
+      /*
+        A thin history is a reason even when nothing checked is outstanding
+        (22 Sep): the F-PACE at 55 with one record in 69,573 miles named its
+        four recalls while its own summary said sparse history, and three
+        lenses read the same. Half or more of the schedule with no record to
+        count from is the cause an owner can actually move; below that, the
+        gaps are stated in `detail` and nothing here claims they hold the
+        score back.
+      */
+      ...(unknown * 2 >= services.length
+        ? { cause: `${plural(unknown, 'service')} with no record to count from`, act: 'scan an invoice' }
+        : {}),
     };
   }
 
