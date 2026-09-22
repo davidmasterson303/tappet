@@ -1946,7 +1946,13 @@ const styles = StyleSheet.create({
 
   /* ── z2 · the sheet ───────────────────────────────────────────────────── */
   scroller: { flex: 1 },
-  scrollBody: { paddingBottom: space.h2 },
+  /*
+    ⚠ 24, from 40 over the section's own 40 (22 Sep, round 51): the page
+    ran 80pt of graphite past its last hairline — *"the page should stop
+    one band's padding below its last hairline"*. The section head enters
+    under 24pt of air; the page leaves under the same.
+  */
+  scrollBody: { paddingBottom: space.xxl },
   /**
    * Opaque, **square** top corners.
    *
@@ -2076,7 +2082,7 @@ const styles = StyleSheet.create({
 
   /* ── The lower sheet ──────────────────────────────────────────────────── */
   /* The answers head the lower sheet under the panel's 24pt of air (the Service root's figure). */
-  answers: { paddingHorizontal: space.lg, paddingTop: space.xxl, paddingBottom: space.h2 },
+  answers: { paddingHorizontal: space.lg, paddingTop: space.xxl },
   /* The research log, in the page gutter above the readings. */
   researchLog: { paddingHorizontal: space.lg, paddingTop: space.lg },
 
