@@ -37,6 +37,12 @@ export type Stat = {
   label: string;
   /** The value beneath it. Already formatted; this component does not format. */
   value: string;
+  /**
+   * A line under the value in the eyebrow's ink — the value's provenance
+   * (22 Sep: "4 wk ago" under an odometer, the age of the reading). Short: a
+   * cell is a third of the strip.
+   */
+  note?: string;
 };
 
 export default function StatStrip({ stats }: { stats: Stat[] }) {
@@ -53,6 +59,11 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
           <Text style={styles.value} numberOfLines={typeScale() > 1 ? 2 : 1}>
             {stat.value}
           </Text>
+          {stat.note ? (
+            <Text style={styles.note} numberOfLines={1}>
+              {stat.note}
+            </Text>
+          ) : null}
         </View>
       ))}
     </View>
@@ -95,4 +106,6 @@ const styles = StyleSheet.create({
   */
   label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
   value: { ...type.mono, color: text.primary, ...TABULAR },
+  /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */
+  note: { ...type.monoLabel, color: text.muted, ...TABULAR },
 });

@@ -1656,7 +1656,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     const { props, view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
 
-    await view.findByText(/MILEAGE · 3 WK AGO/i);
+    await view.findByText('set 3 wk ago');
     await user.press(view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/));
     expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
   });
