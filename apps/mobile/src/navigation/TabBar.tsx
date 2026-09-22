@@ -40,7 +40,9 @@ import { tabTarget, type TabName } from './tab-target';
  * reason the account did not simply become a fifth entry.
  */
 const TABS: Record<TabName, { label: string; icon: IconName }> = {
-  GarageTab: { label: 'Garage', icon: 'car' },
+  /* 21 Sep: the car is the first tab and takes the car glyph; the garage is the fifth, a warehouse. */
+  CarTab: { label: 'Car', icon: 'car' },
+  GarageTab: { label: 'Garage', icon: 'warehouse' },
   /*
     ⚠ 7 Sep: labelled "Service", not "History".
 

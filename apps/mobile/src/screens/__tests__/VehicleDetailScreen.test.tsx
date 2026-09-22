@@ -16,7 +16,8 @@ import {
 } from '../../theme/hero-motion';
 import * as RN from 'react-native';
 import { StyleSheet, processColor } from 'react-native';
-import { border, cut, surface, text, type } from '../../theme';
+import { border, cut, space, surface, text, type } from '../../theme';
+import { ACCOUNT_CONTROL_SLOT } from '../../navigation/AccountControl';
 import { cornerCovers } from '../../components/CutSurface';
 
 /**
@@ -990,6 +991,31 @@ describe('the hero’s nav, as controls', () => {
       // 36 drawn + 4 top + 4 bottom clears 44; anything less does not.
       expect(slop.top + slop.bottom).toBeGreaterThanOrEqual(8);
     }
+  });
+
+  it('keeps the photo control clear of the floating account word — 21 Sep, the car is a root', async () => {
+    /*
+      `AccountControl` draws ACCOUNT at the top-right corner of every tab root,
+      as a sibling of the navigator that no screen can swallow. Since the Car
+      tab this screen is a root, and the first build put ADD PHOTO under the
+      word — the same collision the garage's `+` had on the first build of the
+      control. The screen pads by the control's own slot, so neither reserves
+      what the other draws.
+    */
+    respond();
+    const { view } = await mount();
+
+    // Up from the control to the plane that places it: the first absolute `right`.
+    let node: { parent: unknown; props: Record<string, unknown> } | null = view.getByLabelText('Add photo');
+    let right: unknown;
+    while (node && right === undefined) {
+      const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as { right?: unknown };
+      right = flat.right;
+      node = node.parent as typeof node;
+    }
+
+    expect(typeof right).toBe('number');
+    expect(right as number).toBeGreaterThanOrEqual(ACCOUNT_CONTROL_SLOT + space.lg);
   });
 });
 

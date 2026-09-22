@@ -32,7 +32,9 @@ import BackControl from '../components/BackControl';
 import BandRow from '../components/BandRow';
 import Binnacle, { BinnacleCell, BinnacleRow } from '../components/Binnacle';
 import Button from '../components/Button';
-import DialChip, { DIAL_CHIP_SLOT } from '../components/DialChip';
+import DialChip from '../components/DialChip';
+import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
+import { NAV_BAND } from '../components/RootScreen';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PhotoGrade from '../components/PhotoGrade';
 import PlateStatusLine from '../components/PlateStatusLine';
@@ -58,7 +60,7 @@ import {
   sheetMinHeight,
 } from '../theme/hero-motion';
 import Svg, { Path } from 'react-native-svg';
-import { TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { CONTROL_HEIGHT, TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
 import type { ResearchObservation } from '@tappet/core/research-milestones';
@@ -1754,7 +1756,13 @@ export function VehicleDetailScreen({
         governed it has nothing to govern. That is a real simplification rather
         than a deletion — logged for Design in `docs/design-system-drift.md`.
       */}
-      <View style={[styles.dialChip, { top: insets.top + 6 }]} pointerEvents="box-none">
+      {/*
+        ⚠ 21 Sep: centred on the nav row, not 6pt under its top. The `+ 6` dates
+        from a 36pt pill; `Button`'s small size has been `CONTROL_HEIGHT` since
+        12 Sep, so the pill sat 8pt below "‹ GARAGE" — invisible while it stood
+        alone, and plain once ACCOUNT floated beside it on the same row.
+      */}
+      <View style={[styles.dialChip, { top: insets.top + (NAV_BAND - CONTROL_HEIGHT) / 2 }]} pointerEvents="box-none">
         <Animated.View style={{ opacity: identityFade }}>
           {/*
             One control, two verbs once a photograph exists — `onPhotoControl`
@@ -1912,10 +1920,21 @@ const styles = StyleSheet.create({
    * scrolled the car. Same token as the roots and the back control now.
    */
   navTitle: { ...type.monoNav, color: text.primary, flex: 1, textAlign: 'center' },
-  navChipSlot: { width: DIAL_CHIP_SLOT },
+  /**
+   * ⚠ 21 Sep · the car is a tab root now, and a root has a floating ACCOUNT.
+   *
+   * `AccountControl` is a sibling of the navigator and draws the word at
+   * this corner on every root — the guarantee 5.1.1(v) rests on. The first
+   * build of the Car tab put ADD PHOTO directly under it. So the photo
+   * control pads by the control's own slot, as the garage pads its `+`, and
+   * the title reserves the same width: by the time the title arrives the
+   * photo control has faded out (`HERO_TITLE_FADE_SPAN`), and the word is
+   * what remains at the row's end.
+   */
+  navChipSlot: { width: ACCOUNT_CONTROL_SLOT },
 
-  /* ── z7 · the score chip ──────────────────────────────────────────────── */
-  dialChip: { position: 'absolute', right: space.lg, alignItems: 'flex-end' },
+  /* ── z7 · the photo control, in the score chip's old slot ─────────────── */
+  dialChip: { position: 'absolute', right: space.lg + ACCOUNT_CONTROL_SLOT, alignItems: 'flex-end' },
 
   /* ── The binnacle's readings ────────────────────────────────────────── */
   banner: { padding: space.lg },

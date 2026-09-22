@@ -65,6 +65,7 @@ export type IconName =
   | 'circle-check'
   | 'sparkles'
   | 'car'
+  | 'warehouse'
   | 'message-square'
   | 'info';
 
@@ -147,6 +148,13 @@ const ICONS: Record<IconName, Element[]> = {
       tag: 'path',
       d: 'M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z',
     },
+  ],
+  /* lucide's `warehouse`, verbatim — the Garage tab's glyph once the car took the car (21 Sep). */
+  warehouse: [
+    { tag: 'path', d: 'M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z' },
+    { tag: 'path', d: 'M6 18h12' },
+    { tag: 'path', d: 'M6 14h12' },
+    { tag: 'rect', x: 6, y: 10, width: 12, height: 12, rx: 0 },
   ],
   car: [
     {

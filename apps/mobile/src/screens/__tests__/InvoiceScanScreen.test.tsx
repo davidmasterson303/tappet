@@ -103,11 +103,12 @@ const FILE: InvoiceFile = {
   type: 'image/jpeg',
 };
 
-async function mount(over: { pickImage?: jest.Mock } = {}) {
+async function mount(over: { pickImage?: jest.Mock; startWith?: 'camera' | 'library' } = {}) {
   const pickImage = over.pickImage ?? jest.fn(async () => FILE);
   const props = {
     vehicleId: 'v1',
     pickImage: pickImage as (s: 'library') => Promise<InvoiceFile | null>,
+    ...(over.startWith ? { startWith: over.startWith } : {}),
     onSignOut: jest.fn(),
     onFiled: jest.fn(),
   };
@@ -337,6 +338,30 @@ describe('choosing an image', () => {
     await view.findByTestId('camera-view');
     expect(view.getByRole('button', { name: 'Capture' })).toBeTruthy();
     expect(view.getByText('Choose from library')).toBeTruthy();
+  });
+
+  it('opens the library at once for UPLOAD, and only once consent is granted (21 Sep)', async () => {
+    /*
+      The Service tab's second control. A receipt already in the photos is
+      the common case for one from last month, and the picker being an
+      "instead" line on the viewfinder hid it — David, on the phone, did not
+      know it was there.
+    */
+    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
+    const { pickImage } = await mount({ startWith: 'library' });
+    await waitFor(() => expect(pickImage).toHaveBeenCalledWith('library'));
+    expect(pickImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not open the library for UPLOAD before consent — the sheet at the door comes first', async () => {
+    mockConsent = 'unknown';
+    try {
+      const { pickImage, view } = await mount({ startWith: 'library' });
+      await view.findByText('Reading an invoice uses Google’s AI');
+      expect(pickImage).not.toHaveBeenCalled();
+    } finally {
+      mockConsent = 'granted';
+    }
   });
 
   it('asks the injected picker for the right source', async () => {

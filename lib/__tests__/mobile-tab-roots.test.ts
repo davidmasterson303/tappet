@@ -44,7 +44,8 @@ const NAVIGATOR = join(
   'RootNavigator.tsx'
 );
 
-const ROOTS = ['GarageTab', 'ServiceTab', 'PlanTab', 'AdvisorTab'] as const;
+/* Five since 21 Sep, in David's order: the car got its own tab beside the garage. */
+const ROOTS = ['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
 
 /** The attribute blob of the first `<Tab.Navigator`, depth-counted to its `>`. */
 function tabNavigatorAttributes(source: string): string {
@@ -72,6 +73,14 @@ function backIsNone(source: string): boolean {
   return /backBehavior="none"/.test(tabNavigatorAttributes(source));
 }
 
+/**
+ * The car-tab roots that render through `withCar` — the seam that turns a tab
+ * pressed with no car in hand into a screen that says so, rather than a crash.
+ */
+function rootsThroughWithCar(source: string): string[] {
+  return [...source.matchAll(/withCar\(route, navigation, '([A-Za-z]+)'/g)].map((m) => m[1]).sort();
+}
+
 const navigator = readFileSync(NAVIGATOR, 'utf8');
 
 describe('B8 — the tab roots', () => {
@@ -81,7 +90,7 @@ describe('B8 — the tab roots', () => {
     expect(tabNavigatorAttributes(navigator).length).toBeGreaterThan(0);
   });
 
-  it('registers the four roots, in the order the bar draws them', () => {
+  it('registers the five roots, in the order the bar draws them', () => {
     expect(tabScreens(navigator)).toEqual([...ROOTS]);
   });
 
@@ -95,7 +104,7 @@ describe('B8 — the tab roots', () => {
       rather than by counting `<Stack.Navigator`, so a fifth stack somewhere
       else cannot stand in for a missing one here.
     */
-    for (const root of ['Garage', 'Service', 'Plan', 'Advisor']) {
+    for (const root of ['Garage', 'VehicleDetail', 'Service', 'Plan', 'Advisor']) {
       expect(navigator).toContain(`<Stack.Navigator initialRouteName="${root}"`);
     }
   });
@@ -140,6 +149,28 @@ describe('B8 — the tab roots', () => {
 
     expect(tabScreens(swapped)).not.toEqual([...ROOTS]);
     expect(tabScreens(swapped)).toHaveLength(4);
+  });
+
+  it('renders every car-tab root through withCar, the Car tab included (21 Sep)', () => {
+    /*
+      A car tab pressed before any car has been on screen mounts its root with
+      no params. Service, Plan and Advisor have gone through `withCar` since
+      the per-tab stacks; the Car tab's root was written reading
+      `route.params.title` bare, and the first press on a fresh launch put a
+      render error over the whole app. Four roots, four seams.
+    */
+    expect(rootsThroughWithCar(navigator)).toEqual(['Advisor', 'Car', 'Plan', 'Service']);
+  });
+
+  it('can still detect a root that reads its params bare', () => {
+    const bare = `
+      <Stack.Screen name="VehicleDetail" options={({ route }) => ({ title: carBackTitle(route.params.title) })}>
+        {({ route, navigation }) => <VehicleDetailScreen vehicleId={route.params.vehicleId} />}
+      </Stack.Screen>
+      {({ route, navigation }) => withCar(route, navigation, 'Service', (vehicleId) => <ServiceScreen vehicleId={vehicleId} />)}
+    `;
+
+    expect(rootsThroughWithCar(bare)).toEqual(['Service']);
   });
 });
 
