@@ -19,6 +19,7 @@ import type { PlateStatus } from '@tappet/core/plates';
 import {
   UNKNOWN_TIMING,
   describeNextService,
+  displayServiceName,
 } from '@tappet/core/garage-next-service';
 import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -439,7 +440,7 @@ export default function GarageBay({
           accessibilityRole={nextService.kind === 'known' && onOpenService ? 'button' : undefined}
           accessibilityLabel={
             nextService.kind === 'known' && onOpenService
-              ? `Next service: ${nextService.service}, ${nextService.timing}. Opens what is due.`
+              ? `Next service: ${displayServiceName(nextService.service)}, ${nextService.timing}. Opens what is due.`
               : undefined
           }
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
@@ -457,8 +458,16 @@ export default function GarageBay({
               digits (R11) so a stack of bays does not shimmer.
             */
             <View style={styles.rowValue}>
+              {/*
+                ⚠ 22 Sep · the reading's name, not the knowledge base's filing.
+                The hub strips the schedule tier and spells "and" one way
+                (`displayServiceName`, the hub loop's IA and UX critics in one
+                voice); the bay printed "Engine Oil & Filter Change
+                (Enthusiast)" for the same car one tap away — walked on the
+                phone. One job, one name, whichever screen it is on.
+              */}
               <Text style={styles.nextServiceJob} numberOfLines={1}>
-                {nextService.service}
+                {displayServiceName(nextService.service)}
               </Text>
               <Text style={styles.nextServiceTiming} numberOfLines={1}>
                 {nextService.timing}
