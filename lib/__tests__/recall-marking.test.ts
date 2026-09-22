@@ -56,6 +56,8 @@ interface Seen {
   inserts: Array<[string, Record<string, unknown>]>;
   /** Descriptions the undo asked `maintenance_line_items` to remove. */
   removedDescriptions: string[];
+  /** `[table, values]` for every update — the reading's staleness stamp. */
+  updates: Array<[string, Record<string, unknown>]>;
 }
 
 /**
@@ -75,7 +77,7 @@ function client(
     nhtsaMissing = false,
   }: { recalls?: unknown; existingRecords?: unknown[]; nhtsaMissing?: boolean } = {}
 ): Seen {
-  const seen: Seen = { upserts: [], deleteFilters: [], inserts: [], removedDescriptions: [] };
+  const seen: Seen = { upserts: [], deleteFilters: [], inserts: [], removedDescriptions: [], updates: [] };
 
   serviceRole.mockReturnValue({
     from: (table: string) => ({
@@ -104,6 +106,10 @@ function client(
       insert: (values: Record<string, unknown>) => {
         seen.inserts.push([table, values]);
         return Promise.resolve({ error: null });
+      },
+      update: (values: Record<string, unknown>) => {
+        seen.updates.push([table, values]);
+        return { eq: () => Promise.resolve({ error: null }) };
       },
       delete: () => {
         const chain = {
@@ -435,5 +441,68 @@ describe('the record the mark files', () => {
     );
 
     expect(seen.removedDescriptions).toEqual(['Recall 23V-441']);
+  });
+});
+
+/**
+ * ── The reading goes out of date with the claim (22 Sep) ───────────────────
+ *
+ * Marking changes two of the model's inputs — the open recalls and the record
+ * count — so the stored summary no longer accounts for the car. Marking was
+ * already caught by `healthVerdict`'s time rule (the filed record postdates
+ * the reading); **undoing was not**, because records go down and nothing
+ * compares that way. Walked on the phone: the F-PACE went 55 → 62 on a mark
+ * and stayed 62 after the undo, holding credit for a withdrawn claim.
+ */
+describe('the reading, after a claim moves', () => {
+  const stamped = (seen: ReturnType<typeof client>) =>
+    seen.updates.filter(([table]) => table === 'vehicle_health_summary');
+
+  it('says the reading is out of date when a recall is marked', async () => {
+    const seen = client();
+    await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }));
+
+    expect(stamped(seen)).toHaveLength(1);
+    const [, values] = stamped(seen)[0];
+    expect(String(values.last_generated)).toMatch(/^2000-01-01/);
+    // And nothing else: a route that wrote a score would be inventing a reading.
+    expect(Object.keys(values)).toEqual(['last_generated']);
+  });
+
+  it('says it again when the mark is undone — the half that was missing', async () => {
+    const seen = client();
+    await DELETE(
+      new NextRequest(
+        `https://tappet.test/api/v1/recalls?vehicleId=${VEHICLE}&campaignNumber=23V-441`,
+        { method: 'DELETE' }
+      )
+    );
+
+    expect(stamped(seen)).toHaveLength(1);
+    expect(String(stamped(seen)[0][1].last_generated)).toMatch(/^2000-01-01/);
+  });
+
+  it('keeps the mark when the reading cannot be stamped', async () => {
+    // Same rule as the record: the safety claim is the thing being stored.
+    const seen = client();
+    serviceRole.mockReturnValue({
+      from: (table: string) => ({
+        select: () => ({
+          eq: () => ({ maybeSingle: () => Promise.resolve({ data: { recalls: [] }, error: null }) }),
+          limit: () => Promise.resolve({ data: [], error: null }),
+        }),
+        upsert: (values: unknown) => {
+          seen.upserts.push(values);
+          return Promise.resolve({ error: null });
+        },
+        insert: () => Promise.resolve({ error: null }),
+        update: () => ({ eq: () => Promise.resolve({ error: { message: 'no such column' } }) }),
+      }),
+    });
+
+    const response = await POST(post({ vehicleId: VEHICLE, campaignNumber: '23V-441' }));
+
+    expect(response.status).toBe(200);
+    expect(seen.upserts).toHaveLength(1);
   });
 });

@@ -78,6 +78,18 @@ export const dynamic = 'force-dynamic';
  * history row could not be written would lose the more important half. The
  * failure is logged and the response says whether the record landed.
  *
+ * ⚠ **And both halves stale the reading.** Marking a campaign changes two of
+ * the model's inputs — the open recalls and the record count — so the stored
+ * health summary no longer accounts for the car. Marking happened to be
+ * caught already: the filed record postdates the reading, which is the
+ * staleness rule `healthVerdict` has always applied. **Undoing was not**,
+ * because records went *down* and nothing compares that way — so on the
+ * reviewer's F-PACE a withdrawn claim left the score holding its credit (55 →
+ * 62, and 62 after the undo; found by walking it on the phone, 22 Sep). Both
+ * paths now stamp `last_generated` back, the way `invalidateHealthSummaryCache`
+ * does: it does not invent a score, it says this reading is out of date, and
+ * the next open takes a new one.
+ *
  * ── The shape, and why GET returns a list rather than a count ───────────────
  *
  * A count would be enough for the garage chip and useless for the recall
@@ -232,9 +244,34 @@ export async function POST(request: NextRequest): Promise<Response> {
   logger.info('RECALLS_API:MARKED', 'Recall marked as repaired by its owner', { vehicleId });
 
   const recorded = await fileRecallRecord(vehicleId as string, campaignNumber, addressedAt);
+  await staleTheReading(vehicleId as string);
 
   return NextResponse.json({ addressed: { campaignNumber, addressedAt }, recorded });
 }
+
+/**
+ * Say the stored health reading is out of date, so the next open takes a new
+ * one. Never throws, and never touches the score itself.
+ *
+ * ⚠ The same stamp `invalidateHealthSummaryCache` uses — `last_generated`
+ * moved back, which is what `healthVerdict` reads as stale. Writing a score
+ * here would be this route inventing a reading; all it may honestly say is
+ * that the inputs moved under the one on file.
+ */
+async function staleTheReading(vehicleId: string): Promise<void> {
+  try {
+    const { error } = await getServiceRoleClient()
+      .from('vehicle_health_summary')
+      .update({ last_generated: STALE_STAMP })
+      .eq('vehicle_id', vehicleId);
+    if (error) logger.warn('RECALLS_API:STALE', 'Could not stale the reading', { vehicleId, error: error.message });
+  } catch (cause) {
+    logger.warn('RECALLS_API:STALE', 'Could not stale the reading', { vehicleId, error: (cause as Error)?.message });
+  }
+}
+
+/** Older than any record this product can hold — `invalidateHealthSummaryCache`'s own stamp. */
+const STALE_STAMP = '2000-01-01T00:00:00.000Z';
 
 /**
  * The description this vehicle's row for a campaign carries — written once,
@@ -376,6 +413,14 @@ export async function DELETE(request: NextRequest): Promise<Response> {
   } catch (cause) {
     logger.error('RECALLS_API:RECORD_UNDO', cause as Error, { vehicleId, campaignNumber });
   }
+
+  /*
+    ⚠ And the reading goes out of date with it. This is the half that was
+    missing: the record's removal takes the credit out of the *drivers*, which
+    are computed, but the model's score is a stored row and nothing re-reads
+    it when records go down. See the header.
+  */
+  await staleTheReading(vehicleId as string);
 
   return NextResponse.json({ removed: campaignNumber });
 }
