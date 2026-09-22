@@ -235,6 +235,38 @@ describe('no interval, no obligation — §0.10', () => {
     expect(mayClaimWarrantyTerms({ miles: 6_000, source: 'vehicle' })).toBe(false);
     expect(mayClaimWarrantyTerms(null)).toBe(false);
   });
+
+  describe('the car\'s own schedule may be offered, never assumed — 21 Sep', () => {
+    const { scheduledRotationInterval, intervalSourceFor } = require('@tappet/core/tires');
+    const FORESTER = [
+      { service: 'Engine Oil and Filter Change', interval_miles: 6000, interval_months: 6 },
+      { service: 'Tire Rotation', priority: 'Critical', interval_miles: 6000, interval_months: null },
+    ];
+
+    it('reads the rotation interval off the schedule, and nothing off a schedule without one', () => {
+      expect(scheduledRotationInterval(FORESTER)).toBe(6000);
+      expect(scheduledRotationInterval([{ service: 'Brake Fluid', interval_miles: 30000 }])).toBeNull();
+      // Months without miles is not a mileage interval.
+      expect(scheduledRotationInterval([{ service: 'Tire Rotation', interval_miles: null, interval_months: 6 }])).toBeNull();
+      expect(scheduledRotationInterval(null)).toBeNull();
+      expect(scheduledRotationInterval('pending')).toBeNull();
+    });
+
+    it('carries "vehicle" only when the figure is the schedule\'s — the server\'s decision, not the client\'s word', () => {
+      expect(intervalSourceFor(6000, 'vehicle', 6000)).toBe('vehicle');
+      // The owner changed the number: it is theirs now, whatever the client said.
+      expect(intervalSourceFor(5000, 'vehicle', 6000)).toBe('owner');
+      // No schedule figure to check against: the claim cannot hold.
+      expect(intervalSourceFor(6000, 'vehicle', null)).toBe('owner');
+      expect(intervalSourceFor(6000, undefined, 6000)).toBe('owner');
+      expect(intervalSourceFor(null, 'vehicle', 6000)).toBeNull();
+    });
+
+    it('a schedule\'s interval draws the overrun and never the warranty sentence', () => {
+      expect(resolveInterval({ rotationIntervalMiles: 6_000, intervalSource: 'vehicle' })).toEqual({ miles: 6_000, source: 'vehicle' });
+      expect(mayClaimWarrantyTerms({ miles: 6_000, source: 'vehicle' })).toBe(false);
+    });
+  });
 });
 
 describe('what the reading counts from', () => {

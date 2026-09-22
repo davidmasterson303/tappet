@@ -60,7 +60,8 @@ describe('the set form', () => {
     expect(view.getByText('Say who makes the tire.')).toBeTruthy();
     expect(view.getByText('Say which tire it is — the name on the sidewall.')).toBeTruthy();
     expect(view.getByText('The size is on the sidewall — 245/35R19, for example.')).toBeTruthy();
-    expect(request).not.toHaveBeenCalled();
+    // Nothing written — the one call on mount is the help reading the car's schedule (21 Sep).
+    expect(request.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method)).toHaveLength(0);
   });
 
   it('prefills nothing in the interval, and sends the payload core builds — blank rear is the front', async () => {
@@ -99,8 +100,9 @@ describe('the set form', () => {
     expect(view.getByLabelText('Size, rear, blank if the same').props.value).toBe('');
     await userEvent.setup().press(view.getByLabelText('Save the changes'));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
-    expect(request.mock.calls[0][0]).toBe('/tires?setId=set-1');
-    expect(request.mock.calls[0][1]).toMatchObject({ method: 'PATCH' });
+    const patch = request.mock.calls.find(([path]) => String(path).startsWith('/tires?setId='));
+    expect(patch?.[0]).toBe('/tires?setId=set-1');
+    expect(patch?.[1]).toMatchObject({ method: 'PATCH' });
   });
 
   it('lands a refusal from the route on the form', async () => {
@@ -112,17 +114,27 @@ describe('the set form', () => {
 });
 
 describe('the interval screen', () => {
+  /** The writes only — the help under the field reads the car's schedule on mount (21 Sep). */
+  const writes = () => request.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method === 'PATCH');
+
   it('refuses a blank, names the card, and sends only the interval', async () => {
-    request.mockResolvedValue({ set: { ...SET_ROW, rotation_interval_miles: 6000, interval_source: 'owner' } } as never);
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) return { knowledge: { maintenance_schedule: [] } } as never;
+      return { set: { ...SET_ROW, rotation_interval_miles: 6000, interval_source: 'owner' } } as never;
+    });
     const onSaved = jest.fn();
-    const view = await render(<TireIntervalScreen set={GOLF} onSaved={onSaved} onSignOut={jest.fn()} />);
+    const view = await render(<TireIntervalScreen vehicleId="v1" set={GOLF} onSaved={onSaved} onSignOut={jest.fn()} />);
     const user = userEvent.setup();
     const field = view.getByLabelText('Rotation interval, miles, from your warranty card');
     expect(field.props.value).toBe('');
     expect(field.props.placeholder).toBeUndefined();
     await user.press(view.getByLabelText('Save the interval'));
     expect(view.getByText('Enter the interval from your warranty card.')).toBeTruthy();
-    expect(request).not.toHaveBeenCalled();
+    expect(writes()).toHaveLength(0);
+    // A schedule with no rotation entry offers nothing; the fold still says where to look.
+    expect(view.queryByText(/Your car's own schedule says/)).toBeNull();
+    await user.press(view.getByLabelText('Show where to find the interval'));
+    expect(view.getByText(/On the tire's warranty card/)).toBeTruthy();
 
     await user.type(field, '600');
     await user.press(view.getByLabelText('Save the interval'));
@@ -133,6 +145,41 @@ describe('the interval screen', () => {
     await user.press(view.getByLabelText('Save the interval'));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(request).toHaveBeenCalledWith('/tires?setId=set-1', { method: 'PATCH', body: { rotationIntervalMiles: 6000 } });
+  });
+
+  it('offers the car\'s own schedule figure, never fills it, and marks it as the vehicle\'s only when used as-is (21 Sep)', async () => {
+    /*
+      David: "I thought we were going to research the interval?" No — the
+      module's rule holds, and the honest offer is the dossier's own figure
+      where it has one. One tap uses it; the server checks the claim.
+    */
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return { knowledge: { maintenance_schedule: [{ service: 'Tire Rotation', interval_miles: 6000 }] } } as never;
+      }
+      return { set: { ...SET_ROW, rotation_interval_miles: 6000, interval_source: 'vehicle' } } as never;
+    });
+    const onSaved = jest.fn();
+    const view = await render(<TireIntervalScreen vehicleId="v1" set={GOLF} onSaved={onSaved} onSignOut={jest.fn()} />);
+    const user = userEvent.setup();
+    const field = view.getByLabelText('Rotation interval, miles, from your warranty card');
+
+    await view.findByText(/Your car's own schedule says every 6,000 miles/);
+    expect(field.props.value).toBe('');
+
+    await user.press(view.getByLabelText('Use 6,000 MI'));
+    expect(view.getByLabelText('Rotation interval, miles, from your warranty card').props.value).toBe('6000');
+    await user.press(view.getByLabelText('Save the interval'));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(writes()[0]).toEqual(['/tires?setId=set-1', { method: 'PATCH', body: { rotationIntervalMiles: 6000, intervalSource: 'vehicle' } }]);
+
+    // Typed over: the number is the owner's, and no source is claimed.
+    const again = await render(<TireIntervalScreen vehicleId="v1" set={GOLF} onSaved={onSaved} onSignOut={jest.fn()} />);
+    await again.findByText(/Your car's own schedule says/);
+    await user.type(again.getByLabelText('Rotation interval, miles, from your warranty card'), '5000');
+    await user.press(again.getByLabelText('Save the interval'));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(2));
+    expect(writes()[1][1]).toEqual({ method: 'PATCH', body: { rotationIntervalMiles: 5000, intervalSource: undefined } });
   });
 });
 

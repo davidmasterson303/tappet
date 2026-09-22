@@ -1129,7 +1129,12 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
 
       <Stack.Screen name="TireInterval" options={{ title: 'ENTER THE INTERVAL' }}>
         {({ route, navigation }) => (
-          <TireIntervalScreen set={route.params.set} onSignOut={onSignOut} onSaved={() => navigation.goBack()} />
+          <TireIntervalScreen
+            vehicleId={route.params.vehicleId}
+            set={route.params.set}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
         )}
       </Stack.Screen>
 

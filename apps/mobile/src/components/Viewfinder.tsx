@@ -166,6 +166,16 @@ export const READOUT: Record<CameraState, string> = {
 /** The bracket's leg. ~24pt, the figure the plate's cut measured at 4×. */
 export const BRACKET_LEG = 24;
 
+/**
+ * The barcode band's zoom (21 Sep). A Code 39 VIN is ~55 mm wide; on the
+ * main lens at the closest distance it will focus (~15–20 cm) that is a
+ * sixth of the frame, below what the reader resolves, and David could not
+ * get a focus any closer. `zoom` is a fraction of the lens's maximum (about
+ * 16× on the wide camera), so 0.07 is roughly 2×: the barcode fills the band
+ * from a distance the lens is happy at, and the sensor crop keeps its detail.
+ */
+export const BARCODE_ZOOM = 0.07;
+
 export default function Viewfinder({
   live,
   label = 'Photograph the invoice',
@@ -194,7 +204,18 @@ export default function Viewfinder({
    * Barcode mode: the symbologies to look for and what to do with a read.
    * The capture control is not drawn — the read is the capture.
    */
-  barcodes?: { types: BarcodeType[]; onRead: (result: BarcodeScanningResult) => void };
+  barcodes?: {
+    types: BarcodeType[];
+    onRead: (result: BarcodeScanningResult) => void;
+    /**
+     * A still, taken on purpose (21 Sep). The live reader could not be made
+     * to see a Forester's sticker from a distance the main lens will focus
+     * at, and there was nothing to press. The shutter is drawn in barcode
+     * mode too: the frame takes a picture and hands its URI here, and the
+     * screen decodes it (`scanFromURLAsync`) or says why it could not.
+     */
+    onStill: (uri: string) => Promise<void> | void;
+  };
   /** Barcode mode only: stop delivering reads, keeping the frame and the session. */
   paused?: boolean;
   /** Drawn beside the capture control — the library secondary. Alone on the row in barcode mode. */
@@ -270,13 +291,14 @@ export default function Viewfinder({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     try {
       const picture = await view.takePictureAsync({ quality: INVOICE_QUALITY });
-      await onCapture?.(invoiceFileFromCapture(picture));
+      if (barcodes) await barcodes.onStill(picture.uri);
+      else await onCapture?.(invoiceFileFromCapture(picture));
     } catch (caught) {
       onCaptureFailed?.(caught);
     } finally {
       setCapturing(false);
     }
-  }, [state, onCapture, onCaptureFailed]);
+  }, [state, barcodes, onCapture, onCaptureFailed]);
 
   const warning = state === 'off' || state === 'failed';
   const alternativeSentence = `${alternative.charAt(0).toUpperCase()}${alternative.slice(1)} instead.`;
@@ -297,6 +319,7 @@ export default function Viewfinder({
             onMountError={({ message }) => setMountError(message)}
             barcodeScannerSettings={barcodes ? { barcodeTypes: barcodes.types } : undefined}
             onBarcodeScanned={barcodes && !paused ? barcodes.onRead : undefined}
+            zoom={barcodes ? BARCODE_ZOOM : 0}
           />
         ) : null}
         {/*
@@ -408,18 +431,22 @@ export default function Viewfinder({
               capture, and a shutter button on a scanner would take a grey
               square of the sticker and hand it to nobody.
             */}
-            {barcodes ? null : (
-              <Button
-                label="Capture"
-                variant="primary"
-                size="small"
-                onPress={() => void capture()}
-                disabled={state !== 'ready' && state !== 'capturing'}
-                busy={state === 'capturing'}
-                busyLabel=""
-                style={styles.capture}
-              />
-            )}
+            {/*
+              21 Sep: drawn in barcode mode after all. The live read is still
+              the capture when it lands; the shutter is for when it does not —
+              a still of the sticker, decoded on the phone, with a sentence
+              back when nothing was read. Same control, same edge.
+            */}
+            <Button
+              label={barcodes ? 'Read a photo' : 'Capture'}
+              variant="primary"
+              size="small"
+              onPress={() => void capture()}
+              disabled={state !== 'ready' && state !== 'capturing'}
+              busy={state === 'capturing'}
+              busyLabel=""
+              style={styles.capture}
+            />
             {beside}
           </View>
         ) : null}
@@ -438,8 +465,8 @@ const styles = StyleSheet.create({
   */
   frame: { flex: 1, overflow: 'hidden', backgroundColor: surface.nav },
   brackets: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, margin: rhythm.page },
-  /* The barcode band: the frame's middle fifth, full page width. */
-  bracketsBand: { top: '40%', bottom: '40%' },
+  /* The barcode band: the frame's middle third, full page width — a fifth asked for a distance the lens cannot focus (21 Sep). */
+  bracketsBand: { top: '33%', bottom: '33%' },
   bracket: {
     position: 'absolute',
     width: BRACKET_LEG,

@@ -107,6 +107,23 @@ describe('ClusterGauge', () => {
     view.getByLabelText('Health score 61 out of 100 — Fair');
   });
 
+  it('gives the verdict word a line its face fits in — "GUUD" on every bay, 21 Sep', async () => {
+    /*
+      The hero sized the word to 7% of the dial and kept `monoLabel`'s 16pt
+      line; JetBrains Mono's ascenders are 1.32 of the size, so at 13 the
+      tops of the O's were sliced off. The line grows with the size, on
+      every variant, by a margin the face clears.
+    */
+    const { StyleSheet } = require('react-native');
+    for (const props of [{ variant: 'hero' as const, size: 184 }, { variant: 'card' as const }]) {
+      const view = await render(<ClusterGauge score={88} {...props} />);
+      const word = view.getByText('Good');
+      const flat = StyleSheet.flatten(word.props.style) as { fontSize: number; lineHeight: number };
+      expect(flat.lineHeight).toBeGreaterThanOrEqual(Math.ceil(flat.fontSize * 1.32));
+      await view.unmount();
+    }
+  });
+
   it('paints the lit arc against the real arc length, not against 100', async () => {
     /*
       ⚠ The defect this exists for.

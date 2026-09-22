@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
-import type { BarcodeScanningResult, BarcodeType } from 'expo-camera';
+import { scanFromURLAsync, type BarcodeScanningResult, type BarcodeType } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 
 import Button from '../components/Button';
@@ -85,6 +85,28 @@ export function ScanVinScreen({
     [decode]
   );
 
+  /*
+    A still, taken on purpose (21 Sep). Decoded on the phone with the same
+    symbologies the live reader uses; when nothing is read the sentence says
+    what a person can change — distance, steadiness — rather than "failed".
+    A photo that decodes hands its VIN to the same `onRead` as a live read.
+  */
+  const onStill = useCallback(
+    async (uri: string) => {
+      const found = await scanFromURLAsync(uri, VIN_BARCODE_TYPES).catch(() => [] as BarcodeScanningResult[]);
+      const hit = found.find((result) => vinFromBarcode(result.data ?? '') !== null) ?? found[0];
+      if (!hit) {
+        setNotVin(
+          'No barcode could be read from that photo. Hold the phone still with the barcode across the band, and try once more — or type the number.'
+        );
+        return;
+      }
+      onRead(hit);
+    },
+    [onRead]
+  );
+
+
   if (decode.observation) {
     return (
       <ScrollView contentContainerStyle={styles.body}>
@@ -106,7 +128,7 @@ export function ScanVinScreen({
       live
       label="Scan the sticker"
       alternative="type the number"
-      barcodes={{ types: VIN_BARCODE_TYPES, onRead }}
+      barcodes={{ types: VIN_BARCODE_TYPES, onRead, onStill }}
       paused={decode.observation !== null}
       beside={<Button label="Type it instead" variant="outline" size="small" onPress={onType} />}
       foot={

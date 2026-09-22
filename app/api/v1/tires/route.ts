@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@tappet/core/logger';
-import { tireSetPayloadProblems, type TireSetPayload } from '@tappet/core/tires';
+import {
+  intervalSourceFor,
+  scheduledRotationInterval,
+  tireSetPayloadProblems,
+  type IntervalSource,
+  type TireSetPayload,
+} from '@tappet/core/tires';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { TIRES_UNAVAILABLE, readTireRecords, tireTablesMissing } from '@/lib/tires-store';
@@ -57,8 +64,13 @@ function unavailable() {
   );
 }
 
-/** The columns a set payload writes. `interval_source` follows the interval, never the client. */
-function rowFrom(payload: TireSetPayload) {
+/**
+ * The columns a set payload writes. `interval_source` follows the interval and
+ * the server's own reading of the car's schedule — never the client's word
+ * alone (21 Sep): a client may *say* `'vehicle'`, and the row carries it only
+ * when the figure is the one the dossier's schedule holds for a rotation.
+ */
+function rowFrom(payload: TireSetPayload, vehicleInterval: number | null) {
   return {
     brand: payload.brand,
     line: payload.line,
@@ -68,9 +80,19 @@ function rowFrom(payload: TireSetPayload) {
     install_odometer: payload.installOdometer,
     purchase_place: payload.purchasePlace,
     rotation_interval_miles: payload.rotationIntervalMiles,
-    interval_source: payload.rotationIntervalMiles === null ? null : 'owner',
+    interval_source: intervalSourceFor(payload.rotationIntervalMiles, payload.intervalSource, vehicleInterval),
     treadwear_miles_entered: payload.treadwearMilesEntered,
   };
+}
+
+/** The rotation interval the car's schedule carries, read for the source decision. Null when it has none, or cannot be read. */
+async function vehicleIntervalFor(client: SupabaseClient, vehicleId: string): Promise<number | null> {
+  const { data } = await client
+    .from('vehicle_knowledge_base')
+    .select('maintenance_schedule')
+    .eq('vehicle_id', vehicleId)
+    .maybeSingle();
+  return scheduledRotationInterval(data?.maintenance_schedule);
 }
 
 /** The payload as `tireSetPayloadProblems` passed it — every field present, absences `null`. */
@@ -90,6 +112,7 @@ function payloadFrom(body: Record<string, unknown>): TireSetPayload {
     installOdometer: num(body.installOdometer),
     purchasePlace: opt(body.purchasePlace),
     rotationIntervalMiles: num(body.rotationIntervalMiles),
+    intervalSource: body.intervalSource === 'vehicle' ? ('vehicle' as IntervalSource) : undefined,
     treadwearMilesEntered: num(body.treadwearMilesEntered),
   };
 }
@@ -176,7 +199,11 @@ export async function POST(request: NextRequest) {
 
     const { data: set, error } = await client
       .from('tire_sets')
-      .insert({ vehicle_id: vehicleId, provenance: 'typed', ...rowFrom(payloadFrom(body)) })
+      .insert({
+        vehicle_id: vehicleId,
+        provenance: 'typed',
+        ...rowFrom(payloadFrom(body), await vehicleIntervalFor(access.client, vehicleId!)),
+      })
       .select()
       .single();
 
@@ -257,6 +284,8 @@ export async function PATCH(request: NextRequest) {
       installOdometer: current.install_odometer,
       purchasePlace: current.purchase_place,
       rotationIntervalMiles: current.rotation_interval_miles,
+      // The stored source rides along, so a change to another field does not turn a schedule's figure into the owner's.
+      intervalSource: current.interval_source,
       treadwearMilesEntered: current.treadwear_miles_entered,
     };
     const merged: Record<string, unknown> = { ...stored };
@@ -271,7 +300,10 @@ export async function PATCH(request: NextRequest) {
 
     const { data: set, error } = await client
       .from('tire_sets')
-      .update({ ...rowFrom(payloadFrom(merged)), updated_at: new Date().toISOString() })
+      .update({
+        ...rowFrom(payloadFrom(merged), await vehicleIntervalFor(client, current.vehicle_id as string)),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', setId!)
       .select()
       .single();

@@ -685,7 +685,53 @@ export interface TireSetPayload {
   installOdometer: number | null;
   purchasePlace: string | null;
   rotationIntervalMiles: number | null;
+  /**
+   * Where the client says the interval came from (21 Sep). `'vehicle'` is a
+   * claim the server checks against the car's own schedule and downgrades to
+   * `'owner'` when it does not hold — see `intervalSourceFor`. Optional: an
+   * older client sends none and the interval is the owner's, as before.
+   */
+  intervalSource?: IntervalSource;
   treadwearMilesEntered: number | null;
+}
+
+/**
+ * The rotation interval the car's own schedule carries, or null (21 Sep).
+ *
+ * The dossier's `maintenance_schedule` is what the rest of the product already
+ * projects due dates and notifications from; when it names a tire rotation
+ * with a mileage, that figure may be *offered* — never assumed — as the
+ * `'vehicle'` interval, and the header's rule holds: it draws the overrun and
+ * never the warranty sentence, because only the card sources a claim about
+ * the warranty. A schedule with no rotation entry, or one with months and no
+ * miles, offers nothing.
+ */
+export function scheduledRotationInterval(schedule: unknown): number | null {
+  if (!Array.isArray(schedule)) return null;
+  for (const entry of schedule) {
+    if (!entry || typeof entry !== 'object') continue;
+    const row = entry as Record<string, unknown>;
+    const service = typeof row.service === 'string' ? row.service : typeof row.item === 'string' ? row.item : '';
+    if (!/rotat/i.test(service)) continue;
+    const miles = row.interval_miles;
+    if (typeof miles === 'number' && Number.isInteger(miles) && miles > 0) return miles;
+  }
+  return null;
+}
+
+/**
+ * The source the row is written with — the server's decision, never the
+ * client's word alone. `'vehicle'` holds only when the interval equals the
+ * one the car's schedule carries; anything else the owner typed is theirs.
+ */
+export function intervalSourceFor(
+  interval: number | null,
+  claimed: IntervalSource | undefined,
+  vehicleInterval: number | null
+): IntervalSource | null {
+  if (interval === null) return null;
+  if (claimed === 'vehicle' && vehicleInterval !== null && interval === vehicleInterval) return 'vehicle';
+  return 'owner';
 }
 
 /**

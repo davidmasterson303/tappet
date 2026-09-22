@@ -15,6 +15,7 @@ import { updateTireSet } from '../api/tires';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Field from '../components/Field';
+import IntervalHelp, { useVehicleRotationInterval } from '../components/IntervalHelp';
 import { OPTICAL_CENTRE, PAGE_BODY, space, surface, text, type } from '../theme';
 
 /**
@@ -43,15 +44,19 @@ import { OPTICAL_CENTRE, PAGE_BODY, space, surface, text, type } from '../theme'
  * set form, because entering the interval is this screen's whole job.
  */
 export function TireIntervalScreen({
+  vehicleId,
   set,
   onSaved,
   onSignOut,
 }: {
+  vehicleId: string;
   set: TireSet;
   onSaved: () => void;
   onSignOut: () => void;
 }) {
   const [value, setValue] = useState(set.rotationIntervalMiles === null ? '' : String(set.rotationIntervalMiles));
+  /* The car's own schedule figure, offered under the field — never filled in (21 Sep, `IntervalHelp`). */
+  const vehicleInterval = useVehicleRotationInterval(vehicleId);
   const [showProblems, setShowProblems] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -70,7 +75,12 @@ export function TireIntervalScreen({
     setSaving(true);
     setRefused(null);
     try {
-      await updateTireSet(set.id, { rotationIntervalMiles: parseWholeMiles(value) ?? null });
+      const miles = parseWholeMiles(value) ?? null;
+      await updateTireSet(set.id, {
+        rotationIntervalMiles: miles,
+        // A claim the server checks against the schedule; the owner's otherwise.
+        intervalSource: miles !== null && miles === vehicleInterval ? 'vehicle' : undefined,
+      });
       onSaved();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isLocallySignedOut) {
@@ -100,6 +110,7 @@ export function TireIntervalScreen({
           autoFocus
           problem={showProblems ? problem : undefined}
         />
+        <IntervalHelp vehicleInterval={vehicleInterval} value={value} onUse={(miles) => setValue(String(miles))} />
         {refused ? <AlertBanner tone="critical" headline="Not saved" body={refused} /> : null}
 
         <Button label="Save the interval" busy={saving} busyLabel="Saving" onPress={() => void save()} />

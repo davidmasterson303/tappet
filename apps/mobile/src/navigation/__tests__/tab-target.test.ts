@@ -14,8 +14,10 @@ describe('tabTarget', () => {
     expect(TAB_NAMES).toEqual(['GarageTab', 'ServiceTab', 'PlanTab', 'AdvisorTab']);
   });
 
-  it('opens the garage plainly — it is about every car', () => {
-    expect(tabTarget('GarageTab', undefined, car)).toEqual({ name: 'GarageTab' });
+  it('lands on the garage itself, popping whatever car the tab was left on (21 Sep)', () => {
+    // The tab's word is the screen it lands on; the car is one bay away.
+    expect(tabTarget('GarageTab', undefined, car)).toEqual({ name: 'GarageTab', params: { screen: 'Garage', pop: true } });
+    expect(tabTarget('GarageTab', 'car-b', car)).toEqual({ name: 'GarageTab', params: { screen: 'Garage', pop: true } });
   });
 
   it('opens a car tab plainly when there is no car to hand it', () => {
@@ -52,8 +54,10 @@ describe('tabTarget', () => {
       David, 30 Aug: the tab is the searchable history. The route's own default
       is `due`, for a service-due notification; the two are different intents.
     */
-    expect(tabTarget('ServiceTab', undefined, car).params?.params.segment).toBe('history');
-    expect(tabTarget('PlanTab', undefined, car).params?.params).not.toHaveProperty('segment');
+    const carParams = (target: ReturnType<typeof tabTarget>) =>
+      target.params && 'params' in target.params ? target.params.params : undefined;
+    expect(carParams(tabTarget('ServiceTab', undefined, car))?.segment).toBe('history');
+    expect(carParams(tabTarget('PlanTab', undefined, car))).not.toHaveProperty('segment');
   });
 
   it('leaves a tab alone when it is already about that car', () => {
