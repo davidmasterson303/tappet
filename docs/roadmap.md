@@ -177,7 +177,25 @@
 >   summary: six lines, a void beside it, the counts under the fold. The
 >   cell is an instrument again; the sentence's lead is the check-control
 >   line under the panel (`leadOf`, whole sentences); TIRES left its lone
->   `BandRow` for the panel's third row. Drift §6.19; ungraded.
+>   `BandRow` for the panel's third row. Drift §6.19.
+> - *"Run design critic loop over new page until it hits a 9."* Rounds
+>   47–50 on a fixture that can finally show a current reading: 7 → 8 → 8
+>   → **9**, `Continue: no`. The arc in the HEALTH cell (B3), the grade
+>   holding a daylight photo (B9), no chevron on the root (B8), the
+>   bevel's hairline (B2), section heads at the web's 17 (B1), the panel's
+>   floor at 80. The one 🟡 left is the plate's cut at its dark foot —
+>   the plate/sheet seam, for Design. Drift §6.20; `critique-47.md` …
+>   `critique-50.md`.
+> - *"The '1 of 3' needs to be bigger, more obvious … not clear to tap,
+>   swipe."* The garage's batten is a rail above the pager — BAY 01 · BAY
+>   02 · BAY 03 in the tab rail's construction, the lit one where you
+>   stand, each a tap to that bay — with the door CAR › at its end
+>   (`cc9b148`). Seen on the simulator with one car; the three-bay rail
+>   is the reviewer account's to see on the phone.
+> - Found on the way: a PNG from the library is refused at 7.3 MB against
+>   the 1.5 MB limit with copy that says to take one at a lower resolution
+>   — the picker's quality applies to JPEG and a PNG passes through
+>   untouched. The fix is a re-encode in `pick-image.ts`; board.
 >
 > Open from the walk: **multi-page invoices** (page 2 of a Dinan invoice
 > took 28 s; the durable shape is accept → file the row → extract in a

@@ -2923,6 +2923,122 @@ ungraded — no critic round, David's eye is the next one.
   questions as muted rows would give the section its shape and invite the
   answer — a product call.
 
+### 6.20 The hub loop, back on a current reading — rounds 47–50, 21 Sep
+
+David: *"run design critic loop over new page until it hits a 9."* The
+loop ran on the state rounds 42–46 never saw — a **current** reading —
+which needed the fixture to be able to show one: `EXPO_PUBLIC_DESIGN_
+VERDICT=current` writes the M235i's reading after its records, in the
+prompt's post-preamble voice, agreeing with the schedule the sweep wrote
+(a fixture that contradicts its own rows produces a frame that lies), and
+the fixture now says what its image is (`photo_kind`), so a plate no
+longer wears CHANGE PHOTO in a frame. iPhone 16 Pro Max (18.5), Expo Go,
+fixtures Metro on 8094; native 1320×2868. The concepts 16 Pro would not
+finish booting on a Mac 18 GB into swap — the machine was thrashing under
+two simulators and two Metros, and the phone's Metro had to go for the
+duration. Every round handed the critic 1:1 crops beside the stills, after
+§6.13's four rounds of a face read wrong from a scaled frame.
+
+**47 → 48 → 49 → 50: 7 → 8 → 8 → 9, `Continue: no`.** 5 ✅ / 4 🟡 in
+round 47 became 8 ✅ / 1 🟡 in round 50. Committed after every round
+(`3d0031e`, `8e0ab4b`, `d0a7b9a`), the rule §6.18's dead worktree cost.
+
+**Taken, by round:**
+
+- **47.** [B3] `ClusterGauge`'s card — the garage's own track, terminals
+  and band word — at 120pt in the HEALTH cell, and the card sweeps in like
+  the hero (it had been "deliberately still" for a plinth nothing used).
+  [B9] `PhotoGrade` gains a multiplied highlight pull (`grade.pull`, 0.55)
+  over the whole frame and a graphite scrim falling from the top edge
+  where the nav controls stand — CHANGE PHOTO and ACCOUNT had vanished
+  into a white sky; the controls have no plate of their own by design, so
+  the photograph has to be dark where they stand. [B8] The back control is
+  gone from the car root: *"CAR is the lit tab yet the screen opens with
+  '< GARAGE' — two doors to the same room and a chevron on a root."* The
+  collapsed title takes the row's start as every root's does.
+- **48.** Seatings from the native crop: the card's state word in the
+  arc's opening between the terminals (under the box it stood nearer the
+  legend than the numeral); two gauges share the first row 1:1 and the
+  timing is `type.mono`'s size ("overdue by 3,000 / mi" had wrapped in the
+  2/5 cell); the card's box pulled left by the arc's inset so the arc
+  lands on the content edge. The cut taken: no provenance line under the
+  hub's sentence — the counts row directly above it is what a current
+  reading was worked out from, and the line restated it; `Health` keeps
+  it beside the dial. Both of the round's gaps were checked against the
+  source and the native frame first: the PLAN 0 is the same mono at the
+  legend's ink (the pick's own note) — not changed; the plate's 8pt cut
+  was where round 46 put it — not enlarged, and the sheet's leading
+  hairline now turns 45° up the bevel so the corner registers as line
+  whatever the photograph does.
+- **49.** `type.displayHead` — Archivo Narrow Bold 17/22, the web's
+  section head (`.display-instrument-narrow text-[17px]`) transposed — on
+  `SectionHeader`, so the hub, Health and Build move together. The 12pt
+  eyebrow *was* the condensed face, and five critiques across three
+  surfaces read it as a proportional sans, twice at native scale; the web
+  had the same four-critique history and answered it with width and size,
+  and the phone, with no `wdth` axis, answers with size and weight.
+  `displayLabel` stays the eyebrow over a value. `BINNACLE_CELL_MIN` 96 →
+  80: the count row and the TIRES row carried 28pt of air borrowed from a
+  first row that has something to align; the fold gets 32pt back (round
+  45 had refused 68, which put the primary on the fold).
+
+**Held, with the source as the fact:** the count row's three numerals are
+one file at one weight (JetBrains Mono 500, 20/24; `font-assets.ts` loads
+Mono 400 and 500 and `mobile-font-faces.test.ts` holds that no weight is
+synthesised); the 0 differs in ink alone. Three critics read the mono's 2
+and 5 beside its dotted zero in grey as two faces; handed the fact in
+round 50, the critic marked B1 met. ACCOUNT stays on the car page — it is
+a root since 21 Sep and 5.1.1(v)'s guarantee is the control as a sibling
+of the navigator on every root; the brief's four-root line is David's to
+rewrite.
+
+**The one 🟡 at the stop — for Design.** B2: the plate's cut is at the
+brief's 8 and, at the plate's foot, invisible: the fade reaches the page
+colour at full opacity where the lockup lands (`HERO_FADE`, "flush, not
+overlapping"), so graphite laid into graphite is a shape nobody finds and
+the bevel's hairline — already the stat strip's rule, `border.panel` at
+0.08 — is faint. The critic's way to a 10 is to let the photograph's tone
+survive at the plate's foot; that is the plate/sheet seam on every car,
+not this surface's. The alternative the system already has is `nonText`
+(0.40, "a hairline token, never a word") on the seam and the bevel, which
+would make the seam a visible line across every car page.
+
+**Recorded deviations — for Design:**
+
+- *A card dial in a binnacle cell*, sweeping in, its state word in the
+  arc's opening. The 23 Aug cut was of the hero dial over the photograph;
+  a 120pt card in the sheet covers nothing. The prose brief's 88pt dial
+  is a half-width row-sharer here; the checklist's "dominant" is met, the
+  prose is not (round 50's parking lot).
+- *The house grade has six layers now*, not four: lifted blacks,
+  highlight pull, split tone (0.65, from 0.55), vignette, nav scrim,
+  grain. A daylight driveway shot reads as dusk under it, which is as far
+  as compositing can take a photograph the owner supplied.
+- *`displayHead` beside `displayLabel`*: the section head at 17 bold, the
+  eyebrow at 12 semibold — two jobs, two tokens, as `displaySection` and
+  `displayLabel` already were.
+- *`BINNACLE_CELL_MIN` at 80.* The floor still clears the thumb.
+- *No back control on the car root, and no provenance line on the hub.*
+
+**Parking lot — for David:**
+
+- *M235I.* B1 forces caps and BMW writes M235i; the plate's name has
+  always read M235I.
+- *The service cell's headline* hung from the top of its cell beside the
+  arc, the two legends keeping their shared baseline (round 50).
+- *The check-control line's second clause* restates the service cell on
+  the fixture; on a real car the lead is whatever the model wrote, whole
+  sentences while they fit (`leadOf`). A model-written headline is the
+  durable shape (§6.19).
+- *The four-root line of the brief* is superseded by the Car tab (21 Sep)
+  and is yours to write down; until then every critic will ask why a root
+  carries ACCOUNT over a photograph.
+
+**The numbers.** Mobile jest in band 53/53 suites, 904/904 tests; root
+mobile guards 30/30, 296; tsc clean in both. Frames and critiques:
+`design-loop/mobile-ios/47-hub/` … `50-hub/`, `critique-47.md` …
+`critique-50.md`.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
