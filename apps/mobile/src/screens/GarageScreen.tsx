@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   Pressable,
@@ -15,6 +15,7 @@ import Button from '../components/Button';
 import AlertBanner from '../components/AlertBanner';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
+import BayRail from '../components/BayRail';
 import GarageBay from '../components/GarageBay';
 import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
@@ -160,15 +161,11 @@ function humanise(value: string): string {
  */
 function VehicleBay({
   vehicle,
-  index,
-  total,
   active,
   onOpen,
   onOpenService,
 }: {
   vehicle: Vehicle;
-  index: number;
-  total: number;
   active: boolean;
   onOpen: () => void;
   /** R21. Opens `Service → Due` for this car from the next-service row. */
@@ -255,8 +252,6 @@ function VehicleBay({
       today={localToday()}
       score={score}
       staleReading={stale}
-      index={index}
-      total={total}
       stats={stats}
       active={active}
       onOpen={onOpen}
@@ -328,6 +323,8 @@ export function GarageScreen({
     which bay is allowed to run its door and its needle — see `GarageBay`.
   */
   const [bayIndex, setBayIndex] = useState(0);
+  /* The pager, so the rail can page it. */
+  const pager = useRef<ScrollView>(null);
 
   const { width } = useWindowDimensions();
 
@@ -759,12 +756,39 @@ export function GarageScreen({
                 />
               )
             ) : (
+              <>
+                {/*
+                  ── 21 Sep · the rail, above the pager and holding still ──────
+
+                  Which bay is on screen, of how many, each a tap to that bay,
+                  and the door into the car — `BayRail` carries David's words
+                  and the construction. It used to be the bay's own batten
+                  ("BAY 01 … 1 of 3"), one per page, sliding with it.
+                */}
+                <BayRail
+                  total={state.vehicles.length}
+                  index={Math.min(bayIndex, state.vehicles.length - 1)}
+                  onJump={(index) => {
+                    /*
+                      `scrollTo` does not end in `onMomentumScrollEnd`, so the
+                      index is set here; a drag still lands through the event.
+                    */
+                    pager.current?.scrollTo({ x: index * width, animated: true });
+                    setBayIndex(index);
+                  }}
+                  carTitle={bayTitle(state.vehicles[Math.min(bayIndex, state.vehicles.length - 1)])}
+                  onOpenCar={() => {
+                    const shown = state.vehicles[Math.min(bayIndex, state.vehicles.length - 1)];
+                    onOpenVehicle(shown.id, bayTitle(shown));
+                  }}
+                />
               <ScrollView
+                ref={pager}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 /*
-                  Momentum, not `onScroll`. The batten reads "BAY 02 · 2 of 3", and
+                  Momentum, not `onScroll`. The rail lights "BAY 02", and
                   updating it mid-drag would have it flicker through every bay the
                   finger passes rather than naming the one that was landed on.
                 */
@@ -776,8 +800,6 @@ export function GarageScreen({
                   <View key={vehicle.id} style={{ width }}>
                     <VehicleBay
                       vehicle={vehicle}
-                      index={index}
-                      total={state.vehicles.length}
                       active={index === bayIndex}
                       onOpen={() => onOpenVehicle(vehicle.id, bayTitle(vehicle))}
                       /* R21. The next-service row leads to what is due. */
@@ -790,6 +812,7 @@ export function GarageScreen({
                   </View>
                 ))}
               </ScrollView>
+              </>
             )}
 
           </ScrollView>

@@ -110,8 +110,6 @@ export default function GarageBay({
   vehicle,
   score,
   staleReading = false,
-  index,
-  total,
   stats,
   active = true,
   onOpen,
@@ -139,9 +137,6 @@ export default function GarageBay({
    * so "No score yet" is not printed over a car that has one.
    */
   staleReading?: boolean;
-  /** Zero-based position, for the batten. */
-  index: number;
-  total: number;
   /**
    * The stat strip's cells, assembled by the caller.
    *
@@ -275,27 +270,12 @@ export default function GarageBay({
   return (
     <View style={styles.bay}>
       {/*
-        The batten. Bay number in the light's own colour, position on the right.
-
-        ⚠ `bay.light` is `brand.accent` and this is one of the few places a
-        string may wear it — it is signage, not body copy, and it sits on the
-        page surface at full strength rather than over an unknown backdrop.
+        ⚠ 21 Sep: no batten. "BAY 01 … 1 of 3" travelled with each page and read
+        as a count; the garage draws one `BayRail` above the pager instead —
+        the bays as a tab rail, the lit one where you stand, the door beside
+        it. R20 ("1 of 1" is a pager for a list that cannot be paged) lives
+        there now.
       */}
-      <View style={styles.batten}>
-        <Text style={styles.bayNumber}>BAY {String(index + 1).padStart(2, '0')}</Text>
-        {/*
-          ⚠ **R20.** Suppressed at one car. "1 of 1" is a pager for a list that
-          cannot be paged — it takes up the batten's right half to tell somebody
-          with one car that they have one car. Most garages in this product are
-          one car, so this was the common render.
-        */}
-        {total > 1 ? (
-          <Text style={styles.position}>
-            {index + 1} of {total}
-          </Text>
-        ) : null}
-      </View>
-
       {/*
         The room and the name are one target, and the dial is not part of it.
 
