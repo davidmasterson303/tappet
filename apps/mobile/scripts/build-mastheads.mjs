@@ -42,13 +42,39 @@
  *
  * ── The cut ─────────────────────────────────────────────────────────────────
  *
- * The band the plate fills is the root's title band: the status-bar inset
- * plus `TITLE_BAND`, which on the iPhone 16 Pro the loop grades against is
- * 59 + 58 = 117pt over 402pt — 1206 × 351 at 3×, the one aspect every device
- * gets a centred `cover` crop of. A 21:9 frame is 1344 rows tall at this
- * width and the band takes 921 of them, so each plate names the row its cut
- * starts on: high enough to keep the lamps under the status bar, low enough
- * that the ground under the title is ground.
+ * The band the plate fills is the root's title band plus that plate's
+ * `MASTHEAD_DROP`: on the iPhone 16 Pro the loop grades against, 59 + 58 = 117pt
+ * over 402pt for the advisor — 1206 × 351 at 3× — and 117 + 53 = 170pt for
+ * service and plan — 1206 × 511. Every device gets a centred `cover` crop of
+ * the one file.
+ *
+ * ⚠ 22 Sep · **two of the three are the whole frame now.** All three were
+ * 117pt — 921 of the source's 1344 rows — so a 2.36:1 photograph shipped as a
+ * 3.4:1 strip with its foreground cut away. David: *"it's a cool image, make
+ * it a bit more visible."* At 402pt wide the source lands at 7.88 rows a
+ * point whatever the band's height, so taking all 1344 rows rescales nothing:
+ * every row that was on screen is in the same place, the title and ACCOUNT
+ * are printed on the same pixels they were, and the extra 53pt is the apron
+ * the old cut dropped. `top` goes to 0 on those two — there is nothing left
+ * to choose.
+ *
+ * ⚠ **The advisor is unchanged**, frame, rows and all. The air goes *under*
+ * the title (ACCOUNT cannot leave the nav row), so a taller band puts the
+ * name two-thirds up the plate — where service and plan have wet ground and
+ * the advisor has its two blooms. Measured at the tall cut it reads 1.8:1
+ * against AA's 4.5, and reaches 4.5 only with a bed heavy enough to crush the
+ * blooms the frame exists for; `masthead-advisor-2.png` fails the other way,
+ * on a cyan sign under ACCOUNT. `MastheadPlate` carries the ruling.
+ *
+ * ── ⚠ On a tall band the bed reaches its floor before the bottom edge ──────
+ *
+ * It used to reach it there, because the title sat on the bottom edge. On a
+ * tall band the title is two-thirds up, so the ramp reaches the floor at the
+ * row the old band ended on and **holds** it to the foot. That keeps the
+ * ground under the title exactly as dark as in the plate it replaces, which
+ * is the point: the contrast suite's numbers must not move because the band
+ * grew. On the short band the two rows coincide and this is the original
+ * ramp exactly.
  *
  * ── The bed, and why it is in the file rather than on the screen ────────────
  *
@@ -86,23 +112,28 @@ const ASSETS = join(here, '..', 'assets');
 
 /** The band at 3× on the device the loop grades against. */
 const W = 1206;
-const H = 351;
+/** The title band alone — 59 + 58 at 3×, and still the advisor's whole plate. */
+const TITLE_BAND = 351;
+/** With `MASTHEAD_DROP`'s 53pt under the title: the frame's own aspect at this width. */
+const TALL_BAND = 511;
 
 /**
  * Which frame each plate is cut from, and where the cut starts.
  *
- * `top` is the first source row of the 921-row band, chosen by eye against the
- * lamps and by measurement against the ground under the title. `bedFrom` is
- * where the multiply ramp begins as a fraction of the band's height, and
- * `bedFloor` how much of the image survives at the bottom edge — 1 would be no
- * bed, 0 black.
+ * `height` is the plate's band at 3× — `TALL_BAND` where the frame can carry
+ * the name two-thirds up it, `TITLE_BAND` where it cannot. `top` is the first
+ * source row: 0 on a tall band, where the band *is* the frame and there is no
+ * row left to choose. `bedFloor` is how much of the image survives under the
+ * name — 1 would be no bed, 0 black; where the ramp runs is derived from the
+ * band above.
  */
 const PLATES = {
   /* The top of the frame: both lamps and both shutters, the ground under the name. */
-  service: { frame: 'masthead-service-1.png', top: 0, bedFrom: 0.42, bedFloor: 0.34 },
+  service: { frame: 'masthead-service-1.png', height: TALL_BAND, top: 0, bedFloor: 0.34 },
   /*
-    Just under the top edge, so the lamp on the wall stays and the near
-    asphalt is the floor. ⚠ Round 24's frame was `masthead-plan-2.png` — an
+    ⚠ Was `top: 60` — just under the top edge, so the lamp on the wall stayed
+    and the near asphalt was the floor; the full frame keeps both and adds the
+    60 rows back. Round 24's frame was `masthead-plan-2.png` — an
     open road with sodium lamps down one side and cyan down the other — and
     the critique named it the one AI tell left: *"splits sodium-left /
     cyan-right so evenly it reads as a grade swatch, not a place"*, asking for
@@ -110,14 +141,20 @@ const PLATES = {
     The underpass frame is that: one sodium lamp on the wall, the exit a cyan
     haze, and the road still the subject.
   */
-  plan: { frame: 'masthead-plan-underpass-2.png', top: 60, bedFrom: 0.42, bedFloor: 0.34 },
+  plan: { frame: 'masthead-plan-underpass-2.png', height: TALL_BAND, top: 0, bedFloor: 0.34 },
   /*
     The foot of the frame: the street's bokeh under the status bar, the wet
     bonnet across the middle, and the unlit dash — the darkest ground of the
     six — under the name. The two big blooms are above the cut; their bottoms
     still show.
+
+    ⚠ And the one plate that kept the short band on 22 Sep. Taking the whole
+    frame would put the name across those blooms: measured, 1.8:1 against AA's
+    4.5. It is the composition doing that, not the cut — the dark third of
+    this frame is the dash at its foot, which only sits under the name while
+    the band ends there.
   */
-  advisor: { frame: 'masthead-advisor-1.png', top: 420, bedFrom: 0.42, bedFloor: 0.34 },
+  advisor: { frame: 'masthead-advisor-1.png', height: TITLE_BAND, top: 420, bedFloor: 0.34 },
 };
 
 function hash(x, y, seed = 0) {
@@ -142,8 +179,25 @@ for (const [key, spec] of Object.entries(PLATES)) {
     continue;
   }
 
+  const H = spec.height;
+  /*
+    The bed in the band's own fractions. Both numbers are the short band's —
+    the ramp starts 42% down a 351-row plate and reaches the floor where that
+    plate ended — so a tall plate darkens the same rows as the short one it
+    replaced and the ground under the title is unchanged. On the short band
+    `bedTo` is 1 and this is the original ramp exactly.
+  */
+  const bedFrom = (0.42 * TITLE_BAND) / H;
+  const bedTo = TITLE_BAND / H;
+
   const meta = await sharp(source).metadata();
-  const bandHeight = Math.round((meta.width * H) / W);
+  /*
+    ⚠ Clamped to the frame. At the full-frame aspect the rounding lands a row
+    past the source — `extract` answers "bad extract area", which is a loud
+    failure and was, but a band taller than its frame is the kind of thing a
+    later re-cut would reach for by hand.
+  */
+  const bandHeight = Math.min(meta.height, Math.round((meta.width * H) / W));
   const top = Math.max(0, Math.min(meta.height - bandHeight, spec.top));
 
   const raw = await sharp(source)
@@ -156,8 +210,8 @@ for (const [key, spec] of Object.entries(PLATES)) {
   const out = Buffer.alloc(W * H * 3);
   for (let py = 0; py < H; py += 1) {
     const v = py / H;
-    /* The bed: 1 above `bedFrom`, easing down to `bedFloor` at the bottom edge. */
-    const t = v <= spec.bedFrom ? 0 : (v - spec.bedFrom) / (1 - spec.bedFrom);
+    /* The bed: 1 above `bedFrom`, easing down to `bedFloor` by `bedTo`, held from there. */
+    const t = v <= bedFrom ? 0 : Math.min(1, (v - bedFrom) / (bedTo - bedFrom));
     const bed = 1 - (1 - spec.bedFloor) * smooth(t);
     for (let px = 0; px < W; px += 1) {
       const i = (py * W + px) * 3;

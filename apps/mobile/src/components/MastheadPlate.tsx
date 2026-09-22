@@ -131,6 +131,35 @@ export const MASTHEADS = {
 
 export type MastheadKey = keyof typeof MASTHEADS;
 
+/**
+ * How much air a plate's band takes **under** the title, by plate (22 Sep).
+ *
+ * David, on the Service root: *"I think we can make the hero/top image a bit
+ * taller. it looks great, it's a cool image, make it a bit more visible."*
+ * The band was exactly the title's height, so a 2.36:1 photograph shipped as
+ * a 3.4:1 strip with its foreground cut away. 53pt is not a taste figure: at
+ * the reference width (402pt) the frames' own aspect is 170.3pt against the
+ * title band's 117, so it is "show the photograph, all of it" to the point.
+ *
+ * ⚠ **The advisor keeps the short band, and that is a fact about its frame
+ * rather than an oversight.** The air goes under the title because ACCOUNT
+ * floats on the nav row and cannot move (it shares that row with the mono
+ * title after the collapse) — so a taller band leaves the name two-thirds up
+ * the plate instead of on its floor. Service and Plan have their dark ground
+ * there. The advisor's frame is a windscreen: its two blooms sit exactly
+ * where the name would land, and measured, the tall cut reads 1.8:1 against
+ * AA's 4.5 — reachable only with a bed heavy enough to crush the blooms the
+ * frame is *for*. `masthead-advisor-2.png` was measured too and fails the
+ * other way, on a cyan sign under ACCOUNT. So this one stays 117pt until
+ * there is a frame whose dark third is at the bottom; the numbers are in
+ * `lib/__tests__/mobile-masthead-plates.test.ts`, which holds both heights.
+ */
+export const MASTHEAD_DROP: Record<MastheadKey, number> = {
+  service: 53,
+  plan: 53,
+  advisor: 0,
+};
+
 const styles = StyleSheet.create({
   plate: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
 });

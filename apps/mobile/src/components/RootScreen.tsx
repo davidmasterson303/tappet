@@ -24,7 +24,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useReducedMotion } from '../motion/reduced-motion';
 import { border, space, surface, text, type } from '../theme';
-import MastheadPlate, { MASTHEADS, type MastheadKey } from './MastheadPlate';
+import MastheadPlate, { MASTHEADS, MASTHEAD_DROP, type MastheadKey } from './MastheadPlate';
 import { TITLE_BAND } from './ScreenTitle';
 
 /**
@@ -81,10 +81,32 @@ import { TITLE_BAND } from './ScreenTitle';
  * lower third, one 8pt cut bottom-right — and takes it away with the title as
  * the band collapses, so the mono nav title sits on graphite like a native
  * header's. `MastheadPlate` carries the argument, the frames and the rule that
- * lets a title be printed on a photograph here. The band's *height* does not
- * change for a plate: `AccountControl` floats on the nav row from outside the
- * navigator, and air added above the title would leave ACCOUNT alone in the
- * plate's lit upper half.
+ * lets a title be printed on a photograph here.
+ *
+ * ── ⚠ 22 Sep · the plate's band is taller, and the title did not move ───────
+ *
+ * David, on the Service root: *"I think we can make the hero/top image a bit
+ * taller. it looks great, it's a cool image, make it a bit more visible."*
+ * The band was exactly the title's height, so the plate was a 3.4:1 strip of
+ * a 2.36:1 photograph — the bottom third of every frame was cut off and the
+ * image read as a letterbox rather than as a place.
+ *
+ * `MASTHEAD_DROP` is added **below** the title, and that is the whole of it:
+ * the title stays at `top + space.sm` and `AccountControl` stays on the nav
+ * row (it must — it shares that row with the mono title after the collapse),
+ * so neither moves a point and neither changes the pixels it is printed on.
+ * The extra height reveals what the old cut threw away, which is why the
+ * plates are re-cut to the full frame rather than scaled: at 402pt wide the
+ * source is 7.88 rows a point either way, so every row that was on screen
+ * before is in the same place, and 53pt more of it follows. The old note here
+ * said the band's height could not change because air *above* the title would
+ * strand ACCOUNT in the plate's lit half — true, and the reason the air goes
+ * underneath.
+ *
+ * ⚠ The drop is **per plate**, because a frame has to have its dark ground
+ * where the name lands: the advisor's is 0 and `MastheadPlate` says why, with
+ * the measurement. The collapsed height is untouched — a plate root collapses
+ * to the same 44pt graphite nav band as every other.
  *
  * ── Outside a navigator ─────────────────────────────────────────────────────
  *
@@ -227,7 +249,8 @@ export default function RootScreen({
   );
 
   const top = insets?.top ?? 0;
-  const expanded = top + TITLE_BAND;
+  /* The plate's own air, under the title — `MastheadPlate`'s `MASTHEAD_DROP`. */
+  const expanded = top + TITLE_BAND + (plate ? MASTHEAD_DROP[plate] : 0);
   const compact = top + NAV_BAND;
 
   const height = progress.interpolate({
