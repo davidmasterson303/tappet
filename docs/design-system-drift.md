@@ -2941,7 +2941,7 @@ duration. Every round handed the critic 1:1 crops beside the stills, after
 
 **47 → 48 → 49 → 50: 7 → 8 → 8 → 9, `Continue: no`.** 5 ✅ / 4 🟡 in
 round 47 became 8 ✅ / 1 🟡 in round 50. Committed after every round
-(`3d0031e`, `8e0ab4b`, `d0a7b9a`), the rule §6.18's dead worktree cost.
+(`3d0031e`, `c7d7170`, `61f5d93`, `ca7e63b`), the rule §6.18's dead worktree cost.
 
 **Taken, by round:**
 
