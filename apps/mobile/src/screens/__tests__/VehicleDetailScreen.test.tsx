@@ -345,9 +345,13 @@ describe('the counts on the binnacle', () => {
     expect(within(plan).queryByText('0')).toBeNull();
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
-    expect(readoutColor(within(view.getByLabelText(/^History, 1 /)).getByText('1 record'))).toBe(text.primary);
-    // And the recall count carries its verb: "2 to review", not a bare 2 (UX U5, value V3).
-    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2 to review'))).toBe(text.primary);
+    const history = view.getByLabelText(/^History, 1 /);
+    expect(readoutColor(within(history).getByText('1'))).toBe(text.primary);
+    expect(within(history).getByText('record')).toBeTruthy();
+    // And the recall count carries its verb beneath: "2 / to review", not a bare 2 (UX U5, value V3).
+    const recalls = view.getByLabelText(/^View 2 open recalls/);
+    expect(readoutColor(within(recalls).getByText('2'))).toBe(text.primary);
+    expect(within(recalls).getByText('to review')).toBeTruthy();
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -381,7 +385,7 @@ describe('the counts on the binnacle', () => {
     // the HEALTH dial's sweep passes through 0 on appear.)
     expect(within(plan).queryByText(/^\d+$/)).toBeNull();
     expect(within(plan).queryByText('Plan work')).toBeNull();
-    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1 record')).toBeTruthy();
+    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1')).toBeTruthy();
   });
 });
 

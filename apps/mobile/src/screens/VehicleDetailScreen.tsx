@@ -1555,9 +1555,15 @@ export function VehicleDetailScreen({
                 accessibilityLabel={recallsSpoken}
               >
                 {recallReading ? (
-                  <Text style={[styles.count, recallReading.muted && styles.countEmpty]} numberOfLines={1}>
-                    {recallReading.text}
-                  </Text>
+                  recallReading.muted ? (
+                    <Text style={styles.absent}>{recallReading.text}</Text>
+                  ) : (
+                    <>
+                      {/* The numeral, and its verb beneath at the timing's size: "24 to review" is two lines in a third of the row. */}
+                      <Text style={styles.count} numberOfLines={1}>{openRecallCount}</Text>
+                      <Text style={styles.countWord} numberOfLines={1}>to review</Text>
+                    </>
+                  )
                 ) : null}
               </BinnacleCell>
               <BinnacleCell
@@ -1570,9 +1576,10 @@ export function VehicleDetailScreen({
                   historyCount === '0' ? (
                     <Text style={styles.absent}>Add a record</Text>
                   ) : (
-                    <Text style={styles.count} numberOfLines={1}>
-                      {historyCount} {historyCount === '1' ? 'record' : 'records'}
-                    </Text>
+                    <>
+                      <Text style={styles.count} numberOfLines={1}>{historyCount}</Text>
+                      <Text style={styles.countWord} numberOfLines={1}>{historyCount === '1' ? 'record' : 'records'}</Text>
+                    </>
                   )
                 ) : null}
               </BinnacleCell>
@@ -1993,6 +2000,8 @@ const styles = StyleSheet.create({
   },
   /* A zero the screen did read, in the legend's ink: an empty list is not a warning. */
   countEmpty: { color: text.muted },
+  /* The numeral's noun or verb, beneath it in the timing's voice: "records", "to review". */
+  countWord: { ...type.mono, color: text.secondary },
   /* `type.mono`'s size, from 15 (21 Sep): "overdue by 3,000 mi" on one line in half a row on the 16 Pro. */
   timing: { fontSize: type.mono.fontSize, lineHeight: type.mono.lineHeight },
 
