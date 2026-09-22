@@ -10,6 +10,7 @@ import { deleteAccount, getSubscription, type AccountSubscription } from '../api
 import { subscriptionStatusLine } from '@tappet/core/subscription-status';
 import { ApiRequestError } from '../api/client';
 import ScreenTitle from '../components/ScreenTitle';
+import PlateBand from '../components/PlateBand';
 import { PAGE_BODY, border, brand, radius, space, status, surface, text, type } from '../theme';
 import {
   DELETION_CONFIRM_PHRASE,
@@ -246,6 +247,15 @@ export function AccountScreen({
       <ScreenTitle>Account</ScreenTitle>
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        {/*
+          22 Sep · the one root that never got a plate. `RootScreen` draws a
+          masthead behind Service, Plan and Advisor's large title; this screen
+          draws its own title through `ScreenTitle` and had nothing behind it.
+          The band goes under the name rather than behind it — see `PlateBand`
+          for why the plate carries no type here.
+        */}
+        <PlateBand frame="house" />
+
         {email && (
           <View style={styles.section}>
             <Text style={styles.label}>Signed in as</Text>

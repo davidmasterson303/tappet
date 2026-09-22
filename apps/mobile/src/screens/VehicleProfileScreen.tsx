@@ -10,6 +10,7 @@ import {
 import Text from '../components/Text';
 
 import AlertBanner from '../components/AlertBanner';
+import PlateBand from '../components/PlateBand';
 import Button from '../components/Button';
 import Field from '../components/Field';
 import Icon from '../components/Icon';
@@ -262,6 +263,8 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <PlateBand frame="house" top={space.lg} />
+
         {problem && <AlertBanner tone="critical" headline="Not saved" body={problem} />}
 
         <Text style={styles.lead}>

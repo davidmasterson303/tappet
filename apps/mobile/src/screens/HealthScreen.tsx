@@ -14,6 +14,7 @@ import Plinth from '../components/Plinth';
 import ProvenanceRow from '../components/ProvenanceRow';
 import SectionHeader from '../components/SectionHeader';
 import { RecallDetailScreen } from './RecallDetailScreen';
+import PlateBand from '../components/PlateBand';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { HealthDriver } from '@tappet/core/health-drivers';
@@ -304,6 +305,7 @@ export function HealthScreen({
         />
       }
     >
+      <PlateBand frame="house" top={space.lg} />
       <Card>
         {state.score !== null && band ? (
           <>

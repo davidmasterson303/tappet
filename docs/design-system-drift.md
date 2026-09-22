@@ -3289,3 +3289,99 @@ other. Both were left identical on purpose — one treatment for "the product
 is speaking" until Design says otherwise. `components/ConsultantChat.tsx`
 carries the flag (`isFailure`); the phone shows the same sentences under the
 composer, where its refusals already live, and needed no new treatment.
+
+---
+
+## 15. The carrier, not the palette — 22 Sep 2026
+
+David, on the phone: *"is it simply too much black and white with nothing
+else? … I love what we've done with the introduction of the images on all
+pages, that's a step in the right direction, but the concern still exists."*
+
+He was right, and the first answer to reach for would have been wrong.
+
+### 15.1 What the audit actually found
+
+Every screen in `apps/mobile/src/screens` scanned for colour-token references
+against surface and text ones, and every screen's imagery traced through real
+component composition rather than through imports:
+
+- **12%** of the app's colour references are chromatic. The rest is graphite
+  and off-white ink.
+- **14 screens** use no chromatic token at all.
+- Imagery reached **6 screens**.
+
+But the interface being flat is not the defect — it is the locked brief:
+*"two hues only, used as light rather than as fill… the two hues are light,
+and light belongs to the environment — the photograph."* `MastheadPlate` had
+already written the consequence down on 11 Sep, in response to David saying
+almost exactly this: *"a root with no imagery has nothing carrying it."*
+
+So the diagnosis is **coverage**, not palette. Twenty-three screens were
+running the flat half of the direction with nothing on top of it. And the
+tell is that Service and Plan score **0% chroma in their own code** while
+looking the best in the app — the plate is doing all of it.
+
+⚠ **The fix must not be a third hue.** Between 3 and 5 Sep this codebase
+removed a green, a red family and a duplicate amber, each with a contrast
+defect behind it. Tinting a card to answer "it looks grey" walks all of that
+back and breaks B5 besides.
+
+### 15.2 A second finding, and it is the product one
+
+Colour in this app is **bound to failure**. The health ramp came off green on
+4 Sep, so `Good` bands to off-white — which is the right call, and
+`health-band.ts` argues it well: a car with nothing wrong should read as
+unremarkable rather than as a small celebration.
+
+But *unremarkable* was implemented as *colourless*, and the consequence
+follows to the user: **a well-maintained car renders a monochrome app.** The
+better an owner does the job Tappet exists to help with, the greyer their
+product becomes. David has been living in the success state, which is why he
+is the one who noticed.
+
+That finding is recorded rather than acted on directly. Its fix is 15.3 — the
+success state gets the photograph, because the photograph is the only carrier
+the brief licenses.
+
+### 15.3 What shipped
+
+- **`PlateBand`** — a 132pt frame at the head of a screen that is not a root,
+  carrying no type at all (so nothing here can fail a contrast check) and one
+  45° cut in the house geometry. A screen takes **its stack's** place: Account,
+  Health, Recall detail and the vehicle profile open on the house plate; the
+  invoice detail opens on the workshop apron. Account is the deviation — it is
+  not a car screen and has no frame of its own; a bespoke one is an asset job.
+- **The house plate takes the split tone.** `night-plate.jpg` is the most-shown
+  image in the product and was its least chromatic: 0.268 mean saturation
+  against 0.368–0.624 for the three mastheads, and flat in every 351-row band,
+  so the tall crop is not the explanation. `PhotoGrade` gained a `plate`
+  variant — the split tone alone, no lift, no vignette, no second grain. At
+  0.40 on `soft-light` the plate measures **0.428**, inside the mastheads'
+  band, with luminance moving 53 → 57.
+- **Two guards.** `house-plate-chroma.test.ts` decodes the shipped frames and
+  holds a saturation floor under each; `plate-coverage.test.ts` holds which
+  screens open on a frame. Both carry an anti-vacuous case, and both caught a
+  defect in their own first draft.
+
+### 15.4 Two moves proposed and dropped, with the reasons
+
+Recorded because both would otherwise be proposed again.
+
+- **"Light the bay by the car's health"** — dropped. `BayLightPool` was removed
+  from `GarageBay` on **11 Sep** and the comment explaining its removal is still
+  there: under B7 cyan is *"focus, active rule and refresh ramp"* and nothing
+  else, and on a graded frame the 14% pool *"read as air"* anyway. Reinstating
+  it would have been §1's exact failure — rebuilding something that already
+  carries a note explaining its own fix.
+- **"The grade is damped on assets that do not need it"** — dropped, premise
+  disproved by measurement. The three mastheads are the most saturated things
+  in the product; they are not damped, and they are not graded at render
+  because they are already the film.
+
+⚠ Two docblocks cite scripts that do not exist in this repo:
+`scripts/build-mastheads.mjs` (`MastheadPlate`) and
+`scripts/render-night-plate.mjs` (`NightPlate`). Same shape as the
+`cluster-geometry.test.ts` citation §1 collects. Not fixed here — flagged,
+because the frames themselves are the thing that would need regenerating and
+that is David's call.

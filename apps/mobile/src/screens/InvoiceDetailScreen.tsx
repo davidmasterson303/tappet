@@ -11,6 +11,7 @@ import {
   type ServiceVisit,
 } from '@tappet/core/service-record';
 import { formatCurrency } from '@tappet/core/formatting-utils';
+import PlateBand from '../components/PlateBand';
 import { TABULAR, border, space, surface, text, type } from '../theme';
 
 /**
@@ -97,6 +98,9 @@ export function InvoiceDetailScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      {/* The workshop apron: an invoice belongs to the Service stack's place. */}
+      <PlateBand frame="service" top={space.lg} />
+
       <View style={styles.head}>
         <Text style={styles.shop}>{visit.shop ?? 'Scanned invoice'}</Text>
         <Text style={styles.meta}>

@@ -1,5 +1,7 @@
 import { Image, StyleSheet, type StyleProp, type ImageStyle } from 'react-native';
 
+import PhotoGrade from './PhotoGrade';
+
 /**
  * The house plate: the night a car stands in when its owner has not
  * photographed it.
@@ -29,16 +31,38 @@ import { Image, StyleSheet, type StyleProp, type ImageStyle } from 'react-native
  *
  * Decorative: it names nothing the screen does not already say, so it is
  * hidden from assistive technology rather than announced as "image".
+ *
+ * ── ⚠ 22 Sep · the plate takes the split tone ─────────────────────────
+ *
+ * This file is the app's most-shown image and was its least chromatic: 0.268
+ * mean saturation against 0.368–0.624 for the three mastheads, flat in every
+ * band rather than dark at one end. On a direction whose colour is *"carried
+ * by imagery and colour grade while the interface itself stays flat"*, the
+ * frame every car without a photograph falls back to was carrying the least
+ * of it — and it is the frame an owner sees most.
+ *
+ * `PhotoGrade`'s `plate` variant is the split tone alone, which is the layer
+ * that carries the sodium/cyan axis; its docblock holds why the other three
+ * stay off and why that is not the 13 Sep double-lift coming back.
+ *
+ * ⚠ The grade layers must be **siblings** of the image, not children — a blend
+ * mode composites against the group it is drawn into, so a wrapper turns the
+ * grade into an opaque rectangle over the plate. `PhotoGrade`'s own note has
+ * the case. That is why this returns a fragment, and why `style` still lands
+ * on the `Image` alone.
  */
 export default function NightPlate({ style }: { style?: StyleProp<ImageStyle> }) {
   return (
-    <Image
-      source={require('../../assets/night-plate.jpg')}
-      style={[StyleSheet.absoluteFill, styles.plate, style]}
-      resizeMode="cover"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    />
+    <>
+      <Image
+        source={require('../../assets/night-plate.jpg')}
+        style={[StyleSheet.absoluteFill, styles.plate, style]}
+        resizeMode="cover"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+      <PhotoGrade variant="plate" />
+    </>
   );
 }
 

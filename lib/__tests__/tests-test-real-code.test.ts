@@ -68,6 +68,24 @@ const STATIC_ANALYSIS_SUITES = [
     perfectly, and nothing reports that moving the token left it behind.
   */
   'retired-palette-literals.test.ts',
+  /*
+    Holds that the screens an owner dwells on each open on a `PlateBand`, and
+    that the ones already carrying imagery another way do not get a second
+    frame.
+
+    Nothing to import: the subject is *which screens render a given element*,
+    which importing that element tells you nothing about — the same shape as
+    `vehicle-research-callers.test.ts` above. The suite cannot render them
+    either; these are React Native screens and this runner is the web one,
+    which ignores `apps/` for the reasons `jest.config.js` sets out.
+
+    The failure it pins is silent and has already happened once at smaller
+    scale. Imagery is where this product's colour lives — the brief puts the
+    two hues in the photograph and keeps the interface flat — so a screen that
+    loses its band renders perfectly, passes its own suite, and just goes grey.
+    That is how the app arrived at 6 screens of 29 carrying a frame.
+  */
+  'plate-coverage.test.ts',
   'auth-posture.test.ts',
   'internal-fetch-posture.test.ts',
   // Reads app/, lib/ and packages/ off disk to prove that the one function in

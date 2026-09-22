@@ -23,6 +23,7 @@ import {
   type AddressedRecall,
 } from '../api/recalls';
 import Working from '../components/Working';
+import PlateBand from '../components/PlateBand';
 import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { unshout } from '@tappet/core/unshout';
 import {
@@ -541,6 +542,14 @@ export function RecallDetailScreen({
 
   return (
     <Container {...(containerProps as object)}>
+      {/*
+        ⚠ The pushed screen only. Embedded, this renders inside Health — which
+        draws its own band — and a second plate mid-page would read as the
+        page having started again. `embedded` is the same flag the container
+        and the refresh control branch on, so the three cannot drift.
+      */}
+      {embedded ? null : <PlateBand frame="house" />}
+
       {/*
         Before the vehicle name, deliberately. Someone arriving from a
         notification needs the instruction before the context.
