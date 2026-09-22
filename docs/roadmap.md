@@ -13,7 +13,66 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
-> ### ⚠ 22 Sep 2026 — the car page under three lenses; the decisions left are David's
+> ### ⚠ 22 Sep 2026, evening — David's rulings, and two defects a walk found
+>
+> The eight product questions the three lenses parked (block above) came
+> back answered, and the first answer was a **revert**: shown his own
+> daylight photograph of the BMW on the bay, *"I hate the new image style
+> in the plate … keep all the new changes but revert back to old plate
+> style."* The plate's style had not changed — what he was seeing was
+> **B9's house grade over his photograph**, six layers whose job is to
+> make a daylight shot read as night, and on a grey driveway that is grey
+> mud. Ruling: *"let owners add their images if they prefer to our
+> plate."* The grade is deleted; the generated plate is the house film, a
+> photograph is the owner's, as shot. B9's grade clause is now half-true
+> and is Design's to rewrite. Drift §6.22.
+>
+> Then, in order: **a recall that is fixed counts as fixed** — the score
+> counted every campaign on record while the hub's cell counted the open
+> ones, so marking five repaired moved the cell and not the dial — **and
+> lands in the history**, one `maintenance_line_items` row with no
+> invented cost or shop (`source: 'manual'`; `'recall'` is refused by the
+> check constraint and a fifth value is a migration, which is yours).
+> **A thin file is not a verdict**: under three records the band names
+> the file (THIN HISTORY, neutral ink) and the score is untouched, on the
+> hub, the Health screen and the bay together. **A reading over a month
+> old asks to be set** — "6 wk ago · update ›" — and the countdown still
+> counts from the real odometer, never an estimate. **USE is "Tell us"**
+> when unanswered rather than a dropped cell. **No ask under the service
+> timing** and **no 01–03 ordinals** on the three answers.
+>
+> And the queued one: **the masthead image is taller** — *"it's a cool
+> image, make it a bit more visible"*. Service and Plan show the whole
+> frame now (117 → 170pt, re-cut to 1206 × 511; the title and ACCOUNT do
+> not move and are printed on the same pixels). ⚠ The **advisor keeps the
+> short band**: its two blooms sit exactly where the name lands, and the
+> tall cut measures 1.8:1 against AA's 4.5. It needs a frame whose dark
+> third is at its foot before it can grow — yours to commission or to
+> leave.
+>
+> **Two defects the suites could not have found, both from walking the
+> live reviewer account on the phone:**
+>
+> - **A withdrawn claim kept its credit.** Marking a recall took the
+>   F-PACE 55 → 62 and filed the repair; undoing left it at 62. The
+>   drivers gave the credit back at once — they are computed — but the
+>   model's score is a stored row and staleness is judged against the
+>   newest *filed* record, and records had gone down. Both paths stamp
+>   the reading out of date now; verified end to end, including the
+>   re-read (68 on one record, in a summary that names the oil change and
+>   nothing else). ⚠ That re-read is why the F-PACE reads 68 rather than
+>   its old 55: the model re-scores, it does not restore. Nothing else on
+>   the account moved — one record, no marks, as found.
+> - **The bay and the hub named one service two ways**: "Engine Oil &
+>   Filter Change (Enthusiast)" against "ENGINE OIL AND FILTER CHANGE",
+>   one tap apart.
+>
+> Promoted twice for the server halves (`c6082366`, `4356a034`);
+> `tappet.southmoordigital.com` serves the second. Mobile 53 suites /
+> 924 tests, root 234 / 4,123, tsc clean.
+>
+
+> ### ⚠ 22 Sep 2026, afternoon — the car page under three lenses; the decisions the block above answers
 >
 > *"i want critic to think about UI/UX of the page, the information
 > architecture, and the value of the functionality… perhaps with 3
@@ -51,7 +110,10 @@
 > plate's bevel. `scripts/frame-rows.swift` is how a critic's "33pt" is
 > now checked against the frame. `critique-51.md`, `critique-52.md`.
 >
-> **Yours — the lenses contradict each other, and the page holds one side:**
+> **Yours — the lenses contradict each other, and the page holds one side.**
+> ⚠ All five were answered the same evening; the block above carries the
+> rulings and what shipped. Left here as the record of what was asked.
+>
 >
 > - **The button.** Value wants it chosen by state (REVIEW RECALLS when
 >   recalls are the cause, SCAN INVOICE on a thin file, none when nothing
@@ -70,7 +132,8 @@
 >   the row's door going where its legend says (IA). The row explains;
 >   "Tell us ›" is the door.
 >
-> **Product questions all three parked:** USE — a fact of the car (the
+> **Product questions all three parked** (answered; see the block above):
+> USE — a fact of the car (the
 > F-PACE's empty slot a door) or an answer (in WHAT YOU TOLD US on both
 > cars)? Does marking a recall move the score? Should a history under
 > three records carry a confidence band rather than a health band (a 55

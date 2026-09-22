@@ -3241,6 +3241,114 @@ after round 4 and `7bd90035` after round 5; nothing in `packages/core`,
 hub reads. Frames and critiques: `design-loop/mobile-ios/hub-lenses/`,
 `51-hub/`, `52-hub/`, `critique-51.md`, `critique-52.md`.
 
+### 6.22 David's rulings on the lenses' parking lot — 22 Sep
+
+The three-lens loop (§6.21) stopped with five disagreements between the
+lenses and eight product questions, all recorded for David. He answered
+them the same evening, and the first answer was a revert.
+
+**The house grade is gone from owner photographs.** Shown his own
+daylight snapshot of the BMW on the bay — the frame the visual loop had
+asked for and graded in round 47 — David: *"I hate the new image style
+in the plate. I loved the old plate … keep all the new changes but
+revert back to old plate style."* The plate's style had not changed;
+what he was looking at was **B9's grade over his photograph**: lifted
+blacks, a highlight pull, split tone, vignette, a nav scrim and grain,
+six layers whose stated job was to make a daylight photograph read as
+night. It does, and what it reads as on a grey driveway is grey mud.
+His ruling on the product question beneath it — *"let owners add their
+images if they prefer to our plate"* — settles a tension B9 had carried
+since 13 Sep: **the generated plate is the house film; a photograph is
+the owner's, as shot.** `PhotoGrade`, the `grade` tokens and
+`grain.png` are deleted; the hub, the bay and the tire plate draw the
+image plain. `photo_kind` still travels — THIS CAR reads it to know
+whether there is a photograph to remove.
+
+⚠ **For Design:** B9's second clause ("owner photos are graded") is
+overruled by the product's owner and the brief line is now half-true.
+The first clause — the scan as a first-class primary — stands.
+
+**The other rulings, and what each one was.** Each names the lens that
+raised it and the side the page had been holding:
+
+- *A recall that is fixed counts as fixed, and lands in the history.*
+  The hub's cell counted open campaigns; `recallDriver` counted every
+  campaign on record. Marking five repaired moved the cell 24 → 19 and
+  left the dial where it was, under a sentence blaming the recalls for
+  it. `openRecalls` moved into core and the driver subtracts the marks
+  — only then may the wording say "open". And the mark files one
+  `maintenance_line_items` row, because a score that rises with nothing
+  in the record to show for it is a rise the owner cannot check. Probed
+  before writing: `source: 'recall'` is refused by
+  `maintenance_line_items_source_check` (`23514`) and `'manual'` walks
+  every constraint to the FK (`23503`), so the row is `'manual'` — "a
+  person in the app said this happened", the value
+  `wishlist/complete` already files under. No cost and no shop: nobody
+  told us either, and a `0` prints as a price (§10). The campaign
+  number is in the description (`recallRecordDescription`), because
+  there is no campaign column and the undo has to find the row again.
+- *A thin file is not a verdict on the car.* The F-PACE's 55 on one
+  record said NEEDS ATTENTION in sodium. `bandForReading` replaces the
+  **band** — never the score — under `CONFIDENT_RECORDS` (3, the
+  number the hub's cause line already treats as thin), in the neutral
+  ink. The hub, the Health screen and the garage bay all pass their
+  count, so no two surfaces say different words about one number; an
+  unknown count is not a thin one, or a failed read would suppress a
+  warning.
+- *A reading over a month old asks to be set.* The countdown still
+  counts from the real odometer — never an estimate (§10) — and past
+  `STALE_READING_DAYS` the strip's note becomes "6 wk ago · update" and
+  takes the door's mark back. A month, because the countdown's other
+  input is the owner's miles *a month*.
+- *USE is a question when unanswered.* It lives on the strip so it is
+  printed once, and unanswered the cell used to drop — which left the
+  question nowhere on the page (IA, round 6: "the only empty that does
+  not invite"). "Tell us" in the absent ink; `StatStrip` takes `muted`.
+- *No ask under the service timing.* "no date without your miles a
+  month" was the thin car's third NEXT SERVICE line and pushed the
+  count row's legends under the tab bar at rest. An unknown date shows
+  as nothing, and "Tell us ›" under MILES A MONTH is where the answer
+  goes.
+- *No ordinals on WHAT YOU TOLD US.* B6's `01` belongs to record lists;
+  three questions in no order are not one. David: follow the critic.
+
+**Found by walking it, not by the suites.** Two defects the tests could
+not have named, both on the live reviewer account:
+
+- **A withdrawn claim kept its credit.** Marking a recall took the
+  F-PACE 55 → 62 and filed the repair; undoing left the score at 62.
+  The drivers are computed and gave the credit back at once, but the
+  model's score is a stored row and `healthVerdict`'s staleness rule
+  compares the reading's time against the newest *filed* record —
+  records went **down**, and nothing compares that way. Both paths
+  stamp `last_generated` back now, the way
+  `invalidateHealthSummaryCache` does: it invents no score, it says the
+  reading is out of date, and the next open takes a new one. Verified
+  end to end: mark → 62 and a record; undo → the mark, the record and
+  the reading's currency all gone; reopen → re-read at 68 against one
+  record, in a summary that names the oil change and nothing else.
+- **The bay and the hub named one service two ways.** "Engine Oil &
+  Filter Change (Enthusiast)" on the bay, "ENGINE OIL AND FILTER
+  CHANGE" on the hub, one tap apart: `displayServiceName` landed on the
+  hub in round 1 and the bay kept the knowledge base's filing.
+
+**Recorded deviations — for Design:**
+
+- *No house grade anywhere.* Owner photographs are drawn as shot on the
+  hub, the bay and the tire plate. B9's grade clause is David's to
+  rewrite.
+- *A fifth band name, `thin`.* `HealthBandName` gains it; the web's
+  `WEB_STYLING` maps it to `--ring-good`, the off-white the system uses
+  for "no hue". It is not a ramp step and must not become one — a thin
+  file is not a degree of bad.
+- *`StatStrip` has a muted value* for a question standing where a fact
+  would.
+- *No ordinals on the hub's three answers*, against B6's letter.
+
+**The numbers.** Mobile jest in band 53/53 suites, 924/924 tests; root
+234/234 suites, 4,123 tests; tsc clean in both. `web-live` promoted
+twice for the server halves (`c6082366`, `4356a034`).
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
