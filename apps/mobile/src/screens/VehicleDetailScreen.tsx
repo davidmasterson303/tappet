@@ -834,14 +834,15 @@ export function VehicleDetailScreen({
     only as true as 168,400, and nothing says when that was set"*). A note
     under the value says how long ago — "3 wk ago ›" — where the date is
     known (an eyebrow "MILEAGE · 3 WK AGO" truncated in a third of the
-    strip, and "set 3 wk ago ›" with the door's mark did too); the plate is
-    the door to setting it (`onOpenProfile`).
+    strip). The plate is the door to setting it (`onOpenProfile`), and THIS
+    CAR › under the strip is its one mark — round 5's IA and value lenses
+    cut the note's own chevron: two handles on one door.
   */
   const mileageAge = agoLabel(vehicle.last_mileage_update_date);
   const stats: Stat[] = (
     [
       typeof vehicle.current_mileage === 'number'
-        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ?? undefined, door: true }
+        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ?? undefined }
         : null,
       vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
       vehicle.vehicle_status ? { label: 'Use', value: humanise(vehicle.vehicle_status) } : null,
@@ -961,10 +962,10 @@ export function VehicleDetailScreen({
     const months = ahead ? monthsAway(Number(ahead[1].replace(/,/g, '')), vehicle.avg_miles_per_month) : null;
     return months ? `${nextService.timing} · ${months}` : nextService.timing;
   })();
-  /* A distance to go with no date for want of the owner's miles a month: say so where the date would be. */
+  /* A distance to go with no date for want of the owner's miles a month: say why, where the date would be. */
   const serviceAsk =
     nextService.kind === 'known' && /^in [\d,]+ mi$/.test(nextService.timing) && typeof vehicle.avg_miles_per_month !== 'number'
-      ? 'tell us miles a month for a date'
+      ? 'no date without your miles a month'
       : null;
 
   /*
@@ -1015,19 +1016,21 @@ export function VehicleDetailScreen({
     const phrase = (driver: HealthDriver) =>
       driver.key === 'recalls'
         ? openRecallCount > 0
-          ? { reason: `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`, act: 'review them' }
+          ? `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`
           : null
-        : driver.cause
-          ? { reason: driver.cause, act: driver.act }
-          : null;
+        : driver.cause ?? null;
     const one = phrase(first);
     if (!one) return null;
-    // A thin history and open recalls share the blame: both named, both acts (round 4, all three lenses).
+    // A thin history and open recalls share the blame: both named (round 4, all three lenses).
     const second = alsoHoldingBack(drivers, first);
     const two = second ? phrase(second) : null;
-    const reasons = two ? `${one.reason} and ${two.reason}` : one.reason;
-    const acts = [one.act, two?.act].filter((a): a is string => Boolean(a));
-    return `Held back by ${reasons}${acts.length ? ` — ${acts.join(', ')}` : ''}.`;
+    /*
+      ⚠ No imperative on the line (round 5, all three lenses): "— review them"
+      pointed past the cell's one door at two others, and on the F-PACE the
+      comma splice read as a to-do list. The cause is the reading; SCAN
+      INVOICE top-right and △ RECALLS beneath are the acts, each its own door.
+    */
+    return `Held back by ${two ? `${one} and ${two}` : one}.`;
   })();
   /*
     ⚠ The drivers cannot see a thin history on a mileage-driven schedule: a
@@ -1046,8 +1049,7 @@ export function VehicleDetailScreen({
     if (!thinHistory) return cause;
     const recalls =
       openRecallCount > 0 ? ` and ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model` : '';
-    const acts = openRecallCount > 0 ? 'scan an invoice, review them' : 'scan an invoice';
-    return `Held back by ${thinHistory}${recalls} — ${acts}.`;
+    return `Held back by ${thinHistory}${recalls}.`;
   })();
 
   /* The reading's sentence, beside the dial: a current reading's lead, whole sentences. See `leadOf`. */
@@ -1590,10 +1592,10 @@ export function VehicleDetailScreen({
                   {serviceDue}
                 </Text>
                 {/*
-                  The ask, in the row that needs the answer (value V2, round
-                  4): a distance with no date because the owner never said how
-                  far they drive. The door beneath — "Tell us ›" under MILES A
-                  MONTH — is where it is answered; this says why it is asked.
+                  Why there is no date, in the row (value V2, round 4) — as a
+                  reading, not an ask (IA, round 5: an ask in a cell whose door
+                  does not take the answer). The door that does is "Tell us ›"
+                  under MILES A MONTH, which says what answering buys.
                 */}
                 {serviceAsk ? <Text style={styles.countNote}>{serviceAsk}</Text> : null}
               </BinnacleCell>

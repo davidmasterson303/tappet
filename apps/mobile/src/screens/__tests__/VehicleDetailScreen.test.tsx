@@ -1469,7 +1469,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
   });
 
-  it('says what holds the score back, as a reason with its act, in the block\'s one word for recalls', async () => {
+  it('says what holds the score back, as a reason, in the block\'s one word for recalls', async () => {
     /*
       Round 3 of the lenses: "24 recalls on record." beside 88 GOOD read as a
       fact with a full stop, not a reason, and the same 24 was told three
@@ -1501,7 +1501,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     await view.findAllByText(/2018 Honda Accord/);
 
     // The hub's own count — one open, one marked — never the driver's "on record".
-    await view.findByText('Held back by 1 open recall for this model — review them.');
+    await view.findByText('Held back by 1 open recall for this model.');
     expect(view.queryByText(/on record/)).toBeNull();
     // The model's prose is HEALTH's, one tap away: not on the hub beside a cause.
     expect(view.queryByText('Excellent history.')).toBeNull();
@@ -1511,7 +1511,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     expect(within(recalls).getByText('this model')).toBeTruthy();
   });
 
-  it('names a thin history first, with the recalls beside it, each with its act (round 4)', async () => {
+  it('names a thin history first, with the recalls beside it — the cause alone, no imperative (rounds 4–5)', async () => {
     /*
       The F-PACE: one record in 69,573 miles, four open recalls, 55. Three
       lenses read "4 open recalls" as an unconvincing sole reason; the
@@ -1539,7 +1539,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     const { view } = await mount();
     await view.findAllByText(/2017 Jaguar F-PACE/);
     // No maintenance rows served: the hub's own count is zero, and it leads.
-    await view.findByText('Held back by no records on file and 2 open recalls for this model — scan an invoice, review them.');
+    await view.findByText('Held back by no records on file and 2 open recalls for this model.');
   });
 
   it('names one record on file before the drivers can, on a mileage-driven schedule', async () => {
@@ -1565,19 +1565,19 @@ describe('the hub under three lenses (22 Sep)', () => {
     });
     const { view } = await mount();
     await view.findAllByText(/2017 Jaguar F-PACE/);
-    await view.findByText('Held back by one record on file — scan an invoice.');
+    await view.findByText('Held back by one record on file.');
   });
 
-  it('asks for miles a month in the service row when a date is missing for want of it', async () => {
+  it('says why there is no date in the service row, for want of miles a month', async () => {
     respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: null });
     const { view } = await mount();
     const cell = await view.findByLabelText(/^Next service, Brake fluid, in 4,500 mi\./);
-    expect(within(cell).getByText('tell us miles a month for a date')).toBeTruthy();
+    expect(within(cell).getByText('no date without your miles a month')).toBeTruthy();
 
     respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: 500 });
     const dated = await mount();
     await dated.view.findByText('in 4,500 mi · about 9 months');
-    expect(dated.view.queryByText('tell us miles a month for a date')).toBeNull();
+    expect(dated.view.queryByText('no date without your miles a month')).toBeNull();
   });
 
   it('carries no advisor button and no account word of its own', async () => {
