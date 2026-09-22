@@ -58,7 +58,7 @@ import {
   navFadeStartFor,
   sheetMinHeight,
 } from '../theme/hero-motion';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Line, Path } from 'react-native-svg';
 import { CONTROL_HEIGHT, TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
 import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
@@ -1395,8 +1395,15 @@ export function VehicleDetailScreen({
             over the plate's bottom-right corner, above the leading edge, the
             way `MastheadPlate` and the garage plate paint theirs
             (`cornerCovers`, so `cut-geometry.test.tsx` holds the legs equal).
-            The hairline stops where the bevel begins; the garage plate's cut
-            carries no rule either. Decorative, hidden from the reader.
+            ⚠ 21 Sep · the hairline follows the bevel. It used to stop where
+            the bevel began, as the garage plate's does — and rounds 46, 47
+            and 48 each graded the plate "no cut a user can see": 8pt of page
+            graphite laid into a photograph that is near-black at that corner
+            is a shape nobody can find, and the rule stopping 8pt short read
+            as a broken line, not a corner. The sheet's leading rule turns 45°
+            up the bevel now and ends at the screen's edge, so the geometry
+            registers as line whatever the photograph does. The cut's size is
+            still the brief's 8. Decorative, hidden from the reader.
           */}
           <Svg
             width={cut.plate}
@@ -1409,6 +1416,14 @@ export function VehicleDetailScreen({
             {cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']).map((d) => (
               <Path key={d} d={d} fill={surface.page} />
             ))}
+            <Line
+              x1={0}
+              y1={cut.plate}
+              x2={cut.plate}
+              y2={0}
+              stroke={border.panel}
+              strokeWidth={StyleSheet.hairlineWidth}
+            />
           </Svg>
 
           {photoError && (

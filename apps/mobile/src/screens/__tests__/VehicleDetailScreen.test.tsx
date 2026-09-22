@@ -765,6 +765,21 @@ describe('the hero pullback', () => {
     );
     expect(edge).toBeDefined();
     expect((StyleSheet.flatten(edge!.style as never) as { marginRight?: number }).marginRight).toBe(cut.plate);
+
+    /*
+      21 Sep · and the rule turns up the bevel. Three rounds graded the plate
+      "no cut a user can see": 8pt of page graphite into a near-black corner
+      of a photograph is a shape nobody finds, and the rule stopping short
+      read as a broken line. The hairline runs the hypotenuse — (0, cut) to
+      (cut, 0), the cover's own edge — in the panel's ink, so the geometry
+      registers as line whatever the photograph does.
+    */
+    const bevel = hostNodes(view.root, 'RNSVGLine').find(
+      (props) => Number(props.x1) === 0 && Number(props.y1) === cut.plate && Number(props.x2) === cut.plate && Number(props.y2) === 0,
+    );
+    expect(bevel).toBeDefined();
+    const stroke = bevel!.stroke as { payload?: unknown } | undefined;
+    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.panel));
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {
