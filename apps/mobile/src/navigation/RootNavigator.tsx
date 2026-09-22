@@ -733,6 +733,21 @@ export function tabsBackTitle(route: RouteProp<RootStackParamList, 'Tabs'>): str
  * Nested state is absent until a navigator mounts, and a tab that has not
  * mounted is at its root by definition.
  */
+/**
+ * Which tab is focused, off the container's whole state — or `null` before
+ * the tabs have mounted, or when the root stack is showing something else.
+ */
+export function focusedTabOf(
+  state: NavigationState | PartialState<NavigationState> | undefined
+): keyof TabParamList | null {
+  if (!state) return null;
+  const root = state.routes[state.index ?? state.routes.length - 1];
+  if (root?.name !== 'Tabs' || !root.state) return null;
+  const tabs = root.state;
+  const tab = tabs.routes[tabs.index ?? tabs.routes.length - 1];
+  return (tab?.name as keyof TabParamList | undefined) ?? null;
+}
+
 export function atTabRoot(
   state: NavigationState | PartialState<NavigationState> | undefined
 ): boolean {
@@ -989,16 +1004,10 @@ function CarStack({ onSignOut }: Session) {
               */
               onBack={() => navigation.navigate('Tabs', { screen: 'GarageTab', params: { screen: 'Garage', pop: true } })}
               /*
-                ⚠ The tab, not a push. There is no question in hand here — this is
-                "let me talk about this car" — and the conversation lives on the
-                Advisor tab. See the `Advisor` param's note for the other case.
+                No `onAskAdvisor` since 22 Sep: the hub's ASK THE ADVISOR was
+                cut by three critics in one round — the ADVISOR tab is directly
+                beneath it, about this car. `openAdvisorTab` stays for the bays.
               */
-              onAskAdvisor={() =>
-                openAdvisorTab(navigation, {
-                  vehicleId,
-                  title: route.params?.title,
-                })
-              }
               onScanInvoice={() =>
                 navigation.navigate('InvoiceScan', {
                   vehicleId,
@@ -1054,12 +1063,6 @@ function CarStack({ onSignOut }: Session) {
               /* The fourth leaf (20 Sep). */
               onOpenTires={() =>
                 navigation.navigate('Tires', {
-                  vehicleId,
-                  title: route.params?.title,
-                })
-              }
-              onRemove={() =>
-                navigation.navigate('RemoveVehicle', {
                   vehicleId,
                   title: route.params?.title,
                 })
@@ -1215,7 +1218,14 @@ function CarStack({ onSignOut }: Session) {
         )}
       </Stack.Screen>
 
-      <Stack.Screen name="VehicleProfile" options={{ title: 'WHAT YOU TOLD US' }}>
+      {/*
+        ── 22 Sep · the car's details, not only the answers ────────────────
+
+        THIS CAR: the odometer with its as-of, the owner's answers, and at
+        the foot the removal — the hub's plate is its door, and the hub no
+        longer ends on REMOVE THIS CAR (the three lenses' I7, U8, V8).
+      */}
+      <Stack.Screen name="VehicleProfile" options={{ title: 'THIS CAR' }}>
         {({ route, navigation }) => (
           <VehicleProfileScreen
             vehicleId={route.params.vehicleId}
@@ -1226,6 +1236,12 @@ function CarStack({ onSignOut }: Session) {
               the stack does not grow a second copy of the screen behind.
             */
             onSaved={() => navigation.goBack()}
+            onRemove={() =>
+              navigation.navigate('RemoveVehicle', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+              })
+            }
           />
         )}
       </Stack.Screen>
@@ -1561,6 +1577,7 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
   */
   const navigation = useNavigationContainerRef<RootStackParamList>();
   const [atRoot, setAtRoot] = useState(true);
+  const [focusedTab, setFocusedTab] = useState<keyof TabParamList | null>(null);
 
   /*
     ── E8 · the one account fact that can go stale on this device ───────────
@@ -1585,6 +1602,7 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
    */
   const noteRoute = useCallback(() => {
     setAtRoot(atTabRoot(navigation.getRootState()));
+    setFocusedTab(focusedTabOf(navigation.getRootState()));
 
     const params = navigation.getCurrentRoute()?.params as Partial<Car> | undefined;
     if (params?.vehicleId) rememberVehicle(params.vehicleId, params.title);
@@ -1714,8 +1732,17 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
         control, and a floating word would sit on top of it. `atTabRoot` reads
         the whole tree to decide, because a name alone cannot.
       */}
+      {/*
+        ⚠ 22 Sep · every root but the car's. The Car tab's root is a dossier
+        under a photograph, and three critics in one round read ACCOUNT
+        floating over it as *"a global control on a car's page"* (IA I8; the
+        design critic's cut, twice). 5.1.1(v)'s guarantee is unchanged: the
+        control is a sibling of the navigator that no screen can swallow, on
+        the garage and the three car tabs — the garage is one tab away from
+        the car. `mobile-account-reachable.test.ts` holds the structure.
+      */}
       <AccountControl
-        visible={atRoot}
+        visible={atRoot && focusedTab !== 'CarTab'}
         /*
           ⚠ `navigate`, and it lands on the root stack. The account is somewhere
           you go and come back from; pushed there, it gets a header and a back

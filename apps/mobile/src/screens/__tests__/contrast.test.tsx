@@ -127,7 +127,6 @@ describe('the health score colour — never checked by the source scan', () => {
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
-        onAskAdvisor={jest.fn()}
         onScanInvoice={jest.fn()}
         onViewRecalls={jest.fn()}
         onOpenWishlist={jest.fn()}
@@ -135,7 +134,6 @@ describe('the health score colour — never checked by the source scan', () => {
       onOpenHealth={jest.fn()}
       onOpenMilestone={jest.fn()}
       onOpenProfile={jest.fn()}
-      onRemove={jest.fn()}
       />));
 
     // Twice now — the hero's own title and the nav's, staggered by opacity.
@@ -164,7 +162,6 @@ describe('the hero pullback fades two strings in, and the walker cannot reach th
           vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
           onBack={jest.fn()}
           onSignOut={jest.fn()}
-          onAskAdvisor={jest.fn()}
           onScanInvoice={jest.fn()}
           onViewRecalls={jest.fn()}
           onOpenWishlist={jest.fn()}
@@ -172,7 +169,6 @@ describe('the hero pullback fades two strings in, and the walker cannot reach th
           onOpenHealth={jest.fn()}
           onOpenMilestone={jest.fn()}
           onOpenProfile={jest.fn()}
-          onRemove={jest.fn()}
         />
       )
     );
@@ -272,7 +268,6 @@ describe('failure states, which are where sub-floor text hides', () => {
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
-        onAskAdvisor={jest.fn()}
         onScanInvoice={jest.fn()}
         onViewRecalls={jest.fn()}
         onOpenWishlist={jest.fn()}
@@ -280,7 +275,6 @@ describe('failure states, which are where sub-floor text hides', () => {
       onOpenHealth={jest.fn()}
       onOpenMilestone={jest.fn()}
       onOpenProfile={jest.fn()}
-      onRemove={jest.fn()}
       />));
 
     await view.findByText('This vehicle is no longer here');
@@ -309,15 +303,19 @@ describe('the invoice scanner', () => {
   });
 });
 
-describe('the advisor CTA, which is dark text on white', () => {
+describe('the hub\'s act, which is dark text on white', () => {
   it('is measured against its own surface, not the screen', async () => {
+    /*
+      ASK THE ADVISOR was the white button here until 22 Sep; the act in the
+      prime slot — SCAN INVOICE, or REVIEW RECALLS when there are open ones —
+      is the same off-white fill with graphite text, and the same trap.
+    */
     request.mockResolvedValue({ vehicle: VEHICLE(74) });
 
     const view = await render(withSafeArea(<VehicleDetailScreen
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
         onBack={jest.fn()}
         onSignOut={jest.fn()}
-        onAskAdvisor={jest.fn()}
         onScanInvoice={jest.fn()}
         onViewRecalls={jest.fn()}
         onOpenWishlist={jest.fn()}
@@ -325,10 +323,9 @@ describe('the advisor CTA, which is dark text on white', () => {
       onOpenHealth={jest.fn()}
       onOpenMilestone={jest.fn()}
       onOpenProfile={jest.fn()}
-      onRemove={jest.fn()}
       />));
 
-    await view.findByText('Ask the advisor');
+    await view.findByText(/^(Scan invoice|Review recalls)$/);
 
     /*
       A white button carrying near-black text. Audited against the screen it
@@ -337,7 +334,7 @@ describe('the advisor CTA, which is dark text on white', () => {
       backdrop is what makes this assertion mean anything.
     */
     const audits = auditText(view).filter((a) =>
-      a.text.startsWith('Ask the advisor') || a.text.startsWith('It already knows')
+      a.text.startsWith('Scan invoice') || a.text.startsWith('Review recalls')
     );
 
     expect(audits.length).toBeGreaterThan(0);

@@ -197,3 +197,43 @@ function formatCalendarDate(iso: string): string {
 
   return formatDate(iso);
 }
+
+/**
+ * The service's name as a reading, not as the knowledge base filed it.
+ *
+ * ── 22 Sep · the hub loop's IA and UX critics, in one voice ─────────────────
+ *
+ * "ENGINE OIL & FILTER CHANGE (ENTHUSIAST)" beside "ENGINE OIL AND FILTER
+ * CHANGE": the first carries the schedule tier that chose its interval in
+ * parentheses, and the two spell "and" two ways because two sources filed
+ * them. The tier is a fact about the schedule and lives where the schedule
+ * is printed (Service → Due); on a hub cell it is a word inside a job's name
+ * that the owner did not choose and cannot act on. `NextServiceLine.service`
+ * stays the knowledge base's words — this is the reading's, applied by the
+ * screens that print it as a name.
+ */
+export function displayServiceName(service: string): string {
+  return service
+    .replace(/\s*\((?:enthusiast|normal|severe|standard|extreme|basic|premium)\)\s*$/i, '')
+    .replace(/\s*&\s*/g, ' and ')
+    .trim();
+}
+
+/**
+ * How long "in N mi" is, in the owner's own months — or `null` where they
+ * never said how far they drive.
+ *
+ * The value critic's V2: a distance without a date is not a decision. The
+ * owner's miles a month is an answer on this car, so the figure is theirs
+ * and the word is "about" (§10): `500` a month and 4,500 mi to go is about
+ * nine months; under a month says so rather than rounding to zero.
+ */
+export function monthsAway(miles: number, milesPerMonth: number | null | undefined): string | null {
+  if (typeof milesPerMonth !== 'number' || !(milesPerMonth > 0) || !(miles > 0)) return null;
+  const months = miles / milesPerMonth;
+  if (months < 1) return 'within a month';
+  const rounded = Math.round(months);
+  if (rounded === 1) return 'about a month';
+  if (rounded >= 24) return `about ${Math.round(rounded / 12)} years`;
+  return `about ${rounded} months`;
+}

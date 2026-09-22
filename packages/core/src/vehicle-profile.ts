@@ -164,3 +164,21 @@ export function validateProfileUpdate(input: Record<string, unknown>): ProfileDe
 
   return { ok: true, changes };
 }
+
+/**
+ * The lead phrase of a prose answer — for a row that says there is an answer
+ * and opens it, rather than printing it.
+ *
+ * 22 Sep: the hub's OWNERSHIP row printed "Keep forever - Dail…" — the
+ * objective is prose (`OBJECTIVE_MAX` 280) and a value column truncates it
+ * mid-word, and the half that showed repeated the plate's USE. The first
+ * phrase — up to a dash, a comma, a semicolon or a full stop — is what an
+ * owner wrote as the headline of their own answer; the whole answer is one
+ * tap away and in the row's spoken name.
+ */
+export function leadPhrase(text: string): string {
+  const whole = text.trim();
+  const cut = whole.search(/\s[-–—]\s|[,;.!?]\s|[,;.!?]$/);
+  const lead = cut === -1 ? whole : whole.slice(0, cut);
+  return lead.trim() || whole;
+}

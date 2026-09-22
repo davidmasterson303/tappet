@@ -17,7 +17,6 @@ import {
 import * as RN from 'react-native';
 import { StyleSheet, processColor } from 'react-native';
 import { border, cut, space, surface, text, type } from '../../theme';
-import { ACCOUNT_CONTROL_SLOT } from '../../navigation/AccountControl';
 import { cornerCovers } from '../../components/CutSurface';
 
 /**
@@ -155,7 +154,6 @@ async function mount(
     vehicleId: 'v1',
     onBack: jest.fn(),
     onSignOut: jest.fn(),
-    onAskAdvisor: jest.fn(),
     onScanInvoice: jest.fn(),
     onViewRecalls: jest.fn(),
     onOpenWishlist: jest.fn(),
@@ -163,7 +161,6 @@ async function mount(
     onOpenHealth: jest.fn(),
     onOpenMilestone: jest.fn(),
     onOpenProfile: jest.fn(),
-    onRemove: jest.fn(),
     ...extra,
   };
   return { props, view: await render(withSafeArea(<VehicleDetailScreen {...props} />, metrics)) };
@@ -233,7 +230,8 @@ describe('recalls', () => {
       The label now carries the worst recall after a full stop, so the anchor
       is the sentence's end or that stop — either way "1 open recalls" fails.
     */
-    expect(await view.findByLabelText(/^View 1 open recall(\.|$)/)).toBeTruthy();
+    // 22 Sep: the name goes on to say the match is the model's, not this car's (§10).
+    expect(await view.findByLabelText(/^View 1 open recall(\.|,)/)).toBeTruthy();
   });
 
   it('opens the recall screen when tapped', async () => {
@@ -336,13 +334,20 @@ describe('the counts on the binnacle', () => {
       the reading on appear, so a "0" can be on the screen for a frame that is
       not a count at all. The claim is about the count cells.
     */
+    /*
+      22 Sep: a zero the screen read is a sentence in the legend's ink — the
+      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Nothing yet" says
+      the list is empty the way TIRES says "No set yet"; never a dimmed 0.
+    */
     const plan = await view.findByLabelText('Plan, 0.');
-    const zero = within(plan).getByText('0');
-    expect(readoutColor(zero)).toBe(text.muted);
+    const empty = within(plan).getByText('Nothing yet');
+    expect(readoutColor(empty)).toBe(text.muted);
+    expect(within(plan).queryByText('0')).toBeNull();
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
     expect(readoutColor(within(view.getByLabelText(/^History, 1 /)).getByText('1'))).toBe(text.primary);
-    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2'))).toBe(text.primary);
+    // And the recall count carries its verdict: "2 open", not a bare 2 (UX U5, value V3).
+    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2 open'))).toBe(text.primary);
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -363,7 +368,8 @@ describe('the counts on the binnacle', () => {
     const clean = await mount();
     await clean.view.findAllByText(/2018 Honda Accord/);
     const cleared = clean.view.getByLabelText('View 0 open recalls');
-    expect(readoutColor(within(cleared).getByText('0'))).toBe(text.muted);
+    // Cleared: a sentence in the legend's ink, never a dimmed 0 (22 Sep).
+    expect(readoutColor(within(cleared).getByText('None open'))).toBe(text.muted);
   });
 
   it('prints nothing for a count it could not read', async () => {
@@ -519,16 +525,42 @@ describe('what this screen leads to stays reachable', () => {
       cells of one panel with the acts as switches at its foot. THIS CAR is
       gone with the list it named.
     */
+    /*
+      ⚠ And again on 22 Sep, when the hub's three lenses reshaped the sheet:
+      the act is the prime slot over the plate (SCAN INVOICE, or REVIEW
+      RECALLS when there are open ones — this fixture has two), ASK THE
+      ADVISOR is gone (the ADVISOR tab is beneath), and the panel reads
+      verdict → next service → the counts → tires → the answers.
+    */
     expect(at('Next service')).toBeGreaterThan(-1);
-    expect(at('Ask the advisor')).toBeGreaterThan(-1);
+    expect(at('Ask the advisor')).toBe(-1);
+    expect(at('Scan invoice')).toBe(-1);
+    expect(at('Review recalls')).toBeGreaterThan(-1);
 
-    // The reading, then what it needs, then the places to go, then the two
-    // things to do, then the door to the answers the owner gave at sign-up.
+    // The act is in the nav layer, drawn after the sheet in render order but
+    // over the plate on screen — reachable at rest, no scroll; the tree's
+    // order says nothing about that, so only its presence is asserted here.
+    // The reading, then what it needs, then the places to go, then the door to the answers.
     expect(at('Fair')).toBeLessThan(at('Next service'));
     expect(at('Next service')).toBeLessThan(at('Plan'));
-    expect(at('Plan')).toBeLessThan(at('Scan invoice'));
-    expect(at('Scan invoice')).toBeLessThan(at('Ask the advisor'));
-    expect(at('Ask the advisor')).toBeLessThan(at('What you told us'));
+    expect(at('Plan')).toBeLessThan(at('Tires'));
+    expect(at('Tires')).toBeLessThan(at('What you told us'));
+  });
+
+  it('chooses the act by state: open recalls to review, else an invoice to scan (22 Sep)', async () => {
+    const user = userEvent.setup();
+    respond();
+    const withRecalls = await mount();
+    await withRecalls.view.findAllByText(/2018 Honda Accord/);
+    await user.press(withRecalls.view.getByLabelText(/^Review 2 open recalls/));
+    expect(withRecalls.props.onViewRecalls).toHaveBeenCalledTimes(1);
+    expect(withRecalls.props.onScanInvoice).not.toHaveBeenCalled();
+
+    respond({ nhtsa_data: { recalls: [] } });
+    const clean = await mount();
+    await clean.view.findAllByText(/2018 Honda Accord/);
+    await user.press(clean.view.getByLabelText(/^Scan an invoice/));
+    expect(clean.props.onScanInvoice).toHaveBeenCalledTimes(1);
   });
 
   it('shows the score once, and never over the car', async () => {
@@ -930,9 +962,10 @@ describe('the health verdict, against what the screen is holding', () => {
       counts row says the same two numbers directly above it, so the line is
       the Health screen's now and the cells carry the facts here.
     */
-    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
-    await view.findByLabelText(/^History, 5 recorded services\./);
-    await view.findByLabelText(/^View 2 open recalls/);
+    // 22 Sep: back with the sentence, inside the HEALTH cell — the value lens's
+    // V1 ("HEALTH says what it read"); the cell is the reading and its basis.
+    const cell = view.getByRole('button', { name: /^Health score 70/ });
+    within(cell).getByText(/Based on 5 recorded services · 2 open recalls/);
   });
 
   it('leaves a current reading alone', async () => {
@@ -951,13 +984,13 @@ describe('the health verdict, against what the screen is holding', () => {
     await view.findByText(new RegExp('complete lack of documented maintenance'));
   });
 
-  it('keeps the HEALTH cell an instrument: a current reading\'s lead is under the panel, whole (21 Sep)', async () => {
+  it('carries the cause beside the verdict: a current reading\'s lead, whole, in the HEALTH cell (22 Sep)', async () => {
     /*
-      The reviewer's F-PACE: two sentences, 270 characters, printed inside
-      the three-fifths cell — six lines, a void in the cell beside it, the
-      first row under the fold. The cell carries the reading and its
-      provenance; the sentence's lead is the check-control line beneath the
-      panel, and it ends where a sentence ends. `Health` prints all of it.
+      21 Sep moved the sentence out of the cell (six lines in a three-fifths
+      cell beside a void); 22 Sep's three lenses put it back beside the dial
+      in a cell that is the whole row — "'55 ATTENTION' names no cause"
+      (UX U2), "make it HEALTH's caption, same door" (IA I1). The lead ends
+      where a sentence ends; `Health` prints all of it.
     */
     const FPACE =
       'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles. ' +
@@ -971,15 +1004,17 @@ describe('the health verdict, against what the screen is holding', () => {
     expect(lead.props.children).toMatch(/69,573 miles\.$/);
     expect(view.queryByText(/Given the mileage/)).toBeNull();
 
-    // Beneath the panel, not inside the HEALTH cell — no ancestor is that cell.
+    // Inside the HEALTH cell, which is its door: an ancestor is that cell.
     const cell = view.getByRole('button', { name: /^Health score 70/ });
     let node: { parent: unknown } | null = lead;
+    let inCell = false;
     while (node) {
-      expect(node).not.toBe(cell);
+      if (node === cell) inCell = true;
       node = node.parent as typeof node;
     }
-    // The sentence stands alone: the counts row above it is the provenance (round 48's cut).
-    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
+    expect(inCell).toBe(true);
+    // And the door says it: the spoken name carries the sentence.
+    expect(cell.props.accessibilityLabel).toMatch(/very sparse documented service history/);
   });
 });
 
@@ -1027,8 +1062,9 @@ describe('the tires cell', () => {
     const onOpenTires = jest.fn();
     const { view } = await mount(REFERENCE, { onOpenTires });
 
-    const cell = await view.findByLabelText(/^Tires, 5,500 miles since last rotation\. Opens the set\.$/);
-    await view.findByText('5,500 mi since last rotation');
+    // 22 Sep: a countdown, as NEXT SERVICE counts (value V5) — the owner's 6,000 mi interval, 5,500 since.
+    const cell = await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
+    await view.findByText('rotation in 500 mi');
     // A reading of the panel: inside the readings summary, not a row below the switches.
     const panel = view.getByLabelText('Readings');
     let node: { parent: unknown } | null = cell;
@@ -1046,7 +1082,7 @@ describe('the tires cell', () => {
   it('marks a set past its interval, and only then', async () => {
     serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-06-28', odometer: 59_000, provenance: 'typed' }] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires, 7,000 miles since last rotation, past your interval\./);
+    await view.findByLabelText(/^Tires, rotation overdue by 1,000 mi\./);
     // The mark is drawn beside the legend (the cell's own `warning`), hidden from the reader
     // because the spoken label already says it. No recalls served, so it is the only one.
     expect(view.getAllByText('△', { includeHiddenElements: true })).toHaveLength(1);
@@ -1055,7 +1091,7 @@ describe('the tires cell', () => {
   it('draws no mark for a set inside its interval', async () => {
     serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires, 5,500 miles since last rotation\. Opens the set\.$/);
+    await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
     expect(view.queryAllByText('△', { includeHiddenElements: true })).toHaveLength(0);
   });
 
@@ -1074,7 +1110,17 @@ describe('the tires cell', () => {
     const { view } = await mount();
     await view.findByLabelText(/^Tires\. Opens the set\.$/);
     expect(view.queryByText('No set yet')).toBeNull();
-    expect(view.queryByText(/mi since/)).toBeNull();
+    expect(view.queryByText(/mi since|rotation in/)).toBeNull();
+  });
+
+  it('counts up where no interval was entered — the miles since, never a guessed countdown', async () => {
+    serveTires({
+      set: { ...SET, rotation_interval_miles: null, interval_source: null },
+      rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }],
+    });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, 5,500 mi since last rotation\. Opens the set\.$/);
+    await view.findByText('5,500 mi since last rotation');
   });
 });
 
@@ -1108,7 +1154,7 @@ describe('the hero’s nav, as controls', () => {
       chevron is told; a cell that stopped announcing where it goes would fail
       here before anyone noticed it on a device.
     */
-    const door = await view.findByLabelText(/Health score 61 out of 100 — Fair\. Opens what is driving it\./);
+    const door = await view.findByLabelText(/Health score 61 out of 100 — Fair\..*Opens what is driving it\./);
     expect(door.props.accessibilityRole).toBe('button');
   });
 
@@ -1139,29 +1185,40 @@ describe('the hero’s nav, as controls', () => {
     expect(nav?.textAlign).toBe('left');
   });
 
-  it('keeps the photo control clear of the floating account word — 21 Sep, the car is a root', async () => {
+  it('gives the prime slot to the act and the photo a quiet legend at the row\'s start (22 Sep)', async () => {
     /*
-      `AccountControl` draws ACCOUNT at the top-right corner of every tab root,
-      as a sibling of the navigator that no screen can swallow. Since the Car
-      tab this screen is a root, and the first build put ADD PHOTO under the
-      word — the same collision the garage's `+` had on the first build of the
-      control. The screen pads by the control's own slot, so neither reserves
-      what the other draws.
+      "ADD PHOTO holds the only bordered button above the fold — a once-ever
+      act — while SCAN INVOICE, the act an owner repeats for years, sits a
+      scroll down" (UX U1). The act is the filled button at the row's end;
+      the photo control is a mono word and a chevron at its start. ACCOUNT no
+      longer floats over a car's page (IA I8), so the act sits on the gutter.
     */
-    respond();
+    respond({ nhtsa_data: { recalls: [] } });
     const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
 
-    // Up from the control to the plane that places it: the first absolute `right`.
-    let node: { parent: unknown; props: Record<string, unknown> } | null = view.getByLabelText('Add photo');
+    // The act, on the gutter: up from the button to the plane that places it.
+    let node: { parent: unknown; props: Record<string, unknown> } | null = view.getByLabelText(/^Scan an invoice/);
     let right: unknown;
     while (node && right === undefined) {
       const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as { right?: unknown };
       right = flat.right;
       node = node.parent as typeof node;
     }
+    expect(right).toBe(space.lg);
 
-    expect(typeof right).toBe('number');
-    expect(right as number).toBeGreaterThanOrEqual(ACCOUNT_CONTROL_SLOT + space.lg);
+    // The photo control: a legend, not a bordered button — no cut surface of its own.
+    const photo = view.getByLabelText('Add photo');
+    expect(photo.props.accessibilityRole).toBe('button');
+    expect(within(photo).getByText('Add photo')).toBeTruthy();
+    let left: unknown;
+    let up: { parent: unknown; props: Record<string, unknown> } | null = photo;
+    while (up && left === undefined) {
+      const flat = (StyleSheet.flatten(up.props.style as never) ?? {}) as { left?: unknown };
+      left = flat.left;
+      up = up.parent as typeof up;
+    }
+    expect(left).toBe(0);
   });
 });
 
@@ -1478,15 +1535,17 @@ describe('the research log (20 Sep)', () => {
   });
 });
 
-describe('removing the car (20 Sep)', () => {
-  it('offers the removal last on the sheet, and it opens the confirmation rather than acting', async () => {
+describe('removing the car (20 Sep; behind the details since 22 Sep)', () => {
+  it('does not end on a destructive act — the removal is the details screen\'s foot', async () => {
+    /*
+      The hub's three lenses agreed (UX U8, IA I7, value V8): "once per car,
+      not daily; behind the edit door." The plate opens the car's details;
+      `VehicleProfileScreen.test.tsx` holds the button there.
+    */
     respond();
-    const user = userEvent.setup();
-    const { props, view } = await mount();
-    await waitFor(() => view.getByText('Remove this car'));
-    await user.press(view.getByText('Remove this car'));
-    expect(props.onRemove).toHaveBeenCalledTimes(1);
-    // Nothing was deleted from here — the confirmation is where that happens.
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText('Remove this car')).toBeNull();
     expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(false);
   });
 });
@@ -1514,5 +1573,99 @@ describe('the research poll is one request (20 Sep)', () => {
     const polled = request.mock.calls.slice(before).map(([p]) => String(p).split('?')[0]);
     expect(polled.every((p) => p === '/load-vehicle')).toBe(true);
     expect(polled.some((p) => p === '/load-maintenance-data' || p === '/wishlist')).toBe(false);
+  });
+});
+
+/**
+ * ── The hub under three lenses — 22 Sep ─────────────────────────────────────
+ *
+ * David: *"i want critic to think about UI/UX of the page, the information
+ * architecture, and the value of the functionality… Get this page to a 9."*
+ * Three critics, one round each in BRIEF mode, and the briefs converged
+ * (`design-loop/mobile-ios/hub-lenses/`). What they asked for that a test can
+ * hold is here: the service by its name with the owner's months beside the
+ * miles, every question as a row, the plate as the door to the car, the
+ * odometer's as-of.
+ */
+describe('the hub under three lenses (22 Sep)', () => {
+  it('names the service plainly and adds the owner\'s own months to the miles', async () => {
+    /*
+      "ENGINE OIL & FILTER CHANGE (ENTHUSIAST)" carried a schedule tier inside
+      a job's name (UX U9, IA I6); "in 4,500 mi" said no when (value V2). The
+      tier goes, "&" reads "and", and 500 a month makes 4,500 mi about nine
+      months — the owner's figure, so the word is "about".
+    */
+    respond({
+      next_service_label: 'Engine Oil & Filter Change (Enthusiast)',
+      next_service_at_miles: 99_300,
+      current_mileage: 94_800,
+      avg_miles_per_month: 500,
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await view.findByText('Engine Oil and Filter Change');
+    expect(view.queryByText(/Enthusiast/i)).toBeNull();
+    await view.findByText('in 4,500 mi · about 9 months');
+  });
+
+  it('keeps the miles alone where the owner never said how far they drive', async () => {
+    respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: null });
+    const { view } = await mount();
+    await view.findByText('in 4,500 mi');
+    expect(view.queryByText(/about/)).toBeNull();
+  });
+
+  it('lists every question, the unanswered ones as prompts, and the objective by its lead phrase', async () => {
+    /*
+      The F-PACE showed one row and hid the two questions its reading depends
+      on (UX U7, IA I3, value V7); the Accord's OWNERSHIP printed "Keep
+      forever - Dail…" (UX U3, IA I4). Every row is a door to the question.
+    */
+    const user = userEvent.setup();
+    respond({
+      avg_miles_per_month: null,
+      performance_mindedness: 'stock',
+      ownership_objective: 'Keep forever - Daily commuter. Want to keep it reliable past 200,000 miles.',
+    });
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const miles = await view.findByLabelText('Miles a month: not answered yet. Opens the question.');
+    expect(within(miles).getByText('Not yet')).toBeTruthy();
+    expect(readoutColor(within(miles).getByText('Not yet'))).toBe(text.muted);
+    view.getByLabelText(/^Modifications: Keep it stock\./);
+    const ownership = view.getByLabelText(/^Ownership: Keep forever - Daily commuter\. Want to keep it reliable/);
+    expect(within(ownership).getByText('Keep forever')).toBeTruthy();
+    expect(view.queryByText(/Dail…|Daily commuter/)).toBeNull();
+
+    await user.press(miles);
+    expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the car\'s details from the plate, and says the odometer\'s age on the strip', async () => {
+    /*
+      "No door to the car itself … the facts strip is the page's only non-door
+      row" (IA I3, I7); "mileage is a fact, not a reading … nothing says when
+      that was set" (value V1, UX U6). The door sits in the sheet's spacer
+      over the identity block; the strip's MILEAGE eyebrow carries the age.
+    */
+    const user = userEvent.setup();
+    const threeWeeksAgo = new Date(Date.now() - 21 * 86_400_000).toISOString();
+    respond({ last_mileage_update_date: threeWeeksAgo });
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await view.findByText(/MILEAGE · 3 WK AGO/i);
+    await user.press(view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/));
+    expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries no advisor button and no account word of its own', async () => {
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText(/Ask the advisor/i)).toBeNull();
+    expect(view.queryByText(/^Account$/i)).toBeNull();
   });
 });
