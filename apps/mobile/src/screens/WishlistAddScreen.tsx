@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
 
 import AlertBanner from '../components/AlertBanner';
-import PlateBand from '../components/PlateBand';
 import Button from '../components/Button';
 import ListGroup from '../components/ListGroup';
 import RowActions from '../components/RowActions';
@@ -350,27 +349,35 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
     */
     <View style={styles.screen}>
       {/*
-        ⚠ **Above the pinned field, and `top={0}` — this screen is the one
-        exception to where a band goes.** Everywhere else the band is the
-        first child of the scroller and cancels `PAGE_BODY`'s padding with a
-        negative margin. Here the filter is pinned *outside* the scroller
-        (see the note below), so a band inside it would sit underneath a
-        control instead of at the head of the screen. `styles.screen` carries
-        no padding of its own, so there is nothing to cancel — hence `top={0}`
-        rather than the default, and the field's own `marginTop` supplies the
-        air beneath.
+        ── ⚠ 22 Sep · no `PlateBand` here, and the reason is the pinned field ──
 
-        The catalogue is reached from Plan, so it takes Plan's frame: the road
-        ahead, which is the stack it belongs to. `PlateBand` carries the rule.
+        A critic pass flagged this screen as the one real gap in that day's
+        coverage work, and it was right that the *exclusion was undocumented*
+        — it had been skipped because the placement was awkward, which is not
+        an argument. This is the argument.
 
-        ⚠ This screen was **missed** by the 22 Sep pass and found by an
-        independent critic. It is a full scrolling catalogue reached exactly
-        the way the invoice detail is reached from Service, so the exclusion
-        had no argument behind it — it was skipped because the pinned field
-        made it awkward, which is not a reason.
+        Every other band is the scroller's first child, so it scrolls away
+        after one flick. This screen's filter is pinned **outside** the
+        scroller (see the note below — R38, deliberate), which leaves a band
+        two placements and both are wrong:
+
+          - Above the field, it is never inside the scroller, so it is
+            **permanent**: 132pt, 15% of a 402×874 display, held forever on
+            the one screen whose whole job is browsing a long list. Two rows
+            fewer, on every scroll, for the life of the screen.
+          - Below the field, the photograph slides under a floating control,
+            which is the glassmorphism reading `plinth` exists to refuse.
+
+        A band was briefly shipped in the first placement and reverted when
+        the cost was measured rather than estimated. The screen is not
+        without imagery either: the rows carry part photographs, and the
+        field above them is the subject.
+
+        ⚠ So the rule `PlateBand` states — *a screen takes its stack's
+        place* — has a second clause, and it belongs here rather than in a
+        list: **a screen whose scroller is not its first child cannot host a
+        band**, because the band stops being a head and becomes furniture.
       */}
-      <PlateBand frame="plan" top={0} />
-
       {problem && <AlertBanner tone="critical" headline="That was not added" body={problem} />}
 
       {/*

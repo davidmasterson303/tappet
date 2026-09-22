@@ -49,6 +49,12 @@
  *
  *   - `InvoiceScanScreen` — a live camera viewfinder fills the screen, so the
  *     imagery is the subject rather than a frame around it.
+ *   - `WishlistAddScreen` — ⚠ its filter is pinned *outside* the scroller, so
+ *     a band there is never scroll content: it would hold 132pt, 15% of the
+ *     display, permanently on the app's longest list. A band was shipped here
+ *     for one commit and reverted when that was measured. The screen's own
+ *     docblock carries the full argument and the second clause it produced —
+ *     a screen whose scroller is not its first child cannot host a band.
  *   - `RemoveVehicleScreen`, `AddVehicleScreen`, `ScanVinScreen`,
  *     `TypeVinScreen`, `DescribeCarScreen`, `OwnerAnswersScreen`,
  *     `TireSetFormScreen`, `TireIntervalScreen`, `TireRotationScreen` —
@@ -58,7 +64,7 @@
  *     pre-auth surfaces, outside the stacks the frame rule is written for.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SCREENS = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens');
@@ -75,7 +81,6 @@ const CARRIES_A_BAND: ReadonlyArray<{ file: string; frame: string }> = [
   { file: 'HealthScreen.tsx', frame: 'house' },
   { file: 'VehicleProfileScreen.tsx', frame: 'house' },
   { file: 'InvoiceDetailScreen.tsx', frame: 'service' },
-  { file: 'WishlistAddScreen.tsx', frame: 'plan' },
 ];
 
 /** Screens whose imagery arrives another way — a band here would be a second frame. */
@@ -106,6 +111,35 @@ const ALREADY_CARRIED = [
     critic pass to notice, which is the argument for having one.
   */
   'RecallDetailScreen.tsx',
+];
+
+/**
+ * Screens excluded on their own terms, which must therefore draw **no** band.
+ *
+ * ⚠ This list exists because removing a screen from `CARRIES_A_BAND` silently
+ * stops checking it. `WishlistAddScreen` spent one commit with a band and had
+ * it reverted on a measurement; with the entry simply deleted, nothing would
+ * have failed if a band came back — and the argument against it lives in a
+ * docblock, which is prose, and prose is what this repo keeps finding stale.
+ *
+ * The reason for each is in the header and at the call site. Enforcing the
+ * list is what makes those reasons load-bearing rather than decorative.
+ */
+const DELIBERATELY_BANDLESS = [
+  'WishlistAddScreen.tsx',
+  'InvoiceScanScreen.tsx',
+  'RemoveVehicleScreen.tsx',
+  'AddVehicleScreen.tsx',
+  'ScanVinScreen.tsx',
+  'TypeVinScreen.tsx',
+  'DescribeCarScreen.tsx',
+  'OwnerAnswersScreen.tsx',
+  'TireSetFormScreen.tsx',
+  'TireIntervalScreen.tsx',
+  'TireRotationScreen.tsx',
+  'PaywallScreen.tsx',
+  'SignInScreen.tsx',
+  'MarkDoneSheet.tsx',
 ];
 
 function read(file: string): string {
@@ -160,6 +194,30 @@ describe('the carrier reaches the screens an owner dwells on', () => {
 
   it.each(ALREADY_CARRIED)('%s carries its imagery another way and takes no band', (file) => {
     expect(bands(read(file))).toHaveLength(0);
+  });
+
+  it.each(DELIBERATELY_BANDLESS)('%s is excluded on its own terms and stays bandless', (file) => {
+    expect(bands(read(file))).toHaveLength(0);
+  });
+
+  /*
+    Every screen is accounted for, one way or another. Without this, adding a
+    screen to the app adds it to no list and the suite keeps passing — the
+    exact shape of a scan that silently stops covering what it was written
+    for. A new screen must be classified deliberately, even if the answer is
+    "no band".
+  */
+  it('classifies every screen in the app', () => {
+    const all = readdirSync(SCREENS).filter((f) => /Screen\.tsx$|Sheet\.tsx$/.test(f));
+    expect(all.length).toBeGreaterThan(20);
+
+    const classified = new Set([
+      ...CARRIES_A_BAND.map((row) => row.file),
+      ...ALREADY_CARRIED,
+      ...DELIBERATELY_BANDLESS,
+    ]);
+
+    expect(all.filter((f) => !classified.has(f))).toEqual([]);
   });
 
   /*

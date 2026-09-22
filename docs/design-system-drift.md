@@ -3490,3 +3490,34 @@ Flagged the way §3 flags comparable calls, rather than recorded as settled.
   cannot reproduce it. That is the mechanical reason the graded plate reads as
   warmer but still the plain one of the four, and it is the strongest argument
   yet for a frame shot and graded for this band.
+
+### 15.8 The critic's gap finding was right; its fix was not — 22 Sep
+
+`WishlistAddScreen` was given `frame="plan"` in §15.6 and it lasted one
+commit. The critic's finding was correct in the half that mattered — the
+exclusion had **no argument written down** — but "undocumented" was answered
+by shipping a band rather than by writing the argument, and the band had a
+cost nobody had measured.
+
+Its filter is pinned *outside* the scroller (R38, deliberate), so a band there
+is never scroll content. Above the field it is **permanent**: 132pt, 15% of a
+402×874 display, two rows fewer on the app's longest list, for the life of the
+screen. Below the field the photograph slides under a floating control, which
+is the reading `plinth` exists to refuse. Every other band in the app is the
+scroller's first child and is gone after one flick.
+
+So the rule gains a second clause, and it is a real one: **a screen whose
+scroller is not its first child cannot host a band** — the band stops being a
+head and becomes furniture.
+
+⚠ **The guard needed the other half of the fix too.** Deleting the row from
+`CARRIES_A_BAND` stopped checking the screen entirely, which only moved the
+hole: the argument against a band lived in a docblock, and nothing would have
+failed if one came back. `plate-coverage.test.ts` now carries
+`DELIBERATELY_BANDLESS` — asserted to draw nothing — and a completeness case
+holding that **every** screen file appears in one of the three lists, so a new
+screen has to be classified deliberately even when the answer is "no band".
+Three lists, 29 screens, no unclassified remainder.
+
+That is the pattern worth keeping from the whole exercise: a list a screen can
+silently fall out of is not a guard, it is a snapshot.
