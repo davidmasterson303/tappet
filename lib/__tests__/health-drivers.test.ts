@@ -10,6 +10,7 @@
  */
 
 import {
+  alsoHoldingBack,
   healthDrivers,
   holdingBack,
   maintenanceDriver,
@@ -425,6 +426,35 @@ describe('the cause beside the verdict', () => {
     expect(hard.cause).toMatch(/^mileage above average, about [\d,]+ a year$/);
     expect(hard.act).toBeUndefined();
     expect(mileageLoadDriver({ currentMileage: 30_000, year: 2015, today }).cause).toBeUndefined();
+  });
+
+  it('calls a thin history a reason even when nothing checked is outstanding', () => {
+    // One record among many tracked services: nothing overdue among the checked, most unknown.
+    const thin = maintenanceDriver([due('later'), due('unknown'), due('unknown'), due('unknown')]);
+    expect(thin.nothingOutstanding).toBe(true);
+    expect(thin.cause).toBe('3 services with no record to count from');
+    expect(thin.act).toBe('scan an invoice');
+    // A history with a few gaps is not thin: the gaps are stated, not blamed.
+    const patchy = maintenanceDriver([due('later'), due('later'), due('later'), due('unknown')]);
+    expect(patchy.cause).toBeUndefined();
+    expect(patchy.detail).toMatch(/1 service with no record/);
+  });
+
+  it('names the history beside the recalls where both hold a thin car back, and only then', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const today = '2026-08-15';
+    const thin = maintenanceDriver([due('later'), due('unknown'), due('unknown')]);
+    const recalls = recallDriver([recall, recall, recall, recall]);
+    const load = mileageLoadDriver({ currentMileage: 69_573, year: 2017, today });
+    const first = holdingBack([thin, recalls, load]);
+    expect(first?.key).toBe('maintenance');
+    expect(alsoHoldingBack([thin, recalls, load], first)?.key).toBe('recalls');
+    // No recalls open: the history alone.
+    expect(alsoHoldingBack([thin, recallDriver([]), load], first)).toBeNull();
+    // Recalls first (a scored history): nothing second — one comparison, one loser.
+    const overdue = maintenanceDriver([due('overdue'), due('later')]);
+    const weakest = holdingBack([overdue, recalls, load]);
+    if (weakest?.key === 'recalls') expect(alsoHoldingBack([overdue, recalls, load], weakest)).toBeNull();
   });
 
   it('names an unjudged history before any scored driver, then the weakest, and nothing for a clean car', () => {

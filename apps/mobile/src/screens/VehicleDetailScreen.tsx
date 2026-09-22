@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
-import { holdingBack, type HealthDriver } from '@tappet/core/health-drivers';
+import { alsoHoldingBack, holdingBack, type HealthDriver } from '@tappet/core/health-drivers';
 import { buildPosition } from '@tappet/core/build-progress';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { UNKNOWN_TIMING, describeNextService, displayServiceName, localToday, monthsAway } from '@tappet/core/garage-next-service';
@@ -961,6 +961,11 @@ export function VehicleDetailScreen({
     const months = ahead ? monthsAway(Number(ahead[1].replace(/,/g, '')), vehicle.avg_miles_per_month) : null;
     return months ? `${nextService.timing} · ${months}` : nextService.timing;
   })();
+  /* A distance to go with no date for want of the owner's miles a month: say so where the date would be. */
+  const serviceAsk =
+    nextService.kind === 'known' && /^in [\d,]+ mi$/.test(nextService.timing) && typeof vehicle.avg_miles_per_month !== 'number'
+      ? 'tell us miles a month for a date'
+      : null;
 
   /*
     The recall cell's reading: "24 / open" — open campaigns minus what the
@@ -1004,17 +1009,25 @@ export function VehicleDetailScreen({
     Nothing holding the score back, nothing said.
   */
   const cause = (() => {
-    const driver = holdingBack(drivers);
-    if (!driver) return null;
-    const reason =
+    const first = holdingBack(drivers);
+    if (!first) return null;
+    /* Recalls in the hub's own count, for this model; everything else in the driver's words. */
+    const phrase = (driver: HealthDriver) =>
       driver.key === 'recalls'
         ? openRecallCount > 0
-          ? `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`
+          ? { reason: `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`, act: 'review them' }
           : null
-        : driver.cause ?? null;
-    if (!reason) return null;
-    const act = driver.key === 'recalls' ? 'review them' : driver.act;
-    return `Held back by ${reason}${act ? ` — ${act}` : ''}.`;
+        : driver.cause
+          ? { reason: driver.cause, act: driver.act }
+          : null;
+    const one = phrase(first);
+    if (!one) return null;
+    // A thin history and open recalls share the blame: both named, both acts (round 4, all three lenses).
+    const second = alsoHoldingBack(drivers, first);
+    const two = second ? phrase(second) : null;
+    const reasons = two ? `${one.reason} and ${two.reason}` : one.reason;
+    const acts = [one.act, two?.act].filter((a): a is string => Boolean(a));
+    return `Held back by ${reasons}${acts.length ? ` — ${acts.join(', ')}` : ''}.`;
   })();
 
   /* The reading's sentence, beside the dial: a current reading's lead, whole sentences. See `leadOf`. */
@@ -1556,6 +1569,13 @@ export function VehicleDetailScreen({
                 <Text style={[styles.count, styles.timing]} numberOfLines={2}>
                   {serviceDue}
                 </Text>
+                {/*
+                  The ask, in the row that needs the answer (value V2, round
+                  4): a distance with no date because the owner never said how
+                  far they drive. The door beneath — "Tell us ›" under MILES A
+                  MONTH — is where it is answered; this says why it is asked.
+                */}
+                {serviceAsk ? <Text style={styles.countNote}>{serviceAsk}</Text> : null}
               </BinnacleCell>
             </BinnacleRow>
 
@@ -1583,6 +1603,8 @@ export function VehicleDetailScreen({
                       {/* The numeral, and its verb beneath at the timing's size: "24 to review" is two lines in a third of the row. */}
                       <Text style={styles.count} numberOfLines={1}>{openRecallCount}</Text>
                       <Text style={styles.countWord} numberOfLines={1}>open</Text>
+                      {/* The match, on the count (UX U5, value V3): campaigns for the model, never this VIN (§10). */}
+                      <Text style={styles.countNote} numberOfLines={1}>this model</Text>
                     </>
                   )
                 ) : null}
@@ -2023,8 +2045,10 @@ const styles = StyleSheet.create({
   },
   /* A zero the screen did read, in the legend's ink: an empty list is not a warning. */
   countEmpty: { color: text.muted },
-  /* The numeral's noun or verb, beneath it in the timing's voice: "records", "to review". */
+  /* The numeral's noun or verb, beneath it in the timing's voice: "records", "open". */
   countWord: { ...type.mono, color: text.secondary },
+  /* The count's scope, beneath the word in the legend's ink: "this model". */
+  countNote: { ...type.monoLabel, color: text.muted, textTransform: 'lowercase' },
   /* `type.mono`'s size, from 15 (21 Sep): "overdue by 3,000 mi" on one line in half a row on the 16 Pro. */
   timing: { fontSize: type.mono.fontSize, lineHeight: type.mono.lineHeight },
 

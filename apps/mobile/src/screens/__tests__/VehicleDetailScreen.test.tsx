@@ -1504,9 +1504,52 @@ describe('the hub under three lenses (22 Sep)', () => {
     expect(view.queryByText(/on record/)).toBeNull();
     // The model's prose is HEALTH's, one tap away: not on the hub beside a cause.
     expect(view.queryByText('Excellent history.')).toBeNull();
-    // And the cell's word is the same word.
+    // And the cell's word is the same word, with the match on the count.
     const recalls = view.getByLabelText(/^View 1 open recall/);
     expect(within(recalls).getByText('open')).toBeTruthy();
+    expect(within(recalls).getByText('this model')).toBeTruthy();
+  });
+
+  it('names a thin history first, with the recalls beside it, each with its act (round 4)', async () => {
+    /*
+      The F-PACE: one record in 69,573 miles, four open recalls, 55. Three
+      lenses read "4 open recalls" as an unconvincing sole reason; the
+      history is the driver an owner can move, and both share the blame.
+    */
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1', year: 2017, make: 'Jaguar', model: 'F-PACE', current_mileage: 69_573,
+          vehicle_health_summary: { health_score: 55, summary: 'Sparse history.', last_generated: '2026-09-20T00:00:00Z' },
+          nhtsa_data: { recalls: [
+            { NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' },
+            { NHTSACampaignNumber: '21V-100', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' },
+          ] },
+        },
+        health_drivers: [
+          { key: 'maintenance', label: 'Maintenance', score: 100, detail: '11 services with no record to count from. Nothing overdue among the 1 we can check.', nothingOutstanding: true, cause: '11 services with no record to count from', act: 'scan an invoice' },
+          { key: 'recalls', label: 'Recalls', score: 40, detail: '2 recalls on record.', cause: '2 recalls for this model', act: 'review them' },
+          { key: 'mileage-load', label: 'Mileage load', score: 85, detail: 'About 8,700 miles a year over 8 years, against a 12,000 average.' },
+        ],
+      }) as never;
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2017 Jaguar F-PACE/);
+    await view.findByText('Held back by 11 services with no record to count from and 2 open recalls for this model — scan an invoice, review them.');
+  });
+
+  it('asks for miles a month in the service row when a date is missing for want of it', async () => {
+    respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: null });
+    const { view } = await mount();
+    const cell = await view.findByLabelText(/^Next service, Brake fluid, in 4,500 mi\./);
+    expect(within(cell).getByText('tell us miles a month for a date')).toBeTruthy();
+
+    respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: 500 });
+    const dated = await mount();
+    await dated.view.findByText('in 4,500 mi · about 9 months');
+    expect(dated.view.queryByText('tell us miles a month for a date')).toBeNull();
   });
 
   it('carries no advisor button and no account word of its own', async () => {
