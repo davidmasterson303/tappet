@@ -25,7 +25,7 @@ import { UNKNOWN_TIMING, describeNextService, localToday } from '@tappet/core/ga
 import { componentPlainName } from '@tappet/core/recalls';
 import { MINDEDNESS_LABELS, type Mindedness } from '@tappet/core/vehicle-profile';
 import { newestFiledAt, openRecalls } from './verdict-inputs';
-import { healthVerdict } from '@tappet/core/health-claims';
+import { healthVerdict, leadOf } from '@tappet/core/health-claims';
 import { TIRE_COPY, sinceLabel, tireReading, tireRotationFromRow, tireSetFromRow, type TireRotationRow, type TireSetRow } from '@tappet/core/tires';
 import AlertBanner from '../components/AlertBanner';
 import BackControl from '../components/BackControl';
@@ -1101,6 +1101,9 @@ export function VehicleDetailScreen({
   */
   const serviceDue = nextService.kind === 'known' ? nextService.timing : UNKNOWN_TIMING;
 
+  /* The check-control line under the panel: a current reading's lead, whole sentences. See `leadOf`. */
+  const lead = verdict.state === 'current' && verdict.text ? leadOf(verdict.text) : null;
+
   const historyCount =
     counts.services === null ? null : `${counts.services}`;
 
@@ -1109,8 +1112,13 @@ export function VehicleDetailScreen({
     `null` is "we cannot say" and draws no count — a set with no odometer to
     count to must not read as 0 miles since a rotation.
   */
-  const tiresCount =
-    counts.tires && counts.tires.since !== null ? `${counts.tires.since.toLocaleString('en-US')} MI` : null;
+  const tiresReading = (() => {
+    if (!counts.tires || counts.tires.since === null) return null;
+    const miles = `${counts.tires.since.toLocaleString('en-US')} mi`;
+    const basis = sinceLabel(counts.tires.basis);
+    // "500 mi since last rotation" — the caption's own words, in the timing's voice.
+    return basis ? `${miles} ${basis.replace(/^Miles /, '').toLowerCase()}` : miles;
+  })();
   const tiresSpoken = (() => {
     if (!counts.tires || counts.tires.absent) return 'Tires. No set on record.';
     if (counts.tires.since === null) return 'Tires.';
@@ -1427,16 +1435,36 @@ export function VehicleDetailScreen({
 
             The rows, and what each cell says it is the door to:
 
-              HEALTH (3)  · the reading, its sentence, its provenance → Health
+              HEALTH (3)  · the reading, its caveat, its provenance → Health
               NEXT SERVICE (2) · the sweep's service, and when → what is due
               RECALLS · HISTORY · PLAN → the campaigns, the records, the needs
+              TIRES · the miles since the set was rotated or fitted → the set
 
-            The verdict sentence lives **inside** the HEALTH cell — the critic's
-            one reservation on the pick was a reading separated from the
-            sentence that qualifies it, and David's 23 Aug point was the same:
-            a paragraph explaining a reading you have to look away to find is
-            a paragraph about nothing. `verdict.text`, never `health.summary`
-            (`healthVerdict` carries why), and the provenance line beneath it.
+            and beneath the panel, the reading's sentence as the check-control
+            line — concept A's own idiom — with `Health` carrying all of it.
+
+            ── ⚠ 21 Sep · the sentence is under the panel, not in the cell ──
+
+            Until today the whole of `verdict.text` sat inside the HEALTH cell:
+            the critic's one reservation on the pick was a reading separated
+            from the sentence that qualifies it, and the loop answered by
+            moving the sentence in. Every graded frame showed the M235i, whose
+            reading was *stale* — so the cell carried `short`, one line. A
+            *current* reading carries the model's whole summary, and on the
+            reviewer's F-PACE that was six lines in a three-fifths cell: the
+            NEXT SERVICE cell beside it stretched to match with a void above
+            its reading, the row the pick led with ran under the fold, and
+            David called the section *"disorganized and hard to follow."*
+            Core's own docblock had said it — a reading, its band word and a
+            paragraph do not fit one cell.
+
+            So the cell is the instrument the pick drew: the reading, its band
+            word, the one-line caveat when the reading is stale (`short`, the
+            qualification that must not be separated from the number), and
+            the provenance line. A current reading's sentence — the
+            assessment, not a caveat — is `leadOf(verdict.text)` beneath the
+            panel: whole sentences, never an ellipsis. `verdict.text`, never
+            `health.summary` (`healthVerdict` carries why).
 
             ⚠ The dial is still not here. It is the garage's instrument and
             David cut this screen's copy on 23 Aug because it covered the car;
@@ -1478,11 +1506,10 @@ export function VehicleDetailScreen({
                       13 Sep: the stale caveat in a cell's worth of words —
                       the critic's most repeated cut across three rounds was
                       the four-line sentence here. `short` is core's, the same
-                      claim; a current reading's own sentence stays as it is.
+                      claim. 21 Sep: `short` only — a current reading's
+                      sentence is the check-control line under the panel.
                     */}
-                    {(verdict.short ?? verdict.text) ? (
-                      <Text style={styles.summary}>{verdict.short ?? verdict.text}</Text>
-                    ) : null}
+                    {verdict.short ? <Text style={styles.summary}>{verdict.short}</Text> : null}
                     <ProvenanceRow kinds={verdict.inputs} />
                   </>
                 ) : (
@@ -1576,7 +1603,57 @@ export function VehicleDetailScreen({
                 ) : null}
               </BinnacleCell>
             </BinnacleRow>
+
+            {/*
+              ── Tires — the fourth leaf, as the panel's third row (21 Sep) ──
+
+              20 Sep put this leaf under the switches as a `BandRow` — "not a
+              fifth binnacle cell", because the count row's three are at the
+              width floor and a row between the readings and the switches
+              pushed the switches under the tab bar on the 16 Pro Max. Seen
+              whole on the F-PACE the next day, that row was the page's
+              loudest thing: a section-sized word with an edge chevron, alone
+              between the switches and WHAT YOU TOLD US, in an idiom nothing
+              near it shared. And the fold argument was the Max's: on the 16
+              Pro the loop measured for, the switches sit under the fold
+              already (round 44), and whatever is at the fold on a taller
+              display is sliced — before today it was this row.
+
+              So it is a reading like the other five: a full-width cell, the
+              miles since the set was rotated or fitted in the NEXT SERVICE
+              cell's timing voice, the sodium `△` only when the set is past
+              the interval its owner entered, and "No set yet" in the absent
+              ink where HEALTH says "No score yet". A set with no odometer to
+              count to draws nothing, never 0.
+            */}
+            <BinnacleRow>
+              <BinnacleCell
+                legend={TIRE_COPY.tires}
+                warning={Boolean(counts.tires?.overrun)}
+                onPress={onOpenTires ?? (() => {})}
+                accessibilityLabel={`${tiresSpoken} Opens the set.`}
+              >
+                {tiresReading ? (
+                  <Text style={[styles.count, styles.timing]} numberOfLines={1}>
+                    {tiresReading}
+                  </Text>
+                ) : counts.tires?.absent ? (
+                  <Text style={styles.absent}>No set yet</Text>
+                ) : null}
+              </BinnacleCell>
+            </BinnacleRow>
           </Binnacle>
+
+          {/*
+            ── The check-control line ─────────────────────────────────────────
+
+            A current reading's sentence, whole sentences of it while they fit
+            (`leadOf`), on the sheet under the panel and above the acts — where
+            concept A drew the verdict. The `Health` cell is its door and the
+            `Health` screen prints all of it; a stale reading's caveat is in
+            the cell (`short`) and nothing is repeated here.
+          */}
+          {lead ? <Text style={styles.message}>{lead}</Text> : null}
 
           {/*
             ── The switches ─────────────────────────────────────────────────
@@ -1627,35 +1704,6 @@ export function VehicleDetailScreen({
             known for would be lying by omission. A missing answer is a
             missing row, never a dash.
           */}
-          {/*
-            ── Tires — the fourth leaf, as a row of the spec table (20 Sep) ─
-
-            Not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96 and the
-            second row already holds three, so a fourth would be under the
-            floor on every phone. And not between the readings and the
-            switches: seen on the 16 Pro Max the moment it was put there, the
-            row pushed both switches under the tab bar — the fold round 44
-            measured so the panel's two rows end on it and the switches sit
-            just under. So it heads the lower sheet instead, first of the rows
-            below the acts, in the idiom of the rows that follow it.
-
-            A `BandRow` is the system's destination row — the same door WHAT
-            YOU TOLD US uses — and it carries what is behind it the way the
-            cells do: the miles since the last rotation, and the sodium `△`
-            only when the set is past the interval its owner entered. No set,
-            no reading: the row is the door and nothing else, never a dash.
-          */}
-          <View style={styles.tiresRow}>
-            <BandRow
-              label={TIRE_COPY.tires}
-              count={tiresCount}
-              warning={Boolean(counts.tires?.overrun)}
-              onPress={onOpenTires ?? (() => {})}
-              accessibilityLabel={tiresSpoken}
-              last
-            />
-          </View>
-
           <View style={styles.answers}>
             {answers.length > 0 ? <SectionHeader title="What you told us" /> : null}
             {answers.length > 0 ? (
@@ -1953,6 +2001,8 @@ const styles = StyleSheet.create({
   scoreBand: { ...type.monoNav, color: text.primary },
   absent: { ...type.mono, color: text.muted },
   summary: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
+  /* The check-control line: the summary's voice, on the gutter, the switches' 24pt of air above it. */
+  message: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary, paddingHorizontal: space.lg, paddingTop: space.xxl },
   /* B1: the service's name is a section head in miniature — the factor label's size. */
   serviceName: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
   /* A count: mono, tabular, at the health drivers' reading size. */
@@ -1969,7 +2019,6 @@ const styles = StyleSheet.create({
 
   /* ── The switches, and the foot ─────────────────────────────────────── */
   /* The tire row heads the lower sheet, on the page's gutter like the answers it precedes. */
-  tiresRow: { paddingHorizontal: space.lg, paddingBottom: space.xxl },
   switches: { flexDirection: 'row', gap: space.sm, padding: space.lg, paddingTop: space.xxl },
   switch: { flex: 1 },
   answers: { paddingHorizontal: space.lg, paddingBottom: space.lg },

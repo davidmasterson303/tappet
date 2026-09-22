@@ -27,8 +27,11 @@ import { border, space, status, surface, text, type } from '../theme';
  * under a windscreen, and **every cell is a reading and every reading is the
  * door to its own screen** — HEALTH opens the account of the score, NEXT
  * SERVICE what is due, RECALLS the campaigns, HISTORY the records, PLAN the
- * needs. There is no list of places, no chevron column, and no verb outranks
- * the instruments; the acts are switches at the panel's foot.
+ * needs, TIRES the set (a third row since 21 Sep; it had been a `BandRow`
+ * under the switches, alone in an idiom nothing near it shared). There is no
+ * list of places, no chevron column, and no verb outranks the instruments;
+ * the acts are switches at the panel's foot, and a current reading's
+ * sentence is the check-control line between the two.
  *
  * ── The legend is under the value, not over it ──────────────────────────────
  *

@@ -920,6 +920,132 @@ describe('the health verdict, against what the screen is holding', () => {
     const { view } = await mount();
     await view.findByText(new RegExp('complete lack of documented maintenance'));
   });
+
+  it('keeps the HEALTH cell an instrument: a current reading\'s lead is under the panel, whole (21 Sep)', async () => {
+    /*
+      The reviewer's F-PACE: two sentences, 270 characters, printed inside
+      the three-fifths cell — six lines, a void in the cell beside it, the
+      first row under the fold. The cell carries the reading and its
+      provenance; the sentence's lead is the check-control line beneath the
+      panel, and it ends where a sentence ends. `Health` prints all of it.
+    */
+    const FPACE =
+      'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles. ' +
+      'Given the mileage, key factory-recommended maintenance and inspections for common platform issues are overdue for verification.';
+    respondWith({ summary: FPACE, lastGenerated: '2026-09-20T00:00:00+00:00', filedAt: '2026-08-06T02:43:11.903661+00:00' });
+
+    const { view } = await mount();
+    const lead = await view.findByText(/very sparse documented service history/);
+
+    // Whole sentences: the first, entire, and not the second.
+    expect(lead.props.children).toMatch(/69,573 miles\.$/);
+    expect(view.queryByText(/Given the mileage/)).toBeNull();
+
+    // Beneath the panel, not inside the HEALTH cell — no ancestor is that cell.
+    const cell = view.getByLabelText(/^Health score 70/);
+    let node: { parent: unknown } | null = lead;
+    while (node) {
+      expect(node).not.toBe(cell);
+      node = node.parent as typeof node;
+    }
+    // The cell still names what the reading was worked out from.
+    await view.findByText(/Based on 5 recorded services · 2 open recalls/);
+  });
+});
+
+/**
+ * ── Tires is a reading of the panel (21 Sep) ─────────────────────────────────
+ *
+ * 20 Sep put the fourth leaf under the switches as a `BandRow` — alone, in
+ * an idiom nothing near it shared, and the loudest thing on the lower sheet.
+ * It is the panel's third row now: a full-width cell that reads the miles
+ * since the set was rotated or fitted, says "No set yet" in the absent ink
+ * where HEALTH says "No score yet", draws the sodium mark only past the
+ * owner's interval, and opens the set.
+ */
+describe('the tires cell', () => {
+  const SET = {
+    id: 'set-1',
+    vehicle_id: 'v1',
+    brand: 'Michelin',
+    line: 'Pilot Sport 4S',
+    size_front: '245/35R19',
+    size_rear: '245/35R19',
+    installed_on: '2025-03-12',
+    install_odometer: 54_232,
+    purchase_place: 'Discount Tire',
+    rotation_interval_miles: 6_000,
+    interval_source: 'owner',
+    treadwear_miles_entered: 45_000,
+    provenance: 'invoice',
+  };
+
+  function serveTires(body: unknown) {
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/tires')) return Promise.resolve(body) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: { id: 'v1', year: 2018, make: 'Honda', model: 'Accord', current_mileage: 66_000, vehicle_health_summary: null, nhtsa_data: null },
+      }) as never;
+    });
+  }
+
+  it('reads the miles since the last rotation, in the panel, and opens the set', async () => {
+    const user = userEvent.setup();
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
+    const onOpenTires = jest.fn();
+    const { view } = await mount(REFERENCE, { onOpenTires });
+
+    const cell = await view.findByLabelText(/^Tires, 5,500 miles since last rotation\. Opens the set\.$/);
+    await view.findByText('5,500 mi since last rotation');
+    // A reading of the panel: inside the readings summary, not a row below the switches.
+    const panel = view.getByLabelText('Readings');
+    let node: { parent: unknown } | null = cell;
+    let inPanel = false;
+    while (node) {
+      if (node === panel) inPanel = true;
+      node = node.parent as typeof node;
+    }
+    expect(inPanel).toBe(true);
+
+    await user.press(cell);
+    expect(onOpenTires).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a set past its interval, and only then', async () => {
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-06-28', odometer: 59_000, provenance: 'typed' }] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, 7,000 miles since last rotation, past your interval\./);
+    // The mark is drawn beside the legend (the cell's own `warning`), hidden from the reader
+    // because the spoken label already says it. No recalls served, so it is the only one.
+    expect(view.getAllByText('△', { includeHiddenElements: true })).toHaveLength(1);
+  });
+
+  it('draws no mark for a set inside its interval', async () => {
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, 5,500 miles since last rotation\. Opens the set\.$/);
+    expect(view.queryAllByText('△', { includeHiddenElements: true })).toHaveLength(0);
+  });
+
+  it('says there is no set yet, in the absent ink, and never a 0', async () => {
+    serveTires({ set: null, rotations: [] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires\. No set on record\. Opens the set\.$/);
+    const absent = await view.findByText('No set yet');
+    expect(readoutColor(absent)).toBe(text.muted);
+    expect(view.queryByText(/^0 mi/)).toBeNull();
+  });
+
+  it('draws nothing for a set it cannot count to', async () => {
+    // An install with no odometer and no rotation: no "miles since" exists.
+    serveTires({ set: { ...SET, install_odometer: null }, rotations: [] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires\. Opens the set\.$/);
+    expect(view.queryByText('No set yet')).toBeNull();
+    expect(view.queryByText(/mi since/)).toBeNull();
+  });
 });
 
 /**

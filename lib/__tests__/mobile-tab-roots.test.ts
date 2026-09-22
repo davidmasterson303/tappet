@@ -78,7 +78,12 @@ function backIsNone(source: string): boolean {
  * pressed with no car in hand into a screen that says so, rather than a crash.
  */
 function rootsThroughWithCar(source: string): string[] {
-  return [...source.matchAll(/withCar\(route, navigation, '([A-Za-z]+)'/g)].map((m) => m[1]).sort();
+  // An `exec` loop: the root tsconfig's target cannot spread an iterator.
+  const roots: string[] = [];
+  const seam = /withCar\(route, navigation, '([A-Za-z]+)'/g;
+  let match: RegExpExecArray | null;
+  while ((match = seam.exec(source)) !== null) roots.push(match[1]);
+  return roots.sort();
 }
 
 const navigator = readFileSync(NAVIGATOR, 'utf8');

@@ -171,6 +171,14 @@
 >   Service: ADD AN INVOICE over SCAN and UPLOAD; UPLOAD opens the invoice
 >   screen straight into the library (`a2ff2ac`).
 >
+> - *"It's a critical section and it looks disorganized and hard to
+>   follow"* — the car page on the reviewer's F-PACE. The HEALTH cell had
+>   been graded on a stale one-liner and shipped a current reading's whole
+>   summary: six lines, a void beside it, the counts under the fold. The
+>   cell is an instrument again; the sentence's lead is the check-control
+>   line under the panel (`leadOf`, whole sentences); TIRES left its lone
+>   `BandRow` for the panel's third row. Drift §6.19; ungraded.
+>
 > Open from the walk: **multi-page invoices** (page 2 of a Dinan invoice
 > took 28 s; the durable shape is accept → file the row → extract in a
 > background function → narrate the poll); the reviewer account has still

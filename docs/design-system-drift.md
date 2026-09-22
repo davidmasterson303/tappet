@@ -2845,6 +2845,84 @@ clean in both. Files: `components/Binnacle.tsx` and its test are new;
 critiques: `design-loop/mobile-ios/44-hub/` … `46-hub/`,
 `critique-44.md` … `critique-46.md`; `43-hub/` stays frames only.
 
+### 6.19 The hub, seen with a current reading — the cell is an instrument again, 21 Sep
+
+David, from the phone, on the reviewer account's 2017 F-PACE: *"it's a
+critical section and it looks disorganized and hard to follow"*, then
+*"honestly the whole page feels disorganized and hard to follow."* Two
+causes, both accretions since the graded loop, neither visible in it.
+
+**The HEALTH cell was graded on one line and shipped with six.** Every
+frame of rounds 42–46 stood the M235i, whose verdict is *stale* — so the
+cell carried `short`, "Read before 5 service records were filed.", one
+line, and the first row was the instrument the pick praised. A *current*
+reading prints `verdict.text`, the model's whole summary. On the F-PACE
+that is two sentences, 270 characters, six lines in a three-fifths cell:
+the NEXT SERVICE cell beside it stretched to match with its content
+bottom-hung under a void (round 45's parking lot had named exactly this),
+the count row went under the fold at rest, and the row the pick led with
+— *"the owner reads 70 FAIR, overdue by 3,000 mi, 2 recalls …"* — was a
+paragraph with a hole beside it. Core's own docblock had said it on 13
+Sep: a reading, its band word and a paragraph do not fit one cell.
+
+Now: the cell is the reading, its band word, the one-line caveat when
+the reading is stale (the qualification the critic's reservation was
+about, still never separated from the number), and the provenance line.
+A current reading's sentence is the **check-control line** under the
+panel — concept A's own idiom, one row nearer the number than the concept
+drew it — as `leadOf(verdict.text)`: whole sentences while they fit 180
+characters, the first always, never an ellipsis (§10: half a claim is
+invented precision; a sentence that ends is one the owner can hold Tappet
+to). `Health` prints all of it, and the HEALTH cell is its door. The F-PACE's
+row is 128pt beside 128pt; the counts are back above the fold.
+
+**TIRES was the loudest thing on the lower sheet.** 20 Sep's thread put the
+fourth leaf under the switches as a `BandRow` — a section-sized condensed
+word with an edge chevron, no index, no section, alone between the acts and
+WHAT YOU TOLD US — in an idiom nothing near it shared. Its own note said
+*not a fifth cell*, because the count row's three are at the width floor
+and a row between readings and switches pushed the switches under the tab
+bar on the 16 Pro Max. The first half holds; the second was the Max's: on
+the 16 Pro the loop measured for, the switches sit under the fold already
+(round 44's arithmetic), and whatever meets the fold on a taller display is
+sliced — before today, this row. So it is the panel's **third row**: a
+full-width cell reading "500 mi since last rotation" in the NEXT SERVICE
+cell's timing voice, the sodium `△` only past the owner's interval, "No
+set yet" in the absent ink where HEALTH says "No score yet", nothing for a
+set with no odometer to count to. Six leaves, one idiom.
+
+The lower sheet is now panel → check-control line → the two switches →
+WHAT YOU TOLD US → REMOVE THIS CAR. Seen on the simulator on the F-PACE
+(one answer, no set) and the Accord (500 mi since rotation, 24 recalls);
+ungraded — no critic round, David's eye is the next one.
+
+**Recorded deviations — for Design:**
+
+- *The check-control line is body text on the sheet, not a cell.* 14/20
+  secondary on the gutter, 24pt under the panel's rule, the switches' own
+  24pt beneath it. Concept A drew the verdict there; the loop moved it into
+  the cell for the stale case and never saw the current one.
+- *A full-width cell in the binnacle* — the first; the pattern's rules
+  (value over legend, 96pt floor, sodium as the triangle) unchanged.
+- *The fold is content-dependent and always was.* Round 44's "rows end on
+  the fold" held for one car on one device. A three-line service name or a
+  two-line provenance moves it. The rule that survives: what meets the fold
+  is a rule, air or a cell's dark — never a sliced control.
+
+**Parking lot — for David:**
+
+- *The model should write the hub's line itself.* `leadOf` takes the first
+  sentence of whatever the health prompt wrote; a `headline` field from the
+  prompt (one sentence for the cell, the paragraph for `Health`) is the
+  durable shape, and needs a column, a prompt change, a promote and a
+  regeneration of every stored summary.
+- *REMOVE THIS CAR in the delete variant's sodium* is the second-loudest
+  colour on the sheet after the 55. B7 gives sodium one job; a destructive
+  act with a confirmation behind it may not need it. Not changed.
+- *WHAT YOU TOLD US with one row* (the F-PACE) is thin; the unanswered
+  questions as muted rows would give the section its shape and invite the
+  answer — a product call.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026

@@ -13,6 +13,7 @@
 import {
   healthClaim,
   healthVerdict,
+  leadOf,
   mayReassure,
   recallEvidenceForPrompt,
   type ClaimKind,
@@ -362,5 +363,40 @@ describe('healthVerdict', () => {
     });
 
     expect(verdict.inputs).toEqual(['1 recorded service', '1 open recall']);
+  });
+});
+
+describe('leadOf — the hub\'s check-control line', () => {
+  const FPACE =
+    'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles. ' +
+    'Given the mileage, key factory-recommended maintenance and inspections for common platform issues are overdue for verification.';
+
+  it('takes whole sentences while they fit, and the first however long', () => {
+    // 21 Sep, the reviewer's F-PACE: two sentences, 270 characters. The lead
+    // is the first, entire — never a cut mid-claim with an ellipsis.
+    expect(leadOf(FPACE)).toBe(
+      'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles.'
+    );
+    expect(leadOf(FPACE, 1000)).toBe(FPACE);
+    expect(leadOf('Fine. Nothing overdue. Tires are new.')).toBe('Fine. Nothing overdue. Tires are new.');
+    expect(leadOf('Fine. Nothing overdue. Tires are new.', 25)).toBe('Fine. Nothing overdue.');
+    expect(leadOf('Fine. Nothing overdue. Tires are new.', 4)).toBe('Fine.');
+  });
+
+  it('does not split inside a number or an abbreviation', () => {
+    expect(leadOf('It takes approx. 5.5 quarts of 5W-30. Check it monthly.', 45)).toBe(
+      'It takes approx. 5.5 quarts of 5W-30.'
+    );
+  });
+
+  it('keeps a closing quote or bracket with its sentence', () => {
+    expect(leadOf('The log says "overdue." The owner disagrees.', 30)).toBe('The log says "overdue."');
+  });
+
+  it('returns the text itself when it is one sentence, and nothing for nothing', () => {
+    expect(leadOf('A single run-on assessment with no end punctuation at all')).toBe(
+      'A single run-on assessment with no end punctuation at all'
+    );
+    expect(leadOf('   ')).toBe('');
   });
 });
