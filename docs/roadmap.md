@@ -13,6 +13,83 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 22 Sep 2026 — the car page under three lenses; the decisions left are David's
+>
+> *"i want critic to think about UI/UX of the page, the information
+> architecture, and the value of the functionality… perhaps with 3
+> subagents, one for each type of review. Get this page to a 9."* Three
+> critics in fresh contexts — UX, IA, value — each wrote a brief in round
+> one (frozen: U1–U9, I1–I8, V1–V8) and graded the live reviewer account's
+> Accord and F-PACE against it for five more. **UX / IA / value: 5/5/5 →
+> 6/7/6 → 7/8/7 → 7/9/6 → 8/9/6 → 8/9/7.** IA reached 9 in round 4
+> (`Continue: no`, every line met) and held it; UX stopped at 8, value at
+> 7, and the loop was stopped there because every gap left open on one
+> lens is a line another lens closed by cutting it. All phone JS except
+> the drivers' causes, which are computed on `/load-vehicle` — promoted
+> twice (`740fa286`, `7bd90035`); `web-live` carries everything the hub
+> reads. Drift §6.21; `design-loop/mobile-ios/hub-lenses/`.
+>
+> What the page is now (`8a06116` … `9e5e9b1`): SCAN INVOICE alone over
+> the plate; the name and strip a door to **THIS CAR** — the odometer as a
+> field with its age, the photograph's add/change/remove, the answers, the
+> removal at the foot — with THIS CAR › as its one mark; HEALTH a row, the
+> dial and the reading's cause beside it (*"Held back by one record on
+> file and 4 open recalls for this model."*), the paragraph behind the
+> door; NEXT SERVICE by name with the owner's own months; the counts with
+> their verdict and scope ("24 / open / this model"); TIRES counting down;
+> WHAT YOU TOLD US with every question, the unanswered as "Tell us ›" and
+> what answering buys. No ACCOUNT, no advisor button, no prose, no REMOVE
+> on the hub. Then the **visual critic re-graded the page the lenses left** — six
+> rounds had changed it with nobody grading the visual system: round 51
+> nine lines ✅ but **8** on three rhythm faults measured at 1:1 (the
+> count row's numerals 20pt apart, TIRES 33pt to its reading, 80pt of
+> padding at the foot); the cell pins its value to the head and its legend
+> to the foot, the floor is the thumb's, the foot one 24 (`f4ddb8f`);
+> round 52 **9, `Continue: no`**. Its one gap — the scroll's end under the
+> nav reads as a clip — is the 0.08 hairline token at a scroll edge (the
+> rule is there, measured), the question §6.20 left for Design on the
+> plate's bevel. `scripts/frame-rows.swift` is how a critic's "33pt" is
+> now checked against the frame. `critique-51.md`, `critique-52.md`.
+>
+> **Yours — the lenses contradict each other, and the page holds one side:**
+>
+> - **The button.** Value wants it chosen by state (REVIEW RECALLS when
+>   recalls are the cause, SCAN INVOICE on a thin file, none when nothing
+>   is pending) and calls the sentence-and-button disagreement its one ❌;
+>   UX and IA read a state-chosen slot as a second entrance to the △
+>   RECALLS cell that evicts the record act on a 2003 Accord for good. It
+>   is the scan.
+> - **PLAN's empty cell.** UX wants "Plan work"; IA wants no command from
+>   a tab's cell. It reads "Nothing planned yet".
+> - **Provenance on a healthy reading.** Value wants "From 11 records."
+>   before the cause; IA and the design critic both cut it as the counts
+>   row told again. There is none.
+> - **The odometer's own chevron.** UX wants "4 WK AGO ›"; IA wants one
+>   door to the car. One mark.
+> - **The service row's ask** as a door into MILES A MONTH (value) versus
+>   the row's door going where its legend says (IA). The row explains;
+>   "Tell us ›" is the door.
+>
+> **Product questions all three parked:** USE — a fact of the car (the
+> F-PACE's empty slot a door) or an answer (in WHAT YOU TOLD US on both
+> cars)? Does marking a recall move the score? Should a history under
+> three records carry a confidence band rather than a health band (a 55
+> on one record reads as a verdict on the car)? Should countdowns age
+> with a stale odometer? SCAN INVOICE or ADD RECORD in the slot? The
+> 01–03 ordinals on three questions (the locked visual brief keeps them).
+> The F-PACE's extra NEXT SERVICE line pushes the count row's legends
+> under the tab bar at rest.
+>
+> Housekeeping from the night: the phone's Metro (8081) and the fixtures
+> Metro (8094) run under `nohup` (`/tmp/metro-8081.log`, `/tmp/metro-8094.log`)
+> — the terminal's six tabs were spent, and c3–c6 hold dead Metros; a
+> python `http.server` on 8095 in `design-loop/mobile-ios/` is still up;
+> the "concepts" 16 Pro simulator is shut down (it would not finish
+> booting with the Mac 18 GB into swap) and every frame is the 16 Pro Max
+> (18.5). The fixture BMW carries an owner's photograph for the session
+> (added through THIS CAR for the re-grade); it clears with the Metro.
+>
+
 > ### ⚠ 18–19 Sep 2026 — the store shoot, and what stood in its way
 >
 > Cowork's screenshot prompt (`Claude outputs/CLAUDE_CODE_PROMPT` 18 Sep) is
