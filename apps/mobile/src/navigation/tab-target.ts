@@ -18,7 +18,18 @@ import type { ServiceSegment } from '../screens/ServiceScreen';
  * name. The traffic argument survives structurally: a tab keeps its own stack,
  * so leaving the car for Service and coming back lands on the car.
  */
-export const TAB_NAMES = ['GarageTab', 'ServiceTab', 'PlanTab', 'AdvisorTab'] as const;
+/*
+  ── 21 Sep · five, in David's order ─────────────────────────────────────────
+
+  `Garage`, `Car`, `Advisor`, `Service`, `Plan`. The car is its own tab —
+  most owners have one, and the car's page is what they come back to — and
+  the garage keeps its own, for the bays, ADD CAR and switching between
+  cars; it keeps landing on the garage. Both persistent, which David chose
+  over a label that changes with the garage's size: "better than being too
+  clever with dynamic". The order is his: the garage leads, the car beside
+  it, then the conversation, then the record and the plan.
+*/
+export const TAB_NAMES = ['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
 
 export type TabName = (typeof TAB_NAMES)[number];
 
@@ -34,6 +45,7 @@ export type Car = { vehicleId: string; title?: string };
  * asks for the record.
  */
 const CAR_TAB_ROOT = {
+  CarTab: { screen: 'VehicleDetail', segment: undefined },
   ServiceTab: { screen: 'Service', segment: 'history' as ServiceSegment },
   PlanTab: { screen: 'Plan', segment: undefined as PlanSegment | undefined },
   AdvisorTab: { screen: 'Advisor', segment: undefined },
@@ -46,7 +58,7 @@ export type TabTarget =
   | {
       name: TabName;
       params: {
-        screen: 'Service' | 'Plan' | 'Advisor';
+        screen: 'VehicleDetail' | 'Service' | 'Plan' | 'Advisor';
         params: { vehicleId: string; title?: string; segment?: ServiceSegment | PlanSegment };
         pop: true;
       };

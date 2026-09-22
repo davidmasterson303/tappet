@@ -27,8 +27,11 @@ import { border, space, status, surface, text, type } from '../theme';
  * under a windscreen, and **every cell is a reading and every reading is the
  * door to its own screen** — HEALTH opens the account of the score, NEXT
  * SERVICE what is due, RECALLS the campaigns, HISTORY the records, PLAN the
- * needs. There is no list of places, no chevron column, and no verb outranks
- * the instruments; the acts are switches at the panel's foot.
+ * needs, TIRES the set (a third row since 21 Sep; it had been a `BandRow`
+ * under the switches, alone in an idiom nothing near it shared). There is no
+ * list of places, no chevron column, and no verb outranks the instruments;
+ * the acts are switches at the panel's foot, and a current reading's
+ * sentence is the check-control line between the two.
  *
  * ── The legend is under the value, not over it ──────────────────────────────
  *
@@ -113,8 +116,18 @@ export function BinnacleCell({
   );
 }
 
-/** A gauge's floor — room for a value, its legend, and a thumb. */
-export const BINNACLE_CELL_MIN = 96;
+/**
+ * A gauge's floor — room for a value, its legend, and a thumb.
+ *
+ * ⚠ 80, from 96 (21 Sep, round 49's cut). At 96 a count row ran with its
+ * value and legend in the bottom 40pt and 28pt of air over them, twice —
+ * the void the first row keeps so its two gauges' footers align, borrowed
+ * by rows with nothing to align — and it kept the sentence under the panel
+ * and both acts below the fold. 80 clears a 20pt value, a 20pt legend, the
+ * padding and the thumb (`TARGET_MIN` 44), and gives the fold 32pt back.
+ * Round 45 had refused a cut to 68: that one put the primary on the fold.
+ */
+export const BINNACLE_CELL_MIN = 80;
 
 const styles = StyleSheet.create({
   /* No top rule: the sheet's own leading edge is the rule above the first row. */

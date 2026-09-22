@@ -369,6 +369,14 @@ export const grade = {
   vignetteClear: '#FFFFFF',
   /** The vignette's edge, multiplied — the corners fall off toward the page. */
   vignetteEdge: '#3A3A3A',
+  /**
+   * The highlight pull, multiplied over the whole frame (21 Sep). A warm
+   * mid-grey: a white sky lands near 165 of 255 under it at the layer's
+   * opacity, a mid-grey car keeps three-quarters of its light. Round 47's
+   * critic on the daylight photograph: *"the sky blows to a milky haze …
+   * the plate should read as the same night system whichever car is on it."*
+   */
+  pull: '#7A766F',
 } as const;
 
 /**
@@ -672,6 +680,29 @@ export const type = {
     lineHeight: 16,
     fontWeight: '600' as const,
     letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
+  },
+  /**
+   * A section head — the web's `.display-instrument-narrow text-[17px]
+   * uppercase tracking-wide`, transposed (21 Sep).
+   *
+   * ── ⚠ Why this exists beside `displayLabel` ─────────────────────────────
+   *
+   * Section heads were the 12pt eyebrow, and five critiques across three
+   * surfaces read it as "a plain proportional sans" — twice at native scale.
+   * The web had the same four-critique history and answered it with width
+   * and size (`globals.css`, dossier B1: 72% at 17px). The phone has no
+   * `wdth` axis to turn, so it has size and weight: at 12pt semibold,
+   * Archivo Narrow's condensation does not register; at 17 bold it does.
+   * `displayLabel` stays the eyebrow for an overline over a value; a head
+   * that names a block of rows is this.
+   */
+  displayHead: {
+    fontFamily: displayFace('700'),
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700' as const,
+    letterSpacing: 0.4,
     textTransform: 'uppercase' as const,
   },
   /** A section inside a screen. The step below `display`, one weight lighter. */

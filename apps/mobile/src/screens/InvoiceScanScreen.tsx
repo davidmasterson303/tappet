@@ -135,10 +135,18 @@ function describeVehicle(vehicle: ExtractedVehicle | null): string {
 export function InvoiceScanScreen({
   vehicleId,
   pickImage,
+  startWith = 'camera',
   onSignOut,
   onFiled,
 }: {
   vehicleId: string;
+  /**
+   * `library` opens the picker as soon as consent allows (21 Sep) — the
+   * Service tab's UPLOAD, for a receipt already photographed. The camera is
+   * still behind it when the picker is dismissed. Never before consent: the
+   * sheet at the door stays the first thing a first-time scanner meets.
+   */
+  startWith?: 'camera' | 'library';
   /**
    * Resolves to the chosen image, or `null` if the picker was dismissed.
    *
@@ -362,6 +370,14 @@ export function InvoiceScanScreen({
 
     await openPicker();
   }, [consent, openPicker]);
+
+  /* UPLOAD from the Service tab: the picker, once, the moment consent is known to be granted. */
+  const openedForUpload = useRef(false);
+  useEffect(() => {
+    if (startWith !== 'library' || consent !== 'granted' || openedForUpload.current) return;
+    openedForUpload.current = true;
+    void openPicker();
+  }, [startWith, consent, openPicker]);
 
   /**
    * The viewfinder's capture, as the upload wants it.

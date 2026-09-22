@@ -10,8 +10,17 @@ import { TAB_NAMES, tabTarget } from '../tab-target';
 describe('tabTarget', () => {
   const car = { vehicleId: 'car-b', title: '2015 BMW M235i' };
 
-  it('lists the four tabs in the order the bar draws them', () => {
-    expect(TAB_NAMES).toEqual(['GarageTab', 'ServiceTab', 'PlanTab', 'AdvisorTab']);
+  it('lists the five tabs in the order the bar draws them — David\'s order (21 Sep)', () => {
+    expect(TAB_NAMES).toEqual(['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab']);
+  });
+
+  it('the Car tab is about a car like the other three: the last one opened, popped to when it changes', () => {
+    expect(tabTarget('CarTab', undefined, car)).toEqual({
+      name: 'CarTab',
+      params: { screen: 'VehicleDetail', params: { vehicleId: 'car-b', title: '2015 BMW M235i' }, pop: true },
+    });
+    expect(tabTarget('CarTab', 'car-b', car)).toEqual({ name: 'CarTab' });
+    expect(tabTarget('CarTab', undefined, null)).toEqual({ name: 'CarTab' });
   });
 
   it('lands on the garage itself, popping whatever car the tab was left on (21 Sep)', () => {

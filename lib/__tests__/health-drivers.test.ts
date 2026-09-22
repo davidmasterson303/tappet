@@ -11,6 +11,7 @@
 
 import {
   healthDrivers,
+  holdingBack,
   maintenanceDriver,
   mileageLoadDriver,
   recallDriver,
@@ -374,5 +375,75 @@ describe('a driver says when it found nothing outstanding', () => {
     expect(recallDriver([]).nothingOutstanding).toBe(true);
     // Never checked — the FN-03 case. Absence is not a clean result.
     expect(recallDriver(undefined).nothingOutstanding).toBeFalsy();
+  });
+});
+
+/**
+ * ── The cause beside the verdict (22 Sep) ───────────────────────────────────
+ *
+ * The hub's three lenses asked for one line that says what holds the score
+ * back and what to do about it. Each driver carries its reason and its act
+ * in its own counts; `holdingBack` picks the one to name — and names an
+ * unjudged history before any scored driver, because too few records is the
+ * cause of a low reading more often than anything a score can say.
+ */
+describe('the cause beside the verdict', () => {
+  it('phrases a scored maintenance driver as a reason with an act', () => {
+    const driver = maintenanceDriver([
+      { ...due('overdue'), service: 'Brake fluid' },
+      { ...due('overdue'), service: 'Coolant' },
+      { ...due('due'), service: 'Engine oil and filter' },
+      due('later'),
+    ]);
+    expect(driver.cause).toBe('2 services overdue, 1 due now');
+    expect(driver.act).toBe('see what is due');
+  });
+
+  it('gives a history nobody can judge its own reason and act, and nothing to a clean one', () => {
+    const unjudged = maintenanceDriver([due('unknown'), due('unknown')]);
+    expect(unjudged.score).toBeNull();
+    expect(unjudged.cause).toBe('no service records to judge from');
+    expect(unjudged.act).toBe('scan an invoice');
+
+    const clean = maintenanceDriver([due('later'), due('later')]);
+    expect(clean.cause).toBeUndefined();
+    expect(maintenanceDriver([]).cause).toBeUndefined();
+  });
+
+  it('phrases recalls as the model\'s, never this car\'s', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const driver = recallDriver([recall, recall]);
+    expect(driver.cause).toBe('2 recalls for this model');
+    expect(driver.act).toBe('review them');
+    expect(recallDriver([]).cause).toBeUndefined();
+    expect(recallDriver(null).cause).toBeUndefined();
+  });
+
+  it('names mileage only above the average, with no act', () => {
+    const today = '2026-08-15';
+    const hard = mileageLoadDriver({ currentMileage: 200_000, year: 2015, today });
+    expect(hard.cause).toMatch(/^mileage above average, about [\d,]+ a year$/);
+    expect(hard.act).toBeUndefined();
+    expect(mileageLoadDriver({ currentMileage: 30_000, year: 2015, today }).cause).toBeUndefined();
+  });
+
+  it('names an unjudged history before any scored driver, then the weakest, and nothing for a clean car', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const today = '2026-08-15';
+    const unjudged = maintenanceDriver([due('unknown')]);
+    const recalls = recallDriver([recall, recall, recall, recall]);
+    const load = mileageLoadDriver({ currentMileage: 69_573, year: 2017, today });
+    // The F-PACE: one record, four recalls — the history is the cause, not the recalls.
+    expect(holdingBack([unjudged, recalls, load])?.key).toBe('maintenance');
+
+    const overdue = maintenanceDriver([due('overdue'), due('later')]);
+    // Scored on both sides: the lower wins.
+    const weakest = holdingBack([overdue, recalls, load]);
+    expect(weakest).not.toBeNull();
+    expect(weakest!.score).toBe(Math.min(overdue.score!, recalls.score!, load.score!));
+
+    const clean = maintenanceDriver([due('later'), due('later')]);
+    expect(holdingBack([clean, recallDriver([]), mileageLoadDriver({ currentMileage: 20_000, year: 2020, today })])).toBeNull();
+    expect(holdingBack([])).toBeNull();
   });
 });

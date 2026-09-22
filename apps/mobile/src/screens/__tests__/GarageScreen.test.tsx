@@ -101,6 +101,7 @@ const M235I = {
 function renderGarage(
   overrides: {
     onAddVehicle?: () => void;
+    onOpenVehicle?: (vehicleId: string, title: string) => void;
   } = {}
 ) {
   return render(
@@ -108,7 +109,7 @@ function renderGarage(
       accessToken="test-token"
       email="owner@example.test"
       onSignOut={jest.fn()}
-      onOpenVehicle={jest.fn()}
+      onOpenVehicle={overrides.onOpenVehicle ?? jest.fn()}
       onAddVehicle={overrides.onAddVehicle ?? jest.fn()}
     />
   );
@@ -495,19 +496,54 @@ describe('the bay’s hierarchy', () => {
     const view = await renderGarage();
 
     await view.findByText(/M235i/);
-    // R20. "1 of 1" is a pager for a list that cannot be paged.
+    // R20. A rail of one is a pager for a list that cannot be paged: the bay
+    // is named, nothing is selectable, and the count is not printed.
+    view.getByText('BAY 01');
+    expect(view.queryAllByRole('tab')).toHaveLength(0);
     expect(view.queryByText('1 of 1')).toBeNull();
   });
 
-  it('still pages a garage of two', async () => {
-    // The anti-vacuous half: suppressing the pager everywhere would pass above.
+  it('pages a garage of two from the rail, and lights the bay you are on (21 Sep)', async () => {
+    /*
+      The anti-vacuous half of R20, and David's ask from the phone: "1 of 3"
+      was a count in a light sans that said nothing about sliding. The bays
+      are a rail now — the tab rail's construction — and a tap on a number is
+      a way to that bay.
+    */
+    const user = userEvent.setup();
     request.mockResolvedValue({
       vehicles: [M235I, { ...M235I, id: 'v2', year: 2018, make: 'Honda', model: 'Accord' }],
     });
     const view = await renderGarage();
 
     await view.findByText(/M235i/);
-    view.getByText('1 of 2');
+    view.getByLabelText('Bays, 1 of 2');
+    const first = view.getByRole('tab', { name: 'Bay 1' });
+    const second = view.getByRole('tab', { name: 'Bay 2' });
+    expect(first.props.accessibilityState).toMatchObject({ selected: true });
+    expect(second.props.accessibilityState).toMatchObject({ selected: false });
+
+    await user.press(second);
+    expect(view.getByRole('tab', { name: 'Bay 2' }).props.accessibilityState).toMatchObject({ selected: true });
+    view.getByLabelText('Bays, 2 of 2');
+  });
+
+  it('opens the car on screen from the rail\'s door', async () => {
+    const user = userEvent.setup();
+    const onOpenVehicle = jest.fn();
+    request.mockResolvedValue({
+      vehicles: [M235I, { ...M235I, id: 'v2', year: 2018, make: 'Honda', model: 'Accord' }],
+    });
+    const view = await renderGarage({ onOpenVehicle });
+
+    await view.findByText(/M235i/);
+    await user.press(view.getByLabelText('Open 2015 BMW M235i'));
+    expect(onOpenVehicle).toHaveBeenCalledWith(M235I.id, '2015 BMW M235i');
+
+    // The door follows the bay: after paging, it opens the second car.
+    await user.press(view.getByRole('tab', { name: 'Bay 2' }));
+    await user.press(view.getByLabelText('Open 2018 Honda Accord'));
+    expect(onOpenVehicle).toHaveBeenLastCalledWith('v2', '2018 Honda Accord');
   });
 });
 

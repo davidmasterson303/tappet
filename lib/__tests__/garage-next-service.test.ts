@@ -19,6 +19,8 @@
 import {
   UNKNOWN_TIMING,
   describeNextService,
+  displayServiceName,
+  monthsAway,
   type StoredNextService,
 } from '@tappet/core/garage-next-service';
 
@@ -226,5 +228,34 @@ describe('the date is the day it names, in every timezone', () => {
     });
 
     expect(naive).toBe('Aug 31, 2026');
+  });
+});
+
+describe('displayServiceName — the reading, not the filing (22 Sep)', () => {
+  it('drops the schedule tier and spells "and" one way', () => {
+    expect(displayServiceName('Engine Oil & Filter Change (Enthusiast)')).toBe('Engine Oil and Filter Change');
+    expect(displayServiceName('Engine Oil and Filter Change')).toBe('Engine Oil and Filter Change');
+    expect(displayServiceName('Drive belt and tensioner, inspect')).toBe('Drive belt and tensioner, inspect');
+    expect(displayServiceName('Brake fluid (Severe)')).toBe('Brake fluid');
+  });
+
+  it('keeps parentheses that are part of the job', () => {
+    expect(displayServiceName('Coolant (engine) replace')).toBe('Coolant (engine) replace');
+  });
+});
+
+describe('monthsAway — the owner\'s own months (22 Sep)', () => {
+  it('reads a distance in the owner\'s months, with "about"', () => {
+    expect(monthsAway(4_500, 500)).toBe('about 9 months');
+    expect(monthsAway(600, 500)).toBe('about a month');
+    expect(monthsAway(200, 500)).toBe('within a month');
+    expect(monthsAway(30_000, 1_000)).toBe('about 3 years');
+  });
+
+  it('says nothing where the owner never said how far they drive, or nothing is left', () => {
+    expect(monthsAway(4_500, null)).toBeNull();
+    expect(monthsAway(4_500, 0)).toBeNull();
+    expect(monthsAway(0, 500)).toBeNull();
+    expect(monthsAway(-3_000, 500)).toBeNull();
   });
 });

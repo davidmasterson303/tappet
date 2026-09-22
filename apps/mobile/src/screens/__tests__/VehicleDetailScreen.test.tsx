@@ -1,4 +1,4 @@
-import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor, within } from '@testing-library/react-native';
 
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
@@ -16,7 +16,7 @@ import {
 } from '../../theme/hero-motion';
 import * as RN from 'react-native';
 import { StyleSheet, processColor } from 'react-native';
-import { border, cut, surface, text, type } from '../../theme';
+import { border, cut, space, surface, text, type } from '../../theme';
 import { cornerCovers } from '../../components/CutSurface';
 
 /**
@@ -154,7 +154,6 @@ async function mount(
     vehicleId: 'v1',
     onBack: jest.fn(),
     onSignOut: jest.fn(),
-    onAskAdvisor: jest.fn(),
     onScanInvoice: jest.fn(),
     onViewRecalls: jest.fn(),
     onOpenWishlist: jest.fn(),
@@ -162,7 +161,6 @@ async function mount(
     onOpenHealth: jest.fn(),
     onOpenMilestone: jest.fn(),
     onOpenProfile: jest.fn(),
-    onRemove: jest.fn(),
     ...extra,
   };
   return { props, view: await render(withSafeArea(<VehicleDetailScreen {...props} />, metrics)) };
@@ -232,7 +230,8 @@ describe('recalls', () => {
       The label now carries the worst recall after a full stop, so the anchor
       is the sentence's end or that stop — either way "1 open recalls" fails.
     */
-    expect(await view.findByLabelText(/^View 1 open recall(\.|$)/)).toBeTruthy();
+    // 22 Sep: the name goes on to say the match is the model's, not this car's (§10).
+    expect(await view.findByLabelText(/^View 1 open recall(\.|,)/)).toBeTruthy();
   });
 
   it('opens the recall screen when tapped', async () => {
@@ -330,14 +329,30 @@ describe('the counts on the binnacle', () => {
     respondWithWishlist(() => Promise.resolve({ wishlistItems: [] }));
     const { view } = await mount();
 
+    /*
+      Within the cells, since 21 Sep: the HEALTH cell's dial sweeps 0 → 100 →
+      the reading on appear, so a "0" can be on the screen for a frame that is
+      not a count at all. The claim is about the count cells.
+    */
+    /*
+      22 Sep: a zero the screen read is a sentence in the legend's ink — the
+      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Nothing planned yet"
+      reports the state (PLAN is a tab; its cell may not command); never a
+      dimmed 0.
+    */
     const plan = await view.findByLabelText('Plan, 0.');
-    const zero = view.getByText('0');
-    expect(plan).toBeTruthy();
-    expect(readoutColor(zero)).toBe(text.muted);
+    const empty = within(plan).getByText('Nothing planned yet');
+    expect(readoutColor(empty)).toBe(text.muted);
+    expect(within(plan).queryByText('0')).toBeNull();
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
-    expect(readoutColor(view.getByText('1'))).toBe(text.primary);
-    expect(readoutColor(view.getByText('2'))).toBe(text.primary);
+    const history = view.getByLabelText(/^History, 1 /);
+    expect(readoutColor(within(history).getByText('1'))).toBe(text.primary);
+    expect(within(history).getByText('record')).toBeTruthy();
+    // And the recall count carries its word beneath: "2 / open" — one word for the block (IA I5, UX U5).
+    const recalls = view.getByLabelText(/^View 2 open recalls/);
+    expect(readoutColor(within(recalls).getByText('2'))).toBe(text.primary);
+    expect(within(recalls).getByText('open')).toBeTruthy();
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -351,26 +366,27 @@ describe('the counts on the binnacle', () => {
     respond({ nhtsa_data: null, vehicle_health_summary: null });
     const never = await mount();
     await never.view.findAllByText(/2018 Honda Accord/);
-    expect(never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.')).toBeTruthy();
-    expect(never.view.queryByText('0')).toBeNull();
+    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.');
+    expect(within(unchecked).queryByText(/^\d+$/)).toBeNull();
 
     respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
     const clean = await mount();
     await clean.view.findAllByText(/2018 Honda Accord/);
-    expect(clean.view.getByLabelText('View 0 open recalls')).toBeTruthy();
-    expect(readoutColor(clean.view.getByText('0'))).toBe(text.muted);
+    const cleared = clean.view.getByLabelText('View 0 open recalls');
+    // Cleared: a sentence in the legend's ink, never a dimmed 0 (22 Sep).
+    expect(readoutColor(within(cleared).getByText('None open'))).toBe(text.muted);
   });
 
   it('prints nothing for a count it could not read', async () => {
     respondWithWishlist(() => Promise.reject(new ApiRequestError({ status: 500, message: 'Timed out' })));
     const { view } = await mount();
 
-    await view.findByLabelText('Plan.');
-    // No zero anywhere on the screen — the history count is 1 and the recalls
-    // 2, so the only "0" a failed wishlist could add is the one this guards
-    // against.
-    expect(view.queryByText('0')).toBeNull();
-    expect(view.getByText('1')).toBeTruthy();
+    const plan = await view.findByLabelText('Plan.');
+    // Nothing in the cell — not a 0, not a dash. (Within the cell since 21 Sep:
+    // the HEALTH dial's sweep passes through 0 on appear.)
+    expect(within(plan).queryByText(/^\d+$/)).toBeNull();
+    expect(within(plan).queryByText('Nothing planned yet')).toBeNull();
+    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1')).toBeTruthy();
   });
 });
 
@@ -515,16 +531,42 @@ describe('what this screen leads to stays reachable', () => {
       cells of one panel with the acts as switches at its foot. THIS CAR is
       gone with the list it named.
     */
+    /*
+      ⚠ And again on 22 Sep, when the hub's three lenses reshaped the sheet:
+      the act is the prime slot over the plate (SCAN INVOICE, always), ASK
+      THE ADVISOR is gone (the ADVISOR tab is beneath), and the panel reads
+      verdict → next service → the counts → tires → the answers.
+    */
     expect(at('Next service')).toBeGreaterThan(-1);
-    expect(at('Ask the advisor')).toBeGreaterThan(-1);
+    expect(at('Ask the advisor')).toBe(-1);
+    expect(at('Review recalls')).toBe(-1);
+    expect(at('Scan invoice')).toBeGreaterThan(-1);
 
-    // The reading, then what it needs, then the places to go, then the two
-    // things to do, then the door to the answers the owner gave at sign-up.
+    // The act is in the nav layer, drawn after the sheet in render order but
+    // over the plate on screen — reachable at rest, no scroll; the tree's
+    // order says nothing about that, so only its presence is asserted here.
+    // The reading, then what it needs, then the places to go, then the door to the answers.
     expect(at('Fair')).toBeLessThan(at('Next service'));
     expect(at('Next service')).toBeLessThan(at('Plan'));
-    expect(at('Plan')).toBeLessThan(at('Scan invoice'));
-    expect(at('Scan invoice')).toBeLessThan(at('Ask the advisor'));
-    expect(at('Ask the advisor')).toBeLessThan(at('What you told us'));
+    expect(at('Plan')).toBeLessThan(at('Tires'));
+    expect(at('Tires')).toBeLessThan(at('What you told us'));
+  });
+
+  it('keeps the record act in the slot whatever the recalls say (22 Sep, round 2)', async () => {
+    /*
+      Round 2 had REVIEW RECALLS take the slot while any campaign was
+      unreviewed — two lenses read it as a second entrance to the RECALLS
+      cell that evicts the act the page exists for, on a 2003 Accord
+      forever. The △ cell is the recall prompt; the slot is the scan.
+    */
+    const user = userEvent.setup();
+    respond();
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText(/Review recalls/)).toBeNull();
+    await user.press(view.getByLabelText(/^Scan an invoice/));
+    expect(props.onScanInvoice).toHaveBeenCalledTimes(1);
+    expect(props.onViewRecalls).not.toHaveBeenCalled();
   });
 
   it('shows the score once, and never over the car', async () => {
@@ -549,6 +591,14 @@ describe('what this screen leads to stays reachable', () => {
       invariant the dial's removal established. The count was a snapshot of the
       day it was written, and it is the half that keeps changing.
     */
+    /*
+      21 Sep: the reading is the card dial's numeral, inside its arc (B3), so
+      the sweep is held (reduced motion) to read the landed value. It was the
+      plate's numeral size bare (13 Sep), the card's 30 before that. No chip,
+      and no instrument over the photograph: the one reading on the screen is
+      in the sheet, under the car.
+    */
+    jest.spyOn(RN.AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     respond();
     const { view } = await mount(REFERENCE);
 
@@ -556,12 +606,9 @@ describe('what this screen leads to stays reachable', () => {
 
     const readouts = await view.findAllByText('61');
     expect(readouts).toHaveLength(1);
-    /*
-      The binnacle's HEALTH cell, at the plate's numeral size — 13 Sep; it was
-      the card's 30. No chip, and no instrument readout over the photograph:
-      the one reading on the screen is in the sheet, under the car.
-    */
-    expect(readoutSizes(readouts)).toEqual([type.numeralPlate.fontSize]);
+    expect(readoutSizes(readouts)).toEqual([Math.round(120 * (60 / 172))]);
+    // And it sits inside an arc: the cell draws the gauge's track.
+    expect(hostNodes(view.toJSON(), 'RNSVGPath').length).toBeGreaterThan(0);
   });
 
   it('sizes the hero title down on the shortest display', async () => {
@@ -756,6 +803,21 @@ describe('the hero pullback', () => {
     );
     expect(edge).toBeDefined();
     expect((StyleSheet.flatten(edge!.style as never) as { marginRight?: number }).marginRight).toBe(cut.plate);
+
+    /*
+      21 Sep · and the rule turns up the bevel. Three rounds graded the plate
+      "no cut a user can see": 8pt of page graphite into a near-black corner
+      of a photograph is a shape nobody finds, and the rule stopping short
+      read as a broken line. The hairline runs the hypotenuse — (0, cut) to
+      (cut, 0), the cover's own edge — in the panel's ink, so the geometry
+      registers as line whatever the photograph does.
+    */
+    const bevel = hostNodes(view.root, 'RNSVGLine').find(
+      (props) => Number(props.x1) === 0 && Number(props.y1) === cut.plate && Number(props.x2) === cut.plate && Number(props.y2) === 0,
+    );
+    expect(bevel).toBeDefined();
+    const stroke = bevel!.stroke as { payload?: unknown } | undefined;
+    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.panel));
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {
@@ -899,9 +961,23 @@ describe('the health verdict, against what the screen is holding', () => {
     const { view } = await mount();
     await view.findByText('Solid history, nothing overdue.');
 
-    // The provenance line is what makes a contradiction visible on the screen
-    // rather than only to somebody who opens the history and compares.
-    await view.findByText(/Based on 5 recorded services · 2 open recalls/);
+    /*
+      What makes a contradiction visible on the screen rather than only to
+      somebody who opens the history and compares. Until round 48 (21 Sep)
+      that was a "Based on 5 recorded services · 2 open recalls" line; the
+      counts row says the same two numbers directly above it, so the line is
+      the Health screen's now and the cells carry the facts here.
+    */
+    /*
+      22 Sep, round 3 of the lenses: the basis line told the two numbers a
+      third time — the HISTORY and RECALLS cells are directly beneath it —
+      and it is the Health screen's now, where provenance is the point. What
+      the hub keeps: the two cells, and the door.
+    */
+    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
+    await view.findByLabelText(/^History, 5 recorded services\./);
+    await view.findByLabelText(/^View 2 open recalls/);
+    view.getByRole('button', { name: /^Health score 70/ });
   });
 
   it('leaves a current reading alone', async () => {
@@ -918,6 +994,145 @@ describe('the health verdict, against what the screen is holding', () => {
 
     const { view } = await mount();
     await view.findByText(new RegExp('complete lack of documented maintenance'));
+  });
+
+  it('carries the cause beside the verdict: a current reading\'s lead, whole, in the HEALTH cell (22 Sep)', async () => {
+    /*
+      21 Sep moved the sentence out of the cell (six lines in a three-fifths
+      cell beside a void); 22 Sep's three lenses put it back beside the dial
+      in a cell that is the whole row — "'55 ATTENTION' names no cause"
+      (UX U2), "make it HEALTH's caption, same door" (IA I1). The lead ends
+      where a sentence ends; `Health` prints all of it.
+    */
+    const FPACE =
+      'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles. ' +
+      'Given the mileage, key factory-recommended maintenance and inspections for common platform issues are overdue for verification.';
+    respondWith({ summary: FPACE, lastGenerated: '2026-09-20T00:00:00+00:00', filedAt: '2026-08-06T02:43:11.903661+00:00' });
+
+    const { view } = await mount();
+    const lead = await view.findByText(/very sparse documented service history/);
+
+    // Whole sentences: the first, entire, and not the second.
+    expect(lead.props.children).toMatch(/69,573 miles\.$/);
+    expect(view.queryByText(/Given the mileage/)).toBeNull();
+
+    // Inside the HEALTH cell, which is its door: an ancestor is that cell.
+    const cell = view.getByRole('button', { name: /^Health score 70/ });
+    let node: { parent: unknown } | null = lead;
+    let inCell = false;
+    while (node) {
+      if (node === cell) inCell = true;
+      node = node.parent as typeof node;
+    }
+    expect(inCell).toBe(true);
+    // And the door says it: the spoken name carries the sentence.
+    expect(cell.props.accessibilityLabel).toMatch(/very sparse documented service history/);
+  });
+});
+
+/**
+ * ── Tires is a reading of the panel (21 Sep) ─────────────────────────────────
+ *
+ * 20 Sep put the fourth leaf under the switches as a `BandRow` — alone, in
+ * an idiom nothing near it shared, and the loudest thing on the lower sheet.
+ * It is the panel's third row now: a full-width cell that reads the miles
+ * since the set was rotated or fitted, says "No set yet" in the absent ink
+ * where HEALTH says "No score yet", draws the sodium mark only past the
+ * owner's interval, and opens the set.
+ */
+describe('the tires cell', () => {
+  const SET = {
+    id: 'set-1',
+    vehicle_id: 'v1',
+    brand: 'Michelin',
+    line: 'Pilot Sport 4S',
+    size_front: '245/35R19',
+    size_rear: '245/35R19',
+    installed_on: '2025-03-12',
+    install_odometer: 54_232,
+    purchase_place: 'Discount Tire',
+    rotation_interval_miles: 6_000,
+    interval_source: 'owner',
+    treadwear_miles_entered: 45_000,
+    provenance: 'invoice',
+  };
+
+  function serveTires(body: unknown) {
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/tires')) return Promise.resolve(body) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: { id: 'v1', year: 2018, make: 'Honda', model: 'Accord', current_mileage: 66_000, vehicle_health_summary: null, nhtsa_data: null },
+      }) as never;
+    });
+  }
+
+  it('reads the miles since the last rotation, in the panel, and opens the set', async () => {
+    const user = userEvent.setup();
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
+    const onOpenTires = jest.fn();
+    const { view } = await mount(REFERENCE, { onOpenTires });
+
+    // 22 Sep: a countdown, as NEXT SERVICE counts (value V5) — the owner's 6,000 mi interval, 5,500 since.
+    const cell = await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
+    await view.findByText('rotation in 500 mi');
+    // A reading of the panel: inside the readings summary, not a row below the switches.
+    const panel = view.getByLabelText('Readings');
+    let node: { parent: unknown } | null = cell;
+    let inPanel = false;
+    while (node) {
+      if (node === panel) inPanel = true;
+      node = node.parent as typeof node;
+    }
+    expect(inPanel).toBe(true);
+
+    await user.press(cell);
+    expect(onOpenTires).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a set past its interval, and only then', async () => {
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-06-28', odometer: 59_000, provenance: 'typed' }] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, rotation overdue by 1,000 mi\./);
+    // The mark is drawn beside the legend (the cell's own `warning`), hidden from the reader
+    // because the spoken label already says it. No recalls served, so it is the only one.
+    expect(view.getAllByText('△', { includeHiddenElements: true })).toHaveLength(1);
+  });
+
+  it('draws no mark for a set inside its interval', async () => {
+    serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
+    expect(view.queryAllByText('△', { includeHiddenElements: true })).toHaveLength(0);
+  });
+
+  it('says there is no set yet, in the absent ink, and never a 0', async () => {
+    serveTires({ set: null, rotations: [] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires\. No set on record — add one to count down to each rotation\. Opens the set\.$/);
+    const absent = await view.findByText('Add a tire set to count down to each rotation');
+    expect(readoutColor(absent)).toBe(text.muted);
+    expect(view.queryByText(/^0 mi/)).toBeNull();
+  });
+
+  it('draws nothing for a set it cannot count to', async () => {
+    // An install with no odometer and no rotation: no "miles since" exists.
+    serveTires({ set: { ...SET, install_odometer: null }, rotations: [] });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires\. Opens the set\.$/);
+    expect(view.queryByText(/Add a tire set/)).toBeNull();
+    expect(view.queryByText(/mi since|rotation in/)).toBeNull();
+  });
+
+  it('counts up where no interval was entered — the miles since, never a guessed countdown', async () => {
+    serveTires({
+      set: { ...SET, rotation_interval_miles: null, interval_source: null },
+      rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }],
+    });
+    const { view } = await mount();
+    await view.findByLabelText(/^Tires, 5,500 mi since last rotation\. Opens the set\.$/);
+    await view.findByText('5,500 mi since last rotation');
   });
 });
 
@@ -951,7 +1166,7 @@ describe('the hero’s nav, as controls', () => {
       chevron is told; a cell that stopped announcing where it goes would fail
       here before anyone noticed it on a device.
     */
-    const door = await view.findByLabelText(/Health score 61 out of 100 — Fair\. Opens what is driving it\./);
+    const door = await view.findByLabelText(/Health score 61 out of 100 — Fair\..*Opens what is driving it\./);
     expect(door.props.accessibilityRole).toBe('button');
   });
 
@@ -963,293 +1178,113 @@ describe('the hero’s nav, as controls', () => {
     expect(props.onOpenHealth).toHaveBeenCalled();
   });
 
-  it('grows the nav target to 44pt without redrawing it', async () => {
+  it('draws no back control on the car root, and the collapsed title takes the row\'s start (21 Sep)', async () => {
     /*
-      R25. The pills are drawn at 36 because that is what reads as a pill over a
-      photograph rather than as a bar. `hitSlop` is React Native's
-      `.tap-target-44`: the drawing is unchanged and the target grows around it.
-
-      Asserted as slop rather than as a measured box — RNTL lays nothing out, so
-      a height assertion here would be reading back the style it was given. What
-      is checkable is that the compensation is present on both, which is the
-      thing that goes missing.
+      B8: a tab root carries no back chevron. "‹ GARAGE" was right while this
+      screen was pushed over the garage; since the Car tab it is a root, and
+      round 47's critic read CAR lit in the bar and "‹ GARAGE" over it as two
+      doors to one room. The GARAGE tab is the way back.
     */
     respond();
     const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
 
+    expect(view.queryByLabelText('Back to the garage')).toBeNull();
+    const titles = await view.findAllByText(/2018 Honda Accord/);
+    const nav = titles
+      .map((node) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>)
+      .find((flat) => flat.flex === 1);
+    expect(nav?.textAlign).toBe('left');
+  });
+
+  it('gives the prime slot to the record act, alone (22 Sep)', async () => {
     /*
-      ⚠ One target, not two, since 6 Sep — the score chip was cut. The claim is
-      unchanged and still worth holding: the control is drawn at the size that
-      reads over a photograph, and the target is grown around it rather than the
-      drawing being inflated.
+      "ADD PHOTO holds the only bordered button above the fold — a once-ever
+      act — while SCAN INVOICE, the act an owner repeats for years, sits a
+      scroll down" (UX U1). The act is the filled button at the row's end;
+      the photo control is a mono word and a chevron at its start. ACCOUNT no
+      longer floats over a car's page (IA I8), so the act sits on the gutter.
     */
-    for (const label of ['Back to the garage']) {
-      const slop = (await view.findByLabelText(label)).props.hitSlop as Record<string, number>;
+    respond({ nhtsa_data: { recalls: [] } });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
 
-      expect(slop).toBeDefined();
-      // 36 drawn + 4 top + 4 bottom clears 44; anything less does not.
-      expect(slop.top + slop.bottom).toBeGreaterThanOrEqual(8);
+    // The act, on the gutter: up from the button to the plane that places it.
+    let node: { parent: unknown; props: Record<string, unknown> } | null = view.getByLabelText(/^Scan an invoice/);
+    let right: unknown;
+    while (node && right === undefined) {
+      const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as { right?: unknown };
+      right = flat.right;
+      node = node.parent as typeof node;
     }
+    expect(right).toBe(space.lg);
+
+    // And nothing else in the nav at rest: the photograph's acts are THIS CAR's.
+    expect(view.queryByLabelText('Add photo')).toBeNull();
   });
 });
 
 /**
- * ── Taking the photograph back off the car ──────────────────────────────────
+ * ── The photograph, on the hub ──────────────────────────────────────────────
  *
- * David, 11 Sep: *"i can't delete the image i uploaded on the app, so i can't
- * revert to seeing the new default images for my car."* The screen could add
- * a photograph and never remove one. What is pinned here is the shape of the
- * way out — one control, a sheet, one confirm — and the two promises the
- * removal makes: the plate is shown at once, and a failure puts the picture
- * back rather than leaving the car blank with an apology.
- *
- * The sheet and the confirm are UIKit's own surfaces, so they are driven the
- * way `WishlistScreen.test.tsx` drives its confirm: out of the spied call's
- * own argument list, which is the only way past a native dialog in a test.
+ * Add, change and remove lived here until 22 Sep — the control in the nav
+ * row over the plate, the sheet, the optimistic plate and its revert. The
+ * hub's three lenses cut the control from the plate twice, and the acts are
+ * THIS CAR's now (`VehicleProfileScreen.test.tsx` holds them). What the hub
+ * still owes: the owner's photograph under the house grade, the plate
+ * without one, and no photo control of its own.
  */
-describe('taking the photograph back off the car', () => {
+describe('the photograph, on the hub', () => {
   const PHOTO = 'https://signed.test/car.jpg';
 
-  let sheet: jest.SpyInstance;
-  let alert: jest.SpyInstance;
-
-  beforeEach(() => {
-    sheet = jest.spyOn(RN.ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation(() => {});
-    alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
-  });
-
-  /** The `Image` nodes drawing the owner's photograph — one, or none. */
-  const photographs = (view: { root: unknown }) =>
-    hostNodes(view.root, 'Image').filter(
-      (props) => (props.source as { uri?: string } | undefined)?.uri === PHOTO,
-    );
-
-  const requests = (predicate: (path: string, init?: { method?: string }) => boolean) =>
-    request.mock.calls.filter(([path, init]) => predicate(String(path), init as { method?: string }));
-  const deletes = () => requests((_, init) => init?.method === 'DELETE');
-  const loads = () => requests((path) => path.startsWith('/load-vehicle'));
-
-  /**
-   * The vehicle with a photograph, and whatever the DELETE should do.
-   *
-   * Per-URL, because the removal and the reload are different requests and
-   * the test has to see them separately: a mock that answered everything with
-   * one body could not tell "refetched after success" from "never asked".
-   */
-  function respondWithPhoto(onDelete: () => Promise<unknown>) {
-    request.mockImplementation((path: string, init?: { method?: string }) => {
-      if (init?.method === 'DELETE') return onDelete() as never;
-      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
-      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
-      return Promise.resolve({
-        vehicle: {
-          id: 'v1',
-          year: 2018,
-          make: 'Honda',
-          model: 'Accord',
-          photo_url: PHOTO,
-          vehicle_health_summary: { health_score: 61, summary: 'Fair.' },
-        },
-      }) as never;
-    });
+  function hasHouseGrade(tree: unknown): boolean {
+    let found = false;
+    const walk = (node: unknown) => {
+      if (found || !node || typeof node !== 'object') return;
+      const host = node as { props?: { style?: unknown }; children?: unknown[] };
+      const style = host.props?.style;
+      const styles = Array.isArray(style) ? style.flat(Infinity) : [style];
+      if (styles.some((s) => s && typeof s === 'object' && 'mixBlendMode' in (s as object))) found = true;
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(tree);
+    return found;
   }
 
-  /** Pick an option out of the sheet the screen opened. */
-  async function chooseFromSheet(label: string) {
-    const [options, callback] = sheet.mock.calls[0] as [
-      { options: string[] },
-      (index: number) => void,
-    ];
-    const index = options.options.indexOf(label);
-    expect(index).toBeGreaterThan(-1);
-    await act(async () => callback(index));
-  }
-
-  /** Press the destructive button in the confirm the screen raised. */
-  async function confirmRemoval() {
-    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
-    const remove = buttons.find((button) => button.text === 'Remove');
-    expect(remove).toBeDefined();
-    // `act`, because the optimistic write lands synchronously in the press.
-    await act(async () => remove!.onPress?.());
-  }
-
-  it('offers Remove beside Change from the one control, and sends nothing for it', async () => {
-    /*
-      One control over the photograph, not two — the docblock on
-      `onPhotoControl` carries why. The sheet is where the second verb lives,
-      as it does inside the web's own photo dialog.
-    */
-    const user = userEvent.setup();
-    respondWithPhoto(() => Promise.resolve({ success: true }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Change photo'));
-
-    expect(sheet).toHaveBeenCalledTimes(1);
-    const [options] = sheet.mock.calls[0] as [
-      { options: string[]; destructiveButtonIndex: number; cancelButtonIndex: number },
-    ];
-    expect(options.options).toEqual(['Change photo', 'Remove photo', 'Cancel']);
-    expect(options.options[options.destructiveButtonIndex]).toBe('Remove photo');
-    expect(options.options[options.cancelButtonIndex]).toBe('Cancel');
-
-    // Opening the sheet is not a decision.
-    expect(deletes()).toHaveLength(0);
-    expect(photographs(view)).toHaveLength(1);
-  });
-
-  it('asks once, in words that say what the car will show, before it removes', async () => {
-    const user = userEvent.setup();
-    respondWithPhoto(() => Promise.resolve({ success: true }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-
-    // Not "are you sure?" — what the owner gets: the plate, not a blank.
-    expect(alert).toHaveBeenCalledWith(
-      'Remove this photo?',
-      'The car will stand on its plate.',
-      expect.any(Array),
-    );
-    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; style?: string }>;
-    expect(buttons.map((button) => button.text)).toEqual(['Keep', 'Remove']);
-    expect(buttons.find((button) => button.text === 'Remove')?.style).toBe('destructive');
-
-    // Choosing Remove in the sheet is still not a decision.
-    expect(deletes()).toHaveLength(0);
-    expect(photographs(view)).toHaveLength(1);
-  });
-
-  it('shows the plate at once, then asks the API what stands on the car', async () => {
-    /*
-      Optimistic: the owner asked to see the plate, so it appears before the
-      round trip — the DELETE is held open here so that order is observable.
-      Then a reload, because what now stands on the car is the API's decision
-      (stock image, generation plate, house plate) and not this screen's guess.
-    */
-    const user = userEvent.setup();
-    let finishDelete: (value: unknown) => void = () => {};
-    respondWithPhoto(() => new Promise((resolve) => { finishDelete = resolve; }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-    const loadsBefore = loads().length;
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-    await confirmRemoval();
-
-    await waitFor(() => expect(deletes()).toHaveLength(1));
-    // The photograph is gone and the house plate stands, while the request is still open.
-    await waitFor(() => expect(photographs(view)).toHaveLength(0));
-    const plates = hostNodes(view.root, 'Image').filter((props) =>
-      String((props.source as { testUri?: string } | undefined)?.testUri ?? '').includes('night-plate'),
-    );
-    expect(plates).toHaveLength(1);
-    expect(loads()).toHaveLength(loadsBefore);
-
-    finishDelete({ success: true });
-
-    await waitFor(() => expect(loads().length).toBeGreaterThan(loadsBefore));
-  });
-
-  it('puts the photograph back and says so when the removal fails', async () => {
-    /*
-      The revert. A car left blank with an apology would be the app claiming
-      the photo is gone when the server says it is not — the row is still
-      intact server-side on a failed delete, so the honest screen shows it.
-    */
-    const user = userEvent.setup();
-    respondWithPhoto(() =>
-      Promise.reject(new ApiRequestError({ status: 500, message: 'Failed to remove photo' })),
-    );
-    const { props, view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-    const loadsBefore = loads().length;
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-    await confirmRemoval();
-
-    await view.findByText('That photo was not removed');
-    view.getByText('Failed to remove photo');
-    expect(photographs(view)).toHaveLength(1);
-    // Nothing to refetch — the server did not change anything.
-    expect(loads()).toHaveLength(loadsBefore);
-    expect(props.onSignOut).not.toHaveBeenCalled();
-  });
-
-
-/**
- * Whether the house grade is in the rendered tree — its blend layers are the
- * only views in the app with a `mixBlendMode`, so that is what is looked for.
- */
-function hasHouseGrade(tree: unknown): boolean {
-  let found = false;
-  const walk = (node: unknown) => {
-    if (found || !node || typeof node !== 'object') return;
-    const host = node as { props?: { style?: unknown }; children?: unknown[] };
-    const style = host.props?.style;
-    const styles = Array.isArray(style) ? style.flat(Infinity) : [style];
-    if (styles.some((s) => s && typeof s === 'object' && 'mixBlendMode' in (s as object))) found = true;
-    for (const child of host.children ?? []) walk(child);
-  };
-  walk(tree);
-  return found;
-}
-
-  it('reads a plate as the app’s picture, not the owner’s: no grade, and ADD PHOTO — 13 Sep', async () => {
+  it('reads a plate as the app’s picture, not the owner’s: no grade — 13 Sep', async () => {
     /*
       Since the plates went live a car nobody photographed arrives with
       `photo_url` set to its plate. Read as the owner's, the plate was graded
-      a second time and the control said CHANGE PHOTO over nothing to change
-      (the hub loop, drift §6.18). The route now sends `photo_kind`; a plate
-      keeps the plain image and the one-verb control. Absent kind — an older
-      API — is the owner's, as it always was.
+      a second time (the hub loop, drift §6.18). The route sends
+      `photo_kind`; a plate keeps the plain image.
     */
-    const user = userEvent.setup();
     respond({ photo_url: PHOTO, photo_kind: 'plate' });
-    const pickPhoto = jest.fn().mockResolvedValue(null);
-    const { view } = await mount(REFERENCE, { pickPhoto });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-
-    expect(view.queryByLabelText('Change photo')).toBeNull();
-    // The plate draws under no grade: no house-split gradient on the hero.
     expect(hasHouseGrade(view.toJSON())).toBe(false);
-    await user.press(view.getByLabelText('Add photo'));
-    expect(pickPhoto).toHaveBeenCalledTimes(1);
-    expect(sheet).not.toHaveBeenCalled();
   });
 
-  it('grades and offers to change the owner’s photograph, kind named or not', async () => {
+  it('grades the owner’s photograph, kind named or not', async () => {
     respond({ photo_url: PHOTO, photo_kind: 'owner' });
-    const { view } = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-    expect(view.getByLabelText('Change photo')).toBeTruthy();
     expect(hasHouseGrade(view.toJSON())).toBe(true);
 
     respond({ photo_url: PHOTO });
-    const older = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    const older = await mount();
     await older.view.findAllByText(/2018 Honda Accord/);
-    expect(older.view.getByLabelText('Change photo')).toBeTruthy();
+    expect(hasHouseGrade(older.view.toJSON())).toBe(true);
   });
 
-  it('goes straight to the picker when there is no photograph to remove', async () => {
-    // One action means no sheet. "Add photo" has always been a direct door.
-    const user = userEvent.setup();
-    respond({ photo_url: null });
-    const pickPhoto = jest.fn().mockResolvedValue(null);
-    const { view } = await mount(REFERENCE, { pickPhoto });
+  it('carries no photo control — the plate opens THIS CAR, where the photograph is changed (22 Sep)', async () => {
+    respond({ photo_url: PHOTO, photo_kind: 'owner' });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Add photo'));
-
-    expect(pickPhoto).toHaveBeenCalledTimes(1);
-    expect(sheet).not.toHaveBeenCalled();
-    expect(alert).not.toHaveBeenCalled();
+    expect(view.queryByLabelText('Change photo')).toBeNull();
+    expect(view.queryByLabelText('Add photo')).toBeNull();
+    // The plate's own mark says where the press lands.
+    expect(view.getByText('This car', { includeHiddenElements: true })).toBeTruthy();
+    view.getByLabelText(/Opens the car's details: mileage, your answers, the photo, removal/);
   });
 });
 
@@ -1306,15 +1341,17 @@ describe('the research log (20 Sep)', () => {
   });
 });
 
-describe('removing the car (20 Sep)', () => {
-  it('offers the removal last on the sheet, and it opens the confirmation rather than acting', async () => {
+describe('removing the car (20 Sep; behind the details since 22 Sep)', () => {
+  it('does not end on a destructive act — the removal is the details screen\'s foot', async () => {
+    /*
+      The hub's three lenses agreed (UX U8, IA I7, value V8): "once per car,
+      not daily; behind the edit door." The plate opens the car's details;
+      `VehicleProfileScreen.test.tsx` holds the button there.
+    */
     respond();
-    const user = userEvent.setup();
-    const { props, view } = await mount();
-    await waitFor(() => view.getByText('Remove this car'));
-    await user.press(view.getByText('Remove this car'));
-    expect(props.onRemove).toHaveBeenCalledTimes(1);
-    // Nothing was deleted from here — the confirmation is where that happens.
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText('Remove this car')).toBeNull();
     expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(false);
   });
 });
@@ -1342,5 +1379,141 @@ describe('the research poll is one request (20 Sep)', () => {
     const polled = request.mock.calls.slice(before).map(([p]) => String(p).split('?')[0]);
     expect(polled.every((p) => p === '/load-vehicle')).toBe(true);
     expect(polled.some((p) => p === '/load-maintenance-data' || p === '/wishlist')).toBe(false);
+  });
+});
+
+/**
+ * ── The hub under three lenses — 22 Sep ─────────────────────────────────────
+ *
+ * David: *"i want critic to think about UI/UX of the page, the information
+ * architecture, and the value of the functionality… Get this page to a 9."*
+ * Three critics, one round each in BRIEF mode, and the briefs converged
+ * (`design-loop/mobile-ios/hub-lenses/`). What they asked for that a test can
+ * hold is here: the service by its name with the owner's months beside the
+ * miles, every question as a row, the plate as the door to the car, the
+ * odometer's as-of.
+ */
+describe('the hub under three lenses (22 Sep)', () => {
+  it('names the service plainly and adds the owner\'s own months to the miles', async () => {
+    /*
+      "ENGINE OIL & FILTER CHANGE (ENTHUSIAST)" carried a schedule tier inside
+      a job's name (UX U9, IA I6); "in 4,500 mi" said no when (value V2). The
+      tier goes, "&" reads "and", and 500 a month makes 4,500 mi about nine
+      months — the owner's figure, so the word is "about".
+    */
+    respond({
+      next_service_label: 'Engine Oil & Filter Change (Enthusiast)',
+      next_service_at_miles: 99_300,
+      current_mileage: 94_800,
+      avg_miles_per_month: 500,
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await view.findByText('Engine Oil and Filter Change');
+    expect(view.queryByText(/Enthusiast/i)).toBeNull();
+    await view.findByText('in 4,500 mi · about 9 months');
+  });
+
+  it('keeps the miles alone where the owner never said how far they drive', async () => {
+    respond({ next_service_label: 'Brake fluid', next_service_at_miles: 99_300, current_mileage: 94_800, avg_miles_per_month: null });
+    const { view } = await mount();
+    await view.findByText('in 4,500 mi');
+    expect(view.queryByText(/about/)).toBeNull();
+  });
+
+  it('lists every question, the unanswered ones as prompts, and the objective by its lead phrase', async () => {
+    /*
+      The F-PACE showed one row and hid the two questions its reading depends
+      on (UX U7, IA I3, value V7); the Accord's OWNERSHIP printed "Keep
+      forever - Dail…" (UX U3, IA I4). Every row is a door to the question.
+    */
+    const user = userEvent.setup();
+    respond({
+      avg_miles_per_month: null,
+      performance_mindedness: 'stock',
+      ownership_objective: 'Keep forever - Daily commuter. Want to keep it reliable past 200,000 miles.',
+    });
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const miles = await view.findByLabelText('Miles a month: not answered yet. Dates your next service. Opens the question.');
+    expect(within(miles).getByText('Tell us')).toBeTruthy();
+    expect(readoutColor(within(miles).getByText('Tell us'))).toBe(text.muted);
+    // What answering buys, under the question, while it is open.
+    expect(within(miles).getByText('Dates your next service')).toBeTruthy();
+    view.getByLabelText(/^Modifications: Keep it stock\./);
+    const ownership = view.getByLabelText(/^Ownership: Keep forever - Daily commuter\. Want to keep it reliable/);
+    expect(within(ownership).getByText('Keep forever')).toBeTruthy();
+    expect(view.queryByText(/Dail…|Daily commuter/)).toBeNull();
+
+    await user.press(miles);
+    expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the car\'s details from the plate, and says the odometer\'s age on the strip', async () => {
+    /*
+      "No door to the car itself … the facts strip is the page's only non-door
+      row" (IA I3, I7); "mileage is a fact, not a reading … nothing says when
+      that was set" (value V1, UX U6). The door sits in the sheet's spacer
+      over the identity block; the strip's MILEAGE eyebrow carries the age.
+    */
+    const user = userEvent.setup();
+    const threeWeeksAgo = new Date(Date.now() - 21 * 86_400_000).toISOString();
+    respond({ last_mileage_update_date: threeWeeksAgo });
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    await view.findByText('3 wk ago');
+    await user.press(view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/));
+    expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what holds the score back, as a reason with its act, in the block\'s one word for recalls', async () => {
+    /*
+      Round 3 of the lenses: "24 recalls on record." beside 88 GOOD read as a
+      fact with a full stop, not a reason, and the same 24 was told three
+      ways on one screen. The cause is a sentence — "Held back by … — act." —
+      and recalls are "open", in the hub's own count, for this model.
+    */
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1', year: 2018, make: 'Honda', model: 'Accord', current_mileage: 94_800,
+          vehicle_health_summary: { health_score: 88, summary: 'Excellent history.', last_generated: '2026-09-20T00:00:00Z' },
+          nhtsa_data: { recalls: [
+            { NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' },
+            { NHTSACampaignNumber: '21V-100', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' },
+          ] },
+          recall_actions: [{ campaign_number: '21V-100', action: 'repaired' }],
+        },
+        health_drivers: [
+          { key: 'maintenance', label: 'Maintenance', score: 96, detail: 'Nothing overdue, across 8 tracked services.', nothingOutstanding: true },
+          { key: 'recalls', label: 'Recalls', score: 70, detail: '2 recalls on record.', cause: '2 recalls for this model', act: 'review them' },
+          { key: 'mileage-load', label: 'Mileage load', score: 90, detail: 'About 11,000 miles a year over 8 years, against a 12,000 average.' },
+        ],
+      }) as never;
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    // The hub's own count — one open, one marked — never the driver's "on record".
+    await view.findByText('Held back by 1 open recall for this model — review them.');
+    expect(view.queryByText(/on record/)).toBeNull();
+    // The model's prose is HEALTH's, one tap away: not on the hub beside a cause.
+    expect(view.queryByText('Excellent history.')).toBeNull();
+    // And the cell's word is the same word.
+    const recalls = view.getByLabelText(/^View 1 open recall/);
+    expect(within(recalls).getByText('open')).toBeTruthy();
+  });
+
+  it('carries no advisor button and no account word of its own', async () => {
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText(/Ask the advisor/i)).toBeNull();
+    expect(view.queryByText(/^Account$/i)).toBeNull();
   });
 });

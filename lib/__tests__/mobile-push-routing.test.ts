@@ -275,18 +275,20 @@ describe('the linking config seeds a stack', () => {
     expect(config.indexOf("initialRouteName: 'Tabs'")).toBeLessThan(config.indexOf('screens: {'));
   });
 
-  it('seeds the garage under a cold-started car or recall link', () => {
+  it('seeds the car under a cold-started car or recall link', () => {
     /*
       ⚠ Pinned to the object that owns the path, not to a position in the file.
-      Both notification paths — the car and its recalls — live in the garage
-      tab's config, and that config is the one that must name the garage.
+      Both notification paths — the car and its recalls — live in one tab's
+      config, and that config is the one that must name its root. Since 21 Sep
+      that tab is the Car tab, whose root is the car's own page: a recall link
+      opened cold lands on the recalls with the car beneath it to go back to.
     */
-    const garage = configRegistering(region, 'vehicle/:vehicleId');
+    const car = configRegistering(region, 'vehicle/:vehicleId');
     const recalls = configRegistering(region, 'vehicle/:vehicleId/recalls');
 
-    expect(garage.length).toBeGreaterThan(0);
-    expect(garage).toMatch(/initialRouteName: 'Garage'/);
-    expect(recalls).toBe(garage);
+    expect(car.length).toBeGreaterThan(0);
+    expect(car).toMatch(/initialRouteName: 'VehicleDetail'/);
+    expect(recalls).toBe(car);
   });
 
   it('can still detect the seed at the wrong level', () => {

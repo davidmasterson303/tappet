@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +17,11 @@ import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
+import type { InvoiceFile } from '../api/documents';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { agoLabel, isOwnerPhoto } from './VehicleDetailScreen';
 import {
   MINDEDNESS,
   MINDEDNESS_LABELS,
@@ -65,9 +70,32 @@ interface Props {
   onSignOut: () => void;
   /** Called after a successful save so the screen behind can refetch. */
   onSaved: () => void;
+  /**
+   * The removal confirmation (`RemoveVehicleScreen`), at this screen's foot
+   * since 22 Sep — it was the hub's last row, and the hub's three lenses put
+   * it behind the car's details: "once per car, not daily". Optional so the
+   * suites that predate it still mount; the navigator always passes it.
+   */
+  onRemove?: () => void;
+  /**
+   * The picker seam — this screen never imports `expo-image-picker`.
+   *
+   * Same reasoning as `GarageScreen` and `InvoiceScanScreen`: it is a native
+   * module, a build that lacks it crashes on launch the moment anything in the
+   * graph imports it, and taking it as a prop is what lets this screen mount
+   * in a test. Omitted means the photograph has no control rather than a
+   * broken one. Here since 22 Sep, off the hub (`VehicleDetailScreen`).
+   */
+  pickPhoto?: () => Promise<InvoiceFile | null>;
 }
 
 interface Answers {
+  /**
+   * The odometer, as digits (22 Sep). Saved through its own PATCH — the
+   * route's mileage path has its own rule (`validateMileageUpdate`) and a
+   * `last_mileage_update_date` side effect the profile path does not.
+   */
+  currentMileage: string;
   avgMilesPerMonth: string;
   vehicleStatus: UsageProfile | null;
   performanceMindedness: Mindedness | null;
@@ -77,15 +105,24 @@ interface Answers {
 type State =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'loaded'; initial: Answers };
+  | {
+      kind: 'loaded';
+      initial: Answers;
+      mileageSetAt: string | null;
+      /** What stands on the car: the owner's photograph, or its plate. */
+      ownerPhoto: boolean;
+    };
 
 const USAGE_ORDER = Object.keys(USAGE_PROFILES) as UsageProfile[];
 
-export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
+export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, pickPhoto }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [answers, setAnswers] = useState<Answers | null>(null);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  /** The photograph's own work in flight, and its own refusal — never mixed with the form's. */
+  const [photoBusy, setPhotoBusy] = useState<'uploading' | 'removing' | null>(null);
+  const [photoProblem, setPhotoProblem] = useState<{ headline: string; body: string } | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -93,6 +130,10 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
     try {
       const body = await apiRequest<{
         vehicle?: {
+          photo_url?: string | null;
+          photo_kind?: 'owner' | 'catalog' | 'plate' | null;
+          current_mileage?: number | null;
+          last_mileage_update_date?: string | null;
           avg_miles_per_month?: number | null;
           vehicle_status?: string | null;
           performance_mindedness?: string | null;
@@ -102,6 +143,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
 
       const vehicle = body.vehicle ?? {};
       const initial: Answers = {
+        currentMileage: typeof vehicle.current_mileage === 'number' ? String(vehicle.current_mileage) : '',
         avgMilesPerMonth:
           typeof vehicle.avg_miles_per_month === 'number' ? String(vehicle.avg_miles_per_month) : '',
         vehicleStatus:
@@ -116,8 +158,13 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
         ownershipObjective: vehicle.ownership_objective ?? '',
       };
 
-      setState({ kind: 'loaded', initial });
-      setAnswers(initial);
+      setState({
+        kind: 'loaded',
+        initial,
+        mileageSetAt: vehicle.last_mileage_update_date ?? null,
+        ownerPhoto: isOwnerPhoto(vehicle),
+      });
+      setAnswers((held) => held ?? initial);
     } catch (error) {
         /*
           ── ⚠ MOB-08 · a server 401 is not "you are signed out" ─────────────
@@ -154,6 +201,74 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
     void load();
   }, [load]);
 
+  /**
+   * Add or replace this car's photograph.
+   *
+   * The same three outcomes the garage handles, and the same rule about which
+   * of them is an error: **dismissal is not one.** The picker resolving `null`
+   * returns the screen to idle silently — showing "cancelled" after a
+   * deliberate tap on Cancel is how an app feels accusatory.
+   *
+   * Reloads rather than patching `photo_url` in place: what stands on the car
+   * now — the owner's upload, the generation plate, the house plate — is the
+   * API's decision (`lib/vehicle-photo.ts`), and the hub refetches on focus.
+   */
+  const onChangePhoto = useCallback(async () => {
+    if (!pickPhoto) return;
+    setPhotoProblem(null);
+    try {
+      const file = await pickPhoto();
+      if (!file) return;
+      setPhotoBusy('uploading');
+      await uploadVehiclePhoto(vehicleId, file);
+      await load();
+    } catch (error) {
+      setPhotoProblem({
+        headline: 'That photo was not saved',
+        body: error instanceof Error ? error.message : 'That photo could not be saved.',
+      });
+    } finally {
+      setPhotoBusy(null);
+    }
+  }, [pickPhoto, vehicleId, load]);
+
+  /**
+   * Take the photograph off the car — David, 11 Sep: *"i can't delete the
+   * image i uploaded on the app, so i can't revert to seeing the new default
+   * images for my car."* One confirm, and it says what the owner gets rather
+   * than asking "are you sure?": the car stands on its plate.
+   */
+  const onRemovePhoto = useCallback(() => {
+    Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setPhotoProblem(null);
+            setPhotoBusy('removing');
+            try {
+              await removeVehiclePhoto(vehicleId);
+              await load();
+            } catch (error) {
+              if (error instanceof ApiRequestError && error.isLocallySignedOut) {
+                onSignOut();
+                return;
+              }
+              setPhotoProblem({
+                headline: 'That photo was not removed',
+                body: error instanceof Error ? error.message : 'That photo could not be removed.',
+              });
+            } finally {
+              setPhotoBusy(null);
+            }
+          })();
+        },
+      },
+    ]);
+  }, [vehicleId, load, onSignOut]);
+
   const save = useCallback(async () => {
     if (state.kind !== 'loaded' || !answers || saving) return;
 
@@ -182,24 +297,50 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
       bad value without a round trip, and the server refuses it regardless
       because a client is not a guarantee.
     */
+    /*
+      The odometer, checked by the mileage rule — a reading that goes
+      backwards is refused with the rule's own sentence, here as on the
+      Service → Due gate — and sent on its own, before the answers.
+    */
+    const typed = answers.currentMileage.replace(/[^0-9]/g, '');
+    const mileage = typed !== '' && typed !== state.initial.currentMileage ? Number(typed) : null;
+    if (mileage !== null) {
+      const check = validateMileageUpdate({
+        current: state.initial.currentMileage === '' ? null : Number(state.initial.currentMileage),
+        next: mileage,
+      });
+      if (!check.ok) {
+        setProblem(check.message ?? 'Check that reading.');
+        return;
+      }
+    }
+
     const { vehicleId: _id, ...fields } = changed;
     const decision = validateProfileUpdate(fields);
 
     if (!decision.ok) {
       // "Nothing to change" is not an error worth showing — it is a no-op.
       if (Object.keys(fields).length === 0) {
-        onSaved();
+        if (mileage === null) {
+          onSaved();
+          return;
+        }
+      } else {
+        setProblem(decision.message ?? 'Check those answers.');
         return;
       }
-      setProblem(decision.message ?? 'Check those answers.');
-      return;
     }
 
     setProblem(null);
     setSaving(true);
 
     try {
-      await apiRequest('/vehicles', { method: 'PATCH', body: changed });
+      if (mileage !== null) {
+        await apiRequest('/vehicles', { method: 'PATCH', body: { vehicleId, currentMileage: mileage } });
+      }
+      if (Object.keys(fields).length > 0) {
+        await apiRequest('/vehicles', { method: 'PATCH', body: changed });
+      }
       onSaved();
     } catch (error) {
         /*
@@ -265,10 +406,64 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
         {problem && <AlertBanner tone="critical" headline="Not saved" body={problem} />}
 
         <Text style={styles.lead}>
-          These are the answers the dossier and the advisor are written against. Change them any
-          time — they are what this car is for, not what it is.
+          The odometer every countdown is measured from, and the answers the dossier and the
+          advisor are written against. Change them any time.
         </Text>
+        {/*
+          ── 22 Sep · the odometer, with its as-of ───────────────────────────
 
+          "Every countdown is only as true as 168,400, and nothing says when
+          that was set or lets the owner set it" (the value lens, V1; UX U6).
+          The hub's plate opens here; the hint says how old the reading is.
+        */}
+        <Field
+          label="Odometer"
+          hint={
+            state.mileageSetAt
+              ? `miles · set ${agoLabel(state.mileageSetAt) ?? 'once'}`
+              : 'miles'
+          }
+          value={answers.currentMileage}
+          onChangeText={(next) => set('currentMileage', next.replace(/[^0-9]/g, ''))}
+          keyboardType="number-pad"
+          editable={!saving}
+        />
+        {/*
+          ── 22 Sep · the photograph, behind the plate's door ─────────────────
+
+          Off the hub — the lenses' cut, twice — and here as two plain acts:
+          change, and remove where there is an owner's photograph to remove.
+          No sheet: the sheet existed because the hub's nav held one control.
+        */}
+        <View style={styles.block}>
+          <Text style={styles.question}>Photo</Text>
+          <Text style={styles.hint}>
+            {state.ownerPhoto ? 'Your photograph is on the car.' : 'The car stands on its plate.'}
+          </Text>
+          {photoProblem ? <AlertBanner tone="critical" headline={photoProblem.headline} body={photoProblem.body} /> : null}
+          <View style={styles.photoActs}>
+            <Button
+              label={state.ownerPhoto ? 'Change photo' : 'Add photo'}
+              variant="outline"
+              size="small"
+              busy={photoBusy === 'uploading'}
+              busyLabel="Uploading"
+              onPress={() => void onChangePhoto()}
+              accessibilityLabel={state.ownerPhoto ? 'Change photo' : 'Add photo'}
+            />
+            {state.ownerPhoto ? (
+              <Button
+                label="Remove photo"
+                variant="delete"
+                size="small"
+                busy={photoBusy === 'removing'}
+                busyLabel="Removing"
+                onPress={onRemovePhoto}
+                accessibilityLabel="Remove photo. Asks first."
+              />
+            ) : null}
+          </View>
+        </View>
         <Field
           label="Average per month"
           hint="miles"
@@ -352,6 +547,27 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved }: Props) {
         />
 
         <Button label="Save" onPress={() => void save()} busy={saving} busyLabel="Saving" />
+
+        {/*
+          ── Remove this car (20 Sep; here since 22 Sep) ─────────────────────
+
+          The phone could not remove a car until 20 Sep — no route, and the
+          web's own delete left the receipt photographs in the bucket. The
+          control was the hub's last row; it is this screen's foot now, in
+          the delete variant, and opens a confirmation that quotes what would
+          go rather than asking "are you sure?" — `RemoveVehicleScreen`.
+        */}
+        {onRemove ? (
+          <View style={styles.remove}>
+            <Button
+              label="Remove this car"
+              variant="delete"
+              size="small"
+              onPress={onRemove}
+              accessibilityLabel="Remove this car from your garage. Asks first."
+            />
+          </View>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -371,6 +587,9 @@ const styles = StyleSheet.create({
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
 
   lead: { ...type.body, color: text.secondary },
+  photoActs: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  /* The foot: the one destructive act, after 24pt of air, at the sheet's start. */
+  remove: { paddingTop: space.xxl, alignItems: 'flex-start' },
   block: { gap: space.sm },
   question: { ...type.bodyStrong, color: text.primary },
   hint: { ...type.value, color: text.muted, lineHeight: 19 },

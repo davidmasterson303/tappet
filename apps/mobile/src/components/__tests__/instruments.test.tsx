@@ -135,9 +135,10 @@ describe('ClusterGauge', () => {
       a ~330-unit arc: every reading at about a sixth of its true position, and
       plausible enough to ship.
     */
-    const view = await render(<ClusterGauge score={50} variant="card" />);
+    // Held (`active={false}`) so the lit arc is exactly half the track — the
+    // card sweeps in like the hero since 21 Sep, when it became the hub's dial.
+    const view = await render(<ClusterGauge score={50} variant="card" active={false} />);
 
-    // The card is deliberately still, so the lit arc is exactly half the track.
     const dashes = hostNodes(view.root, 'RNSVGPath')
       .map((props) => props.strokeDasharray)
       .filter(Array.isArray);
@@ -596,13 +597,11 @@ describe('GarageBay', () => {
   */
   const TODAY = '2026-08-16';
 
-  it('names the bay and its position, so a swipe has somewhere to land', async () => {
-    const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={1} total={3} active={false} />
-    );
+  it('carries no batten of its own — the rail above the pager names the bay (21 Sep)', async () => {
+    const view = await render(<GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />);
 
-    view.getByText('BAY 02');
-    view.getByText('2 of 3');
+    expect(view.queryByText(/^BAY \d\d$/)).toBeNull();
+    expect(view.queryByText(/\d of \d/)).toBeNull();
   });
 
   it('names the car once, under the plate, and never on it', async () => {
@@ -616,7 +615,7 @@ describe('GarageBay', () => {
       once — plus the new fact: nothing is printed on the plate.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('2018 Subaru WRX');
@@ -633,7 +632,7 @@ describe('GarageBay', () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={2} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     // The dial is drawn — it is the reading that waits, not the instrument.
@@ -647,7 +646,7 @@ describe('GarageBay', () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
 
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active />
     );
     await act(async () => {});
 
@@ -658,7 +657,7 @@ describe('GarageBay', () => {
     // A dial at 0 asserts a reading. No score is not a zero — the same rule the
     // garage card has always followed.
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={null} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={null} active={false} />
     );
 
     view.getByText('No score yet');
@@ -702,7 +701,7 @@ describe('GarageBay', () => {
       `GarageBay` is what stands between that and a second literal.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     const rooms = hostNodes(view.root, 'View')
@@ -751,8 +750,6 @@ describe('GarageBay', () => {
         vehicle={{ ...WRX, photo_url: PHOTO }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -784,8 +781,6 @@ describe('GarageBay', () => {
         vehicle={{ ...WRX, photo_url: PHOTO }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -802,7 +797,7 @@ describe('GarageBay', () => {
     */
     const onOpen = jest.fn();
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} onOpen={onOpen} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} onOpen={onOpen} />
     );
 
     await userEvent.setup().press(view.getByLabelText('2018 Subaru WRX, open details'));
@@ -1018,7 +1013,7 @@ describe('the bay’s next-service row', () => {
 
   it('reads as a countdown when the sweep has an answer', async () => {
     const view = await render(
-      <GarageBay vehicle={WRX_SWEPT} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX_SWEPT} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('NEXT SERVICE');
@@ -1055,8 +1050,6 @@ describe('the bay’s next-service row', () => {
         vehicle={{ id: 'v-3', year: 2015, make: 'BMW', model: 'M235i', current_mileage: 66000 }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -1079,7 +1072,7 @@ describe('the bay’s next-service row', () => {
       app in either period, which is the argument for pinning it.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('No schedule yet');
@@ -1092,8 +1085,6 @@ describe('the bay’s next-service row', () => {
         vehicle={{ ...WRX_SWEPT, current_mileage: null }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );

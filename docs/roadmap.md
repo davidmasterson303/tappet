@@ -136,6 +136,74 @@
 > phone calls and a row that changes.
 >
 >
+> ### ⚠ 21 Sep 2026, evening — the second walk, and a fifth tab
+>
+> David walked the afternoon's fixes on the phone over the cable. Fixed
+> the same evening, all phone JS — nothing promoted, nothing to promote:
+>
+> - The sticker still would not read close up: the lens will not focus at
+>   the distance a fifth-of-frame band asked for. The band is a third now,
+>   the live frame zooms (`BARCODE_ZOOM = 0.07`) so it fills from arm's
+>   length, and **READ A PHOTO** takes a still and decodes it on the phone
+>   through the same path as a live read (`33b19fa`).
+> - The number pad hid SAVE with no way to dismiss it: an `InputAccessoryView`
+>   Done bar over every numeric field (`611c362`). The tire interval is
+>   still asked, never assumed — but the car's own rotation interval, when
+>   the dossier's schedule carries one, is *offered* as USE 6,000 MI with
+>   its source named; a figure the server verifies against the schedule
+>   is stored as `'vehicle'`, anything typed as `'owner'`, and only the
+>   owner's licenses the push's warranty sentence (§10; `tires.ts`).
+> - The verdict word under the garage dial gets a line its face fits in
+>   (`c2fe4bf`) — the "GOOD" padding David saw on the phone.
+> - **GARAGE tapped from a car went back to the car.** First fix: the tab
+>   lands on the garage (`a0376b1`). David: *"most people may only have one
+>   car"* and want the car's page, not one bay that is the same car drawn
+>   twice; a static fifth tab over a label that changes with the garage's
+>   size — *"better than being too clever with dynamic"*. His order:
+>   **GARAGE · CAR · ADVISOR · SERVICE · PLAN** (`a2ff2ac`). The car's page
+>   is the Car tab's root; a bay or a car just added opens it; deep links
+>   to a car and its recalls seed it. Found while verifying: the tab pressed
+>   on a fresh launch with no car in hand crashed the app (`route.params`
+>   read bare) — it goes through `withCar` now like the other three; the
+>   floating ACCOUNT sat on ADD PHOTO — the page pads by the slot as the
+>   garage does.
+> - *"It's unclear that within scan invoice is ability to upload invoice."*
+>   Service: ADD AN INVOICE over SCAN and UPLOAD; UPLOAD opens the invoice
+>   screen straight into the library (`a2ff2ac`).
+>
+> - *"It's a critical section and it looks disorganized and hard to
+>   follow"* — the car page on the reviewer's F-PACE. The HEALTH cell had
+>   been graded on a stale one-liner and shipped a current reading's whole
+>   summary: six lines, a void beside it, the counts under the fold. The
+>   cell is an instrument again; the sentence's lead is the check-control
+>   line under the panel (`leadOf`, whole sentences); TIRES left its lone
+>   `BandRow` for the panel's third row. Drift §6.19.
+> - *"Run design critic loop over new page until it hits a 9."* Rounds
+>   47–50 on a fixture that can finally show a current reading: 7 → 8 → 8
+>   → **9**, `Continue: no`. The arc in the HEALTH cell (B3), the grade
+>   holding a daylight photo (B9), no chevron on the root (B8), the
+>   bevel's hairline (B2), section heads at the web's 17 (B1), the panel's
+>   floor at 80. The one 🟡 left is the plate's cut at its dark foot —
+>   the plate/sheet seam, for Design. Drift §6.20; `critique-47.md` …
+>   `critique-50.md`.
+> - *"The '1 of 3' needs to be bigger, more obvious … not clear to tap,
+>   swipe."* The garage's batten is a rail above the pager — BAY 01 · BAY
+>   02 · BAY 03 in the tab rail's construction, the lit one where you
+>   stand, each a tap to that bay — with the door CAR › at its end
+>   (`cc9b148`). Seen on the simulator with one car; the three-bay rail
+>   is the reviewer account's to see on the phone.
+> - Found on the way: a PNG from the library is refused at 7.3 MB against
+>   the 1.5 MB limit with copy that says to take one at a lower resolution
+>   — the picker's quality applies to JPEG and a PNG passes through
+>   untouched. The fix is a re-encode in `pick-image.ts`; board.
+>
+> Open from the walk: **multi-page invoices** (page 2 of a Dinan invoice
+> took 28 s; the durable shape is accept → file the row → extract in a
+> background function → narrate the poll); the reviewer account has still
+> never been opened by a person on a phone; the advisor's name is David's
+> call. Not yet re-walked on the device: the sticker at arm's length, READ
+> A PHOTO, the Done bar, the interval offer, the five tabs, SCAN · UPLOAD.
+>
 > ### ⚠ 21 Sep 2026, afternoon — the first device build, and what a real phone found
 >
 > **The device build exists.** `eas build --profile device` run twice today,

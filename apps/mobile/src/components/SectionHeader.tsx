@@ -46,8 +46,13 @@ const styles = StyleSheet.create({
     ⚠ 6 Sep · B1: condensed, not Inter. This was `type.label` — the sans eyebrow
     — and the critique named it in three consecutive rounds as "tracked grey
     sans, neither condensed nor mono". B1 gives section heads the condensed
-    grotesk; see `type.displayLabel` for why that is its own token rather than
-    `displaySection` shrunk.
+    grotesk.
+
+    ⚠ 21 Sep · `displayHead`, not `displayLabel`. The 12pt eyebrow was the
+    condensed face all along, and five critiques read it as a proportional
+    sans anyway — twice at native scale (rounds 46–49). The web's section
+    head is 17px bold condensed; at that size the face registers. Same head
+    on Health, Build and the hub, so the three never drift.
   */
-  title: { ...type.displayLabel, color: text.muted },
+  title: { ...type.displayHead, color: text.muted },
 });

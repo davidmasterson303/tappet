@@ -97,10 +97,10 @@ describe('the tab bar', () => {
     const shown = await render(
       withSafeArea(<TabBar state={tabState(1, { ServiceTab: { vehicleId: 'v1' } })} navigation={helpers().navigation} />)
     );
-    expect(shown.getAllByRole('tab')).toHaveLength(4);
+    expect(shown.getAllByRole('tab')).toHaveLength(5);
   });
 
-  it('offers all four destinations, by name, in the navigator’s order', async () => {
+  it('offers all five destinations, by name, in the navigator’s order', async () => {
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
     );
@@ -113,25 +113,24 @@ describe('the tab bar', () => {
       without anything else going red.
     */
     const tabs = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
-    expect(tabs).toEqual(['Garage', 'Service', 'Plan', 'Advisor']);
+    // 21 Sep: five, in David's order — both the garage and the car persistent.
+    expect(tabs).toEqual(['Garage', 'Car', 'Advisor', 'Service', 'Plan']);
   });
 
-  it('names the first tab for the garage, which is the car now', async () => {
+  it('names the garage and the car as two tabs — both there, neither dynamic (21 Sep)', async () => {
     /*
-      ⚠ Re-pointed 11 Sep. This asserted "Car", not "Garage", on David's 30 Aug
-      reasoning that the tab opened the vehicle rather than the list. The locked
-      brief settles it the other way — *"Garage is the web dossier header
-      re-stacked"* — the garage root **is** the car, plate and dial included, and
-      the tab agrees with its screen the way the critique made Service agree with
-      its own. The traffic argument survives as structure: a tab keeps its own
-      stack, so leaving the car and coming back lands on the car.
+      The 6 Sep brief folded the car into the garage's first tab; on the phone
+      a one-car owner then needed two taps to get back to the car. David:
+      most people have one car and want the car, and a persistent fifth tab
+      is "better than being too clever with dynamic". His order: the garage
+      leads, the car beside it.
     */
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
     );
 
-    expect(view.queryByLabelText('Car')).toBeNull();
-    expect(view.getByLabelText('Garage')).toBeTruthy();
+    const labels = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
+    expect(labels.slice(0, 2)).toEqual(['Garage', 'Car']);
   });
 
   it('announces which one is current, not only tints it', async () => {
@@ -139,7 +138,7 @@ describe('the tab bar', () => {
       withSafeArea(<TabBar state={tabState(3)} navigation={helpers().navigation} />)
     );
 
-    expect(view.getByLabelText('Advisor').props.accessibilityState).toMatchObject({
+    expect(view.getByLabelText('Service').props.accessibilityState).toMatchObject({
       selected: true,
     });
     expect(view.getByLabelText('Garage').props.accessibilityState).toMatchObject({
@@ -218,7 +217,7 @@ describe('the tab bar', () => {
     const { navigation, emit, dispatch } = helpers();
     const view = await render(withSafeArea(<TabBar state={tabState(1)} navigation={navigation} />));
 
-    await userEvent.press(view.getByLabelText('Service'));
+    await userEvent.press(view.getByLabelText('Car'));
 
     expect(emit).toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
