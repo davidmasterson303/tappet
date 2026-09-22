@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import Working from '../components/Working';
-import type { HealthDriver } from '@tappet/core/health-drivers';
+import { holdingBack, type HealthDriver } from '@tappet/core/health-drivers';
 import { buildPosition } from '@tappet/core/build-progress';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { UNKNOWN_TIMING, describeNextService, displayServiceName, localToday, monthsAway } from '@tappet/core/garage-next-service';
@@ -35,7 +35,6 @@ import { NAV_BAND } from '../components/RootScreen';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PhotoGrade from '../components/PhotoGrade';
 import PlateStatusLine from '../components/PlateStatusLine';
-import ProvenanceRow from '../components/ProvenanceRow';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -838,15 +837,15 @@ export function VehicleDetailScreen({
     strip); the plate is the door to setting it (`onOpenProfile`).
   */
   const mileageAge = agoLabel(vehicle.last_mileage_update_date);
-  const stats: Stat[] = [
-    typeof vehicle.current_mileage === 'number'
-      ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ? `set ${mileageAge}` : undefined }
-      : null,
-    vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
-    vehicle.vehicle_status
-      ? { label: 'Use', value: humanise(vehicle.vehicle_status) }
-      : null,
-  ].filter((cell): cell is Stat => cell !== null);
+  const stats: Stat[] = (
+    [
+      typeof vehicle.current_mileage === 'number'
+        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ? `set ${mileageAge}` : undefined, door: true }
+        : null,
+      vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
+      vehicle.vehicle_status ? { label: 'Use', value: humanise(vehicle.vehicle_status) } : null,
+    ] as Array<Stat | null>
+  ).filter((cell): cell is Stat => cell !== null);
 
   /*
     Open recalls, which is not the same number as recalls — `verdict-inputs.ts`
@@ -963,18 +962,20 @@ export function VehicleDetailScreen({
   })();
 
   /*
-    The recall cell's reading: "24 to review" — open campaigns minus what the
-    owner has marked, which is what is left to look at (value V3: *"'open' is
-    not 'unreviewed'"*; UX U4: the verb in the cell). "None open" in the
-    absent ink for a car NHTSA cleared; nothing for a car it was never asked
-    about. Matched on year, make and model, never this VIN (§10), which the
-    spoken name says and the recalls screen carries in full.
+    The recall cell's reading: "24 / open" — open campaigns minus what the
+    owner has marked. Round 2 said "to review" and the IA lens read an inbox
+    that empties once looked at; open recalls do not close by being read, so
+    the block's one word is "open", in the cell, in the cause line, and
+    nowhere a third way (IA I5, UX U5). "None open" in the absent ink for a
+    car NHTSA cleared; nothing for a car it was never asked about. Matched
+    on year, make and model, never this VIN (§10): the cause line says "for
+    this model", the spoken name says it, the recalls screen carries it.
   */
   const recallReading = !recallsChecked
     ? null
     : openRecallCount === 0
       ? { text: 'None open', muted: true }
-      : { text: `${openRecallCount} to review`, muted: false };
+      : { text: `${openRecallCount} open`, muted: false };
   const recallsSpoken = !recallsChecked
     ? 'Recalls, not checked yet. Opens the account of the score.'
     : openRecallCount === 0
@@ -993,15 +994,26 @@ export function VehicleDetailScreen({
   const primaryAct = { label: 'Scan invoice', onPress: onScanInvoice, spoken: 'Scan an invoice into this car\'s history' };
 
   /*
-    The weakest driver's own line — the cause beside the verdict. The lowest
-    scored driver, and only when something is outstanding: a driver at 100
-    has nothing to say, and a driver at `null` could not judge.
+    The cause beside the verdict, as a reason with its act (UX U2, value V4,
+    round 3): "Held back by 2 services overdue, 1 due now — see what is due."
+    Core picks the driver (`holdingBack`: an unjudged history before any
+    scored one) and words the reason in its own counts; recalls take the
+    hub's own open count — open minus what the owner has marked, matched to
+    the model — so one number means one thing on one screen (IA I5, UX U5).
+    Nothing holding the score back, nothing said.
   */
   const cause = (() => {
-    const scored = drivers.filter((d): d is HealthDriver & { score: number } => typeof d.score === 'number');
-    if (scored.length === 0) return null;
-    const weakest = scored.reduce((low, d) => (d.score < low.score ? d : low));
-    return weakest.score < 100 && !weakest.nothingOutstanding ? weakest.detail : null;
+    const driver = holdingBack(drivers);
+    if (!driver) return null;
+    const reason =
+      driver.key === 'recalls'
+        ? openRecallCount > 0
+          ? `${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model`
+          : null
+        : driver.cause ?? null;
+    if (!reason) return null;
+    const act = driver.key === 'recalls' ? 'review them' : driver.act;
+    return `Held back by ${reason}${act ? ` — ${act}` : ''}.`;
   })();
 
   /* The reading's sentence, beside the dial: a current reading's lead, whole sentences. See `leadOf`. */
@@ -1031,7 +1043,7 @@ export function VehicleDetailScreen({
     return basis ? `${miles} ${basis.replace(/^Miles /, '').toLowerCase()}` : miles;
   })();
   const tiresSpoken = (() => {
-    if (!counts.tires || counts.tires.absent) return 'Tires. No set on record — add one to track rotations.';
+    if (!counts.tires || counts.tires.absent) return 'Tires. No set on record — add one to count down to each rotation.';
     if (counts.tires.since === null) return 'Tires.';
     if (tiresReading) return `Tires, ${tiresReading}.`;
     return 'Tires.';
@@ -1099,8 +1111,14 @@ export function VehicleDetailScreen({
         vehicle.performance_mindedness && vehicle.performance_mindedness in MINDEDNESS_LABELS
           ? MINDEDNESS_LABELS[vehicle.performance_mindedness as Mindedness]
           : null,
+      buys: 'Turns the build side on or off',
     },
-    { label: 'Ownership', value: objective ? leadPhrase(objective) : null, spoken: objective ?? undefined },
+    {
+      label: 'Ownership',
+      value: objective ? leadPhrase(objective) : null,
+      spoken: objective ?? undefined,
+      buys: 'Tunes the advice to what you want from it',
+    },
   ];
 
   /*
@@ -1459,7 +1477,7 @@ export function VehicleDetailScreen({
                 onPress={onOpenHealth}
                 accessibilityLabel={
                   score !== null && band
-                    ? `Health score ${score} out of 100 — ${band.label}.${lead ? ` ${lead}` : ''} Opens what is driving it.`
+                    ? `Health score ${score} out of 100 — ${band.label}.${cause ? ` ${cause}` : lead ? ` ${lead}` : ''} Opens what is driving it.`
                     : 'Health, no score yet. Opens what is driving it.'
                 }
               >
@@ -1475,24 +1493,26 @@ export function VehicleDetailScreen({
                     </View>
                     <View style={styles.healthText}>
                       {/*
-                        ── 22 Sep · the cause, then the prose ───────────────
+                        ── 22 Sep · the cause, and the prose behind the door ─
 
                         Round 2's value lens: *"the sentence beside the score
                         does not account for the score … lead the panel with
-                        one composed line — cause — and let the model's prose
-                        follow."* The cause is the weakest driver's own line
-                        (`health_drivers`, the same words the Health screen's
-                        WHAT IS DRIVING IT prints): "2 services overdue, 1 due
-                        now, across 12 tracked services." Its action is the
-                        page's — the slot's SCAN INVOICE, the △ RECALLS cell.
-                        Never "costing N points": the drivers sit under the
-                        score without summing to it (§10).
+                        one composed line — cause."* Round 3, all three: the
+                        model's paragraph restated the counts in forty words
+                        and pushed TIRES under the fold; the basis line told
+                        the two numbers a third time. So the cell says the
+                        cause as a reason with its act — core's `holdingBack`
+                        in the driver's own counts, the same words the Health
+                        screen's WHAT IS DRIVING IT prints — and the stale
+                        caveat when the records have overtaken the reading.
+                        The model's sentence and the basis line are HEALTH's,
+                        one tap through this door. Never "costing N points":
+                        the drivers sit under the score without summing to it
+                        (§10).
                       */}
                       {cause ? <Text style={styles.cause}>{cause}</Text> : null}
                       {verdict.short ? <Text style={styles.summary}>{verdict.short}</Text> : null}
-                      {lead ? <Text style={styles.summary}>{lead}</Text> : null}
-                      {/* What the reading was worked out from — its basis, with it (value V1). */}
-                      <ProvenanceRow kinds={verdict.inputs} />
+                      {!cause && !verdict.short && lead ? <Text style={styles.summary}>{lead}</Text> : null}
                     </View>
                   </View>
                 ) : (
@@ -1561,7 +1581,7 @@ export function VehicleDetailScreen({
                     <>
                       {/* The numeral, and its verb beneath at the timing's size: "24 to review" is two lines in a third of the row. */}
                       <Text style={styles.count} numberOfLines={1}>{openRecallCount}</Text>
-                      <Text style={styles.countWord} numberOfLines={1}>to review</Text>
+                      <Text style={styles.countWord} numberOfLines={1}>open</Text>
                     </>
                   )
                 ) : null}
@@ -1574,7 +1594,7 @@ export function VehicleDetailScreen({
               >
                 {historyCount ? (
                   historyCount === '0' ? (
-                    <Text style={styles.absent}>Add a record</Text>
+                    <Text style={styles.absent}>No records yet</Text>
                   ) : (
                     <>
                       <Text style={styles.count} numberOfLines={1}>{historyCount}</Text>
@@ -1590,15 +1610,17 @@ export function VehicleDetailScreen({
                 accessibilityLabel={wishlistCount ? `Plan, ${wishlistCount}.` : 'Plan.'}
               >
                 {/*
-                  A zero the screen read is the act, not a dimmed 0 (IA I5,
-                  UX U4): round 2 had "Nothing yet", and the UX lens read four
-                  "yet"s as *"cells that report an absence and leave the owner
-                  to guess that the door adds"*. "Plan work" is what the door
-                  does, in the absent ink.
+                  A zero the screen read is a sentence, never a dimmed 0. Round
+                  2 said "Nothing yet" (the UX lens: an absence that leaves the
+                  owner to guess), round 3 said "Plan work" (the IA lens: a
+                  command sitting on the PLAN tab — the ASK THE ADVISOR
+                  pattern). PLAN is a tab, so its cell reports: "Nothing
+                  planned yet", and the chevron invites. TIRES has no tab, so
+                  its cell may say what adding a set gets you.
                 */}
                 {wishlistCount ? (
                   wishlistCount === '0' ? (
-                    <Text style={styles.absent}>Plan work</Text>
+                    <Text style={styles.absent}>Nothing planned yet</Text>
                   ) : (
                     <Text style={styles.count} numberOfLines={2}>
                       {wishlistCount}
@@ -1643,7 +1665,7 @@ export function VehicleDetailScreen({
                     {tiresReading}
                   </Text>
                 ) : counts.tires?.absent ? (
-                  <Text style={styles.absent}>Add a tire set</Text>
+                  <Text style={styles.absent}>Add a tire set to count down to each rotation</Text>
                 ) : null}
               </BinnacleCell>
             </BinnacleRow>

@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import Text, { typeScale } from './Text';
+import Icon from './Icon';
 
 import { TABULAR, border, space, text, type } from '../theme';
 
@@ -43,6 +44,12 @@ export type Stat = {
    * cell is a third of the strip.
    */
   note?: string;
+  /**
+   * The note wears the door's mark — a hairline chevron — where the cell is
+   * one (22 Sep: the plate opens the car's details, and the odometer is the
+   * fact that goes stale monthly; UX U6). The press is the caller's.
+   */
+  door?: boolean;
 };
 
 export default function StatStrip({ stats }: { stats: Stat[] }) {
@@ -60,9 +67,12 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
             {stat.value}
           </Text>
           {stat.note ? (
-            <Text style={styles.note} numberOfLines={1}>
-              {stat.note}
-            </Text>
+            <View style={styles.noteRow}>
+              <Text style={styles.note} numberOfLines={1}>
+                {stat.note}
+              </Text>
+              {stat.door ? <Icon name="chevron-right" size={12} color={text.muted} /> : null}
+            </View>
           ) : null}
         </View>
       ))}
@@ -106,6 +116,7 @@ const styles = StyleSheet.create({
   */
   label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
   value: { ...type.mono, color: text.primary, ...TABULAR },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */
-  note: { ...type.monoLabel, color: text.muted, ...TABULAR },
+  note: { ...type.monoLabel, color: text.muted, ...TABULAR, flexShrink: 1 },
 });

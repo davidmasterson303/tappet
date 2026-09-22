@@ -335,12 +335,13 @@ describe('the counts on the binnacle', () => {
       not a count at all. The claim is about the count cells.
     */
     /*
-      22 Sep: a zero the screen read is the act in the legend's ink — the
-      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Plan work" is what
-      the door does; never a dimmed 0.
+      22 Sep: a zero the screen read is a sentence in the legend's ink — the
+      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Nothing planned yet"
+      reports the state (PLAN is a tab; its cell may not command); never a
+      dimmed 0.
     */
     const plan = await view.findByLabelText('Plan, 0.');
-    const empty = within(plan).getByText('Plan work');
+    const empty = within(plan).getByText('Nothing planned yet');
     expect(readoutColor(empty)).toBe(text.muted);
     expect(within(plan).queryByText('0')).toBeNull();
 
@@ -348,10 +349,10 @@ describe('the counts on the binnacle', () => {
     const history = view.getByLabelText(/^History, 1 /);
     expect(readoutColor(within(history).getByText('1'))).toBe(text.primary);
     expect(within(history).getByText('record')).toBeTruthy();
-    // And the recall count carries its verb beneath: "2 / to review", not a bare 2 (UX U5, value V3).
+    // And the recall count carries its word beneath: "2 / open" — one word for the block (IA I5, UX U5).
     const recalls = view.getByLabelText(/^View 2 open recalls/);
     expect(readoutColor(within(recalls).getByText('2'))).toBe(text.primary);
-    expect(within(recalls).getByText('to review')).toBeTruthy();
+    expect(within(recalls).getByText('open')).toBeTruthy();
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -384,7 +385,7 @@ describe('the counts on the binnacle', () => {
     // Nothing in the cell — not a 0, not a dash. (Within the cell since 21 Sep:
     // the HEALTH dial's sweep passes through 0 on appear.)
     expect(within(plan).queryByText(/^\d+$/)).toBeNull();
-    expect(within(plan).queryByText('Plan work')).toBeNull();
+    expect(within(plan).queryByText('Nothing planned yet')).toBeNull();
     expect(within(view.getByLabelText(/^History, 1 /)).getByText('1')).toBeTruthy();
   });
 });
@@ -967,10 +968,16 @@ describe('the health verdict, against what the screen is holding', () => {
       counts row says the same two numbers directly above it, so the line is
       the Health screen's now and the cells carry the facts here.
     */
-    // 22 Sep: back with the sentence, inside the HEALTH cell — the value lens's
-    // V1 ("HEALTH says what it read"); the cell is the reading and its basis.
-    const cell = view.getByRole('button', { name: /^Health score 70/ });
-    within(cell).getByText(/Based on 5 recorded services · 2 open recalls/);
+    /*
+      22 Sep, round 3 of the lenses: the basis line told the two numbers a
+      third time — the HISTORY and RECALLS cells are directly beneath it —
+      and it is the Health screen's now, where provenance is the point. What
+      the hub keeps: the two cells, and the door.
+    */
+    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
+    await view.findByLabelText(/^History, 5 recorded services\./);
+    await view.findByLabelText(/^View 2 open recalls/);
+    view.getByRole('button', { name: /^Health score 70/ });
   });
 
   it('leaves a current reading alone', async () => {
@@ -1103,8 +1110,8 @@ describe('the tires cell', () => {
   it('says there is no set yet, in the absent ink, and never a 0', async () => {
     serveTires({ set: null, rotations: [] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires\. No set on record — add one to track rotations\. Opens the set\.$/);
-    const absent = await view.findByText('Add a tire set');
+    await view.findByLabelText(/^Tires\. No set on record — add one to count down to each rotation\. Opens the set\.$/);
+    const absent = await view.findByText('Add a tire set to count down to each rotation');
     expect(readoutColor(absent)).toBe(text.muted);
     expect(view.queryByText(/^0 mi/)).toBeNull();
   });
@@ -1114,7 +1121,7 @@ describe('the tires cell', () => {
     serveTires({ set: { ...SET, install_odometer: null }, rotations: [] });
     const { view } = await mount();
     await view.findByLabelText(/^Tires\. Opens the set\.$/);
-    expect(view.queryByText('Add a tire set')).toBeNull();
+    expect(view.queryByText(/Add a tire set/)).toBeNull();
     expect(view.queryByText(/mi since|rotation in/)).toBeNull();
   });
 
@@ -1460,6 +1467,46 @@ describe('the hub under three lenses (22 Sep)', () => {
     await view.findByText('set 3 wk ago');
     await user.press(view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/));
     expect(props.onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what holds the score back, as a reason with its act, in the block\'s one word for recalls', async () => {
+    /*
+      Round 3 of the lenses: "24 recalls on record." beside 88 GOOD read as a
+      fact with a full stop, not a reason, and the same 24 was told three
+      ways on one screen. The cause is a sentence — "Held back by … — act." —
+      and recalls are "open", in the hub's own count, for this model.
+    */
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1', year: 2018, make: 'Honda', model: 'Accord', current_mileage: 94_800,
+          vehicle_health_summary: { health_score: 88, summary: 'Excellent history.', last_generated: '2026-09-20T00:00:00Z' },
+          nhtsa_data: { recalls: [
+            { NHTSACampaignNumber: '23V-441', Component: 'FUEL SYSTEM', Summary: 'Pump may fail.' },
+            { NHTSACampaignNumber: '21V-100', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' },
+          ] },
+          recall_actions: [{ campaign_number: '21V-100', action: 'repaired' }],
+        },
+        health_drivers: [
+          { key: 'maintenance', label: 'Maintenance', score: 96, detail: 'Nothing overdue, across 8 tracked services.', nothingOutstanding: true },
+          { key: 'recalls', label: 'Recalls', score: 70, detail: '2 recalls on record.', cause: '2 recalls for this model', act: 'review them' },
+          { key: 'mileage-load', label: 'Mileage load', score: 90, detail: 'About 11,000 miles a year over 8 years, against a 12,000 average.' },
+        ],
+      }) as never;
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    // The hub's own count — one open, one marked — never the driver's "on record".
+    await view.findByText('Held back by 1 open recall for this model — review them.');
+    expect(view.queryByText(/on record/)).toBeNull();
+    // The model's prose is HEALTH's, one tap away: not on the hub beside a cause.
+    expect(view.queryByText('Excellent history.')).toBeNull();
+    // And the cell's word is the same word.
+    const recalls = view.getByLabelText(/^View 1 open recall/);
+    expect(within(recalls).getByText('open')).toBeTruthy();
   });
 
   it('carries no advisor button and no account word of its own', async () => {

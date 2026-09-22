@@ -78,6 +78,42 @@ export interface HealthDriver {
    * `score >= 80` would be inventing the precision this file exists to refuse.
    */
   nothingOutstanding?: boolean;
+  /**
+   * The driver as a reason, for the hub's one line beside the verdict
+   * (22 Sep): a phrase that follows "Held back by" — "2 services overdue,
+   * 1 due now", "too few records to judge", "mileage well above average".
+   * Absent where there is nothing to hold the score back, or nothing the
+   * phrase could honestly say.
+   */
+  cause?: string;
+  /**
+   * The act the cause points at, in the page's own words — "scan an
+   * invoice", "see what is due". Absent where there is nothing the owner
+   * can do about it (a car driven hard is a fact, not a chore).
+   */
+  act?: string;
+}
+
+/**
+ * The driver to name beside the verdict — the one holding the score back.
+ *
+ * ── 22 Sep · the hub lenses' cause line ─────────────────────────────────────
+ *
+ * The lowest scored driver, unless the maintenance driver could not judge at
+ * all: a `null` there means the records are too few to score, which is the
+ * cause of a low reading more often than any scored driver is — the F-PACE
+ * at 55 with one record named "4 recalls on record" while its own summary
+ * said sparse history, and the IA lens asked for the weights to be checked.
+ * `null` where nothing holds the score back: a driver at 100, or one that
+ * found nothing outstanding, has no cause to give.
+ */
+export function holdingBack(drivers: readonly HealthDriver[]): HealthDriver | null {
+  const unjudged = drivers.find((d) => d.key === 'maintenance' && d.score === null && d.cause);
+  if (unjudged) return unjudged;
+  const scored = drivers.filter((d): d is HealthDriver & { score: number } => typeof d.score === 'number');
+  if (scored.length === 0) return null;
+  const weakest = scored.reduce((low, d) => (d.score < low.score ? d : low));
+  return weakest.score < 100 && !weakest.nothingOutstanding && weakest.cause ? weakest : null;
 }
 
 /* ── Maintenance ─────────────────────────────────────────────────────────── */
@@ -173,6 +209,8 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
       label,
       score: null,
       detail: `No service records yet for any of ${plural(services.length, 'tracked service')}.`,
+      cause: 'no service records to judge from',
+      act: 'scan an invoice',
     };
   }
 
@@ -210,12 +248,15 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
   }
 
   let detail = `${parts.join(', ')}, across ${plural(services.length, 'tracked service')}.`;
+  /* The reason, in the same counts: "2 services overdue, 1 due now". */
+  const cause = parts.join(', ');
+  const act = 'see what is due';
   if (unknown > 0) {
     // Stated, never absorbed into the score. See STATUS_PENALTY.
     detail += ` ${plural(unknown, 'service')} with no record to count from.`;
   }
 
-  return { key: 'maintenance', label, score: clamp(100 - penalty), detail };
+  return { key: 'maintenance', label, score: clamp(100 - penalty), detail, cause, act };
 }
 
 /* ── Recalls ─────────────────────────────────────────────────────────────── */
@@ -290,8 +331,15 @@ export function recallDriver(raw: unknown): HealthDriver {
   let detail = `${plural(recalls.length, 'recall')} on record.`;
   if (worst === 'do-not-drive') detail += ' One is a do-not-drive.';
   else if (worst === 'park-outside') detail += ' One says park outside.';
+  /*
+    The reason: campaigns for this model, never this VIN (§10). The hub
+    prints its own open count in place of this phrase — open minus what the
+    owner has marked — so one number means one thing on one screen.
+  */
+  const cause = `${plural(recalls.length, 'recall')} for this model`;
+  const act = 'review them';
 
-  return { key: 'recalls', label, score, detail };
+  return { key: 'recalls', label, score, detail, cause, act };
 }
 
 /* ── Mileage load ────────────────────────────────────────────────────────── */
@@ -358,6 +406,8 @@ export function mileageLoadDriver(params: {
     label,
     score,
     detail: `About ${perYear.toLocaleString('en-US')} miles a year over ${plural(age, 'year')}, against a ${AVERAGE_MILES_PER_YEAR.toLocaleString('en-US')} average.`,
+    /* A reason only where the load is the load: a car driven above the average, and nothing to do about it. */
+    cause: currentMileage > expected ? `mileage above average, about ${perYear.toLocaleString('en-US')} a year` : undefined,
   };
 }
 
