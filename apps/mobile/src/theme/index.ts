@@ -351,35 +351,6 @@ export const bay = {
 } as const;
 
 /**
- * ── The house grade ─────────────────────────────────────────────────────────
- *
- * What `PhotoGrade` lays over an owner's photograph, layer by layer — B9's
- * *"owner photos pass through the house grade (lifted blacks, sodium/cyan
- * split tone, grain)"*. The split tone's ends are `status.attention` and
- * `brand.accent`, the same sodium and cyan as everything else; these are the
- * values between them that have no other name. Colour, not opacity: the
- * blend modes and strengths live with the layers.
- */
-export const grade = {
-  /** Screened over the photograph — raises the blacks a few percent, nothing above. */
-  lift: '#12151A',
-  /** The split tone's midpoint, where sodium hands over to cyan. */
-  splitMid: '#8A7A6A',
-  /** The vignette's clear centre, multiplied — leaves the car exactly as it was. */
-  vignetteClear: '#FFFFFF',
-  /** The vignette's edge, multiplied — the corners fall off toward the page. */
-  vignetteEdge: '#3A3A3A',
-  /**
-   * The highlight pull, multiplied over the whole frame (21 Sep). A warm
-   * mid-grey: a white sky lands near 165 of 255 under it at the layer's
-   * opacity, a mid-grey car keeps three-quarters of its light. Round 47's
-   * critic on the daylight photograph: *"the sky blows to a milky haze …
-   * the plate should read as the same night system whichever car is on it."*
-   */
-  pull: '#7A766F',
-} as const;
-
-/**
  * ── The vehicle hero ────────────────────────────────────────────────────────
  *
  * The pinned photograph on the vehicle screen, and the two layers that make

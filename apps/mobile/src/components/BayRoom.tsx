@@ -10,7 +10,6 @@ import Svg, {
 
 import CutSurface from './CutSurface';
 import NightPlate from './NightPlate';
-import PhotoGrade from './PhotoGrade';
 
 import { bay, cut, surface } from '../theme';
 
@@ -139,14 +138,11 @@ const BLUR_OVERSCAN = 1.16;
 
 export default function BayRoom({
   photo,
-  photoKind,
   make,
   busy = false,
   height = BAY_HERO_MAX,
 }: {
   photo?: string | null;
-  /** Which kind of picture `photo` is; only the owner's is graded (13 Sep). Absent = the owner's, as before the plates. */
-  photoKind?: 'owner' | 'catalog' | 'plate' | null;
   make?: string | null;
   /** Omitted means no control — see `VehiclePlate` for why that is not a failure. */
   busy?: boolean;
@@ -255,11 +251,15 @@ export default function BayRoom({
             accessibilityLabel={make ? `${make} photo` : 'Vehicle photo'}
           />
           {/*
-            B9: the owner's photograph passes through the house grade — and
-            only the owner's. A plate is already the film; grading it again
-            lifts its blacks twice (13 Sep, the hub loop).
+            ⚠ No grade over the owner's photograph since 22 Sep. B9's house
+            grade — lifted blacks, split tone, a highlight pull, grain — made
+            a daylight snapshot of David's own car read as grey mud; shown
+            it on this bay he ruled: *"let owners add their images if they
+            prefer to our plate."* The plate is the film; a photograph is
+            theirs, as shot. The room no longer asks which kind of picture it
+            holds; `photo_kind` still travels on the row for THIS CAR, which
+            reads it to know whether there is a photograph to remove.
           */}
-          {photoKind === undefined || photoKind === null || photoKind === 'owner' ? <PhotoGrade /> : null}
         </>
       ) : (
         <NightPlate />

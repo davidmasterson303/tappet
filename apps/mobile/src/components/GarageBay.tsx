@@ -300,7 +300,6 @@ export default function GarageBay({
         <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
-            photoKind={vehicle.photo_kind}
             make={vehicle.make}
             busy={uploading}
             height={heroHeight}
