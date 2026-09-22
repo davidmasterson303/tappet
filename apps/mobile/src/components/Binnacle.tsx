@@ -116,8 +116,18 @@ export function BinnacleCell({
   );
 }
 
-/** A gauge's floor — room for a value, its legend, and a thumb. */
-export const BINNACLE_CELL_MIN = 96;
+/**
+ * A gauge's floor — room for a value, its legend, and a thumb.
+ *
+ * ⚠ 80, from 96 (21 Sep, round 49's cut). At 96 a count row ran with its
+ * value and legend in the bottom 40pt and 28pt of air over them, twice —
+ * the void the first row keeps so its two gauges' footers align, borrowed
+ * by rows with nothing to align — and it kept the sentence under the panel
+ * and both acts below the fold. 80 clears a 20pt value, a 20pt legend, the
+ * padding and the thumb (`TARGET_MIN` 44), and gives the fold 32pt back.
+ * Round 45 had refused a cut to 68: that one put the primary on the fold.
+ */
+export const BINNACLE_CELL_MIN = 80;
 
 const styles = StyleSheet.create({
   /* No top rule: the sheet's own leading edge is the rule above the first row. */

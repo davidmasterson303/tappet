@@ -682,6 +682,29 @@ export const type = {
     letterSpacing: 0.6,
     textTransform: 'uppercase' as const,
   },
+  /**
+   * A section head — the web's `.display-instrument-narrow text-[17px]
+   * uppercase tracking-wide`, transposed (21 Sep).
+   *
+   * ── ⚠ Why this exists beside `displayLabel` ─────────────────────────────
+   *
+   * Section heads were the 12pt eyebrow, and five critiques across three
+   * surfaces read it as "a plain proportional sans" — twice at native scale.
+   * The web had the same four-critique history and answered it with width
+   * and size (`globals.css`, dossier B1: 72% at 17px). The phone has no
+   * `wdth` axis to turn, so it has size and weight: at 12pt semibold,
+   * Archivo Narrow's condensation does not register; at 17 bold it does.
+   * `displayLabel` stays the eyebrow for an overline over a value; a head
+   * that names a block of rows is this.
+   */
+  displayHead: {
+    fontFamily: displayFace('700'),
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700' as const,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
+  },
   /** A section inside a screen. The step below `display`, one weight lighter. */
   displaySection: {
     fontFamily: displayFace('600'),
