@@ -1067,8 +1067,6 @@ function CarStack({ onSignOut }: Session) {
                   title: route.params?.title,
                 })
               }
-              // The same seam as the garage's. See `pick-image.ts`.
-              pickPhoto={() => pickVehiclePhoto('library')}
             />
           ))
         }
@@ -1242,6 +1240,8 @@ function CarStack({ onSignOut }: Session) {
                 title: route.params.title,
               })
             }
+            // The same seam as the garage's. See `pick-image.ts`. Here since 22 Sep, off the hub.
+            pickPhoto={() => pickVehiclePhoto('library')}
           />
         )}
       </Stack.Screen>

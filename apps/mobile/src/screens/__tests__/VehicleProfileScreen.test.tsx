@@ -1,4 +1,5 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import * as RN from 'react-native';
 
 import { VehicleProfileScreen } from '../VehicleProfileScreen';
 import { apiRequest } from '../../api/client';
@@ -122,5 +123,103 @@ describe('removing the car', () => {
     const { view } = await mount();
     await (await view).findByLabelText(/^Odometer/);
     expect((await view).queryByText('Remove this car')).toBeNull();
+  });
+});
+
+/**
+ * ── The photograph's acts, here since 22 Sep ────────────────────────────────
+ *
+ * They lived on the hub — one control in the nav over the plate, a sheet
+ * holding Remove, an optimistic plate with its revert. Off the hub (the
+ * lenses' cut, twice) they are two plain buttons on the car's details: add
+ * or change, and remove where there is an owner's photograph to remove.
+ * Pinned: a dismissed picker is not an error; a pick uploads through
+ * `POST /upload-photo` and reloads; Remove asks first in words that say what
+ * the car will show, then deletes and reloads; a refusal is a banner and the
+ * screen stays; a car on its plate offers no Remove.
+ */
+describe('the photograph', () => {
+  const PHOTO = 'https://signed.test/car.jpg';
+
+  function serve(vehicle: Record<string, unknown>, onWrite: (init?: { method?: string }) => Promise<unknown> = () => Promise.resolve({ success: true })) {
+    request.mockImplementation((path: string, init?: { method?: string }) => {
+      if (path.startsWith('/upload-photo')) return onWrite(init) as never;
+      if (path.startsWith('/load-vehicle')) return Promise.resolve({ vehicle: { ...VEHICLE.vehicle, ...vehicle } }) as never;
+      return Promise.resolve({ success: true }) as never;
+    });
+  }
+  const loads = () => request.mock.calls.filter(([p]) => String(p).startsWith('/load-vehicle')).length;
+
+  it('offers Add photo on a plate, and nothing to remove', async () => {
+    serve({ photo_url: PHOTO, photo_kind: 'plate' });
+    const { view } = await mount({ pickPhoto: jest.fn() });
+    await (await view).findByText('The car stands on its plate.');
+    expect((await view).getByLabelText('Add photo')).toBeTruthy();
+    expect((await view).queryByLabelText(/Remove photo/)).toBeNull();
+  });
+
+  it('a dismissed picker is not an error', async () => {
+    const user = userEvent.setup();
+    const pickPhoto = jest.fn().mockResolvedValue(null);
+    serve({ photo_url: PHOTO, photo_kind: 'plate' });
+    const { view } = await mount({ pickPhoto });
+    await user.press(await (await view).findByLabelText('Add photo'));
+    expect(pickPhoto).toHaveBeenCalledTimes(1);
+    expect((await view).queryByText(/was not saved/)).toBeNull();
+    expect(request.mock.calls.some(([p]) => String(p).startsWith('/upload-photo'))).toBe(false);
+  });
+
+  it('uploads the pick and asks the API what stands on the car', async () => {
+    const user = userEvent.setup();
+    const pickPhoto = jest.fn().mockResolvedValue({ uri: 'file:///tmp/car.jpg', name: 'car.jpg', type: 'image/jpeg' });
+    serve({ photo_url: PHOTO, photo_kind: 'plate' });
+    const { view } = await mount({ pickPhoto });
+    const add = await (await view).findByLabelText('Add photo');
+    const before = loads();
+    await user.press(add);
+
+    await waitFor(() => expect(loads()).toBe(before + 1));
+    expect(request.mock.calls.some(([p, init]) => String(p).startsWith('/upload-photo') && (init as { method?: string } | undefined)?.method === 'POST')).toBe(true);
+  });
+
+  it('asks once, in words that say what the car will show, then removes and reloads', async () => {
+    const user = userEvent.setup();
+    const alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
+    serve({ photo_url: PHOTO, photo_kind: 'owner' });
+    const { view } = await mount({ pickPhoto: jest.fn() });
+    await (await view).findByText('Your photograph is on the car.');
+    const before = loads();
+
+    await user.press((await view).getByLabelText('Remove photo. Asks first.'));
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0][0]).toBe('Remove this photo?');
+    expect(alert.mock.calls[0][1]).toBe('The car will stand on its plate.');
+    // Nothing sent until the confirm.
+    expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(false);
+
+    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
+    await act(async () => buttons.find((b) => b.text === 'Remove')?.onPress?.());
+
+    await waitFor(() => expect(loads()).toBe(before + 1));
+    expect(request.mock.calls.some(([p, init]) => String(p).startsWith('/upload-photo') && (init as { method?: string } | undefined)?.method === 'DELETE')).toBe(true);
+    alert.mockRestore();
+  });
+
+  it('says so and keeps the screen when the removal fails', async () => {
+    const user = userEvent.setup();
+    const alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
+    serve({ photo_url: PHOTO, photo_kind: 'owner' }, (init) =>
+      init?.method === 'DELETE' ? Promise.reject(new Error('Storage refused it')) : Promise.resolve({ success: true })
+    );
+    const { view } = await mount({ pickPhoto: jest.fn() });
+    await user.press(await (await view).findByLabelText('Remove photo. Asks first.'));
+    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
+    await act(async () => buttons.find((b) => b.text === 'Remove')?.onPress?.());
+
+    await (await view).findByText('That photo was not removed');
+    await (await view).findByText('Storage refused it');
+    // Still the owner's photograph, still a Remove to try again.
+    expect((await view).getByLabelText('Remove photo. Asks first.')).toBeTruthy();
+    alert.mockRestore();
   });
 });

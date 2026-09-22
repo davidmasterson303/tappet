@@ -335,19 +335,19 @@ describe('the counts on the binnacle', () => {
       not a count at all. The claim is about the count cells.
     */
     /*
-      22 Sep: a zero the screen read is a sentence in the legend's ink — the
-      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Nothing yet" says
-      the list is empty the way TIRES says "No set yet"; never a dimmed 0.
+      22 Sep: a zero the screen read is the act in the legend's ink — the
+      hub lenses' "zeros are dead ends" (UX U4, IA I5). "Plan work" is what
+      the door does; never a dimmed 0.
     */
     const plan = await view.findByLabelText('Plan, 0.');
-    const empty = within(plan).getByText('Nothing yet');
+    const empty = within(plan).getByText('Plan work');
     expect(readoutColor(empty)).toBe(text.muted);
     expect(within(plan).queryByText('0')).toBeNull();
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
-    expect(readoutColor(within(view.getByLabelText(/^History, 1 /)).getByText('1'))).toBe(text.primary);
-    // And the recall count carries its verdict: "2 open", not a bare 2 (UX U5, value V3).
-    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2 open'))).toBe(text.primary);
+    expect(readoutColor(within(view.getByLabelText(/^History, 1 /)).getByText('1 record'))).toBe(text.primary);
+    // And the recall count carries its verb: "2 to review", not a bare 2 (UX U5, value V3).
+    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2 to review'))).toBe(text.primary);
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -380,7 +380,8 @@ describe('the counts on the binnacle', () => {
     // Nothing in the cell — not a 0, not a dash. (Within the cell since 21 Sep:
     // the HEALTH dial's sweep passes through 0 on appear.)
     expect(within(plan).queryByText(/^\d+$/)).toBeNull();
-    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1')).toBeTruthy();
+    expect(within(plan).queryByText('Plan work')).toBeNull();
+    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1 record')).toBeTruthy();
   });
 });
 
@@ -527,15 +528,14 @@ describe('what this screen leads to stays reachable', () => {
     */
     /*
       ⚠ And again on 22 Sep, when the hub's three lenses reshaped the sheet:
-      the act is the prime slot over the plate (SCAN INVOICE, or REVIEW
-      RECALLS when there are open ones — this fixture has two), ASK THE
-      ADVISOR is gone (the ADVISOR tab is beneath), and the panel reads
+      the act is the prime slot over the plate (SCAN INVOICE, always), ASK
+      THE ADVISOR is gone (the ADVISOR tab is beneath), and the panel reads
       verdict → next service → the counts → tires → the answers.
     */
     expect(at('Next service')).toBeGreaterThan(-1);
     expect(at('Ask the advisor')).toBe(-1);
-    expect(at('Scan invoice')).toBe(-1);
-    expect(at('Review recalls')).toBeGreaterThan(-1);
+    expect(at('Review recalls')).toBe(-1);
+    expect(at('Scan invoice')).toBeGreaterThan(-1);
 
     // The act is in the nav layer, drawn after the sheet in render order but
     // over the plate on screen — reachable at rest, no scroll; the tree's
@@ -547,20 +547,21 @@ describe('what this screen leads to stays reachable', () => {
     expect(at('Tires')).toBeLessThan(at('What you told us'));
   });
 
-  it('chooses the act by state: open recalls to review, else an invoice to scan (22 Sep)', async () => {
+  it('keeps the record act in the slot whatever the recalls say (22 Sep, round 2)', async () => {
+    /*
+      Round 2 had REVIEW RECALLS take the slot while any campaign was
+      unreviewed — two lenses read it as a second entrance to the RECALLS
+      cell that evicts the act the page exists for, on a 2003 Accord
+      forever. The △ cell is the recall prompt; the slot is the scan.
+    */
     const user = userEvent.setup();
     respond();
-    const withRecalls = await mount();
-    await withRecalls.view.findAllByText(/2018 Honda Accord/);
-    await user.press(withRecalls.view.getByLabelText(/^Review 2 open recalls/));
-    expect(withRecalls.props.onViewRecalls).toHaveBeenCalledTimes(1);
-    expect(withRecalls.props.onScanInvoice).not.toHaveBeenCalled();
-
-    respond({ nhtsa_data: { recalls: [] } });
-    const clean = await mount();
-    await clean.view.findAllByText(/2018 Honda Accord/);
-    await user.press(clean.view.getByLabelText(/^Scan an invoice/));
-    expect(clean.props.onScanInvoice).toHaveBeenCalledTimes(1);
+    const { props, view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+    expect(view.queryByText(/Review recalls/)).toBeNull();
+    await user.press(view.getByLabelText(/^Scan an invoice/));
+    expect(props.onScanInvoice).toHaveBeenCalledTimes(1);
+    expect(props.onViewRecalls).not.toHaveBeenCalled();
   });
 
   it('shows the score once, and never over the car', async () => {
@@ -1098,8 +1099,8 @@ describe('the tires cell', () => {
   it('says there is no set yet, in the absent ink, and never a 0', async () => {
     serveTires({ set: null, rotations: [] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires\. No set on record\. Opens the set\.$/);
-    const absent = await view.findByText('No set yet');
+    await view.findByLabelText(/^Tires\. No set on record — add one to track rotations\. Opens the set\.$/);
+    const absent = await view.findByText('Add a tire set');
     expect(readoutColor(absent)).toBe(text.muted);
     expect(view.queryByText(/^0 mi/)).toBeNull();
   });
@@ -1109,7 +1110,7 @@ describe('the tires cell', () => {
     serveTires({ set: { ...SET, install_odometer: null }, rotations: [] });
     const { view } = await mount();
     await view.findByLabelText(/^Tires\. Opens the set\.$/);
-    expect(view.queryByText('No set yet')).toBeNull();
+    expect(view.queryByText('Add a tire set')).toBeNull();
     expect(view.queryByText(/mi since|rotation in/)).toBeNull();
   });
 
@@ -1185,7 +1186,7 @@ describe('the hero’s nav, as controls', () => {
     expect(nav?.textAlign).toBe('left');
   });
 
-  it('gives the prime slot to the act and the photo a quiet legend at the row\'s start (22 Sep)', async () => {
+  it('gives the prime slot to the record act, alone (22 Sep)', async () => {
     /*
       "ADD PHOTO holds the only bordered button above the fold — a once-ever
       act — while SCAN INVOICE, the act an owner repeats for years, sits a
@@ -1207,278 +1208,72 @@ describe('the hero’s nav, as controls', () => {
     }
     expect(right).toBe(space.lg);
 
-    // The photo control: a legend, not a bordered button — no cut surface of its own.
-    const photo = view.getByLabelText('Add photo');
-    expect(photo.props.accessibilityRole).toBe('button');
-    expect(within(photo).getByText('Add photo')).toBeTruthy();
-    let left: unknown;
-    let up: { parent: unknown; props: Record<string, unknown> } | null = photo;
-    while (up && left === undefined) {
-      const flat = (StyleSheet.flatten(up.props.style as never) ?? {}) as { left?: unknown };
-      left = flat.left;
-      up = up.parent as typeof up;
-    }
-    expect(left).toBe(0);
+    // And nothing else in the nav at rest: the photograph's acts are THIS CAR's.
+    expect(view.queryByLabelText('Add photo')).toBeNull();
   });
 });
 
 /**
- * ── Taking the photograph back off the car ──────────────────────────────────
+ * ── The photograph, on the hub ──────────────────────────────────────────────
  *
- * David, 11 Sep: *"i can't delete the image i uploaded on the app, so i can't
- * revert to seeing the new default images for my car."* The screen could add
- * a photograph and never remove one. What is pinned here is the shape of the
- * way out — one control, a sheet, one confirm — and the two promises the
- * removal makes: the plate is shown at once, and a failure puts the picture
- * back rather than leaving the car blank with an apology.
- *
- * The sheet and the confirm are UIKit's own surfaces, so they are driven the
- * way `WishlistScreen.test.tsx` drives its confirm: out of the spied call's
- * own argument list, which is the only way past a native dialog in a test.
+ * Add, change and remove lived here until 22 Sep — the control in the nav
+ * row over the plate, the sheet, the optimistic plate and its revert. The
+ * hub's three lenses cut the control from the plate twice, and the acts are
+ * THIS CAR's now (`VehicleProfileScreen.test.tsx` holds them). What the hub
+ * still owes: the owner's photograph under the house grade, the plate
+ * without one, and no photo control of its own.
  */
-describe('taking the photograph back off the car', () => {
+describe('the photograph, on the hub', () => {
   const PHOTO = 'https://signed.test/car.jpg';
 
-  let sheet: jest.SpyInstance;
-  let alert: jest.SpyInstance;
-
-  beforeEach(() => {
-    sheet = jest.spyOn(RN.ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation(() => {});
-    alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
-  });
-
-  /** The `Image` nodes drawing the owner's photograph — one, or none. */
-  const photographs = (view: { root: unknown }) =>
-    hostNodes(view.root, 'Image').filter(
-      (props) => (props.source as { uri?: string } | undefined)?.uri === PHOTO,
-    );
-
-  const requests = (predicate: (path: string, init?: { method?: string }) => boolean) =>
-    request.mock.calls.filter(([path, init]) => predicate(String(path), init as { method?: string }));
-  const deletes = () => requests((_, init) => init?.method === 'DELETE');
-  const loads = () => requests((path) => path.startsWith('/load-vehicle'));
-
-  /**
-   * The vehicle with a photograph, and whatever the DELETE should do.
-   *
-   * Per-URL, because the removal and the reload are different requests and
-   * the test has to see them separately: a mock that answered everything with
-   * one body could not tell "refetched after success" from "never asked".
-   */
-  function respondWithPhoto(onDelete: () => Promise<unknown>) {
-    request.mockImplementation((path: string, init?: { method?: string }) => {
-      if (init?.method === 'DELETE') return onDelete() as never;
-      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
-      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
-      return Promise.resolve({
-        vehicle: {
-          id: 'v1',
-          year: 2018,
-          make: 'Honda',
-          model: 'Accord',
-          photo_url: PHOTO,
-          vehicle_health_summary: { health_score: 61, summary: 'Fair.' },
-        },
-      }) as never;
-    });
+  function hasHouseGrade(tree: unknown): boolean {
+    let found = false;
+    const walk = (node: unknown) => {
+      if (found || !node || typeof node !== 'object') return;
+      const host = node as { props?: { style?: unknown }; children?: unknown[] };
+      const style = host.props?.style;
+      const styles = Array.isArray(style) ? style.flat(Infinity) : [style];
+      if (styles.some((s) => s && typeof s === 'object' && 'mixBlendMode' in (s as object))) found = true;
+      for (const child of host.children ?? []) walk(child);
+    };
+    walk(tree);
+    return found;
   }
 
-  /** Pick an option out of the sheet the screen opened. */
-  async function chooseFromSheet(label: string) {
-    const [options, callback] = sheet.mock.calls[0] as [
-      { options: string[] },
-      (index: number) => void,
-    ];
-    const index = options.options.indexOf(label);
-    expect(index).toBeGreaterThan(-1);
-    await act(async () => callback(index));
-  }
-
-  /** Press the destructive button in the confirm the screen raised. */
-  async function confirmRemoval() {
-    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
-    const remove = buttons.find((button) => button.text === 'Remove');
-    expect(remove).toBeDefined();
-    // `act`, because the optimistic write lands synchronously in the press.
-    await act(async () => remove!.onPress?.());
-  }
-
-  it('offers Remove beside Change from the one control, and sends nothing for it', async () => {
-    /*
-      One control over the photograph, not two — the docblock on
-      `onPhotoControl` carries why. The sheet is where the second verb lives,
-      as it does inside the web's own photo dialog.
-    */
-    const user = userEvent.setup();
-    respondWithPhoto(() => Promise.resolve({ success: true }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Change photo'));
-
-    expect(sheet).toHaveBeenCalledTimes(1);
-    const [options] = sheet.mock.calls[0] as [
-      { options: string[]; destructiveButtonIndex: number; cancelButtonIndex: number },
-    ];
-    expect(options.options).toEqual(['Change photo', 'Remove photo', 'Cancel']);
-    expect(options.options[options.destructiveButtonIndex]).toBe('Remove photo');
-    expect(options.options[options.cancelButtonIndex]).toBe('Cancel');
-
-    // Opening the sheet is not a decision.
-    expect(deletes()).toHaveLength(0);
-    expect(photographs(view)).toHaveLength(1);
-  });
-
-  it('asks once, in words that say what the car will show, before it removes', async () => {
-    const user = userEvent.setup();
-    respondWithPhoto(() => Promise.resolve({ success: true }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-
-    // Not "are you sure?" — what the owner gets: the plate, not a blank.
-    expect(alert).toHaveBeenCalledWith(
-      'Remove this photo?',
-      'The car will stand on its plate.',
-      expect.any(Array),
-    );
-    const buttons = alert.mock.calls[0][2] as Array<{ text?: string; style?: string }>;
-    expect(buttons.map((button) => button.text)).toEqual(['Keep', 'Remove']);
-    expect(buttons.find((button) => button.text === 'Remove')?.style).toBe('destructive');
-
-    // Choosing Remove in the sheet is still not a decision.
-    expect(deletes()).toHaveLength(0);
-    expect(photographs(view)).toHaveLength(1);
-  });
-
-  it('shows the plate at once, then asks the API what stands on the car', async () => {
-    /*
-      Optimistic: the owner asked to see the plate, so it appears before the
-      round trip — the DELETE is held open here so that order is observable.
-      Then a reload, because what now stands on the car is the API's decision
-      (stock image, generation plate, house plate) and not this screen's guess.
-    */
-    const user = userEvent.setup();
-    let finishDelete: (value: unknown) => void = () => {};
-    respondWithPhoto(() => new Promise((resolve) => { finishDelete = resolve; }));
-    const { view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-    const loadsBefore = loads().length;
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-    await confirmRemoval();
-
-    await waitFor(() => expect(deletes()).toHaveLength(1));
-    // The photograph is gone and the house plate stands, while the request is still open.
-    await waitFor(() => expect(photographs(view)).toHaveLength(0));
-    const plates = hostNodes(view.root, 'Image').filter((props) =>
-      String((props.source as { testUri?: string } | undefined)?.testUri ?? '').includes('night-plate'),
-    );
-    expect(plates).toHaveLength(1);
-    expect(loads()).toHaveLength(loadsBefore);
-
-    finishDelete({ success: true });
-
-    await waitFor(() => expect(loads().length).toBeGreaterThan(loadsBefore));
-  });
-
-  it('puts the photograph back and says so when the removal fails', async () => {
-    /*
-      The revert. A car left blank with an apology would be the app claiming
-      the photo is gone when the server says it is not — the row is still
-      intact server-side on a failed delete, so the honest screen shows it.
-    */
-    const user = userEvent.setup();
-    respondWithPhoto(() =>
-      Promise.reject(new ApiRequestError({ status: 500, message: 'Failed to remove photo' })),
-    );
-    const { props, view } = await mount();
-    await view.findAllByText(/2018 Honda Accord/);
-    const loadsBefore = loads().length;
-
-    await user.press(view.getByLabelText('Change photo'));
-    await chooseFromSheet('Remove photo');
-    await confirmRemoval();
-
-    await view.findByText('That photo was not removed');
-    view.getByText('Failed to remove photo');
-    expect(photographs(view)).toHaveLength(1);
-    // Nothing to refetch — the server did not change anything.
-    expect(loads()).toHaveLength(loadsBefore);
-    expect(props.onSignOut).not.toHaveBeenCalled();
-  });
-
-
-/**
- * Whether the house grade is in the rendered tree — its blend layers are the
- * only views in the app with a `mixBlendMode`, so that is what is looked for.
- */
-function hasHouseGrade(tree: unknown): boolean {
-  let found = false;
-  const walk = (node: unknown) => {
-    if (found || !node || typeof node !== 'object') return;
-    const host = node as { props?: { style?: unknown }; children?: unknown[] };
-    const style = host.props?.style;
-    const styles = Array.isArray(style) ? style.flat(Infinity) : [style];
-    if (styles.some((s) => s && typeof s === 'object' && 'mixBlendMode' in (s as object))) found = true;
-    for (const child of host.children ?? []) walk(child);
-  };
-  walk(tree);
-  return found;
-}
-
-  it('reads a plate as the app’s picture, not the owner’s: no grade, and ADD PHOTO — 13 Sep', async () => {
+  it('reads a plate as the app’s picture, not the owner’s: no grade — 13 Sep', async () => {
     /*
       Since the plates went live a car nobody photographed arrives with
       `photo_url` set to its plate. Read as the owner's, the plate was graded
-      a second time and the control said CHANGE PHOTO over nothing to change
-      (the hub loop, drift §6.18). The route now sends `photo_kind`; a plate
-      keeps the plain image and the one-verb control. Absent kind — an older
-      API — is the owner's, as it always was.
+      a second time (the hub loop, drift §6.18). The route sends
+      `photo_kind`; a plate keeps the plain image.
     */
-    const user = userEvent.setup();
     respond({ photo_url: PHOTO, photo_kind: 'plate' });
-    const pickPhoto = jest.fn().mockResolvedValue(null);
-    const { view } = await mount(REFERENCE, { pickPhoto });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-
-    expect(view.queryByLabelText('Change photo')).toBeNull();
-    // The plate draws under no grade: no house-split gradient on the hero.
     expect(hasHouseGrade(view.toJSON())).toBe(false);
-    await user.press(view.getByLabelText('Add photo'));
-    expect(pickPhoto).toHaveBeenCalledTimes(1);
-    expect(sheet).not.toHaveBeenCalled();
   });
 
-  it('grades and offers to change the owner’s photograph, kind named or not', async () => {
+  it('grades the owner’s photograph, kind named or not', async () => {
     respond({ photo_url: PHOTO, photo_kind: 'owner' });
-    const { view } = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-    expect(view.getByLabelText('Change photo')).toBeTruthy();
     expect(hasHouseGrade(view.toJSON())).toBe(true);
 
     respond({ photo_url: PHOTO });
-    const older = await mount(REFERENCE, { pickPhoto: jest.fn() });
+    const older = await mount();
     await older.view.findAllByText(/2018 Honda Accord/);
-    expect(older.view.getByLabelText('Change photo')).toBeTruthy();
+    expect(hasHouseGrade(older.view.toJSON())).toBe(true);
   });
 
-  it('goes straight to the picker when there is no photograph to remove', async () => {
-    // One action means no sheet. "Add photo" has always been a direct door.
-    const user = userEvent.setup();
-    respond({ photo_url: null });
-    const pickPhoto = jest.fn().mockResolvedValue(null);
-    const { view } = await mount(REFERENCE, { pickPhoto });
+  it('carries no photo control — the plate opens THIS CAR, where the photograph is changed (22 Sep)', async () => {
+    respond({ photo_url: PHOTO, photo_kind: 'owner' });
+    const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-
-    await user.press(view.getByLabelText('Add photo'));
-
-    expect(pickPhoto).toHaveBeenCalledTimes(1);
-    expect(sheet).not.toHaveBeenCalled();
-    expect(alert).not.toHaveBeenCalled();
+    expect(view.queryByLabelText('Change photo')).toBeNull();
+    expect(view.queryByLabelText('Add photo')).toBeNull();
+    // The plate's own mark says where the press lands.
+    expect(view.getByText('This car', { includeHiddenElements: true })).toBeTruthy();
+    view.getByLabelText(/Opens the car's details: mileage, your answers, the photo, removal/);
   });
 });
 
@@ -1631,9 +1426,11 @@ describe('the hub under three lenses (22 Sep)', () => {
     const { props, view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
 
-    const miles = await view.findByLabelText('Miles a month: not answered yet. Opens the question.');
-    expect(within(miles).getByText('Not yet')).toBeTruthy();
-    expect(readoutColor(within(miles).getByText('Not yet'))).toBe(text.muted);
+    const miles = await view.findByLabelText('Miles a month: not answered yet. Dates your next service. Opens the question.');
+    expect(within(miles).getByText('Tell us')).toBeTruthy();
+    expect(readoutColor(within(miles).getByText('Tell us'))).toBe(text.muted);
+    // What answering buys, under the question, while it is open.
+    expect(within(miles).getByText('Dates your next service')).toBeTruthy();
     view.getByLabelText(/^Modifications: Keep it stock\./);
     const ownership = view.getByLabelText(/^Ownership: Keep forever - Daily commuter\. Want to keep it reliable/);
     expect(within(ownership).getByText('Keep forever')).toBeTruthy();

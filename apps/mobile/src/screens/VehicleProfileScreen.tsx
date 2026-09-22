@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,9 +17,11 @@ import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
 import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
+import type { InvoiceFile } from '../api/documents';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
-import { agoLabel } from './VehicleDetailScreen';
+import { agoLabel, isOwnerPhoto } from './VehicleDetailScreen';
 import {
   MINDEDNESS,
   MINDEDNESS_LABELS,
@@ -74,6 +77,16 @@ interface Props {
    * suites that predate it still mount; the navigator always passes it.
    */
   onRemove?: () => void;
+  /**
+   * The picker seam — this screen never imports `expo-image-picker`.
+   *
+   * Same reasoning as `GarageScreen` and `InvoiceScanScreen`: it is a native
+   * module, a build that lacks it crashes on launch the moment anything in the
+   * graph imports it, and taking it as a prop is what lets this screen mount
+   * in a test. Omitted means the photograph has no control rather than a
+   * broken one. Here since 22 Sep, off the hub (`VehicleDetailScreen`).
+   */
+  pickPhoto?: () => Promise<InvoiceFile | null>;
 }
 
 interface Answers {
@@ -92,15 +105,24 @@ interface Answers {
 type State =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'loaded'; initial: Answers; mileageSetAt: string | null };
+  | {
+      kind: 'loaded';
+      initial: Answers;
+      mileageSetAt: string | null;
+      /** What stands on the car: the owner's photograph, or its plate. */
+      ownerPhoto: boolean;
+    };
 
 const USAGE_ORDER = Object.keys(USAGE_PROFILES) as UsageProfile[];
 
-export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove }: Props) {
+export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, pickPhoto }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [answers, setAnswers] = useState<Answers | null>(null);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  /** The photograph's own work in flight, and its own refusal — never mixed with the form's. */
+  const [photoBusy, setPhotoBusy] = useState<'uploading' | 'removing' | null>(null);
+  const [photoProblem, setPhotoProblem] = useState<{ headline: string; body: string } | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -108,6 +130,8 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove }
     try {
       const body = await apiRequest<{
         vehicle?: {
+          photo_url?: string | null;
+          photo_kind?: 'owner' | 'catalog' | 'plate' | null;
           current_mileage?: number | null;
           last_mileage_update_date?: string | null;
           avg_miles_per_month?: number | null;
@@ -134,8 +158,13 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove }
         ownershipObjective: vehicle.ownership_objective ?? '',
       };
 
-      setState({ kind: 'loaded', initial, mileageSetAt: vehicle.last_mileage_update_date ?? null });
-      setAnswers(initial);
+      setState({
+        kind: 'loaded',
+        initial,
+        mileageSetAt: vehicle.last_mileage_update_date ?? null,
+        ownerPhoto: isOwnerPhoto(vehicle),
+      });
+      setAnswers((held) => held ?? initial);
     } catch (error) {
         /*
           ── ⚠ MOB-08 · a server 401 is not "you are signed out" ─────────────
@@ -171,6 +200,74 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove }
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Add or replace this car's photograph.
+   *
+   * The same three outcomes the garage handles, and the same rule about which
+   * of them is an error: **dismissal is not one.** The picker resolving `null`
+   * returns the screen to idle silently — showing "cancelled" after a
+   * deliberate tap on Cancel is how an app feels accusatory.
+   *
+   * Reloads rather than patching `photo_url` in place: what stands on the car
+   * now — the owner's upload, the generation plate, the house plate — is the
+   * API's decision (`lib/vehicle-photo.ts`), and the hub refetches on focus.
+   */
+  const onChangePhoto = useCallback(async () => {
+    if (!pickPhoto) return;
+    setPhotoProblem(null);
+    try {
+      const file = await pickPhoto();
+      if (!file) return;
+      setPhotoBusy('uploading');
+      await uploadVehiclePhoto(vehicleId, file);
+      await load();
+    } catch (error) {
+      setPhotoProblem({
+        headline: 'That photo was not saved',
+        body: error instanceof Error ? error.message : 'That photo could not be saved.',
+      });
+    } finally {
+      setPhotoBusy(null);
+    }
+  }, [pickPhoto, vehicleId, load]);
+
+  /**
+   * Take the photograph off the car — David, 11 Sep: *"i can't delete the
+   * image i uploaded on the app, so i can't revert to seeing the new default
+   * images for my car."* One confirm, and it says what the owner gets rather
+   * than asking "are you sure?": the car stands on its plate.
+   */
+  const onRemovePhoto = useCallback(() => {
+    Alert.alert('Remove this photo?', 'The car will stand on its plate.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setPhotoProblem(null);
+            setPhotoBusy('removing');
+            try {
+              await removeVehiclePhoto(vehicleId);
+              await load();
+            } catch (error) {
+              if (error instanceof ApiRequestError && error.isLocallySignedOut) {
+                onSignOut();
+                return;
+              }
+              setPhotoProblem({
+                headline: 'That photo was not removed',
+                body: error instanceof Error ? error.message : 'That photo could not be removed.',
+              });
+            } finally {
+              setPhotoBusy(null);
+            }
+          })();
+        },
+      },
+    ]);
+  }, [vehicleId, load, onSignOut]);
 
   const save = useCallback(async () => {
     if (state.kind !== 'loaded' || !answers || saving) return;
@@ -331,6 +428,42 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove }
           keyboardType="number-pad"
           editable={!saving}
         />
+        {/*
+          ── 22 Sep · the photograph, behind the plate's door ─────────────────
+
+          Off the hub — the lenses' cut, twice — and here as two plain acts:
+          change, and remove where there is an owner's photograph to remove.
+          No sheet: the sheet existed because the hub's nav held one control.
+        */}
+        <View style={styles.block}>
+          <Text style={styles.question}>Photo</Text>
+          <Text style={styles.hint}>
+            {state.ownerPhoto ? 'Your photograph is on the car.' : 'The car stands on its plate.'}
+          </Text>
+          {photoProblem ? <AlertBanner tone="critical" headline={photoProblem.headline} body={photoProblem.body} /> : null}
+          <View style={styles.photoActs}>
+            <Button
+              label={state.ownerPhoto ? 'Change photo' : 'Add photo'}
+              variant="outline"
+              size="small"
+              busy={photoBusy === 'uploading'}
+              busyLabel="Uploading"
+              onPress={() => void onChangePhoto()}
+              accessibilityLabel={state.ownerPhoto ? 'Change photo' : 'Add photo'}
+            />
+            {state.ownerPhoto ? (
+              <Button
+                label="Remove photo"
+                variant="delete"
+                size="small"
+                busy={photoBusy === 'removing'}
+                busyLabel="Removing"
+                onPress={onRemovePhoto}
+                accessibilityLabel="Remove photo. Asks first."
+              />
+            ) : null}
+          </View>
+        </View>
         <Field
           label="Average per month"
           hint="miles"
@@ -454,6 +587,7 @@ const styles = StyleSheet.create({
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
 
   lead: { ...type.body, color: text.secondary },
+  photoActs: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   /* The foot: the one destructive act, after 24pt of air, at the sheet's start. */
   remove: { paddingTop: space.xxl, alignItems: 'flex-start' },
   block: { gap: space.sm },
