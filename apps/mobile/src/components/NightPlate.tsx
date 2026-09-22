@@ -20,10 +20,21 @@ import PhotoGrade from './PhotoGrade';
  * This is the same image for every car and every screen, deliberately — the
  * bay is a *place*, and a room whose weather changed per make would read as a
  * lightbox. It contains no car, which is the honest empty state: the street is
- * lit and the bay is empty. `scripts/render-night-plate.mjs` draws it and says
- * how; it is a committed JPEG rather than a runtime drawing because the grain,
- * the broken reflections and the bokeh are not things `react-native-svg` can
- * paint, and 1.7 million pixels is not a thing to draw on every mount.
+ * lit and the bay is empty. It is a committed JPEG rather than a runtime
+ * drawing because the grain, the broken reflections and the bokeh are not
+ * things `react-native-svg` can paint, and 1.7 million pixels is not a thing
+ * to draw on every mount.
+ *
+ * ⚠ **22 Sep: this used to say `scripts/render-night-plate.mjs` "draws it and
+ * says how". That file has never existed in this repository** — never
+ * committed, not gitignored. Same shape as the `cluster-geometry.test.ts`
+ * citation in `CLAUDE.md` §1, and corrected for the same reason: the next
+ * person to go looking for it pays for the sentence.
+ *
+ * The frame came from outside this repo and the JPEG is the artefact. What it
+ * *is* is measured rather than described — `lib/__tests__/house-plate-chroma.test.ts`
+ * holds a saturation floor under it, which is what stops a flatter re-cut
+ * landing silently.
  *
  * ⚠ `cover`, never `contain`. B2 and B9 both retire the letterbox; the image
  * is composed tall enough that the vehicle hero keeps the whole scene and the

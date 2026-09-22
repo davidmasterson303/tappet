@@ -3379,9 +3379,31 @@ Recorded because both would otherwise be proposed again.
   in the product; they are not damped, and they are not graded at render
   because they are already the film.
 
-⚠ Two docblocks cite scripts that do not exist in this repo:
-`scripts/build-mastheads.mjs` (`MastheadPlate`) and
-`scripts/render-night-plate.mjs` (`NightPlate`). Same shape as the
-`cluster-geometry.test.ts` citation §1 collects. Not fixed here — flagged,
-because the frames themselves are the thing that would need regenerating and
-that is David's call.
+### 15.5 Two citations corrected, and one thing that genuinely needs a camera
+
+⚠ **`MastheadPlate` cited `scripts/build-mastheads.mjs` and `NightPlate` cited
+`scripts/render-night-plate.mjs` as the record of where their frames came
+from. Neither file has ever existed in this repository** — not deleted, not
+gitignored, never committed; `git log --all --diff-filter=A` returns nothing
+for either. The JPEGs were committed directly.
+
+Same shape as the `cluster-geometry.test.ts` citation §1 collects, and both
+docblocks now say what is true: the frames were produced outside this repo by
+the design-critic loop on David's machine, the committed JPEGs are the
+artefact, and what they *are* is measured rather than described —
+`mobile-masthead-plates.test.ts` for luminance under the ink,
+`house-plate-chroma.test.ts` for saturation. Those two suites are the record
+the deleted sentences claimed to be.
+
+⚠ These were first *flagged* rather than fixed, which was the wrong call and
+is the reason this subsection exists. A note saying "a docblock is wrong" is
+itself a board entry that goes stale, and §1 is specifically about not leaving
+those lying around. Fixing a citation needs no camera.
+
+**What does need a camera, and is the one open item:** `night-plate.jpg` is
+still the flattest frame in the set on disk (0.268). The runtime split tone
+brings what renders to 0.428, which fixes the symptom, but a frame cut and
+graded to sit natively in the mastheads' band would be better than one tinted
+on the way to the screen — it is the most-shown image in the product and the
+only asset in the set that was not composed for the band it appears in. That
+is a shoot-and-grade job, not a code one.

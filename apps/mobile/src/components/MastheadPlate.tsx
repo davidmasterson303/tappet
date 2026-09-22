@@ -42,8 +42,24 @@ import { cut, surface } from '../theme';
  *   - **Advisor** — the driver's seat of a parked car at night, the street's
  *     lights as soft bokeh through a rain-covered windscreen.
  *
- * `scripts/build-mastheads.mjs` says where the frames came from and how they
- * were cut and graded for the band, and is the record of what the JPEGs are.
+ * ⚠ **22 Sep: this paragraph used to cite `scripts/build-mastheads.mjs` as
+ * the record of where the frames came from. That file has never existed in
+ * this repository** — not deleted, not gitignored, never committed
+ * (`git log --all --diff-filter=A` returns nothing for it). The three JPEGs
+ * were committed directly.
+ *
+ * That is the `cluster-geometry.test.ts` shape `CLAUDE.md` §1 collects: a
+ * docblock pointing at a file that is not there costs whoever checks it, and
+ * the checking is the behaviour the rules are trying to encourage. So the
+ * citation is corrected rather than left to be discovered again.
+ *
+ * **The frames have no generator here.** They were cut and graded outside this
+ * repository, by the design-critic loop on David's machine, and the committed
+ * JPEGs are the artefact. Anything that needs to know what they are should
+ * measure them: `lib/__tests__/mobile-masthead-plates.test.ts` reads the
+ * luminance under the title and ACCOUNT, and
+ * `lib/__tests__/house-plate-chroma.test.ts` reads their saturation. Between
+ * them those two suites are the record this line claimed to be.
  *
  * ── ⚠ Type over a photograph, and why this one is allowed ──────────────────
  *
