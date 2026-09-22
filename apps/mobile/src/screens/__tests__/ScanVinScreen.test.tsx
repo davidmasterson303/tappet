@@ -22,7 +22,7 @@ jest.mock('../../api/vpic', () => ({
 
 const mockDecode = decodeVin as jest.MockedFunction<typeof decodeVin>;
 const { __camera } = jest.requireMock('expo-camera') as {
-  __camera: { getAvailableLensesAsync: jest.Mock; reset: () => void };
+  __camera: { getAvailableLensesAsync: jest.Mock; scanFromURLAsync: jest.Mock; takePictureAsync: jest.Mock; reset: () => void };
 };
 
 const ACCORD = '1HGCM82633A004352';
@@ -65,13 +65,15 @@ describe('the frame', () => {
       The first real read took several tries: the corner brackets framed the
       whole feed, so the label was held at arm's length and the barcode was
       half the frame wide. In barcode mode the brackets bound the frame's
-      middle fifth — filling it with the barcode is the right distance.
+      middle third — filling it with the barcode, at the live zoom, is a
+      distance the lens will focus at.
     */
     const { view } = mount();
     const band = (await view).getByTestId('viewfinder-brackets-band');
     const flat = Object.assign({}, ...[band.props.style].flat(Infinity).filter(Boolean));
-    expect(flat.top).toBe('40%');
-    expect(flat.bottom).toBe('40%');
+    // A third, not a fifth: the fifth asked for a distance the lens will not focus at (21 Sep, second walk).
+    expect(flat.top).toBe('33%');
+    expect(flat.bottom).toBe('33%');
     expect((await view).queryByTestId('viewfinder-brackets')).toBeNull();
     (await view).getByText(/Move in until the barcode fills the brackets/);
   });
@@ -105,6 +107,46 @@ describe('a read', () => {
     await (await view).findByText(`→ ${ACCORD}`);
     await (await view).findByText('→ 2003 Honda Accord EX-V6, 3.0L V6.');
     expect((await view).queryByTestId('camera-view')).toBeNull();
+  });
+
+  it('zooms the live frame so the band fills from a distance the lens will focus at (21 Sep)', async () => {
+    const { view } = mount();
+    const camera = (await view).getByTestId('camera-view');
+    expect(camera.props.zoom).toBeGreaterThan(0);
+    expect(camera.props.zoom).toBeLessThan(0.2);
+  });
+
+  it('reads a still taken on purpose, through the same decode as a live read', async () => {
+    /*
+      21 Sep: the live reader could not be made to see a Forester's sticker,
+      and there was nothing to press. The shutter takes a picture, the phone
+      decodes it, and the VIN goes where a live read's would.
+    */
+    mockDecode.mockResolvedValue(ACCORD_DECODE);
+    __camera.scanFromURLAsync.mockResolvedValue([{ type: 'code39', data: `*I${ACCORD}*`, cornerPoints: [], bounds: {} }]);
+    const user = userEvent.setup();
+    const { view } = mount();
+    await (await view).findByText('Ready');
+
+    await user.press((await view).getByLabelText('Read a photo'));
+
+    expect(__camera.takePictureAsync).toHaveBeenCalledTimes(1);
+    expect(__camera.scanFromURLAsync).toHaveBeenCalledWith('file:///tmp/capture.jpg', VIN_BARCODE_TYPES);
+    expect(mockDecode).toHaveBeenCalledWith(ACCORD, expect.anything());
+    await (await view).findByText(`→ ${ACCORD}`);
+  });
+
+  it('says what to change when nothing was read from the photo, and keeps the frame', async () => {
+    __camera.scanFromURLAsync.mockResolvedValue([]);
+    const user = userEvent.setup();
+    const { view } = mount();
+    await (await view).findByText('Ready');
+
+    await user.press((await view).getByLabelText('Read a photo'));
+
+    expect((await view).getByText(/No barcode could be read from that photo/)).toBeTruthy();
+    expect(mockDecode).not.toHaveBeenCalled();
+    expect((await view).getByTestId('camera-view')).toBeTruthy();
   });
 
   it('refuses a barcode that is not a VIN, says so, and keeps looking', async () => {

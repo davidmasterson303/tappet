@@ -136,6 +136,8 @@ jest.mock('expo-camera', () => {
       height: 4032,
       format: 'jpg',
     })),
+    /** The still decoder (21 Sep): nothing read unless a test says so. */
+    scanFromURLAsync: jest.fn(async () => []),
     /** Whether the stub view reports ready on mount. */
     ready: true,
     reset() {
@@ -149,6 +151,7 @@ jest.mock('expo-camera', () => {
         height: 4032,
         format: 'jpg',
       });
+      __camera.scanFromURLAsync.mockReset().mockResolvedValue([]);
     },
   };
 
@@ -172,11 +175,13 @@ jest.mock('expo-camera', () => {
       style: props.style,
       onBarcodeScanned: props.onBarcodeScanned,
       barcodeScannerSettings: props.barcodeScannerSettings,
+      zoom: props.zoom,
     });
   });
 
   return {
     CameraView,
+    scanFromURLAsync: (...args) => __camera.scanFromURLAsync(...args),
     /*
       The hook's tuple: the current answer (`null` for the first frame, as the
       real hook), a request that resolves the stub's answer, and a get.
