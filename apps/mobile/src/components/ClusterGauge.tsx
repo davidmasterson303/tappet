@@ -186,7 +186,7 @@ export default function ClusterGauge({
   /**
    * `hero` is the full dial — minors, numbered majors, needle, hub, and the
    * readout on its own line. `card` is the same instrument at the plinth's
-   * scale, deliberately still. `row` is not a dial at all.
+   * scale — the hub's HEALTH cell since 21 Sep, and it sweeps in like the hero. `row` is not a dial at all.
    */
   variant?: ClusterGaugeVariant;
   /** Rendered width in points. Defaults to the variant's design size. */
@@ -230,7 +230,14 @@ export default function ClusterGauge({
   */
   const resolved: ClusterGaugeVariant = variant === 'row' || width < DIAL_MIN ? 'row' : variant;
 
-  const swept = useIgnitionSweep(score, active && resolved === 'hero');
+  /*
+    The sweep ran on the hero alone until 21 Sep — the card was "deliberately
+    still" for the plinth it was drawn for, and nothing used it. It is the
+    hub's HEALTH cell now (B3: the dial "draws in"), so it sweeps like the hero
+    and the caller holds it with `active` the same way; a row has nothing to
+    sweep.
+  */
+  const swept = useIgnitionSweep(score, active && resolved !== 'row');
 
   if (resolved === 'row') {
     return (
@@ -262,7 +269,7 @@ export default function ClusterGauge({
   const viewBox = isCard ? `14 14 172 172` : `0 0 ${VIEW_W} ${VIEW_H}`;
   const height = isCard ? width : (width * VIEW_H) / VIEW_W;
 
-  const value = isCard ? score : swept;
+  const value = swept;
   const clamped = Math.max(0, Math.min(100, value));
   const lit = (clamped / 100) * ARC_LENGTH;
 

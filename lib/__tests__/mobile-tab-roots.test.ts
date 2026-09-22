@@ -244,12 +244,19 @@ describe('B1 / B8 — the way back is one control', () => {
     expect(navigator).toMatch(/import BackControl from '\.\.\/components\/BackControl'/);
   });
 
-  it('draws the same control on the vehicle screen’s own nav', () => {
-    // The screen with the hidden header is the one that started the seam; it
-    // must not keep a private copy of the chevron and the label.
-    expect(vehicleScreen).toMatch(/import BackControl from '\.\.\/components\/BackControl'/);
-    expect(vehicleScreen).toMatch(/<BackControl\b[^>]*label="Garage"/);
+  it('draws no back control on the vehicle screen’s own nav — it is a root (21 Sep)', () => {
+    /*
+      The screen with the hidden header drew "‹ GARAGE" from its first build,
+      the same `BackControl` every pushed screen gets — right while it was
+      pushed over the garage. Since the Car tab it is a root, and B8 says a
+      root carries no chevron: round 47's critic read CAR lit in the bar and
+      "‹ GARAGE" over it as two doors to one room. The GARAGE tab is the way
+      back. And still no private chevron of its own.
+    */
+    expect(vehicleScreen).not.toMatch(/<BackControl\b/);
     expect(vehicleScreen).not.toMatch(/<Icon name="chevron-left"/);
+    // The way out survives for the one state with no tab bar's help: the car that is gone.
+    expect(vehicleScreen).toMatch(/label="Back to garage"/);
   });
 
   it('can still detect the native button coming back', () => {

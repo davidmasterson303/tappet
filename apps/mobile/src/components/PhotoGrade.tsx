@@ -1,7 +1,7 @@
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { brand, grade, status } from '../theme';
+import { brand, grade, status, surface } from '../theme';
 
 /**
  * The house grade, laid over an owner's photograph.
@@ -22,13 +22,27 @@ import { brand, grade, status } from '../theme';
  *   1. **Lifted blacks** — a near-black `screen`. Screen with a dark colour
  *      raises the shadows a few percent and leaves the highlights alone, which
  *      is what a lifted-black curve does.
- *   2. **Split tone** — sodium into cyan, left to right, as `soft-light`.
+ *   2. **Highlight pull** (21 Sep) — a warm mid-grey `multiply` over the whole
+ *      frame. Multiply scales every pixel by the layer, so it takes most from
+ *      the brightest: a white sky comes down to dusk while a mid-grey car
+ *      keeps three-quarters of its light. Round 47's critic, on the daylight
+ *      photograph the loop had never graded: *"the sky blows to a milky haze
+ *      under CHANGE PHOTO, the grass stays green, and the nav controls sit on
+ *      near-white."* Without this the layers below tint a daylight shot
+ *      without ever making it evening.
+ *   3. **Split tone** — sodium into cyan, left to right, as `soft-light`.
  *      A real split tone divides by luminance; this divides by position, which
  *      is what the direction's *scene* does anyway (sodium streetlight on one
  *      side, cold gel on the other) and what the house plate is composed to.
- *   3. **Vignette** — a `multiply` toward the corners, so the car stays and the
+ *   4. **Vignette** — a `multiply` toward the corners, so the car stays and the
  *      edges fall off into the page.
- *   4. **Grain** — the plate's own grain tile, `overlay`, tiled. Mid-grey, so it
+ *   5. **Nav scrim** (21 Sep) — the page's graphite falling from the top edge
+ *      to nothing by two-fifths of the frame, plain alpha, no blend. The nav
+ *      row's controls have no plate of their own by design (`BackControl`:
+ *      *"a backgroundColor at rest would put a plate under the chevron on the
+ *      photograph"*), so the photograph has to be dark where they stand. The
+ *      generated plates are composed that way; an owner's sky is not.
+ *   6. **Grain** — the plate's own grain tile, `overlay`, tiled. Mid-grey, so it
  *      changes the texture and not the tone.
  *
  * ⚠ Order matters and is the order above: grain last so it sits on the grade
@@ -47,6 +61,7 @@ export default function PhotoGrade() {
   return (
     <>
       <View style={[StyleSheet.absoluteFill, styles.lift]} {...INERT} />
+      <View style={[StyleSheet.absoluteFill, styles.pull]} {...INERT} testID="grade-pull" />
 
       <View style={[StyleSheet.absoluteFill, styles.splitTone]} {...INERT}>
         <Svg width="100%" height="100%">
@@ -70,6 +85,18 @@ export default function PhotoGrade() {
             </RadialGradient>
           </Defs>
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#houseVignette)" />
+        </Svg>
+      </View>
+
+      <View style={StyleSheet.absoluteFill} {...INERT} testID="grade-scrim">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="houseScrim" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={surface.page} stopOpacity={0.78} />
+              <Stop offset="0.4" stopColor={surface.page} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#houseScrim)" />
         </Svg>
       </View>
 
@@ -99,7 +126,9 @@ const INERT = {
 
 const styles = StyleSheet.create({
   lift: { backgroundColor: grade.lift, mixBlendMode: 'screen' },
-  splitTone: { mixBlendMode: 'soft-light', opacity: 0.55 },
+  pull: { backgroundColor: grade.pull, mixBlendMode: 'multiply', opacity: 0.55 },
+  /* 0.65, from 0.55 (21 Sep): the shadows cool a step further under the pull. */
+  splitTone: { mixBlendMode: 'soft-light', opacity: 0.65 },
   vignette: { mixBlendMode: 'multiply', opacity: 0.9 },
   grain: { mixBlendMode: 'overlay', opacity: 0.45 },
 });

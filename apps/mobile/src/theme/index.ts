@@ -369,6 +369,14 @@ export const grade = {
   vignetteClear: '#FFFFFF',
   /** The vignette's edge, multiplied — the corners fall off toward the page. */
   vignetteEdge: '#3A3A3A',
+  /**
+   * The highlight pull, multiplied over the whole frame (21 Sep). A warm
+   * mid-grey: a white sky lands near 165 of 255 under it at the layer's
+   * opacity, a mid-grey car keeps three-quarters of its light. Round 47's
+   * critic on the daylight photograph: *"the sky blows to a milky haze …
+   * the plate should read as the same night system whichever car is on it."*
+   */
+  pull: '#7A766F',
 } as const;
 
 /**

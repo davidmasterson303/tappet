@@ -41,6 +41,15 @@ describe('the fixture car and its photograph', () => {
     fixtureFor('/upload-photo', { method: 'DELETE', body: { vehicleId: 'x' } });
   });
 
+  it('names what the image is, as the route does (21 Sep)', () => {
+    const kindOf = (answer: unknown) => (answer as { vehicle: { photo_kind: unknown } }).vehicle.photo_kind;
+    // On its plate: a plate, so the control reads ADD PHOTO and no grade is laid over it.
+    expect(kindOf(fixtureFor('/load-vehicle?vehicleId=v'))).toBe('plate');
+    // With the owner's photograph added through the control: the owner's.
+    fixtureFor('/upload-photo', { method: 'POST', body: rnForm([{ fieldName: 'file', uri: 'file:///tmp/owner.jpg' }]) });
+    expect(kindOf(fixtureFor('/load-vehicle?vehicleId=v'))).toBe('owner');
+  });
+
   it('starts on its ready plate, with nothing to say about it', () => {
     // No photograph has been added — and the car is not empty for it.
     expect(designPhotoUrl()).toBe(process.env.EXPO_PUBLIC_DESIGN_PHOTO_URL ?? null);
@@ -91,6 +100,36 @@ describe('the fixture car and its photograph', () => {
     } finally {
       if (held === undefined) delete process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS;
       else process.env.EXPO_PUBLIC_DESIGN_PLATE_STATUS = held;
+    }
+  });
+
+  it('reads stale unless the environment asks for a current reading (21 Sep)', () => {
+    /*
+      The loop graded five rounds of a stale reading and never saw a current
+      one — the state that put six lines in the HEALTH cell. Both halves:
+      unset is the stale pair, and `current` postdates every filed record.
+    */
+    const summaryOf = (answer: unknown) =>
+      (answer as { vehicle: { vehicle_health_summary: { summary: string; last_generated: string } } }).vehicle
+        .vehicle_health_summary;
+    const stale = summaryOf(fixtureFor('/load-vehicle?vehicleId=v'));
+    expect(stale.last_generated).toBe('2026-07-30T01:05:47.583+00:00');
+    expect(stale.summary).toMatch(/^With no service records/);
+
+    const held = process.env.EXPO_PUBLIC_DESIGN_VERDICT;
+    process.env.EXPO_PUBLIC_DESIGN_VERDICT = 'current';
+    try {
+      jest.isolateModules(() => {
+        const current = require('../fixtures') as typeof import('../fixtures');
+        const reading = summaryOf(current.fixtureFor('/load-vehicle?vehicleId=v'));
+        expect(Date.parse(reading.last_generated)).toBeGreaterThan(Date.parse('2026-08-06T02:43:11.903661+00:00'));
+        expect(reading.summary).toMatch(/^The oil, brakes and coolant are inside their intervals/);
+        // No preamble on either sentence.
+        expect(reading.summary).not.toMatch(/Based on your provided/);
+      });
+    } finally {
+      if (held === undefined) delete process.env.EXPO_PUBLIC_DESIGN_VERDICT;
+      else process.env.EXPO_PUBLIC_DESIGN_VERDICT = held;
     }
   });
 

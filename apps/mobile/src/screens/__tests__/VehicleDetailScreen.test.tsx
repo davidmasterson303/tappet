@@ -1,4 +1,4 @@
-import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor, within } from '@testing-library/react-native';
 
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
@@ -331,14 +331,18 @@ describe('the counts on the binnacle', () => {
     respondWithWishlist(() => Promise.resolve({ wishlistItems: [] }));
     const { view } = await mount();
 
+    /*
+      Within the cells, since 21 Sep: the HEALTH cell's dial sweeps 0 → 100 →
+      the reading on appear, so a "0" can be on the screen for a frame that is
+      not a count at all. The claim is about the count cells.
+    */
     const plan = await view.findByLabelText('Plan, 0.');
-    const zero = view.getByText('0');
-    expect(plan).toBeTruthy();
+    const zero = within(plan).getByText('0');
     expect(readoutColor(zero)).toBe(text.muted);
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
-    expect(readoutColor(view.getByText('1'))).toBe(text.primary);
-    expect(readoutColor(view.getByText('2'))).toBe(text.primary);
+    expect(readoutColor(within(view.getByLabelText(/^History, 1 /)).getByText('1'))).toBe(text.primary);
+    expect(readoutColor(within(view.getByLabelText(/^View 2 open recalls/)).getByText('2'))).toBe(text.primary);
   });
 
   it('prints no recall count for a car NHTSA was never asked about, and a grey 0 for one it cleared', async () => {
@@ -352,26 +356,25 @@ describe('the counts on the binnacle', () => {
     respond({ nhtsa_data: null, vehicle_health_summary: null });
     const never = await mount();
     await never.view.findAllByText(/2018 Honda Accord/);
-    expect(never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.')).toBeTruthy();
-    expect(never.view.queryByText('0')).toBeNull();
+    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.');
+    expect(within(unchecked).queryByText(/^\d+$/)).toBeNull();
 
     respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
     const clean = await mount();
     await clean.view.findAllByText(/2018 Honda Accord/);
-    expect(clean.view.getByLabelText('View 0 open recalls')).toBeTruthy();
-    expect(readoutColor(clean.view.getByText('0'))).toBe(text.muted);
+    const cleared = clean.view.getByLabelText('View 0 open recalls');
+    expect(readoutColor(within(cleared).getByText('0'))).toBe(text.muted);
   });
 
   it('prints nothing for a count it could not read', async () => {
     respondWithWishlist(() => Promise.reject(new ApiRequestError({ status: 500, message: 'Timed out' })));
     const { view } = await mount();
 
-    await view.findByLabelText('Plan.');
-    // No zero anywhere on the screen — the history count is 1 and the recalls
-    // 2, so the only "0" a failed wishlist could add is the one this guards
-    // against.
-    expect(view.queryByText('0')).toBeNull();
-    expect(view.getByText('1')).toBeTruthy();
+    const plan = await view.findByLabelText('Plan.');
+    // Nothing in the cell — not a 0, not a dash. (Within the cell since 21 Sep:
+    // the HEALTH dial's sweep passes through 0 on appear.)
+    expect(within(plan).queryByText(/^\d+$/)).toBeNull();
+    expect(within(view.getByLabelText(/^History, 1 /)).getByText('1')).toBeTruthy();
   });
 });
 
@@ -550,6 +553,14 @@ describe('what this screen leads to stays reachable', () => {
       invariant the dial's removal established. The count was a snapshot of the
       day it was written, and it is the half that keeps changing.
     */
+    /*
+      21 Sep: the reading is the card dial's numeral, inside its arc (B3), so
+      the sweep is held (reduced motion) to read the landed value. It was the
+      plate's numeral size bare (13 Sep), the card's 30 before that. No chip,
+      and no instrument over the photograph: the one reading on the screen is
+      in the sheet, under the car.
+    */
+    jest.spyOn(RN.AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     respond();
     const { view } = await mount(REFERENCE);
 
@@ -557,12 +568,9 @@ describe('what this screen leads to stays reachable', () => {
 
     const readouts = await view.findAllByText('61');
     expect(readouts).toHaveLength(1);
-    /*
-      The binnacle's HEALTH cell, at the plate's numeral size — 13 Sep; it was
-      the card's 30. No chip, and no instrument readout over the photograph:
-      the one reading on the screen is in the sheet, under the car.
-    */
-    expect(readoutSizes(readouts)).toEqual([type.numeralPlate.fontSize]);
+    expect(readoutSizes(readouts)).toEqual([Math.round(120 * (60 / 172))]);
+    // And it sits inside an arc: the cell draws the gauge's track.
+    expect(hostNodes(view.toJSON(), 'RNSVGPath').length).toBeGreaterThan(0);
   });
 
   it('sizes the hero title down on the shortest display', async () => {
@@ -942,7 +950,7 @@ describe('the health verdict, against what the screen is holding', () => {
     expect(view.queryByText(/Given the mileage/)).toBeNull();
 
     // Beneath the panel, not inside the HEALTH cell — no ancestor is that cell.
-    const cell = view.getByLabelText(/^Health score 70/);
+    const cell = view.getByRole('button', { name: /^Health score 70/ });
     let node: { parent: unknown } | null = lead;
     while (node) {
       expect(node).not.toBe(cell);
@@ -1090,33 +1098,23 @@ describe('the hero’s nav, as controls', () => {
     expect(props.onOpenHealth).toHaveBeenCalled();
   });
 
-  it('grows the nav target to 44pt without redrawing it', async () => {
+  it('draws no back control on the car root, and the collapsed title takes the row\'s start (21 Sep)', async () => {
     /*
-      R25. The pills are drawn at 36 because that is what reads as a pill over a
-      photograph rather than as a bar. `hitSlop` is React Native's
-      `.tap-target-44`: the drawing is unchanged and the target grows around it.
-
-      Asserted as slop rather than as a measured box — RNTL lays nothing out, so
-      a height assertion here would be reading back the style it was given. What
-      is checkable is that the compensation is present on both, which is the
-      thing that goes missing.
+      B8: a tab root carries no back chevron. "‹ GARAGE" was right while this
+      screen was pushed over the garage; since the Car tab it is a root, and
+      round 47's critic read CAR lit in the bar and "‹ GARAGE" over it as two
+      doors to one room. The GARAGE tab is the way back.
     */
     respond();
     const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
 
-    /*
-      ⚠ One target, not two, since 6 Sep — the score chip was cut. The claim is
-      unchanged and still worth holding: the control is drawn at the size that
-      reads over a photograph, and the target is grown around it rather than the
-      drawing being inflated.
-    */
-    for (const label of ['Back to the garage']) {
-      const slop = (await view.findByLabelText(label)).props.hitSlop as Record<string, number>;
-
-      expect(slop).toBeDefined();
-      // 36 drawn + 4 top + 4 bottom clears 44; anything less does not.
-      expect(slop.top + slop.bottom).toBeGreaterThanOrEqual(8);
-    }
+    expect(view.queryByLabelText('Back to the garage')).toBeNull();
+    const titles = await view.findAllByText(/2018 Honda Accord/);
+    const nav = titles
+      .map((node) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>)
+      .find((flat) => flat.flex === 1);
+    expect(nav?.textAlign).toBe('left');
   });
 
   it('keeps the photo control clear of the floating account word — 21 Sep, the car is a root', async () => {

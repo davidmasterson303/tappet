@@ -28,10 +28,10 @@ import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { healthVerdict, leadOf } from '@tappet/core/health-claims';
 import { TIRE_COPY, sinceLabel, tireReading, tireRotationFromRow, tireSetFromRow, type TireRotationRow, type TireSetRow } from '@tappet/core/tires';
 import AlertBanner from '../components/AlertBanner';
-import BackControl from '../components/BackControl';
 import BandRow from '../components/BandRow';
 import Binnacle, { BinnacleCell, BinnacleRow } from '../components/Binnacle';
 import Button from '../components/Button';
+import ClusterGauge from '../components/ClusterGauge';
 import DialChip from '../components/DialChip';
 import { ACCOUNT_CONTROL_SLOT } from '../navigation/AccountControl';
 import { NAV_BAND } from '../components/RootScreen';
@@ -370,16 +370,16 @@ type State =
   | { status: 'error'; message: string; unauthorized: boolean };
 
 /**
- * The ink a reading takes: off-white unless the ramp calls it a warning.
+ * The HEALTH cell's dial, in points. Above `DIAL_MIN` (88) so it is an
+ * instrument and not a row; the card's numeral is 60/172 of this — 42pt,
+ * a hair under the plate numeral the cell used to print bare (21 Sep).
  *
- * ⚠ Named against the band rather than a numeric threshold, so the boundary
- * stays owned by `@tappet/core/health-band`. A `score < 60` written here
- * would be the phone holding a second opinion about where "Fair" ends — the
- * drift that module exists to prevent.
+ * The ink a reading takes — off-white unless the ramp calls it a warning —
+ * is the gauge's own rule now (`arcInk`), named against the band rather than
+ * a numeric threshold so the boundary stays owned by `@tappet/core/health-band`.
+ * `WARNING_INK` lived here for the bare numeral and went with it.
  */
-const WARNING_INK = (band: { name: string }) => ({
-  color: band.name === 'warn' || band.name === 'bad' ? status.attention : text.primary,
-});
+const CELL_DIAL = 120;
 
 /**
  * Whether the picture on the hero is the owner's photograph.
@@ -1489,28 +1489,43 @@ export function VehicleDetailScreen({
               >
                 {score !== null && band ? (
                   <>
-                    {/* Keyed on the reading's time, so a re-read seats in like a first one. */}
-                    <Landing key={health?.last_generated ?? 'reading'}>
-                    <View style={styles.reading}>
-                      {/*
-                        ⚠ 6 Sep · B3 and B7: the reading stopped wearing the
-                        band. `WARNING_INK` spends sodium only where the ramp
-                        says there is a genuine warning; a sound reading is
-                        ink. The band table is untouched and still consulted.
-                      */}
-                      <Text style={[styles.scoreValue, WARNING_INK(band)]}>{score}</Text>
-                      <Text style={[styles.scoreBand, WARNING_INK(band)]}>{band.label}</Text>
+                    {/*
+                      ── 21 Sep · the arc is in the cell ──────────────────────
+
+                      B3: "Dial is a hairline off-white arc with dot terminals,
+                      dominant grotesk numeral, mono state word, draws in with
+                      one haptic." This cell printed the numeral and the word
+                      alone since 13 Sep — the reading at the plate's numeral
+                      size — and every critique since marked B3 partly met:
+                      round 47, *"the brief's signature instrument is implied
+                      rather than drawn."* David cut the **hero** dial on 23
+                      Aug because it covered the car; a 120pt card in the
+                      sheet covers nothing, and the 44pt numeral it replaces
+                      was already the largest thing under the plate.
+
+                      `ClusterGauge`'s card: the same arc, terminals and
+                      `band.short` as the garage's instrument, at the size
+                      the cell has. Keyed on the reading's time so a re-read
+                      sweeps in like a first one. The ink rule lives in the
+                      gauge — off-white unless the band is a genuine warning.
+                    */}
+                    <View style={styles.cellDial}>
+                      <ClusterGauge
+                        key={health?.last_generated ?? 'reading'}
+                        variant="card"
+                        size={CELL_DIAL}
+                        score={score}
+                      />
                     </View>
-                    </Landing>
                     {/*
                       13 Sep: the stale caveat in a cell's worth of words —
                       the critic's most repeated cut across three rounds was
                       the four-line sentence here. `short` is core's, the same
                       claim. 21 Sep: `short` only — a current reading's
-                      sentence is the check-control line under the panel.
+                      sentence, and what it was read from, are the
+                      check-control line under the panel.
                     */}
                     {verdict.short ? <Text style={styles.summary}>{verdict.short}</Text> : null}
-                    <ProvenanceRow kinds={verdict.inputs} />
                   </>
                 ) : (
                   <Text style={styles.absent}>No score yet</Text>
@@ -1653,7 +1668,13 @@ export function VehicleDetailScreen({
             `Health` screen prints all of it; a stale reading's caveat is in
             the cell (`short`) and nothing is repeated here.
           */}
-          {lead ? <Text style={styles.message}>{lead}</Text> : null}
+          {lead ? (
+            <View style={styles.message}>
+              <Text style={styles.messageText}>{lead}</Text>
+              {/* What the reading was worked out from, with the sentence it qualifies (21 Sep; it was in the cell). */}
+              <ProvenanceRow kinds={verdict.inputs} />
+            </View>
+          ) : null}
 
           {/*
             ── The switches ─────────────────────────────────────────────────
@@ -1751,25 +1772,23 @@ export function VehicleDetailScreen({
 
       <View style={[styles.navRow, { top: insets.top }]} pointerEvents="box-none">
         {/*
-          ── ⚠ R25 · 36pt drawn, 44pt tappable — and, 12 Sep, one component ──
+          ── ⚠ 21 Sep · no back control: this is a root ──────────────────────
 
-          The control is 36 tall because that is what reads correctly over a
-          photograph — a 44pt slab is a bar. `BackControl` carries the
-          `hitSlop` that grows the target to the floor (legal here because it
-          stands alone at the row's end), and it is the same component the
-          navigator hands every pushed screen as `headerLeft`, so the way back
-          reads identically on this screen and on the ones it opens.
-        */}
-        <BackControl label="Garage" onPress={onBack} accessibilityLabel="Back to the garage" />
+          "‹ GARAGE" stood here from the first build — `BackControl`, 36pt
+          drawn and 44pt tappable (R25), the same component every pushed
+          screen gets as `headerLeft`. It was right while this screen was
+          pushed over the garage. Since the Car tab it is a root, and round
+          47's critic read the pair at once: *"CAR is the lit tab yet the
+          screen opens with '< GARAGE' — two doors to the same room and a
+          chevron on a root"* (B8: tab roots carry no back chevron). The
+          GARAGE tab is the way back, one thumb away. `onBack` survives for
+          the one state that needs a way out and has no tab bar to offer:
+          the car that is no longer here.
 
-        {/*
-          ⚠ The title is laid out in the flow, not absolutely centred.
-
-          Centred across the full width, "2015 BMW M235i" sits under the chip by
-          8pt and "2019 Mercedes-AMG C63 S" runs under both it and the controls
-          to its right. The title is the only thing keeping the car from being
-          anonymous once the hero is covered, so it does not share space with
-          chrome — it takes the slack and truncates.
+          The title takes the row's start, as every root's collapsed title
+          does. It is the only thing keeping the car from being anonymous
+          once the hero is covered, so it does not share space with chrome —
+          it takes the slack and truncates before the account slot.
         */}
         <Animated.Text style={[styles.navTitle, { opacity: navFade }]} numberOfLines={1}>
           {name}
@@ -1967,7 +1986,7 @@ const styles = StyleSheet.create({
    * row, and the only one the loop never saw because no graded frame had
    * scrolled the car. Same token as the roots and the back control now.
    */
-  navTitle: { ...type.monoNav, color: text.primary, flex: 1, textAlign: 'center' },
+  navTitle: { ...type.monoNav, color: text.primary, flex: 1, textAlign: 'left' },
   /**
    * ⚠ 21 Sep · the car is a tab root now, and a root has a floating ACCOUNT.
    *
@@ -1986,7 +2005,6 @@ const styles = StyleSheet.create({
 
   /* ── The binnacle's readings ────────────────────────────────────────── */
   banner: { padding: space.lg },
-  reading: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   /*
     ⚠ **R7 · the condensed grotesk, because this screen's display role is the
     hero title and its serif role is nobody's.** This was `type.editorial` at
@@ -1997,12 +2015,13 @@ const styles = StyleSheet.create({
     what it reads. The `Health` screen is where the 88 is spent. Tabular so it
     does not shift as the score moves between sweeps.
   */
-  scoreValue: { ...type.numeralPlate, color: text.primary, ...TABULAR },
-  scoreBand: { ...type.monoNav, color: text.primary },
   absent: { ...type.mono, color: text.muted },
   summary: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
   /* The check-control line: the summary's voice, on the gutter, the switches' 24pt of air above it. */
-  message: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary, paddingHorizontal: space.lg, paddingTop: space.xxl },
+  message: { paddingHorizontal: space.lg, paddingTop: space.xxl, gap: space.xs },
+  messageText: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
+  /* The card dial sits at the cell's start, not centred in it — `ClusterGauge` centres within its own box. */
+  cellDial: { alignSelf: 'flex-start' },
   /* B1: the service's name is a section head in miniature — the factor label's size. */
   serviceName: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
   /* A count: mono, tabular, at the health drivers' reading size. */
