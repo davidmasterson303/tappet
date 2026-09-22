@@ -832,15 +832,16 @@ export function VehicleDetailScreen({
   /*
     22 Sep · the odometer carries its as-of (value V1: *"every countdown is
     only as true as 168,400, and nothing says when that was set"*). A note
-    under the value says how long ago — "set 3 wk ago" — where the date is
+    under the value says how long ago — "3 wk ago ›" — where the date is
     known (an eyebrow "MILEAGE · 3 WK AGO" truncated in a third of the
-    strip); the plate is the door to setting it (`onOpenProfile`).
+    strip, and "set 3 wk ago ›" with the door's mark did too); the plate is
+    the door to setting it (`onOpenProfile`).
   */
   const mileageAge = agoLabel(vehicle.last_mileage_update_date);
   const stats: Stat[] = (
     [
       typeof vehicle.current_mileage === 'number'
-        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ? `set ${mileageAge}` : undefined, door: true }
+        ? { label: 'Mileage', value: `${miles.format(vehicle.current_mileage)} mi`, note: mileageAge ?? undefined, door: true }
         : null,
       vehicle.trim ? { label: 'Trim', value: vehicle.trim } : null,
       vehicle.vehicle_status ? { label: 'Use', value: humanise(vehicle.vehicle_status) } : null,
