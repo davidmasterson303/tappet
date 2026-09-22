@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, View, type TextInputProps } from 'react-native';
+import { useId, useState } from 'react';
+import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, View, type TextInputProps } from 'react-native';
 import Text, { TextInput } from './Text';
 
 import CutSurface from './CutSurface';
@@ -70,9 +70,36 @@ export default function Field({
 } & Omit<TextInputProps, 'style' | 'placeholderTextColor'> & { style?: TextInputProps['style'] }) {
   const invalid = Boolean(problem);
   const [focused, setFocused] = useState(false);
+  /*
+    ── A number pad has no Done key ─────────────────────────────────────────
+
+    Seen on the device (21 Sep): the tire interval's pad covered "Save the
+    interval" and nothing on screen dismissed it. iOS's number pads carry no
+    return key, so every numeric field here mounts the platform's accessory
+    bar with one word on it — the standard shape, in the app's own ink.
+    Keyed per field with `useId`, since the id is a global name.
+  */
+  const numeric = input.keyboardType === 'number-pad' || input.keyboardType === 'decimal-pad' || input.keyboardType === 'numeric';
+  const accessoryId = useId();
+  const doneBar = Platform.OS === 'ios' && numeric;
 
   return (
     <View style={styles.wrap}>
+      {doneBar ? (
+        <InputAccessoryView nativeID={accessoryId} backgroundColor={surface.nav}>
+          <View style={styles.accessory}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+              onPress={() => Keyboard.dismiss()}
+              hitSlop={12}
+              style={styles.accessoryDone}
+            >
+              <Text style={styles.accessoryDoneText}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -100,6 +127,7 @@ export default function Field({
       >
       <TextInput
         {...input}
+        inputAccessoryViewID={doneBar ? accessoryId : input.inputAccessoryViewID}
         onFocus={(event) => {
           setFocused(true);
           onFocus?.(event);
@@ -147,6 +175,15 @@ export default function Field({
 }
 
 const styles = StyleSheet.create({
+  accessory: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: border.panel,
+  },
+  accessoryDone: { minHeight: CONTROL_HEIGHT, justifyContent: 'center' },
+  accessoryDoneText: { ...type.uiStrong, color: brand.accent },
   wrap: { gap: space.sm },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   /*

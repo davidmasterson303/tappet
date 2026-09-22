@@ -18,6 +18,7 @@ import { createTireSet, updateTireSet } from '../api/tires';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Field from '../components/Field';
+import IntervalHelp, { useVehicleRotationInterval } from '../components/IntervalHelp';
 import { PAGE_BODY, space, surface, text, type } from '../theme';
 
 /**
@@ -68,6 +69,7 @@ export function TireSetFormScreen({
   onSignOut: () => void;
 }) {
   const [draft, setDraft] = useState<TireSetDraft>(() => (set ? draftFromTireSet(set) : emptyTireSetDraft()));
+  const vehicleInterval = useVehicleRotationInterval(vehicleId);
   const [showProblems, setShowProblems] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -89,6 +91,10 @@ export function TireSetFormScreen({
     setRefused(null);
     try {
       const payload = tireSetPayload(draft);
+      // A claim the server checks against the schedule; the owner's otherwise (21 Sep).
+      if (payload.rotationIntervalMiles !== null && payload.rotationIntervalMiles === vehicleInterval) {
+        payload.intervalSource = 'vehicle';
+      }
       if (set) await updateTireSet(set.id, payload);
       else await createTireSet(vehicleId, payload);
       onSaved();
@@ -202,6 +208,11 @@ export function TireSetFormScreen({
           <Text style={styles.note}>
             The interval is yours to state. Without it this set has no obligation, and Tappet will not guess one.
           </Text>
+          <IntervalHelp
+            vehicleInterval={vehicleInterval}
+            value={draft.rotationIntervalMiles}
+            onUse={(miles) => patch({ rotationIntervalMiles: String(miles) })}
+          />
           <Field
             label="Treadwear mileage, miles"
             hint="optional · as printed"
