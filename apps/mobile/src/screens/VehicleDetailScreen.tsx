@@ -875,7 +875,17 @@ export function VehicleDetailScreen({
     cut the note's own chevron: two handles on one door.
   */
   const mileageAge = agoLabel(vehicle.last_mileage_update_date);
-  /* Over a month old, the note is the ask and wears the door's mark (`readingIsStale`). */
+  /*
+    Over a month old, the note wears the door's mark (`readingIsStale`).
+
+    ⚠ The mark is the whole ask, and that is a measurement rather than a
+    preference. It read "5 wk ago · update ›" for one build: the cell is a
+    third of the strip, the mono label is 12pt, and the word truncated to a
+    middot and an ellipsis — "5 WK AGO ·… ›", which says less than the age
+    alone did. The chevron is this app's word for "this opens" everywhere
+    else; the door it opens is named in full to a screen reader, and THIS CAR
+    › under the strip says it on screen.
+  */
   const mileageStale = readingIsStale(vehicle.last_mileage_update_date);
   const stats: Stat[] = (
     [
@@ -883,7 +893,7 @@ export function VehicleDetailScreen({
         ? {
             label: 'Mileage',
             value: `${miles.format(vehicle.current_mileage)} mi`,
-            note: mileageAge ? (mileageStale ? `${mileageAge} · update` : mileageAge) : undefined,
+            note: mileageAge ?? undefined,
             door: mileageStale,
           }
         : null,
