@@ -41,9 +41,21 @@
  *     masthead is already above them. The first audit counted them as
  *     plateless because it counted *files*; they are not, and giving them a
  *     band would put two frames on one screen.
+ *   - `RecallDetailScreen` — ⚠ not a destination at all. See the note on it
+ *     in `ALREADY_CARRIED`; the route of that name renders `HealthScreen`.
  *
- * And the short forms, where a 132pt frame would be most of the screen: the
- * add-a-car flow, the tire forms, the paywall and sign-in.
+ * And the ones excluded on their own terms, written down here because an
+ * undocumented exception is how a list stops meaning anything:
+ *
+ *   - `InvoiceScanScreen` — a live camera viewfinder fills the screen, so the
+ *     imagery is the subject rather than a frame around it.
+ *   - `RemoveVehicleScreen`, `AddVehicleScreen`, `ScanVinScreen`,
+ *     `TypeVinScreen`, `DescribeCarScreen`, `OwnerAnswersScreen`,
+ *     `TireSetFormScreen`, `TireIntervalScreen`, `TireRotationScreen` —
+ *     short forms and confirmations, where a 132pt frame is most of the
+ *     screen and the screen is one question.
+ *   - `PaywallScreen`, `SignInScreen`, `MarkDoneSheet` — modal and
+ *     pre-auth surfaces, outside the stacks the frame rule is written for.
  */
 
 import { readFileSync } from 'node:fs';
@@ -61,9 +73,9 @@ const SCREENS = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens');
 const CARRIES_A_BAND: ReadonlyArray<{ file: string; frame: string }> = [
   { file: 'AccountScreen.tsx', frame: 'house' },
   { file: 'HealthScreen.tsx', frame: 'house' },
-  { file: 'RecallDetailScreen.tsx', frame: 'house' },
   { file: 'VehicleProfileScreen.tsx', frame: 'house' },
   { file: 'InvoiceDetailScreen.tsx', frame: 'service' },
+  { file: 'WishlistAddScreen.tsx', frame: 'plan' },
 ];
 
 /** Screens whose imagery arrives another way — a band here would be a second frame. */
@@ -78,6 +90,22 @@ const ALREADY_CARRIED = [
   'ServiceMilestoneScreen.tsx',
   'BuildScreen.tsx',
   'WishlistScreen.tsx',
+  /*
+    ⚠ `RecallDetailScreen` is here, and the first draft of this file had it in
+    `CARRIES_A_BAND` instead. That was wrong twice over.
+
+    `RootNavigator` gives the `RecallDetail` **route** a `HealthScreen`, and
+    the only production call site of `RecallDetailScreen` is `HealthScreen`,
+    always with `embedded`. So it is never a destination, and Health's band is
+    the one an owner sees.
+
+    The bookkeeping error is the instructive half: this suite listed the file
+    as contributing coverage *and* asserted, thirty lines down, that its band
+    never renders. A guard that documents its own vacuity is §5's exact
+    failure, and it passed green while doing it. It took an independent
+    critic pass to notice, which is the argument for having one.
+  */
+  'RecallDetailScreen.tsx',
 ];
 
 function read(file: string): string {
@@ -153,13 +181,39 @@ describe('the carrier reaches the screens an owner dwells on', () => {
   });
 
   /*
-    The embedded branch is the one place a band is conditional, and the
-    condition is load-bearing: `RecallDetailScreen` renders inside `Health`,
-    which draws its own. Held explicitly, because "one band in the file" above
-    passes whether or not it is guarded.
+    ⚠ The replacement for a case that asserted the wrong thing. It used to
+    hold that `RecallDetailScreen` guards its band on `embedded` — which
+    passed, while the branch it guarded was unreachable in production. The
+    real property is simpler and is what `ALREADY_CARRIED` now covers: this
+    screen draws no band, because Health draws it.
+
+    Kept as its own case rather than left to the list, because the route
+    indirection is the thing a future reader will get wrong again: the
+    `RecallDetail` route does not render `RecallDetailScreen`.
   */
-  it('does not draw a second frame inside the health screen', () => {
-    const source = read('RecallDetailScreen.tsx');
-    expect(code(source)).toMatch(/\{embedded \? null : <PlateBand frame="house" \/>\}/);
+  it('recall detail is never a destination, so it draws no band of its own', () => {
+    const nav = readFileSync(join(SCREENS, '..', 'navigation', 'RootNavigator.tsx'), 'utf8');
+    expect(nav.length).toBeGreaterThan(200);
+
+    /*
+      The route exists and hands its screen to Health, not to the detail.
+
+      ⚠ Lazily matched to the first closing tag, with no length cap. The first
+      draft capped the window at 400 characters; the block is 449, so the
+      regex found nothing and the case failed on its own first run. A cap here
+      buys nothing — the lazy quantifier already stops at this route's own
+      close tag — and it is exactly the kind of number that would later look
+      like a deliberate bound.
+    */
+    const route = /<Stack\.Screen name="RecallDetail"[\s\S]*?<\/Stack\.Screen>/.exec(code(nav));
+    expect(route).not.toBeNull();
+    expect(route![0]).toContain('<HealthScreen');
+    expect(route![0]).not.toContain('<RecallDetailScreen');
+
+    /* And Health, its only caller, always embeds it. */
+    const health = code(read('HealthScreen.tsx'));
+    const call = /<RecallDetailScreen[\s\S]*?\/>/.exec(health);
+    expect(call).not.toBeNull();
+    expect(call![0]).toContain('embedded');
   });
 });

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
 
 import AlertBanner from '../components/AlertBanner';
+import PlateBand from '../components/PlateBand';
 import Button from '../components/Button';
 import ListGroup from '../components/ListGroup';
 import RowActions from '../components/RowActions';
@@ -348,6 +349,28 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
       control is a text input — the one case where that matters most.
     */
     <View style={styles.screen}>
+      {/*
+        ⚠ **Above the pinned field, and `top={0}` — this screen is the one
+        exception to where a band goes.** Everywhere else the band is the
+        first child of the scroller and cancels `PAGE_BODY`'s padding with a
+        negative margin. Here the filter is pinned *outside* the scroller
+        (see the note below), so a band inside it would sit underneath a
+        control instead of at the head of the screen. `styles.screen` carries
+        no padding of its own, so there is nothing to cancel — hence `top={0}`
+        rather than the default, and the field's own `marginTop` supplies the
+        air beneath.
+
+        The catalogue is reached from Plan, so it takes Plan's frame: the road
+        ahead, which is the stack it belongs to. `PlateBand` carries the rule.
+
+        ⚠ This screen was **missed** by the 22 Sep pass and found by an
+        independent critic. It is a full scrolling catalogue reached exactly
+        the way the invoice detail is reached from Service, so the exclusion
+        had no argument behind it — it was skipped because the pinned field
+        made it awkward, which is not a reason.
+      */}
+      <PlateBand frame="plan" top={0} />
+
       {problem && <AlertBanner tone="critical" headline="That was not added" body={problem} />}
 
       {/*

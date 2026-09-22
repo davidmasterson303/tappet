@@ -3407,3 +3407,86 @@ graded to sit natively in the mastheads' band would be better than one tinted
 on the way to the screen — it is the most-shown image in the product and the
 only asset in the set that was not composed for the band it appears in. That
 is a shoot-and-grade job, not a code one.
+
+### 15.6 An independent critic pass, and what it found — 22 Sep
+
+David: *"use that design critic subagent to re-evaluate following those
+changes."* The advisor subagents live in `~/.claude/agents/` on the Mac and
+the KB at `~/Developer/advisor-kb`; neither is present in a cloud container,
+so this was a general-purpose agent briefed as a critic and told to treat the
+§15 write-up as unverified. It independently re-decoded the four assets and
+matched the recorded saturations to three decimals, and confirmed the
+two-hue constraint is a measured decision rather than house style.
+
+It also found two things §15 got wrong.
+
+**⚠ 1. `RecallDetailScreen` was given a band it can never draw, and the guard
+counted it anyway.** The `RecallDetail` *route* renders `HealthScreen`
+(`RootNavigator.tsx`), and the only production call site of
+`RecallDetailScreen` is `HealthScreen`, always with `embedded`. So
+`{embedded ? null : <PlateBand frame="house" />}` was unreachable.
+
+The branch was harmless; **the guard was not.** `plate-coverage.test.ts`
+listed the file in `CARRIES_A_BAND` as contributing coverage *and* asserted
+thirty lines later that its band never renders — a §5 guard documenting its
+own vacuity, green the whole time. §15.3 and commit `3851bd6` therefore name
+five screens for four real destinations. Branch deleted, file moved to
+`ALREADY_CARRIED`, and the replacement case reads the navigator to hold the
+real property: the route does not render the screen of that name.
+
+**⚠ 2. `WishlistAddScreen` was missed.** A full scrolling catalogue reached
+from Plan, exactly as the invoice detail is reached from Service — so the
+stack rule applied to it and nothing had been written down to say otherwise.
+It was skipped because its filter is pinned outside the scroller and that
+made the insertion awkward, which is not a reason. It now takes
+`frame="plan"` above the pinned field with `top={0}`.
+
+Both the "excluded on its own terms" screens and the reason for each are now
+written into `plate-coverage.test.ts`'s docblock, because an undocumented
+exception is how a list stops meaning anything.
+
+**Two of the critic's findings did not survive checking, recorded so they are
+not re-raised as fact:**
+
+- *"Health's band sits ahead of the one number that matters."* The band pushes
+  the score down 144pt but does not hide it: on a 402×874 device the score
+  card starts at 247pt with 627pt of headroom. The underlying observation is
+  still fair (see below) — the "ahead of the score" framing is not.
+- *"The plate now backs four screens and will read as repetitive."* It backed
+  every car without a photograph on the garage, the vehicle hero and the tire
+  plate before this change, and its own docblock argues for exactly that
+  ("the same image for every car and every screen, deliberately — the bay is
+  a *place*"). `PlateBand` adds instances of an already-universal frame; it
+  did not make it universal.
+
+### 15.7 Open for David — four calls that are not the implementer's
+
+Flagged the way §3 flags comparable calls, rather than recorded as settled.
+
+- **Ask: the 13 Sep ruling.** §15.3 reinterprets *"a plate is already the
+  film; grading it again lifts its blacks twice"* as an objection to the
+  **lift** layer specifically, and ships the split tone alone on that reading.
+  The mechanics hold — the critic verified the +4 luma shift independently —
+  but it is still one session re-reading someone else's design ruling
+  unilaterally, and it changes how a locked-brief rule is applied.
+- **Ask: Account's frame.** `NightPlate` defines its image as *"the night a
+  car stands in when its owner has not photographed it"* — the empty-bay
+  state. Account has no car and sits in no car's stack. §15.3 recorded the
+  deviation; the critic would ship Account with **no band** sooner than reuse
+  this frame, and that is a real reading of what the asset means. Against it:
+  Account was the one root with no imagery at all, which is the gap David
+  noticed in the first place. A bespoke Account frame settles it properly.
+- **Ask: Health's band, on the app's most-read screen.** Not the fold — see
+  above — but `PlateBand` never collapses the way `RootScreen`'s masthead
+  does on scroll, so it is 132pt of permanent scroll content on the screen
+  opened most often, in a product whose stated job is reporting fast. Making
+  it collapse, or shortening it there, are both cheap if the answer is yes.
+- **The one item needing a camera, now more load-bearing than §15.5 said.**
+  The critic measured what the mean saturation hides: `night-plate.jpg` is
+  nearly flat across its tonal range (0.277 / 0.266 / 0.250 shadow / mid /
+  highlight) where `masthead-advisor` varies genuinely (0.297 / 0.515 /
+  0.396). The mastheads' vividness comes from a **bright coloured highlight**,
+  not from uniform tint — so matching the mean, which the runtime grade does,
+  cannot reproduce it. That is the mechanical reason the graded plate reads as
+  warmer but still the plain one of the four, and it is the strongest argument
+  yet for a frame shot and graded for this band.

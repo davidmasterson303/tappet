@@ -23,7 +23,6 @@ import {
   type AddressedRecall,
 } from '../api/recalls';
 import Working from '../components/Working';
-import PlateBand from '../components/PlateBand';
 import { border, PAGE_BODY, radius, space, status, surface, TABULAR, TARGET_MIN, text, type } from '../theme';
 import { unshout } from '@tappet/core/unshout';
 import {
@@ -543,12 +542,21 @@ export function RecallDetailScreen({
   return (
     <Container {...(containerProps as object)}>
       {/*
-        ⚠ The pushed screen only. Embedded, this renders inside Health — which
-        draws its own band — and a second plate mid-page would read as the
-        page having started again. `embedded` is the same flag the container
-        and the refresh control branch on, so the three cannot drift.
+        ⚠ **No `PlateBand` here, and the first version of this change had one.**
+        It was written as `{embedded ? null : <PlateBand frame="house" />}` on
+        the belief that this screen is also a pushed destination. It is not:
+        `RootNavigator` gives the `RecallDetail` *route* a `HealthScreen`
+        (`RootNavigator.tsx`, the route above `Health`), and the only
+        production call site of this component is `HealthScreen` itself,
+        which always passes `embedded`. So the `false` arm was unreachable
+        and Health's own band was the one being seen.
+
+        Dead either way — but the guard was worse than the branch. It listed
+        this file as a screen that *contributes* coverage while asserting in
+        the same suite that the branch never runs, which is a §5 guard
+        documenting its own vacuity. Caught by an independent critic pass,
+        not by the suite.
       */}
-      {embedded ? null : <PlateBand frame="house" />}
 
       {/*
         Before the vehicle name, deliberately. Someone arriving from a
