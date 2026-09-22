@@ -41,6 +41,8 @@ const CAR_TAB_ROOT = {
 
 export type TabTarget =
   | { name: TabName; params?: undefined }
+  /** The garage, popped to (21 Sep): the tab's word is the screen it lands on. */
+  | { name: 'GarageTab'; params: { screen: 'Garage'; pop: true } }
   | {
       name: TabName;
       params: {
@@ -84,7 +86,22 @@ export function tabTarget(
   mountedVehicleId: string | undefined,
   car: Car | null
 ): TabTarget {
-  if (tab === 'GarageTab' || !car || mountedVehicleId === car.vehicleId) {
+  /*
+    ── 21 Sep · GARAGE lands on the garage ────────────────────────────────────
+
+    The Garage tab kept its stack like the others, so coming back from
+    Service landed on the car last opened, and a second tap was needed to
+    reach the garage the tab is named for. David, from the phone: "tapping
+    Garage twice… should the label change to say where the first tap goes?"
+    A label that changes is the more surprising thing; a tab whose word is
+    the screen it lands on is not. So the press pops the stack to the garage
+    — the car is one bay away — and the other three tabs keep their stacks,
+    because their word (Service, Plan, Advisor) is what they land on already.
+  */
+  if (tab === 'GarageTab') {
+    return { name: tab, params: { screen: 'Garage', pop: true } };
+  }
+  if (!car || mountedVehicleId === car.vehicleId) {
     return { name: tab };
   }
 
