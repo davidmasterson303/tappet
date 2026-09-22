@@ -1477,7 +1477,8 @@ describe('the hub under three lenses (22 Sep)', () => {
       and recalls are "open", in the hub's own count, for this model.
     */
     request.mockImplementation((path: string) => {
-      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [] }) as never;
+      // Eleven records: a history thick enough that the drivers, not the count, name the cause.
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: Array.from({ length: 11 }, (_, i) => ({ id: i, created_at: '2026-08-01T00:00:00Z' })) }) as never;
       if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
       return Promise.resolve({
         vehicle: {
@@ -1537,7 +1538,34 @@ describe('the hub under three lenses (22 Sep)', () => {
     });
     const { view } = await mount();
     await view.findAllByText(/2017 Jaguar F-PACE/);
-    await view.findByText('Held back by 11 services with no record to count from and 2 open recalls for this model — scan an invoice, review them.');
+    // No maintenance rows served: the hub's own count is zero, and it leads.
+    await view.findByText('Held back by no records on file and 2 open recalls for this model — scan an invoice, review them.');
+  });
+
+  it('names one record on file before the drivers can, on a mileage-driven schedule', async () => {
+    /*
+      A service with no record is counted from the next interval boundary,
+      so the drivers read a one-record car as "nothing overdue" and name the
+      recalls; the record count is the hub's own fact and leads under three.
+    */
+    request.mockImplementation((path: string) => {
+      if (path.startsWith('/load-maintenance-data')) return Promise.resolve({ maintenanceLineItems: [{ id: 1, created_at: '2026-08-01T00:00:00Z' }] }) as never;
+      if (path.startsWith('/wishlist')) return Promise.resolve({ wishlistItems: [] }) as never;
+      return Promise.resolve({
+        vehicle: {
+          id: 'v1', year: 2017, make: 'Jaguar', model: 'F-PACE', current_mileage: 69_573,
+          vehicle_health_summary: { health_score: 55, summary: 'Sparse history.', last_generated: '2026-09-20T00:00:00Z' },
+          nhtsa_data: { recalls: [] },
+        },
+        health_drivers: [
+          { key: 'maintenance', label: 'Maintenance', score: 100, detail: 'Nothing overdue, across 12 tracked services.', nothingOutstanding: true },
+          { key: 'recalls', label: 'Recalls', score: 100, detail: 'No recalls on record.', nothingOutstanding: true },
+        ],
+      }) as never;
+    });
+    const { view } = await mount();
+    await view.findAllByText(/2017 Jaguar F-PACE/);
+    await view.findByText('Held back by one record on file — scan an invoice.');
   });
 
   it('asks for miles a month in the service row when a date is missing for want of it', async () => {

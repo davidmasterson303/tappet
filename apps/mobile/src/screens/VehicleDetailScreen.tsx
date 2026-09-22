@@ -1029,6 +1029,26 @@ export function VehicleDetailScreen({
     const acts = [one.act, two?.act].filter((a): a is string => Boolean(a));
     return `Held back by ${reasons}${acts.length ? ` — ${acts.join(', ')}` : ''}.`;
   })();
+  /*
+    ⚠ The drivers cannot see a thin history on a mileage-driven schedule: a
+    service with no record is counted from the next interval boundary above
+    the odometer (`later`, not `unknown`), so the F-PACE — one record in
+    69,573 miles — reads "nothing overdue" to the maintenance driver and
+    names its recalls. The record count is the hub's own fact (value V1:
+    *"nothing near the 55 says it rests on one record"*); under three it is
+    the first reason, in its own number, with the recalls beside it.
+  */
+  const thinHistory =
+    counts.services !== null && counts.services < 3
+      ? counts.services === 0 ? 'no records on file' : counts.services === 1 ? 'one record on file' : `${counts.services} records on file`
+      : null;
+  const causeLine = (() => {
+    if (!thinHistory) return cause;
+    const recalls =
+      openRecallCount > 0 ? ` and ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'} for this model` : '';
+    const acts = openRecallCount > 0 ? 'scan an invoice, review them' : 'scan an invoice';
+    return `Held back by ${thinHistory}${recalls} — ${acts}.`;
+  })();
 
   /* The reading's sentence, beside the dial: a current reading's lead, whole sentences. See `leadOf`. */
   const lead = verdict.state === 'current' && verdict.text ? leadOf(verdict.text) : null;
@@ -1491,7 +1511,7 @@ export function VehicleDetailScreen({
                 onPress={onOpenHealth}
                 accessibilityLabel={
                   score !== null && band
-                    ? `Health score ${score} out of 100 — ${band.label}.${cause ? ` ${cause}` : lead ? ` ${lead}` : ''} Opens what is driving it.`
+                    ? `Health score ${score} out of 100 — ${band.label}.${causeLine ? ` ${causeLine}` : lead ? ` ${lead}` : ''} Opens what is driving it.`
                     : 'Health, no score yet. Opens what is driving it.'
                 }
               >
@@ -1524,9 +1544,9 @@ export function VehicleDetailScreen({
                         the drivers sit under the score without summing to it
                         (§10).
                       */}
-                      {cause ? <Text style={styles.cause}>{cause}</Text> : null}
+                      {causeLine ? <Text style={styles.cause}>{causeLine}</Text> : null}
                       {verdict.short ? <Text style={styles.summary}>{verdict.short}</Text> : null}
-                      {!cause && !verdict.short && lead ? <Text style={styles.summary}>{lead}</Text> : null}
+                      {!causeLine && !verdict.short && lead ? <Text style={styles.summary}>{lead}</Text> : null}
                     </View>
                   </View>
                 ) : (
