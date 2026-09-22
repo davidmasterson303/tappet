@@ -76,8 +76,15 @@ import { cut, rhythm, surface } from '../theme';
  * ⚠ **Account is the one deviation and it is recorded rather than hidden.**
  * It is not a car screen and has no frame of its own, so it takes the house
  * plate. That is on-vocabulary (night, wet asphalt, sodium against cyan) and
- * much better than graphite, but a bespoke frame is the right answer and is an
- * asset job, not a code one.
+ * much better than graphite, but a frame of its own is the right answer.
+ *
+ * ⚠ That last sentence used to end "and is an asset job, not a code one",
+ * which was wrong for the same reason `NightPlate`'s citation was: the frames
+ * are **generated**. `apps/mobile/scripts/build-mastheads.mjs` cuts the three
+ * mastheads and carries their prompts verbatim, and
+ * `render-night-plate.mjs` composes the house plate from documented numbers.
+ * An Account frame is a run of a script that is already here, not a
+ * commission.
  */
 export type PlateBandFrame = MastheadKey | 'house';
 
@@ -108,6 +115,37 @@ export default function PlateBand({
    */
   top?: number;
 }) {
+  /*
+    ⚠ **The band sets no `marginBottom`, and the first version did.**
+
+    It carried `marginBottom: top` on the reasoning that the negative top
+    margin cancels the container's padding, so the same value should put that
+    air back underneath. That is wrong wherever the container also sets a flex
+    `gap` — which is every screen that hosts one. Yoga adds `gap` *between*
+    children on top of each child's own margins; a margin never absorbs it. So
+    the air below the band came out at `top + gap`:
+
+      Account         20 + 24 = 44   against 20 intended
+      Health          16 + 12 = 28   against 16
+      Invoice detail  16 + 12 = 28   against 16
+      Vehicle profile 16 + 16 = 32   against 16
+
+    Wrong on first paint, no interaction needed, and four different values
+    where the point of `rhythm` is that screens agree — which is the exact
+    defect class the theme's R56 note says that scale exists to prevent
+    ("moving between two of them felt like moving between two products").
+
+    The fix is to delete the number rather than correct it. The container's
+    `gap` already owns the space between its children, and the band is one of
+    them: it gets the screen's own card-to-card rhythm, like everything else
+    in the list. A `gap`-aware margin would need the band to be told the
+    container's gap as well as its padding, which is a second number to get
+    wrong in the same place as the first.
+
+    Found by a defect-hunting agent that read Yoga's own layout source and
+    reproduced each screen's container in a real layout engine, after the
+    suites and both typechecks had passed green over it.
+  */
   const [width, setWidth] = useState(0);
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -117,7 +155,7 @@ export default function PlateBand({
 
   return (
     <View
-      style={[styles.band, { marginTop: -top, marginBottom: top }]}
+      style={[styles.band, { marginTop: -top }]}
       onLayout={onLayout}
       pointerEvents="none"
       accessibilityElementsHidden
@@ -156,9 +194,9 @@ const styles = StyleSheet.create({
     it instead of leaving a seam nobody looks for. The vertical pair is inline
     above, because it is the one value the screens disagree about.
 
-    `marginBottom` restores the air the cancelled top padding was providing,
-    now below the plate instead of above it — the content starts under the
-    frame, not against it.
+    There is deliberately no `marginBottom` here — see the note in the
+    component above for why, and why adding one back is a regression rather
+    than a tidy-up.
 
     ⚠ `backgroundColor` is the raised step rather than the page, so the band
     is a surface for the instant before the image decodes. On the page colour

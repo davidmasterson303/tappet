@@ -3379,34 +3379,55 @@ Recorded because both would otherwise be proposed again.
   in the product; they are not damped, and they are not graded at render
   because they are already the film.
 
-### 15.5 Two citations corrected, and one thing that genuinely needs a camera
+### 15.5 ⚠ RETRACTED — the scripts exist, and this section said they did not
 
-⚠ **`MastheadPlate` cited `scripts/build-mastheads.mjs` and `NightPlate` cited
-`scripts/render-night-plate.mjs` as the record of where their frames came
-from. Neither file has ever existed in this repository** — not deleted, not
-gitignored, never committed; `git log --all --diff-filter=A` returns nothing
-for either. The JPEGs were committed directly.
+**This subsection asserted that `MastheadPlate` and `NightPlate` cited build
+scripts which "have never existed in this repository", and that the frames had
+no generator. Both claims are false.**
 
-Same shape as the `cluster-geometry.test.ts` citation §1 collects, and both
-docblocks now say what is true: the frames were produced outside this repo by
-the design-critic loop on David's machine, the committed JPEGs are the
-artefact, and what they *are* is measured rather than described —
-`mobile-masthead-plates.test.ts` for luminance under the ink,
-`house-plate-chroma.test.ts` for saturation. Those two suites are the record
-the deleted sentences claimed to be.
+`apps/mobile/scripts/build-mastheads.mjs` (186 lines) and
+`apps/mobile/scripts/render-night-plate.mjs` (423 lines) are tracked, complete
+and working. David committed them on **20 Sep in `a46d219`**, two days before
+the pass that declared them absent. `build-mastheads` carries the three Gemini
+prompts verbatim; `render-night-plate` composes the house plate procedurally
+and documents its own geometry.
 
-⚠ These were first *flagged* rather than fixed, which was the wrong call and
-is the reason this subsection exists. A note saying "a docblock is wrong" is
-itself a board entry that goes stale, and §1 is specifically about not leaving
-those lying around. Fixing a citation needs no camera.
+How the error was made, because the shape of it is the lesson: the pass looked
+for `scripts/build-mastheads.mjs` at the **repository root**, found nothing,
+then ran `git log --all --diff-filter=A` **on that same wrong path**, got an
+empty result, and read it as proof of "never committed". The scripts are under
+`apps/mobile/scripts/`. §1 says verify against the artefact — a `git log` on a
+guessed path is not verification, it is the same guess asked twice.
 
-**What does need a camera, and is the one open item:** `night-plate.jpg` is
-still the flattest frame in the set on disk (0.268). The runtime split tone
-brings what renders to 0.428, which fixes the symptom, but a frame cut and
-graded to sit natively in the mastheads' band would be better than one tinted
-on the way to the screen — it is the most-shown image in the product and the
-only asset in the set that was not composed for the band it appears in. That
-is a shoot-and-grade job, not a code one.
+⚠ It then compounded twice. Commit `4e9cc79` rewrote both docblocks to state
+the false claim *more* confidently, citing §1 by name as the precedent for
+correcting citations while committing the identical failure in reverse. And
+the conclusion David was given — that making the plate less flat "needs a
+camera" — was wrong: `render-night-plate.mjs` takes numbers, so the fix is an
+edit. Caught by an independent defect-hunting agent, not by any guard here.
+
+Both citations are restored with correct paths, and both docblocks now carry
+the round trip rather than only the answer. **The rule earned: a negative from
+one directory is not a negative from the repository.**
+
+### 15.5a What the flat plate actually needs
+
+Not a camera. `render-night-plate.mjs` composes the frame from a documented
+set of numbers — horizon at 42%, a sodium source upper-left with bloom and
+reflection, a cyan source off the right edge, bokeh along the horizon — so the
+property the design critic identified as missing is reachable by re-tuning it.
+
+That property is specific and worth stating precisely: the mastheads' vividness
+comes from a **bright coloured highlight**, not from uniform tint. Measured
+across tonal bands, `masthead-advisor` varies 0.297 / 0.515 / 0.396 (shadow /
+mid / highlight) where `night-plate` is nearly flat at 0.277 / 0.266 / 0.250.
+The runtime split tone raises the *mean* to 0.428 and structurally cannot
+reproduce that variation.
+
+So the real fix is to re-render with stronger, more concentrated sources rather
+than to tint harder at runtime — and if that lands, `PhotoGrade`'s `plate`
+variant becomes unnecessary and should be removed rather than left on top of a
+frame that no longer needs it.
 
 ### 15.6 An independent critic pass, and what it found — 22 Sep
 
@@ -3481,15 +3502,13 @@ Flagged the way §3 flags comparable calls, rather than recorded as settled.
   does on scroll, so it is 132pt of permanent scroll content on the screen
   opened most often, in a product whose stated job is reporting fast. Making
   it collapse, or shortening it there, are both cheap if the answer is yes.
-- **The one item needing a camera, now more load-bearing than §15.5 said.**
-  The critic measured what the mean saturation hides: `night-plate.jpg` is
-  nearly flat across its tonal range (0.277 / 0.266 / 0.250 shadow / mid /
-  highlight) where `masthead-advisor` varies genuinely (0.297 / 0.515 /
-  0.396). The mastheads' vividness comes from a **bright coloured highlight**,
-  not from uniform tint — so matching the mean, which the runtime grade does,
-  cannot reproduce it. That is the mechanical reason the graded plate reads as
-  warmer but still the plain one of the four, and it is the strongest argument
-  yet for a frame shot and graded for this band.
+- ~~**The one item needing a camera.**~~ ⚠ **Withdrawn — it never needed one.**
+  The measurement behind it stands (see §15.5a: the plate is flat across its
+  tonal range where the mastheads are not, so matching the mean cannot
+  reproduce their vividness). The conclusion drawn from it was wrong, because
+  the pass that drew it believed no generator existed. `render-night-plate.mjs`
+  is in the tree and takes numbers. This is a code change, and it is the open
+  item with the most left in it.
 
 ### 15.8 The critic's gap finding was right; its fix was not — 22 Sep
 
@@ -3521,3 +3540,70 @@ Three lists, 29 screens, no unclassified remainder.
 
 That is the pattern worth keeping from the whole exercise: a list a screen can
 silently fall out of is not a guard, it is a snapshot.
+
+### 15.9 The defect hunt — a layout bug four green suites walked past — 22 Sep
+
+The second agent of the re-evaluation read Yoga's own layout source and
+reproduced each host screen's container in a real layout engine rather than
+reasoning about it. It cleared three of the five risks it was pointed at and
+found one real defect plus the retraction in §15.5.
+
+**⚠ `PlateBand` set `marginBottom: top`, and flex `gap` is additive with
+margin.** The margin was there to restore the air the negative top margin
+cancels. Yoga adds `gap` *between* children on top of each child's own
+margins — a margin never absorbs it — so the air below the band came out at
+`top + gap`:
+
+```
+Account          20 + 24 = 44   against 20 intended
+Health           16 + 12 = 28   against 16
+Invoice detail   16 + 12 = 28   against 16
+Vehicle profile  16 + 16 = 32   against 16
+```
+
+Wrong on first paint, no interaction needed, and **four different values in
+the system whose entire purpose is that screens agree** — the R56 defect class
+by name ("moving between two of them felt like moving between two products").
+883 mobile tests, 4,000 web tests and two typechecks all passed over it,
+because none of them resolves flex arithmetic.
+
+Fixed by deleting the number rather than correcting it: the container's `gap`
+already owns the space between its children and the band is one of them, so it
+takes the screen's own card-to-card rhythm. A gap-aware margin would need the
+band told the container's gap as well as its padding — a second number to get
+wrong in the same place as the first. Guarded in `plate-coverage.test.ts` with
+an anti-vacuous case, because "restore the missing bottom margin" is exactly
+what a later tidy-up would do.
+
+**What the hunt cleared, each by rendering or measuring rather than reading:**
+
+- **Blend-mode compositing.** `NightPlate` now returns a fragment, and the
+  risk was that the grade stops being a sibling of the image. Rendered every
+  call site — `NightPlate` alone, wrapped, `TirePlate`, `BayRoom`, `PlateBand`
+  — and the `Image` and the grade `View` come out immediate siblings of the
+  same real parent in all of them. The near-black-rectangle bug needs the
+  grade layers isolated *from* the image in a wrapper of their own; nothing
+  does that. ⚠ Residual, and worth carrying: this confirms React-tree
+  topology, not pixels, and there is no evidence `mixBlendMode` has ever been
+  visually checked on **Android** here — the only device build was iOS.
+- **Double grading.** Every `photo ? <Image/> + grade : <NightPlate/>` site is
+  strictly mutually exclusive, so a self-grading plate never lands under an
+  external `PhotoGrade`.
+- **Accessibility.** `pointerEvents` is passed as a prop in all three
+  components, matching `MastheadPlate` and `PhotoGrade`; correct on the band
+  because its negative margins expand its box over what was the container's
+  padding. Triple-redundant `accessibilityElementsHidden` on the house path,
+  harmless.
+
+**⚠ One finding it measured that is worth acting on before a re-render.**
+`night-plate.jpg` is 1206×1400 and the band is height-constrained, so at 402pt
+wide only **rows 502–898 of 1400 survive** — 28% of the image. The docblock's
+claim that 132 "keeps the horizon and the reflections" holds at real phone
+widths, but by a thinner margin than its tone suggests: the skyline silhouette
+and the bokeh lamps sit on the very top edge of the crop. `BAY_HERO_MIN` is
+168 and `TirePlate`'s band is 268, both of which keep far more headroom.
+Nothing guards the composition — `PLATE_BAND_HEIGHT` has no test reference
+outside its own file, and only saturation is measured — so a re-crop or a wider
+device could lose the horizon with nothing turning red. If §15.5a's re-render
+happens, composing for a 3:1 band rather than cropping a 0.86:1 frame into one
+is the thing to fix at the same time.

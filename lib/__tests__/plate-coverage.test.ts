@@ -239,6 +239,48 @@ describe('the carrier reaches the screens an owner dwells on', () => {
   });
 
   /*
+    ⚠ The band must not set a `marginBottom`, and this is the only thing
+    standing between that and a "tidy-up".
+
+    It had one — `marginBottom: top`, put there to restore the air its
+    negative top margin cancels. Flex `gap` is additive with margin in Yoga,
+    so on the four screens that host a band the air below came out at
+    `top + gap`: 44, 28, 28 and 32 against 16–20 intended. Wrong on first
+    paint, and four different values in a system whose whole point is that
+    screens agree. Every suite and both typechecks passed over it.
+
+    Held as a source scan because there is no renderer here that resolves
+    Yoga's gap arithmetic — the web runner cannot load React Native at all.
+    The assertion is deliberately narrow: the component may set `marginTop`
+    (it must) and `marginHorizontal` (it must), and nothing on the bottom.
+  */
+  it('the band adds no bottom margin, so the container gap owns the space below', () => {
+    const band = readFileSync(
+      join(SCREENS, '..', 'components', 'PlateBand.tsx'),
+      'utf8'
+    );
+    expect(band.length).toBeGreaterThan(200);
+
+    const source = code(band);
+
+    /* The real property. */
+    expect(source).not.toMatch(/marginBottom/);
+
+    /*
+      §5: prove the scan can still fail. A copy with the margin put back must
+      trip it, or this case is measuring the absence of a string it would
+      never have found anyway.
+    */
+    const regressed = source.replace('{ marginTop: -top }', '{ marginTop: -top, marginBottom: top }');
+    expect(regressed).not.toEqual(source);
+    expect(regressed).toMatch(/marginBottom/);
+
+    /* And the margins it does need are still there. */
+    expect(source).toMatch(/marginTop: -top/);
+    expect(source).toMatch(/marginHorizontal: -rhythm\.page/);
+  });
+
+  /*
     ⚠ The replacement for a case that asserted the wrong thing. It used to
     hold that `RecallDetailScreen` guards its band on `embedded` — which
     passed, while the branch it guarded was unreachable in production. The

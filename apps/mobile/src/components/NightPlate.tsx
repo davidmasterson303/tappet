@@ -20,21 +20,31 @@ import PhotoGrade from './PhotoGrade';
  * This is the same image for every car and every screen, deliberately — the
  * bay is a *place*, and a room whose weather changed per make would read as a
  * lightbox. It contains no car, which is the honest empty state: the street is
- * lit and the bay is empty. It is a committed JPEG rather than a runtime
- * drawing because the grain, the broken reflections and the bokeh are not
- * things `react-native-svg` can paint, and 1.7 million pixels is not a thing
- * to draw on every mount.
+ * lit and the bay is empty. `apps/mobile/scripts/render-night-plate.mjs`
+ * draws it and says how; it is a committed JPEG rather than a runtime drawing
+ * because the grain, the broken reflections and the bokeh are not things
+ * `react-native-svg` can paint, and 1.7 million pixels is not a thing to draw
+ * on every mount.
  *
- * ⚠ **22 Sep: this used to say `scripts/render-night-plate.mjs` "draws it and
- * says how". That file has never existed in this repository** — never
- * committed, not gitignored. Same shape as the `cluster-geometry.test.ts`
- * citation in `CLAUDE.md` §1, and corrected for the same reason: the next
- * person to go looking for it pays for the sentence.
- *
- * The frame came from outside this repo and the JPEG is the artefact. What it
- * *is* is measured rather than described — `lib/__tests__/house-plate-chroma.test.ts`
- * holds a saturation floor under it, which is what stops a flatter re-cut
+ * ⚠ **The plate is rendered, not photographed, and that matters for anyone
+ * trying to make it less flat.** The script composes it from numbers — horizon
+ * at 42%, a sodium source upper-left with its bloom and reflection, a cyan
+ * source off the right edge, bokeh along the horizon — so re-tuning it is an
+ * edit, not a shoot. `lib/__tests__/house-plate-chroma.test.ts` holds a
+ * saturation floor under the output, which is what stops a flatter re-render
  * landing silently.
+ *
+ * ⚠ **22 Sep: this citation was deleted as nonexistent and then restored.** A
+ * pass that afternoon looked for the script at repo-root `scripts/` instead of
+ * here, ran `git log --all --diff-filter=A` on that same wrong path, and
+ * rewrote this paragraph to say the file had never been committed. It has been
+ * here since 20 Sep (`a46d219`). The consequence was not only a wrong
+ * docblock: the same pass told David the flat plate "needs a camera", when the
+ * thing that renders it is in the tree and takes arguments.
+ *
+ * `MastheadPlate` carries the longer version of this note. The rule both
+ * earned: a negative from one directory is not a negative from the
+ * repository.
  *
  * ⚠ `cover`, never `contain`. B2 and B9 both retire the letterbox; the image
  * is composed tall enough that the vehicle hero keeps the whole scene and the

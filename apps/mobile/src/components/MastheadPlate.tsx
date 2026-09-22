@@ -42,24 +42,31 @@ import { cut, surface } from '../theme';
  *   - **Advisor** — the driver's seat of a parked car at night, the street's
  *     lights as soft bokeh through a rain-covered windscreen.
  *
- * ⚠ **22 Sep: this paragraph used to cite `scripts/build-mastheads.mjs` as
- * the record of where the frames came from. That file has never existed in
- * this repository** — not deleted, not gitignored, never committed
- * (`git log --all --diff-filter=A` returns nothing for it). The three JPEGs
- * were committed directly.
+ * `apps/mobile/scripts/build-mastheads.mjs` says where the frames came from
+ * and how they were cut and graded for the band, and is the record of what the
+ * JPEGs are. It carries the three Gemini prompts verbatim, so a re-cut starts
+ * from the same brief rather than from a description of it.
  *
- * That is the `cluster-geometry.test.ts` shape `CLAUDE.md` §1 collects: a
- * docblock pointing at a file that is not there costs whoever checks it, and
- * the checking is the behaviour the rules are trying to encourage. So the
- * citation is corrected rather than left to be discovered again.
+ * ⚠ **22 Sep: this citation was deleted and then restored, and the round trip
+ * is the note worth keeping.** A pass that afternoon checked for the script at
+ * repo-root `scripts/`, found nothing, ran
+ * `git log --all --diff-filter=A -- scripts/build-mastheads.mjs` — the same
+ * wrong path — got nothing back, and rewrote this paragraph to assert the file
+ * "has never existed in this repository". It then cited `CLAUDE.md` §1 as the
+ * reason for the correction.
  *
- * **The frames have no generator here.** They were cut and graded outside this
- * repository, by the design-critic loop on David's machine, and the committed
- * JPEGs are the artefact. Anything that needs to know what they are should
- * measure them: `lib/__tests__/mobile-masthead-plates.test.ts` reads the
- * luminance under the title and ACCOUNT, and
- * `lib/__tests__/house-plate-chroma.test.ts` reads their saturation. Between
- * them those two suites are the record this line claimed to be.
+ * The file has been here since 20 Sep (`a46d219`, two days before), tracked,
+ * under `apps/mobile/scripts/`. §1 says verify against the artefact; a
+ * `git log` on a guessed path is not that, and a negative from one directory
+ * is not a negative from the repository. The failure direction is the more
+ * expensive one: a docblock saying "no generator exists" sends the next
+ * reader to re-commission a pipeline that is sitting in the tree.
+ *
+ * What the suites do measure, which is still worth naming:
+ * `lib/__tests__/mobile-masthead-plates.test.ts` reads the luminance under
+ * the title and ACCOUNT, and `lib/__tests__/house-plate-chroma.test.ts` reads
+ * saturation. They hold what a re-cut must not break — they are not a
+ * substitute for the script that produces it.
  *
  * ── ⚠ Type over a photograph, and why this one is allowed ──────────────────
  *
