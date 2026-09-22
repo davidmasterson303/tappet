@@ -554,6 +554,40 @@ describe('the bay’s hierarchy', () => {
  * the home screen, and it was a readout. It opens `Service → Due` now.
  */
 describe('the next-service row', () => {
+  it('names the job as the hub names it — no schedule tier, one spelling of "and" (22 Sep)', async () => {
+    /*
+      Walked on the phone: the F-PACE's bay read "Engine Oil & Filter Change
+      (Enthusiast)" and its hub, one tap away, read "ENGINE OIL AND FILTER
+      CHANGE". Same car, same row, two names — the hub applied
+      `displayServiceName` and the bay printed the knowledge base's filing.
+    */
+    request.mockResolvedValue({
+      vehicles: [
+        {
+          ...M235I,
+          next_service_label: 'Engine Oil & Filter Change (Enthusiast)',
+          next_service_at_miles: 70_000,
+        },
+      ],
+    });
+
+    const view = await render(
+      <GarageScreen
+        accessToken="test-token"
+        email="owner@example.test"
+        onSignOut={jest.fn()}
+        onOpenVehicle={jest.fn()}
+        onOpenService={jest.fn()}
+        onAddVehicle={jest.fn()}
+      />
+    );
+
+    await view.findByText('Engine Oil and Filter Change');
+    expect(view.queryByText(/Enthusiast|&/)).toBeNull();
+    // The spoken name is the printed one, not the filing.
+    view.getByLabelText(/^Next service: Engine Oil and Filter Change,/);
+  });
+
   it('opens what is due when there is an answer', async () => {
     const onOpenService = jest.fn();
     request.mockResolvedValue({
