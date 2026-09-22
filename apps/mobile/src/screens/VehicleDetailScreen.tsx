@@ -40,7 +40,6 @@ import PhotoGrade from '../components/PhotoGrade';
 import PlateStatusLine from '../components/PlateStatusLine';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
-import ProvenanceRow from '../components/ProvenanceRow';
 import StatStrip, { type Stat } from '../components/StatStrip';
 import SectionHeader from '../components/SectionHeader';
 import {
@@ -1477,9 +1476,17 @@ export function VehicleDetailScreen({
 
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
+              {/*
+                ⚠ 21 Sep · two cells of one width, from three parts to two.
+                The 3:2 split gave a bare 44pt numeral room it did not need
+                and left NEXT SERVICE wrapping "overdue by 3,000 / mi" on the
+                Max (round 48's rest frame). With a 120pt dial on the left the
+                row is two gauges, and two gauges share the row: the job name
+                takes two lines instead of three, and core's timing fits one
+                line at `type.mono`'s size on the 16 Pro.
+              */}
               <BinnacleCell
                 legend="Health"
-                flex={3}
                 onPress={onOpenHealth}
                 accessibilityLabel={
                   score !== null && band
@@ -1545,7 +1552,6 @@ export function VehicleDetailScreen({
               */}
               <BinnacleCell
                 legend="Next service"
-                flex={2}
                 rule
                 warning={serviceOverdue}
                 onPress={onOpenMilestone}
@@ -1668,11 +1674,18 @@ export function VehicleDetailScreen({
             `Health` screen prints all of it; a stale reading's caveat is in
             the cell (`short`) and nothing is repeated here.
           */}
+          {/*
+            ⚠ No provenance line on the hub (round 48's cut). "Based on 5
+            recorded services · 2 open recalls" sat under the sentence and
+            restated the 5 and the 2 in the cells directly above it — on this
+            surface the counts row *is* what the reading was worked out from,
+            since a current reading's inputs are what is on file. `Health`
+            keeps the line, beside the dial it qualifies, where there is no
+            count row to say it.
+          */}
           {lead ? (
             <View style={styles.message}>
               <Text style={styles.messageText}>{lead}</Text>
-              {/* What the reading was worked out from, with the sentence it qualifies (21 Sep; it was in the cell). */}
-              <ProvenanceRow kinds={verdict.inputs} />
             </View>
           ) : null}
 
@@ -2020,8 +2033,13 @@ const styles = StyleSheet.create({
   /* The check-control line: the summary's voice, on the gutter, the switches' 24pt of air above it. */
   message: { paddingHorizontal: space.lg, paddingTop: space.xxl, gap: space.xs },
   messageText: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
-  /* The card dial sits at the cell's start, not centred in it — `ClusterGauge` centres within its own box. */
-  cellDial: { alignSelf: 'flex-start' },
+  /*
+    The card dial sits at the cell's start, not centred in it — `ClusterGauge`
+    centres within its own box — and the arc's left extreme (x = 30 of the
+    card's 14…186 window, 9.3% of the box) lands on the content edge, where
+    the legend under it starts. Without the pull the arc floated 11pt in.
+  */
+  cellDial: { alignSelf: 'flex-start', marginLeft: -Math.round(CELL_DIAL * ((30 - 14) / 172)) },
   /* B1: the service's name is a section head in miniature — the factor label's size. */
   serviceName: { ...type.displaySection, fontSize: 15, lineHeight: 20, color: text.primary },
   /* A count: mono, tabular, at the health drivers' reading size. */
@@ -2034,7 +2052,8 @@ const styles = StyleSheet.create({
   },
   /* A zero the screen did read, in the legend's ink: an empty list is not a warning. */
   countEmpty: { color: text.muted },
-  timing: { fontSize: 15, lineHeight: 20 },
+  /* `type.mono`'s size, from 15 (21 Sep): "overdue by 3,000 mi" on one line in half a row on the 16 Pro. */
+  timing: { fontSize: type.mono.fontSize, lineHeight: type.mono.lineHeight },
 
   /* ── The switches, and the foot ─────────────────────────────────────── */
   /* The tire row heads the lower sheet, on the page's gutter like the answers it precedes. */

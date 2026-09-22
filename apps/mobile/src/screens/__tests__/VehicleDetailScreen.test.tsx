@@ -908,9 +908,16 @@ describe('the health verdict, against what the screen is holding', () => {
     const { view } = await mount();
     await view.findByText('Solid history, nothing overdue.');
 
-    // The provenance line is what makes a contradiction visible on the screen
-    // rather than only to somebody who opens the history and compares.
-    await view.findByText(/Based on 5 recorded services · 2 open recalls/);
+    /*
+      What makes a contradiction visible on the screen rather than only to
+      somebody who opens the history and compares. Until round 48 (21 Sep)
+      that was a "Based on 5 recorded services · 2 open recalls" line; the
+      counts row says the same two numbers directly above it, so the line is
+      the Health screen's now and the cells carry the facts here.
+    */
+    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
+    await view.findByLabelText(/^History, 5 recorded services\./);
+    await view.findByLabelText(/^View 2 open recalls/);
   });
 
   it('leaves a current reading alone', async () => {
@@ -956,8 +963,8 @@ describe('the health verdict, against what the screen is holding', () => {
       expect(node).not.toBe(cell);
       node = node.parent as typeof node;
     }
-    // The cell still names what the reading was worked out from.
-    await view.findByText(/Based on 5 recorded services · 2 open recalls/);
+    // The sentence stands alone: the counts row above it is the provenance (round 48's cut).
+    expect(view.queryByText(/Based on 5 recorded services/)).toBeNull();
   });
 });
 
