@@ -79,7 +79,18 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
               <Text style={styles.note} numberOfLines={1}>
                 {stat.note}
               </Text>
-              {stat.door ? <Icon name="chevron-right" size={12} color={text.muted} /> : null}
+              {/*
+                The mark, and the only thing that separates a stale reading
+                from a current one on this strip — so it is findable by a
+                test. `Icon` is hidden from assistive tech by design (it
+                never carries meaning alone), which is why a testID rather
+                than a label.
+              */}
+              {stat.door ? (
+                <View testID="stat-note-door">
+                  <Icon name="chevron-right" size={12} color={text.muted} />
+                </View>
+              ) : null}
             </View>
           ) : null}
         </View>

@@ -3297,9 +3297,13 @@ raised it and the side the page had been holding:
   warning.
 - *A reading over a month old asks to be set.* The countdown still
   counts from the real odometer — never an estimate (§10) — and past
-  `STALE_READING_DAYS` the strip's note becomes "6 wk ago · update" and
-  takes the door's mark back. A month, because the countdown's other
-  input is the owner's miles *a month*.
+  `STALE_READING_DAYS` the strip's note takes the door's mark back. A
+  month, because the countdown's other input is the owner's miles *a
+  month*. ⚠ The mark is the whole ask, by measurement: it shipped as
+  "5 wk ago · update ›" for one build and the word truncated to a
+  middot and an ellipsis in a third of the strip, saying less than the
+  age alone. The chevron is the system's word for "this opens"; the
+  door is named in full to a screen reader.
 - *USE is a question when unanswered.* It lives on the strip so it is
   printed once, and unanswered the cell used to drop — which left the
   question nowhere on the page (IA, round 6: "the only empty that does

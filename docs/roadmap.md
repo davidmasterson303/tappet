@@ -36,8 +36,10 @@
 > **A thin file is not a verdict**: under three records the band names
 > the file (THIN HISTORY, neutral ink) and the score is untouched, on the
 > hub, the Health screen and the bay together. **A reading over a month
-> old asks to be set** — "6 wk ago · update ›" — and the countdown still
-> counts from the real odometer, never an estimate. **USE is "Tell us"**
+> old asks to be set** — the door's mark comes back on its note; the word
+> "update" beside it truncated to an ellipsis in a third of the strip and
+> was measured out — and the countdown still counts from the real
+> odometer, never an estimate. **USE is "Tell us"**
 > when unanswered rather than a dropped cell. **No ask under the service
 > timing** and **no 01–03 ordinals** on the three answers.
 >

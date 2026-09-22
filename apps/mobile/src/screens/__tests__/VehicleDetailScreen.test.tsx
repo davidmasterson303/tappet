@@ -1667,7 +1667,7 @@ describe('the hub under three lenses (22 Sep)', () => {
     await judged.view.findByLabelText(/^Health score 55 out of 100 — Needs attention\./);
   });
 
-  it('makes the odometer’s note the ask once the reading is over a month old, and only then (22 Sep)', async () => {
+  it('gives the odometer’s note the door’s mark once the reading is over a month old, and only then (22 Sep)', async () => {
     /*
       "in 4,500 mi" is counted from a reading, never from a guess; the value
       lens asked whether the countdown should age with the odometer. David's
@@ -1678,14 +1678,22 @@ describe('the hub under three lenses (22 Sep)', () => {
     respond({ last_mileage_update_date: sixWeeksAgo });
     const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
-    await view.findByText('6 wk ago · update');
+    await view.findByText('6 wk ago');
+    expect(view.getAllByTestId('stat-note-door', { includeHiddenElements: true })).toHaveLength(1);
     view.getByLabelText(/Opens the car's details: .* The odometer was set 6 wk ago; update it there\./);
+
+    /*
+      ⚠ The mark alone, never a word beside it: "5 wk ago · update" truncated
+      to "5 WK AGO ·…" in a third of the strip, which says less than the age.
+      The spoken door carries the ask in full.
+    */
+    expect(view.queryByText(/update/)).toBeNull();
 
     const threeWeeksAgo = new Date(Date.now() - 21 * 86_400_000).toISOString();
     respond({ last_mileage_update_date: threeWeeksAgo });
     const fresh = await mount();
     await fresh.view.findByText('3 wk ago');
-    expect(fresh.view.queryByText(/update/)).toBeNull();
+    expect(fresh.view.queryByTestId('stat-note-door', { includeHiddenElements: true })).toBeNull();
     expect(fresh.view.queryByLabelText(/update it there/)).toBeNull();
   });
 
