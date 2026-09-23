@@ -271,3 +271,72 @@ describe('B1 / B8 — the way back is one control', () => {
     expect(pushedScreensDrawBackControl(other)).toBe(false);
   });
 });
+
+/**
+ * ── The Service tab lands on the leftmost segment (22 Sep) ─────────────────
+ *
+ * David: *"on service tab, i think we should always land user on leftmost
+ * subnav tab, right? im landing on history, which is right tab. either flip
+ * them, or land user on Due."*
+ *
+ * Two ways to satisfy that, and they are not equivalent: landing on Due would
+ * have reversed his own 30 Aug decision — *"I wanted history tab to show
+ * searchable history of line items"* — to satisfy a rule about ordering. So
+ * the **screen** flipped instead, and the tab still opens the record.
+ *
+ * ⚠ It is held here rather than beside `tab-target`'s own suite because the
+ * two halves live in different files and neither can see the other: the
+ * landing is a value in `tab-target.ts`, the order is a JSX literal in
+ * `ServiceScreen.tsx`, and nothing at runtime relates them. One of them
+ * moving alone is precisely the regression — a flip back to Due-first would
+ * leave the tab landing on the right-hand segment again, which is the state
+ * this change exists to remove.
+ */
+const SERVICE_SCREEN = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens', 'ServiceScreen.tsx');
+const TAB_TARGET = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'navigation', 'tab-target.ts');
+
+/** The segments in the order the control draws them. (An exec loop: this target cannot spread a matcher.) */
+function segmentOrder(source: string): string[] {
+  const pattern = /\{\s*value:\s*'(due|history)',\s*label:\s*'(?:Due|History)'\s*\}/g;
+  const found: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(source)) !== null) found.push(match[1]);
+  return found;
+}
+
+describe('the Service tab lands on its leftmost segment', () => {
+  const service = readFileSync(SERVICE_SCREEN, 'utf8');
+  const target = readFileSync(TAB_TARGET, 'utf8');
+
+  it('lands where the screen puts first', () => {
+    const order = segmentOrder(service);
+    expect(order).toHaveLength(2);
+
+    const lands = /ServiceTab:\s*\{\s*screen:\s*'Service',\s*segment:\s*'(due|history)'/.exec(target)?.[1];
+    expect(lands).toBeDefined();
+    expect(lands).toBe(order[0]);
+  });
+
+  it('still opens the record, which is the 30 Aug decision the flip preserved', () => {
+    expect(segmentOrder(service)[0]).toBe('history');
+    expect(target).toMatch(/segment:\s*'history' as ServiceSegment/);
+  });
+
+  it('can still detect the two ways this comes apart', () => {
+    /*
+      Anti-vacuous, and both directions matter: the screen flipping back, and
+      the landing being changed to the other segment. Either alone re-creates
+      the state David asked to be rid of.
+    */
+    const flipped = service.replace(
+      /\{ value: 'history', label: 'History' \},\s*\n\s*\{ value: 'due', label: 'Due' \},/,
+      "{ value: 'due', label: 'Due' },\n            { value: 'history', label: 'History' },"
+    );
+    expect(flipped).not.toBe(service);
+    expect(segmentOrder(flipped)[0]).toBe('due');
+
+    const relanded = target.replace("segment: 'history' as ServiceSegment", "segment: 'due' as ServiceSegment");
+    expect(relanded).not.toBe(target);
+    expect(/ServiceTab:\s*\{\s*screen:\s*'Service',\s*segment:\s*'(due|history)'/.exec(relanded)?.[1]).toBe('due');
+  });
+});

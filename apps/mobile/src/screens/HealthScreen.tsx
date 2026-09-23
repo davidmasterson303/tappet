@@ -124,12 +124,20 @@ export function HealthScreen({
   title,
   onSignOut,
   onAskAdvisor,
+  onScanInvoice,
 }: {
   vehicleId: string;
   title?: string;
   onSignOut: () => void;
   /** Threaded through to the recalls section — see `R16` below. */
   onAskAdvisor: (vehicleId: string, question: string) => void;
+  /**
+   * The act, under what is driving the number (22 Sep, David: *"add to the
+   * Health page, where user lands after clicking health score. find a nice
+   * looking and logical placement."*). Optional so a caller that has no
+   * scan route renders the screen without one rather than a dead button.
+   */
+  onScanInvoice?: () => void;
 }) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -354,6 +362,59 @@ export function HealthScreen({
             */}
             {state.verdict.text ? <Text style={styles.summary}>{state.verdict.text}</Text> : null}
             <ProvenanceRow kinds={state.verdict.inputs} />
+
+            {/*
+              ── 22 Sep · the act, against the sentence that names the gap ───
+
+              David: *"add to the Health page, where user lands after
+              clicking health score. find a nice looking and logical
+              placement."*
+
+              It goes **here**, under the verdict and its provenance, and the
+              reasons are all things a device shows and the source does not.
+              The first placement tried was under WHAT IS DRIVING IT, on the
+              argument that the act answers the account of the number; seen
+              on a Forester it was wrong three ways, and they are worth
+              keeping because they are the general case: the drivers card
+              ends on `DRIVERS_NOTE` with the recall chip immediately under
+              it, so a filled primary lands **wedged between two dense
+              blocks**; proximity beats intent, so it reads as the recalls
+              section's act rather than the drivers'; and below that point
+              the screen carries **nine** tappable controls — three recalls ×
+              (FIND A DEALER · MARK AS REPAIRED · ASK THE ADVISOR) — so a
+              tenth button in a different style is noise, not emphasis.
+
+              Up here it sits against the words that name the gap — *"lacks
+              service records for major mileage-based maintenance"*, *"Based
+              on 1 recorded service"* — it is the only control on that part
+              of the page, and it is **above the fold**, which is UX U1's
+              rule (*reachable at rest, no scroll*): the rule the hub's pill
+              was defending, which survives even though that placement did
+              not.
+
+              ⛔ **It must not promise the score will move.** A scan files
+              what was done; what the reading makes of the file is the
+              model's, and on a 168k-mile car one invoice may move it a
+              little, a lot or not at all. This screen already prints "the
+              assessment of the records on file" and "it has never seen your
+              car" — a button here claiming a number would be the oldest
+              defect family in this codebase, the scan sweep that depicted
+              an examination nobody performed and the quote bar that reached
+              100% mid-flight. The line says what the act does, and stops.
+
+              The screen's one filled primary (`Button`'s rule): every other
+              control here is an outline or a ghost.
+            */}
+            {onScanInvoice ? (
+              <>
+                <Text style={styles.actNote}>An invoice adds what was done to this car's record.</Text>
+                <Button
+                  label="Scan invoice"
+                  onPress={onScanInvoice}
+                  accessibilityLabel="Scan an invoice into this car's history"
+                />
+              </>
+            ) : null}
           </>
         ) : (
           /*
@@ -476,4 +537,6 @@ const styles = StyleSheet.create({
   summary: { ...type.body, color: text.secondary },
   footnote: { ...type.value, color: text.muted },
   driversNote: { ...type.value, color: text.muted, paddingTop: space.md, lineHeight: 19 },
+  /* The act's own line — the note's voice, saying what the act does and nothing about the number. */
+  actNote: { ...type.value, color: text.muted, lineHeight: 19 },
 });

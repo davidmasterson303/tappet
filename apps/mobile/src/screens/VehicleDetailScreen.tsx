@@ -31,7 +31,6 @@ import Binnacle, { BinnacleCell, BinnacleRow } from '../components/Binnacle';
 import Button from '../components/Button';
 import ClusterGauge from '../components/ClusterGauge';
 import DialChip from '../components/DialChip';
-import { NAV_BAND } from '../components/RootScreen';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PlateStatusLine from '../components/PlateStatusLine';
 import Icon from '../components/Icon';
@@ -56,7 +55,7 @@ import {
   sheetMinHeight,
 } from '../theme/hero-motion';
 import Svg, { Line, Path } from 'react-native-svg';
-import { CONTROL_HEIGHT, TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
+import { TABULAR, border, brand, cut, hero, plinth, radius, space, status, surface, text, type } from '../theme';
 import { cornerCovers } from '../components/CutSurface';
 import { bandForReading, healthBandHex } from '@tappet/core/health-band';
 import type { ResearchObservation } from '@tappet/core/research-milestones';
@@ -1054,13 +1053,31 @@ export function VehicleDetailScreen({
       : `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}, matched to this model, not this car. Opens the account of the score.`;
 
   /*
-    The one act in the prime slot: the record act, always. Round 2 of the
-    lenses had it chosen by state — REVIEW RECALLS while any campaign was
-    unreviewed — and two of the three read that as *"a second entrance to
-    the room the RECALLS cell opens a thumb-length below it"* that evicts
-    the act the page exists for on a 2003 Accord *"for as long as any
-    campaign is unreviewed, which … may be forever."* The △ RECALLS cell is
-    the recall prompt; the slot is SCAN INVOICE.
+    ── The page's one act — in the sheet since 22 Sep, not on the plate ──────
+
+    **What it is** is settled: the record act, always. Round 2 of the lenses
+    had it chosen by state — REVIEW RECALLS while any campaign was unreviewed
+    — and two of the three read that as *"a second entrance to the room the
+    RECALLS cell opens a thumb-length below it"* that evicts the act the page
+    exists for on a 2003 Accord *"for as long as any campaign is unreviewed,
+    which … may be forever."* The △ RECALLS cell is the recall prompt; the
+    act is SCAN INVOICE.
+
+    ⚠ **Where it is changed, and the argument that put it on the plate is
+    gone.** It was a pinned pill on the nav row over the photograph, and the
+    case for that was UX U1's *"reachable at rest, no scroll"* — a real
+    property, bought by floating a filled button over the hero. David,
+    22 Sep: *"i really don't like the scan invoice button placement, on the
+    plate on car tab. remove from there, put new button above 'what you told
+    us' section."* So the act is a full-width primary at the head of the
+    lower sheet, and the plate carries the photograph and its one door.
+
+    What that costs, stated rather than hidden: on a tall display the act is
+    **below the fold** at rest. What it buys back is a plate with nothing
+    floating on it, an act at its full width in the reading order the page
+    already has — the readings, then what they were read from, then the act
+    — and the SERVICE tab a thumb away, which carries the same destination
+    for the whole scroll.
   */
   const primaryAct = { label: 'Scan invoice', onPress: onScanInvoice, spoken: 'Scan an invoice into this car\'s history' };
 
@@ -1810,6 +1827,24 @@ export function VehicleDetailScreen({
             neither (UX U3, IA I4).
           */}
           <View style={styles.answers}>
+            {/*
+              ── The act, at the head of the lower sheet (22 Sep) ───────────
+
+              David's placement, to the word: *"put new button above 'what
+              you told us' section."* Above the header, never between the
+              header and its rows — a primary inside a section reads as that
+              section's act, and this one is the page's.
+
+              It is the hub's only filled primary (`Button`'s rule); the
+              error and gone states each carry an `outline`, and they replace
+              this screen rather than sharing it.
+            */}
+            <Button
+              label={primaryAct.label}
+              onPress={primaryAct.onPress}
+              accessibilityLabel={primaryAct.spoken}
+              style={styles.act}
+            />
             <SectionHeader title="What you told us" />
             {answers.map((answer, index) => (
               <BandRow
@@ -1905,38 +1940,19 @@ export function VehicleDetailScreen({
         than a deletion — logged for Design in `docs/design-system-drift.md`.
       */}
       {/*
-        ⚠ 21 Sep: centred on the nav row, not 6pt under its top. The `+ 6` dates
-        from a 36pt pill; `Button`'s small size has been `CONTROL_HEIGHT` since
-        12 Sep, so the pill sat 8pt below "‹ GARAGE" — invisible while it stood
-        alone, and plain once ACCOUNT floated beside it on the same row.
+        ⚠ 22 Sep · **nothing floats on the plate any more.** SCAN INVOICE was
+        a pinned pill on this row (and the photo control before it); David
+        cut it to the sheet — *"i really don't like the scan invoice button
+        placement, on the plate on car tab"* — and `primaryAct`'s own note
+        carries the argument that went with it. The row holds the collapsed
+        title alone; ACCOUNT does not float here either (IA I8).
       */}
-      {/*
-        ── 22 Sep · the page's one act, in the prime slot ───────────────────
-
-        Chosen by state (value V6): unreviewed recalls first — the one thing
-        on the page that can be a safety defect — and otherwise the act an
-        owner repeats for years, SCAN INVOICE. Reachable at rest, no scroll
-        (UX U1); it fades with the identity block as the photo control did,
-        and the tab bar carries both destinations for the rest of the scroll.
-        ASK THE ADVISOR is gone from the hub with it — the ADVISOR tab is
-        directly beneath it (IA I2, value V8, the design critic's cut).
-      */}
-      <View style={[styles.dialChip, { top: insets.top + (NAV_BAND - CONTROL_HEIGHT) / 2 }]} pointerEvents="box-none">
-        <Animated.View style={{ opacity: identityFade }}>
-          <Button
-            label={primaryAct.label}
-            size="small"
-            onPress={primaryAct.onPress}
-            accessibilityLabel={primaryAct.spoken}
-            style={styles.pill}
-          />
-        </Animated.View>
-      </View>
 
       {/*
         ⚠ The score chip stood here and is cut — see the note at `DialChip`'s
-        call site above. Its slot now carries the photo control, which needed a
-        home that the content surface does not cover.
+        call site above. Its slot passed to the photo control, then to
+        SCAN INVOICE, and is now empty: both went where the page's reading
+        order already had a place for them (22 Sep).
       */}
     </View>
   );
@@ -1995,19 +2011,6 @@ const styles = StyleSheet.create({
    * defect it produced. A solid fill at 0.78 is measurable; a blur over an
    * unknown photograph is not.
    */
-  /*
-    ⚠ Geometry only. The ground and the corner belong to `Button`'s own
-    `CutSurface`; a `backgroundColor` here would square off the cut, and a
-    `borderRadius` would round it.
-  */
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-    minHeight: 36,
-    paddingHorizontal: space.md,
-    justifyContent: 'center',
-  },
   /*
     The back control's own styles — its pressed fill, its label in `monoNav`
     and never the accent (B7) — live in `BackControl` since 12 Sep, where the
@@ -2099,7 +2102,6 @@ const styles = StyleSheet.create({
   navChipSlot: { width: 150 },
 
   /* ── z7 · the photo control, in the score chip's old slot ─────────────── */
-  dialChip: { position: 'absolute', right: space.lg, alignItems: 'flex-end' },
 
   /* ── The binnacle's readings ────────────────────────────────────────── */
   banner: { padding: space.lg },
@@ -2153,6 +2155,8 @@ const styles = StyleSheet.create({
   /* ── The lower sheet ──────────────────────────────────────────────────── */
   /* The answers head the lower sheet under the panel's 24pt of air (the Service root's figure). */
   answers: { paddingHorizontal: space.lg, paddingTop: space.xxl },
+  /* The act sits on the panel's air above it and gives the section head its own. */
+  act: { marginBottom: space.xxl },
   /* The research log, in the page gutter above the readings. */
   researchLog: { paddingHorizontal: space.lg, paddingTop: space.lg },
 

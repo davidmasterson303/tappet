@@ -145,14 +145,33 @@ export function ServiceScreen({
         </View>
       ) : null}
 
+      {/*
+        ── ⚠ 22 Sep · History is leftmost, and Due moved right ───────────────
+
+        David: *"on service tab, i think we should always land user on
+        leftmost subnav tab, right? im landing on history, which is right
+        tab. either flip them, or land user on Due."*
+
+        He offered both, and **flipping is the one that keeps his own earlier
+        call**: the Service *tab* opens the record — 30 Aug, *"I wanted
+        history tab to show searchable history of line items, like web app
+        version"* — and landing it on Due would have reversed that to satisfy
+        a rule about ordering. `tab-target.ts` carries the pair of decisions
+        together.
+
+        The order reads as a timeline besides: what has been done, then what
+        is next. What it costs is that Due — the more actionable half — is no
+        longer first, and the two paths that *mean* Due reach it explicitly
+        anyway (the hub's NEXT SERVICE cell, and a service-due notification).
+      */}
       <View style={styles.switcher}>
         <Segmented
           accessibilityLabel="Service"
           value={segment}
           onChange={setSegment}
           options={[
-            { value: 'due', label: 'Due' },
             { value: 'history', label: 'History' },
+            { value: 'due', label: 'Due' },
           ]}
         />
       </View>

@@ -43,6 +43,16 @@ export type Car = { vehicleId: string; title?: string };
  * searchable history of line items, like web app version."* The route's own
  * default is `due`, which is what a service-due notification is about; the tab
  * asks for the record.
+ *
+ * ⚠ **22 Sep · this line survived a challenge to it, and the screen moved
+ * instead.** David, seeing the landing: *"i think we should always land user
+ * on leftmost subnav tab, right? im landing on history, which is right tab.
+ * either flip them, or land user on Due."* Two ways to satisfy that, and only
+ * one of them keeps the sentence above: `ServiceScreen` puts **History
+ * leftmost** now, so the tab still opens the record *and* lands on the first
+ * segment. Changing this value to `'due'` would have satisfied the ordering
+ * rule by reversing the 30 Aug decision — which is the kind of quiet reversal
+ * this file's own note exists to prevent.
  */
 const CAR_TAB_ROOT = {
   CarTab: { screen: 'VehicleDetail', segment: undefined },

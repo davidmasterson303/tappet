@@ -62,10 +62,22 @@ describe('tabTarget', () => {
     /*
       David, 30 Aug: the tab is the searchable history. The route's own default
       is `due`, for a service-due notification; the two are different intents.
+
+      ⚠ 22 Sep · challenged and kept. *"im landing on history, which is right
+      tab. either flip them, or land user on Due."* `ServiceScreen` flipped
+      the segments — History is leftmost — so the tab lands on the record
+      **and** on the first segment. A change of this value to `'due'` is the
+      reversal that was not taken; the case below holds the pair together.
     */
     const carParams = (target: ReturnType<typeof tabTarget>) =>
       target.params && 'params' in target.params ? target.params.params : undefined;
     expect(carParams(tabTarget('ServiceTab', undefined, car))?.segment).toBe('history');
+    /*
+      ⚠ That this is also the **leftmost** segment — the whole of David's
+      22 Sep ask — is held in `lib/__tests__/mobile-tab-roots.test.ts`, which
+      reads `ServiceScreen`'s source. The order is a literal in JSX that no
+      import exposes, and this runner has no `node:fs`.
+    */
     expect(carParams(tabTarget('PlanTab', undefined, car))).not.toHaveProperty('segment');
   });
 
