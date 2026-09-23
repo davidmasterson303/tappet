@@ -11,10 +11,19 @@ import { PAGE_BODY, space, surface, text, type } from '../../theme';
  *
  * ── The gap the concepts uncovered ──────────────────────────────────────────
  *
- * Every car tab renders through `withCar`, and with no car in its params it
- * draws `ChooseACar` — *"Open a car in the garage and this tab follows it"*,
+ * Every car tab rendered through `withCar`, and with no car in its params it
+ * drew `ChooseACar` — *"Open a car in the garage and this tab follows it"*,
  * with a button to the garage. Remove the garage tab and that sentence names
  * a place that no longer exists, on the one screen a first-time owner sees.
+ *
+ * ⚠ 23 Sep · `components/ChooseACar.tsx` is **deleted**, not merely bypassed.
+ * It had been an orphan since the ship — no import anywhere, not even a test
+ * — and what it says is the reason it could not be left lying there: a screen
+ * whose whole copy directs an owner to the garage is the wrong thing for the
+ * next person to find and re-wire. Its 21 Sep argument is not lost, because
+ * it is the argument this file makes: §10, a screen that cannot name a car
+ * must not guess one. `FirstCar` differs only in what it does when it *can*
+ * name one — it opens it, rather than asking.
  *
  * A car-first app answers it the way Tesla's does: **it opens on a car.** On
  * a cold start with nothing remembered, the set is fetched and the first car
