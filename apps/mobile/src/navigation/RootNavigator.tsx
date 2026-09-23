@@ -1093,10 +1093,6 @@ function CarStack({ onSignOut }: Session) {
             onAskAdvisor={(vehicleId, ask) =>
               askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
             }
-            /* The same act the hub carries, under the account of the number (22 Sep). */
-            onScanInvoice={() =>
-              navigation.navigate('InvoiceScan', { vehicleId: route.params.vehicleId, title: route.params.title })
-            }
           />
         )}
       </Stack.Screen>
@@ -1110,10 +1106,6 @@ function CarStack({ onSignOut }: Session) {
             /* R16: each recall's question starts its own thread — in the Advisor tab, 13 Sep. */
             onAskAdvisor={(vehicleId, ask) =>
               askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
-            }
-            /* The same act the hub carries, under the account of the number (22 Sep). */
-            onScanInvoice={() =>
-              navigation.navigate('InvoiceScan', { vehicleId: route.params.vehicleId, title: route.params.title })
             }
           />
         )}

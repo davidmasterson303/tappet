@@ -3365,21 +3365,30 @@ sub-navigation lands:
   being left arguing for a placement that is gone — on a tall display
   the act is below the fold now, and what it buys is a plate with
   nothing floating on it. `dialChip` and `pill` go with it.
-- *The act reaches the Health screen*, under the verdict and its
-  provenance. ⚠ **The first placement was under WHAT IS DRIVING IT and a
-  device overruled it**, which is worth recording because the reasons
-  generalise to any act on a long screen: it landed wedged between that
-  card's note and the recall chip; proximity made it read as the
-  recalls section's act rather than the drivers'; and nine tappable
-  controls followed it, so a tenth in a different style was noise
-  rather than emphasis. Above the divider it sits against the words
-  that name the gap, it is alone there, and it is above the fold —
-  U1's rule surviving its own placement.
-  ⛔ Its copy says what the act *does*. A button under a number that
-  promised the number would move is the defect family this codebase
-  keeps naming: the scan sweep that depicted an examination nobody
-  performed, the hero timer that counted nothing, the quote bar that
-  reached 100% mid-flight.
+- *The act reached the Health screen and was taken back the same day.*
+  It was asked for, placed under WHAT IS DRIVING IT, moved above that
+  divider when a device showed the first slot wedged between two dense
+  blocks — and then cut: *"i dont think we need button there, it now
+  feels redundant with button in #1."* Which it is, and the move above
+  is what made it so: the act had just left the plate for the head of
+  the hub's lower sheet, one tap away at full width, so a second filled
+  primary on the screen the hub opens is one act asked for twice.
+  ⚠ **The screen now carries no filled primary at all**, deliberately,
+  and both the reasoning and a guard live with it
+  (`HealthScreen.test.tsx`) — an explanation with no act on it is what a
+  later critic asks to "fix".
+
+  Two things worth keeping from the hour it existed. The **placement
+  reasons generalise** to any act on a long screen: under the drivers
+  card it landed wedged between that card's note and the recall chip;
+  proximity made it read as the recalls section's act rather than the
+  drivers'; and nine tappable controls followed it, so a tenth in a
+  different style was noise rather than emphasis. And the **copy rule**
+  stands wherever this act lands next: say what it *does*, never what it
+  achieves. A button under a number that promised the number would move
+  is the defect family this codebase keeps naming — the scan sweep that
+  depicted an examination nobody performed, the hero timer that counted
+  nothing, the quote bar that reached 100% mid-flight.
 - *History is the Service screen's leftmost segment.* David: *"either
   flip them, or land user on Due."* The landing stayed and the control
   moved, because landing on Due would have reversed his 30 Aug call
@@ -3388,9 +3397,10 @@ sub-navigation lands:
   landing is a value in `tab-target.ts`, the order is a JSX literal,
   and nothing at runtime relates them.
 
-⚠ For Design: the hub and the Health screen each carry one filled
-primary now, both SCAN INVOICE, and the rule is counted by label ink in
-both suites. Mobile 54/54 suites, 930 tests; root 234/234, 4,126.
+⚠ For Design: the hub carries the one filled primary, and the Health
+screen carries none — counted by label ink in both suites, zero being
+the stronger statement. Mobile 54/54 suites, 927 tests; root 234/234,
+4,126.
 
 ---
 

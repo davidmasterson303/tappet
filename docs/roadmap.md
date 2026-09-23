@@ -28,15 +28,18 @@
 >   the act is **below the fold** at rest — the property UX U1 bought by
 >   floating it. The plate carries the photograph and its one door, and the
 >   SERVICE tab carries the same destination for the whole scroll.
-> - **And onto the Health screen**, under the verdict and its provenance —
->   above the WHAT IS DRIVING IT divider, against the sentence that names
->   the gap ("Based on 1 recorded service"), the only control on that part
->   of the page, and above the fold. Under the drivers card it would have
->   landed wedged between that card's note and the recall chip, read as the
->   recalls section's act, and been followed by **nine** tappable controls.
->   ⛔ Its copy says what the act does — files what was done — and never
->   that the score will move; the screen itself prints "the assessment of
->   the records on file" two lines above it.
+> - **And onto the Health screen — then straight back off it.** Asked for,
+>   built under the verdict and its provenance, and cut within the hour:
+>   *"i dont think we need button there, it now feels redundant with button
+>   in #1."* It is, and the move above is what made it so — the act had
+>   just landed a tap away at full width, so a second filled primary on the
+>   screen the hub opens is one act asked for twice. The Health screen
+>   carries **no** filled primary now, with the reason and a guard beside
+>   it; an explanation with no act on it is what a later pass asks to
+>   "fix". Kept from the hour it existed: the placement reasons (under the
+>   drivers card it is wedged between two dense blocks, reads as the
+>   recalls section's, and is followed by nine controls) and the copy rule
+>   — say what the act does, never that the score will move.
 > - **The Service tab lands on its leftmost segment** — and the *segments*
 >   moved, not the landing. You offered both: *"either flip them, or land
 >   user on Due."* Landing on Due would have satisfied the ordering rule by
@@ -48,7 +51,7 @@
 >   a service-due notification) reach it explicitly anyway.
 >
 > All phone JS; nothing promoted. Seen on the simulator, not asserted from
-> the diff. Mobile 54 suites / 930 tests, root 234 / 4,126, tsc clean.
+> the diff. Mobile 54 suites / 927 tests, root 234 / 4,126, tsc clean.
 >
 
 > ### ⚠ 22 Sep 2026, evening — David's rulings, and two defects a walk found
