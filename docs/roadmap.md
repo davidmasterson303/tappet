@@ -13,6 +13,44 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 22 Sep 2026, late — three placements, and one fork answered
+>
+> Three more of David's, by way of Cowork (which read the source and wrote
+> them up; item 2's first recommendation was **superseded by its own author
+> after seeing the screen on a device**, and the superseded version is
+> recorded in the code because the reasons generalise).
+>
+> - **SCAN INVOICE off the hero plate.** *"i really don't like the scan
+>   invoice button placement, on the plate on car tab. remove from there,
+>   put new button above 'what you told us' section."* It was a pinned pill
+>   over the photograph; it is a full-width primary at the head of the lower
+>   sheet. ⚠ What that costs, stated rather than hidden: on a tall display
+>   the act is **below the fold** at rest — the property UX U1 bought by
+>   floating it. The plate carries the photograph and its one door, and the
+>   SERVICE tab carries the same destination for the whole scroll.
+> - **And onto the Health screen**, under the verdict and its provenance —
+>   above the WHAT IS DRIVING IT divider, against the sentence that names
+>   the gap ("Based on 1 recorded service"), the only control on that part
+>   of the page, and above the fold. Under the drivers card it would have
+>   landed wedged between that card's note and the recall chip, read as the
+>   recalls section's act, and been followed by **nine** tappable controls.
+>   ⛔ Its copy says what the act does — files what was done — and never
+>   that the score will move; the screen itself prints "the assessment of
+>   the records on file" two lines above it.
+> - **The Service tab lands on its leftmost segment** — and the *segments*
+>   moved, not the landing. You offered both: *"either flip them, or land
+>   user on Due."* Landing on Due would have satisfied the ordering rule by
+>   reversing your 30 Aug call (*"I wanted history tab to show searchable
+>   history of line items"*), so **History is leftmost now** and the tab
+>   still opens the record. Both decisions sit in `tab-target`'s docblock
+>   together. What it costs: Due, the more actionable half, is no longer
+>   first — and the two paths that *mean* Due (the hub's NEXT SERVICE cell,
+>   a service-due notification) reach it explicitly anyway.
+>
+> All phone JS; nothing promoted. Seen on the simulator, not asserted from
+> the diff. Mobile 54 suites / 930 tests, root 234 / 4,126, tsc clean.
+>
+
 > ### ⚠ 22 Sep 2026, evening — David's rulings, and two defects a walk found
 >
 > The eight product questions the three lenses parked (block above) came

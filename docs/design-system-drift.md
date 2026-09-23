@@ -3353,6 +3353,45 @@ not have named, both on the live reviewer account:
 234/234 suites, 4,123 tests; tsc clean in both. `web-live` promoted
 twice for the server halves (`c6082366`, `4356a034`).
 
+**Three placements, later the same day — and the one that a device
+overruled.** David moved the page's act twice and settled where a
+sub-navigation lands:
+
+- *SCAN INVOICE leaves the hero plate.* It was a pinned pill on the nav
+  row over the photograph; it is a full-width primary at the head of the
+  lower sheet, above WHAT YOU TOLD US (*"remove from there, put new
+  button above 'what you told us' section"*). ⚠ **UX U1's "reachable at
+  rest, no scroll" is spent**, and the docblock says so rather than
+  being left arguing for a placement that is gone — on a tall display
+  the act is below the fold now, and what it buys is a plate with
+  nothing floating on it. `dialChip` and `pill` go with it.
+- *The act reaches the Health screen*, under the verdict and its
+  provenance. ⚠ **The first placement was under WHAT IS DRIVING IT and a
+  device overruled it**, which is worth recording because the reasons
+  generalise to any act on a long screen: it landed wedged between that
+  card's note and the recall chip; proximity made it read as the
+  recalls section's act rather than the drivers'; and nine tappable
+  controls followed it, so a tenth in a different style was noise
+  rather than emphasis. Above the divider it sits against the words
+  that name the gap, it is alone there, and it is above the fold —
+  U1's rule surviving its own placement.
+  ⛔ Its copy says what the act *does*. A button under a number that
+  promised the number would move is the defect family this codebase
+  keeps naming: the scan sweep that depicted an examination nobody
+  performed, the hero timer that counted nothing, the quote bar that
+  reached 100% mid-flight.
+- *History is the Service screen's leftmost segment.* David: *"either
+  flip them, or land user on Due."* The landing stayed and the control
+  moved, because landing on Due would have reversed his 30 Aug call
+  (the tab opens the record) to satisfy a rule about ordering. Held in
+  `mobile-tab-roots.test.ts` **against** the screen's own order: the
+  landing is a value in `tab-target.ts`, the order is a JSX literal,
+  and nothing at runtime relates them.
+
+⚠ For Design: the hub and the Health screen each carry one filled
+primary now, both SCAN INVOICE, and the rule is counted by label ink in
+both suites. Mobile 54/54 suites, 930 tests; root 234/234, 4,126.
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
