@@ -82,7 +82,8 @@ export default function SearchField({
           onPress={() => onChangeText('')}
           accessibilityRole="button"
           accessibilityLabel={clearAccessibilityLabel}
-          style={styles.clear}
+          hitSlop={8}
+          style={({ pressed }) => [styles.clear, pressed && styles.clearPressed]}
         >
           <Icon name="x" size={16} />
         </Pressable>
@@ -108,5 +109,7 @@ const styles = StyleSheet.create({
     fontSize: FIELD_FONT_MIN,
     paddingVertical: space.sm,
   },
-  clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
+  // A 44pt square, not a 20pt glyph with a tall column (23 Sep).
+  clear: { minHeight: TARGET_MIN, minWidth: TARGET_MIN, alignItems: 'center', justifyContent: 'center' },
+  clearPressed: { backgroundColor: surface.raised },
 });

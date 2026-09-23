@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
@@ -124,14 +124,24 @@ export function HealthScreen({
   title,
   onSignOut,
   onAskAdvisor,
+  focus,
 }: {
   vehicleId: string;
   title?: string;
   onSignOut: () => void;
   /** Threaded through to the recalls section — see `R16` below. */
   onAskAdvisor: (vehicleId: string, question: string) => void;
+  /**
+   * Open scrolled to the recalls block. The recall push says "tap to see
+   * what it means" and its link resolves to this screen, where the recalls
+   * sit two cards under the dial — until 23 Sep the tap landed on the dial
+   * and the recall it promised was below the fold.
+   */
+  focus?: 'recalls';
 }) {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const scroller = useRef<ScrollView>(null);
+  const focused = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
@@ -303,6 +313,7 @@ export function HealthScreen({
 
   return (
     <ScrollView
+      ref={scroller}
       contentContainerStyle={styles.body}
       refreshControl={
         <RefreshControl
@@ -426,6 +437,13 @@ export function HealthScreen({
           card above it changing height.
         */
         nativeID="health-recalls"
+        onLayout={(event) => {
+          // Once, on the first layout with the block in place; a refresh
+          // re-laying the drivers card must not yank the page back down.
+          if (focus !== 'recalls' || focused.current) return;
+          focused.current = true;
+          scroller.current?.scrollTo({ y: event.nativeEvent.layout.y, animated: false });
+        }}
       >
         <RecallDetailScreen
           embedded

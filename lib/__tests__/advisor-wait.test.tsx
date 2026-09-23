@@ -98,6 +98,10 @@ function ask(question: string) {
 }
 
 beforeEach(() => {
+  // The advisor asks for AI consent before the first question (23 Sep); the
+  // cases below are about the wait, so it is already given. The last
+  // describe block removes it to test the ask itself.
+  window.localStorage.setItem('tappet.aiConsent', 'granted');
   getConsultantSession.mockReset();
   sendConsultantMessage.mockReset();
   getConsultantSession.mockResolvedValue({ success: true, data: { message_history: [] } });
@@ -296,5 +300,32 @@ describe('the turn on its own', () => {
     expect(three.container.textContent).toContain('Uploading the files');
     expect(three.container.textContent).toContain('b.pdf · File 2 of 3');
     expect(three.container.textContent).not.toMatch(/\d\s*%/);
+  });
+});
+
+describe('consent before the first question — LEG-02 on the web', () => {
+  /*
+    The phone asks before the first advisor question and the web's invoice
+    dialog asks before the first upload; until 23 Sep the web advisor asked
+    nothing and sent the question and the car's records to Google. The cases
+    above, with consent granted in `beforeEach`, are the anti-vacuous half:
+    the same mount sends without asking once the answer is on record.
+  */
+  it('asks, sends nothing until the answer is yes, and then sends the question that was typed', async () => {
+    window.localStorage.removeItem('tappet.aiConsent');
+    sendConsultantMessage.mockResolvedValue({ success: true, response: 'Fair, for that job.' });
+    mount();
+    ask('Is $1,400 fair for rear control arms?');
+
+    expect(await screen.findByText('The advisor is Google’s AI')).toBeInTheDocument();
+    expect(sendConsultantMessage).not.toHaveBeenCalled();
+    // The composer keeps the question: "not now" must not lose it.
+    expect(screen.getByPlaceholderText(PLACEHOLDER)).toHaveValue('Is $1,400 fair for rear control arms?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask the advisor' }));
+
+    await waitFor(() => expect(sendConsultantMessage).toHaveBeenCalledTimes(1));
+    expect(sendConsultantMessage.mock.calls[0][0]).toMatchObject({ message: 'Is $1,400 fair for rear control arms?' });
+    expect(window.localStorage.getItem('tappet.aiConsent')).toBe('granted');
   });
 });

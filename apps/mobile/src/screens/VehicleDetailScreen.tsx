@@ -48,6 +48,7 @@ import CarSwitch from '../components/switcher/CarSwitch';
 import { useCarSet } from '../components/switcher/car-set';
 import { PushPrimer } from '../notifications/PushPrimer';
 import { usePushPrimer } from '../notifications/usePushPrimer';
+import { useReducedMotion } from '../motion/reduced-motion';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -593,6 +594,10 @@ export function VehicleDetailScreen({
     install could never be asked.
   */
   const primer = usePushPrimer(state.status === 'ok' ? Math.max(1, cars.length) : null);
+  // Parallax and the slow zoom are exactly what iOS Reduce Motion turns off;
+  // the crossfades stay, which the setting permits (23 Sep). Declared here,
+  // with the other hooks, above every early return.
+  const reducedMotion = useReducedMotion();
   const [sheetOpen, setSheetOpen] = useState(false);
   /*
     Round 2 · the crossfade's driver. Starts opaque so the outgoing plate is
@@ -1439,13 +1444,13 @@ export function VehicleDetailScreen({
   /* The hero's contents drift, and the frame does not. Two planes, two rates. */
   const heroDrift = scrollY.interpolate({
     inputRange: [0, 1000],
-    outputRange: [0, -1000 * HERO_PARALLAX_RATE],
+    outputRange: reducedMotion ? [0, 0] : [0, -1000 * HERO_PARALLAX_RATE],
     extrapolate: 'clamp',
   });
 
   const photoScale = scrollY.interpolate({
     inputRange: [0, HERO_DIM_SPAN],
-    outputRange: [1, 1 + HERO_SCALE_GAIN],
+    outputRange: reducedMotion ? [1, 1] : [1, 1 + HERO_SCALE_GAIN],
     extrapolate: 'clamp',
   });
 
@@ -2331,7 +2336,8 @@ export function VehicleDetailScreen({
             slicing the dial" the critic measured.
           */
           plateFoot={heroH - HERO_SHEET_OVERLAP}
-          ceiling={viewport ?? windowHeight}
+          /* Window coordinates, like the Modal it sizes: the scroller's own height excludes the tab bar (23 Sep). */
+          ceiling={windowHeight}
         />
       ) : null}
 

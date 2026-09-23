@@ -328,7 +328,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                         <Button
                           size="sm"
                           onClick={() => handleMarkComplete(item)}
-                          className="bg-green-500/10 text-green-400 border border-green-400/25 hover:bg-green-500/20 h-7 px-2.5 text-xs gap-1"
+                          className="bg-[color:var(--confirm-wash)] text-[color:var(--confirm)] border border-[color:var(--confirm-border)] hover:bg-white/5 px-2.5 text-xs gap-1"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
                           Done
@@ -342,7 +342,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                           */
                           onClick={() => setPendingDelete(item)}
                           disabled={deletingId === item.id}
-                          className="tap-target-44 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          className="tap-target-44 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] transition-colors disabled:opacity-50"
                           aria-label="Remove item"
                         >
                           {deletingId === item.id ? (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { CONTACT_EMAIL } from '@tappet/core/constants';
 import Text from '../components/Text';
 
 import { API_BASE_URL } from '../config';
@@ -339,6 +340,21 @@ export function AccountScreen({
             style={styles.legalRow}
           >
             <Text style={styles.legalText}>Terms of Use</Text>
+          </Pressable>
+          {/*
+            23 Sep: the app had no way to reach a person. Apple's reviewers
+            look for one on any app with a chat, and an owner with a wrong
+            answer on screen needs somewhere to send it.
+          */}
+          <Pressable
+            onPress={() => void Linking.openURL(`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Tappet')}`)}
+            disabled={deleting}
+            accessibilityRole="link"
+            accessibilityLabel="Contact support, opens your email"
+            style={styles.legalRow}
+          >
+            <Text style={styles.legalText}>Contact support</Text>
+            <Text style={styles.rowDetail}>{CONTACT_EMAIL}</Text>
           </Pressable>
         </View>
 

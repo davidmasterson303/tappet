@@ -7,6 +7,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import Link from 'next/link';
+import { useIsDemoSite } from '@/components/SiteRoleProvider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -95,7 +96,7 @@ const FEATURES = [
     badge: 'Intelligence',
     heading: 'What owners of your car have already learned',
     body:
-      'Common failure points, real service intervals and owner-community findings, collected per model and used as the basis for the consultant’s answers and the health score.',
+      'Common failure points, real service intervals and owner-community findings, collected per model and used as the basis for the advisor’s answers and the health score.',
   },
   {
     icon: MessageSquare,
@@ -111,11 +112,12 @@ const FEATURES = [
     badge: 'Storage',
     heading: 'Paperwork attached to the car it belongs to',
     body:
-      'Invoices, inspections and service records stored against the vehicle. The consultant reads them too, so an answer can cite what a shop actually did.',
+      'Invoices, inspections and service records stored against the vehicle. The advisor reads them too, so an answer can cite what a shop actually did.',
   },
 ];
 
 export default function FeaturesDrawer({ open, onOpenChange }: FeaturesDrawerProps) {
+  const isDemoSite = useIsDemoSite();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -182,9 +184,10 @@ export default function FeaturesDrawer({ open, onOpenChange }: FeaturesDrawerPro
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="text-xs text-white/50 hover:text-white/70 transition-colors"
+              className="tap-target-44 min-h-[44px] px-3 text-xs text-white/50 hover:text-white/70 transition-colors"
             >
-              Keep looking around the demo
+              {/* 23 Sep: the product host read "the demo" — this drawer had no site gate. */}
+              {isDemoSite ? 'Keep looking around the demo' : 'Close'}
             </button>
           </div>
         </div>

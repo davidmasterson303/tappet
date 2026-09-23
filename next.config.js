@@ -37,6 +37,56 @@ const nextConfig = {
     return [{ source: '/demo', destination: '/', permanent: false }];
   },
   /*
+    ── 23 Sep · the headers `netlify.toml` promises were not on the pages ───
+
+    Measured live on the product host: `/`, `/privacy` and `/api/version`
+    carried only HSTS and `nosniff`. The `[[headers]] for = "/*"` block in
+    `netlify.toml` is applied by Netlify to the assets it serves itself —
+    `/_next/static/*` had the full set — and not to the responses the Next
+    runtime function returns, which is every page and every API route.
+    Next's own `headers()` is what reaches those.
+
+    The framing, referrer and permissions headers are enforced: they cannot
+    break a page. The Content-Security-Policy is **report-only** for now: no
+    page had ever run under it, and a policy that is wrong in one directive
+    turns a launch-week page blank with no error a user can report. Watch the
+    console on the product host for violations, then move the same string to
+    `Content-Security-Policy` in one commit. `netlify.toml` keeps its copy
+    for the static assets.
+  */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https://*.supabase.co",
+      "media-src 'self' data: blob:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+    ].join('; ');
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+          },
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
+        ],
+      },
+    ];
+  },
+  /*
     ⚠ **BLD-05 · `x-powered-by` is off.** Next sends `X-Powered-By: Next.js` by
     default, and it was measured live on both hostnames. It tells an attacker
     which framework and therefore which advisories to try, and it tells a user

@@ -121,7 +121,7 @@ export const OPERATOR = 'Southmoor Digital LLC';
  * A monitored address on the operator's own domain — confirmed by David, 30 Aug,
  * and verified receiving from an external sender the same day.
  */
-export const CONTACT_EMAIL = 'support@southmoordigital.com';
+export { CONTACT_EMAIL } from '@tappet/core/constants';
 
 /**
  * The date the substance of these documents last changed.

@@ -131,6 +131,9 @@ async function beginRename(title: string) {
 }
 
 beforeEach(() => {
+  // The advisor asks for AI consent before the first question (23 Sep);
+  // these cases are about the thread rail, so it is already given.
+  window.localStorage.setItem('tappet.aiConsent', 'granted');
   toasts.length = 0;
   renameConsultantSession.mockReset();
   deleteConsultantSession.mockReset();

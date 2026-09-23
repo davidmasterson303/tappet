@@ -2,6 +2,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Text from './Text';
 
 import Button from './Button';
+import { useContext } from 'react';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { PAGE_BODY, border, radius, space, surface, text, type } from '../theme';
 import type { AiConsentCopy } from '@tappet/core/ai-consent-copy';
 
@@ -43,6 +45,13 @@ export default function AiConsentSheet({
   onAccept: () => void;
   onDecline: () => void;
 }) {
+  // A full-screen Modal draws under the status bar and the home indicator;
+  // 64pt and 16pt literals put the decline's lower half in the indicator's
+  // zone (23 Sep).
+  // The context, not the hook: the hook throws with no provider, and this
+  // sheet is rendered by screens whose suites mount them bare. Zero insets
+  // are the right answer where there is nobody to ask.
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, bottom: 0, left: 0, right: 0 };
   return (
     <Modal
       visible={visible}
@@ -52,7 +61,7 @@ export default function AiConsentSheet({
       onRequestClose={onDecline}
     >
       <View style={styles.root}>
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top + space.xl }]}>
           <Text accessibilityRole="header" style={styles.title}>
             {copy.title}
           </Text>
@@ -75,7 +84,7 @@ export default function AiConsentSheet({
           <Text style={styles.declineNote}>{copy.declineNote}</Text>
         </ScrollView>
 
-        <View style={styles.actions}>
+        <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           <Button label={copy.accept} variant="primary" onPress={onAccept} />
           {/*
             ⚠ A real control, not a quiet escape hatch. `outline` rather than
@@ -87,7 +96,7 @@ export default function AiConsentSheet({
             onPress={onDecline}
             accessibilityRole="button"
             accessibilityLabel={copy.decline}
-            style={styles.decline}
+            style={({ pressed }) => [styles.decline, pressed && styles.declinePressed]}
           >
             <Text style={styles.declineLabel}>{copy.decline}</Text>
           </Pressable>
@@ -99,7 +108,7 @@ export default function AiConsentSheet({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: surface.page },
-  body: { ...PAGE_BODY, paddingTop: 64 },
+  body: { ...PAGE_BODY },
   title: { ...type.display, color: text.primary },
   lead: { ...type.body, color: text.secondary },
 
@@ -118,6 +127,7 @@ const styles = StyleSheet.create({
   declineNote: { ...type.value, color: text.muted },
 
   actions: { padding: PAGE_BODY.paddingHorizontal, gap: space.sm },
-  decline: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  decline: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.button },
+  declinePressed: { backgroundColor: surface.raised },
   declineLabel: { ...type.uiStrong, color: text.secondary },
 });

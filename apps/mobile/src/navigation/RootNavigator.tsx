@@ -1124,6 +1124,8 @@ function CarStack({ onSignOut }: Session) {
           <HealthScreen
             vehicleId={route.params.vehicleId}
             title={route.params.title}
+            /* The recall link's promise: land on the recalls, not the dial. */
+            focus="recalls"
             onSignOut={onSignOut}
             onAskAdvisor={(vehicleId, ask) =>
               askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)

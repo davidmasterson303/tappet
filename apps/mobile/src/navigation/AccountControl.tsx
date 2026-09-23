@@ -3,7 +3,7 @@ import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NAV_BAND } from '../components/RootScreen';
-import { space, text, type } from '../theme';
+import { TARGET_MIN, space, surface, text, type } from '../theme';
 
 /**
  * The way into the account, from every root, as a sibling of the navigator.
@@ -69,6 +69,9 @@ export default function AccountControl({
         accessibilityLabel="Account and settings"
         /* R25: drawn small enough to sit beside a title, tappable at 44. */
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        // 44pt on the press target itself: a 16pt label plus 12pt of slop was
+        // 40 (23 Sep). A fill under the finger, like every other control.
+        style={({ pressed }) => [styles.target, pressed && styles.pressed]}
       >
         {/*
           ── ⚠ 7 Sep: a word, not a glyph, and the reason is a real misfire ────
@@ -110,4 +113,6 @@ const styles = StyleSheet.create({
   slot: { position: 'absolute', right: space.lg, zIndex: 10 },
   /* Mono caps, the same voice the tab labels use — this is chrome, like them. */
   label: { ...type.monoLabel, color: text.secondary, textTransform: 'uppercase' },
+  target: { minHeight: TARGET_MIN, justifyContent: 'center', paddingHorizontal: space.xs, marginVertical: -((TARGET_MIN - type.monoLabel.lineHeight) / 2) },
+  pressed: { backgroundColor: surface.raised },
 });
