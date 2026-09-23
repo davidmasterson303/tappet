@@ -109,6 +109,11 @@ describe('iOS usage descriptions exist before the build is spent', () => {
       a managed build to a bare one. Declaring them here makes the value
       readable now, which is the whole point: a permission string that cannot
       be checked until the build exists is checked one build too late.
+
+      ⚠ Readable is not the same as shipped. A plugin argument overrides this
+      value at build time — the last describe block in this file runs the
+      plugin step and asserts on its output. `expo config --type introspect`
+      shows the same result without generating `ios/`.
     */
     expect(typeof infoPlist[key]).toBe('string');
     expect((infoPlist[key] as string).length).toBeGreaterThan(20);
@@ -359,5 +364,96 @@ describe('the build profile still targets the simulator', () => {
     */
     expect(eas.build.simulator.developmentClient).toBe(true);
     expect(eas.build.simulator.ios.simulator).toBe(true);
+  });
+});
+
+describe('the purpose strings that reach the binary are the ones app.json shows', () => {
+  /*
+    ── 23 Sep · the plugin was overwriting the strings this file reads ────────
+
+    `ios.infoPlist` is not the last word on a purpose string. Every config
+    plugin runs after it, and `expo-image-picker`'s applies
+    `infoPlist[key] = pluginArg || infoPlist[key] || default` — so a
+    `photosPermission` given to the plugin **replaces** whatever `ios.infoPlist`
+    says, and a plugin given nothing adds a microphone string and Android's
+    RECORD_AUDIO on its own. `expo config --type introspect` showed the result:
+    the library string in the binary was the invoice-only sentence MOB-01
+    above had already corrected, the camera string had lost the VIN barcode,
+    and the app asked for a microphone it never touches.
+
+    So the case above was reading a value the build discarded — CLAUDE.md §5,
+    a green guard on the wrong artefact. This case runs the plugin's own
+    permission step over the file and asserts on what comes out, which is what
+    the reviewer's phone will say.
+  */
+  const { applyPermissions } = require('@expo/config-plugins/build/ios/Permissions');
+
+  const PICKER_DEFAULTS = {
+    NSPhotoLibraryUsageDescription: 'Allow $(PRODUCT_NAME) to access your photos',
+    NSCameraUsageDescription: 'Allow $(PRODUCT_NAME) to access your camera',
+    NSMicrophoneUsageDescription: 'Allow $(PRODUCT_NAME) to access your microphone',
+  };
+
+  function pickerArgs(config: typeof appJson): Record<string, unknown> {
+    const entry = (config.plugins as unknown[]).find(
+      (p) => Array.isArray(p) && p[0] === 'expo-image-picker'
+    ) as [string, Record<string, unknown>?] | undefined;
+    return entry?.[1] ?? {};
+  }
+
+  function effectivePlist(config: typeof appJson): Record<string, unknown> {
+    const args = pickerArgs(config);
+    return applyPermissions(
+      PICKER_DEFAULTS,
+      {
+        NSPhotoLibraryUsageDescription: args.photosPermission,
+        NSCameraUsageDescription: args.cameraPermission,
+        NSMicrophoneUsageDescription: args.microphonePermission,
+      },
+      { ...(config.ios?.infoPlist ?? {}) }
+    );
+  }
+
+  it('ships the library string that names the car photograph and the invoice', () => {
+    const plist = effectivePlist(appJson);
+    const text = plist.NSPhotoLibraryUsageDescription as string;
+    expect(text).toMatch(/car|vehicle|photo of your/i);
+    expect(text).toMatch(/invoice/i);
+  });
+
+  it('ships the camera string that names the VIN barcode and the invoice', () => {
+    const plist = effectivePlist(appJson);
+    const text = plist.NSCameraUsageDescription as string;
+    expect(text).toMatch(/VIN/);
+    expect(text).toMatch(/invoice/i);
+  });
+
+  it('does not ask for a microphone the app never uses', () => {
+    // The viewfinder is picture-only and the picker never records video, so a
+    // microphone string would describe a use the app does not make — and a
+    // reviewer sees every string the binary declares.
+    expect(effectivePlist(appJson)).not.toHaveProperty('NSMicrophoneUsageDescription');
+    expect(pickerArgs(appJson).microphonePermission).toBe(false);
+  });
+
+  it('can still detect the override that shipped', () => {
+    // Anti-vacuous: the 22 Sep config, plugin strings present and no
+    // microphone opt-out, must fail all three of the cases above.
+    const before = JSON.parse(JSON.stringify(appJson));
+    before.plugins = before.plugins.map((p: unknown) =>
+      Array.isArray(p) && p[0] === 'expo-image-picker'
+        ? [
+            'expo-image-picker',
+            {
+              photosPermission: 'Tappet needs your photo library so you can attach an invoice you have already photographed.',
+              cameraPermission: 'Tappet uses the camera so you can photograph a service invoice and have its line items read for you.',
+            },
+          ]
+        : p
+    );
+    const plist = effectivePlist(before);
+    expect(plist.NSPhotoLibraryUsageDescription).not.toMatch(/car|vehicle|photo of your/i);
+    expect(plist.NSCameraUsageDescription).not.toMatch(/VIN/);
+    expect(plist).toHaveProperty('NSMicrophoneUsageDescription');
   });
 });
