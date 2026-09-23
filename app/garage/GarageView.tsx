@@ -103,7 +103,7 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
             loading
               ? 'Loading…'
               : error
-              ? 'Unable to load your vehicles'
+              ? 'Could not load your cars.'
               : vehicles.length === 0
               ? 'Nothing here yet.'
               : 'Open a car for its dossier.'

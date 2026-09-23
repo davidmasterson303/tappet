@@ -1720,6 +1720,7 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
+                    aria-label={`Remove ${file.name}`}
                     className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 chamfer-sm transition-colors"
                     disabled={uploadingFiles || loading}
                   >
@@ -1885,7 +1886,7 @@ export default function ConsultantChat({
         preferredZipCode={vehicle?.preferred_zip_code}
         preselectedItemIds={quotePullItemIds}
         onQuoteSaved={() => {
-          toast.success('Quote request saved!');
+          toast.success('Quote request saved');
         }}
       />
 

@@ -79,7 +79,7 @@ export const DEMO_ANSWERS: readonly DemoAnswer[] = [
     vehicleId: ACCORD,
     question: 'What should I be doing at this mileage?',
     answer:
-      'At 94,800 miles the 1.5T Accord is at the point where the maintenance that matters stops being oil changes and starts being the things that fail quietly. Two are worth booking together: the CVT fluid, which Honda calls a lifetime fill and independent shops generally do not, and the rear differential service if this car has all-wheel drive.\n\nThe 1.5-litre turbo engine has a known pattern of fuel dilution in the oil in cold, short-trip use — oil that smells of petrol on the dipstick is the symptom. It is not a fault on every car and it is worth checking rather than assuming.\n\nExpect $300–$600 for the pair at an independent shop, more at a dealer.',
+      'At 94,800 miles the 1.5T Accord is at the point where the maintenance that matters stops being oil changes and starts being the things that fail quietly. Two are worth booking together: the CVT fluid, which Honda calls a lifetime fill and independent shops generally do not, and the rear differential service if this car has all-wheel drive.\n\nThe 1.5L turbo engine has a known pattern of fuel dilution in the oil in cold, short-trip use — oil that smells of gasoline on the dipstick is the symptom. It is not a fault on every car and it is worth checking rather than assuming.\n\nExpect $300–$600 for the pair at an independent shop, more at a dealer.',
   },
   {
     id: 'accord-noise',
@@ -100,14 +100,14 @@ export const DEMO_ANSWERS: readonly DemoAnswer[] = [
     vehicleId: WRX,
     question: 'A shop quoted $1,200 for a clutch. Is that reasonable?',
     answer:
-      'For a WRX clutch replacement, $900–$1,600 is the usual range at an independent shop, so $1,200 sits in the middle of it rather than at either end. The spread is mostly labour: the gearbox has to come out, and shop rates vary more than parts prices do.\n\nTwo things change the answer. Whether the quote includes the flywheel — resurfacing or replacing it is normal at the same time, and a quote that omits it is often the cheaper-looking one — and whether the clutch is an OEM part or an uprated aftermarket one, which is a different job with a different feel afterwards.\n\nAsk for the quote itemised. A shop that will not split parts from labour is telling you something.',
+      'For a WRX clutch replacement, $900–$1,600 is the usual range at an independent shop, so $1,200 sits in the middle of it rather than at either end. The spread is mostly labor: the transmission has to come out, and shop rates vary more than parts prices do.\n\nTwo things change the answer. Whether the quote includes the flywheel — resurfacing or replacing it is normal at the same time, and a quote that omits it is often the cheaper-looking one — and whether the clutch is an OEM part or an upgraded aftermarket one, which is a different job with a different feel afterwards.\n\nAsk for the quote itemized. A shop that will not split parts from labor is telling you something.',
   },
   {
     id: 'm3-schedule',
     vehicleId: M3,
     question: 'What does this car cost to run?',
     answer:
-      'At 67,400 miles an M3 Competition is past the cheap years. The recurring costs that dominate are tyres, brakes and fluids: a staggered set of performance tyres is $1,200–$1,800 and lasts 12,000–20,000 miles depending on how it is driven, and brakes are $800–$2,000 a pair of axles depending on whether the discs go with the pads.\n\nThe S55 engine\'s known items are the charge pipe, which is a plastic part that splits under boost and is a common preventative upgrade, and crank hub movement, which is rarer, expensive, and mostly discussed in the context of tuned cars.\n\nBudgeting $2,500–$4,000 a year in maintenance for a car driven regularly is realistic. A year with a set of tyres and a brake job is the top of that.',
+      'At 67,400 miles an M3 Competition is past the cheap years. The recurring costs that dominate are tires, brakes and fluids: a staggered set of performance tires is $1,200–$1,800 and lasts 12,000–20,000 miles depending on how it is driven, and brakes are $800–$2,000 a pair of axles depending on whether the discs go with the pads.\n\nThe S55 engine\'s known items are the charge pipe, which is a plastic part that splits under boost and is a common preventative upgrade, and crank hub movement, which is rarer, expensive, and mostly discussed in the context of tuned cars.\n\nBudgeting $2,500–$4,000 a year in maintenance for a car driven regularly is realistic. A year with a set of tires and a brake job is the top of that.',
   },
   {
     id: 'm3-mods',

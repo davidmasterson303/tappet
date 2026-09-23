@@ -176,7 +176,7 @@ describe('failures a phone actually hits', () => {
 
     await expect(apiRequest('/vehicles')).rejects.toMatchObject({
       status: 500,
-      message: 'Request failed (500)',
+      message: 'Tappet could not complete that. Try again in a moment.',
     });
   });
 
@@ -218,7 +218,7 @@ describe('failures a phone actually hits', () => {
 
     await expect(apiRequest('/vehicles')).rejects.toMatchObject({
       status: 502,
-      message: 'Request failed (502)',
+      message: 'Tappet could not complete that. Try again in a moment.',
     });
   });
 

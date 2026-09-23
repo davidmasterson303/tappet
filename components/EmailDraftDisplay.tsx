@@ -45,7 +45,7 @@ export function EmailDraftDisplay({ emailDraft }: EmailDraftDisplayProps) {
           {copied ? (
             <>
               <Check className="h-3.5 w-3.5" />
-              Copied!
+              Copied
             </>
           ) : (
             <>

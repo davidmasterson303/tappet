@@ -345,7 +345,7 @@ export function QuoteRequestDialogV2({
 
               {wishlistItems.length === 0 ? (
                 <div className="text-center py-10 text-sm text-white/50">
-                  No items in your wishlist yet.
+                  Nothing on Needs yet.
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">

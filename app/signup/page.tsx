@@ -177,7 +177,7 @@ export default function SignupPage() {
         <div className="w-full max-w-md text-center">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
             <CheckCircle2 className="h-14 w-14 text-emerald-400 mx-auto mb-5" />
-            <h2 className="text-2xl font-bold text-white mb-3">Account created!</h2>
+            <h2 className="text-2xl font-bold text-white mb-3">Account created</h2>
             <p className="text-white/55 text-sm leading-relaxed">
               Logging you in and setting up your garage...
             </p>

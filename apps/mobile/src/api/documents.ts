@@ -345,7 +345,7 @@ export function describeUploadError(error: unknown): string {
         ? 'This device is signed out. Sign in again to upload this.'
         : 'Tappet would not accept this upload on your current session.';
     }
-    if (error.status === 404) return 'That vehicle is no longer in your garage.';
+    if (error.status === 404) return 'That car is no longer here.';
     if (error.status === 413) return 'That file is too large to upload.';
     if (error.status === 429) return 'Too many uploads just now. Try again in a minute.';
     if (error.status === 503) return 'Storage is unavailable right now. Your photo was not lost.';

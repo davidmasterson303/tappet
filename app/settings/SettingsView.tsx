@@ -281,7 +281,7 @@ export function SettingsView({
                         }`}
                       >
                         {unit}
-                        <span className="sr-only">{unit === 'mi' ? ', miles' : ', kilometres'}</span>
+                        <span className="sr-only">{unit === 'mi' ? ', miles' : ', kilometers'}</span>
                       </button>
                     );
                   })}

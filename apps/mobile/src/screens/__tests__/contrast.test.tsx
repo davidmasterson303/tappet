@@ -257,7 +257,7 @@ describe('failure states, which are where sub-floor text hides', () => {
       />
     );
 
-    await view.findByText('No vehicles yet');
+    await view.findByText('No cars yet');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 

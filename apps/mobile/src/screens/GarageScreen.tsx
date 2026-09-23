@@ -705,7 +705,7 @@ export function GarageScreen({
                   to the eye, which has position to go on.
                 */
                 <EmptyState
-                  headline="No vehicles yet"
+                  headline="No cars yet"
                   body="Add your first car and Tappet gets to work on it."
                   actionLabel="Add a car"
                   actionAccessibilityLabel="Add your first car"

@@ -131,7 +131,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
     queryClient.invalidateQueries({ queryKey: ['wishlist', vehicleId] });
     setShowMarkComplete(false);
     setSelectedItem(null);
-    toast.success('Item marked as complete!');
+    toast.success('Marked done');
   };
 
   const handleAddSuccess = () => {
@@ -405,7 +405,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
           category: item.category || 'repair',
         }))}
         onQuoteSaved={() => {
-          toast.success('Quote request saved!');
+          toast.success('Quote request saved');
           handleQuoteSaved();
         }}
       />
@@ -452,7 +452,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                           </p>
                         )}
                       </div>
-                      <button className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors flex-shrink-0">
+                      <button aria-label="Show quote details" className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors flex-shrink-0">
                         <Eye className="h-4 w-4" />
                       </button>
                     </div>

@@ -586,6 +586,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                     <button
                       type="button"
                       onClick={removePhoto}
+                      aria-label="Remove photo"
                       className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-black/90 rounded-full text-white/70 hover:text-white transition-colors"
                     >
                       <X className="h-4 w-4" />

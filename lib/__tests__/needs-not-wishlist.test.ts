@@ -102,6 +102,19 @@ export function scanSource(rel: string, source: string): Hit[] {
       for (let m = JSX_TEXT.exec(line); m; m = JSX_TEXT.exec(line)) {
         if (isCopy(m[1])) hits.push({ file: rel, line: index + 1, text: m[1].trim() });
       }
+      /*
+        ⚠ 23 Sep · a text node on its own line has neither `>` nor `<` on it.
+        `JSX_TEXT` is per line, so "Added to Wishlist" between an opening tag
+        line and a closing tag line was never tested — four such strings
+        shipped under this suite's green (privacy ×2, ModificationDetailsCard,
+        QuoteRequestDialogV2). A bare line with no code punctuation is copy.
+      */
+      const bare = line.trim();
+      // Prose has spaces and no code punctuation; an import alias or an object
+      // key (`addItemToWishlist as _addItemToWishlist,`, `wishlistItems: wishlist,`) has both.
+      if (bare !== '' && /\s/.test(bare) && !/[<>{}=;()`'",:_]/.test(bare) && isCopy(bare)) {
+        hits.push({ file: rel, line: index + 1, text: bare });
+      }
     });
   return hits;
 }
@@ -122,6 +135,8 @@ describe('the word Needs', () => {
     const fixture = [
       `toast.error('Failed to add to wishlist');`,
       `<p className="x">Your wishlist is empty</p>`,
+      // a text node on its own line, the 23 Sep shape
+      `                Added to Wishlist`,
       `label: 'Wishlist',`,
       "Alert.alert('Remove from wishlist?', `\"${'${item.item_name}'}\" will be removed.`);",
       "accessibilityLabel={`Add ${'${typed}'} to the wishlist`}",
@@ -141,7 +156,7 @@ describe('the word Needs', () => {
     ].join('\n');
 
     const hits = scanSource('fixture.tsx', fixture);
-    expect(hits.map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(hits.map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('is what every customer-facing surface says', () => {

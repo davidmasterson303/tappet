@@ -126,10 +126,10 @@ type State =
     };
 
 function describeVehicle(vehicle: ExtractedVehicle | null): string {
-  if (!vehicle) return 'an unrecognised vehicle';
+  if (!vehicle) return 'a car it could not identify';
   if (vehicle.label) return vehicle.label;
   const parts = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : 'an unrecognised vehicle';
+  return parts.length > 0 ? parts.join(' ') : 'a car it could not identify';
 }
 
 export function InvoiceScanScreen({

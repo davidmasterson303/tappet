@@ -995,7 +995,7 @@ export function VehicleDetailScreen({
     return (
       <View style={styles.centred}>
         <Text style={styles.errorTitle}>
-          {state.unauthorized ? 'Your session ended' : 'Could not load this vehicle'}
+          {state.unauthorized ? 'Your session ended' : 'Could not load this car'}
         </Text>
         <Text style={styles.errorBody}>{state.message}</Text>
         <Button

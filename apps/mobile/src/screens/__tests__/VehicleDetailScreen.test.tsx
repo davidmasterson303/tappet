@@ -462,7 +462,7 @@ describe('when it simply failed', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
     const { props, view } = await mount();
 
-    expect(await view.findByText('Could not load this vehicle')).toBeTruthy();
+    expect(await view.findByText('Could not load this car')).toBeTruthy();
     expect(view.getByText('Try again')).toBeTruthy();
     expect(props.onSignOut).not.toHaveBeenCalled();
   });
@@ -472,7 +472,7 @@ describe('when it simply failed', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
     const { view } = await mount();
 
-    await view.findByText('Could not load this vehicle');
+    await view.findByText('Could not load this car');
     const before = request.mock.calls.length;
 
     await user.press(view.getByText('Try again'));
@@ -1293,7 +1293,7 @@ describe('the hero’s nav, as controls', () => {
     */
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Network is down' }));
     const failed = await mount();
-    await failed.view.findByText('Could not load this vehicle');
+    await failed.view.findByText('Could not load this car');
     expect(
       failed.view
         .getAllByRole('button', { includeHiddenElements: true })

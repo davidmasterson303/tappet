@@ -178,6 +178,7 @@ export default function CompletionDetailsDialog({
                   </div>
                   <button
                     onClick={() => setFormData({ ...formData, invoiceUrl: '' })}
+                    aria-label="Remove invoice"
                     className="p-1 hover:bg-red-500/20 rounded"
                   >
                     <X className="h-4 w-4 text-red-500" />

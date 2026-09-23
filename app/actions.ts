@@ -244,7 +244,7 @@ export async function decodeVIN(vin: string) {
 
     if (!response.ok) {
       logger.warn('VIN:NHTSA_FAILED', 'NHTSA API request failed', { status: response.status });
-      return { success: false, error: 'Failed to decode VIN. Please try again.' };
+      return { success: false, error: 'That VIN could not be read. Check the 17 characters and try again.' };
     }
 
     const data = await response.json();
@@ -273,7 +273,7 @@ export async function decodeVIN(vin: string) {
     };
   } catch (error) {
     logger.error('VIN:DECODE_ERROR', error as Error);
-    return { success: false, error: 'Failed to decode VIN. Please check your internet connection.' };
+    return { success: false, error: 'NHTSA did not answer for that VIN. Try again in a moment.' };
   }
 }
 
@@ -2699,7 +2699,7 @@ type GoalKey = 'stock' | 'mild' | 'moderate' | 'aggressive';
 
 const GOAL_CONTEXT: Record<GoalKey, string> = {
   stock:
-    'to keep the car factory-correct. Prioritise originality, warranty and resale above all else. Be explicit about what a modification costs them in those terms, and say plainly when the honest answer is to leave it alone.',
+    'to keep the car factory-correct. Prioritize originality, warranty and resale above all else. Be explicit about what a modification costs them in those terms, and say plainly when the honest answer is to leave it alone.',
   mild: 'subtle improvements that maintain OEM+ reliability. Prioritize longevity and minimal risk. Recommend conservative, proven upgrades that add refinement without compromising the factory engineering.',
   moderate:
     'balanced performance and reliability. Suggest upgrades that enhance the driving experience while maintaining reasonable reliability. Focus on well-tested modifications with strong community support.',
@@ -5826,7 +5826,7 @@ async function checkDatabaseHealth(): Promise<{ success: boolean; error?: string
     if (isSupabaseAuthError(error)) {
       return {
         success: false,
-        error: 'Database authentication failed. Please check your Supabase configuration and API keys.'
+        error: 'Could not reach the database. Try again in a moment.'
       };
     }
 

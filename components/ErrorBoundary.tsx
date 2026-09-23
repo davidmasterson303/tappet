@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { logger } from '@tappet/core/logger';
+import { CONTACT_EMAIL } from '@/lib/legal';
 
 interface Props {
   children: ReactNode;
@@ -130,17 +131,17 @@ export class ErrorBoundary extends Component<Props, State> {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-400">
                 <AlertTriangle className="h-6 w-6" />
-                Something Went Wrong
+                Something went wrong
               </CardTitle>
               <CardDescription className="text-slate-400">
-                We encountered an unexpected error. Our team has been notified and
-                is working on a fix.
+                This page hit an error it could not recover from. Your cars and
+                records are not affected.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-slate-300">
-                You can try refreshing the page or returning to the home page. If
-                the problem persists, please contact support.
+                Refresh the page or go back to the garage. If it keeps happening,
+                email {CONTACT_EMAIL}.
               </p>
 
               {showDetails && this.state.error && (
@@ -196,14 +197,14 @@ export class ErrorBoundary extends Component<Props, State> {
                   className="gap-2 border-info-border text-info hover:bg-cyan-400/10"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Try Again
+                  Try again
                 </Button>
                 <Button
                   onClick={this.handleRefresh}
                   className="gap-2 bg-primary hover:bg-cyan-700 text-primary-foreground"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Refresh Page
+                  Refresh page
                 </Button>
                 <Button
                   onClick={this.handleGoHome}
@@ -211,7 +212,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-800"
                 >
                   <Home className="h-4 w-4" />
-                  Go Home
+                  Go to the garage
                 </Button>
               </div>
 

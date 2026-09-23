@@ -84,7 +84,7 @@ export default function OnboardVinForm() {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.error || 'Failed to decode VIN');
+      setError(result.error || 'That VIN could not be read. Check the 17 characters and try again.');
       if (result.vehicleId) {
         setTimeout(() => {
           router.push(`/dashboard/${result.vehicleId}`);
@@ -106,7 +106,7 @@ export default function OnboardVinForm() {
     */
     const decoded = result.vehicle;
     if (!decoded) {
-      setError('Failed to decode VIN');
+      setError('That VIN could not be read. Check the 17 characters and try again.');
       return;
     }
     let plateKey: string | null = null;
@@ -248,7 +248,7 @@ export default function OnboardVinForm() {
               height={1696}
               loading="eager"
               decoding="async"
-              alt="A VIN plate at the base of a windscreen at night, lit by a streetlamp"
+              alt="A VIN plate at the base of a windshield at night, lit by a streetlamp"
               className="absolute inset-0 h-full w-full object-cover"
             />
           </figure>
