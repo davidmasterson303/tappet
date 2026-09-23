@@ -13,6 +13,128 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 23 Sep 2026 (later) — the pre-launch audit: eight reviews, nine commits, and what is still yours
+>
+> *"we're getting really close to launch, we need to tighten everything up …
+> power through a multi hour audit effort"* — LLM prompts, UI/UX/IA, code
+> quality, copy, and readiness, each as its own review, every finding
+> verified against the artefact before a fix. `068681a` → `28e639b`, all on
+> `main` and pushed; **nothing promoted**. Root 238 suites / 4,185, mobile
+> 57 / 950 run alone, both trees `tsc` clean.
+>
+> **Ship-blockers found and fixed** (each with a guard that fails on the
+> shipped shape):
+>
+> - **The push primer had no host.** It lived only in `GarageScreen`, which
+>   left the navigator on 22–23 Sep. A fresh install was `undetermined`
+>   forever — no primer, no system dialog, no token, and every recall,
+>   service-due and tire alert went to nobody. `push-primer-wiring` scanned
+>   the garage's source and stayed green (§5, §7). `usePushPrimer` on the
+>   car's page; the guard asserts the host is imported by the navigator.
+> - **The purpose strings in the binary were the plugin's.** expo-image-picker's
+>   `photosPermission`/`cameraPermission` override `ios.infoPlist` at prebuild
+>   (`pluginArg || infoPlist || default`), so the build carried the invoice-only
+>   library sentence MOB-01 had corrected, a camera string without the VIN
+>   barcode, a microphone string and RECORD_AUDIO. `expo config --type
+>   introspect` is the proof; the guard runs `applyPermissions` itself.
+> - **Every invoice opened from the phone 404'd.** `/api/v1/document-url`
+>   signed `file_url` raw; every real row is `placeholder://<vehicleId>/…`,
+>   so the ownership check read `placeholder:` as the car. Verified on the
+>   review account's row. `storagePathFromStoredUrl` first.
+> - **The manifest said nothing about purchases** while the paywall shipped:
+>   the guard's detector named three IAP packages and not `expo-iap`.
+> - **"Add a car" did nothing** from the Service, Plan and Advisor roots
+>   (`navigate('AddVehicle')` on stacks that do not register it); **removing a
+>   car** popped to the removed car's own page, 404'd, blamed another device,
+>   and `FirstCar` reopened it from the held set; **the next account on the
+>   same phone inherited the last one's car**, consent and primer answer
+>   (module holds and per-install flags survive sign-out); the advisor
+>   signed the whole app out on any 401; the deletion summary was discarded.
+>
+> **The advisor** (`2bf3b30`): "ACTIVE RECALLS: None active" for a car nobody
+> checked — the health prompt's 22 Aug fix had not reached it; "Mileage: 0"
+> for a missing reading; a persona with no statement that it is an AI, has
+> never seen the car, and reads research about the model. The call is now a
+> `systemInstruction` plus `user`/`model` turns with the owner's message
+> fenced as data (the flat `Owner:/Jay:` string let a message forge a prior
+> advisor turn that persisted); an empty or non-STOP answer is refused rather
+> than stored as a blank bubble; 45 s bound. The persona itself — the crew
+> chief archetype — is untouched: `product-name.test.ts` records it as a
+> 30 Aug decision. The research schema's `reliability_score` had
+> `.default(5)`, a default masquerading as a reading; nullable now.
+>
+> **Copy, one pass** (`2efb8b1`): American spelling everywhere a customer
+> reads (the demo answers said *labour*, *tyres*, *petrol*); no exclamation
+> marks; the web error boundary no longer claims "our team has been
+> notified" (nothing is); VIN-decode failures stop blaming the user's
+> connection for NHTSA; four "wishlist" strings under a green scanner whose
+> JSX regex was per line — it reads bare prose lines now, and immediately
+> found `ServiceItems.tsx`, a component nothing imported, deleted.
+> **Legal**: the site had no link to `/privacy` or `/terms` — the App Store
+> listing points at one and a reviewer could not reach it from the page;
+> the policy now states retention (5.1.1(i)); "Consultant" said seven times
+> under a tab called Advisor.
+>
+> **Server** (`f126a7f`): consultant upload took `sessionId` on trust (an
+> unsanitised storage segment, and another account's conversation id);
+> `wishlist/complete` wrote a client URL and date as sent; attachments and
+> demo history uncapped; `plates/ensure` unbounded strings in front of a
+> model call; two research POSTs arriving together triggered two Pro
+> dossiers — the marker write is conditional now. **Web** (`28e639b`): the
+> advisor asked no AI consent (LEG-02) while the phone and the invoice
+> dialog both do; the security headers `netlify.toml` promises reach only
+> `/_next/static/*` — pages carried HSTS and nosniff alone — so
+> `next.config.js` sets them, with the CSP **report-only** until it has
+> been watched on the product host.
+>
+> ⚠ **Refused by a guard, on purpose:** a distinct "confirm your email
+> first" message on sign-in. `mobile-session.test.ts` holds that any message
+> that differs by account state makes sign-in an account-existence oracle.
+> Reverted; the UX gap stands and is yours to weigh.
+>
+> **Still open, for you** (the readiness sweep's list, verified 23 Sep):
+>
+> - **`promote-web --apply`.** The host App Review reads is `web-live` at
+>   `7c79067` (22 Sep); none of today's legal-link, copy, header or API fixes
+>   are on it. Then read `/api/version` for the merge commit, and check the
+>   product host's console for CSP report-only violations before enforcing.
+> - **Rate-limit migration `20260824110000` is not applied** — the limiter is
+>   on its read-then-insert fallback (five rows for one identifier and window
+>   in `rate_limit_entries` prove it). SQL editor.
+> - **Gemini prepay balance.** `ai_usage_events` cannot compute it: the plate
+>   and plate-image REST calls bypass the meter entirely, which is also why
+>   the table's burn (~$0.02/day) is an order below `lib/gemini.ts`'s $0.66.
+>   Read the console; top up or auto-reload before submission.
+> - **ASC**: Notes for Review (`crewchief.support+appreview@gmail.com`; the
+>   draft in `audit-08-legal-appstore.md` predates the rename), age rating on
+>   the new questionnaire's AI-assistant items, US-only availability, EULA +
+>   Privacy links in metadata, Purchases in the privacy questionnaire.
+> - **Sandbox purchases grant the paid tier in production**
+>   (`apple-subscription.ts:239` refuses Sandbox only when a Production row
+>   exists) — intended for review, or gate on `environment`?
+> - **The canary watches the demo host only**; the product API the binary
+>   calls has no monitor, and `CONSULTANT_HEALTH_SECRET` would need to be on
+>   `tappet-web` too (§7's two places). `client-errors` writes no table and
+>   nothing reads the log line.
+> - `next@13.5.11` carries CVE-2024-34351 (Server Actions SSRF; Netlify's
+>   host normalisation mitigates). A 13→14 jump days from launch is a build
+>   risk; decide deliberately.
+> - Smaller, listed for the next pass: `evaluateSchedule` still takes 0 for
+>   a missing odometer (the banner now asks instead of asserting; the list
+>   itself does not yet say "unknown"); sibling tab roots keep a removed car
+>   until their focus refetch 404s (a way out exists); "See the record" after
+>   an invoice files; the demo host serves sign-up and the whole product
+>   (`isDemoSite` changes only chrome — intended?); sampling parameters on
+>   3.x models against Google's current guidance, and `responseSchema` on
+>   the JSON calls; web `/documents` and `/consultant` paths under tabs
+>   called Service and Advisor; OnboardingWizard's unlabelled inputs and
+>   cyan/red/green literals; VehicleCard, DashboardLayout status menu,
+>   AddWishlistItemDialog draft carried across openings, DeleteAccountDialog
+>   confirm text not reset; on the phone, literal type sizes on the ported
+>   screens (MarkDoneSheet, RecallDetail, InvoiceScan), PushPrimer without
+>   insets or a scroller, and form screens under a native header with no
+>   `keyboardVerticalOffset`.
+
 > ### ⚠ 23 Sep 2026 — the door got a handle, and the floor under the plate was not there
 >
 > *"i love the concept and the car selector menu … but the carrot/chevron is
