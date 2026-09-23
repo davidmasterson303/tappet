@@ -179,7 +179,7 @@ type DossierScreens = {
     already knows the car's name, and passing it means the header is correct
     during the fetch instead of appearing a second later. A link falls back.
   */
-  VehicleDetail: { vehicleId: string; title?: string };
+  VehicleDetail: { vehicleId: string; title?: string; fromPhoto?: string };
   /*
     3.4. The advisor answers about *one* car — `/api/v1/consultant` requires a
     `vehicleId` and authorizes against it — so there is no sensible advisor
@@ -768,8 +768,17 @@ export function atTabRoot(
   return (stack.index ?? stack.routes.length - 1) === 0;
 }
 
-/** The car every dossier screen is about, as the params that name it. */
-type Car = { vehicleId: string; title?: string };
+/**
+ * The car every dossier screen is about, as the params that name it.
+ *
+ * ⚠ `fromPhoto` is temporary, 22 Sep's switcher round: the **outgoing**
+ * car's plate, carried so the incoming page can cross to its own rather than
+ * blink. The car screens are keyed on `vehicleId` (`withCar` says why —
+ * state under the wrong car's name is the bug class that key prevents), so
+ * the page genuinely rebuilds and the photograph is what gives the switch
+ * its continuity.
+ */
+type Car = { vehicleId: string; title?: string; fromPhoto?: string };
 
 /**
  * Switch to the Advisor tab, about a car.
@@ -995,6 +1004,8 @@ function CarStack({ onSignOut }: Session) {
             <VehicleDetailScreen
               title={route.params?.title}
               vehicleId={vehicleId}
+              /* Round 2: the plate this page is crossing from — see `Car`. */
+              fromPhoto={route.params?.fromPhoto}
               onSignOut={onSignOut}
               /*
                 "‹ GARAGE" is a tab switch now, not a pop: the garage is its own
@@ -1012,7 +1023,18 @@ function CarStack({ onSignOut }: Session) {
                 switch and an open are one navigation and the tab keeps its
                 own stack.
               */
-              onSwitchCar={(id, carTitle) => openCarTab(navigation, { vehicleId: id, title: carTitle })}
+              /*
+                ⚠ Round 2 · `fromPhoto` is the **outgoing** car's plate, and
+                it is what makes a remount look like a switch. The screen is
+                keyed on `vehicleId` for a reason `withCar` states — state
+                under the wrong car's name is the bug class — so the page
+                genuinely rebuilds. Handing the new page the old photograph
+                lets it hold that image on screen and cross to its own, so
+                the one element the eye is tracking never blinks.
+              */
+              onSwitchCar={(id, carTitle, fromPhoto) =>
+                openCarTab(navigation, { vehicleId: id, title: carTitle, fromPhoto: fromPhoto ?? undefined })
+              }
               onAddCar={() => navigation.navigate('AddVehicle')}
               /*
                 No `onAskAdvisor` since 22 Sep: the hub's ASK THE ADVISOR was

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   Platform,
   Alert,
   Animated,
+  Easing,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -463,6 +465,17 @@ export function isOwnerPhoto(vehicle: {
   return vehicle.photo_kind === undefined || vehicle.photo_kind === null || vehicle.photo_kind === 'owner';
 }
 
+/**
+ * How long the outgoing car's plate takes to leave (22 Sep, round 2).
+ *
+ * 300ms is the critic's figure and the right one: shorter reads as a cut,
+ * longer reads as a dissolve — a transition the owner waits through rather
+ * than one that carries them. It is the plate's alone; nothing else on the
+ * page animates on a switch, because one moving instrument is the rule the
+ * whole system is built on.
+ */
+const SWITCH_CROSSFADE = 300;
+
 export function VehicleDetailScreen({
   vehicleId,
   title,
@@ -478,6 +491,7 @@ export function VehicleDetailScreen({
   onOpenTires,
   onSwitchCar,
   onAddCar,
+  fromPhoto,
 }: {
   vehicleId: string;
   /** The car's name from the row that opened this, so the nav is right during the fetch. */
@@ -524,7 +538,9 @@ export function VehicleDetailScreen({
    * Optional: unset (every build but a captured one) the hub is unchanged and
    * the garage tab is still there. `dev/design-variant.ts` says when this goes.
    */
-  onSwitchCar?: (vehicleId: string, title: string) => void;
+  onSwitchCar?: (vehicleId: string, title: string, fromPhoto?: string | null) => void;
+  /** The plate of the car this page was switched *from*, for the crossfade. */
+  fromPhoto?: string;
   onAddCar?: () => void;
 }) {
   const [state, setState] = useState<State>({ status: 'loading' });
@@ -542,15 +558,72 @@ export function VehicleDetailScreen({
   const variant = designVariant();
   const { cars } = useCarSet(variant !== null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /*
+    Round 2 · the crossfade's driver. Starts opaque so the outgoing plate is
+    on screen from the first frame, and runs once on mount; `useNativeDriver`
+    because opacity is a compositor property and this is the one moment the
+    page is also laying itself out.
+  */
+  const switchFade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!fromPhoto) return;
+    const run = Animated.timing(switchFade, {
+      toValue: 0,
+      duration: SWITCH_CROSSFADE,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    });
+    run.start();
+    /*
+      ⚠ One light haptic as the new car lands, and B3's rule is the reason
+      it is here rather than on the tap: the brief gives the *instrument* the
+      haptic — "draws in with one haptic" — so it belongs to the arrival, not
+      to the press. `Light`, not the scan's `Heavy`: a capture is a thing
+      that happened to the world, a switch is a thing that happened to the
+      screen.
+    */
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    return () => run.stop();
+  }, [fromPhoto, switchFade]);
+
+  /*
+    ⚠ Round 2 · the plate's type leaves with the sheet's rise. The critic's
+    cut: *"the plate's type under the scrim — eyebrow, name, chevron, stat
+    strip, THIS CAR — is a dim duplicate of row 01 sitting above it … the
+    stated intent was the photograph behind the scrim, and the type is not
+    the photograph."* Right, and it is the same sentence twice at two
+    brightnesses, which is worse than either. So the block fades and the
+    photograph stays: what is behind the sheet is the car, not a label for it.
+  */
+  const plateType = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const run = Animated.timing(plateType, {
+      toValue: sheetOpen ? 0 : 1,
+      duration: SWITCH_CROSSFADE,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
+  }, [plateType, sheetOpen]);
+
   /* Switching is the navigator's — the hub is one car's page and stays that. */
   const switchCar = useCallback(
     (id: string) => {
       setSheetOpen(false);
       const picked = cars.find((car) => car.id === id);
-      onSwitchCar?.(id, picked?.name ?? '');
+      onSwitchCar?.(id, picked?.name ?? '', outgoingPhoto.current);
     },
     [cars, onSwitchCar]
   );
+  /*
+    The plate this page is showing, in a ref so `switchCar` can hand it to
+    the page that replaces it without taking the loaded state as a dependency.
+  */
+  const outgoingPhoto = useRef<string | null>(null);
+  useEffect(() => {
+    outgoingPhoto.current = state.status === 'ok' ? (state.vehicle.photo_url ?? null) : null;
+  }, [state]);
   /*
     The scroll view's own height, for the sheet's floor. The window stood in
     for it in round 42 and the tab bar's 83pt was counted into the tail twice;
@@ -1371,6 +1444,37 @@ export function VehicleDetailScreen({
         ) : (
           <HeroEmpty />
         )}
+
+        {/*
+          ── ⚠ Round 2 · the switch, and the one element that must not blink ──
+
+          The critic on round 1: *"the switch is a reload, not a switch: the
+          plate hard-cuts to the next photograph, the page below rebuilds,
+          and the dial's draw-in is lost in the flash."*
+
+          The page rebuilding is not negotiable — `withCar` keys these
+          screens on `vehicleId`, and the bug class that key prevents is a
+          thread or an odometer confirmation surviving under the wrong car's
+          name. So continuity is bought where the eye is: the outgoing car's
+          plate arrives with the navigation (`fromPhoto`), is laid over the
+          new one at full opacity from the first frame, and fades out over
+          `SWITCH_CROSSFADE`. What the owner sees is one photograph becoming
+          another; what actually happened is a new screen.
+
+          ⚠ It fades **out**, not in. Fading the new plate in over graphite
+          would darken the hero to the page for a third of a second — the
+          blink, arrived by a prettier route. The old image on top, leaving,
+          keeps the frame full at every moment.
+        */}
+        {fromPhoto && fromPhoto !== vehicle.photo_url ? (
+          <Animated.Image
+            source={{ uri: fromPhoto }}
+            style={[styles.heroImage, { opacity: switchFade }]}
+            resizeMode="cover"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        ) : null}
         {/*
           ⚠ No house grade over the owner's photograph since 22 Sep — it is
           drawn as they shot it, the dim and the bed over it as over a plate.
@@ -1388,7 +1492,12 @@ export function VehicleDetailScreen({
         <Animated.View
           style={[
             styles.identity,
-            { bottom: bands.titleAnchor, opacity: identityFade, transform: [{ translateY: heroDrift }] },
+            {
+              bottom: bands.titleAnchor,
+              /* The scroll's fade, and the sheet's — see `plateType`. */
+              opacity: variant === 'b' ? Animated.multiply(identityFade, plateType) : identityFade,
+              transform: [{ translateY: heroDrift }],
+            },
           ]}
           onLayout={(event) => setIdentityHeight(event.nativeEvent.layout.height)}
           pointerEvents="none"
@@ -2044,6 +2153,7 @@ export function VehicleDetailScreen({
             slicing the dial" the critic measured.
           */
           plateFoot={heroH - HERO_SHEET_OVERLAP}
+          ceiling={viewport ?? windowHeight}
         />
       ) : null}
 

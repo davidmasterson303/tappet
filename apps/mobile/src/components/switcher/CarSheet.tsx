@@ -52,6 +52,7 @@ export default function CarSheet({
   onSwitch,
   onAddCar,
   plateFoot,
+  ceiling,
 }: {
   cars: CarRow[];
   currentId: string;
@@ -59,6 +60,8 @@ export default function CarSheet({
   onClose: () => void;
   onSwitch: (id: string) => void;
   onAddCar: () => void;
+  /** The screen's height, so the plate's foot can be a ceiling in points. */
+  ceiling: number;
   /**
    * Where the plate ends, in points from the top of the screen.
    *
@@ -109,7 +112,7 @@ export default function CarSheet({
         size={cut.plate}
         fill={surface.page}
         stroke={border.panel}
-        style={[styles.sheet, { top: plateFoot, paddingBottom: insets.bottom }]}
+        style={[styles.sheet, { top: plateFoot, paddingBottom: insets.bottom + space.md }]}
         key={open ? 'open' : 'shut'}
       >
         <View style={styles.head}>
@@ -162,17 +165,23 @@ export default function CarSheet({
                   <Text style={styles.name} numberOfLines={1}>
                     {car.name.toUpperCase()}
                   </Text>
+                  {/*
+                    ⚠ Round 2 · the need, without the mark. The critic asked
+                    for the whole sub-line cut: *"three stacked sodium marks
+                    turn the warning axis into a texture."* Half taken, and
+                    the half matters. **The mark** is what becomes texture —
+                    on this account all three cars have open recalls, so a
+                    triangle on every row distinguishes nothing, which is
+                    exactly B7's complaint. **The words** are the reason this
+                    sheet exists: a list of names and band words cannot
+                    answer "which of my cars needs me", and that comparison
+                    is the one job the garage tab could never do. So the
+                    sodium goes and the sentence stays, in the secondary ink.
+                  */}
                   {car.needs ? (
-                    <View style={styles.needRow}>
-                      {car.warning ? (
-                        <Text style={styles.warn} accessibilityElementsHidden>
-                          △
-                        </Text>
-                      ) : null}
-                      <Text style={styles.need} numberOfLines={1}>
-                        {car.needs}
-                      </Text>
-                    </View>
+                    <Text style={styles.need} numberOfLines={1}>
+                      {car.needs}
+                    </Text>
                   ) : null}
                 </View>
 
@@ -189,28 +198,29 @@ export default function CarSheet({
             );
           })}
 
+          {/*
+            ⚠ Round 2 · the row after 03, not a footer. Pinned at the sheet's
+            foot it left 124pt of graphite between two hairlines — *"28% of
+            the sheet is a void … that reads as rows still loading"*, and the
+            critic is right that a hole inside a table is a defect where a
+            margin under one is a margin. It is the table's last row now: the
+            same hairline, no index (adding is not one of the cars), the `+`
+            where the band word sits.
+          */}
+          <Pressable
+            onPress={onAddCar}
+            accessibilityRole="button"
+            accessibilityLabel="Add a car"
+            style={({ pressed }) => [styles.row, styles.addRow, pressed && styles.rowPressed]}
+          >
+            <View style={styles.mark} />
+            <View style={[styles.index, styles.noIndex]} />
+            <View style={styles.rowText}>
+              <Text style={styles.add}>ADD A CAR</Text>
+            </View>
+            <Icon name="plus" size={14} color={text.muted} />
+          </Pressable>
         </ScrollView>
-
-        {/*
-          Pinned at the foot, outside the list: adding is not one of the cars
-          and must not scroll away among them. It is also what gives the
-          sheet the same shape at three cars and at ten — the rows move, the
-          head and the act do not.
-        */}
-        <Pressable
-          onPress={onAddCar}
-          accessibilityRole="button"
-          accessibilityLabel="Add a car"
-          style={({ pressed }) => [styles.row, styles.addRow, pressed && styles.rowPressed]}
-        >
-          <View style={styles.mark} />
-          {/* No index: adding is not one of the cars, so it is not numbered among them. */}
-          <View style={[styles.index, styles.noIndex]} />
-          <View style={styles.rowText}>
-            <Text style={styles.add}>ADD A CAR</Text>
-          </View>
-          <Icon name="plus" size={14} color={text.muted} />
-        </Pressable>
       </CutSurface>
     </Modal>
   );
@@ -232,11 +242,24 @@ const styles = StyleSheet.create({
     Square top corners and the page's own graphite: this is a floor arriving,
     not an iOS card. The leading hairline is the only edge it needs.
   */
-  /* The surface is `CutSurface`'s shape; this places it and gives it its floor. */
+  /*
+    The surface is `CutSurface`'s shape; this places it and gives it its
+    floor.
+
+    ⚠ Round 2 resolved an apparent conflict between two of the critic's own
+    notes, and the resolution is worth keeping: *"its edge slices the dial"*
+    (round 0) against *"a void between two hairlines"* (round 1). Sized to
+    its content the sheet stops halfway down an instrument; pinned to the
+    plate's foot it used to leave a hole. The rule underneath both is the
+    critic's own: **cover an instrument or clear it, never halve it**, and
+    *"a margin under a table is a margin, a hole inside one is a defect"*.
+    So the top is the plate's foot and `ADD A CAR` is the table's last row —
+    the graphite below is the page's, outside the table, under no hairline.
+  */
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   head: { paddingHorizontal: space.lg, paddingTop: space.lg },
   count: { ...type.monoLabel, color: text.muted, ...TABULAR },
-  list: { flex: 1 },
+  list: { flexGrow: 0 },
   listBody: { paddingHorizontal: space.lg },
   row: {
     flexDirection: 'row',
@@ -253,13 +276,11 @@ const styles = StyleSheet.create({
   markOn: { backgroundColor: brand.accent },
   rowText: { flex: 1, gap: 2 },
   name: { ...type.displayLabel, fontSize: 15, lineHeight: 20, color: text.primary },
-  needRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   need: { ...type.mono, color: text.secondary, flexShrink: 1 },
-  warn: { ...type.monoLabel, color: status.attention },
   band: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* The spec table's index — mono, muted, fixed width so the names line up. */
   index: { ...type.monoLabel, color: text.muted, width: 22, ...TABULAR },
   noIndex: { width: 22 },
-  addRow: { minHeight: TARGET_MIN, marginHorizontal: space.lg },
+  addRow: { minHeight: TARGET_MIN },
   add: { ...type.monoLabel, color: text.muted },
 });
