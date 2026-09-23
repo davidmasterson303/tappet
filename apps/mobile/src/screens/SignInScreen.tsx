@@ -13,7 +13,7 @@ import { API_BASE_URL } from '../config';
 import Button from '../components/Button';
 import Field from '../components/Field';
 import BrandLockup from '../components/BrandLockup';
-import { resendConfirmation, resetPassword, signIn, signUp } from '../auth/session';
+import { resetPassword, signIn, signUp } from '../auth/session';
 import { hasDevCredentials, signInWithDevCredentials } from '../auth/dev-session';
 import { checkSharedCore } from '../core-check';
 import { border, build, radius, status, surface, text } from '../theme';
@@ -49,8 +49,6 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
     moment rather than to every later render of the form.
   */
   const [notice, setNotice] = useState<string | null>(initialNotice);
-  /** Sign-in refused because the email is unconfirmed: offer the link again. */
-  const [unconfirmed, setUnconfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'in' | 'up'>('in');
 
@@ -68,7 +66,6 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
 
     if (!result.ok) {
       setError(result.error ?? (isNew ? 'Could not create your account.' : 'Could not sign in.'));
-      setUnconfirmed(!isNew && result.code === 'email_not_confirmed');
       setBusy(false);
       return;
     }
@@ -181,22 +178,6 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        {unconfirmed ? (
-          <Button
-            label="Send the link again"
-            variant="outline"
-            onPress={async () => {
-              setUnconfirmed(false);
-              setError(null);
-              try {
-                await resendConfirmation(email);
-                setNotice('Sent. Check your email for the confirmation link, then sign in.');
-              } catch {
-                setError('Could not send the link. Try again in a moment.');
-              }
-            }}
-          />
-        ) : null}
 
         {/*
           The filled primary, from the primitive rather than a sixth private copy.

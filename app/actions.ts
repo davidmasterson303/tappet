@@ -4929,6 +4929,30 @@ export async function uploadConsultantDocument(formData: FormData) {
 
     const client = access.client;
 
+    /*
+      ── 23 Sep · the thread has to be this car's ──────────────────────────────
+
+      `sessionId` was taken on trust: it became a segment of the storage key
+      (`vehicleStoragePath` joins segments unsanitised, so `../x` landed in
+      the object name) and the `session_id` of the row, so a caller could
+      attach a document to another account's conversation id — a row that
+      thread's owner could then never delete, since deletion scopes on both.
+      A UUID, and a conversation this car actually has, or nothing. Checked
+      before the bytes are read and before the model is paid.
+    */
+    if (!vehicleIdSchema.safeParse(sessionId).success) {
+      return { success: false, error: 'Conversation not found' };
+    }
+    const { data: thread } = await client
+      .from('consultant_conversations')
+      .select('id')
+      .eq('id', sessionId)
+      .eq('vehicle_id', vehicleId)
+      .maybeSingle();
+    if (!thread) {
+      return { success: false, error: 'Conversation not found' };
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
 

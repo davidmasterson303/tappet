@@ -38,8 +38,6 @@ export function startSessionAutoRefresh(): () => void {
 export interface SignInResult {
   ok: boolean;
   error?: string;
-  /** The account exists and the password is right; the email has not been confirmed. */
-  code?: 'email_not_confirmed';
 }
 
 /**
@@ -156,21 +154,6 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     // user, and telling them "check your details" when the Wi-Fi is off is
     // actively misleading.
     const isNetwork = /network|fetch|timeout/i.test(error.message);
-    /*
-      23 Sep: an unconfirmed email was reported as a wrong password. The
-      sign-up path itself produces this state ("check your email"), and a
-      person who comes back before confirming was told their password was
-      wrong, with nothing offering the link again.
-    */
-    const unconfirmed =
-      (error as { code?: string }).code === 'email_not_confirmed' || /not confirmed/i.test(error.message);
-    if (unconfirmed) {
-      return {
-        ok: false,
-        code: 'email_not_confirmed',
-        error: 'Confirm your email first — the link is in the message we sent when you signed up.',
-      };
-    }
     return {
       ok: false,
       error: isNetwork

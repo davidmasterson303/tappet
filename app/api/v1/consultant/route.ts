@@ -55,6 +55,10 @@ interface ConsultantRequestBody {
 
 /** Keeps a single message from becoming an unbounded prompt. */
 const MAX_MESSAGE_LENGTH = 4000;
+/** Attachments per turn — each is an image in the prompt (23 Sep). */
+const MAX_ATTACHMENTS = 3;
+/** Turns of caller-supplied history the demo path will replay (23 Sep). */
+const MAX_DEMO_HISTORY = 20;
 
 /**
  * The status each coded failure goes out with. 502 is deliberately absent.
@@ -169,7 +173,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       isDemoVehicle,
       sessionId: typeof body.sessionId === 'string' ? body.sessionId : null,
       message,
-      clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory : [],
+      // Bounded: the demo's history is the caller's, and the prompt is paid for.
+      clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory.slice(-MAX_DEMO_HISTORY) : [],
     });
 
     if (!thread.ok) {
@@ -184,7 +189,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       sessionId: thread.sessionId,
       message,
       messageHistory: thread.messageHistory,
-      attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments : undefined,
+      // Each attachment is an inline image part in the prompt; the count is ours to cap, not the caller's.
+      attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments.slice(0, MAX_ATTACHMENTS) : undefined,
     });
 
     if (!result.success) {

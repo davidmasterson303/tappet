@@ -5,6 +5,7 @@ import { authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { recomputePerformanceStats } from '@/lib/performance-stats';
 import { projectNextService } from '@/lib/next-service';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,24 @@ export async function POST(request: NextRequest) {
         { error: 'That item is not in Needs' },
         { status: 404 }
       );
+    }
+
+    /*
+      23 Sep: `invoiceFile.url` was written to `vehicle_documents.file_url` as
+      sent, and `serviceDate` to a date column as sent. A URL that is not a
+      stored path for this car cannot be a document of this car; a string
+      that is not a date turned into a 500 after the item had been read.
+    */
+    if (invoiceFile !== undefined && invoiceFile !== null) {
+      const path = typeof invoiceFile?.url === 'string' ? storagePathFromStoredUrl(invoiceFile.url) : null;
+      if (!path || vehicleIdFromStoragePath(path) !== wishlistItem.vehicle_id) {
+        return NextResponse.json({ error: 'That invoice is not one of this car\'s' }, { status: 400 });
+      }
+    }
+    if (serviceDate !== undefined && serviceDate !== null) {
+      if (typeof serviceDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) || Number.isNaN(Date.parse(serviceDate))) {
+        return NextResponse.json({ error: 'Service date must be a date, like 2026-09-23' }, { status: 400 });
+      }
     }
 
     let documentId = null;

@@ -194,9 +194,10 @@ export default function App() {
               a network call.
             */
             onSignOut={() => {
-              void unregisterPush()
-                .finally(() => forgetThisAccount())
-                .finally(() => void signOut());
+              void unregisterPush().finally(() => void signOut());
+              // Independent of the request above: it clears what this phone
+              // holds for the account, and reads nothing the token protects.
+              void forgetThisAccount();
             }}
             /*
               The one thing the navigator cannot show, because deletion
