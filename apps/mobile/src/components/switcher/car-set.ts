@@ -120,24 +120,50 @@ export function carRows(vehicles: Row[]): CarRow[] {
 }
 
 /**
- * The set, fetched once per mount.
+ * The last set this app read, held for the next page that asks.
  *
- * ⚠ Quiet by design: a switcher that has not loaded draws **nothing** rather
- * than a spinner or a skeleton of itself. It sits at the top of a page whose
- * own content is already there, and a placeholder in that slot would be a
- * loading state on a screen that is not loading.
+ * ── ⚠ Round 3 · the count arrived after the car it counts ───────────────────
+ *
+ * Switching cars rebuilds the page, so `useCarSet` started from empty and the
+ * eyebrow — `CAR 03 OF 03`, and the chevron that says the name opens
+ * something — appeared **after** the crossfade had finished. The critic saw
+ * it in the frames: *"CAR 03 OF 03 with its chevron … pop in after 283ms,
+ * [and] belong to that block, not to a later beat."*
+ *
+ * A module-level hold is the honest fix rather than a cache in the sense that
+ * needs invalidating: the set was read seconds ago by the page you were just
+ * on, it is the owner's own garage, and it cannot have changed between one
+ * car's page and the next without this app doing it. The fetch still runs and
+ * still replaces this; what it no longer does is decide whether the eyebrow
+ * exists on the first frame.
+ */
+let lastSet: CarRow[] = [];
+
+/**
+ * The set, fetched on mount and seeded from the last read.
+ *
+ * ⚠ Quiet by design: a switcher that has never loaded draws **nothing**
+ * rather than a spinner or a skeleton of itself. It sits at the top of a page
+ * whose own content is already there, and a placeholder in that slot would be
+ * a loading state on a screen that is not loading.
  */
 export function useCarSet(on: boolean): { cars: CarRow[]; reload: () => void } {
-  const [cars, setCars] = useState<CarRow[]>([]);
+  const [cars, setCars] = useState<CarRow[]>(on ? lastSet : []);
 
   const load = useCallback(async () => {
     if (!on) return;
     try {
       const body = await apiRequest<{ vehicles?: Row[] }>('/vehicles');
-      setCars(carRows(Array.isArray(body.vehicles) ? body.vehicles : []));
+      const rows = carRows(Array.isArray(body.vehicles) ? body.vehicles : []);
+      lastSet = rows;
+      setCars(rows);
     } catch {
-      /* The page it sits on is fine; a switcher that could not load simply is not there. */
-      setCars([]);
+      /*
+        ⚠ The page it sits on is fine, and a switcher that could not load
+        simply is not there — but it keeps what it was holding rather than
+        emptying. A failed read is not "you have no other cars", and the
+        eyebrow blinking out mid-page would say exactly that.
+      */
     }
   }, [on]);
 

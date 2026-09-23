@@ -1685,6 +1685,15 @@ export function VehicleDetailScreen({
             {
               minHeight: sheetMinHeight(viewport ?? windowHeight, heroH, { navFadeStart, navHeight: insets.top + 44 }),
               shadowOpacity: sheetShadow,
+              /*
+                ⚠ Round 3 · the dossier arrives with the car, not before it.
+                The frames caught the seam: at 000ms the outgoing car's
+                photograph sat over the **incoming** car's dial, counts and
+                prose, because only the name had been given the crossfade's
+                inverse. One reading of one car at a time is the page's whole
+                claim, so everything the car is about arrives on one curve.
+              */
+              opacity: variant === 'b' && fromPhoto ? Animated.subtract(1, switchFade) : 1,
             },
           ]}
         >

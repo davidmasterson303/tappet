@@ -112,7 +112,10 @@ export default function CarSheet({
         size={cut.plate}
         fill={surface.page}
         stroke={border.panel}
-        style={[styles.sheet, { top: plateFoot, paddingBottom: insets.bottom + space.md }]}
+        style={[
+          styles.sheet,
+          { maxHeight: Math.max(0, ceiling - plateFoot), paddingBottom: insets.bottom + space.md },
+        ]}
         key={open ? 'open' : 'shut'}
       >
         <View style={styles.head}>
@@ -193,12 +196,22 @@ export default function CarSheet({
                   and an em dash in a column of numbers reads as a reading of
                   nothing.
                 */}
+                {/*
+                  ⚠ Round 3 · the numeral is a **column**, not the left half
+                  of a pair. Right-aligning the two together put "88 GOOD" a
+                  word's width right of "65 THIN HISTORY", because the band
+                  word varies and the unit it was aligned on was the pair —
+                  so the one thing the eye compares did not line up. The band
+                  word flexes to the numeral's left; the numeral is flush
+                  right in a fixed column on tabular figures, which is B6's
+                  spec table.
+                */}
                 {car.score !== null && car.band ? (
                   <View style={styles.reading}>
-                    <Text style={styles.score}>{car.score}</Text>
                     <Text style={styles.band} numberOfLines={1}>
                       {car.band.short.toUpperCase()}
                     </Text>
+                    <Text style={styles.score}>{car.score}</Text>
                   </View>
                 ) : (
                   <Text style={styles.absent} numberOfLines={1}>
@@ -255,15 +268,18 @@ const styles = StyleSheet.create({
     The surface is `CutSurface`'s shape; this places it and gives it its
     floor.
 
-    ⚠ Round 2 resolved an apparent conflict between two of the critic's own
-    notes, and the resolution is worth keeping: *"its edge slices the dial"*
-    (round 0) against *"a void between two hairlines"* (round 1). Sized to
-    its content the sheet stops halfway down an instrument; pinned to the
-    plate's foot it used to leave a hole. The rule underneath both is the
-    critic's own: **cover an instrument or clear it, never halve it**, and
-    *"a margin under a table is a margin, a hole inside one is a defect"*.
-    So the top is the plate's foot and `ADD A CAR` is the table's last row —
-    the graphite below is the page's, outside the table, under no hairline.
+    ⚠ Three rounds argued about this edge, and the settled shape is the
+    third: *"its edge slices the dial"* (round 0) → pinned to the plate's
+    foot; *"a void between two hairlines"* (round 1) → `ADD A CAR` became
+    the table's last row rather than a footer; *"the sheet's empty lower
+    half … size it to its rows and give the plate back the space"* (round
+    3) → the plate's foot is a **ceiling** and the height is the content's.
+
+    The three are consistent once the hole is gone: a sheet that ends under
+    its own last row cannot halve an instrument, because with three cars it
+    stops well below the dial and with ten it stops at the photograph.
+    Which was always the rule underneath — cover an instrument or clear it,
+    never halve it.
   */
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   head: { paddingHorizontal: space.lg, paddingTop: space.lg },
@@ -284,9 +300,9 @@ const styles = StyleSheet.create({
   mark: { width: 2, alignSelf: 'stretch', backgroundColor: 'transparent' },
   markOn: { backgroundColor: brand.accent },
   name: { ...type.displayLabel, fontSize: 15, lineHeight: 20, color: text.primary, flex: 1 },
-  /* The reading: the numeral in ink, its band word beside it in the legend's. */
-  reading: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
-  score: { ...type.mono, color: text.primary, ...TABULAR },
+  /* The reading: the band word in the legend's ink, then the numeral's own column. */
+  reading: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  score: { ...type.mono, color: text.primary, ...TABULAR, width: 26, textAlign: 'right' },
   absent: { ...type.monoLabel, color: text.muted },
   band: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* The spec table's index — mono, muted, fixed width so the names line up. */
