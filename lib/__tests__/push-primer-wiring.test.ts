@@ -21,7 +21,8 @@ const ROOT = join(__dirname, '..', '..');
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
 const NAVIGATOR = 'apps/mobile/src/navigation/RootNavigator.tsx';
-const GARAGE = 'apps/mobile/src/screens/GarageScreen.tsx';
+const HOOK = 'apps/mobile/src/notifications/usePushPrimer.ts';
+const HUB = 'apps/mobile/src/screens/VehicleDetailScreen.tsx';
 const PRIMER = 'apps/mobile/src/notifications/PushPrimer.tsx';
 
 /** Source with comments removed — prose about a rule is not the rule. */
@@ -62,25 +63,59 @@ describe('the permission prompt is no longer raised uninvited', () => {
     expect(code(NAVIGATOR)).toContain('registerForPush');
   });
 
-  it('the garage decides with the shared rule rather than its own', () => {
-    const source = code(GARAGE);
+  /*
+    ── 23 Sep · the primer had no host, and this file said it did ───────────
+
+    The cases below used to read `GarageScreen`. The 22 Sep ship removed the
+    Garage tab and the 23 Sep switcher took `GarageScreen` out of the
+    navigator's imports — so the one `<PushPrimer>` in the app was on a screen
+    nothing rendered, a fresh install was never asked, and no token was ever
+    filed. Every case here stayed green, because the garage's *source* still
+    said all the right things. CLAUDE.md §5: a guard that checks a file
+    nothing mounts checks nothing.
+
+    So the property now has two halves: the rule is obeyed by whoever hosts
+    the primer, **and the host is reachable** — imported by the navigator,
+    not merely present on disk.
+  */
+  it('the primer is rendered by a screen the navigator actually mounts', () => {
+    const host = code(HUB);
+    expect(host).toContain('<PushPrimer');
+    expect(host).toContain('usePushPrimer(');
+
+    const navigator = code(NAVIGATOR);
+    expect(navigator).toMatch(/from '\.\.\/screens\/VehicleDetailScreen'/);
+  });
+
+  it('can still tell a host on disk from a host in the tree', () => {
+    // Anti-vacuous: the garage still renders the primer and still is not
+    // imported. The case above must be able to fail on exactly that shape.
+    const garage = code('apps/mobile/src/screens/GarageScreen.tsx');
+    expect(garage).toContain('<PushPrimer');
+    expect(code(NAVIGATOR)).not.toMatch(/from '\.\.\/screens\/GarageScreen'/);
+  });
+
+  it('the host decides with the shared rule rather than its own', () => {
+    const source = code(HOOK);
 
     expect(source).toContain('shouldShowPushPrimer');
     expect(source).toContain('@tappet/core/push-priming');
-    // The vehicle count is why this lives in the garage at all.
+    // The vehicle count is why the rule lives with the car at all.
     expect(source).toMatch(/vehicleCount/);
+    // And the hub passes it a real count, never zero-while-loading.
+    expect(code(HUB)).toMatch(/usePushPrimer\(state\.status === 'ok' \? [^:]+ : null\)/);
   });
 
   it('accepting the primer is what raises the system prompt', () => {
     /*
       The whole mechanism in one assertion. If `registerForPush` were called
-      from anywhere in the garage other than the accept path, the primer would
+      from anywhere in the hook other than the accept path, the primer would
       be decoration in front of a dialog that fires regardless.
     */
-    const source = code(GARAGE);
+    const source = code(HOOK);
     expect(source).toContain('registerForPush');
 
-    const accept = source.indexOf('acceptPrimer');
+    const accept = source.indexOf('const accept = useCallback');
     const call = source.indexOf('registerForPush(');
     expect(accept).toBeGreaterThan(-1);
     expect(call).toBeGreaterThan(accept);
@@ -92,7 +127,7 @@ describe('the permission prompt is no longer raised uninvited', () => {
       busy once would never be asked again — leaving the system ask unspent
       forever, which is a worse outcome than having no primer.
     */
-    const source = code(GARAGE);
+    const source = code(HOOK);
     expect(source).toContain('recordPrimerDismissed');
     expect(source).toMatch(/recordPrimerDismissed\(\s*new Date\(\)/);
   });

@@ -67,7 +67,8 @@ describe('checkSharedCore is wired into a screen', () => {
       bundle is most broken — which is the state it exists to report.
     */
     const app = read('App.tsx');
-    expect(app).toMatch(/<SignInScreen \/>/);
+    // Props are allowed (the deletion notice rides across the gate, 23 Sep); the mount is the property.
+    expect(app).toMatch(/<SignInScreen[^>]*\/>/);
   });
 
   it('compiles out of a release build', () => {

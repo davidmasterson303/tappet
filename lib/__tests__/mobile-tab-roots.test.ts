@@ -261,7 +261,7 @@ describe('B1 / B8 — the way back is one control', () => {
     expect(vehicleScreen).not.toMatch(/<BackControl\b/);
     expect(vehicleScreen).not.toMatch(/<Icon name="chevron-left"/);
     // The way out survives for the one state with no tab bar's help: the car that is gone.
-    expect(vehicleScreen).toMatch(/label="Back to garage"/);
+    expect(vehicleScreen).toMatch(/label="Open another car"/);
   });
 
   it('can still detect the native button coming back', () => {

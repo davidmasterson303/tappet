@@ -48,7 +48,8 @@ import { PaywallHost } from '../purchases/PaywallHost';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import BackControl from '../components/BackControl';
 import FirstCar from '../components/switcher/FirstCar';
-import { rememberVehicle } from './last-vehicle';
+import { forgetVehicle, rememberVehicle } from './last-vehicle';
+import { forgetCar } from '../components/switcher/car-set';
 import TabBar from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
@@ -796,6 +797,14 @@ function openCarTab(navigation: StackNavigation, car: Car) {
   });
 }
 
+/** The add-a-car doors, addressed through their tab so any stack can open them. */
+function openAddCar(navigation: StackNavigation) {
+  navigation.navigate('Tabs', {
+    screen: 'CarTab',
+    params: { screen: 'AddVehicle' },
+  });
+}
+
 function openAdvisorTab(navigation: StackNavigation, car: Car) {
   navigation.navigate('Tabs', {
     screen: 'AdvisorTab',
@@ -848,6 +857,13 @@ function askAdvisor(navigation: StackNavigation, car: Car, ask: string, from: Or
 
 /** Everything a stack needs to render its screens. */
 type Session = {
+  /**
+   * The sentence to show once the account is gone — "2 vehicles and 3 files
+   * deleted…". Deletion unmounts this whole navigator, so the sign-in gate
+   * is the only surface left to say it on; `App.tsx` carries it there.
+   * Optional because the fixture and specimen hosts have no account to lose.
+   */
+  onAccountDeleted?: (summary: string) => void;
   accessToken: string;
   email: string | null;
   onSignOut: () => void;
@@ -1229,7 +1245,21 @@ function CarStack({ onSignOut }: Session) {
               because the screen behind this one is the car's own, and a car
               that no longer exists answers 404 to the reload it would do.
             */
-            onRemoved={() => navigation.popToTop()}
+            onRemoved={() => {
+              /*
+                ⚠ 23 Sep · not `popToTop`. The top of this stack was the
+                removed car's own page, which refetched on focus, answered
+                404, and told the owner the car "may have been removed from
+                another device" — about their own act — and then `FirstCar`
+                opened it again from the held set. The two holds that still
+                named the car are cleared first, and the root is dropped to
+                `FirstCar` with no car, which opens whichever is left and
+                offers to add one when none are.
+              */
+              forgetCar(route.params.vehicleId);
+              forgetVehicle(route.params.vehicleId);
+              navigation.navigate('Tabs', { screen: 'CarTab', params: { screen: 'VehicleDetail' } });
+            }}
             onKeep={() => navigation.goBack()}
           />
         )}
@@ -1340,7 +1370,15 @@ function withCar(
     return (
       <FirstCar
         onOpenCar={(id, carTitle) => openCarTab(navigation, { vehicleId: id, title: carTitle })}
-        onAddCar={() => navigation.navigate('AddVehicle')}
+        /*
+          ⚠ 23 Sep · nested, not a bare `navigate('AddVehicle')`. `withCar`
+          renders on the Service, Plan and Advisor roots too, and `AddVehicle`
+          is registered on the Car tab's stack only — React Navigation does
+          not search sibling navigators, so from those three tabs the bare
+          form was silently unhandled: "No cars yet — Add a car", and the
+          button did nothing. `openAddCar` addresses the screen by its tab.
+        */
+        onAddCar={() => openAddCar(navigation)}
       />
     );
   }
@@ -1612,7 +1650,7 @@ function Tabs(session: Session) {
   );
 }
 
-export function RootNavigator({ accessToken, email, onSignOut }: Session) {
+export function RootNavigator({ accessToken, email, onSignOut, onAccountDeleted }: Session) {
   /*
     The container ref, so the account control can navigate and the tree can
     be read. `useNavigationContainerRef` rather than a plain ref: it is the
@@ -1672,8 +1710,10 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
 
       Now: a device that **already** has permission still registers silently,
       because its token must be filed against the account and there is nothing
-      to explain. Everyone else is offered `PushPrimer` first — see
-      `GarageScreen`, which is where the vehicle count that gates it lives.
+      to explain. Everyone else is offered `PushPrimer` first — from the
+      car's page, via `usePushPrimer`, which is where the vehicle count that
+      gates it lives. ⚠ It was the garage until 23 Sep, and the garage left
+      this navigator on 22 Sep: for a day no build could ask at all.
 
       `shouldRegisterSilently` and `shouldShowPushPrimer` are complementary by
       construction and there is a test asserting they can never both be true.
@@ -1739,9 +1779,16 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
               /*
                 Deletion clears the session, which unmounts this whole navigator
                 — so there is nothing here to navigate back to and nothing to
-                show a confirmation on. `App.tsx`'s gate takes over.
+                show a confirmation on. `App.tsx`'s gate takes over, and it is
+                handed the sentence first: until 23 Sep the summary
+                `AccountScreen` built was dropped here and the app cut
+                straight to the sign-in form, with nothing to say the deletion
+                the person just confirmed had happened.
               */
-              onDeleted={() => onSignOut()}
+              onDeleted={(summary) => {
+                onAccountDeleted?.(summary);
+                onSignOut();
+              }}
               /*
                 E8: the settings way into the paywall. The same signal a
                 refused screen sends, with no feature — `PaywallHost` below is

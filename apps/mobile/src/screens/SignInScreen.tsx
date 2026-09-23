@@ -38,11 +38,17 @@ import { interFace } from '../theme/fonts';
  * verb. A separate screen would duplicate the inputs, the keyboard handling and
  * the error surface to change one label and one call.
  */
-export function SignInScreen() {
+export function SignInScreen({ initialNotice = null }: { initialNotice?: string | null } = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /*
+    `initialNotice` is the account-deletion summary `App.tsx` hands across
+    the gate (23 Sep). Read once at mount, which is right: this form mounts
+    fresh each time the session ends, and the sentence belongs to that one
+    moment rather than to every later render of the form.
+  */
+  const [notice, setNotice] = useState<string | null>(initialNotice);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'in' | 'up'>('in');
 

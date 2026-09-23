@@ -175,3 +175,21 @@ export function useCarSet(on: boolean): { cars: CarRow[]; reload: () => void } {
 
   return { cars, reload: () => void load() };
 }
+
+/**
+ * Drop a car from the held set the moment this app removes it.
+ *
+ * ── 23 Sep · the removed car opened itself again ─────────────────────────────
+ *
+ * Removal popped the Car tab to the removed car's own root, which refetched,
+ * 404'd, and said "no longer here — it may have been removed from another
+ * device" about the owner's own act. Backing out of that dropped the root to
+ * `FirstCar`, which seeds from this hold — still carrying the removed car as
+ * `cars[0]` — and opened it a second time. The fetch would have corrected the
+ * hold a moment later, but `FirstCar` acts on the first frame, which is the
+ * whole reason the hold exists. So the one writer that knows a car is gone
+ * says so here, before it navigates.
+ */
+export function forgetCar(vehicleId: string): void {
+  lastSet = lastSet.filter((car) => car.id !== vehicleId);
+}

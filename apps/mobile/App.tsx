@@ -79,6 +79,16 @@ import { RootNavigator } from './src/navigation/RootNavigator';
  */
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  /*
+    What the account screen said as it deleted the account — "2 vehicles and
+    3 files deleted…" — held here because the screen that built it is
+    unmounted by the same act. Cleared when a session next appears, so a
+    later sign-in does not open under a sentence about a different account.
+  */
+  const [deletionNotice, setDeletionNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (session) setDeletionNotice(null);
+  }, [session]);
 
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
 
@@ -182,9 +192,15 @@ export default function App() {
             onSignOut={() => {
               void unregisterPush().finally(() => void signOut());
             }}
+            /*
+              The one thing the navigator cannot show, because deletion
+              unmounts it: that the deletion happened. The sentence lands on
+              the sign-in form, which is the next thing the person sees.
+            */
+            onAccountDeleted={setDeletionNotice}
           />
         ) : (
-          <SignInScreen />
+          <SignInScreen initialNotice={deletionNotice} />
         )}
         <StatusBar style="light" />
       </View>

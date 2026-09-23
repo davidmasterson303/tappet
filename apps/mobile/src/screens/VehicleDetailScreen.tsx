@@ -39,6 +39,8 @@ import PlateStatusLine from '../components/PlateStatusLine';
 import CarSheet from '../components/switcher/CarSheet';
 import CarSwitch from '../components/switcher/CarSwitch';
 import { useCarSet } from '../components/switcher/car-set';
+import { PushPrimer } from '../notifications/PushPrimer';
+import { usePushPrimer } from '../notifications/usePushPrimer';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -565,6 +567,17 @@ export function VehicleDetailScreen({
   const { cars } = useCarSet(true);
   /** More than one car is the only condition the switcher has. */
   const manyCars = cars.length > 1;
+  /*
+    ── 23 Sep · the push primer is asked from here ──────────────────────────
+
+    This is the first screen an owner sees with a car on it, so it is where
+    "alerts about this car" has something to be about. The count is at least
+    the car on this page even before the set has loaded; the set only ever
+    raises it, and the rule needs one. `usePushPrimer` carries the history:
+    the primer lost its host when the garage left the navigator, and a fresh
+    install could never be asked.
+  */
+  const primer = usePushPrimer(state.status === 'ok' ? Math.max(1, cars.length) : null);
   const [sheetOpen, setSheetOpen] = useState(false);
   /*
     Round 2 · the crossfade's driver. Starts opaque so the outgoing plate is
@@ -944,10 +957,17 @@ export function VehicleDetailScreen({
   if (state.status === 'missing') {
     return (
       <View style={styles.centred}>
-        <Text style={styles.errorTitle}>This vehicle is no longer here</Text>
+        <Text style={styles.errorTitle}>This car is no longer here</Text>
         <Text style={styles.errorBody}>It may have been removed from another device.</Text>
+        {/*
+          "Open another car", since 23 Sep: `onBack` drops this root to
+          `FirstCar`, which opens whichever car is left or offers to add one.
+          It said "Back to garage" for a day after the garage was gone — a
+          word for a place that did not exist, on the one state with no tab
+          bar's help.
+        */}
         <Button
-          label="Back to garage"
+          label="Open another car"
           variant="outline"
           onPress={onBack}
           style={styles.stateAction}
@@ -2267,6 +2287,8 @@ export function VehicleDetailScreen({
         — the mark-done sheet that carried one item's shop to the next).
         Nothing here holds state; the key makes that structural.
       */}
+      <PushPrimer visible={primer.open} onAccept={primer.accept} onDecline={primer.decline} />
+
       {manyCars ? (
         <CarSheet
           cars={cars}

@@ -413,16 +413,16 @@ describe('when the vehicle is gone', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
     const { view } = await mount();
 
-    expect(await view.findByText('This vehicle is no longer here')).toBeTruthy();
+    expect(await view.findByText('This car is no longer here')).toBeTruthy();
   });
 
-  it('offers the way back to the garage', async () => {
+  it('offers the way to another car', async () => {
     const user = userEvent.setup();
     request.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
     const { props, view } = await mount();
 
-    await view.findByText('This vehicle is no longer here');
-    await user.press(view.getByText('Back to garage'));
+    await view.findByText('This car is no longer here');
+    await user.press(view.getByText('Open another car'));
 
     expect(props.onBack).toHaveBeenCalledTimes(1);
   });
