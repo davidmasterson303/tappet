@@ -13,6 +13,113 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 23 Sep 2026 — the door got a handle, and the floor under the plate was not there
+>
+> *"i love the concept and the car selector menu … but the carrot/chevron is
+> perhaps not obvious for all users. let's replace w/ a more obvious cta in top
+> right or top left. then rerun critic loop till it gets back to a 9 or 10 …
+> in accessibility review in critic loop this time, i'm worried about small
+> fonts and contrast in some cases."*
+>
+> `CarSheetMark` is deleted. `components/switcher/CarSwitch.tsx` is a labelled
+> control in the nav row's trailing slot — YOUR CARS and a chevron, mono at the
+> 12pt floor, off-white on an opaque cut surface, drawn 32pt inside a 44pt
+> target. It takes a slot that had been **reserved and empty since 22 Sep**,
+> when ADD PHOTO went into the car's details and ACCOUNT stopped floating over
+> a car's page: 150pt held open for a control that no longer existed, with the
+> arriving nav title truncating against it.
+>
+> ⚠ **The chevron was not only quiet, it was contradicted.** On a multi-car
+> account the car's name opened the *switcher*, while the legend 14pt under it
+> read `This car ›` and the door's accessibility label promised "mileage, your
+> answers, the photo, removal". A sighted owner got the wrong word and a screen
+> reader the wrong sentence. The name opens the car again on every account.
+>
+> ⚠ **The switcher was never going to reach a device.** It sat behind
+> `EXPO_PUBLIC_CAR_FIRST`, a `__DEV__`-only flag, while the 22 Sep ship had
+> already removed the Garage tab unconditionally. A release build would have
+> had **neither**: a three-car account able to reach exactly one car, with
+> nothing on screen to say the other two existed. All 54 suites were green,
+> because a flag that is off in production is off under jest too. CLAUDE.md §6
+> and §5 in one object.
+>
+> ⚠ **And the contrast floor under the plate had stopped reaching the type.**
+> `HeroBed` is the mechanism that makes type over an owner's photograph legal
+> here at all — web's rule is that nothing is printed over a photograph, and
+> the phone satisfies the rule underneath it (*no type whose contrast depends
+> on the photograph*) with a guaranteed dark floor. Its stops were fixed
+> fractions ending at 52% of the hero, correct when written. The identity block
+> then grew three times — the stat strip, the `THIS CAR` legend, and on 22 Sep
+> the switcher's own `CAR 01 OF 03` eyebrow — until its top sat at ~48%, where
+> the bed delivered **0.08**. Worst case on a car shot against a bright sky,
+> computed from the gradient's own stops:
+>
+> ```
+>   THIS CAR legend   bed 0.65   2.92:1
+>   MILEAGE label     bed 0.46   1.94:1
+>   the car's name    bed 0.25   1.61:1
+>   CAR 01 OF 03      bed 0.08   1.09:1
+> ```
+>
+> Every string on the plate under AA, and the largest type on the screen at
+> 1.61:1 — while the screen's own style sheet said the type was *"Legal here
+> because of `HeroBed`'s guaranteed floor"*. **Every captured round of every
+> loop was shot against a night photograph**, which is the one input that hides
+> it. Your accessibility instinct is what surfaced it.
+>
+> The bed is driven by the block now and holds 0.68 across it, easing off above
+> **and below** — below, because holding the floor to the hero's foot took the
+> plate darker than the panel it sits on (9.3 against 15.1) and left the 45°
+> cut nothing to read against. 0.68 is what `text.secondary` needs over a white
+> photograph; `text.muted` needs 0.837, a scrim heavy enough to lose the car,
+> so nothing on the plate is muted and `StatStrip` gained `onPhoto`. One rung
+> survives because a test refused to give it up: `stat.muted` is the ask
+> ("Tell us") standing where a fact would — your 22 Sep ruling — and a question
+> set in a fact's ink is not a question.
+>
+> ⚠ **Edges: `border.panel` is too quiet to carry the geometry.** Three critics
+> in a row reported the car sheet's cut as absent and two the collapsed bar's
+> rule. Pixel scans found every one of them present and unresolvable — the bar's
+> rule one row at 32.3 against 13.6, the sheet's cut an 8pt diagonal six
+> luminance points from its ground. That is round 46's *"a cut nobody can see
+> does not meet the line"*, on the same surface, again. The nav rule and both
+> cuts take `border.field`; seams between two still bands keep `panel`.
+>
+> **Guards.** The switcher had shipped at 9/10 with **no test of any kind** —
+> not the sheet, not `car-set`, not the cold start. It has two files now
+> (`switcher/__tests__/car-switch.test.tsx`, `components/__tests__/hero-bed.test.ts`):
+> the affordance is present at three cars and absent at one, the name opens the
+> car, the control's ground is opaque and declared to the contrast audit, the
+> 44pt floor is asserted on the **press target** rather than the drawn box,
+> every string on the hub and in the sheet clears AA and 12pt, and an
+> anti-vacuous case evaluates the *shipped* bed stops so the old floor cannot
+> return green. Verified red against the defect: four of the first seven fail
+> with the flag off.
+>
+> ⚠ **The loop did not reach 9, and stopping was a judgement.** Four fresh
+> critics scored **7 → 7 → 8 → 7**, each given the locked brief, native frames
+> and the measurements the round before had got wrong. Every one called the
+> switcher finished — *"the right answer — labelled, in the nav slot, its own
+> guaranteed floor, persistent on scroll"*, *"it is done."* What holds the
+> score is the hero, and the last two rounds **contradict each other about the
+> same edge**: round 9 praised the plate's foot matching the panel's tone
+> (*"the photograph dissolves into the instrument instead of sitting on it as a
+> darker slab"*), round 10 asked for the opposite (*"hold the photograph's
+> asphalt tone to the foot so the notch reads"*). Its other open asks are a
+> **different crop of the owner's photograph**, which the app does not control,
+> and the type scale on WHAT YOU TOLD US, which predates this change. Per the
+> loop's own rule on contradictions, both sides are in drift §6.24 rather than
+> resolved by us.
+>
+> **Still open, for you:** whether the plate's foot should match the panel or
+> stand off it, and whether `GarageScreen` (now unmounted, ~800 lines with
+> `GarageBay`, `BayRoom`, `BayRail`) is deleted or kept for a garage you may
+> want back. Its dead import is out of the navigator; the files stay.
+>
+> `2d1fb63`. Mobile 56 suites / 946 tests, root 235 / 4,147, tsc clean.
+> Nothing promoted: all phone JS.
+>
+
 > ### ⚠ 22 Sep 2026, night — the garage and the car were one screen
 >
 > *"How can we make Garage and Car tabs feel less redundant? Ideate before
@@ -47,6 +154,13 @@
 > guard was green the whole time** — it asserted where the sweep *landed*,
 > never the path it took; the new one samples the path and fails against the
 > old code at 82 for a 61 car.
+>
+> ⚠ **Answered, and the flag was a defect — see 23 Sep at the top of this
+> page.** You shipped the structure the next day; the flag is deleted. Worse,
+> it never should have survived the ship: the navigator dropped the Garage tab
+> unconditionally while the hub stayed gated, so a release build had neither
+> the tab nor the switcher. The paragraph below is kept as written because its
+> *trade* is still the reasoning of record.
 >
 > ⚠ **Yours to say.** The structure sits behind `EXPO_PUBLIC_CAR_FIRST`, one
 > line from being the app. You ordered those five tabs on 21 Sep for stated

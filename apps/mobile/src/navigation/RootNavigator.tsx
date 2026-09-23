@@ -34,7 +34,6 @@ import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
 import type { ServiceVisit } from '@tappet/core/service-record';
 import { WishlistAddScreen } from '../screens/WishlistAddScreen';
 import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
-import { GarageScreen } from '../screens/GarageScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { DescribeCarScreen } from '../screens/DescribeCarScreen';
 import { OwnerAnswersScreen } from '../screens/OwnerAnswersScreen';
@@ -872,7 +871,15 @@ function CarStack({ onSignOut }: Session) {
         ⚠ 23 Sep · **the add-a-car flow lives here now.** It was the garage
         stack's, and the garage stack is gone with the garage tab — the set
         is a control on the car (`CarSheet`), and `ADD A CAR` is its last
-        row. A flow that creates the thing this tab is about belongs in this
+        row.
+
+        ⚠ `GarageScreen` is no longer imported by this file, and that was a
+        second edit rather than a consequence of the first: the import
+        survived the stack it fed, unused and unflagged, because this project
+        does not set `noUnusedLocals`. An unrendered screen reached through a
+        live import is still in the bundle. The file itself is kept — whether
+        the garage comes back is David's, not a tidy-up's — and its own suite
+        still mounts it, which keeps it compiling without shipping it. A flow that creates the thing this tab is about belongs in this
         tab's stack; anywhere else it would be a second navigator opened from
         a sheet, with its own back behaviour to reason about.
 
