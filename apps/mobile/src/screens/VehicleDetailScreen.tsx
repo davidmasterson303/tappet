@@ -37,10 +37,8 @@ import DialChip from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PlateStatusLine from '../components/PlateStatusLine';
 import CarSheet, { CarSheetMark } from '../components/switcher/CarSheet';
-import NameRail from '../components/switcher/NameRail';
-import PlateShelf from '../components/switcher/PlateShelf';
 import { useCarSet } from '../components/switcher/car-set';
-import { designVariant } from '../dev/design-variant';
+import { carFirstStructure } from '../dev/car-first';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -537,7 +535,7 @@ export function VehicleDetailScreen({
    * ⚠ Temporary, 22 Sep's concept round. Switching which car the app is about,
    * and adding one — the two things the garage tab did that nothing else can.
    * Optional: unset (every build but a captured one) the hub is unchanged and
-   * the garage tab is still there. `dev/design-variant.ts` says when this goes.
+   * the garage tab is still there. `dev/car-first.ts` says when this goes.
    */
   onSwitchCar?: (vehicleId: string, title: string, fromPhoto?: string | null) => void;
   /** The plate of the car this page was switched *from*, for the crossfade. */
@@ -556,8 +554,8 @@ export function VehicleDetailScreen({
     fetched only when one of them is drawn, so an ordinary build makes no
     extra request.
   */
-  const variant = designVariant();
-  const { cars } = useCarSet(variant !== null);
+  const carFirst = carFirstStructure();
+  const { cars } = useCarSet(carFirst);
   const [sheetOpen, setSheetOpen] = useState(false);
   /*
     Round 2 · the crossfade's driver. Starts opaque so the outgoing plate is
@@ -1539,7 +1537,7 @@ export function VehicleDetailScreen({
                 car it names reach full strength together.
               */
               opacity:
-                variant === 'b'
+                carFirst
                   ? Animated.multiply(
                       Animated.multiply(identityFade, plateType),
                       fromPhoto ? Animated.subtract(1, switchFade) : 1
@@ -1574,7 +1572,7 @@ export function VehicleDetailScreen({
             rule is that a pager for a list that cannot be paged is chrome,
             and a count of a set nobody has is the same thing.
           */}
-          {variant === 'b' && cars.length > 1 ? (
+          {carFirst && cars.length > 1 ? (
             <Text style={styles.carIndex}>
               {`CAR ${String(Math.max(1, cars.findIndex((car) => car.id === vehicleId) + 1)).padStart(2, '0')} OF ${String(cars.length).padStart(2, '0')}`}
             </Text>
@@ -1583,7 +1581,7 @@ export function VehicleDetailScreen({
             <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
               {name}
             </Text>
-            {variant === 'b' && cars.length > 1 ? <CarSheetMark /> : null}
+            {carFirst && cars.length > 1 ? <CarSheetMark /> : null}
           </View>
           <StatStrip stats={stats} />
           {/*
@@ -1657,7 +1655,7 @@ export function VehicleDetailScreen({
             the gesture in hand.
           */}
           <Pressable
-            onPress={variant === 'b' && cars.length > 1 ? () => setSheetOpen(true) : onOpenProfile}
+            onPress={carFirst && cars.length > 1 ? () => setSheetOpen(true) : onOpenProfile}
             accessibilityRole="button"
             accessibilityLabel={`${name || 'This car'}. Opens the car's details: mileage, your answers, the photo, removal.${
               mileageStale ? ` The odometer was set ${mileageAge}; update it there.` : ''
@@ -1707,7 +1705,7 @@ export function VehicleDetailScreen({
                 switcher is one dark plate and nothing else.
               */
               opacity:
-                variant === 'b'
+                carFirst
                   ? Animated.multiply(plateType, fromPhoto ? Animated.subtract(1, switchFade) : 1)
                   : 1,
             },
@@ -1822,18 +1820,6 @@ export function VehicleDetailScreen({
             car".
           */}
           {research.visible ? <ResearchLog runner={research} style={styles.researchLog} /> : null}
-
-          {/*
-            ⚠ Concepts A and C (temporary): the set as a band at the head of
-            the sheet, where the plate ends and the readings begin — the slot
-            the garage's own rail occupied one screen earlier.
-          */}
-          {variant === 'a' ? (
-            <NameRail cars={cars} currentId={vehicleId} onSwitch={switchCar} onAddCar={() => onAddCar?.()} />
-          ) : null}
-          {variant === 'c' ? (
-            <PlateShelf cars={cars} currentId={vehicleId} onSwitch={switchCar} onAddCar={() => onAddCar?.()} />
-          ) : null}
 
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
@@ -2207,7 +2193,7 @@ export function VehicleDetailScreen({
         (CLAUDE.md §6 — the mark-done sheet that carried one item's shop to
         the next). Nothing here holds state; the key makes that structural.
       */}
-      {variant === 'b' ? (
+      {carFirst ? (
         <CarSheet
           cars={cars}
           currentId={vehicleId}

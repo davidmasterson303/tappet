@@ -44,7 +44,7 @@ import type { CarIdentity } from '../onboarding/car-identity';
 import type { Prefill } from '../onboarding/useVinDecode';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
-import { carFirstStructure } from '../dev/design-variant';
+import { carFirstStructure } from '../dev/car-first';
 import AccountControl from './AccountControl';
 import { PaywallHost } from '../purchases/PaywallHost';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
@@ -1621,7 +1621,7 @@ function Tabs(session: Session) {
 
         Gated rather than shipped because `main` must stay the app while the
         critic judges: unset — every build but a captured one — draws the
-        five tabs. `dev/design-variant.ts` says when this goes.
+        five tabs. `dev/car-first.ts` says when this goes.
       */}
       {carFirst ? null : <Tab.Screen name="GarageTab">{() => <GarageStack {...session} />}</Tab.Screen>}
       <Tab.Screen name="CarTab">{() => <CarStack {...session} />}</Tab.Screen>

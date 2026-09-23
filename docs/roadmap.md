@@ -13,6 +13,59 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 22 Sep 2026, night — the garage and the car were one screen
+>
+> *"How can we make Garage and Car tabs feel less redundant? Ideate before
+> implementing … put on your product hat and eval from jobs to be done POV."*
+>
+> The finding was structural and it is measurable: **a garage bay is a strict
+> subset of the car hub.** Plate, name, strip, dial and band, next service,
+> recall count — all six are on the hub a tap later. The garage was the hub
+> with things removed, one tap from the hub. And it is a *pager*, so it can
+> switch but never compare — which is the job the advisor KB already names as
+> one of mobile's three flows (*"glance at garage health"*, `cc-product-0001`).
+> Tesla's app answers the same problem with **no list tab at all**.
+>
+> Your ruling: *"a and c are ruled out for the subpar solution to single car
+> owner, which is not an edge case at all … let's try b. but this is a major
+> change, so we must have an authentic run of design critic loop and we must
+> hit a 9 or a 10."*
+>
+> Three switcher concepts built as real screens on the reviewer account's
+> three cars, a design critic picked one **blind** with the shipped structure
+> as a fourth candidate — it picked the sheet and ranked **the shipped
+> structure last** — and the loop ran **6 → 7 → 7 → 7 → 8 → 9,
+> `Continue: no`**. Drift §6.23 carries the rounds.
+>
+> ⚠ **The loop's most valuable find was not the switcher.** Reading four
+> frames of a car switch, the critic counted the health numeral at 72, 90,
+> 99, **100** on a car that reads 68 — beside the sentence saying what was
+> holding that score back. The dial's appear was an *ignition sweep*, 0 → 100
+> → settle, on every mount of every dial in the app: the garage, the car's
+> page, the health screen. A numeral is not a needle, and §10 has no
+> exemption for an animation curve. One curve now, 0 → the reading. **The
+> guard was green the whole time** — it asserted where the sweep *landed*,
+> never the path it took; the new one samples the path and fails against the
+> old code at 82 for a 61 car.
+>
+> ⚠ **Yours to say.** The structure sits behind `EXPO_PUBLIC_CAR_FIRST`, one
+> line from being the app. You ordered those five tabs on 21 Sep for stated
+> reasons, and a loop reaching 9 says the replacement is good — not that the
+> trade was ours to make. What you would trade: the garage as a destination,
+> its photography at full size, and ADD CAR's masthead slot — against a
+> one-car owner never meeting a set UI at all, a switcher that compares, and
+> a tab handed back.
+>
+> Two tools came out of it, both kept: `scripts/movie-frames.swift` (walk a
+> simctl recording with `AVAssetReader`; there is no ffmpeg on this machine)
+> and `scripts/frame-rows.swift`. Together they turn a transition into a
+> number — "93.5 to 48.2 over 283ms, monotonic, no graphite frame" — which is
+> how two defects were found that no still could show.
+>
+> Mobile 54 suites / 928 tests, root 234 / 4,126, tsc clean. Nothing
+> promoted: all phone JS.
+>
+
 > ### ⚠ 22 Sep 2026, late — three placements, and one fork answered
 >
 > Three more of David's, by way of Cowork (which read the source and wrote

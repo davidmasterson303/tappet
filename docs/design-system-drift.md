@@ -3402,6 +3402,143 @@ screen carries none — counted by label ink in both suites, zero being
 the stronger statement. Mobile 54/54 suites, 927 tests; root 234/234,
 4,126.
 
+### 6.23 The garage and the car were one screen — the switcher loop, 22 Sep
+
+David: *"how can we make Garage and Car tabs feel less redundant? Ideate
+before implementing … put on your product hat and eval from jobs to be
+done POV."*
+
+**The finding, measured rather than felt.** A garage bay draws the plate
+photograph, the name, the MILEAGE/TRIM/USE strip, the health dial with its
+band word, NEXT SERVICE and OPEN RECALLS. **Every one of those six is on
+the car's hub a tap later**, in the same form or a fuller one. The garage
+was not a different view of the car; it was the hub with things removed,
+one tap from the hub. Two tells beyond the duplication:
+
+- **The garage is a pager**, one car on screen at a time. That does the
+  *switch* job and cannot do the *compare* job — "does anything need me,
+  across my cars?" takes three swipes and a memory. Which matters because
+  the compare job is the decided one: `cc-product-0001` (advisor KB,
+  verified, high confidence) names mobile as three flows, and one is
+  *"glance at garage health"*. The pager is the one shape that cannot
+  serve it. ⚠ The KB was otherwise **silent** on garage-versus-hub — best
+  similarity 0.55 against a 0.57 threshold on a healthy local index —
+  so nothing had been decided and this is the first record of it.
+- **Tapping a bay changed the selected tab programmatically**
+  (`openCarTab`), which tab-bar guidance warns against: a tab changes when
+  the user picks it and not otherwise.
+
+Outside, the same problem has a settled answer. Tesla — multiple owned
+things, each with a rich detail view — has **no list tab at all**: it
+opens on a product, and the set is a dropdown beside its name plus a swipe
+between products. NN/g and the Android pattern docs name what the garage
+tab produces (*pogo-sticking*, bouncing between a list and a detail) and
+the documented fix is swiping to the next detail rather than a better list.
+
+David ruled on the three directions offered: *"a and c are ruled out for
+the subpar solution to single car owner, which is not an edge case at all
+… let's try b. but this is a major change, so we must have an authentic
+run of design critic loop and we must hit a 9 or a 10."*
+
+**The premise, and what had to be answered before the concepts.** Four
+tabs — CAR · ADVISOR · SERVICE · PLAN — the set as a control on the car,
+so a one-car owner never meets a set UI at all. Two things the garage tab
+did had to keep working and belong to the structure rather than to any
+concept: **adding a car**, and **the cold start** — `withCar` drew *"Open
+a car in the garage and this tab follows it"*, which names a place that no
+longer exists. `FirstCar` opens the owner's first car instead and offers
+to add one only when there are none; opening nothing would leave a blank
+screen that reads as an empty garage.
+
+**Three concepts, built as real screens** on the reviewer account's three
+cars — the fixture garage holds one, and a switcher between one car cannot
+be judged — behind a dev gate so `main` stayed the five-tab app:
+
+- **A · NAME RAIL** — `BayRail`'s own construction moved onto the car:
+  mono short names under the plate, the lit one ruled in cyan, `+` at the
+  end. Cost: the only concept whose width grows with the set.
+- **B · THE NAME IS THE DOOR** — the name takes the door's mark and opens
+  a sheet listing every car. Costs no element at rest and nothing at all
+  on a one-car account; the sheet is the one thing the hub cannot be,
+  every car at once.
+- **C · PLATE SHELF** — a shelf of 104×64 plates, switching by
+  recognition rather than reading. Cost: a row of photographs under a
+  photograph.
+
+**The pick, blind, with the shipped structure as a fourth candidate: B —
+and the shipped structure ranked last**, as the shipped hub did on 13 Sep.
+The critic reached David's own conclusion from the frames alone (*"the
+right switcher is absent for the majority and a list for the rest"*) and
+named the incumbent's two faults without being told what it was: a fifth
+tab spent on one job, and a CAR tab reading NO CAR CHOSEN on an account
+holding three cars.
+
+**The loop: 6 → 7 → 7 → 7 → 8 → 9, `Continue: no`.**
+
+- **1.** The affordance (`CAR 01 OF 03` over the name), and the sheet's
+  geometry — the 8pt cut, the head's count, `01/02/03` indices.
+- **2.** The switch became a crossfade; `ADD A CAR` became the table's
+  last row rather than a footer over a hole; the plate's type left with
+  the sheet's rise.
+- **3.** The switch **witnessed**. `scripts/movie-frames.swift` walks a
+  simctl recording with `AVAssetReader` — there is no ffmpeg here — and
+  with `scripts/frame-rows.swift` puts a number on it: 93.5 → 48.2 over
+  283ms, monotonic, no graphite frame. It also found two defects no still
+  could: the incoming car's **name set over the outgoing car's plate**,
+  and a crossfade that had been running while the page was still in its
+  *loading* branch with nothing on screen.
+- **4.** The dial — see below. Plus the whole dossier arriving on the
+  crossfade rather than only the name, the set held from the last read so
+  the eyebrow is on the first frame, and the sheet's reading as a column.
+- **5.** Under the scrim, only the photograph reads.
+
+⚠ **The loop's most valuable find was not the switcher.** Reading four
+frames of a switch, the critic counted the health numeral at 72, 90, 99,
+**100** on a car whose reading is 68, beside the sentence saying what was
+holding that score back. `useIgnitionSweep` ran the dial's appear as a
+car's ignition sweep — 0 → 100 → settle, 420/480 — on **every mount of
+every dial in the app**: the garage bays, the car's page, the health
+screen. On a needle over a scale that is a gesture; driving a numeral it
+is a claim, and §10 has no exemption for an animation curve. *"A numeral
+is not a needle."* One curve now, 0 → the reading, 600ms.
+
+⚠ **And the guard was green the whole time.** It asserted the sweep
+*landed* on the reading and not on 100 — written against the end state,
+because that was the failure imagined when it was written. The path was
+never sampled. The new case collects every value the numeral takes during
+the animation and holds the maximum to the reading; restored against the
+old code it fails at 82 for a 61 car, which was checked rather than
+assumed. This is CLAUDE.md §5's pattern arriving in motion rather than in
+a scan: *a guard that is green while the defect is on screen.*
+
+**Recorded deviations — for Design:**
+
+- *`CAR 01 OF 03`, not `BAY 01`.* The critic asked for the brief's bay
+  line; a bay is a slot in a place and this structure has no place.
+- *Absent on a one-car account*, against the critic's *"a one-car owner
+  reads BAY 01 alone"*: `BayRail`'s R20 rule — a pager for a list that
+  cannot be paged is chrome — and a count of a set nobody has is the same.
+- *The sheet's head is `SectionHeader`*, not the mono the critic asked
+  for: a second head idiom in one sheet is the §6.13 drift arriving again.
+- *The dial's appear is 600ms and no longer an ignition sweep.* B3's
+  "draws in with one haptic" is unchanged; what is gone is the overshoot.
+
+**⚠ What is still David's.** The structure sits behind
+`EXPO_PUBLIC_CAR_FIRST` (`dev/car-first.ts`), one line from being the app.
+He ordered those five tabs on 21 Sep in that order and for stated reasons;
+a loop reaching 9 says the replacement is good, not that the trade was
+his to have made for him. What he would be trading: the garage as a
+destination, its photography at full size, and ADD CAR's place in a
+masthead — against a one-car owner never meeting a set UI, a switcher
+that compares, and a tab back.
+
+**The numbers.** Mobile jest in band 54/54 suites, 928 tests; root
+234/234, 4,126; tsc clean in both. Frames, the four candidates, `pick.md`
+and the rounds: `design-loop/mobile-ios/concepts/switcher/` and
+`switcher-01/` … `switcher-05/` — **gitignored**, so this section and the
+commit messages are the record.
+
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
