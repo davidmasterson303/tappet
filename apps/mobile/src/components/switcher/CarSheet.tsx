@@ -9,16 +9,21 @@ import type { CarRow } from './car-set';
 import { TABULAR, TARGET_MIN, border, brand, cut, space, status, surface, text, type } from '../../theme';
 
 /**
- * Concept B · **THE NAME IS THE DOOR** — the set is a sheet the car's name opens.
+ * The set, as a sheet inside the car — concept B, **THE NAME IS THE DOOR**.
  *
  * ── The idea ────────────────────────────────────────────────────────────────
  *
- * The car's name is already the largest thing on the page and already names
- * the thing the whole app is currently about. Give it the door's mark and it
- * becomes the switcher: no new element at rest, nothing spent on a control
- * for a set most owners do not have. Tesla's app is the same answer to the
- * same problem — its products have no list screen, only a dropdown beside the
- * name and a swipe between them.
+ * The set is not a place. It is a control on the car you are looking at, so
+ * it costs no tab and nothing at all on the one-car account most owners have.
+ * Tesla's app is the same answer to the same problem — its products have no
+ * list screen, only a dropdown beside the name and a swipe between them.
+ *
+ * ⚠ The concept is named for the handle it shipped with — a mark on the car's
+ * name — and the handle moved on 23 Sep, to a labelled control in the nav
+ * row's trailing corner (`CarSwitch`). The name was not obvious enough:
+ * David, *"the carrot/chevron is perhaps not obvious for all users."* What
+ * the name settled — that the door is **inside the car** rather than a tab of
+ * its own — is untouched, and is why the name is kept.
  *
  * Open, the sheet is the **one thing the hub cannot be**: every car at once,
  * compared. A row is the name, the band word, and the single line saying what
@@ -33,9 +38,9 @@ import { TABULAR, TARGET_MIN, border, brand, cut, space, status, surface, text, 
  * also the only one of the three concepts that can grow: ten cars scroll here
  * without a rail hiding one or a shelf running off the edge.
  *
- * ⚠ **One car never opens it.** The mark is not drawn, the name is not
- * pressable, and the sheet does not exist. A one-car owner sees the page they
- * had, which is the whole argument for the car-first structure.
+ * ⚠ **One car never opens it.** The control is not drawn and the sheet does
+ * not mount. A one-car owner sees the page they had, which is the whole
+ * argument for the car-first structure.
  *
  * ⚠ **Keyed on each opening.** The sheet is mounted for the screen's life and
  * shown by `visible`, which is the shape that made the mark-done sheet carry
@@ -107,11 +112,19 @@ export default function CarSheet({
         moment what is behind the surface is not the colour it was told"* —
         and the shape is the honest answer on an unknown ground.
       */}
+      {/*
+        ⚠ `border.field` on the stroke, for the reason the plate's own cut
+        takes it: at `border.panel` this corner measured a 6-point luminance
+        step against the scrimmed photograph behind it, and three critics
+        reading the frames all reported the sheet as square. The shape was
+        always there. Being there is not the standard — B4 is about a corner
+        an owner can see.
+      */}
       <CutSurface
         cut={['topRight']}
         size={cut.plate}
         fill={surface.page}
-        stroke={border.panel}
+        stroke={border.field}
         style={[
           styles.sheet,
           { maxHeight: Math.max(0, ceiling - plateFoot), paddingBottom: insets.bottom + space.md },
@@ -248,15 +261,19 @@ export default function CarSheet({
   );
 }
 
-/**
- * The name on the plate, wearing the door's mark.
- *
- * Rendered by the hub beside the car's name, and nothing at all on a
- * one-car account.
- */
-export function CarSheetMark() {
-  return <Icon name="chevron-down" size={22} color={text.primary} />;
-}
+/*
+  ── ⚠ 23 Sep · `CarSheetMark` is deleted, and `CarSwitch` is what opens this ──
+
+  The mark was a 22pt `chevron-down` beside the car's name — concept B's
+  "the name is the door", which the loop took to 9/10. David, from the
+  device: *"the carrot/chevron is perhaps not obvious for all users."* The
+  door is a labelled control in the nav row's trailing corner now
+  (`CarSwitch`), and the name went back to opening the car.
+
+  The concept survives the change. "The name is the door" was the answer to
+  *where does the set live* — inside the car rather than in a tab of its
+  own — and that is still the structure. Only the handle moved.
+*/
 
 const styles = StyleSheet.create({
   scrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: status.scrim },

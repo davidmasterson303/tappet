@@ -36,9 +36,9 @@ import ClusterGauge from '../components/ClusterGauge';
 import DialChip from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PlateStatusLine from '../components/PlateStatusLine';
-import CarSheet, { CarSheetMark } from '../components/switcher/CarSheet';
+import CarSheet from '../components/switcher/CarSheet';
+import CarSwitch from '../components/switcher/CarSwitch';
 import { useCarSet } from '../components/switcher/car-set';
-import { carFirstStructure } from '../dev/car-first';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -532,10 +532,12 @@ export function VehicleDetailScreen({
   /** Track 5.6 follow-on: the phone could write service history and not read it. */
   onOpenHistory: () => void;
   /**
-   * ⚠ Temporary, 22 Sep's concept round. Switching which car the app is about,
-   * and adding one — the two things the garage tab did that nothing else can.
-   * Optional: unset (every build but a captured one) the hub is unchanged and
-   * the garage tab is still there. `dev/car-first.ts` says when this goes.
+   * Switching which car the app is about, and adding one — the two things the
+   * garage tab did, now that there is no garage tab (23 Sep).
+   *
+   * ⚠ Optional only for the hub's older suites, which mount this screen
+   * without a navigator. The navigator always passes both; a build that
+   * reaches a multi-car account without them has no way to change cars.
    */
   onSwitchCar?: (vehicleId: string, title: string, fromPhoto?: string | null) => void;
   /** The plate of the car this page was switched *from*, for the crossfade. */
@@ -545,17 +547,24 @@ export function VehicleDetailScreen({
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   /*
-    ── ⚠ Temporary · the 22 Sep concept round ────────────────────────────────
+    ── 23 Sep · the set, because this screen is the only way to it ────────────
 
-    Three answers to "how does an owner change which car the app is about",
-    built as real screens on real rows so the critic judges the product and
-    not a mock (`design-loop/mobile-ios/concepts/switcher/`). All three share
-    the premise — four tabs, no garage — and differ only here. The set is
-    fetched only when one of them is drawn, so an ordinary build makes no
-    extra request.
+    Three answers to "how does an owner change which car the app is about"
+    were built as real screens on real rows, a design critic picked one blind
+    and the loop ran it to 9/10 (`design-loop/mobile-ios/concepts/switcher/`).
+    David shipped it: *"i like this much better, ship it"*. The garage tab is
+    gone, so this is not an enhancement — without it a three-car account can
+    reach exactly one car.
+
+    ⚠ **It was behind `EXPO_PUBLIC_CAR_FIRST` and the flag was the defect.**
+    The navigator dropped the garage tab unconditionally while this stayed
+    gated, so a release build had neither the tab nor the switcher — every
+    suite green, because a flag that is off in production is off in the
+    tests too. CLAUDE.md §6's shape exactly: no error, no failure, one car.
   */
-  const carFirst = carFirstStructure();
-  const { cars } = useCarSet(carFirst);
+  const { cars } = useCarSet(true);
+  /** More than one car is the only condition the switcher has. */
+  const manyCars = cars.length > 1;
   const [sheetOpen, setSheetOpen] = useState(false);
   /*
     Round 2 · the crossfade's driver. Starts opaque so the outgoing plate is
@@ -1515,8 +1524,29 @@ export function VehicleDetailScreen({
         {/* The bay light going down as the floor comes up — shadow, not chrome. */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: dim }]} />
 
-        {/* Fixed. The contrast floor the name sits on. Never animates. */}
-        <HeroBed />
+        {/*
+          Fixed. The contrast floor the name sits on. Never animates.
+
+          ⚠ It is told **where the type ends**, and that is the whole of the
+          23 Sep repair: the bed used to fall to zero at a fixed 52% of the
+          hero, measured when the identity block was shorter, and the block
+          has grown three times since — the stat strip, the `THIS CAR` legend,
+          and the switcher's `CAR 01 OF 03`. Its top now sits at ~48%, where
+          the bed was delivering 0.08, so on any photograph brighter than the
+          night fixture every string on the plate was under the AA floor and
+          the name was at 1.61:1. `HeroBed` carries the numbers.
+
+          ⚠ Before the block is measured this falls back to the component's
+          own default rather than to zero. A `coverTo` of 0 would clamp to
+          0.1 and draw a bed that covers nothing, which is one frame of
+          unreadable type on every cold open — the flicker being invisible on
+          a dark photograph is exactly why it would survive review.
+        */}
+        <HeroBed
+          coverTo={
+            identityHeight === null ? undefined : (bands.titleAnchor + identityHeight) / heroH
+          }
+        />
 
         <Animated.View
           style={[
@@ -1536,13 +1566,10 @@ export function VehicleDetailScreen({
                 arrives on the inverse of the crossfade, so the name and the
                 car it names reach full strength together.
               */
-              opacity:
-                carFirst
-                  ? Animated.multiply(
-                      Animated.multiply(identityFade, plateType),
-                      fromPhoto ? Animated.subtract(1, switchFade) : 1
-                    )
-                  : identityFade,
+              opacity: Animated.multiply(
+                Animated.multiply(identityFade, plateType),
+                fromPhoto ? Animated.subtract(1, switchFade) : 1
+              ),
               transform: [{ translateY: heroDrift }],
             },
           ]}
@@ -1551,12 +1578,6 @@ export function VehicleDetailScreen({
         >
           {/* 12 Sep: the plate says it is being drawn — see `PlateStatusLine`. */}
           {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
-          {/*
-            ⚠ Concept B (temporary): the name is the switcher. It is already
-            the largest thing on the page and already names what the app is
-            about, so the mark costs no new element at rest — and nothing at
-            all on the one-car account most owners have.
-          */}
           {/*
             ⚠ Round 1 · the affordance. *"Nothing at rest says there are other
             cars."* True, and it is the same gap David named on the garage on
@@ -1572,7 +1593,7 @@ export function VehicleDetailScreen({
             rule is that a pager for a list that cannot be paged is chrome,
             and a count of a set nobody has is the same thing.
           */}
-          {carFirst && cars.length > 1 ? (
+          {manyCars ? (
             <Text style={styles.carIndex}>
               {`CAR ${String(Math.max(1, cars.findIndex((car) => car.id === vehicleId) + 1)).padStart(2, '0')} OF ${String(cars.length).padStart(2, '0')}`}
             </Text>
@@ -1581,9 +1602,8 @@ export function VehicleDetailScreen({
             <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
               {name}
             </Text>
-            {carFirst && cars.length > 1 ? <CarSheetMark /> : null}
           </View>
-          <StatStrip stats={stats} />
+          <StatStrip stats={stats} onPhoto />
           {/*
             22 Sep · the door's own mark. The page teaches that a mono word
             and a chevron is a door, then left the plate — the largest door
@@ -1593,7 +1613,7 @@ export function VehicleDetailScreen({
           */}
           <View style={styles.plateLegend} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Text style={styles.plateLegendWord}>This car</Text>
-            <Icon name="chevron-right" size={14} color={text.muted} />
+            <Icon name="chevron-right" size={14} color={text.primary} />
           </View>
         </Animated.View>
 
@@ -1654,8 +1674,18 @@ export function VehicleDetailScreen({
             the block is fading (`HERO_TITLE_FADE_SPAN`) and the scroll is
             the gesture in hand.
           */}
+          {/*
+            ⚠ 23 Sep · **this opens the car, on every account.** For one day
+            it opened the *switcher* when the owner had more than one car —
+            the concept's "the name is the door" — and the legend 14pt above
+            it still read `This car ›` while this label still promised
+            mileage, answers, photo and removal. A sighted owner was given
+            the wrong word and a screen reader the wrong sentence, which is
+            the half of "not obvious" that a chevron's size could not have
+            fixed. The set has its own control in the nav row now.
+          */}
           <Pressable
-            onPress={carFirst && cars.length > 1 ? () => setSheetOpen(true) : onOpenProfile}
+            onPress={onOpenProfile}
             accessibilityRole="button"
             accessibilityLabel={`${name || 'This car'}. Opens the car's details: mileage, your answers, the photo, removal.${
               mileageStale ? ` The odometer was set ${mileageAge}; update it there.` : ''
@@ -1704,10 +1734,7 @@ export function VehicleDetailScreen({
                 the sheet takes `plateType` too, and what is behind the
                 switcher is one dark plate and nothing else.
               */
-              opacity:
-                carFirst
-                  ? Animated.multiply(plateType, fromPhoto ? Animated.subtract(1, switchFade) : 1)
-                  : 1,
+              opacity: Animated.multiply(plateType, fromPhoto ? Animated.subtract(1, switchFade) : 1),
             },
           ]}
         >
@@ -1753,12 +1780,27 @@ export function VehicleDetailScreen({
             {cornerCovers(cut.plate, cut.plate, cut.plate, ['bottomRight']).map((d) => (
               <Path key={d} d={d} fill={surface.page} />
             ))}
+            {/*
+              ⚠ `border.field`, not `border.panel` — 23 Sep, and three design
+              critics in a row are the evidence. Each reported this cut as
+              **absent** from the frames; a pixel scan finds it exactly where
+              it belongs, an 8pt diagonal between the plate at luminance 14.3
+              and the panel at 15.1, stroked at 0.08 alpha. It is drawn, and
+              nobody can see it.
+
+              That is round 46's finding returning to the same surface —
+              *"a cut nobody can see does not meet the line"* — and it is why
+              this cut was moved here in the first place. The geometry is the
+              system's signature; a hairline quiet enough to be invisible is
+              not carrying it. `panel` stays the token for a seam between two
+              still bands; a cut takes the step up.
+            */}
             <Line
               x1={0}
               y1={cut.plate}
               x2={cut.plate}
               y2={0}
-              stroke={border.panel}
+              stroke={border.field}
               strokeWidth={StyleSheet.hairlineWidth}
             />
           </Svg>
@@ -2157,8 +2199,40 @@ export function VehicleDetailScreen({
           {name}
         </Animated.Text>
 
-        {/* The slot the act occupies. Reserved in the flow so the title clears it. */}
-        <View style={styles.navChipSlot} pointerEvents="none" />
+        {/*
+          ── ⚠ 23 Sep · the switcher's control, in the corner David named ────
+
+          *"the carrot/chevron is perhaps not obvious for all users. let's
+          replace w/ a more obvious cta in top right or top left."* This is
+          it: a labelled, filled control in the trailing corner rather than a
+          mute mark on the name.
+
+          It does **not** take `navFade`. The title fades in as the hero
+          leaves because a collapsed title is what replaces a name that has
+          scrolled away; the set is reachable at every scroll position, and
+          chrome that appears only once you have scrolled past the photograph
+          is the affordance problem again in a second form. `CarSwitch` draws
+          its own opaque ground for exactly this reason — at rest it is on
+          the owner's photograph, scrolled it is on the nav plate, and it
+          must be legible on both.
+        */}
+        {/*
+          ⚠ It takes `plateType`, which is the round-4 rule applied to the one
+          thing that arrived after round 4: **under the scrim, only the
+          photograph reads.** The plate's eyebrow, name and stat strip already
+          leave when the sheet rises, and the frames show why this must too —
+          the control says YOUR CARS at the top of the screen while the
+          sheet's own head says YOUR CARS at the bottom, and a scrim dims both
+          without resolving which one is the live one. Measured on the device
+          before the fix: the control's label at 73.2 mean luminance at rest,
+          44.0 under the scrim — dimmed, and still the only type left on the
+          plate.
+        */}
+        {manyCars ? (
+          <Animated.View style={{ opacity: plateType }}>
+            <CarSwitch count={cars.length} onPress={() => setSheetOpen(true)} />
+          </Animated.View>
+        ) : null}
       </View>
 
       {/*
@@ -2187,13 +2261,13 @@ export function VehicleDetailScreen({
         than a deletion — logged for Design in `docs/design-system-drift.md`.
       */}
       {/*
-        ⚠ Concept B's sheet (temporary). Mounted at the screen's foot and
-        shown by `visible`; keyed on the opening, because a Modal that lives
-        for the screen's life derives anything it computes exactly once
-        (CLAUDE.md §6 — the mark-done sheet that carried one item's shop to
-        the next). Nothing here holds state; the key makes that structural.
+        The switcher's sheet. Mounted at the screen's foot and shown by
+        `visible`; keyed on the opening, because a Modal that lives for the
+        screen's life derives anything it computes exactly once (CLAUDE.md §6
+        — the mark-done sheet that carried one item's shop to the next).
+        Nothing here holds state; the key makes that structural.
       */}
-      {carFirst ? (
+      {manyCars ? (
         <CarSheet
           cars={cars}
           currentId={vehicleId}
@@ -2260,7 +2334,8 @@ const styles = StyleSheet.create({
   dim: { backgroundColor: hero.shadow },
   identity: { position: 'absolute', left: space.xl, right: space.xl },
   plateLegend: { flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingTop: space.sm },
-  plateLegendWord: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
+  /* Primary, with the rest of the plate's type — see `carIndex`. */
+  plateLegendWord: { ...type.monoLabel, color: text.primary, textTransform: 'uppercase' },
   /* The door over the identity block; no drawing of its own — the block beneath is what the owner sees. */
   detailsDoor: { position: 'absolute', left: 0, right: 0 },
   /**
@@ -2272,8 +2347,17 @@ const styles = StyleSheet.create({
    */
   /* Concept B's row: the name and its mark on one baseline (temporary). */
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  /* The set's index over the name, in the strip's own eyebrow voice (temporary). */
-  carIndex: { ...type.monoLabel, color: text.muted, ...TABULAR, marginBottom: space.xs },
+  /**
+   * The set's index over the name.
+   *
+   * ⚠ `text.primary`, not the `text.muted` every other label in the app
+   * takes, and the reason is arithmetic rather than emphasis: this string is
+   * on the **photograph**. Over a white sky, muted (white at 0.5) needs a bed
+   * alpha of 0.837 to clear AA and primary needs 0.583 — the difference
+   * between a scrim that keeps the car and one that loses it. The ladder of
+   * inks is for flat grounds; on the plate there is one ink.
+   */
+  carIndex: { ...type.monoLabel, color: text.primary, ...TABULAR, marginBottom: space.xs },
   name: { ...type.display, color: text.primary },
   /*
     ⚠ 6 Sep · B1 and B2: the stat strip is mono. This read "66,000 mi · xDrive ·
@@ -2282,7 +2366,8 @@ const styles = StyleSheet.create({
     for sentences. B2 asks for the strip beneath the plate to be mono; B1 asks
     for every value to be.
   */
-  subtitle: { ...type.mono, color: text.secondary, marginTop: 4, ...TABULAR },
+  /* Primary on the plate, for the reason `carIndex` gives. */
+  subtitle: { ...type.mono, color: text.primary, marginTop: 4, ...TABULAR },
 
   photoAction: { position: 'absolute', right: space.lg, bottom: space.lg },
   /**
@@ -2337,6 +2422,26 @@ const styles = StyleSheet.create({
   sheetCut: { position: 'absolute', top: -cut.plate, right: 0 },
 
   /* ── z6 · the nav ─────────────────────────────────────────────────────── */
+  /**
+   * The bar the page scrolls under.
+   *
+   * ⚠ `border.field`, not `border.panel`, and the difference is measured.
+   * Two design critics in a row reported this bar as having **no bottom edge
+   * at all** — *"the clipped 'Held back…' line reads as a glitch"*, *"reads
+   * as a tear, not a rule"* — and both were wrong about the cause: a pixel
+   * scan of the native frame finds the rule exactly where it should be, one
+   * row at luminance 32.3 between the plate's 13.6 and the content's 15.1.
+   * `border.panel` at 0.08 is simply too quiet for this job.
+   *
+   * That is not a panel divider separating two still surfaces. It is the
+   * edge a page of type is **cut off against**, mid-glyph, while it moves —
+   * and an edge doing that work has to be visible or the clipping reads as
+   * damage. `border.field` (0.14) is the token one step up, already in the
+   * system, and it is what a surface with content pressed against it takes.
+   *
+   * ⚠ The same reasoning does not travel to `sheetEdge` or the hairlines
+   * between bands: nothing is clipped against those.
+   */
   navPlate: {
     position: 'absolute',
     left: 0,
@@ -2344,7 +2449,7 @@ const styles = StyleSheet.create({
     top: 0,
     backgroundColor: surface.nav,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: border.panel,
+    borderBottomColor: border.field,
   },
   navRow: {
     position: 'absolute',
@@ -2366,26 +2471,20 @@ const styles = StyleSheet.create({
    * scrolled the car. Same token as the roots and the back control now.
    */
   navTitle: { ...type.monoNav, color: text.primary, flex: 1, textAlign: 'left' },
-  /**
-   * ⚠ 21 Sep · the car is a tab root now, and a root has a floating ACCOUNT.
-   *
-   * `AccountControl` is a sibling of the navigator and draws the word at
-   * this corner on every root — the guarantee 5.1.1(v) rests on. The first
-   * build of the Car tab put ADD PHOTO directly under it. So the photo
-   * control pads by the control's own slot, as the garage pads its `+`, and
-   * the title reserves the same width: by the time the title arrives the
-   * photo control has faded out (`HERO_TITLE_FADE_SPAN`), and the word is
-   * what remains at the row's end.
-   */
   /*
-    22 Sep: the act's width, not the account word's — ACCOUNT no longer floats
-    over a car's page (IA I8; three critics). The slot is what the small
-    button measures at its widest label, so the arriving title clears it
-    while the button is still fading.
-  */
-  navChipSlot: { width: 150 },
+    ── ⚠ 23 Sep · `navChipSlot` is gone, and the corner holds a real control ──
 
-  /* ── z7 · the photo control, in the score chip's old slot ─────────────── */
+    It was `width: 150` and `pointerEvents="none"` — a spacer reserving room
+    for a control beside the arriving title. Two occupants had already left
+    it: ADD PHOTO went into the car's details on 22 Sep (IA I3) and ACCOUNT
+    stopped floating over a car's page the same day (IA I8), so for a day the
+    row reserved 150pt for nothing and the title truncated against it.
+
+    The switcher takes the corner now, and it is a flex sibling rather than a
+    reserved width: the title's `flex: 1` yields to whatever the control
+    measures, so the two cannot disagree about the slot's size — which is how
+    a stale reservation survives unnoticed in the first place.
+  */
 
   /* ── The binnacle's readings ────────────────────────────────────────── */
   banner: { padding: space.lg },

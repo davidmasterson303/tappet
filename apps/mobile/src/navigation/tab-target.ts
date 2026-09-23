@@ -29,7 +29,7 @@ import type { ServiceSegment } from '../screens/ServiceScreen';
   clever with dynamic". The order is his: the garage leads, the car beside
   it, then the conversation, then the record and the plan.
 */
-export const TAB_NAMES = ['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
+export const TAB_NAMES = ['CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
 
 export type TabName = (typeof TAB_NAMES)[number];
 
@@ -64,7 +64,6 @@ const CAR_TAB_ROOT = {
 export type TabTarget =
   | { name: TabName; params?: undefined }
   /** The garage, popped to (21 Sep): the tab's word is the screen it lands on. */
-  | { name: 'GarageTab'; params: { screen: 'Garage'; pop: true } }
   | {
       name: TabName;
       params: {
@@ -109,20 +108,16 @@ export function tabTarget(
   car: Car | null
 ): TabTarget {
   /*
-    ── 21 Sep · GARAGE lands on the garage ────────────────────────────────────
+    ⚠ 23 Sep · **no garage branch any more.** The Garage tab used to pop its
+    stack to the garage on every press, because David asked for a tab whose
+    word is the screen it lands on — *"tapping Garage twice… should the label
+    change to say where the first tap goes?"* — and the answer was that the
+    label should not change, the destination should be fixed.
 
-    The Garage tab kept its stack like the others, so coming back from
-    Service landed on the car last opened, and a second tap was needed to
-    reach the garage the tab is named for. David, from the phone: "tapping
-    Garage twice… should the label change to say where the first tap goes?"
-    A label that changes is the more surprising thing; a tab whose word is
-    the screen it lands on is not. So the press pops the stack to the garage
-    — the car is one bay away — and the other three tabs keep their stacks,
-    because their word (Service, Plan, Advisor) is what they land on already.
+    That rule survives its tab: every remaining tab's word is what it lands
+    on. The garage is gone because a bay was a strict subset of the car's
+    page, and switching cars is the car's own name and the sheet it opens.
   */
-  if (tab === 'GarageTab') {
-    return { name: tab, params: { screen: 'Garage', pop: true } };
-  }
   if (!car || mountedVehicleId === car.vehicleId) {
     return { name: tab };
   }

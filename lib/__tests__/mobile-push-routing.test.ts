@@ -248,7 +248,13 @@ function configRegistering(source: string, path: string): string {
 
 /** The whole linking declaration, from the first per-tab config to `subscribe`. */
 function linkingRegion(source: string): string {
-  const start = source.indexOf('const garageLinks');
+  /*
+    ⚠ 23 Sep · anchored on the **car**'s links, not the garage's. The garage
+    tab is gone (drift §6.23) and `const garageLinks` went with it, which
+    took this whole region to the empty string — the anti-vacuous case below
+    is what said so rather than three silent passes.
+  */
+  const start = source.indexOf('const carLinks');
   const end = source.indexOf('subscribe(listener)', start);
   return start === -1 || end === -1 ? '' : source.slice(start, end);
 }

@@ -97,51 +97,57 @@ describe('the tab bar', () => {
     const shown = await render(
       withSafeArea(<TabBar state={tabState(1, { ServiceTab: { vehicleId: 'v1' } })} navigation={helpers().navigation} />)
     );
-    expect(shown.getAllByRole('tab')).toHaveLength(5);
+    expect(shown.getAllByRole('tab')).toHaveLength(4);
   });
 
-  it('offers all five destinations, by name, in the navigator’s order', async () => {
+  it('offers all four destinations, by name, in the navigator’s order', async () => {
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
     );
 
     /*
-      ⚠ 11 Sep: Garage, Service, Plan, Advisor. The order is the navigator's,
-      not this file's — `tab-target.ts` carries the argument. Asserted in order
-      because the last graded round was judged against exactly this sequence,
-      and a bar that read the table rather than the state could reorder itself
-      without anything else going red.
+      ⚠ The order is the navigator's, not this file's — `tab-target.ts`
+      carries the argument. Asserted in order because a graded round was
+      judged against exactly this sequence, and a bar that read the table
+      rather than the state could reorder itself without anything else going
+      red.
     */
     const tabs = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
-    // 21 Sep: five, in David's order — both the garage and the car persistent.
-    expect(tabs).toEqual(['Garage', 'Car', 'Advisor', 'Service', 'Plan']);
+    expect(tabs).toEqual(['Car', 'Advisor', 'Service', 'Plan']);
   });
 
-  it('names the garage and the car as two tabs — both there, neither dynamic (21 Sep)', async () => {
+  it('leads with the car, and spends no tab on the set it belongs to (23 Sep)', async () => {
     /*
-      The 6 Sep brief folded the car into the garage's first tab; on the phone
-      a one-car owner then needed two taps to get back to the car. David:
-      most people have one car and want the car, and a persistent fifth tab
-      is "better than being too clever with dynamic". His order: the garage
-      leads, the car beside it.
+      The 6 Sep brief folded the car into the garage's first tab, and a
+      one-car owner then needed two taps to get back to the car. 21 Sep gave
+      the car its own tab beside the garage's — *"most people may only have
+      one car"* — which left two tabs about one car: a bay was the hub's
+      plate, strip, dial, next service and recall count, one tap from the
+      fuller page.
+
+      23 Sep spends the slot properly. The car leads and the set is a sheet
+      its name opens, so a one-car owner never meets a set UI at all. What is
+      pinned here is the **absence**: a garage tab returning is a regression
+      to the redundancy the switcher loop removed, not a new feature.
     */
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
     );
 
     const labels = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
-    expect(labels.slice(0, 2)).toEqual(['Garage', 'Car']);
+    expect(labels[0]).toBe('Car');
+    expect(labels).not.toContain('Garage');
   });
 
   it('announces which one is current, not only tints it', async () => {
     const view = await render(
-      withSafeArea(<TabBar state={tabState(3)} navigation={helpers().navigation} />)
+      withSafeArea(<TabBar state={tabState(2)} navigation={helpers().navigation} />)
     );
 
     expect(view.getByLabelText('Service').props.accessibilityState).toMatchObject({
       selected: true,
     });
-    expect(view.getByLabelText('Garage').props.accessibilityState).toMatchObject({
+    expect(view.getByLabelText('Car').props.accessibilityState).toMatchObject({
       selected: false,
     });
   });
@@ -215,7 +221,7 @@ describe('the tab bar', () => {
 
   it('does not navigate on the focused tab — its stack answers the re-tap', async () => {
     const { navigation, emit, dispatch } = helpers();
-    const view = await render(withSafeArea(<TabBar state={tabState(1)} navigation={navigation} />));
+    const view = await render(withSafeArea(<TabBar state={tabState(0)} navigation={navigation} />));
 
     await userEvent.press(view.getByLabelText('Car'));
 
@@ -243,6 +249,6 @@ describe('the tab bar', () => {
     );
 
     expect(view.getByLabelText('Plan')).toBeTruthy();
-    expect(view.getByLabelText('Garage')).toBeTruthy();
+    expect(view.getByLabelText('Car')).toBeTruthy();
   });
 });

@@ -44,8 +44,13 @@ const NAVIGATOR = join(
   'RootNavigator.tsx'
 );
 
-/* Five since 21 Sep, in David's order: the car got its own tab beside the garage. */
-const ROOTS = ['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
+/*
+  ⚠ Four since 23 Sep. The car got its own tab beside the garage on 21 Sep,
+  and the switcher loop then found the two were one screen — a bay is a
+  strict subset of the car's hub — so the garage tab went and the set became
+  a sheet the car's name opens (drift §6.23).
+*/
+const ROOTS = ['CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
 
 /** The attribute blob of the first `<Tab.Navigator`, depth-counted to its `>`. */
 function tabNavigatorAttributes(source: string): string {
@@ -95,7 +100,7 @@ describe('B8 — the tab roots', () => {
     expect(tabNavigatorAttributes(navigator).length).toBeGreaterThan(0);
   });
 
-  it('registers the five roots, in the order the bar draws them', () => {
+  it('registers the four roots, in the order the bar draws them', () => {
     expect(tabScreens(navigator)).toEqual([...ROOTS]);
   });
 
@@ -109,7 +114,7 @@ describe('B8 — the tab roots', () => {
       rather than by counting `<Stack.Navigator`, so a fifth stack somewhere
       else cannot stand in for a missing one here.
     */
-    for (const root of ['Garage', 'VehicleDetail', 'Service', 'Plan', 'Advisor']) {
+    for (const root of ['VehicleDetail', 'Service', 'Plan', 'Advisor']) {
       expect(navigator).toContain(`<Stack.Navigator initialRouteName="${root}"`);
     }
   });

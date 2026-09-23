@@ -43,6 +43,19 @@ function readoutColor(node: { props: Record<string, unknown> }): unknown {
   return ((StyleSheet.flatten(node.props.style as never) ?? {}) as { color?: unknown }).color;
 }
 
+/**
+ * How present an ink is, 0…1 — an `rgba()`'s alpha, and 1 for an opaque hex.
+ *
+ * Lets a test say "dimmer than" across the ladder's two spellings: the ramp
+ * is `rgba(255,255,255,α)` at the quiet end and `#F5F3F0` at the loud one, so
+ * comparing the literals would only work while both rungs happen to be
+ * written the same way.
+ */
+function alphaOf(color: unknown): number {
+  const match = /rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)/.exec(String(color));
+  return match ? Number(match[1]) : 1;
+}
+
 /** Every matched node's rendered `fontSize`, flattened the way RN merges. */
 function readoutSizes(nodes: Array<{ props: Record<string, unknown> }>): number[] {
   return nodes.map((node) => {
@@ -813,15 +826,30 @@ describe('the hero pullback', () => {
       "no cut a user can see": 8pt of page graphite into a near-black corner
       of a photograph is a shape nobody finds, and the rule stopping short
       read as a broken line. The hairline runs the hypotenuse — (0, cut) to
-      (cut, 0), the cover's own edge — in the panel's ink, so the geometry
-      registers as line whatever the photograph does.
+      (cut, 0), the cover's own edge — so the geometry registers as line
+      whatever the photograph does.
+
+      ⚠ **23 Sep · and it still could not be seen, so the ink went up a
+      step.** The line went in at `border.panel` and three more design
+      critics, in three separate rounds, each reported this cut as absent
+      from the native frames. A pixel scan finds it exactly where it belongs:
+      an 8pt diagonal about four luminance points from its surroundings,
+      drawn and invisible. `border.field` is the same hairline one step
+      louder, and it is what the collapsed bar's rule took the same day for
+      the same reason.
+
+      Pinned as a literal on purpose. What is being protected is not "some
+      stroke exists" — the 21 Sep version had that and failed the thing it
+      was for. It is that this edge is louder than a seam between two still
+      bands, which is a decision someone could undo by reaching for the
+      panel token out of habit.
     */
     const bevel = hostNodes(view.root, 'RNSVGLine').find(
       (props) => Number(props.x1) === 0 && Number(props.y1) === cut.plate && Number(props.x2) === cut.plate && Number(props.y2) === 0,
     );
     expect(bevel).toBeDefined();
     const stroke = bevel!.stroke as { payload?: unknown } | undefined;
-    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.panel));
+    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.field));
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {
@@ -1658,7 +1686,26 @@ describe('the hub under three lenses (22 Sep)', () => {
     const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
     const ask = view.getByText('Tell us', { includeHiddenElements: true });
-    expect(readoutColor(ask)).toBe(text.muted);
+    /*
+      ⚠ **Dimmer than the fact beside it**, rather than one hard-coded ink —
+      and the change is 23 Sep, after this assertion caught a real defect by
+      accident. It read `toBe(text.muted)`, and the plate's inks moved off
+      muted when `HeroBed`'s floor was found not to reach the type: over a
+      bright photograph, white at 0.5 needs a bed alpha of 0.837 to clear AA,
+      which is a scrim that loses the car. The first pass took the ask to
+      primary with everything else, and this test failed — correctly, because
+      what it is protecting is David's 22 Sep ruling that the strip carries
+      the *question* ("Tell us"), and a question set in the same ink as an
+      answer is not a question any more.
+
+      So the ask is `text.secondary` on the photograph now, and the assertion
+      is the property rather than the literal: **the ask is a step below the
+      fact in the same strip.** That is what would break if it were flattened
+      again, on this ground or any other, and the old form could not have
+      said so without being edited each time an ink moved.
+    */
+    const fact = view.getByText('EX-L', { includeHiddenElements: true });
+    expect(alphaOf(readoutColor(ask))).toBeLessThan(alphaOf(readoutColor(fact)));
     expect(view.getByText('Use', { includeHiddenElements: true })).toBeTruthy();
 
     respond({ ...answered, vehicle_status: 'daily_driver', trim: 'EX-L' });

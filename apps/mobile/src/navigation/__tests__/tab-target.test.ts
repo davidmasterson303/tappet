@@ -10,8 +10,18 @@ import { TAB_NAMES, tabTarget } from '../tab-target';
 describe('tabTarget', () => {
   const car = { vehicleId: 'car-b', title: '2015 BMW M235i' };
 
-  it('lists the five tabs in the order the bar draws them — David\'s order (21 Sep)', () => {
-    expect(TAB_NAMES).toEqual(['GarageTab', 'CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab']);
+  it('lists the four tabs in the order the bar draws them (23 Sep)', () => {
+    /*
+      David's order of 21 Sep, minus the garage: *"i like this much better,
+      ship it."* A garage bay was a strict subset of the car's page — the
+      same plate, strip, dial, next service and recall count, one tap from
+      the fuller version — so the bar was spending a slot on a lesser copy of
+      its neighbour, and a bay press changed the selected tab programmatically
+      on top of it. Switching cars is the car's own name and the sheet it
+      opens; `docs/design-system-drift.md` §6.23 carries the loop.
+    */
+    expect(TAB_NAMES).toEqual(['CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab']);
+    expect(TAB_NAMES).not.toContain('GarageTab');
   });
 
   it('the Car tab is about a car like the other three: the last one opened, popped to when it changes', () => {
@@ -23,10 +33,24 @@ describe('tabTarget', () => {
     expect(tabTarget('CarTab', undefined, null)).toEqual({ name: 'CarTab' });
   });
 
-  it('lands on the garage itself, popping whatever car the tab was left on (21 Sep)', () => {
-    // The tab's word is the screen it lands on; the car is one bay away.
-    expect(tabTarget('GarageTab', undefined, car)).toEqual({ name: 'GarageTab', params: { screen: 'Garage', pop: true } });
-    expect(tabTarget('GarageTab', 'car-b', car)).toEqual({ name: 'GarageTab', params: { screen: 'Garage', pop: true } });
+  it('gives every tab the rule the garage press was written for (23 Sep)', () => {
+    /*
+      The garage had a branch of its own: every press popped its stack, so
+      the tab's word was the screen it landed on rather than whichever car
+      you were last looking at. David asked for that — *"tapping Garage
+      twice… should the label change to say where the first tap goes?"* — and
+      the answer was that the destination should be fixed, not the label.
+
+      The tab is gone and the rule is not: each remaining tab lands on its
+      own word, and a car change pops it there. Pinned so that a fifth tab
+      arriving later cannot quietly re-introduce a press that means two
+      things.
+    */
+    for (const tab of TAB_NAMES) {
+      const target = tabTarget(tab, 'car-a', car) as { name: string; params?: { pop?: boolean } };
+      expect(target.name).toBe(tab);
+      expect(target.params?.pop).toBe(true);
+    }
   });
 
   it('opens a car tab plainly when there is no car to hand it', () => {

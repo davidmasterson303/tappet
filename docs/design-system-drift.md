@@ -3983,3 +3983,108 @@ other. Both were left identical on purpose — one treatment for "the product
 is speaking" until Design says otherwise. `components/ConsultantChat.tsx`
 carries the flag (`isFailure`); the phone shows the same sentences under the
 composer, where its refusals already live, and needed no new treatment.
+
+### 6.24 The switcher's handle moved, and the floor under the plate was not there — 23 Sep
+
+David, on the switcher the loop had just taken to 9/10: *"i love the concept
+and the car selector menu after tap of chevron/carrot, but the carrot/chevron
+is perhaps not obvious for all users. let's replace w/ a more obvious cta in
+top right or top left … in accessibility review in critic loop this time, i'm
+worried about small fonts and contrast in some cases."*
+
+**The handle.** `CarSheetMark` — a 22pt `chevron-down` beside the car's name —
+is deleted. `components/switcher/CarSwitch.tsx` is a labelled control in the
+nav row's trailing slot: `YOUR CARS` plus a chevron, mono at the 12pt floor,
+`text.primary` on an opaque `surface.nav` cut surface, drawn 32pt inside a
+44pt press target. The slot it takes had been **reserved and empty since
+22 Sep**, when ADD PHOTO moved into the car's details (IA I3) and ACCOUNT
+stopped floating over a car's page (IA I8) — 150pt held open for a control
+that no longer existed, with the arriving nav title truncating against it.
+
+⚠ The chevron was not only quiet, it was **contradicted**. On a multi-car
+account the name opened the *switcher* while the legend 14pt under it read
+`This car ›` and `detailsDoor`'s accessibility label promised "mileage, your
+answers, the photo, removal". A sighted owner got the wrong word and a screen
+reader the wrong sentence. The name opens the car again on every account.
+
+**The flag was a live defect.** `dev/car-first.ts` gated the switcher behind
+`EXPO_PUBLIC_CAR_FIRST`, which is `__DEV__`-only — and the navigator had
+already dropped the Garage tab unconditionally. A release build would have had
+no garage tab *and* no switcher: a three-car account could reach exactly one
+car. All 54 suites were green, because a flag that is off in production is off
+under jest too. The flag is deleted and the switcher is the app.
+
+**The floor under the plate had stopped reaching the type.** `HeroBed` is the
+mechanism that makes type over an owner's photograph legal here — web's rule
+is that nothing is printed over a photograph, and the phone satisfies the rule
+underneath it (*no type whose contrast depends on the photograph*) with a
+guaranteed dark floor. Its stops were fixed fractions: 0.95 at the hero's
+foot, 0.55 at 22%, **zero at 52%**. Correct when written. Then the block grew
+three times — the stat strip, the `THIS CAR` legend, and on 22 Sep the
+switcher's own `CAR 01 OF 03` eyebrow — until its top sat at ~48%, where the
+bed delivered **0.08**. Worst case on a bright sky, computed from those stops:
+
+```
+  THIS CAR legend   bed 0.65   2.92:1
+  MILEAGE label     bed 0.46   1.94:1
+  the car's name    bed 0.25   1.61:1
+  CAR 01 OF 03      bed 0.08   1.09:1
+```
+
+Every string on the plate under AA, and the largest type on the screen at
+1.61:1. Nothing failed: the screen's own style sheet said the type was *"Legal
+here because of `HeroBed`'s guaranteed floor"*, and every captured round of the
+loop was shot against a night photograph, which is the one input that hides it.
+
+The bed is driven by the block now (`coverTo`, from the identity block's
+measured extent) and holds `COVER_FLOOR` across the type, easing off above
+**and below** it. Three numbers are load-bearing and each is derived rather
+than chosen:
+
+- **0.68** is what `text.secondary` needs to clear AA at 12pt over a white
+  photograph. `text.primary` needs 0.583; `text.muted` needs **0.837**, which
+  is a scrim heavy enough to lose the car — so nothing on the plate may be
+  muted, and `StatStrip` gained an `onPhoto` prop that collapses its ink
+  ladder to one rung.
+- **One rung survives**, because a test insisted: `stat.muted` is the ask
+  ("Tell us") standing where a fact would, David's 22 Sep ruling, and a
+  question set in a fact's ink is not a question. It takes `text.secondary` on
+  the photograph, which is why the floor is set at secondary's number and not
+  primary's.
+- **The plateau starts at 14%**, under `THIS CAR`. Holding the floor to the
+  hero's foot took the last 40pt of photograph to luminance 9.3 against the
+  panel's 15.1 — the plate ended up darker than the surface it sits on, and
+  the 45° cut that lives on that edge had nothing to read against.
+
+**Edges: `border.panel` is too quiet to carry the geometry.** Three critics in
+a row reported the car sheet's cut as absent and two reported the collapsed
+bar as having no bottom rule. Pixel scans found all of them present — the bar's
+rule one row at 32.3 against 13.6, the sheet's cut an 8pt diagonal six
+luminance points from its ground. Round 46's finding, on the same surface:
+*"a cut nobody can see does not meet the line."* The nav plate's rule, the
+plate's cut and the sheet's cut take `border.field` (0.14); seams between two
+still bands keep `panel`.
+
+**Guards.** The switcher had shipped at 9/10 with **no test of any kind** —
+not the sheet, not `car-set`, not the cold start. `components/switcher/
+__tests__/car-switch.test.tsx` and `components/__tests__/hero-bed.test.ts` are
+its first: the affordance exists on a three-car account and is absent on one
+car; the name opens the car; the control's ground is opaque and declared to
+the contrast audit; the 44pt floor is asserted on the **press target**, not the
+drawn box; every string on the hub and in the sheet clears AA and 12pt; the
+bed's floor holds across the block at both ends; and an anti-vacuous case
+evaluates the *shipped* stops so the old bed cannot come back green. Verified
+red against the defect: four of the first seven fail with the flag off.
+
+⚠ **Where the loop stopped, and why it is David's call.** Rounds scored
+7 → 7 → 8 → 7 across four fresh critics, and the switcher was called finished
+in each: *"the right answer — labelled, in the nav slot, its own guaranteed
+floor, persistent on scroll"*, *"it is done."* What holds the score is the
+hero, and the last two rounds **contradict each other about the same edge**:
+round 9 praised the plate's foot matching the panel's tone (*"the photograph
+dissolves into the instrument instead of sitting on it as a darker slab"*),
+round 10 asked for the opposite (*"hold the photograph's asphalt tone to the
+foot so the notch reads"*). Its other open asks are a **different crop of the
+owner's photograph**, which the app does not control, and the type scale on
+WHAT YOU TOLD US, which predates this change. Per the loop's own rule, that is
+where it is handed back rather than resolved.

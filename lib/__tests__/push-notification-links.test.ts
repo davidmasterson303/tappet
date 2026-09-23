@@ -56,7 +56,8 @@ const navigator = readFileSync(
  * routes and nothing else — and the anti-vacuous case below is what caught it.
  */
 function registeredRoutes(): string[] {
-  const start = navigator.indexOf('const garageLinks');
+  /* ⚠ 23 Sep: the car's links, not the garage's — that tab is gone (drift §6.23). */
+  const start = navigator.indexOf('const carLinks');
   const end = navigator.indexOf('subscribe(listener)', start);
   if (start === -1 || end === -1) throw new Error('linking config not found in RootNavigator');
 

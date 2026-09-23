@@ -60,23 +60,50 @@ export type Stat = {
   muted?: boolean;
 };
 
-export default function StatStrip({ stats }: { stats: Stat[] }) {
+/**
+ * ⚠ `onPhoto` puts every ink in this strip at `text.primary`.
+ *
+ * The strip's ladder — a muted label over a secondary value — is written for
+ * a **flat ground**, where muted white measures 5.34:1 on the page. On the
+ * car's plate the ground is the owner's photograph, and over a bright sky the
+ * same label needs a bed alpha of 0.837 to clear AA where primary needs 0.583
+ * (`HeroBed`'s `COVER_FLOOR`). The difference is a scrim that keeps the car
+ * and one that loses it, so on the photograph the ladder collapses to one
+ * rung. Flat grounds keep the ladder; it is doing real work there.
+ *
+ * ⚠ **One rung survives, and a test insisted on it.** `stat.muted` is not a
+ * contrast decision — it is the ask standing where a fact would ("Tell us"
+ * under USE), and `VehicleDetailScreen.test.tsx` pins its ink because David
+ * ruled that question into the strip on 22 Sep. Collapsing it to primary made
+ * a question look like an answer, which is a worse defect than the one this
+ * prop exists to fix. On the photograph the ask takes `text.secondary`: still
+ * a step below the facts around it, and `COVER_FLOOR` is set at the alpha
+ * **that ink** needs rather than the alpha primary needs.
+ */
+export default function StatStrip({ stats, onPhoto = false }: { stats: Stat[]; onPhoto?: boolean }) {
   if (stats.length === 0) return null;
 
   return (
     <View style={styles.strip}>
       {stats.map((stat, i) => (
         <View key={stat.label} style={[styles.cell, i > 0 && styles.celled]}>
-          <Text style={styles.label} numberOfLines={1}>
+          <Text style={[styles.label, onPhoto && styles.onPhoto]} numberOfLines={1}>
             {stat.label}
           </Text>
           {/* A value wraps rather than losing its end once the text is larger (21 Sep: "Daily Dri…"). */}
-          <Text style={[styles.value, stat.muted && styles.valueMuted]} numberOfLines={typeScale() > 1 ? 2 : 1}>
+          <Text
+            style={[
+              styles.value,
+              stat.muted && styles.valueMuted,
+              onPhoto && (stat.muted ? styles.askOnPhoto : styles.onPhoto),
+            ]}
+            numberOfLines={typeScale() > 1 ? 2 : 1}
+          >
             {stat.value}
           </Text>
           {stat.note ? (
             <View style={styles.noteRow}>
-              <Text style={styles.note} numberOfLines={1}>
+              <Text style={[styles.note, onPhoto && styles.onPhoto]} numberOfLines={1}>
                 {stat.note}
               </Text>
               {/*
@@ -88,7 +115,7 @@ export default function StatStrip({ stats }: { stats: Stat[] }) {
               */}
               {stat.door ? (
                 <View testID="stat-note-door">
-                  <Icon name="chevron-right" size={12} color={text.muted} />
+                  <Icon name="chevron-right" size={12} color={onPhoto ? text.primary : text.muted} />
                 </View>
               ) : null}
             </View>
@@ -139,4 +166,8 @@ const styles = StyleSheet.create({
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */
   note: { ...type.monoLabel, color: text.muted, ...TABULAR, flexShrink: 1 },
+  /* One rung, on the photograph — see the prop's note. Last in every array, so it wins. */
+  onPhoto: { color: text.primary },
+  /* Except the ask, which stays a step down so it still reads as a question. */
+  askOnPhoto: { color: text.secondary },
 });
