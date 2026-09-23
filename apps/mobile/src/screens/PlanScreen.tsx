@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
 import { NavigationContext } from '@react-navigation/native';
@@ -57,6 +57,12 @@ export function PlanScreen({
   onAdd: () => void;
 }) {
   const [segment, setSegment] = useState<PlanSegment>(showsMods ? initialSegment : 'needs');
+  // The hub navigates here with a segment while the tab may already be
+  // mounted on the other one; a `useState` initialiser reads it once.
+  // `ServiceScreen` has the same effect for the same reason.
+  useEffect(() => {
+    setSegment(showsMods ? initialSegment : 'needs');
+  }, [initialSegment, showsMods]);
 
   /*
     ⚠ 7 Sep · B8: the root's own name, in the condensed grotesk, like every

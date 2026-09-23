@@ -205,3 +205,8 @@ export function useCarSet(on: boolean): { cars: CarRow[]; status: CarSetStatus; 
 export function forgetCar(vehicleId: string): void {
   lastSet = lastSet.filter((car) => car.id !== vehicleId);
 }
+
+/** Empty the hold. Sign-out calls this so the next account is not seeded with this one's cars. */
+export function resetCarSet(): void {
+  lastSet = [];
+}

@@ -366,9 +366,15 @@ export function AdvisorScreen({
           `@tappet/core/ai/advisor-failure` is the registry.
         */
         setError(apiError.message);
-      } else if (apiError.status === 401) {
+      } else if (apiError.isLocallySignedOut) {
+        // MOB-08: only the phone's own verdict signs out. A server 401 may be
+        // a token the server would accept a second later; this screen was
+        // the one place still reading the status alone, and it ended the
+        // whole session mid-thread (23 Sep).
         setError('Your session ended. Sign in again to keep talking.');
         onSignOut();
+      } else if (apiError.status === 401) {
+        setError('Tappet could not confirm who you are just now. Try again in a moment.');
       } else if (apiError.status === 429) {
         setError('This car has asked a lot of questions recently. Try again in a minute.');
       } else if (apiError.status === 502) {

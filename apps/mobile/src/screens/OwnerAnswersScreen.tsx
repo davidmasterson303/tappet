@@ -111,6 +111,13 @@ export function OwnerAnswersScreen({
     try {
       const body = await apiRequest<{ vehicle?: { id: string } }>('/vehicles', {
         method: 'POST',
+        /*
+          23 Sep: the route classifies the car's generation with a model call
+          before it answers, so a cold function plus a slow model could pass
+          the client's 20 s — after the row existed. The phone then said
+          "did not answer", and a second tap made a second car.
+        */
+        timeoutMs: 45_000,
         body: {
           vin: identity.vin,
           year: identity.year,

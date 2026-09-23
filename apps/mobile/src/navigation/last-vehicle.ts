@@ -67,3 +67,9 @@ export function forgetVehicle(vehicleId: string) {
   if (lastOpenedVehicle?.vehicleId === vehicleId) lastOpenedVehicle = null;
   if (soleVehicle?.vehicleId === vehicleId) soleVehicle = null;
 }
+
+/** Sign-out: the next account must not be steered to this one's car. */
+export function forgetAllVehicles() {
+  lastOpenedVehicle = null;
+  soleVehicle = null;
+}

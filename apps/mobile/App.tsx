@@ -13,6 +13,7 @@ import { FONT_ASSETS } from './src/theme/font-assets';
 
 import { onSessionChange, signOut, startSessionAutoRefresh } from './src/auth/session';
 import { unregisterPush } from './src/notifications/register';
+import { forgetThisAccount } from './src/auth/forget-account';
 import { supabase } from './src/auth/supabase';
 import { SignInScreen } from './src/screens/SignInScreen';
 import DesignSpecimen from './src/dev/DesignSpecimen';
@@ -88,6 +89,9 @@ export default function App() {
   const [deletionNotice, setDeletionNotice] = useState<string | null>(null);
   useEffect(() => {
     if (session) setDeletionNotice(null);
+    // A session that ends without a tap — revoked, expired past refresh —
+    // must leave the phone as clean as a tap does.
+    if (session === null) void forgetThisAccount();
   }, [session]);
 
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
@@ -190,7 +194,9 @@ export default function App() {
               a network call.
             */
             onSignOut={() => {
-              void unregisterPush().finally(() => void signOut());
+              void unregisterPush()
+                .finally(() => forgetThisAccount())
+                .finally(() => void signOut());
             }}
             /*
               The one thing the navigator cannot show, because deletion
