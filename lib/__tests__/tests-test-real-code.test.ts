@@ -37,6 +37,14 @@ const TESTS_DIR = __dirname;
  * used as a blanket excuse.
  */
 const STATIC_ANALYSIS_SUITES = [
+  /*
+    Asks git which tracked files name each export of `prompts.ts`. Nothing to
+    import: the subject is whether a prompt has a caller at all, and importing
+    the prompt would be the one thing that makes every prompt look called.
+    The failure it pins is three exported prompts nobody sent for months,
+    read by an auditor as the product's behaviour (23 Sep).
+  */
+  'prompts-have-callers.test.ts',
   // Reads globals.css and tailwind.config.ts to prove the sport register
   // overrides only tokens something actually reads. There is nothing to
   // import: the subject is a block of CSS custom properties, and the failure
