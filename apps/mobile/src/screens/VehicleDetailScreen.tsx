@@ -33,6 +33,11 @@ import ClusterGauge from '../components/ClusterGauge';
 import DialChip from '../components/DialChip';
 import { HeroBed, HeroEmpty } from '../components/HeroBed';
 import PlateStatusLine from '../components/PlateStatusLine';
+import CarSheet, { CarSheetMark } from '../components/switcher/CarSheet';
+import NameRail from '../components/switcher/NameRail';
+import PlateShelf from '../components/switcher/PlateShelf';
+import { useCarSet } from '../components/switcher/car-set';
+import { designVariant } from '../dev/design-variant';
 import Icon from '../components/Icon';
 import type { PlateStatus } from '@tappet/core/plates';
 import { type HealthReading } from '../components/HealthHistory';
@@ -471,6 +476,8 @@ export function VehicleDetailScreen({
   onOpenMilestone,
   onOpenProfile,
   onOpenTires,
+  onSwitchCar,
+  onAddCar,
 }: {
   vehicleId: string;
   /** The car's name from the row that opened this, so the nav is right during the fetch. */
@@ -511,9 +518,39 @@ export function VehicleDetailScreen({
   onOpenTires?: () => void;
   /** Track 5.6 follow-on: the phone could write service history and not read it. */
   onOpenHistory: () => void;
+  /**
+   * ⚠ Temporary, 22 Sep's concept round. Switching which car the app is about,
+   * and adding one — the two things the garage tab did that nothing else can.
+   * Optional: unset (every build but a captured one) the hub is unchanged and
+   * the garage tab is still there. `dev/design-variant.ts` says when this goes.
+   */
+  onSwitchCar?: (vehicleId: string, title: string) => void;
+  onAddCar?: () => void;
 }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  /*
+    ── ⚠ Temporary · the 22 Sep concept round ────────────────────────────────
+
+    Three answers to "how does an owner change which car the app is about",
+    built as real screens on real rows so the critic judges the product and
+    not a mock (`design-loop/mobile-ios/concepts/switcher/`). All three share
+    the premise — four tabs, no garage — and differ only here. The set is
+    fetched only when one of them is drawn, so an ordinary build makes no
+    extra request.
+  */
+  const variant = designVariant();
+  const { cars } = useCarSet(variant !== null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  /* Switching is the navigator's — the hub is one car's page and stays that. */
+  const switchCar = useCallback(
+    (id: string) => {
+      setSheetOpen(false);
+      const picked = cars.find((car) => car.id === id);
+      onSwitchCar?.(id, picked?.name ?? '');
+    },
+    [cars, onSwitchCar]
+  );
   /*
     The scroll view's own height, for the sheet's floor. The window stood in
     for it in round 42 and the tab bar's 83pt was counted into the tail twice;
@@ -1358,9 +1395,38 @@ export function VehicleDetailScreen({
         >
           {/* 12 Sep: the plate says it is being drawn — see `PlateStatusLine`. */}
           {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
-          <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
-            {name}
-          </Text>
+          {/*
+            ⚠ Concept B (temporary): the name is the switcher. It is already
+            the largest thing on the page and already names what the app is
+            about, so the mark costs no new element at rest — and nothing at
+            all on the one-car account most owners have.
+          */}
+          {/*
+            ⚠ Round 1 · the affordance. *"Nothing at rest says there are other
+            cars."* True, and it is the same gap David named on the garage on
+            21 Sep — *"the '1 of 3' needs to be bigger, more obvious … it's
+            not super clear what's supposed to happen"*. So the count is an
+            eyebrow over the name, in the mono label.
+
+            ⚠ The critic asked for `BAY 01`, and **bay is the garage's word**
+            — a bay is a slot in a place, and this structure has no place.
+            `CAR 01 OF 03` says the same thing in the vocabulary that
+            survives. And it is absent on a one-car account, against the
+            critic's "a one-car owner reads BAY 01 alone": `BayRail`'s R20
+            rule is that a pager for a list that cannot be paged is chrome,
+            and a count of a set nobody has is the same thing.
+          */}
+          {variant === 'b' && cars.length > 1 ? (
+            <Text style={styles.carIndex}>
+              {`CAR ${String(Math.max(1, cars.findIndex((car) => car.id === vehicleId) + 1)).padStart(2, '0')} OF ${String(cars.length).padStart(2, '0')}`}
+            </Text>
+          ) : null}
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
+              {name}
+            </Text>
+            {variant === 'b' && cars.length > 1 ? <CarSheetMark /> : null}
+          </View>
           <StatStrip stats={stats} />
           {/*
             22 Sep · the door's own mark. The page teaches that a mono word
@@ -1433,7 +1499,7 @@ export function VehicleDetailScreen({
             the gesture in hand.
           */}
           <Pressable
-            onPress={onOpenProfile}
+            onPress={variant === 'b' && cars.length > 1 ? () => setSheetOpen(true) : onOpenProfile}
             accessibilityRole="button"
             accessibilityLabel={`${name || 'This car'}. Opens the car's details: mileage, your answers, the photo, removal.${
               mileageStale ? ` The odometer was set ${mileageAge}; update it there.` : ''
@@ -1573,6 +1639,18 @@ export function VehicleDetailScreen({
             car".
           */}
           {research.visible ? <ResearchLog runner={research} style={styles.researchLog} /> : null}
+
+          {/*
+            ⚠ Concepts A and C (temporary): the set as a band at the head of
+            the sheet, where the plate ends and the readings begin — the slot
+            the garage's own rail occupied one screen earlier.
+          */}
+          {variant === 'a' ? (
+            <NameRail cars={cars} currentId={vehicleId} onSwitch={switchCar} onAddCar={() => onAddCar?.()} />
+          ) : null}
+          {variant === 'c' ? (
+            <PlateShelf cars={cars} currentId={vehicleId} onSwitch={switchCar} onAddCar={() => onAddCar?.()} />
+          ) : null}
 
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
@@ -1940,6 +2018,36 @@ export function VehicleDetailScreen({
         than a deletion — logged for Design in `docs/design-system-drift.md`.
       */}
       {/*
+        ⚠ Concept B's sheet (temporary). Mounted at the screen's foot and
+        shown by `visible`; keyed on the opening, because a Modal that lives
+        for the screen's life derives anything it computes exactly once
+        (CLAUDE.md §6 — the mark-done sheet that carried one item's shop to
+        the next). Nothing here holds state; the key makes that structural.
+      */}
+      {variant === 'b' ? (
+        <CarSheet
+          cars={cars}
+          currentId={vehicleId}
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          onSwitch={switchCar}
+          onAddCar={() => {
+            setSheetOpen(false);
+            onAddCar?.();
+          }}
+          /*
+            Round 1: the sheet rises to the plate's foot, so only the
+            photograph is behind it. ⚠ `heroH - HERO_SHEET_OVERLAP`, not
+            `heroH`: the sheet on this page already overlaps the hero by that
+            much, and using the hero's full height left a band of the panel —
+            the dial's crown — showing above the sheet, which is the "edge
+            slicing the dial" the critic measured.
+          */
+          plateFoot={heroH - HERO_SHEET_OVERLAP}
+        />
+      ) : null}
+
+      {/*
         ⚠ 22 Sep · **nothing floats on the plate any more.** SCAN INVOICE was
         a pinned pill on this row (and the photo control before it); David
         cut it to the sheet — *"i really don't like the scan invoice button
@@ -1992,6 +2100,10 @@ const styles = StyleSheet.create({
    * photograph — see that component for the argument. The size comes from
    * `heroBands`, because the compact branch drops it to 28.
    */
+  /* Concept B's row: the name and its mark on one baseline (temporary). */
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  /* The set's index over the name, in the strip's own eyebrow voice (temporary). */
+  carIndex: { ...type.monoLabel, color: text.muted, ...TABULAR, marginBottom: space.xs },
   name: { ...type.display, color: text.primary },
   /*
     ⚠ 6 Sep · B1 and B2: the stat strip is mono. This read "66,000 mi · xDrive ·

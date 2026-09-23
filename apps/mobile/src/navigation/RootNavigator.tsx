@@ -44,11 +44,13 @@ import type { CarIdentity } from '../onboarding/car-identity';
 import type { Prefill } from '../onboarding/useVinDecode';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
+import { carFirstStructure } from '../dev/design-variant';
 import AccountControl from './AccountControl';
 import { PaywallHost } from '../purchases/PaywallHost';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import BackControl from '../components/BackControl';
 import ChooseACar from '../components/ChooseACar';
+import FirstCar from '../components/switcher/FirstCar';
 import { rememberVehicle } from './last-vehicle';
 import TabBar from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
@@ -1004,6 +1006,15 @@ function CarStack({ onSignOut }: Session) {
               */
               onBack={() => navigation.navigate('Tabs', { screen: 'GarageTab', params: { screen: 'Garage', pop: true } })}
               /*
+                ⚠ Temporary, 22 Sep's concept round: the two things the garage
+                tab did that nothing else does. Switching re-seats this root on
+                another car — `openCarTab`, the same call a bay made, so a
+                switch and an open are one navigation and the tab keeps its
+                own stack.
+              */
+              onSwitchCar={(id, carTitle) => openCarTab(navigation, { vehicleId: id, title: carTitle })}
+              onAddCar={() => navigation.navigate('AddVehicle')}
+              /*
                 No `onAskAdvisor` since 22 Sep: the hub's ASK THE ADVISOR was
                 cut by three critics in one round — the ADVISOR tab is directly
                 beneath it, about this car. `openAdvisorTab` stays for the bays.
@@ -1309,6 +1320,21 @@ function withCar(
   const vehicleId = route.params?.vehicleId;
 
   if (!vehicleId) {
+    /*
+      ⚠ Temporary, 22 Sep's concept round. With no garage tab, `ChooseACar`'s
+      sentence names a place that does not exist — so a car-first build opens
+      a car instead of asking for one. `FirstCar` carries the argument and the
+      two states it must not collapse.
+    */
+    if (carFirstStructure()) {
+      return (
+        <FirstCar
+          onOpenCar={(id, carTitle) => openCarTab(navigation, { vehicleId: id, title: carTitle })}
+          onAddCar={() => navigation.navigate('AddVehicle')}
+        />
+      );
+    }
+
     return (
       <ChooseACar
         title={title}
@@ -1545,9 +1571,12 @@ function wishlistAddScreen(onSignOut: () => void) {
  * argued in the file's docblock: it is what keeps a root's `canGoBack()` false.
  */
 function Tabs(session: Session) {
+  /* See the note on the garage tab below. Temporary — 22 Sep's concept round. */
+  const carFirst = carFirstStructure();
   return (
     <Tab.Navigator
-      initialRouteName="GarageTab"
+      /* Temporary: with no garage tab the car is the first, which is the point. */
+      initialRouteName={carFirst ? 'CarTab' : 'GarageTab'}
       backBehavior="none"
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: surface.page } }}
       /*
@@ -1560,7 +1589,19 @@ function Tabs(session: Session) {
       tabBar={(props) => <TabBar state={props.state} navigation={props.navigation} />}
     >
       {/* The bar draws these in this order — `TAB_NAMES` in `tab-target.ts` says why it is this one. */}
-      <Tab.Screen name="GarageTab">{() => <GarageStack {...session} />}</Tab.Screen>
+      {/*
+        ⚠ **Temporary, for the 22 Sep concept round.** `carFirstStructure()`
+        drops the garage tab, which is the premise all three switcher
+        concepts answer: the bay is a strict subset of the hub, so on a
+        one-car account the garage is a lesser copy of the next tab, and
+        tapping a bay changes the selected tab programmatically. The set
+        becomes a control on the car rather than a destination beside it.
+
+        Gated rather than shipped because `main` must stay the app while the
+        critic judges: unset — every build but a captured one — draws the
+        five tabs. `dev/design-variant.ts` says when this goes.
+      */}
+      {carFirst ? null : <Tab.Screen name="GarageTab">{() => <GarageStack {...session} />}</Tab.Screen>}
       <Tab.Screen name="CarTab">{() => <CarStack {...session} />}</Tab.Screen>
       <Tab.Screen name="AdvisorTab">{() => <AdvisorStack {...session} />}</Tab.Screen>
       <Tab.Screen name="ServiceTab">{() => <ServiceStack {...session} />}</Tab.Screen>
