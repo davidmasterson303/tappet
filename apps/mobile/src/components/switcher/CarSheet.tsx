@@ -127,10 +127,14 @@ export default function CarSheet({
             this, the hardware gesture closes this, and a second way to do
             what tapping anywhere already does is decoration.
           */}
-          <SectionHeader
-            title="Your cars"
-            trailing={<Text style={styles.count}>{String(cars.length).padStart(2, '0')}</Text>}
-          />
+          {/*
+            ⚠ Round 3: no count here. It was the critic's own round-1 ask and
+            its own round-2 cut — *"the `03` beside YOUR CARS — the last index
+            already says it"* — and that is right: a table numbered 01…03 has
+            already said how many it has, and saying it twice is the kind of
+            thing that then has to agree.
+          */}
+          <SectionHeader title="Your cars" />
         </View>
 
         <ScrollView style={styles.list} contentContainerStyle={styles.listBody}>
@@ -161,39 +165,46 @@ export default function CarSheet({
                   {String(index + 1).padStart(2, '0')}
                 </Text>
 
-                <View style={styles.rowText}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {car.name.toUpperCase()}
-                  </Text>
-                  {/*
-                    ⚠ Round 2 · the need, without the mark. The critic asked
-                    for the whole sub-line cut: *"three stacked sodium marks
-                    turn the warning axis into a texture."* Half taken, and
-                    the half matters. **The mark** is what becomes texture —
-                    on this account all three cars have open recalls, so a
-                    triangle on every row distinguishes nothing, which is
-                    exactly B7's complaint. **The words** are the reason this
-                    sheet exists: a list of names and band words cannot
-                    answer "which of my cars needs me", and that comparison
-                    is the one job the garage tab could never do. So the
-                    sodium goes and the sentence stays, in the secondary ink.
-                  */}
-                  {car.needs ? (
-                    <Text style={styles.need} numberOfLines={1}>
-                      {car.needs}
-                    </Text>
-                  ) : null}
-                </View>
+                <Text style={styles.name} numberOfLines={1}>
+                  {car.name.toUpperCase()}
+                </Text>
 
                 {/*
-                  The band word, not the number. A switcher is for choosing
-                  between cars, and nobody chooses on the difference between
-                  62 and 65 — the word is the comparison, and the number is on
-                  the page this row opens.
+                  ── ⚠ Round 3 · the reading is the comparison ───────────────
+
+                  Three drafts of this column, and the argument moved twice.
+                  It began as the band word alone, on the reasoning that
+                  nobody picks a car on the difference between 62 and 65. The
+                  critic then asked for the recall count beside it, and the
+                  count went in as a second line. Round 2 cut the sodium mark
+                  off that line and kept its words, defending them as the
+                  comparison this sheet exists to make.
+
+                  The critic's answer settles it, and it is right: *"the
+                  score already folds the recalls in"* — recalls are one of
+                  the three drivers the reading is computed from — so the
+                  number **is** the comparison, in the app's own unit, and
+                  the sub-line was asking a question the row could not
+                  answer. One 56pt line per car, the numeral right-aligned as
+                  B6's spec table asks.
+
+                  ⚠ No reading is a sentence, never a dash. `advice-range.ts`
+                  is the standing rule: a missing value is "we cannot say",
+                  and an em dash in a column of numbers reads as a reading of
+                  nothing.
                 */}
-                <Text style={styles.band} numberOfLines={1}>
-                  {car.band ? car.band.short.toUpperCase() : '—'}
-                </Text>
+                {car.score !== null && car.band ? (
+                  <View style={styles.reading}>
+                    <Text style={styles.score}>{car.score}</Text>
+                    <Text style={styles.band} numberOfLines={1}>
+                      {car.band.short.toUpperCase()}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.absent} numberOfLines={1}>
+                    No score yet
+                  </Text>
+                )}
               </Pressable>
             );
           })}
@@ -215,9 +226,7 @@ export default function CarSheet({
           >
             <View style={styles.mark} />
             <View style={[styles.index, styles.noIndex]} />
-            <View style={styles.rowText}>
-              <Text style={styles.add}>ADD A CAR</Text>
-            </View>
+            <Text style={styles.add}>ADD A CAR</Text>
             <Icon name="plus" size={14} color={text.muted} />
           </Pressable>
         </ScrollView>
@@ -258,15 +267,15 @@ const styles = StyleSheet.create({
   */
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   head: { paddingHorizontal: space.lg, paddingTop: space.lg },
-  count: { ...type.monoLabel, color: text.muted, ...TABULAR },
   list: { flexGrow: 0 },
   listBody: { paddingHorizontal: space.lg },
+  /* B6's spec row: one line, 56pt. */
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    minHeight: TARGET_MIN + 12,
-    paddingVertical: space.md,
+    minHeight: 56,
+    paddingVertical: space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: border.panel,
   },
@@ -274,13 +283,15 @@ const styles = StyleSheet.create({
   /* 2pt of cyan, the width of the tab bar's overline — the system's "you are here". */
   mark: { width: 2, alignSelf: 'stretch', backgroundColor: 'transparent' },
   markOn: { backgroundColor: brand.accent },
-  rowText: { flex: 1, gap: 2 },
-  name: { ...type.displayLabel, fontSize: 15, lineHeight: 20, color: text.primary },
-  need: { ...type.mono, color: text.secondary, flexShrink: 1 },
+  name: { ...type.displayLabel, fontSize: 15, lineHeight: 20, color: text.primary, flex: 1 },
+  /* The reading: the numeral in ink, its band word beside it in the legend's. */
+  reading: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
+  score: { ...type.mono, color: text.primary, ...TABULAR },
+  absent: { ...type.monoLabel, color: text.muted },
   band: { ...type.monoLabel, color: text.muted, ...TABULAR },
   /* The spec table's index — mono, muted, fixed width so the names line up. */
   index: { ...type.monoLabel, color: text.muted, width: 22, ...TABULAR },
   noIndex: { width: 22 },
   addRow: { minHeight: TARGET_MIN },
-  add: { ...type.monoLabel, color: text.muted },
+  add: { ...type.monoLabel, color: text.muted, flex: 1 },
 });

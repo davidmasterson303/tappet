@@ -6,6 +6,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -566,7 +567,17 @@ export function VehicleDetailScreen({
   */
   const switchFade = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (!fromPhoto) return;
+    /*
+      ⚠ On the car **landing**, not on mount — and the recording is what
+      found it. Round 2 started the fade in a mount effect, and a frame walk
+      of the switch (`scripts/frame-rows`, a 25fps capture decoded with
+      `AVAssetReader`) showed the crossfade never appearing: the page mounts
+      in its *loading* branch, which returns before the hero exists, so by
+      the time the plate was on screen the 300ms had already run out. What
+      the owner actually saw was sheet → graphite → new car, which is the
+      flash the transition exists to remove.
+    */
+    if (!fromPhoto || state.status !== 'ok') return;
     const run = Animated.timing(switchFade, {
       toValue: 0,
       duration: SWITCH_CROSSFADE,
@@ -584,7 +595,7 @@ export function VehicleDetailScreen({
     */
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     return () => run.stop();
-  }, [fromPhoto, switchFade]);
+  }, [fromPhoto, state.status, switchFade]);
 
   /*
     ⚠ Round 2 · the plate's type leaves with the sheet's rise. The critic's
@@ -896,10 +907,30 @@ export function VehicleDetailScreen({
       likely to be met cold — and the one whose wait most needs to say what it
       is doing rather than pretend to be content.
     */
+    /*
+      ⚠ Round 3 · the switch's own wait keeps the car on screen. A page
+      opened cold gets the wait instrument on graphite, which is right —
+      there is nothing to show yet. A page opened by **switching** has
+      something: the plate of the car you just left, handed over with the
+      navigation. Drawing it here is what makes the gap between two cars a
+      transition rather than a blink, and it costs nothing — the image is
+      already decoded, it was on screen a frame ago.
+    */
     return (
-      <ScrollView contentContainerStyle={styles.body}>
-        <Working delay line="Opening this car" />
-      </ScrollView>
+      <View style={styles.switchWait}>
+        {fromPhoto ? (
+          <Image
+            source={{ uri: fromPhoto }}
+            style={[styles.heroImage, { height: heroH }]}
+            resizeMode="cover"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        ) : null}
+        <ScrollView contentContainerStyle={styles.body}>
+          <Working delay line="Opening this car" />
+        </ScrollView>
+      </View>
     );
   }
 
@@ -1494,8 +1525,26 @@ export function VehicleDetailScreen({
             styles.identity,
             {
               bottom: bands.titleAnchor,
-              /* The scroll's fade, and the sheet's — see `plateType`. */
-              opacity: variant === 'b' ? Animated.multiply(identityFade, plateType) : identityFade,
+              /*
+                The scroll's fade, the sheet's (`plateType`) — and the
+                switch's.
+
+                ⚠ The switch's is the critic's own pass criterion, and the
+                first recording failed it: *"the new name rides with the new
+                photograph and never sits on the old one."* At 20396ms the
+                frames showed "2015 SUBARU FORESTER" set over the Accord's
+                plate, because the name belongs to the incoming page and the
+                photograph beneath it was still the outgoing one. The block
+                arrives on the inverse of the crossfade, so the name and the
+                car it names reach full strength together.
+              */
+              opacity:
+                variant === 'b'
+                  ? Animated.multiply(
+                      Animated.multiply(identityFade, plateType),
+                      fromPhoto ? Animated.subtract(1, switchFade) : 1
+                    )
+                  : identityFade,
               transform: [{ translateY: heroDrift }],
             },
           ]}
@@ -2248,6 +2297,8 @@ const styles = StyleSheet.create({
     under 24pt of air; the page leaves under the same.
   */
   scrollBody: { paddingBottom: space.xxl },
+  /* The switch's wait: the car being left, with the instrument's line over it. */
+  switchWait: { flex: 1, backgroundColor: surface.page },
   /**
    * Opaque, **square** top corners.
    *
