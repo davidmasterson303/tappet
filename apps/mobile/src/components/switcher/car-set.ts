@@ -147,17 +147,29 @@ let lastSet: CarRow[] = [];
  * whose own content is already there, and a placeholder in that slot would be
  * a loading state on a screen that is not loading.
  */
-export function useCarSet(on: boolean): { cars: CarRow[]; reload: () => void } {
+export type CarSetStatus = 'loading' | 'ok' | 'error';
+
+export function useCarSet(on: boolean): { cars: CarRow[]; status: CarSetStatus; reload: () => void } {
   const [cars, setCars] = useState<CarRow[]>(on ? lastSet : []);
+  /*
+    23 Sep: whether the set has been read on this mount. `cars` alone could
+    not say — an empty hold and "read, and there are none" look identical —
+    and `FirstCar` showed every returning owner "No cars yet" for the length
+    of the first round trip on a cold start, and for good when it failed.
+  */
+  const [status, setStatus] = useState<CarSetStatus>('loading');
 
   const load = useCallback(async () => {
     if (!on) return;
+    setStatus('loading');
     try {
       const body = await apiRequest<{ vehicles?: Row[] }>('/vehicles');
       const rows = carRows(Array.isArray(body.vehicles) ? body.vehicles : []);
       lastSet = rows;
       setCars(rows);
+      setStatus('ok');
     } catch {
+      setStatus('error');
       /*
         ⚠ The page it sits on is fine, and a switcher that could not load
         simply is not there — but it keeps what it was holding rather than
@@ -173,7 +185,7 @@ export function useCarSet(on: boolean): { cars: CarRow[]; reload: () => void } {
 
   /* `on` is the caller's gate — no switcher, no request. */
 
-  return { cars, reload: () => void load() };
+  return { cars, status, reload: () => void load() };
 }
 
 /**

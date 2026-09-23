@@ -72,7 +72,8 @@ export type ResearchStatus = 'pending' | 'completed' | 'failed' | 'unsupported';
 /** Everything the log is allowed to know — the API's own rows, nothing else. */
 export interface ResearchObservation {
   vehicle: {
-    year: number;
+    /** Null when the row has none; the name is built without it. */
+    year: number | null;
     make: string;
     model: string;
     current_mileage?: number | null;
@@ -182,7 +183,8 @@ function systemInPlainWords(component: string): string {
  */
 export function researchMilestones(observed: ResearchObservation): ResearchMilestone[] {
   const { vehicle } = observed;
-  const name = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+  // Falsy parts dropped: a car with no year was "the 0 Honda Accord" (23 Sep).
+  const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
   const status = observed.knowledge?.research_status ?? 'pending';
 
   /*

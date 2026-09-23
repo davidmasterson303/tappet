@@ -43,7 +43,7 @@ interface FeaturesDrawerProps {
 const FEATURES = [
   {
     icon: Brain,
-    label: 'AI Consultant',
+    label: 'AI Advisor',
     badge: 'Core',
     heading: 'Answers about your car, not cars in general',
     body:

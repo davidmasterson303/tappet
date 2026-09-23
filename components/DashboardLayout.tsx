@@ -1049,6 +1049,9 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               Feedback
             </a>
             <Link href={homeHref} className="hover:text-white/50 transition-colors">Garage</Link>
+            {/* 23 Sep: the signed-in site had no route to its own legal pages. */}
+            <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
           </div>
         </footer>
       </div>

@@ -48,12 +48,33 @@ export default function FirstCar({
   onOpenCar: (vehicleId: string, title: string) => void;
   onAddCar: () => void;
 }) {
-  const { cars } = useCarSet(true);
+  const { cars, status, reload } = useCarSet(true);
 
   useEffect(() => {
     const first = cars[0];
     if (first) onOpenCar(first.id, first.name);
   }, [cars, onOpenCar]);
+
+  /*
+    ── 23 Sep · the two states this screen must not collapse ─────────────────
+
+    "No cars yet" is an invitation, and it was being shown to every returning
+    owner while the set was still in flight on a cold start (the hold is
+    empty after a kill), and permanently when the read failed — a failure
+    dressed as a fresh account, with ADD A CAR as its primary. While the set
+    is loading the screen draws nothing (see below); a failed read says so
+    and offers the read again.
+  */
+  if (cars.length === 0 && status === 'error') {
+    return (
+      <View style={styles.body}>
+        <Text style={styles.title}>Could not read your cars</Text>
+        <Text style={styles.line}>Tappet could not reach its server. Your cars are still there.</Text>
+        <Button label="Try again" variant="outline" onPress={reload} style={styles.act} />
+      </View>
+    );
+  }
+  if (status === 'loading') return null;
 
   /*
     Nothing while the set is in flight: this screen exists for a fraction of

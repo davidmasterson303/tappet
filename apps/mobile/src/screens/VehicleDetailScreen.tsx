@@ -15,6 +15,13 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Text from '../components/Text';
+/*
+  The app's `Text`, animated. `Animated.Text` is React Native's own, which
+  scales without a ceiling: at accessibility sizes the collapsed nav title
+  grew 1.6–3.1× inside a fixed 44pt row — the clipping the primitive exists
+  to stop (21 Sep). `Text` is a forwardRef, so it animates as-is.
+*/
+const AnimatedText = Animated.createAnimatedComponent(Text);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiRequest, ApiRequestError } from '../api/client';
@@ -565,6 +572,14 @@ export function VehicleDetailScreen({
     tests too. CLAUDE.md §6's shape exactly: no error, no failure, one car.
   */
   const { cars } = useCarSet(true);
+  /*
+    Whether the hero photograph failed to load; reset when the URL changes,
+    since a fresh signed URL may well succeed where the stale one did not.
+  */
+  const [heroFailed, setHeroFailed] = useState(false);
+  useEffect(() => {
+    setHeroFailed(false);
+  }, [state.status === 'ok' ? state.vehicle.photo_url : null]);
   /** More than one car is the only condition the switcher has. */
   const manyCars = cars.length > 1;
   /*
@@ -870,7 +885,7 @@ export function VehicleDetailScreen({
     state.status === 'ok'
       ? {
           vehicle: {
-            year: state.vehicle.year ?? 0,
+            year: state.vehicle.year ?? null,
             make: state.vehicle.make ?? '',
             model: state.vehicle.model ?? '',
             current_mileage: state.vehicle.current_mileage ?? null,
@@ -1478,9 +1493,16 @@ export function VehicleDetailScreen({
     <View style={styles.screen}>
       {/* ── z0 · HERO — pinned. Only its contents move. ─────────────────────── */}
       <View style={[styles.hero, { height: heroH }]} pointerEvents="box-none">
-        {vehicle.photo_url ? (
+        {vehicle.photo_url && !heroFailed ? (
           <Animated.Image
             source={{ uri: vehicle.photo_url }}
+            /*
+              23 Sep: an expired signed URL or an undecodable upload left the
+              hero as bare page surface with the plate over it — no error,
+              no fallback. `HeroEmpty` is what a car with no usable photograph
+              gets; the failure and the absence look the same on purpose.
+            */
+            onError={() => setHeroFailed(true)}
             /*
               ⚠ Over-rendered by `HERO_IMAGE_BLEED` top and bottom. RN scales
               about the centre, so at `HERO_SCALE_GAIN` the image grows ~7% each
@@ -1497,7 +1519,7 @@ export function VehicleDetailScreen({
             ]}
             resizeMode="cover"
             accessibilityRole="image"
-            accessibilityLabel={name ? `${name} photo` : 'Vehicle photo'}
+            accessibilityLabel={name ? `${name} photo` : 'Car photo'}
           />
         ) : (
           <HeroEmpty />
@@ -2215,9 +2237,9 @@ export function VehicleDetailScreen({
           once the hero is covered, so it does not share space with chrome —
           it takes the slack and truncates before the account slot.
         */}
-        <Animated.Text style={[styles.navTitle, { opacity: navFade }]} numberOfLines={1}>
+        <AnimatedText style={[styles.navTitle, { opacity: navFade }]} numberOfLines={1}>
           {name}
-        </Animated.Text>
+        </AnimatedText>
 
         {/*
           ── ⚠ 23 Sep · the switcher's control, in the corner David named ────

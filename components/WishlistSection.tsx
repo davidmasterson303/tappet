@@ -373,6 +373,14 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
 
       {selectedItem && (
         <MarkCompleteDialog
+          /*
+            Keyed on the item (CLAUDE.md §6): the dialog derives its draft —
+            parts, labor, shop — in `useState` initialisers, which run once
+            per mount. Without the key it stayed mounted from item A to item
+            B and opened B's "Done" with A's costs, the same defect the
+            phone's mark-done sheet had on 20 Sep.
+          */
+          key={selectedItem.id}
           open={showMarkComplete}
           onOpenChange={setShowMarkComplete}
           wishlistItem={selectedItem}

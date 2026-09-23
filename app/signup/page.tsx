@@ -197,7 +197,7 @@ export default function SignupPage() {
             <BrandLockup width={200} trademark />
           </Link>
           <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
-          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI consultant that knows your car.</p>
+          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
