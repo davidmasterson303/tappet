@@ -1686,14 +1686,30 @@ export function VehicleDetailScreen({
               minHeight: sheetMinHeight(viewport ?? windowHeight, heroH, { navFadeStart, navHeight: insets.top + 44 }),
               shadowOpacity: sheetShadow,
               /*
-                ⚠ Round 3 · the dossier arrives with the car, not before it.
-                The frames caught the seam: at 000ms the outgoing car's
-                photograph sat over the **incoming** car's dial, counts and
+                Two fades on one surface, and they are the same argument made
+                twice.
+
+                ⚠ Round 3 · **the dossier arrives with the car, not before
+                it.** The frames caught the seam: at 000ms the outgoing car's
+                photograph sat over the *incoming* car's dial, counts and
                 prose, because only the name had been given the crossfade's
-                inverse. One reading of one car at a time is the page's whole
-                claim, so everything the car is about arrives on one curve.
+                inverse. One reading of one car at a time is this page's
+                whole claim.
+
+                ⚠ Round 4 · **and it leaves with the sheet.** Round 2 faded
+                the plate's type when the switcher opened, on the reasoning
+                that the name behind a scrim is a dim duplicate of row 01.
+                The dial band is the same duplicate — `88 GOOD` under the
+                scrim while row 01 says GOOD 88 under the cyan rule — and the
+                sheet's top rule was slicing `HEALTH ›` mid-glyph. The rule
+                generalises: under the scrim, only the photograph reads. So
+                the sheet takes `plateType` too, and what is behind the
+                switcher is one dark plate and nothing else.
               */
-              opacity: variant === 'b' && fromPhoto ? Animated.subtract(1, switchFade) : 1,
+              opacity:
+                variant === 'b'
+                  ? Animated.multiply(plateType, fromPhoto ? Animated.subtract(1, switchFade) : 1)
+                  : 1,
             },
           ]}
         >
