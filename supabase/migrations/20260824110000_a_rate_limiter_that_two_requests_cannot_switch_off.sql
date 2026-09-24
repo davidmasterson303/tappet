@@ -36,6 +36,18 @@
   discarding one would hand back the allowance it recorded. Rows in expired
   windows are deleted outright — `cleanupExpiredWindows` would have taken them
   anyway.
+
+  ⚠ **`id` is a `uuid`, and Postgres has no `min(uuid)`.** This file shipped
+  with `MIN(id)` at both sites below and died on `42883` the first time anyone
+  ran it (24 Sep, SQL editor) — a month after it was committed, because no one
+  had. `(array_agg(id ORDER BY id))[1]` is the uuid-safe spelling of the same
+  thing.
+
+  ⚠ **The two `keep_id` expressions must pick the same row.** The `UPDATE`
+  writes the summed count into one row and the `DELETE` keeps one row; if they
+  disagree, the sum is written into a row that is then deleted and the merged
+  count is silently lost. `ORDER BY id` makes both deterministic, so they agree
+  — change one and you must change the other.
 */
 DELETE FROM api_rate_limits
 WHERE window_start < NOW() - INTERVAL '1 day';
@@ -46,7 +58,8 @@ WITH merged AS (
     endpoint,
     window_start,
     SUM(request_count) AS total,
-    MIN(id) AS keep_id
+    -- Must match the keep_id in the DELETE below (see above).
+    (array_agg(id ORDER BY id))[1] AS keep_id
   FROM api_rate_limits
   GROUP BY identifier, endpoint, window_start
   HAVING COUNT(*) > 1
@@ -58,7 +71,8 @@ WHERE a.id = merged.keep_id;
 
 DELETE FROM api_rate_limits AS a
 USING (
-  SELECT identifier, endpoint, window_start, MIN(id) AS keep_id
+  -- Must match the keep_id in the UPDATE above (see above).
+  SELECT identifier, endpoint, window_start, (array_agg(id ORDER BY id))[1] AS keep_id
   FROM api_rate_limits
   GROUP BY identifier, endpoint, window_start
 ) AS keep
@@ -120,10 +134,21 @@ $$;
   ⚠ Not granted to `anon` or `authenticated`. The limiter is called from the
   server with the service role, and a function that increments a counter is a
   function anybody holding it can use to exhaust somebody else's allowance.
+
+  ⚠ **`service_role` is granted explicitly.** Revoking from `PUBLIC` removes the
+  default everybody-may-execute, so the only thing that left the server able to
+  call this was Supabase's `ALTER DEFAULT PRIVILEGES` granting new functions to
+  its roles. Run against a Postgres without that default (24 Sep, local), the
+  service role got `permission denied` — and `lib/rate-limit.ts` answers any
+  RPC error by falling back to the racy read-then-insert path this file exists
+  to retire, logging `RATE_LIMIT:RPC_MISSING` as if the migration had never
+  run. The grant costs nothing where the default holds and is the only thing
+  that works where it does not.
 */
 REVOKE ALL ON FUNCTION consume_rate_limit(text, text, timestamptz) FROM PUBLIC;
 REVOKE ALL ON FUNCTION consume_rate_limit(text, text, timestamptz) FROM anon;
 REVOKE ALL ON FUNCTION consume_rate_limit(text, text, timestamptz) FROM authenticated;
+GRANT EXECUTE ON FUNCTION consume_rate_limit(text, text, timestamptz) TO service_role;
 
 COMMENT ON FUNCTION consume_rate_limit(text, text, timestamptz) IS
   'Atomic rate-limit increment. Returns the count after this request. See lib/rate-limit.ts and SEC-05.';
