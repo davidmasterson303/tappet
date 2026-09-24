@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { vehicleFieldStops } from '@tappet/core/vehicle-identity';
 

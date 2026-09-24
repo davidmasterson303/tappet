@@ -13,6 +13,1017 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 23 Sep 2026 (later) — the pre-launch audit: eight reviews, nine commits, and what is still yours
+>
+> *"we're getting really close to launch, we need to tighten everything up …
+> power through a multi hour audit effort"* — LLM prompts, UI/UX/IA, code
+> quality, copy, and readiness, each as its own review, every finding
+> verified against the artefact before a fix. `068681a` → `28e639b`, all on
+> `main` and pushed; **nothing promoted**. Root 238 suites / 4,185, mobile
+> 57 / 950 run alone, both trees `tsc` clean.
+>
+> **Ship-blockers found and fixed** (each with a guard that fails on the
+> shipped shape):
+>
+> - **The push primer had no host.** It lived only in `GarageScreen`, which
+>   left the navigator on 22–23 Sep. A fresh install was `undetermined`
+>   forever — no primer, no system dialog, no token, and every recall,
+>   service-due and tire alert went to nobody. `push-primer-wiring` scanned
+>   the garage's source and stayed green (§5, §7). `usePushPrimer` on the
+>   car's page; the guard asserts the host is imported by the navigator.
+> - **The purpose strings in the binary were the plugin's.** expo-image-picker's
+>   `photosPermission`/`cameraPermission` override `ios.infoPlist` at prebuild
+>   (`pluginArg || infoPlist || default`), so the build carried the invoice-only
+>   library sentence MOB-01 had corrected, a camera string without the VIN
+>   barcode, a microphone string and RECORD_AUDIO. `expo config --type
+>   introspect` is the proof; the guard runs `applyPermissions` itself.
+> - **Every invoice opened from the phone 404'd.** `/api/v1/document-url`
+>   signed `file_url` raw; every real row is `placeholder://<vehicleId>/…`,
+>   so the ownership check read `placeholder:` as the car. Verified on the
+>   review account's row. `storagePathFromStoredUrl` first.
+> - **The manifest said nothing about purchases** while the paywall shipped:
+>   the guard's detector named three IAP packages and not `expo-iap`.
+> - **"Add a car" did nothing** from the Service, Plan and Advisor roots
+>   (`navigate('AddVehicle')` on stacks that do not register it); **removing a
+>   car** popped to the removed car's own page, 404'd, blamed another device,
+>   and `FirstCar` reopened it from the held set; **the next account on the
+>   same phone inherited the last one's car**, consent and primer answer
+>   (module holds and per-install flags survive sign-out); the advisor
+>   signed the whole app out on any 401; the deletion summary was discarded.
+>
+> **The advisor** (`2bf3b30`): "ACTIVE RECALLS: None active" for a car nobody
+> checked — the health prompt's 22 Aug fix had not reached it; "Mileage: 0"
+> for a missing reading; a persona with no statement that it is an AI, has
+> never seen the car, and reads research about the model. The call is now a
+> `systemInstruction` plus `user`/`model` turns with the owner's message
+> fenced as data (the flat `Owner:/Jay:` string let a message forge a prior
+> advisor turn that persisted); an empty or non-STOP answer is refused rather
+> than stored as a blank bubble; 45 s bound. The persona itself — the crew
+> chief archetype — is untouched: `product-name.test.ts` records it as a
+> 30 Aug decision. The research schema's `reliability_score` had
+> `.default(5)`, a default masquerading as a reading; nullable now.
+>
+> **Copy, one pass** (`2efb8b1`): American spelling everywhere a customer
+> reads (the demo answers said *labour*, *tyres*, *petrol*); no exclamation
+> marks; the web error boundary no longer claims "our team has been
+> notified" (nothing is); VIN-decode failures stop blaming the user's
+> connection for NHTSA; four "wishlist" strings under a green scanner whose
+> JSX regex was per line — it reads bare prose lines now, and immediately
+> found `ServiceItems.tsx`, a component nothing imported, deleted.
+> **Legal**: the site had no link to `/privacy` or `/terms` — the App Store
+> listing points at one and a reviewer could not reach it from the page;
+> the policy now states retention (5.1.1(i)); "Consultant" said seven times
+> under a tab called Advisor.
+>
+> **Server** (`f126a7f`): consultant upload took `sessionId` on trust (an
+> unsanitised storage segment, and another account's conversation id);
+> `wishlist/complete` wrote a client URL and date as sent; attachments and
+> demo history uncapped; `plates/ensure` unbounded strings in front of a
+> model call; two research POSTs arriving together triggered two Pro
+> dossiers — the marker write is conditional now. **Web** (`28e639b`): the
+> advisor asked no AI consent (LEG-02) while the phone and the invoice
+> dialog both do; the security headers `netlify.toml` promises reach only
+> `/_next/static/*` — pages carried HSTS and nosniff alone — so
+> `next.config.js` sets them, with the CSP **report-only** until it has
+> been watched on the product host.
+>
+> ⚠ **Refused by a guard, on purpose:** a distinct "confirm your email
+> first" message on sign-in. `mobile-session.test.ts` holds that any message
+> that differs by account state makes sign-in an account-existence oracle.
+> Reverted; the UX gap stands and is yours to weigh.
+>
+> **Still open, for you** (the readiness sweep's list, verified 23 Sep):
+>
+> - **`promote-web --apply`.** The host App Review reads is `web-live` at
+>   `7c79067` (22 Sep); none of today's legal-link, copy, header or API fixes
+>   are on it. Then read `/api/version` for the merge commit, and check the
+>   product host's console for CSP report-only violations before enforcing.
+> - **Rate-limit migration `20260824110000` is not applied** — the limiter is
+>   on its read-then-insert fallback (five rows for one identifier and window
+>   in `rate_limit_entries` prove it). SQL editor.
+> - **Gemini prepay balance.** `ai_usage_events` cannot compute it: the plate
+>   and plate-image REST calls bypass the meter entirely, which is also why
+>   the table's burn (~$0.02/day) is an order below `lib/gemini.ts`'s $0.66.
+>   Read the console; top up or auto-reload before submission.
+> - **ASC**: Notes for Review (`crewchief.support+appreview@gmail.com`; the
+>   draft in `audit-08-legal-appstore.md` predates the rename), age rating on
+>   the new questionnaire's AI-assistant items, US-only availability, EULA +
+>   Privacy links in metadata, Purchases in the privacy questionnaire.
+> - **Sandbox purchases grant the paid tier in production**
+>   (`apple-subscription.ts:239` refuses Sandbox only when a Production row
+>   exists) — intended for review, or gate on `environment`?
+> - **The canary watches the demo host only**; the product API the binary
+>   calls has no monitor, and `CONSULTANT_HEALTH_SECRET` would need to be on
+>   `tappet-web` too (§7's two places). `client-errors` writes no table and
+>   nothing reads the log line.
+> - `next@13.5.11` carries CVE-2024-34351 (Server Actions SSRF; Netlify's
+>   host normalisation mitigates). A 13→14 jump days from launch is a build
+>   risk; decide deliberately.
+> - Smaller, listed for the next pass: `evaluateSchedule` still takes 0 for
+>   a missing odometer (the banner now asks instead of asserting; the list
+>   itself does not yet say "unknown"); sibling tab roots keep a removed car
+>   until their focus refetch 404s (a way out exists); "See the record" after
+>   an invoice files; the demo host serves sign-up and the whole product
+>   (`isDemoSite` changes only chrome — intended?); sampling parameters on
+>   3.x models against Google's current guidance, and `responseSchema` on
+>   the JSON calls; web `/documents` and `/consultant` paths under tabs
+>   called Service and Advisor; OnboardingWizard's unlabelled inputs and
+>   cyan/red/green literals; VehicleCard, DashboardLayout status menu,
+>   AddWishlistItemDialog draft carried across openings, DeleteAccountDialog
+>   confirm text not reset; on the phone, literal type sizes on the ported
+>   screens (MarkDoneSheet, RecallDetail, InvoiceScan), PushPrimer without
+>   insets or a scroller, and form screens under a native header with no
+>   `keyboardVerticalOffset`.
+
+> ### ⚠ 23 Sep 2026 — the door got a handle, and the floor under the plate was not there
+>
+> *"i love the concept and the car selector menu … but the carrot/chevron is
+> perhaps not obvious for all users. let's replace w/ a more obvious cta in top
+> right or top left. then rerun critic loop till it gets back to a 9 or 10 …
+> in accessibility review in critic loop this time, i'm worried about small
+> fonts and contrast in some cases."*
+>
+> `CarSheetMark` is deleted. `components/switcher/CarSwitch.tsx` is a labelled
+> control in the nav row's trailing slot — YOUR CARS and a chevron, mono at the
+> 12pt floor, off-white on an opaque cut surface, drawn 32pt inside a 44pt
+> target. It takes a slot that had been **reserved and empty since 22 Sep**,
+> when ADD PHOTO went into the car's details and ACCOUNT stopped floating over
+> a car's page: 150pt held open for a control that no longer existed, with the
+> arriving nav title truncating against it.
+>
+> ⚠ **The chevron was not only quiet, it was contradicted.** On a multi-car
+> account the car's name opened the *switcher*, while the legend 14pt under it
+> read `This car ›` and the door's accessibility label promised "mileage, your
+> answers, the photo, removal". A sighted owner got the wrong word and a screen
+> reader the wrong sentence. The name opens the car again on every account.
+>
+> ⚠ **The switcher was never going to reach a device.** It sat behind
+> `EXPO_PUBLIC_CAR_FIRST`, a `__DEV__`-only flag, while the 22 Sep ship had
+> already removed the Garage tab unconditionally. A release build would have
+> had **neither**: a three-car account able to reach exactly one car, with
+> nothing on screen to say the other two existed. All 54 suites were green,
+> because a flag that is off in production is off under jest too. CLAUDE.md §6
+> and §5 in one object.
+>
+> ⚠ **And the contrast floor under the plate had stopped reaching the type.**
+> `HeroBed` is the mechanism that makes type over an owner's photograph legal
+> here at all — web's rule is that nothing is printed over a photograph, and
+> the phone satisfies the rule underneath it (*no type whose contrast depends
+> on the photograph*) with a guaranteed dark floor. Its stops were fixed
+> fractions ending at 52% of the hero, correct when written. The identity block
+> then grew three times — the stat strip, the `THIS CAR` legend, and on 22 Sep
+> the switcher's own `CAR 01 OF 03` eyebrow — until its top sat at ~48%, where
+> the bed delivered **0.08**. Worst case on a car shot against a bright sky,
+> computed from the gradient's own stops:
+>
+> ```
+>   THIS CAR legend   bed 0.65   2.92:1
+>   MILEAGE label     bed 0.46   1.94:1
+>   the car's name    bed 0.25   1.61:1
+>   CAR 01 OF 03      bed 0.08   1.09:1
+> ```
+>
+> Every string on the plate under AA, and the largest type on the screen at
+> 1.61:1 — while the screen's own style sheet said the type was *"Legal here
+> because of `HeroBed`'s guaranteed floor"*. **Every captured round of every
+> loop was shot against a night photograph**, which is the one input that hides
+> it. Your accessibility instinct is what surfaced it.
+>
+> The bed is driven by the block now and holds 0.68 across it, easing off above
+> **and below** — below, because holding the floor to the hero's foot took the
+> plate darker than the panel it sits on (9.3 against 15.1) and left the 45°
+> cut nothing to read against. 0.68 is what `text.secondary` needs over a white
+> photograph; `text.muted` needs 0.837, a scrim heavy enough to lose the car,
+> so nothing on the plate is muted and `StatStrip` gained `onPhoto`. One rung
+> survives because a test refused to give it up: `stat.muted` is the ask
+> ("Tell us") standing where a fact would — your 22 Sep ruling — and a question
+> set in a fact's ink is not a question.
+>
+> ⚠ **Edges: `border.panel` is too quiet to carry the geometry.** Three critics
+> in a row reported the car sheet's cut as absent and two the collapsed bar's
+> rule. Pixel scans found every one of them present and unresolvable — the bar's
+> rule one row at 32.3 against 13.6, the sheet's cut an 8pt diagonal six
+> luminance points from its ground. That is round 46's *"a cut nobody can see
+> does not meet the line"*, on the same surface, again. The nav rule and both
+> cuts take `border.field`; seams between two still bands keep `panel`.
+>
+> **Guards.** The switcher had shipped at 9/10 with **no test of any kind** —
+> not the sheet, not `car-set`, not the cold start. It has two files now
+> (`switcher/__tests__/car-switch.test.tsx`, `components/__tests__/hero-bed.test.ts`):
+> the affordance is present at three cars and absent at one, the name opens the
+> car, the control's ground is opaque and declared to the contrast audit, the
+> 44pt floor is asserted on the **press target** rather than the drawn box,
+> every string on the hub and in the sheet clears AA and 12pt, and an
+> anti-vacuous case evaluates the *shipped* bed stops so the old floor cannot
+> return green. Verified red against the defect: four of the first seven fail
+> with the flag off.
+>
+> ⚠ **The loop did not reach 9, and stopping was a judgement.** Four fresh
+> critics scored **7 → 7 → 8 → 7**, each given the locked brief, native frames
+> and the measurements the round before had got wrong. Every one called the
+> switcher finished — *"the right answer — labelled, in the nav slot, its own
+> guaranteed floor, persistent on scroll"*, *"it is done."* What holds the
+> score is the hero, and the last two rounds **contradict each other about the
+> same edge**: round 9 praised the plate's foot matching the panel's tone
+> (*"the photograph dissolves into the instrument instead of sitting on it as a
+> darker slab"*), round 10 asked for the opposite (*"hold the photograph's
+> asphalt tone to the foot so the notch reads"*). Its other open asks are a
+> **different crop of the owner's photograph**, which the app does not control,
+> and the type scale on WHAT YOU TOLD US, which predates this change. Per the
+> loop's own rule on contradictions, both sides are in drift §6.24 rather than
+> resolved by us.
+>
+> **Still open, for you:** whether the plate's foot should match the panel or
+> stand off it, and whether `GarageScreen` (now unmounted, ~800 lines with
+> `GarageBay`, `BayRoom`, `BayRail`) is deleted or kept for a garage you may
+> want back. Its dead import is out of the navigator; the files stay.
+>
+> `2d1fb63`. Mobile 56 suites / 946 tests, root 235 / 4,147, tsc clean.
+> Nothing promoted: all phone JS.
+>
+
+> ### ⚠ 22 Sep 2026, night — the garage and the car were one screen
+>
+> *"How can we make Garage and Car tabs feel less redundant? Ideate before
+> implementing … put on your product hat and eval from jobs to be done POV."*
+>
+> The finding was structural and it is measurable: **a garage bay is a strict
+> subset of the car hub.** Plate, name, strip, dial and band, next service,
+> recall count — all six are on the hub a tap later. The garage was the hub
+> with things removed, one tap from the hub. And it is a *pager*, so it can
+> switch but never compare — which is the job the advisor KB already names as
+> one of mobile's three flows (*"glance at garage health"*, `cc-product-0001`).
+> Tesla's app answers the same problem with **no list tab at all**.
+>
+> Your ruling: *"a and c are ruled out for the subpar solution to single car
+> owner, which is not an edge case at all … let's try b. but this is a major
+> change, so we must have an authentic run of design critic loop and we must
+> hit a 9 or a 10."*
+>
+> Three switcher concepts built as real screens on the reviewer account's
+> three cars, a design critic picked one **blind** with the shipped structure
+> as a fourth candidate — it picked the sheet and ranked **the shipped
+> structure last** — and the loop ran **6 → 7 → 7 → 7 → 8 → 9,
+> `Continue: no`**. Drift §6.23 carries the rounds.
+>
+> ⚠ **The loop's most valuable find was not the switcher.** Reading four
+> frames of a car switch, the critic counted the health numeral at 72, 90,
+> 99, **100** on a car that reads 68 — beside the sentence saying what was
+> holding that score back. The dial's appear was an *ignition sweep*, 0 → 100
+> → settle, on every mount of every dial in the app: the garage, the car's
+> page, the health screen. A numeral is not a needle, and §10 has no
+> exemption for an animation curve. One curve now, 0 → the reading. **The
+> guard was green the whole time** — it asserted where the sweep *landed*,
+> never the path it took; the new one samples the path and fails against the
+> old code at 82 for a 61 car.
+>
+> ⚠ **Answered, and the flag was a defect — see 23 Sep at the top of this
+> page.** You shipped the structure the next day; the flag is deleted. Worse,
+> it never should have survived the ship: the navigator dropped the Garage tab
+> unconditionally while the hub stayed gated, so a release build had neither
+> the tab nor the switcher. The paragraph below is kept as written because its
+> *trade* is still the reasoning of record.
+>
+> ⚠ **Yours to say.** The structure sits behind `EXPO_PUBLIC_CAR_FIRST`, one
+> line from being the app. You ordered those five tabs on 21 Sep for stated
+> reasons, and a loop reaching 9 says the replacement is good — not that the
+> trade was ours to make. What you would trade: the garage as a destination,
+> its photography at full size, and ADD CAR's masthead slot — against a
+> one-car owner never meeting a set UI at all, a switcher that compares, and
+> a tab handed back.
+>
+> Two tools came out of it, both kept: `scripts/movie-frames.swift` (walk a
+> simctl recording with `AVAssetReader`; there is no ffmpeg on this machine)
+> and `scripts/frame-rows.swift`. Together they turn a transition into a
+> number — "93.5 to 48.2 over 283ms, monotonic, no graphite frame" — which is
+> how two defects were found that no still could show.
+>
+> Mobile 54 suites / 928 tests, root 234 / 4,126, tsc clean. Nothing
+> promoted: all phone JS.
+>
+
+> ### ⚠ 22 Sep 2026, late — three placements, and one fork answered
+>
+> Three more of David's, by way of Cowork (which read the source and wrote
+> them up; item 2's first recommendation was **superseded by its own author
+> after seeing the screen on a device**, and the superseded version is
+> recorded in the code because the reasons generalise).
+>
+> - **SCAN INVOICE off the hero plate.** *"i really don't like the scan
+>   invoice button placement, on the plate on car tab. remove from there,
+>   put new button above 'what you told us' section."* It was a pinned pill
+>   over the photograph; it is a full-width primary at the head of the lower
+>   sheet. ⚠ What that costs, stated rather than hidden: on a tall display
+>   the act is **below the fold** at rest — the property UX U1 bought by
+>   floating it. The plate carries the photograph and its one door, and the
+>   SERVICE tab carries the same destination for the whole scroll.
+> - **And onto the Health screen — then straight back off it.** Asked for,
+>   built under the verdict and its provenance, and cut within the hour:
+>   *"i dont think we need button there, it now feels redundant with button
+>   in #1."* It is, and the move above is what made it so — the act had
+>   just landed a tap away at full width, so a second filled primary on the
+>   screen the hub opens is one act asked for twice. The Health screen
+>   carries **no** filled primary now, with the reason and a guard beside
+>   it; an explanation with no act on it is what a later pass asks to
+>   "fix". Kept from the hour it existed: the placement reasons (under the
+>   drivers card it is wedged between two dense blocks, reads as the
+>   recalls section's, and is followed by nine controls) and the copy rule
+>   — say what the act does, never that the score will move.
+> - **The Service tab lands on its leftmost segment** — and the *segments*
+>   moved, not the landing. You offered both: *"either flip them, or land
+>   user on Due."* Landing on Due would have satisfied the ordering rule by
+>   reversing your 30 Aug call (*"I wanted history tab to show searchable
+>   history of line items"*), so **History is leftmost now** and the tab
+>   still opens the record. Both decisions sit in `tab-target`'s docblock
+>   together. What it costs: Due, the more actionable half, is no longer
+>   first — and the two paths that *mean* Due (the hub's NEXT SERVICE cell,
+>   a service-due notification) reach it explicitly anyway.
+>
+> All phone JS; nothing promoted. Seen on the simulator, not asserted from
+> the diff. Mobile 54 suites / 927 tests, root 234 / 4,126, tsc clean.
+>
+
+> ### ⚠ 22 Sep 2026, evening — David's rulings, and two defects a walk found
+>
+> The eight product questions the three lenses parked (block above) came
+> back answered, and the first answer was a **revert**: shown his own
+> daylight photograph of the BMW on the bay, *"I hate the new image style
+> in the plate … keep all the new changes but revert back to old plate
+> style."* The plate's style had not changed — what he was seeing was
+> **B9's house grade over his photograph**, six layers whose job is to
+> make a daylight shot read as night, and on a grey driveway that is grey
+> mud. Ruling: *"let owners add their images if they prefer to our
+> plate."* The grade is deleted; the generated plate is the house film, a
+> photograph is the owner's, as shot. B9's grade clause is now half-true
+> and is Design's to rewrite. Drift §6.22.
+>
+> Then, in order: **a recall that is fixed counts as fixed** — the score
+> counted every campaign on record while the hub's cell counted the open
+> ones, so marking five repaired moved the cell and not the dial — **and
+> lands in the history**, one `maintenance_line_items` row with no
+> invented cost or shop (`source: 'manual'`; `'recall'` is refused by the
+> check constraint and a fifth value is a migration, which is yours).
+> **A thin file is not a verdict**: under three records the band names
+> the file (THIN HISTORY, neutral ink) and the score is untouched, on the
+> hub, the Health screen and the bay together. **A reading over a month
+> old asks to be set** — the door's mark comes back on its note; the word
+> "update" beside it truncated to an ellipsis in a third of the strip and
+> was measured out — and the countdown still counts from the real
+> odometer, never an estimate. **USE is "Tell us"**
+> when unanswered rather than a dropped cell. **No ask under the service
+> timing** and **no 01–03 ordinals** on the three answers.
+>
+> And the queued one: **the masthead image is taller** — *"it's a cool
+> image, make it a bit more visible"*. Service and Plan show the whole
+> frame now (117 → 170pt, re-cut to 1206 × 511; the title and ACCOUNT do
+> not move and are printed on the same pixels). ⚠ The **advisor keeps the
+> short band**: its two blooms sit exactly where the name lands, and the
+> tall cut measures 1.8:1 against AA's 4.5. It needs a frame whose dark
+> third is at its foot before it can grow — yours to commission or to
+> leave.
+>
+> **Two defects the suites could not have found, both from walking the
+> live reviewer account on the phone:**
+>
+> - **A withdrawn claim kept its credit.** Marking a recall took the
+>   F-PACE 55 → 62 and filed the repair; undoing left it at 62. The
+>   drivers gave the credit back at once — they are computed — but the
+>   model's score is a stored row and staleness is judged against the
+>   newest *filed* record, and records had gone down. Both paths stamp
+>   the reading out of date now; verified end to end, including the
+>   re-read (68 on one record, in a summary that names the oil change and
+>   nothing else). ⚠ That re-read is why the F-PACE reads 68 rather than
+>   its old 55: the model re-scores, it does not restore. Nothing else on
+>   the account moved — one record, no marks, as found.
+> - **The bay and the hub named one service two ways**: "Engine Oil &
+>   Filter Change (Enthusiast)" against "ENGINE OIL AND FILTER CHANGE",
+>   one tap apart.
+>
+> Promoted twice for the server halves (`c6082366`, `4356a034`);
+> `tappet.southmoordigital.com` serves the second. Mobile 53 suites /
+> 924 tests, root 234 / 4,123, tsc clean.
+>
+
+> ### ⚠ 22 Sep 2026, afternoon — the car page under three lenses; the decisions the block above answers
+>
+> *"i want critic to think about UI/UX of the page, the information
+> architecture, and the value of the functionality… perhaps with 3
+> subagents, one for each type of review. Get this page to a 9."* Three
+> critics in fresh contexts — UX, IA, value — each wrote a brief in round
+> one (frozen: U1–U9, I1–I8, V1–V8) and graded the live reviewer account's
+> Accord and F-PACE against it for five more. **UX / IA / value: 5/5/5 →
+> 6/7/6 → 7/8/7 → 7/9/6 → 8/9/6 → 8/9/7.** IA reached 9 in round 4
+> (`Continue: no`, every line met) and held it; UX stopped at 8, value at
+> 7, and the loop was stopped there because every gap left open on one
+> lens is a line another lens closed by cutting it. All phone JS except
+> the drivers' causes, which are computed on `/load-vehicle` — promoted
+> twice (`740fa286`, `7bd90035`); `web-live` carries everything the hub
+> reads. Drift §6.21; `design-loop/mobile-ios/hub-lenses/`.
+>
+> What the page is now (`8a06116` … `9e5e9b1`): SCAN INVOICE alone over
+> the plate; the name and strip a door to **THIS CAR** — the odometer as a
+> field with its age, the photograph's add/change/remove, the answers, the
+> removal at the foot — with THIS CAR › as its one mark; HEALTH a row, the
+> dial and the reading's cause beside it (*"Held back by one record on
+> file and 4 open recalls for this model."*), the paragraph behind the
+> door; NEXT SERVICE by name with the owner's own months; the counts with
+> their verdict and scope ("24 / open / this model"); TIRES counting down;
+> WHAT YOU TOLD US with every question, the unanswered as "Tell us ›" and
+> what answering buys. No ACCOUNT, no advisor button, no prose, no REMOVE
+> on the hub. Then the **visual critic re-graded the page the lenses left** — six
+> rounds had changed it with nobody grading the visual system: round 51
+> nine lines ✅ but **8** on three rhythm faults measured at 1:1 (the
+> count row's numerals 20pt apart, TIRES 33pt to its reading, 80pt of
+> padding at the foot); the cell pins its value to the head and its legend
+> to the foot, the floor is the thumb's, the foot one 24 (`f4ddb8f`);
+> round 52 **9, `Continue: no`**. Its one gap — the scroll's end under the
+> nav reads as a clip — is the 0.08 hairline token at a scroll edge (the
+> rule is there, measured), the question §6.20 left for Design on the
+> plate's bevel. `scripts/frame-rows.swift` is how a critic's "33pt" is
+> now checked against the frame. `critique-51.md`, `critique-52.md`.
+>
+> **Yours — the lenses contradict each other, and the page holds one side.**
+> ⚠ All five were answered the same evening; the block above carries the
+> rulings and what shipped. Left here as the record of what was asked.
+>
+>
+> - **The button.** Value wants it chosen by state (REVIEW RECALLS when
+>   recalls are the cause, SCAN INVOICE on a thin file, none when nothing
+>   is pending) and calls the sentence-and-button disagreement its one ❌;
+>   UX and IA read a state-chosen slot as a second entrance to the △
+>   RECALLS cell that evicts the record act on a 2003 Accord for good. It
+>   is the scan.
+> - **PLAN's empty cell.** UX wants "Plan work"; IA wants no command from
+>   a tab's cell. It reads "Nothing planned yet".
+> - **Provenance on a healthy reading.** Value wants "From 11 records."
+>   before the cause; IA and the design critic both cut it as the counts
+>   row told again. There is none.
+> - **The odometer's own chevron.** UX wants "4 WK AGO ›"; IA wants one
+>   door to the car. One mark.
+> - **The service row's ask** as a door into MILES A MONTH (value) versus
+>   the row's door going where its legend says (IA). The row explains;
+>   "Tell us ›" is the door.
+>
+> **Product questions all three parked** (answered; see the block above):
+> USE — a fact of the car (the
+> F-PACE's empty slot a door) or an answer (in WHAT YOU TOLD US on both
+> cars)? Does marking a recall move the score? Should a history under
+> three records carry a confidence band rather than a health band (a 55
+> on one record reads as a verdict on the car)? Should countdowns age
+> with a stale odometer? SCAN INVOICE or ADD RECORD in the slot? The
+> 01–03 ordinals on three questions (the locked visual brief keeps them).
+> The F-PACE's extra NEXT SERVICE line pushes the count row's legends
+> under the tab bar at rest.
+>
+> Housekeeping from the night: the phone's Metro (8081) and the fixtures
+> Metro (8094) run under `nohup` (`/tmp/metro-8081.log`, `/tmp/metro-8094.log`)
+> — the terminal's six tabs were spent, and c3–c6 hold dead Metros; a
+> python `http.server` on 8095 in `design-loop/mobile-ios/` is still up;
+> the "concepts" 16 Pro simulator is shut down (it would not finish
+> booting with the Mac 18 GB into swap) and every frame is the 16 Pro Max
+> (18.5). The fixture BMW carries an owner's photograph for the session
+> (added through THIS CAR for the re-grade); it clears with the Metro.
+>
+
+> ### ⚠ 18–19 Sep 2026 — the store shoot, and what stood in its way
+>
+> Cowork's screenshot prompt (`Claude outputs/CLAUDE_CODE_PROMPT` 18 Sep) is
+> answered in `CLAUDE_CODE_REPLY_screenshots_2026-09-18.md`. The short form:
+>
+> - **A simulator build registers nothing at Apple; a device build registers
+>   the App ID on `P4873P8FQ9` but never the ASC record.** Apple's own page
+>   frames Individual→Organization as a *migration request* on the existing
+>   membership (`migrate-individual-account`, founder + D-U-N-S) — the repo's
+>   "fresh enrolment and an app transfer" (`lib/legal.ts`, ~30 Aug) was an
+>   assumption. Either way an unattached App ID is a deletable step, not a
+>   trap. Shoot from the simulator; ask the Team ID question on the form.
+> - **No build needed for the shoot**: Expo Go on a simulator runs `main`
+>   against `web-live`. EAS quota untouched.
+> - ⛔ **The iOS 18.4 simulator runtime cannot reach Supabase from an app**
+>   — `fetch failed: The network connection was lost` / `cannot parse
+>   response` while Safari in the same simulator loads it (Apple's bug;
+>   supabase #35943 / #35041). Every simulator here ran 18.4 and the
+>   fixture-driven loops never touched the network. It reached David as "my
+>   password isn't working". **iOS 18.5 (22F77) is installed** and
+>   "iPhone 16 Pro Max (18.5)" `512B450F-…` is the shoot device: 1320×2868,
+>   the 6.9" size App Store Connect requires. The download and the aborted
+>   18.3/18.2 probes filled the disk; the 18.4 runtime (8.2 GB) is now the
+>   thing to delete — David's, since the design-loop devices sit on it.
+> - **Found on the first frame, fixed (`7252158`)**: the phone drew the full
+>   lockup in the narrow box, so every build since the rename read
+>   "SOUTHMOOR DIGI" on sign-in. `brand.test.ts` now reads both components.
+> - **The quote gate landed (`94077bb`)** on the metering merge (`98096e5`);
+>   all four model paths are behind the gate, the health score in front.
+> - **Recall alerts are enforced (`8f9c4d4`)**: the sweep asks
+>   `usersEntitledTo(owners, 'recalls')` once per page and skips the recall
+>   half for owners the gate refuses; service reminders stay free. E8's one
+>   remaining code piece; the `UNGATED` allowlist is empty.
+> - ⛔ **The phone's ADD CAR has never saved a car.** Found 19 Sep adding the
+>   2003 Accord to David's account for the recall frame: first the form and
+>   the route refused 170,000 miles as a "jump" from a baseline of `0`
+>   (`0865457` — a first reading has no baseline), then the server answered
+>   500. `vehicles.vin` is `text UNIQUE NOT NULL` from the first schema and
+>   `POST /api/v1/vehicles` never supplied it, so every submit since 8 Aug
+>   was refused whole, with the column's name in a function log nobody read.
+>   The table showed it — five rows, all wizard or demo seed — and two phone
+>   docblocks said a car added there "carries no VIN in the database": the
+>   schema stated from a file read (CLAUDE.md §2). The route's test is a
+>   source scan and could not know. **The migration is one line and yours:**
+>   `20260919160000_a_car_added_from_the_phone_may_have_no_vin.sql` drops
+>   the `NOT NULL` (UNIQUE stays; NULLs are distinct under it). The route
+>   now carries the VIN the phone decoded — normalised, refused in the
+>   field's own words when malformed — `null` when there is none, and a
+>   taken VIN answers 409 rather than 500. The 2003 Accord in the table is
+>   the **App Review account's** (`crewchief.support+appreview@`, added 21
+>   Aug through the wizard), not David's — so "add the Accord back" is a
+>   phone save against a nullable column, and the frame waits on the trip.
+>
+> - **20 Sep, 00:07 UTC — the vin migration is applied (`23503` on the FK;
+>   Cowork's `information_schema` read agrees) and the 2003 Accord is on
+>   David's account: `fbe7fad5-…`, `vin: null`, the first car ever saved
+>   from the phone.** Frames shot: `05-recalls-open-accord.png` (24 open, a
+>   genuine airbag-inflator campaign, §10 line in shot) and the two-bay
+>   garage (`01a`/`01b`, "1 of 2" / "2 of 2"). The reply is
+>   `CLAUDE_CODE_REPLY_review_prep_2026-09-19.md`.
+> - ⛔ **A car added on the phone is never researched.** The route seeds
+>   `research_status: 'pending'` and its docblock says `VehicleInsights`
+>   picks that up — a *web* component calling a cookie-authenticated server
+>   action. No `/api/v1/*` route and nothing on the phone starts the
+>   dossier, so a phone-only owner sees "No score yet / No schedule yet / no
+>   recall count" indefinitely, under copy promising it "takes a few
+>   seconds". Recalls alone arrive the next day (the sweep treats a car with
+>   no `nhtsa_data` row as a refresh candidate). The Accord's research ran
+>   only because its `/vehicle-info` page was opened on the web. Invisible
+>   until tonight — no phone car had ever existed to hit it. Needs a
+>   `/api/v1` trigger the phone calls after creation; ~23 s, so not inside
+>   the create route (Netlify functions freeze after the response — a
+>   background function or a polled job, to be decided).
+> - **The reviewer account is not entitled anywhere.** `account_entitlements`
+>   is empty; paid features work for `crewchief.support+appreview@` only
+>   because `PAID_FEATURES_ENFORCED` is unset on `web-live` (David's row-less
+>   account ran `vehicle_dossier` tonight). A comped row — `tier: 'paid'`,
+>   `expires_at: null`, which `entitlement.ts:83` already reads as a grant —
+>   makes the Notes-for-Review claim true and survives E8's flip. David's
+>   call; one insert.
+> - **The migration ledger is not a thing to repair.** `schema_migrations`
+>   has been silent since 29 Jun (`check-migrations.mjs:55`); every migration
+>   since is hand-applied and absent from it. Marking one present would make
+>   it more wrong. The probe is the reconciliation; the script now labels
+>   constraint migrations as probeable-by-hand, with the FK precondition.
+>
+> ### ⚠ 20 Sep 2026 — the phone path is real, and the wait narrates it
+>
+> Cowork's reframe (`CLAUDE_CODE_REPLY_phone_path_2026-09-20.md`): the
+> research gap was a launch blocker, not a roadmap line. Landed and live on
+> `web-live` (`cc0ea00f`):
+>
+> - **Research from the phone** (`a46d219`): `POST /api/v1/research` →
+>   `netlify/functions/research-background.mts` (the plate library's shape:
+>   fifteen minutes, imports nothing, NHTSA first, the Pro call over REST,
+>   every decision through `claim · recalls · store · fail`);
+>   `POST /api/v1/health` for the score. `lib/vehicle-research.ts` is split at
+>   the model call; the web and the sweep keep their behaviour. In-flight
+>   rule: `last_research_date` moved off `created_at`, younger than 4 min.
+> - **The research log** (`@tappet/core/research-milestones`): every line
+>   quotes a row the API returned — decode (the plate), NHTSA, sort, dossier,
+>   schedule, score — so it cannot depict work that has not happened; failure
+>   is a line; the phone's `Working` ledger gained the answer line and a
+>   failed state; readings seat into their cells (`Seat`). Watched live on a
+>   2012 Camry: rows at 6 s / 32 s / score; **the decode line stuck on
+>   Toyota's `xv50` plate** — found by the recording, not the tests — fixed
+>   (`7d95916`). Recording in `screenshots-2026-09-19/`.
+> - **Next service projected at research time** (`b2cf3b8`): the columns were
+>   the sweep's alone, so every new car read "No schedule yet" for a day.
+> - **The garage now refetches on focus** (`c06980e`): a car added on the
+>   phone was missing from it until the app was killed — MOB-09's one gap.
+> - Every duration promise on the phone is gone; `no-duration-promises.test.ts`.
+> - The reviewer account is comped (`tier: 'paid', expires_at: null`, proven
+>   against `entitlesFeature`); the Apple-migration wording is sourced
+>   (`f85abb6`); the 503 is in the create route's docblock.
+>
+> **Journey walk, phone-only:** sign-up and delete-account need a fresh
+> account and a password (David); the paywall needs enforcement and the
+> device build; **the phone cannot remove a car** (no `DELETE /api/v1/vehicles`
+> — the web has `deleteVehicle`). Everything else on the list has a route the
+> phone calls and a row that changes.
+>
+>
+> ### ⚠ 21 Sep 2026, evening — the second walk, and a fifth tab
+>
+> David walked the afternoon's fixes on the phone over the cable. Fixed
+> the same evening, all phone JS — nothing promoted, nothing to promote:
+>
+> - The sticker still would not read close up: the lens will not focus at
+>   the distance a fifth-of-frame band asked for. The band is a third now,
+>   the live frame zooms (`BARCODE_ZOOM = 0.07`) so it fills from arm's
+>   length, and **READ A PHOTO** takes a still and decodes it on the phone
+>   through the same path as a live read (`33b19fa`).
+> - The number pad hid SAVE with no way to dismiss it: an `InputAccessoryView`
+>   Done bar over every numeric field (`611c362`). The tire interval is
+>   still asked, never assumed — but the car's own rotation interval, when
+>   the dossier's schedule carries one, is *offered* as USE 6,000 MI with
+>   its source named; a figure the server verifies against the schedule
+>   is stored as `'vehicle'`, anything typed as `'owner'`, and only the
+>   owner's licenses the push's warranty sentence (§10; `tires.ts`).
+> - The verdict word under the garage dial gets a line its face fits in
+>   (`c2fe4bf`) — the "GOOD" padding David saw on the phone.
+> - **GARAGE tapped from a car went back to the car.** First fix: the tab
+>   lands on the garage (`a0376b1`). David: *"most people may only have one
+>   car"* and want the car's page, not one bay that is the same car drawn
+>   twice; a static fifth tab over a label that changes with the garage's
+>   size — *"better than being too clever with dynamic"*. His order:
+>   **GARAGE · CAR · ADVISOR · SERVICE · PLAN** (`a2ff2ac`). The car's page
+>   is the Car tab's root; a bay or a car just added opens it; deep links
+>   to a car and its recalls seed it. Found while verifying: the tab pressed
+>   on a fresh launch with no car in hand crashed the app (`route.params`
+>   read bare) — it goes through `withCar` now like the other three; the
+>   floating ACCOUNT sat on ADD PHOTO — the page pads by the slot as the
+>   garage does.
+> - *"It's unclear that within scan invoice is ability to upload invoice."*
+>   Service: ADD AN INVOICE over SCAN and UPLOAD; UPLOAD opens the invoice
+>   screen straight into the library (`a2ff2ac`).
+>
+> - *"It's a critical section and it looks disorganized and hard to
+>   follow"* — the car page on the reviewer's F-PACE. The HEALTH cell had
+>   been graded on a stale one-liner and shipped a current reading's whole
+>   summary: six lines, a void beside it, the counts under the fold. The
+>   cell is an instrument again; the sentence's lead is the check-control
+>   line under the panel (`leadOf`, whole sentences); TIRES left its lone
+>   `BandRow` for the panel's third row. Drift §6.19.
+> - *"Run design critic loop over new page until it hits a 9."* Rounds
+>   47–50 on a fixture that can finally show a current reading: 7 → 8 → 8
+>   → **9**, `Continue: no`. The arc in the HEALTH cell (B3), the grade
+>   holding a daylight photo (B9), no chevron on the root (B8), the
+>   bevel's hairline (B2), section heads at the web's 17 (B1), the panel's
+>   floor at 80. The one 🟡 left is the plate's cut at its dark foot —
+>   the plate/sheet seam, for Design. Drift §6.20; `critique-47.md` …
+>   `critique-50.md`.
+> - *"The '1 of 3' needs to be bigger, more obvious … not clear to tap,
+>   swipe."* The garage's batten is a rail above the pager — BAY 01 · BAY
+>   02 · BAY 03 in the tab rail's construction, the lit one where you
+>   stand, each a tap to that bay — with the door CAR › at its end
+>   (`cc9b148`). Seen on the simulator with one car; the three-bay rail
+>   is the reviewer account's to see on the phone.
+> - Found on the way: a PNG from the library is refused at 7.3 MB against
+>   the 1.5 MB limit with copy that says to take one at a lower resolution
+>   — the picker's quality applies to JPEG and a PNG passes through
+>   untouched. The fix is a re-encode in `pick-image.ts`; board.
+>
+> Open from the walk: **multi-page invoices** (page 2 of a Dinan invoice
+> took 28 s; the durable shape is accept → file the row → extract in a
+> background function → narrate the poll); the reviewer account has still
+> never been opened by a person on a phone; the advisor's name is David's
+> call. Not yet re-walked on the device: the sticker at arm's length, READ
+> A PHOTO, the Done bar, the interval offer, the five tabs, SCAN · UPLOAD.
+>
+> ### ⚠ 21 Sep 2026, afternoon — the first device build, and what a real phone found
+>
+> **The device build exists.** `eas build --profile device` run twice today,
+> David at the keyboard for Apple's half (personal team `P4873P8FQ9`,
+> profile `FYKGD5RXT7`, certificate `…408655` and push key `YY6GZ4J4H5`
+> reused, App ID registered — the portal work Apple said the migration
+> would block). The first build (`e287d62f`) crashed at dyld: the
+> precompiled `ExpoCamera 57.0.5` wanted a `willDestroy` that
+> `expo-modules-core 57.0.8` did not export — the drift `expo start` had
+> been warning about. Packages aligned (`4a3f038`, core 57.0.18), rebuilt
+> non-interactively (`b7a9f6e9`), installed over the cable and launched
+> with the console attached: it runs. The reviewer account was seeded the
+> same morning (`scripts/seed-review-account.mjs`), its health summary
+> regenerated to 88 with the preamble gone from every recommendation on
+> every car, and the reply to Apple Developer Support sent (case
+> 102969823175 — "we're ready").
+>
+> **David's walk on the phone, and what it found** — every one fixed the
+> same afternoon, all phone JS except the last:
+>
+> - The sticker scan took several tries: the corner brackets framed the
+>   whole feed, so the label was held at arm's length and the barcode was
+>   half the frame wide. The frame targets a barcode-shaped band now and
+>   the copy says how close (`0b89073`).
+> - The research log stayed open after the work — a screen's worth above
+>   the car's page with nothing to close it. Settled, it folds to one row
+>   and opens on a tap; a failure never folds (`ac1fb46`).
+> - A two-page Dinan invoice: page 2 took the server 28 s, the phone gave
+>   up at 30 and said "try again" while the server finished and filed 16
+>   lines. Ninety seconds now, and a timeout never invites a rescan
+>   (`c187717`). **Multi-page invoices** are a board item, and the durable
+>   shape for both is the research runner's: accept, file the row, extract
+>   in a background function, narrate the poll.
+> - Larger Text one notch either way and "the app looked totally broken"
+>   — every designed row clipped. The app's own `Text` scales sizes by the
+>   system multiplier clamped to [1, 1.35]; the accessibility sizes are a
+>   stated cap, and the honest version (a layout that reflows) is a design
+>   decision not yet made (`cce09d9`, 76 files).
+> - The paywall's bar sat under the Dynamic Island, and its headline said
+>   "Three features" over four rows (`8c1ff05`).
+> - The deletion screen told the App Review account "your subscription is
+>   billed by Apple, cancel it first" — a comped grant, nothing billed.
+>   `/api/v1/account` says who bills (`63005b6`, live on `80cbcce3`).
+>
+> Walked and sound: push token minted on the device, the sticker decode
+> to a saved car (2015 Forester, research complete in 50 s), the advisor
+> reasoning from an invoice filed ten minutes earlier, `tappet://` from
+> Safari, background and resume. Open from the walk: the "GOOD" word under
+> the garage dial looked mis-padded on the phone (not reproduced on the
+> simulator — a screenshot is needed); manual records from one visit list
+> as separate visits (the seed's shape, low).
+>
+> ### ⚠ 21 Sep 2026 — the two night threads audited and promoted; the physical device is next
+>
+> The onboarding redesign (`3d611c5`, `74920bd`, `330bc38`) and the tire
+> tracker (`014e268`, `2003788`, `5ed6ed3`, `61b889c`) were committed by
+> their own threads with explicit pathspecs and never pushed. Audited
+> together on the morning of the 21st, from a clean tree at `330bc38`:
+>
+> - **Green, all of it.** Root 234/234 (4,093 tests), mobile 50/50 (868),
+>   three typechecks clean, no lint error in any file the two threads
+>   touched. The one mobile failure on the first full run was the CPU-load
+>   flake (GarageScreen at 14.6 s, 15 GB of swap in use) and passed alone
+>   and on the rerun — the memory note, not the code.
+> - **No conflicts with the QE fixes of the 20th.** The four files both
+>   sides touched read as one: `RootNavigator` carries the QE `INVOICE`/`RECORD`
+>   title beside the four onboarding doors and the tire stack; `VehicleDetail`
+>   adds `/tires` as a fourth request on the full load and keeps the lean
+>   reload at one; `Working` draws a mono answer (the VIN) beside the sentence
+>   answers; `screens-refetch-on-focus` lists `TiresScreen` with the quiet
+>   gate; `no-vin-recall-claims` already reads `DescribeCarScreen`, which
+>   says "year, make and model are enough … to match its recalls" (§10).
+>   `POST /api/v1/vehicles` inserts the onboarding's `vin` and the QE's
+>   `vehicle_status: null` in one body — the fresh-account walk's rows
+>   (`vin = JH4KA…`, `vehicle_status null`) are both threads' work landing
+>   in one row.
+> - **JS and API only.** `package.json` is untouched on both sides; the one
+>   native-config change is `NSCameraUsageDescription` naming the VIN barcode
+>   (`app.json`). Expo Go runs every screen; the barcode read runs in Expo Go
+>   on a real phone (the simulator has no camera); the string reaches a
+>   binary only with the next EAS build.
+> - **Promoted: `web-live` serves `50455231`** (curled), carrying the tire
+>   routes (`/api/v1/tires` → 401 unauthenticated, 400 on a malformed id),
+>   the sweep's tire half, `just-done` in the baseline (the onboarding
+>   thread's "waits on a promote" — it no longer does), `/tires/:vehicleId`
+>   behind the middleware (307 to login), and the QE paywall key
+>   (`0dde57e`).
+> - **⚠ The tire tables do not exist on the host.** `tire_sets` and
+>   `tire_rotations` answer 404 (PGRST205); `check-migrations` reads both
+>   20 Sep tire migrations NOT APPLIED. Until David runs them the phone and
+>   web say "Tire records are not switched on yet" and the sweep skips the
+>   tire half with one warning a night — honest, and exactly the shape a
+>   reviewer would file as "feature does not work". **Apply before
+>   submission**, with `20260920120000` (the `vehicle_status` default).
+> - **⚠ No EAS build exists for Tappet at all.** `eas build:list` for
+>   `@masterson303/tappet` is empty (21 Sep); the 22 Aug dev client was the
+>   CrewChief slug. `docs/runbook-eas-device-build.md` is still the one
+>   build, still David's (Apple sign-in, team `P4873P8FQ9`), and it now also
+>   carries the camera string above. Nothing in either thread moved that
+>   gate; both are free on the far side of it.
+>
+> **Testing on the physical phone today, before any build:** Expo Go on the
+> iPhone, on the same Wi-Fi, against Metro on the Mac — every screen of both
+> features, including the sticker scan, and the API is `web-live`:
+>
+> ```
+> cd /Users/dm/Developer/crewchief/apps/mobile && npx expo start
+> ```
+>
+> then scan the QR from Expo Go (or open `exp://192.168.12.169:8081`). What
+> Expo Go cannot do stays what it was: the paywall says the store is not
+> available, and a push token may not mint.
+>
+> **For the store, in order:** the three migrations → the device build (the
+> runbook) → the reviewer walk on that build, now including ADD CAR by
+> sticker, by typed VIN and by description, JUST DONE, and TIRES → review
+> notes updated for those four (the reviewer account's password is in the
+> notes; a typeable one is worth setting first — see the 20 Sep evening
+> entry) → `production` profile and `eas submit`. The camera prompt the
+> reviewer sees is the new string; the tire blurb claims no outcome
+> (2.3.1, `paid-features.ts`); tires are free by the rule in that file.
+>
+> ### ⚠ 20 Sep 2026, night — adding a car is two screens, and the car identifies itself
+>
+> Cowork's brief (`Claude outputs/ONBOARDING_REDESIGN_2026-09-20.md`): the
+> phone's add form is gone; the first screen is doors and the car reads its
+> own number. **Commit A is on `main` (`3d611c5`)** — JS-only, no route, no
+> build — and its three premises were checked against the artefact first:
+> `vehicles.vin` is nullable and UNIQUE (two dry inserts: `23505` on the
+> duplicate before `23503` on the FK); the research reads `year, make, model`
+> — **trim is not loaded** (`lib/research-job.ts`), so the brief's
+> "year/make/model/trim" overstated it and the argument survives on the
+> strings alone; the research log is live.
+>
+> - **Screen one** (`AddVehicleScreen.tsx`): the web's VIN plate under the
+>   header, then the doors as bands — SCAN THE STICKER and TYPE IT. **No form
+>   field in any state**, asserted by render and by a root source scan with
+>   an anti-vacuous control (`first-run-doors.test.ts`). PHOTOGRAPH A
+>   DOCUMENT lands with `/api/v1/vin-from-image` (§8; Commit B).
+> - **The sticker door** is `Viewfinder` in barcode mode (code39 / code128 /
+>   datamatrix / pdf417; `vinFromBarcode` strips the label's sentinels and
+>   prefers the window whose check digit agrees; one haptic; delivery paused
+>   after a read; the tab bar stands down). **JS-only as far as this machine
+>   can show**: `expo-camera` 57 routes *all* scanning through the optional
+>   `ExpoCameraZXingProvider` pod, which is in Expo Go 57.0.5's binary and
+>   autolinks for EAS. The simulator has no camera — **the first live read is
+>   the phone's, and it has not happened yet.**
+> - **The typed door** is the web's hero field (64pt / 24pt mono, the cyan
+>   ramp a real `progressbar`); "I don't have the VIN" lives here, not on the
+>   doors. **The decode narrates** (`DecodeLog`, `decodeStages`): CHECKING THE
+>   NUMBER → the check-digit verdict / ASKING NHTSA WHAT THAT IS → the car as
+>   one sentence with its engine — every line a completed step, `decodeVin`
+>   now names *which* failure — and the named car is confirmed with THAT'S MY
+>   CAR before it becomes the row's unique key (one line to remove if it
+>   proves a speed bump).
+> - **Screen two** (`OwnerAnswersScreen.tsx`): the car in condensed caps,
+>   build and number in mono, the odometer (the only keyboard), the mods
+>   fork, one chip row — JUST DONE added to `BASELINE_AGE_OPTIONS` (one month,
+>   err old; sends the odometer as the service mileage), 6–12 MO kept because
+>   it is the band an oil change is most likely due in.
+> - **Walked live on a fresh account** (`crewchief.support+vin-onboarding-qe@`,
+>   created and deleted through the admin API, `design-loop/onboarding/
+>   live-run-2026-09-20/`): typed `JH4KA7561PC008269` → "1993 Acura Legend
+>   L, 3.2L V6." → THAT'S MY CAR → 128,500 · JUST DONE → saved. Rows:
+>   `vehicles.vin = JH4KA7561PC008269`, `performance_mindedness mild`,
+>   `vehicle_status null`; the baseline `mileage_at_service 128500`; the
+>   garage read "Engine Oil and Filter Change in 5,000 mi"; the plate drew
+>   and the research completed on the car's page. `ai_usage_events` was
+>   **empty at the save** and held only the research's two rows afterwards —
+>   the door is free, the dossier is metered as it always was. Then the
+>   reviewer's Accord VIN from the same account: **"A car with that VIN is
+>   already in a garage."** on screen two, answers kept, nothing saved (the
+>   22 Aug bounce is closed); a nonsense number: **NOT IDENTIFIED** with the
+>   reason and two ways on; DESCRIBE THE CAR INSTEAD opens the old fields
+>   with the number carried AS READ. Everything reverted.
+> - ⚠ **JUST DONE's date needs a `web-live` promote.** The baseline row came
+>   back `service_date: null`: `isBaselineAge('just-done')` is false on the
+>   deployed API, so it records the mileage and drops the age until the core
+>   change in `3d611c5` is promoted. Graceful, and exactly §8's shape — the
+>   phone ahead of the API. **The promote is David's; Commit B waits on it
+>   anyway.**
+> - ⚠ **Two things eat taps on the simulator MCP tool**: `simctl recordVideo`
+>   and a screenshot burst — every tap sent while either ran was lost, and
+>   taps sent under swap pressure land 5–15 s late (this Mac has 8 GB and was
+>   16 GB into swap with two simulators, a Metro each and the Cowork VM; the
+>   swap is what filled the disk to 43 MiB twice). One tap, a long settle, a
+>   native `simctl io screenshot`, and never `openurl booted` with two
+>   devices up — it picked the other session's target. A scaled MCP
+>   screenshot also rendered the VIN plate as black while the native capture
+>   showed it; verify at native scale before calling a frame blank.
+> - **Not yet:** the sticker read on a phone; the design loop's BRIEF round
+>   (`design-loop/onboarding/`); Commit B.
+>
+> ### 20 Sep 2026, night — the tire tracker (v1.1) is built; the migrations and six calls are David's
+>
+> Cowork's brief (`CLAUDE_CODE_PROMPT_tires_v1.1`, 20 Sep) opened with a gate —
+> *do not start before submission* — and David, told the gate was closed,
+> said build it. Built and committed in one commit, `014e268` (42 files),
+> against the graded frames in `design-loop/tires/` (8/10, round 4). ⚠ That
+> folder is **gitignored** (`.gitignore:92`, deliberately — the loop's PNGs
+> must not ship in the EAS upload), so the brief's "committed alongside this
+> file" is not true: the specification lives on this disk and in the Cowork
+> project only. Back it up there before it goes stale.
+>
+> - **Core** — `packages/core/src/tires.ts`: every figure on either screen
+>   and the axis it is drawn on derive from one object; `tires.test.ts`
+>   carries the axis ratchet (interval 7,000 moves the run *and* the
+>   caption; the round-2 failure is reconstructed so the proof has failed
+>   once). The interval is asked, never assumed — no default anywhere
+>   (`service-due.ts`'s argument, applied). `FREE_FEATURES` gains `'tires'`;
+>   the upsell sentence now reads *"…mileage tracking, health score and tires
+>   stay free"* because it is derived, and the two suites that pin the list
+>   moved with it.
+> - **Schema** — ⛔ **`20260920200000` and `20260920200100` are written and
+>   NOT applied** (probed: `PGRST205` on both tables, 20 Sep). Yours, in the
+>   SQL editor; `check-migrations.mjs --pending` lists exactly these two.
+>   Until then every tire route answers a named **503 `tires-unavailable`**,
+>   the phone and the web say "Tire records are not switched on yet" with no
+>   retry, the hub's TIRES door draws no figure, and the sweep logs **one**
+>   warning a night and skips the tire half. Nothing else is affected.
+> - **Sweep** — the third notification kind, in the existing
+>   `notify-sweep` with the shared cap and cooldown. Fires only when the
+>   *owner* entered the interval and the set is past it; stamps
+>   `tire_sets.rotation_notified_at`. The sentence is the brief's, verbatim,
+>   and it branches honestly for a set that has never been rotated.
+> - **Phone** — `Tires` under the car (hub row between the readings and the
+>   switches, not a fifth binnacle cell: `BINNACLE_CELL_MIN` is 96). Plate
+>   268, strip, title, `StripOdometer`, record rows with provenance marks,
+>   the staggered consequences, three entry screens, deep link
+>   `vehicle/:vehicleId/tires` held by `push-notification-links.test.ts`.
+>   `StripOdometer.test.tsx` proves the ratchet on rendered geometry —
+>   78.83pt, the critic's number. **Web**: `/tires/[vehicleId]` from the
+>   dashboard's rail (`DashboardNextSteps`), off-nav like Vehicle Info,
+>   protected in `PROTECTED_ROUTES` and the middleware matcher.
+> - ⚠ **Not yet seen on a device.** The disk filled twice during the build
+>   (the Cowork VM bundle and OS-update snapshots — not the simulators) and
+>   the 16 Pro Max was the onboarding session's, so the composition has been
+>   proven by tests and never photographed. The brief's own warning stands:
+>   *shoot it once with a real graded plate before you trust the balance* —
+>   `EXPO_PUBLIC_DESIGN_FIXTURES=1` serves the worked dataset on the M235i
+>   (`=interval` and `=tires` in `EXPO_PUBLIC_DESIGN_EMPTY` for the other two
+>   states).
+> - **Order of operations, unchanged by any of this:** apply the migrations →
+>   `promote-web` (the phone's `/api/v1/tires` must be live before a build
+>   calls it, CLAUDE.md §8) → `promote-demo`. No build is spent: everything
+>   here is JS.
+> - **Still David's, and deliberately not resolved by a default** (the
+>   brief's list, unchanged): `01` is a rank that renumbers on every add;
+>   `OFTEN HALVED` vs the sourced figure; a maximum length for `place` at
+>   entry; a visible "fitment checked" line; a legend for the three marks
+>   (the row's spoken label carries it meanwhile); *since* vs *past* for the
+>   11,400. Each is one function and its test.
+>
+> ### ⚠ 20 Sep 2026, evening — every QE finding fixed, and proven on the host
+>
+> - **§1 and §2 of the QE report, all of it, on `main` and on `web-live`
+>   (`050e2df5`).** Sixteen commits `655a63c`…`83b60ec`; the report's new
+>   *Resolution* section is the table — commit, guard, live check per
+>   finding. The shape of the fixes, since they will be read as precedent:
+>   a focus refetch is **quiet** (`load(false, true)` keeps what is on
+>   screen — `screens-refetch-on-focus.test.ts` pins every subscribed
+>   screen's gate); a write **reloads quietly** and re-seeds local state from
+>   rows; mark-done **writes the odometer, re-projects and stamps the score
+>   stale** (`mark-done-closes-the-loop.test.ts`); the bay **refuses a stale
+>   reading** and the car re-reads one on open; a **`CrashBoundary`** at the
+>   root posts to `/api/v1/client-errors` (`CLIENT_CRASH` in the function
+>   logs — the only crash reporting until a native SDK earns a build);
+>   the advisor's starters come **from rows** (`advisor-starters.ts`:
+>   service due, worst issue, largest open recall system, slot-wise
+>   generics); `vehicle_status` is **null unless asked** (migration
+>   `20260920120000` drops the default — **David's to apply**; both inserts
+>   already write null); the Account row is **a status** (`subscription-
+>   status.ts` — "renews" only when Apple's flag says so); NHTSA's pre-2011
+>   capitals are **lowered to sentences** (`unshout.ts`, phone and web) and
+>   the recall card is **memoised** (one tap, one render — the test reads
+>   three with the memo removed); the request layer **joins an in-flight
+>   GET and retries a read once** on offline/502/503/504, never a write,
+>   never a timeout.
+> - **Proven live, not read:** the M235i's stale score (bay notice → 70 FAIR
+>   → 82 GOOD in ~4 s, row stamped); back-navigation on a 45-frame burst
+>   with no instrument; the Accord's oil change marked done from the plan —
+>   `mileage_at_service 170000`, costs `null`, next service moved to Tire
+>   Rotation, score re-read to 52 — then reverted. Four more defects found
+>   *by* the proof and fixed the same hour: the mark-done sheet opened blank
+>   and kept the last item's draft (mounted once with the screen — keyed
+>   now, `33d164f`), its sentence ran off the screen, "1 service record
+>   were filed", and two casing slips in the derived copy.
+> - **Deliberately not done:** `expo-image` and a crash SDK (native — a
+>   build each); a FlatList for the recalls (a section of Health's
+>   ScrollView, R16 — memoised instead until a sixty-campaign model scrolls
+>   badly); the §4.1 journey smoke test (needs the reviewer password as a CI
+>   secret — David's call).
+>
+> **Still yours:** apply `20260920120000`; the reviewer mailbox and email
+> change; the ledger question; the fresh-account run — **with the reviewer
+> account signed in on the phone, which nobody has done yet** (every proof
+> this week was on David's account; its entitlement row was proven against
+> a function, not a screen); the metering migration; `xcrun simctl
+> status_bar 512B450F-… clear`. §4.1's smoke test gets **a dedicated CI
+> account seeded like the reviewer's, never the reviewer's password** —
+> the repo is public, a workflow log is permanent, and that one credential
+> leaking is a conversation with App Review (Cowork, 20 Sep).
+>
+> ### ⚠ 20 Sep 2026, afternoon — the QE report, and removing a car removes its receipts
+>
+> - **`MOBILE_QE_REPORT_2026-09-20.md`** — a static sweep, a reachability
+>   audit and a live walk of every reversible action on David's account, each
+>   write verified in the database. Six fix-before-submission findings, the
+>   worst being **every focus-subscribed screen blanks to its loading state on
+>   every back-navigation** (a spinner on every return — the brief's opposite),
+>   **marking a service done does not move its due date** (no mileage written,
+>   no re-projection, no re-score), **no error boundary in the app**, and
+>   **the garage bay draws a stale or neutral score as a reading**. Also: the
+>   add form's "every recall filed against it" (VIN — §10), the advisor's three
+>   static "questions about this car", a DB default shown as the owner's
+>   answer, the Account screen never saying whether you are subscribed. §4 of
+>   the report is the answer to "how can we be sure": a journey smoke test on
+>   the reviewer account after every promote, asserting rows.
+> - **Removing a car removes its receipts (`ef58f6f`, live on `bd9e8c33`).**
+>   Cowork's LEG-09 brief: David's policy sentence — *delete the vehicle and
+>   its receipts go with it* — named an action the phone did not offer and the
+>   web did not perform. Probed first: the web's `deleteVehicle` left a probe
+>   receipt in the bucket after its row was gone; account deletion's private
+>   purge removed one. One path now — `lib/vehicle-deletion.ts` (objects
+>   first, refused if any cannot go, then the row), `lib/storage-purge.ts`
+>   shared with account deletion, `GET|DELETE /api/v1/vehicle-removal`, and
+>   the phone's `RemoveVehicleScreen`, whose confirmation quotes rows ("4 open
+>   recalls · 4 service records · 1 receipt photograph · its health score and
+>   maintenance schedule"). **Proven on the host:** a Mazda3 added, scanned
+>   and removed from the phone — object present before, absent after; the
+>   web action on a probe car — same; account deletion on a throwaway user
+>   — same. The bucket holds only the M235i's folder; nothing had leaked
+>   historically. `ai_usage_events.vehicle_id` is SET NULL by its migration
+>   and stays so: the spend survives, the identity does not.
+>   **The policy sentence may be published.**
+> - **The research poll tripped the default limiter on its first end-to-end
+>   run (`b4482b2`)** — three requests a poll was 72 a minute against 60, and
+>   the score's line read "Too many requests". The stated-failure design
+>   worked; the failure was real. A quiet reload is one request now.
+>
+> **Still yours:** make `appreview@southmoordigital.com` at iCloud, then the
+> admin-API command in the reply, then App Store Connect's review credentials;
+> the ledger question (restore the CLI ledger, or formalise the probe in
+> CLAUDE.md §2 — Code recommends formalising); the fresh-account run with Code
+> driving; the metering migration `20260917120000`; the QE report's §1 items,
+> in the order it lists them; `xcrun simctl status_bar 512B450F-… clear`
+> after the shoot.
+>
 > ### ⚠ 17 Sep 2026 — the advisor's failure states, and what the demo actually spends
 >
 > From Cowork's 14 Sep prompt ("keep it live, tighten the cap, fix the failure
@@ -28,13 +1039,15 @@
 >   "budget exhausted, demo" message for the advisor describes a path that
 >   cannot spend. Not reversed — that would need David's word.
 > - **`DEMO_BUDGET` bounds the demo *quote*** (`generateQuoteRequestV2`, two
->   calls at default thinking), not advisor turns — and **neither quote call
->   is metered**, so the ceiling reads a gauge those calls never write. The
->   constants are cut 5× as decided (60k / 300k, ≈ $0.45 / $2.25) and the
->   docblock says exactly this; `ai-budget.test.ts` reads its arithmetic back.
->   `checkDemoBudget` now reads `surface = 'demo'` only, so the front door and
->   the canary stop spending the demo's allowance. The meter is a task chip —
->   it needs a purpose migration, which is the SQL editor.
+>   calls at default thinking), not advisor turns — and, that morning,
+>   **neither quote call was metered**, so the ceiling read a gauge those
+>   calls never wrote. The constants are cut 5× as decided (60k / 300k,
+>   ≈ $0.45 / $2.25) and `advisor-failure-states.test.ts` reads the
+>   docblock's arithmetic back (this bullet first named `ai-budget.test.ts`,
+>   which pins the floor, not the lines). `checkDemoBudget` now reads
+>   `surface = 'demo'` only, so the front door and the canary stop spending
+>   the demo's allowance. **The meter landed the same afternoon** — the block
+>   below — and needs one SQL-editor trip before it writes a row.
 > - **`/api/health/consultant` and `/api/health/ai` are live on both hosts.**
 >   `{"error":"Not found"}` is the route's own 404 for a caller without the
 >   secret (`route.ts`, "an unauthenticated caller should not learn that a
@@ -63,10 +1076,159 @@
 > lib/__tests__/advisor-failure-states.test.ts   proven red twice, then green
 > ```
 >
-> **Not promoted.** Both hosts still serve the 14 Sep builds; the demo's
-> "Sorry, I encountered an error" is live until `promote-web` then
-> `promote-demo` (CLAUDE.md §8). No new `/api/v1/*` route, so the phone needs
-> nothing promoted first.
+> **Promoted 17 Sep, on David's word**, and read back from the hosts:
+>
+> ```
+> web-live    faf8fffe   built 17 Sep 16:47 UTC   tappet.southmoordigital.com
+> demo-live   f79b2d58   built 17 Sep 16:52 UTC   tappet-demo.davidmasterson.co
+>             POST /api/v1/consultant, demo car, off-list question → 422
+>             {"code":"demo-unanswered"} on both; the rendered demo thread
+>             shows the sentence as a failure turn — no byline, no disclosure
+> ```
+>
+> ⚠ `promote-demo` refused once — "tests failed twice" — while the metering
+> task's session was running its own jest in `.claude/worktrees/`. Direct run
+> seconds later: 218 / 3713 in 5.7 s; the rerun promoted. The gate's two
+> starved runs are the 11 Sep flake wearing a promote, not a regression.
+>
+> **Landed 18 Sep:** the quote-path meter (`98096e5`, from the session
+> spawned here). ⚠ **Its migration is the SQL editor —**
+> `20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql`;
+> until it is applied the three new purposes fail the CHECK and are dropped
+> with `AI_USAGE:WRITE_FAILED`, and `DEMO_BUDGET` still cannot trip. Neither
+> host carries any of this until a promote.
+>
+> **Cowork's demo-mode question, answered from the tree** (`Claude outputs/
+> CLAUDE_CODE_REPLY_demo_and_aso_2026-09-17.md`, 17 Sep). The phone has no
+> demo: first launch is `SignInScreen`, and `apps/mobile` never calls the API
+> anonymously. `access.ts`'s four states are a policy table nothing enforces —
+> `permits()` has one consumer, the web's demo copy. What enforces is the
+> feature gate (off; advisor / dossier / invoice-scan when on) and demo
+> read-only. **"A lapse drops to read only" is unimplemented**, and with the
+> gate on **four model paths stay free**: `generateVehicleHealthSummary`,
+> `fetchPowertrainOptions`, the quote's two calls, `performance-stats`. Fixed
+> today (`6d11d2b`): the route dropped `isSample`, so a sample reached any API
+> client unlabelled — forwarded now, and the phone renders the web's label;
+> and `featureUpsellMessage` called recall alerts free 18 days after they
+> moved to paid — derived from `FREE_FEATURES` now. **David's fork:** build
+> the 30 Aug read-only rule (+ a phone demo garage), or keep the free garage
+> the binary has and say so in the register; either way gate the four model
+> paths before the switch flips. The listing draft names no free tier but
+> says "recalls for your VIN" twice — year/make/model (§10).
+>
+> **The fork is decided — B, and the gate (David, 17 Sep, via Cowork).** The
+> free tier stays: **free = garage · service log · mileage; paid = advisor ·
+> recalls · invoice scanning · dossier.** It reverses 30 Aug's "no free tier"
+> because that decision's premise dissolved rather than being overruled: it
+> was about cost, and with every model path behind `checkFeatureAccess` an
+> unpaid account costs nothing that calls a model. A lapse drops to the free
+> tier, not to read-only. Built the same day:
+>
+> - **Two of the four ungated model paths are gated** — powertrain options →
+>   `dossier`, performance stats → `dossier` — each below its cache read so a
+>   lapsed owner keeps what the row holds, each returning E6's wire.
+>   `model-paths-behind-the-gate.test.ts` reads every function's *body* and
+>   `performance-stats.test.ts` mounts the refusal.
+> - **The fourth — the quote's two calls → `advisor` — landed 18 Sep**
+>   (`98096e5` merged the metering session's `c53b852` clean; the gate sits
+>   in the owner branch above the budget, demo untouched; guard proven red).
+>   All four model paths that were outside the gate are now behind it, and
+>   the health score is the one model call deliberately in front of it.
+> - **Health scores are FREE** — David, the same evening, with the number in
+>   front of him. The score was gated under the advisor for about two hours
+>   because "gate the four" was executed as written; it is
+>   `generateVehicleHealthSummary`'s own `healthScore`, the garage card's
+>   ring, "the free product's whole face" (`pricing.ts`), and without it the
+>   free tier is a spreadsheet with a car photo. 274–789 output-equivalent
+>   tokens a summary, half a cent, once a car a day, bounded by
+>   `FREE_MONTHLY_COST_USD`. **Final split: free = garage · service log ·
+>   mileage · health score; paid = advisor · recalls · invoice scanning ·
+>   dossier (incl. powertrain options and performance stats).** Derived, not
+>   hand-edited: `health-score` is in `FREE_FEATURES`, so the paywall's free
+>   list and the refusal's kept clause carry it; the advisor's blurb is back
+>   to the advisor and `model-paths-behind-the-gate.test.ts` fails if any
+>   paid blurb ever names a free feature (one destination mention allowed,
+>   listed) or if a gate reappears in the health summary — both proven red.
+>   Slot 1 stays the garage with scores, captioned free.
+> - `access.ts` rewritten for B (the table, the copy, a guard that it agrees
+>   with `paid-features.ts`); `pricing.ts`'s "SUPERSEDED 30 Aug" section and
+>   `paid-features.ts`'s "no free tier" docblock replaced; the advisor's
+>   paywall blurb names the health score it now sells (product copy —
+>   David's to re-word).
+> - Still E8: the sweep does not read `RECALL_ALERTS_AFTER_LAPSE`; no write
+>   path needs gating any more, by decision.
+>
+> **Item 1 closed, 17 Sep 17:45 UTC.** `web-live` **1d069e00** carries the
+> product pair's `[[redirects]]`; both old hosts 301 to the primary (GET and
+> POST alike), the primary serves 200. The demo stays on **f79b2d58** — the
+> rules are host-scoped and inert there, so no build was spent on it.
+>
+> #### 17 Sep, afternoon — the quote writes the meter it is read against
+>
+> Four premises from the morning's handoff, each checked against the artefact
+> before anything was built, and all four held — plus a fifth the check
+> turned up:
+>
+> 1. `ai_usage_events` had **490 rows and none from the quote path**
+>    (PostgREST, `SUPABASE_SECRET_KEY`): nine purposes from 2 Aug plus one
+>    `quote_check`. `estimateCosts` and `generateEmailDraft` followed neither
+>    `generateContent` with `recordAiUsageInBackground`.
+> 2. So `checkDemoBudget` summed rows the demo quote never wrote.
+> 3. The owner branch of `generateQuoteRequestV2` had **no
+>    `checkMonthlyBudget`** — and `every-generation-has-a-ceiling.test.ts`'s
+>    `CEILING_ELSEWHERE` said it did, because it checked that the *file*
+>    contained the word. `app/actions.ts` contains it eleven times.
+> 4. `paid-features.test.ts` "leaves the demo consultant ungated" sliced from
+>    an anchor at line 6807 to one at line 1280: the empty string, green
+>    since 30 Aug on nothing.
+> 5. **`validateConsultantDocument`** — the consultant's upload check, a
+>    vision call — was in the same shape as the quote: no meter, no ceiling
+>    in its caller, and the same file-level `CEILING_ELSEWHERE` entry
+>    vouching for it. Found by making that test read the calling function's
+>    body, which is what it now does.
+>
+> What shipped:
+>
+> ```
+> packages/core/src/ai/usage.ts             quote_estimate · quote_email ·
+>                                           document_validation
+> supabase/migrations/20260917120000_…      the CHECK, redefined — ⚠ David's SQL trip
+> app/actions.ts                            both quote calls at LOW via withThinking,
+>                                           metered with the caller's userId + vehicleId
+>                                           threaded in (QuoteCaller); the owner branch
+>                                           checks checkMonthlyBudget; uploadConsultantDocument
+>                                           checks it; validateConsultantDocument is metered
+> packages/core/src/ai/budget.ts            DEMO_BUDGET's arithmetic re-derived:
+>                                           27 quotes/day, 136/month of ~2,200
+> every-generation-has-a-ceiling.test.ts    CEILING_ELSEWHERE names the caller and reads
+>                                           its body, comments stripped; a second scan
+>                                           requires a meter in every calling function,
+>                                           no exemptions — both proven red on HEAD's tree
+> paid-features · demo-quote-generation ·   re-anchored, non-empty, branch-precise;
+> advisor-failure-states · ai-budget        the docblock and its assertions moved together
+> ```
+>
+> **Measured, not guessed** (14 Flash calls, ≈ $0.12, nothing written): a
+> three-item quote on the Accord demo car cost **~3,370** output-equivalent
+> tokens as shipped — three-quarters of it thinking at a level nobody set —
+> **~2,220 at LOW**, ~740 at MINIMAL. Every sample validated; across eleven
+> estimates the totals ran $447–534 low and $856–968 high with no level
+> standing apart. LOW on both, the consultant's level. Not MINIMAL: one
+> MINIMAL email put markdown bold into a body `EmailDraftDisplay` shows in a
+> `<pre>` and copies verbatim. One sample is a reason, not a finding; the
+> numbers are in the call-site comments for the re-tune.
+>
+> ⚠ **Until the migration is applied, the meter is still empty.** Every
+> quote and upload check runs exactly as before; each usage write fails the
+> CHECK, is dropped with an `AI_USAGE:WRITE_FAILED` warn, and the request
+> is unaffected. The rows — and the ceiling meaning anything — start the
+> day David runs it. **Not promoted**, same as the morning's block.
+>
+> Left as found, and worth knowing: `validateConsultantDocument` still runs
+> at the default config and thinking level. `lib/gemini.ts`'s
+> `classificationConfig` docblock names it as the motivating case and the
+> call never took it — a vision call nobody has measured, so nothing was
+> guessed.
 >
 > ### ⚠ START HERE — 14 Sep 2026, handoff into the mobile-feedback thread
 >
@@ -80,6 +1242,7 @@
 > main        this commit, tree clean, pushed (origin/main = HEAD)
 > web-live    976d1418   built 14 Sep 01:25 UTC   tappet.southmoordigital.com
 > demo-live   341f7e47   built 14 Sep 01:28 UTC   tappet-demo.davidmasterson.co
+>             ⚠ superseded 17 Sep — faf8fffe / f79b2d58, see the block above
 >             both carry everything on main except this block; /privacy and
 >             /terms read "13 September 2026" on both hosts, ® nowhere
 > suites      root 217 / 3672 (+1 skipped) · mobile 39 / 751 in band, exit 0
@@ -175,7 +1338,7 @@
 >
 > | # | yours | the action | unblocks |
 > |---|---|---|---|
-> | 1 | **The product-pair redirect** | Say **yes** (one word). Then Claude Code adds `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co` → `tappet.southmoordigital.com` as `[[redirects]]`, extends the guard, promotes `web-live`, and curls the old hosts. Safe: the only device build ever (22 Aug dev client) takes its API host from Metro's manifest, so no installed app writes to the old host. | the last two hostnames retired; nothing else waits on it |
+> | 1 | ~~**The product-pair redirect**~~ | **Done 17 Sep** on your yes: `[[redirects]]` for both, the guard retires the pair and checks the phone's two hosts, `promote-web` verifies its pair after the deploy. `web-live` **1d069e00**; `curl -sI` — both old hosts 301 to `tappet.southmoordigital.com` with the path kept, POST 301s too (why nothing may write there), primary 200. | the last two hostnames retired; nothing waited on it |
 > | 2 | **The device build** | `cd apps/mobile && npx eas-cli build --platform ios --profile device`, with Apple sign-in in the terminal — `docs/runbook-eas-device-build.md`. ⚠ Team **DAVID RYAN MASTERSON (`P4873P8FQ9`)**, never the employer's. Or make an App Store Connect API key on the personal team and hand it to `npx eas-cli credentials`, after which every build is Claude Code's. | B9's viewfinder + haptic natively; `expo-iap` on a real device (the paywall reads `none` until ASC has products); the phone off Expo Go |
 > | 3 | **Design rulings** in `docs/design-system-drift.md` | Read and rule, a word each: §6.1 Archivo Narrow for the `wdth` axis · §6.4 the dial's band colour · §13.1 two shared pieces the landing does not use · §13.2 the strip's em dash · §13.4 the card's hover chip (OPTIONS vs ADD PHOTO) · §14.1 B7 vs B9 on a card · §14.5 the Stock gauge as a second arc · §6.17's lot (LEARN MORE per row, REMOVE as a swipe) · §6.18's lot (a compact arc in the hub's HEALTH cell, the count band as rows vs cells, the tail height, a 16:9 plate). | the next loops stop re-litigating them |
 > | 4 | **Brief B1** | `design-loop/mobile-ios/brief.md` still says "No serif except the WK mark" (frozen 6 Sep, a day before the rename). Only you edit the brief. | an honest brief for the next iOS loop |
@@ -183,6 +1346,7 @@
 > | 6 | **Gemini prepay balance** | Already prepay (25 Aug) and it cannot go back. At **$0 every API key on the billing account stops at once** — the Postpay path does not catch it. ~$11 on 14 Sep at ~$0.66/day ≈ end of September. **Turn auto-reload on before submission day**; it is the only protection. (The $10/mo Developer Program credit is unproven against Gemini spend — watch its "percent remaining".) `lib/gemini.ts` says what the product does at $0: every model call throws; since 17 Sep the advisor answers **503 `advisor-unavailable`** — "retrying will not help, and we are alerted to it" — on both clients once promoted, and the canary names the balance in its CI detail line. | no model outage at review |
 > | 7 | **A fresh `MOBILE_TEST_TOKEN`** (+ `MOBILE_TEST_VEHICLE_ID`) | An access token from a signed-in session, in the environment, for `scripts/verify-mobile-contract.mjs`; it runs the two credentialed checks only with one and says NOT RUN otherwise. And the dev account in `apps/mobile/.env` answers `400 Invalid login credentials` — reset its password, or retire it. | the contract probe stops being partial; captures against real data |
 > | 8 | **Cowork's list, 14 Sep** | ✅ GitHub About (13 Sep, pairs with `c678dc2` as adoption-date evidence). ⏳ **Wayback saves — need you logged in** (Save Page Now refuses anonymous saves). ⏳ **Social handles — yours** (Cowork does not register accounts). ⏳ **Read `support@southmoordigital.com`** — Cowork sent a fresh test 14 Sep, and it is load-bearing now: Apple's D-U-N-S form requires an address on the company's domain, so D&B's confirmation and the number go there, never to Gmail. ⛔ Domain registrant → LLC: attempted, deliberately not saved (Namecheap's modal could not be read); WHOIS privacy is on, so this is ownership alignment, not exposure. | the D-U-N-S number arriving somewhere someone reads |
+> | 9 | **One migration, 17 Sep** | Paste `supabase/migrations/20260917120000_the_demo_quote_writes_the_meter_it_is_read_against.sql` into the SQL editor and run it. It swaps the `ai_usage_events` purpose CHECK for a superset (three values added); same shape as the 3 Aug one, which ran clean. Not time-sensitive the way the 2 Aug one was — nothing breaks while it waits — but **until it runs the demo quote's meter writes nothing** (each write fails the CHECK and is dropped with a warn), so `DEMO_BUDGET` stays a constant on an empty gauge and the D2 dataset misses every owner quote. Verify — after this change is promoted, since both hosts still serve the 14 Sep builds: a demo quote on `tappet-demo`, then `ai_usage_events` has `quote_estimate` and `quote_email` rows with `surface = 'demo'`. | the demo ceiling can trip; quotes and upload checks in the price dataset |
 >
 > Not yours, and deliberately not built: a launch-time IAP reconciliation
 > (`store.ts` says why), a phone entry point to the dossier (a product
@@ -982,8 +2146,10 @@
 > The operator is the LLC and the address is on its domain. Two things are not settled and
 > both are recorded in that file's header: **no company address appears in either document**,
 > and **the Apple membership is still Individual**, so the store listing will name David
-> while the policy names the company. Closing that is a D-U-N-S, a fresh enrolment and an app
-> transfer — not a code change.
+> while the policy names the company. Closing that is Apple's Individual → Organization
+> *migration request* on the existing membership (founder + D-U-N-S; documents may be asked
+> for) — not a re-enrolment, not an app transfer, and not a code change. Corrected 19 Sep
+> with the source in `lib/legal.ts`; the timeline is unknown and no number replaces the old one.
 >
 > ⚠ `LAST_UPDATED` is **30 August 2026** and that is a ship date. If the promote slips past
 > today, the constant and the pin in `legal-pages.test.ts` both move to the day it runs.
@@ -1191,9 +2357,10 @@
 > file is a promise until that promote runs; if it slips past 30 Aug, the date moves with it.
 >
 > ⚠ The Apple membership is still **Individual**, so the store listing names David while the
-> policy names the LLC. Closing that is a D-U-N-S, a fresh enrolment and an app transfer —
-> not a code change. And no company address appears in either document, because nobody has
-> given one.
+> policy names the LLC. Closing that is Apple's Individual → Organization migration request
+> on the existing membership (founder + D-U-N-S) — corrected 19 Sep, sourced in
+> `lib/legal.ts`; "a fresh enrolment and an app transfer" was unsourced and wrong. And no
+> company address appears in either document, because nobody has given one.
 >
 > #### ⏳ Incoming from Design — a six-part Well Kept package
 >

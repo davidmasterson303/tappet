@@ -1,6 +1,12 @@
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
+import Text from './Text';
+import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+  type BarcodeType,
+} from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
@@ -96,6 +102,32 @@ import Button from './Button';
  * the graphite beneath the frame, where `contrast.test.tsx` can measure it.
  */
 
+/*
+  ── 20 Sep · the same frame reads a barcode ─────────────────────────────────
+
+  The rebuilt first run's first door is this viewfinder pointed at the
+  certification label on the driver's door jamb, whose VIN is a Code 39,
+  Code 128, PDF417 or Data Matrix symbol. `barcodes` puts the frame in that
+  mode: `CameraView` is handed `barcodeScannerSettings` and `onBarcodeScanned`,
+  the capture control is not drawn — the read *is* the capture — and `beside`
+  takes the whole controls row. Everything else is the same frame with the
+  same readout, because it is the same act: the phone looking at the car.
+
+  ⚠ **JS-only, proven as far as this machine can.** `expo-camera` 57 does all
+  barcode scanning through an optional provider pod (`BarcodeScanner.swift`
+  returns before adding any output when `ExpoCameraZXingProvider` is not
+  linked). Expo Go 57.0.5's binary carries that class and ZXing's Code 39,
+  Code 128, PDF417 and Data Matrix readers, and nothing in `app.json` sets
+  `expo.camera.barcode-scanner-enabled` to false, so an EAS build links it by
+  default. What the simulator cannot do is scan — it has no camera — so the
+  first live read is the phone's, and `ScanVinScreen` records it.
+
+  Reads keep arriving while the camera is up, several a second for a symbol
+  held steady. The screen that owns the frame accepts one and pauses the
+  rest (`paused`), which hands `onBarcodeScanned` as `undefined` — the
+  module's own way of stopping delivery without tearing the session down.
+*/
+
 /** What the camera has told this component so far. */
 export type CameraState =
   /** Not running — the screen has not armed it (consent unresolved or declined). */
@@ -134,12 +166,26 @@ export const READOUT: Record<CameraState, string> = {
 /** The bracket's leg. ~24pt, the figure the plate's cut measured at 4×. */
 export const BRACKET_LEG = 24;
 
+/**
+ * The barcode band's zoom (21 Sep). A Code 39 VIN is ~55 mm wide; on the
+ * main lens at the closest distance it will focus (~15–20 cm) that is a
+ * sixth of the frame, below what the reader resolves, and David could not
+ * get a focus any closer. `zoom` is a fraction of the lens's maximum (about
+ * 16× on the wide camera), so 0.07 is roughly 2×: the barcode fills the band
+ * from a distance the lens is happy at, and the sensor crop keeps its detail.
+ */
+export const BARCODE_ZOOM = 0.07;
+
 export default function Viewfinder({
   live,
+  label = 'Photograph the invoice',
   onCapture,
   onCaptureFailed,
+  barcodes,
+  paused = false,
   beside,
   foot,
+  alternative = 'choose a photo from your library',
 }: {
   /**
    * Run the camera and draw the capture control. `false` keeps the frame on
@@ -148,14 +194,40 @@ export default function Viewfinder({
    * now" is never filmed for nothing.
    */
   live: boolean;
-  /** Handed the capture as the upload wants it, after the haptic. */
-  onCapture: (file: InvoiceFile) => Promise<void> | void;
+  /** The act, in the readout's left cell. */
+  label?: string;
+  /** Handed the capture as the upload wants it, after the haptic. Not drawn in barcode mode. */
+  onCapture?: (file: InvoiceFile) => Promise<void> | void;
   /** `takePictureAsync` rejected. The frame stays; the screen says what happened. */
   onCaptureFailed?: (caught: unknown) => void;
-  /** Drawn beside the capture control — the library secondary. */
+  /**
+   * Barcode mode: the symbologies to look for and what to do with a read.
+   * The capture control is not drawn — the read is the capture.
+   */
+  barcodes?: {
+    types: BarcodeType[];
+    onRead: (result: BarcodeScanningResult) => void;
+    /**
+     * A still, taken on purpose (21 Sep). The live reader could not be made
+     * to see a Forester's sticker from a distance the main lens will focus
+     * at, and there was nothing to press. The shutter is drawn in barcode
+     * mode too: the frame takes a picture and hands its URI here, and the
+     * screen decodes it (`scanFromURLAsync`) or says why it could not.
+     */
+    onStill: (uri: string) => Promise<void> | void;
+  };
+  /** Barcode mode only: stop delivering reads, keeping the frame and the session. */
+  paused?: boolean;
+  /** Drawn beside the capture control — the library secondary. Alone on the row in barcode mode. */
   beside?: ReactNode;
   /** Drawn beneath the controls — the model caveat, or the stood-down note. */
   foot?: ReactNode;
+  /**
+   * The other way to finish the task, for the two notes that name one —
+   * "choose a photo from your library" for the scan, "type the number" for
+   * the sticker. A dead end that does not say the way out is a dead end.
+   */
+  alternative?: string;
 }) {
   const insets = useContext(SafeAreaInsetsContext);
   const camera = useRef<CameraView>(null);
@@ -219,15 +291,17 @@ export default function Viewfinder({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     try {
       const picture = await view.takePictureAsync({ quality: INVOICE_QUALITY });
-      await onCapture(invoiceFileFromCapture(picture));
+      if (barcodes) await barcodes.onStill(picture.uri);
+      else await onCapture?.(invoiceFileFromCapture(picture));
     } catch (caught) {
       onCaptureFailed?.(caught);
     } finally {
       setCapturing(false);
     }
-  }, [state, onCapture, onCaptureFailed]);
+  }, [state, barcodes, onCapture, onCaptureFailed]);
 
   const warning = state === 'off' || state === 'failed';
+  const alternativeSentence = `${alternative.charAt(0).toUpperCase()}${alternative.slice(1)} instead.`;
   const showCamera = live && permission?.granted === true && mountError === null;
 
   return (
@@ -243,6 +317,9 @@ export default function Viewfinder({
             animateShutter={false}
             onCameraReady={() => void onReady()}
             onMountError={({ message }) => setMountError(message)}
+            barcodeScannerSettings={barcodes ? { barcodeTypes: barcodes.types } : undefined}
+            onBarcodeScanned={barcodes && !paused ? barcodes.onRead : undefined}
+            zoom={barcodes ? BARCODE_ZOOM : 0}
           />
         ) : null}
         {/*
@@ -251,7 +328,24 @@ export default function Viewfinder({
           not as an SVG that needs a measured box: a bracket has no frame of
           its own to wait for.
         */}
-        <View style={styles.brackets} pointerEvents="none" testID="viewfinder-brackets">
+        {/*
+          ── 21 Sep · in barcode mode the brackets bound a band, not the frame ──
+
+          Live on the phone, the first sticker read took several tries: the
+          four corners framed the whole feed, so the natural thing was to fit
+          the whole label inside them from arm's length, and at that distance
+          the barcode is half the frame wide and the reader does not see it.
+          A barcode is wide and short, so its target is: the same hairline
+          brackets, bounding a band of the frame's middle. Filling the band
+          with the barcode is the right distance, and the copy under the
+          frame says so in the same words. The invoice frame keeps the full
+          corners — a receipt is the shape of the frame.
+        */}
+        <View
+          style={[styles.brackets, barcodes && styles.bracketsBand]}
+          pointerEvents="none"
+          testID={barcodes ? 'viewfinder-brackets-band' : 'viewfinder-brackets'}
+        >
           <View style={[styles.bracket, styles.topLeft]} />
           <View style={[styles.bracket, styles.topRight]} />
           <View style={[styles.bracket, styles.bottomLeft]} />
@@ -267,10 +361,10 @@ export default function Viewfinder({
         change of one element.
       */}
       <View style={styles.readout} accessibilityRole="text" accessibilityLabel={
-        READOUT[state] ? `Photograph the invoice. Camera: ${READOUT[state]}` : 'Photograph the invoice'
+        READOUT[state] ? `${label}. Camera: ${READOUT[state]}` : label
       }>
         <Text style={styles.readoutLabel} numberOfLines={1}>
-          Photograph the invoice
+          {label}
         </Text>
         {READOUT[state] ? (
           <View style={styles.state}>
@@ -297,8 +391,7 @@ export default function Viewfinder({
       {state === 'off' ? (
         <View style={styles.note}>
           <Text style={styles.noteText}>
-            Camera access is off for Tappet. Turn it on in Settings, or choose a photo from your
-            library.
+            {`Camera access is off for Tappet. Turn it on in Settings, or ${alternative}.`}
           </Text>
           <Button
             label="Open Settings"
@@ -311,9 +404,7 @@ export default function Viewfinder({
       ) : null}
       {state === 'none' ? (
         <View style={styles.note}>
-          <Text style={styles.noteText}>
-            This device has no camera. Choose a photo from your library instead.
-          </Text>
+          <Text style={styles.noteText}>{`This device has no camera. ${alternativeSentence}`}</Text>
         </View>
       ) : null}
       {state === 'failed' ? (
@@ -335,9 +426,19 @@ export default function Viewfinder({
               same edge as the small control beside it — and busy in the wait
               instrument's form while the shutter runs, with the bare mark: the
               readout already says CAPTURING, and one screen says a thing once.
+
+              Not in barcode mode: there is nothing to press, the read is the
+              capture, and a shutter button on a scanner would take a grey
+              square of the sticker and hand it to nobody.
+            */}
+            {/*
+              21 Sep: drawn in barcode mode after all. The live read is still
+              the capture when it lands; the shutter is for when it does not —
+              a still of the sticker, decoded on the phone, with a sentence
+              back when nothing was read. Same control, same edge.
             */}
             <Button
-              label="Capture"
+              label={barcodes ? 'Read a photo' : 'Capture'}
               variant="primary"
               size="small"
               onPress={() => void capture()}
@@ -364,6 +465,8 @@ const styles = StyleSheet.create({
   */
   frame: { flex: 1, overflow: 'hidden', backgroundColor: surface.nav },
   brackets: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, margin: rhythm.page },
+  /* The barcode band: the frame's middle third, full page width — a fifth asked for a distance the lens cannot focus (21 Sep). */
+  bracketsBand: { top: '33%', bottom: '33%' },
   bracket: {
     position: 'absolute',
     width: BRACKET_LEG,

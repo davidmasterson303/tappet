@@ -176,7 +176,7 @@ describe('failures a phone actually hits', () => {
 
     await expect(apiRequest('/vehicles')).rejects.toMatchObject({
       status: 500,
-      message: 'Request failed (500)',
+      message: 'Tappet could not complete that. Try again in a moment.',
     });
   });
 
@@ -218,7 +218,7 @@ describe('failures a phone actually hits', () => {
 
     await expect(apiRequest('/vehicles')).rejects.toMatchObject({
       status: 502,
-      message: 'Request failed (502)',
+      message: 'Tappet could not complete that. Try again in a moment.',
     });
   });
 
@@ -247,5 +247,136 @@ describe('failures a phone actually hits', () => {
         isUnauthorized: expected,
       });
     }
+  });
+});
+
+/**
+ * ── The two habits — QE §3, 20 Sep ──────────────────────────────────────────
+ *
+ * Every screen re-reads on focus and the runner polls, so the same GET is
+ * routinely asked for twice within a few hundred milliseconds; and a phone
+ * drops a request for no reason often enough that the first failure is
+ * usually not the answer. Reads join an in-flight twin and retry once on
+ * transport; writes do neither, because a write whose answer was lost may
+ * have been applied.
+ */
+describe('one GET in flight per path', () => {
+  /** A fetch that answers when told to, so two requests can overlap. */
+  function deferred() {
+    let release: (value: unknown) => void = () => {};
+    const promise = new Promise((resolve) => {
+      release = resolve;
+    });
+    return { promise, release };
+  }
+
+  it('joins a second request for a path that is already being fetched', async () => {
+    const first = deferred();
+    fetchMock.mockReturnValueOnce(first.promise);
+
+    const a = apiRequest('/load-vehicle?vehicleId=v1');
+    const b = apiRequest('/load-vehicle?vehicleId=v1');
+    first.release(reply(200, { vehicle: { id: 'v1' } }));
+
+    expect(await a).toEqual({ vehicle: { id: 'v1' } });
+    expect(await b).toEqual({ vehicle: { id: 'v1' } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not join a request for a different path, or one that has finished', async () => {
+    await apiRequest('/vehicles');
+    await apiRequest('/vehicles');
+    await apiRequest('/wishlist?vehicleId=v1');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('never joins a write to a write', async () => {
+    const first = deferred();
+    fetchMock.mockReturnValueOnce(first.promise).mockResolvedValueOnce(reply(200, { second: true }));
+
+    const a = apiRequest('/wishlist', { method: 'POST', body: { item: 1 } });
+    const b = apiRequest('/wishlist', { method: 'POST', body: { item: 1 } });
+    first.release(reply(200, { first: true }));
+
+    expect(await a).toEqual({ first: true });
+    expect(await b).toEqual({ second: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('a GET asked after a write does not join one that started before it', async () => {
+    /*
+      The post-write reload must read the row as it is now. A join here
+      would hand it the response to a request sent before the write — the
+      stale ADDED state QE 1.2 was about, re-created inside the client.
+    */
+    const stale = deferred();
+    fetchMock
+      .mockReturnValueOnce(stale.promise) // the GET in flight
+      .mockResolvedValueOnce(reply(200, { written: true })) // the write
+      .mockResolvedValueOnce(reply(200, { fresh: true })); // the reload
+
+    const before = apiRequest('/wishlist?vehicleId=v1');
+    await new Promise((resolve) => setTimeout(resolve, 2)); // the clock must move past the GET's start
+    await apiRequest('/wishlist', { method: 'POST', body: { item: 1 } });
+    const after = apiRequest('/wishlist?vehicleId=v1');
+    stale.release(reply(200, { stale: true }));
+
+    expect(await before).toEqual({ stale: true });
+    expect(await after).toEqual({ fresh: true });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('one retry, for a read that failed in transport', () => {
+  it('retries a GET once when the network dropped it, and returns the second answer', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce(reply(200, { vehicles: [] }));
+
+    expect(await apiRequest('/vehicles')).toEqual({ vehicles: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a GET once on a gateway status, and surfaces the second failure', async () => {
+    fetchMock.mockResolvedValue(reply(503, { error: 'Function cold' }));
+
+    await expect(apiRequest('/vehicles')).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a write — it may already have been applied', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Network request failed'));
+
+    await expect(apiRequest('/wishlist', { method: 'POST', body: {} })).rejects.toMatchObject({ kind: 'offline' });
+    await expect(apiRequest('/vehicles', { method: 'PATCH', body: {} })).rejects.toMatchObject({ kind: 'offline' });
+    await expect(apiRequest('/account', { method: 'DELETE' })).rejects.toMatchObject({ kind: 'offline' });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry a status the server decided, or a signed-out short circuit', async () => {
+    fetchMock.mockResolvedValue(reply(404, { error: 'No such car' }));
+    await expect(apiRequest('/vehicles')).rejects.toMatchObject({ status: 404 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue(reply(500, { error: 'Ours' }));
+    await expect(apiRequest('/vehicles')).rejects.toMatchObject({ status: 500 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockClear();
+    getAccessToken.mockResolvedValue(null);
+    await expect(apiRequest('/vehicles')).rejects.toMatchObject({ isLocallySignedOut: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a timeout — twenty seconds are already spent', async () => {
+    fetchMock.mockImplementation((_url: string, init: { signal: AbortSignal }) =>
+      new Promise((_, reject) => {
+        init.signal.addEventListener('abort', () => reject(new Error('Aborted')));
+      })
+    );
+
+    await expect(apiRequest('/vehicles', { timeoutMs: 20 })).rejects.toMatchObject({ kind: 'timeout' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

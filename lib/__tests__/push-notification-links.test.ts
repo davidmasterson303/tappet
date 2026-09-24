@@ -28,6 +28,8 @@ import {
   recallsUrl,
   serviceDueNotification,
   serviceUrl,
+  tireRotationNotification,
+  tiresUrl,
   vehicleUrl,
 } from '@tappet/core/notifications';
 
@@ -54,7 +56,8 @@ const navigator = readFileSync(
  * routes and nothing else — and the anti-vacuous case below is what caught it.
  */
 function registeredRoutes(): string[] {
-  const start = navigator.indexOf('const garageLinks');
+  /* ⚠ 23 Sep: the car's links, not the garage's — that tab is gone (drift §6.23). */
+  const start = navigator.indexOf('const carLinks');
   const end = navigator.indexOf('subscribe(listener)', start);
   if (start === -1 || end === -1) throw new Error('linking config not found in RootNavigator');
 
@@ -108,6 +111,22 @@ describe('the navigator registers the routes notifications point at', () => {
     // points at — the silent break this whole file exists for.
     expect(isRegistered(recallsUrl('abc'))).toBe(true);
     expect(routes).toContain('vehicle/:vehicleId/recalls');
+  });
+
+  it('routes the tires url — the third notification kind, 20 Sep', () => {
+    expect(isRegistered(tiresUrl('abc'))).toBe(true);
+    expect(routes).toContain('vehicle/:vehicleId/tires');
+    const notice = tireRotationNotification({
+      vehicleId: 'abc',
+      vehicleName: '2019 Golf R',
+      sinceMiles: 11_400,
+      intervalMiles: 6_000,
+      sinceBasis: 'rotation',
+      ownerEntered: true,
+    });
+    expect(notice).not.toBeNull();
+    expect(isRegistered(notice!.url)).toBe(true);
+    expect(notice!.url.startsWith('tappet://')).toBe(true);
   });
 });
 

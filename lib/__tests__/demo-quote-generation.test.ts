@@ -172,20 +172,92 @@ describe('the spend it opens is bounded twice', () => {
     expect(body).toContain('demoBudgetMessage(demo)');
   });
 
-  it('bounds only the demo path, leaving a signed-in owner alone', () => {
+  /**
+   * The two branches after authorization, comments removed.
+   *
+   * ── ⚠ Why this replaced a slice to the insert — 17 Sep ─────────────────────
+   *
+   * The previous version sliced from the first `if (access.isDemo) {` to
+   * `from('quote_requests')` and called that "the demo block". That is nearly
+   * the whole function — both model calls, the item lookup, the second demo
+   * return — so it could not tell the demo branch from the owner's and never
+   * checked what it claimed: that the demo caps are unreachable from an owner.
+   * It also could not have noticed that the owner branch had **no ceiling at
+   * all** until 17 Sep, which it did not.
+   *
+   * Comments are stripped because the owner branch explains the demo's caps
+   * while declining to apply them (CLAUDE.md §5).
+   */
+  const branches = (() => {
+    const code = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/[^\n]*/gm, '');
+    const demoStart = code.indexOf('if (access.isDemo) {');
+    const ownerStart = code.indexOf('} else {', demoStart);
+    const ownerEnd = code.indexOf('if (!selectedItemIds', ownerStart);
+
+    // Anti-vacuous: three anchors, in order, with code between each pair.
+    expect(demoStart).toBeGreaterThan(-1);
+    expect(ownerStart).toBeGreaterThan(demoStart);
+    expect(ownerEnd).toBeGreaterThan(ownerStart);
+
+    return { demo: code.slice(demoStart, ownerStart), owner: code.slice(ownerStart, ownerEnd) };
+  })();
+
+  it('bounds only the demo path with the demo caps, leaving a signed-in owner alone', () => {
     /*
       An owner generating quotes on their own car is the paid product working.
       Both caps sit inside `if (access.isDemo)`, so this checks the limiter is
       not reachable from the owner path — the failure would be silent and would
       look like the feature being flaky under load.
     */
-    const demoBlock = body.slice(
-      body.indexOf('if (access.isDemo) {'),
-      body.indexOf("from('quote_requests')")
-    );
+    expect(branches.demo).toContain('checkRateLimit');
+    expect(branches.demo).toContain('checkDemoBudget');
 
-    expect(demoBlock).toContain('checkRateLimit');
-    expect(demoBlock).toContain('checkDemoBudget');
+    expect(branches.owner).not.toContain('checkRateLimit');
+    expect(branches.owner).not.toContain('checkDemoBudget');
+  });
+
+  it('bounds an owner with their own monthly allowance, not the demo pool', () => {
+    /*
+      ⚠ Missing until 17 Sep. Every other Gemini-backed action checks
+      `checkMonthlyBudget` after authorization; this one had the demo's caps
+      and nothing for an owner, so a signed-in user past their allowance could
+      keep generating quotes — two model calls each — while the advisor refused
+      them. `every-generation-has-a-ceiling.test.ts` had credited this function
+      with a ceiling that was in the file and not in the function.
+
+      The refusal is the same sentence the advisor uses, which names the reset
+      date and does not invite a retry that cannot help.
+    */
+    expect(branches.owner).toContain('checkMonthlyBudget(access.userId)');
+    expect(branches.owner).toContain('budgetMessage(budget)');
+
+    // And the demo pool is one anonymous bucket that must not read an
+    // account's line, so the owner ceiling stays out of the demo branch.
+    expect(branches.demo).not.toContain('checkMonthlyBudget');
+  });
+
+  it('meters both calls with the caller threaded in', () => {
+    /*
+      `checkDemoBudget` sums `surface = 'demo'` rows, and until 17 Sep the two
+      quote calls never wrote one — 490 rows in `ai_usage_events`, none from
+      this path, a ceiling on an empty gauge. The caller's id and the vehicle
+      travel into both calls so `deriveSurface` files a seeded car's quote as
+      `demo` (the rows the ceiling reads) and an owner's as `account` (the
+      only rows the price is set from). Without the id an owner's quote would
+      be `anonymous` — real spend in the bucket that is excluded on purpose.
+    */
+    expect(body).toMatch(/const caller: QuoteCaller = \{ userId: access\.userId, vehicleId \}/);
+    expect(body).toMatch(/estimateCosts\(vehicle, serviceItems, zipCode, caller\)/);
+    expect(body).toMatch(/generateEmailDraft\(vehicle, serviceItems, caller, additionalNotes\)/);
+
+    // And the two internal steps record under their own purposes, next to
+    // the call, the way every other site in the file does.
+    const estimate = ACTIONS.slice(ACTIONS.indexOf('async function estimateCosts('), ACTIONS.indexOf('async function generateEmailDraft('));
+    const email = ACTIONS.slice(ACTIONS.indexOf('async function generateEmailDraft('), ACTIONS.indexOf('function isSupabaseAuthError('));
+    expect(estimate.length).toBeGreaterThan(0);
+    expect(email.length).toBeGreaterThan(0);
+    expect(estimate).toMatch(/recordAiUsageInBackground\(\s*\{ purpose: 'quote_estimate', model: FLASH_MODEL, \.\.\.caller \}/);
+    expect(email).toMatch(/recordAiUsageInBackground\(\s*\{ purpose: 'quote_email', model: FLASH_MODEL, \.\.\.caller \}/);
   });
 
   it('degrades with a sentence rather than an error', () => {

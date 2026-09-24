@@ -116,9 +116,10 @@ once the 12 Sep `netlify.toml` rules reach `demo-live` — the first is the link
 recruiters hold while David is job hunting, which is why it redirects rather
 than dies), `crewchief-demo.netlify.app` (the Bolt stub the demo CNAMEs still
 point at), and `wellkept.southmoordigital.com` and `crewchief.davidmasterson.co`,
-**both still serving 200** — the product pair redirects second, after the demo
-pair is verified live, because that host takes the app's API writes and a 301
-turns a POST into a GET. Both projects' primary domains were flipped to the
+**both 301 to `tappet.southmoordigital.com` since 17 Sep** — the product pair
+redirected second, after the demo pair was verified live, because that host
+takes the app's API writes and a 301 turns a POST into a GET; verified by
+`promote-web` and by hand the same afternoon. Both projects' primary domains were flipped to the
 Tappet hostnames on 12 Sep; that setting is inert for redirects (Netlify only
 redirects apex↔`www`), so `netlify.toml` is the redirect. A blanket ban on
 either dead name would fire on all of them and get switched off.

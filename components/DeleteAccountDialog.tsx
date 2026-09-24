@@ -166,7 +166,7 @@ export function DeleteAccountDialog({
             </li>
             <li>All maintenance records, Needs and cost data</li>
             <li>Every uploaded invoice and photo</li>
-            <li>Your conversations with the AI consultant</li>
+            <li>Your conversations with the AI advisor</li>
             <li>Your profile and sign-in credentials</li>
           </ul>
         </div>

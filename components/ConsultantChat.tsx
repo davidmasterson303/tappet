@@ -56,6 +56,7 @@ import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-c
 import { AnswerRuns } from '@/components/AnswerLine';
 import { parseAnswer } from '@tappet/core/answer-markup';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 
 /*
  * These are the four collections this component *renders*, and no longer the
@@ -665,9 +666,46 @@ export default function ConsultantChat({
     }
   };
 
-  const handleSend = async (overrideInput?: string) => {
+  /*
+    ── LEG-02 on the web advisor, 23 Sep ─────────────────────────────────────
+
+    The phone asks before the first question (`AdvisorScreen`); the web's
+    invoice dialog asks before the first upload (`DocumentUploadDialog`); the
+    web advisor asked nothing and sent the question and the car's records to
+    Google. Same key as both, so one answer covers the account's surfaces on
+    this browser; same words, from `@tappet/core/ai-consent-copy`. The demo
+    makes no model call and is not asked.
+  */
+  const [aiConsent, setAiConsent] = useState<'granted' | 'declined' | 'unknown' | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [consentPending, setConsentPending] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('tappet.aiConsent');
+      setAiConsent(stored === 'granted' || stored === 'declined' ? stored : 'unknown');
+    } catch {
+      setAiConsent('unknown');
+    }
+  }, []);
+  const recordAiConsent = (answer: 'granted' | 'declined') => {
+    setAiConsent(answer);
+    try {
+      window.localStorage.setItem('tappet.aiConsent', answer);
+    } catch {
+      // Asked again next time, which is the safe direction.
+    }
+  };
+
+  const handleSend = async (overrideInput?: string, consentJustGranted = false) => {
     const messageText = overrideInput ?? input;
     if ((!messageText.trim() && selectedFiles.length === 0) || loading || uploadingFiles) return;
+
+    if (!(isDemoMode() || isDemoVehicleId(vehicleId)) && !consentJustGranted && aiConsent !== 'granted') {
+      // Before the composer is cleared, so a "not now" leaves the question where it was.
+      setConsentPending(overrideInput);
+      setConsentOpen(true);
+      return;
+    }
 
     const userMessage = messageText.trim();
     setInput('');
@@ -1720,6 +1758,7 @@ export default function ConsultantChat({
                   </div>
                   <button
                     onClick={() => removeSelectedFile(idx)}
+                    aria-label={`Remove ${file.name}`}
                     className="ml-2 p-1 hover:bg-[color:var(--critical-solid)]/10 chamfer-sm transition-colors"
                     disabled={uploadingFiles || loading}
                   >
@@ -1885,7 +1924,7 @@ export default function ConsultantChat({
         preferredZipCode={vehicle?.preferred_zip_code}
         preselectedItemIds={quotePullItemIds}
         onQuoteSaved={() => {
-          toast.success('Quote request saved!');
+          toast.success('Quote request saved');
         }}
       />
 
@@ -1929,6 +1968,45 @@ export default function ConsultantChat({
               }}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{ADVISOR_AI_CONSENT.title}</AlertDialogTitle>
+            <AlertDialogDescription>{ADVISOR_AI_CONSENT.body}</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
+            {ADVISOR_AI_CONSENT.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+
+          <p className="text-xs text-white/50">{ADVISOR_AI_CONSENT.declineNote}</p>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                recordAiConsent('declined');
+                setConsentOpen(false);
+              }}
+            >
+              {ADVISOR_AI_CONSENT.decline}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                recordAiConsent('granted');
+                setConsentOpen(false);
+                // Continue into the question they typed; `true` because the
+                // state above has not committed on this tick.
+                void handleSend(consentPending, true);
+              }}
+            >
+              {ADVISOR_AI_CONSENT.accept}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

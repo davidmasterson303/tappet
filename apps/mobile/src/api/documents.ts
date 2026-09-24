@@ -61,6 +61,8 @@ export interface ExtractedVehicle {
   year?: number | null;
   make?: string | null;
   model?: string | null;
+  /** The route's own sentence for it, when that is what arrived — see `asVehicle`. */
+  label?: string;
 }
 
 export type InvoiceUploadResult =
@@ -170,8 +172,20 @@ export async function uploadInvoice({
       storage write and a document row, and a cold function added ~6s when
       measured separately. 30s covers that with margin and still fails before
       anyone concludes the app has hung.
+
+      ⚠ 21 Sep, on the device: it did not cover a dense one. A 21-line
+      Dinan invoice (BLVCKMARKET MOTORSPORTZ, $10,836.95) took the server
+      27 s for its first page and 28 s for its second; the phone gave up on
+      the second at 30 s and said "try again" while the server finished and
+      filed 16 line items eight seconds later. A retry there would have
+      filed them twice — the duplicate detection is per document, and a
+      retry is a new document. So: 90 s, which is the model's ceiling with
+      room, and the timeout sentence no longer says "try again" (below).
+      The durable shape is the research runner's — accept, file the row,
+      extract in a background function, narrate the poll — and that is on
+      the board, not in this constant.
     */
-    timeoutMs: 30_000,
+    timeoutMs: 90_000,
   });
 
   /*
@@ -223,6 +237,21 @@ export async function uploadInvoice({
 }
 
 function asVehicle(value: unknown): ExtractedVehicle | null {
+  /*
+    ── ⚠ The route sends a sentence, not an object (QE 2.14, 20 Sep) ─────────
+
+    `uploadInvoice` joins year, make, model and colour into one string on
+    both sides of the mismatch — "2020 Subaru WRX", "2009 Mazda Mazda3" —
+    and this parser wanted `{ year, make, model }`, so both came back null
+    and the prompt read "This invoice looks like it is for an unrecognised
+    vehicle, but you are adding it to an unrecognised vehicle." The check
+    had fired correctly; the sentence named neither car. A string is the
+    label; an object is still read the way it was.
+  */
+  if (typeof value === 'string') {
+    const label = value.trim();
+    return label.length > 0 && label !== 'Unknown vehicle' ? { year: null, make: null, model: null, label } : null;
+  }
   if (!value || typeof value !== 'object') return null;
   const { year, make, model } = value as Record<string, unknown>;
   return {
@@ -282,7 +311,9 @@ export function describeUploadError(error: unknown): string {
       different fix: nothing was sent, or nothing came back.
     */
     if (error.kind === 'timeout') {
-      return 'Tappet took too long to read that invoice. Your photo was not lost — try again.';
+      // ⚠ Never "try again": the server may have finished after the phone
+      // stopped waiting (seen 21 Sep), and a second scan files it twice.
+      return 'Tappet is still reading that invoice — a dense one can take a minute. Check the service log before scanning it again.';
     }
 
     if (error.kind === 'offline') {
@@ -314,7 +345,7 @@ export function describeUploadError(error: unknown): string {
         ? 'This device is signed out. Sign in again to upload this.'
         : 'Tappet would not accept this upload on your current session.';
     }
-    if (error.status === 404) return 'That vehicle is no longer in your garage.';
+    if (error.status === 404) return 'That car is no longer here.';
     if (error.status === 413) return 'That file is too large to upload.';
     if (error.status === 429) return 'Too many uploads just now. Try again in a minute.';
     if (error.status === 503) return 'Storage is unavailable right now. Your photo was not lost.';
@@ -390,7 +421,7 @@ export async function invoiceUrl(
     }
 
     if (apiError.kind === 'timeout') {
-      return { error: 'That took too long. The invoice is still here — try again.' };
+      return { error: 'That took too long. Check the service log before trying again — it may have gone through.' };
     }
 
     return { error: 'That invoice could not be opened.' };

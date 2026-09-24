@@ -237,20 +237,27 @@ describe('the demo has a ceiling too, and it degrades rather than breaking', () 
 
   it('leaves the daily cap above what a portfolio link produces', () => {
     /*
-      ⚠ Re-based 17 Sep. This floor was "a couple of hundred consultant turns
-      at ~600 tokens" — and the demo consultant has not spent against this
-      pool since 30 Aug, when it moved to pre-written answers. What spends
-      here now is the demo quote: two calls at default thinking, never
-      metered, so never measured. The floor is therefore ten quotes at 6,000
-      a quote — an *upper* estimate, labelled as one, until the meter on that
-      path exists and replaces it (`DEMO_BUDGET`'s docblock). Ten quotes on
-      the busiest day a portfolio link has is still a fuse, not a product
-      limit; a visitor runs one if any.
+      ⚠ Re-based 17 Sep, twice. This floor was "a couple of hundred consultant
+      turns at ~600 tokens" — and the demo consultant has not spent against
+      this pool since 30 Aug, when it moved to pre-written answers. What
+      spends here is the demo quote, and that morning it was two calls at
+      default thinking, never metered, so never measured; the floor was ten
+      quotes at a guessed 6,000.
+
+      That afternoon it was measured — the two prompts verbatim, the Accord
+      demo car, three needs, two samples per call — at ~2,200 output-
+      equivalent tokens a quote with both calls at LOW, the level they now
+      run at (`DEMO_BUDGET`'s docblock carries the table). So the floor is
+      twenty quotes at the measured figure: twenty on the busiest day a
+      portfolio link has is still a fuse, not a product limit; a visitor runs
+      one if any. The meter behind it (`quote_estimate`, `quote_email`) will
+      say whether 2,200 holds once its migration is applied and rows exist.
 
       The 5× cut to 60,000 was David's decision, put to him with the
       alternatives on 14 Sep.
     */
-    expect(budget.dailyOutputTokens).toBeGreaterThanOrEqual(10 * 6_000);
+    const MEASURED_QUOTE = 2_200;
+    expect(budget.dailyOutputTokens).toBeGreaterThanOrEqual(20 * MEASURED_QUOTE);
     // And nowhere near what the canary alone could spend: four calls a day at
     // ~330 tokens (measured 15–17 Sep), even before it stopped sharing the pool.
     expect(budget.dailyOutputTokens).toBeGreaterThan(20 * 4 * 330);

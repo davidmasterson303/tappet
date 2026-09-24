@@ -107,6 +107,23 @@ describe('ClusterGauge', () => {
     view.getByLabelText('Health score 61 out of 100 — Fair');
   });
 
+  it('gives the verdict word a line its face fits in — "GUUD" on every bay, 21 Sep', async () => {
+    /*
+      The hero sized the word to 7% of the dial and kept `monoLabel`'s 16pt
+      line; JetBrains Mono's ascenders are 1.32 of the size, so at 13 the
+      tops of the O's were sliced off. The line grows with the size, on
+      every variant, by a margin the face clears.
+    */
+    const { StyleSheet } = require('react-native');
+    for (const props of [{ variant: 'hero' as const, size: 184 }, { variant: 'card' as const }]) {
+      const view = await render(<ClusterGauge score={88} {...props} />);
+      const word = view.getByText('Good');
+      const flat = StyleSheet.flatten(word.props.style) as { fontSize: number; lineHeight: number };
+      expect(flat.lineHeight).toBeGreaterThanOrEqual(Math.ceil(flat.fontSize * 1.32));
+      await view.unmount();
+    }
+  });
+
   it('paints the lit arc against the real arc length, not against 100', async () => {
     /*
       ⚠ The defect this exists for.
@@ -118,9 +135,10 @@ describe('ClusterGauge', () => {
       a ~330-unit arc: every reading at about a sixth of its true position, and
       plausible enough to ship.
     */
-    const view = await render(<ClusterGauge score={50} variant="card" />);
+    // Held (`active={false}`) so the lit arc is exactly half the track — the
+    // card sweeps in like the hero since 21 Sep, when it became the hub's dial.
+    const view = await render(<ClusterGauge score={50} variant="card" active={false} />);
 
-    // The card is deliberately still, so the lit arc is exactly half the track.
     const dashes = hostNodes(view.root, 'RNSVGPath')
       .map((props) => props.strokeDasharray)
       .filter(Array.isArray);
@@ -189,8 +207,8 @@ describe('ClusterGauge', () => {
 
   it('finishes the sweep on the reading and not on the end of the scale', async () => {
     /*
-      The sweep runs 0 → 100 → settle. A mis-sequenced one lands on 100, which
-      would read as a perfect score on every car.
+      A mis-sequenced draw-in lands on 100, which would read as a perfect
+      score on every car.
     */
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 
@@ -198,6 +216,49 @@ describe('ClusterGauge', () => {
 
     await waitFor(() => view.getByText('61'), { timeout: 3000 });
     expect(view.queryByText('100')).toBeNull();
+  });
+
+  it('never draws a number above the reading on its way there (22 Sep)', async () => {
+    /*
+      ⚠ **The case above was green while this was broken**, and that is the
+      point of writing this one down. It asserted where the sweep *lands*;
+      the sweep ran **0 → 100 → settle**, so a 61 car rendered 72, 90, 99 and
+      100 at display size on every appearance, for about 400ms, beside a
+      sentence about what was holding the score down. A design critic found
+      it in four frames of a screen recording, not in a test — the guard was
+      written against the end state because that was the failure imagined at
+      the time.
+
+      So this samples the **path**: every value the numeral takes while the
+      animation runs, against the reading it is going to. The rule is §10's —
+      no claim the data cannot support — and an animation is not exempt from
+      it.
+    */
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+
+    const seen: number[] = [];
+    const view = await render(<ClusterGauge score={61} />);
+
+    /*
+      Stepped by hand rather than waited on: `waitFor` samples when the tree
+      settles, which is exactly when the overshoot is over. 40ms × 20 covers
+      the 600ms draw-in with frames to spare.
+    */
+    for (let i = 0; i < 20; i += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime?.(40);
+        await Promise.resolve();
+      });
+      const numeral = view.queryAllByText(/^\d+$/).map((node) => Number(node.props.children));
+      seen.push(...numeral.filter((value) => Number.isFinite(value)));
+    }
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(Math.max(...seen)).toBeLessThanOrEqual(61);
+
+    /* Anti-vacuous: the reader can see a number above the reading when one is drawn. */
+    const over = await render(<ClusterGauge score={61} active={false} />);
+    expect(over.queryAllByText(/^\d+$/).length).toBeGreaterThan(0);
   });
 
   it('bands from the target, so the face never cycles on its way to a reading', async () => {
@@ -579,13 +640,11 @@ describe('GarageBay', () => {
   */
   const TODAY = '2026-08-16';
 
-  it('names the bay and its position, so a swipe has somewhere to land', async () => {
-    const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={1} total={3} active={false} />
-    );
+  it('carries no batten of its own — the rail above the pager names the bay (21 Sep)', async () => {
+    const view = await render(<GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />);
 
-    view.getByText('BAY 02');
-    view.getByText('2 of 3');
+    expect(view.queryByText(/^BAY \d\d$/)).toBeNull();
+    expect(view.queryByText(/\d of \d/)).toBeNull();
   });
 
   it('names the car once, under the plate, and never on it', async () => {
@@ -599,7 +658,7 @@ describe('GarageBay', () => {
       once — plus the new fact: nothing is printed on the plate.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('2018 Subaru WRX');
@@ -616,7 +675,7 @@ describe('GarageBay', () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={2} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     // The dial is drawn — it is the reading that waits, not the instrument.
@@ -630,7 +689,7 @@ describe('GarageBay', () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
 
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active />
     );
     await act(async () => {});
 
@@ -641,7 +700,7 @@ describe('GarageBay', () => {
     // A dial at 0 asserts a reading. No score is not a zero — the same rule the
     // garage card has always followed.
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={null} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={null} active={false} />
     );
 
     view.getByText('No score yet');
@@ -685,7 +744,7 @@ describe('GarageBay', () => {
       `GarageBay` is what stands between that and a second literal.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     const rooms = hostNodes(view.root, 'View')
@@ -734,8 +793,6 @@ describe('GarageBay', () => {
         vehicle={{ ...WRX, photo_url: PHOTO }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -767,8 +824,6 @@ describe('GarageBay', () => {
         vehicle={{ ...WRX, photo_url: PHOTO }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -785,7 +840,7 @@ describe('GarageBay', () => {
     */
     const onOpen = jest.fn();
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} onOpen={onOpen} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} onOpen={onOpen} />
     );
 
     await userEvent.setup().press(view.getByLabelText('2018 Subaru WRX, open details'));
@@ -1001,7 +1056,7 @@ describe('the bay’s next-service row', () => {
 
   it('reads as a countdown when the sweep has an answer', async () => {
     const view = await render(
-      <GarageBay vehicle={WRX_SWEPT} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX_SWEPT} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('NEXT SERVICE');
@@ -1038,8 +1093,6 @@ describe('the bay’s next-service row', () => {
         vehicle={{ id: 'v-3', year: 2015, make: 'BMW', model: 'M235i', current_mileage: 66000 }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );
@@ -1062,7 +1115,7 @@ describe('the bay’s next-service row', () => {
       app in either period, which is the argument for pinning it.
     */
     const view = await render(
-      <GarageBay vehicle={WRX} today={TODAY} score={70} index={0} total={1} active={false} />
+      <GarageBay vehicle={WRX} today={TODAY} score={70} active={false} />
     );
 
     view.getByText('No schedule yet');
@@ -1075,8 +1128,6 @@ describe('the bay’s next-service row', () => {
         vehicle={{ ...WRX_SWEPT, current_mileage: null }}
         today={TODAY}
         score={70}
-        index={0}
-        total={1}
         active={false}
       />
     );

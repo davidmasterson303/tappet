@@ -53,50 +53,96 @@ const CALL_SITE_FILES = [
 ];
 
 /**
- * Functions that reach Gemini without `checkMonthlyBudget`, each with the
- * reason it is allowed to.
+ * Functions whose ceiling is enforced by whoever calls them — with the file,
+ * the **calling function**, and the control that function applies.
  *
  * ⚠ **Every entry names a *different* ceiling, not an absence of one.** An
  * exemption that means "this one is unmetered" is the finding, not a fix for
  * it — so each of these is checked below for the control it claims instead.
- */
-/**
- * Functions whose ceiling is enforced by whoever calls them, with the file that
- * does it.
  *
  * ── ⚠ Why this form exists, and why it is not a hole ────────────────────────
  *
- * Four of these are internal steps that take no `userId`. `estimateCosts`,
- * `generateEmailDraft` and `validateConsultantDocument` are not exported at all
- * — so none is a reachable endpoint (SEC-02) — and `runQuoteCheck` and
- * `recomputePerformanceStats` are library functions their routes authorize
- * before calling. Threading a user id through purely to satisfy a scan would
- * add a parameter the function does not need, at five call sites, to re-check
- * the allowance its caller checked a line earlier.
+ * Five of these are internal steps or library functions their caller
+ * authorizes before calling. `estimateCosts`, `generateEmailDraft` and
+ * `validateConsultantDocument` are not exported at all — so none is a
+ * reachable endpoint (SEC-02) — and `runQuoteCheck` and
+ * `recomputePerformanceStats` are library functions their routes gate first.
+ * Re-checking the allowance a line after the caller checked it would add a
+ * parameter the function does not need, at five call sites.
  *
- * So the exemption names **where the ceiling actually is**, and that file is
- * read and checked. An entry pointing at a file that does not contain the
- * control, or does not call the function it claims to protect, fails.
+ * ── ⚠ The caller's *body*, not its file — 17 Sep ────────────────────────────
+ *
+ * The first version of this table named a file and a control, and checked
+ * that the file contained both strings. `app/actions.ts` is 7,000 lines and
+ * contains `checkMonthlyBudget` eleven times, so the three entries pointing
+ * at it were green **while none of the three callers checked anything**:
+ * `generateQuoteRequestV2` had no ceiling on its owner branch and
+ * `uploadConsultantDocument` had none at all. An owner past their allowance
+ * could keep generating quotes and uploading documents — two model calls and
+ * a vision call — while the advisor refused them. The `.tap-target-44` trap
+ * from CLAUDE.md §5, one layer up: the string was there, 5,000 lines from
+ * the function it was credited to.
+ *
+ * So an entry now names the calling function, and the check reads that
+ * function's body for both the call and the control. An entry whose caller
+ * does not call the function, or does not apply the control, fails.
  *
  * That is the difference between this and `auth-posture.test.ts`'s `'public'`
  * posture, which the file itself admits asserts nothing — and which is how a
  * whole class of unguarded action stayed invisible.
  */
-const CEILING_ELSEWHERE: Record<string, { file: string; control: string }> = {
-  estimateCosts: { file: join('app', 'actions.ts'), control: 'checkMonthlyBudget' },
-  generateEmailDraft: { file: join('app', 'actions.ts'), control: 'checkMonthlyBudget' },
-  validateConsultantDocument: { file: join('app', 'actions.ts'), control: 'checkMonthlyBudget' },
+/*
+  ── `via` — a ceiling applied by a helper the caller runs first (20 Sep) ───
+
+  `researchVehicleDossier` was split at the model call so the phone's
+  background function could reach the gate, the ceiling and the prompt
+  through a route (`prepareResearch`) without importing the file. The call to
+  Gemini stayed in `researchVehicleDossier`; the ceiling moved into
+  `prepareResearch`, which that function calls before anything else. The
+  honest entry says so: the caller's body must call `via`, and `via`'s body
+  must apply the controls — both body-anchored, so neither a caller that
+  stops calling the helper nor a helper that loses the check stays green.
+  Duplicating `checkMonthlyBudget` into the caller to satisfy the old shape
+  would have been the second copy this file exists to keep from drifting.
+*/
+const CEILING_ELSEWHERE: Record<string, { file: string; caller: string; via?: string; controls: string[] }> = {
+  researchVehicleDossier: {
+    file: join('lib', 'vehicle-research.ts'),
+    caller: 'researchVehicleDossier',
+    via: 'prepareResearch',
+    controls: ['checkMonthlyBudget', 'checkFeatureAccess'],
+  },
+  // Two branches, two ceilings: the demo pool for a seeded car, the owner's
+  // monthly allowance otherwise. Both must be in the one calling function.
+  estimateCosts: {
+    file: join('app', 'actions.ts'),
+    caller: 'generateQuoteRequestV2',
+    controls: ['checkDemoBudget', 'checkMonthlyBudget'],
+  },
+  generateEmailDraft: {
+    file: join('app', 'actions.ts'),
+    caller: 'generateQuoteRequestV2',
+    controls: ['checkDemoBudget', 'checkMonthlyBudget'],
+  },
+  validateConsultantDocument: {
+    file: join('app', 'actions.ts'),
+    caller: 'uploadConsultantDocument',
+    controls: ['checkMonthlyBudget'],
+  },
   runQuoteCheck: {
     file: join('app', 'api', 'v1', 'front-door', 'check', 'route.ts'),
-    control: 'checkFrontDoorBudget',
+    caller: 'POST',
+    controls: ['checkFrontDoorBudget'],
   },
   recomputePerformanceStats: {
     file: join('app', 'api', 'v1', 'performance-stats', 'route.ts'),
-    control: 'authorizeVehicleAccess',
+    caller: 'POST',
+    controls: ['authorizeVehicleAccess'],
   },
   attemptRoundTrip: {
     file: join('app', 'api', 'health', 'consultant', 'route.ts'),
-    control: 'CONSULTANT_HEALTH_SECRET',
+    caller: 'GET',
+    controls: ['CONSULTANT_HEALTH_SECRET'],
   },
 };
 
@@ -152,6 +198,16 @@ function bodyOf(source: string, name: string): string {
   return next === -1 ? source.slice(start) : source.slice(start, start + 1 + next);
 }
 
+/**
+ * A body with its comments removed, so a control named in prose does not
+ * count as a control applied. The functions this file reads explain the
+ * finding they close directly above the line that closes it — and name the
+ * control while doing so. CLAUDE.md §5's `.tap-target-44` trap, in miniature.
+ */
+function code(body: string): string {
+  return body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/[^\n]*/gm, '');
+}
+
 describe('every Gemini call site is metered', () => {
   it('knows about every file that calls Gemini', () => {
     /*
@@ -191,20 +247,67 @@ describe('every Gemini call site is metered', () => {
     expect(unmetered).toEqual([]);
   });
 
-  it('every deferred ceiling names a file that actually has it', () => {
+  it('every deferred ceiling names a calling function that actually applies it', () => {
     /*
       ⚠ The half that stops the exemption list being a way to opt out. Each
-      entry must name a file that both **calls** the function and **contains**
-      the control it claims — so deleting a route's `checkFrontDoorBudget` fails
-      here, even though the deleted line is in a different file from the
-      `generateContent` it was protecting.
+      entry must name a function that both **calls** the exempted one and
+      **applies** the control it claims, in its own body — so deleting a
+      route's `checkFrontDoorBudget` fails here even though the deleted line
+      is in a different file from the `generateContent` it was protecting,
+      and so does a ceiling that exists in the same file but in some other
+      function, which is the shape the first version of this test missed.
     */
-    for (const [name, { file, control }] of Object.entries(CEILING_ELSEWHERE)) {
-      const source = read(file);
+    for (const [name, { file, caller, via, controls }] of Object.entries(CEILING_ELSEWHERE)) {
+      const body = code(bodyOf(read(file), caller));
 
-      expect([name, source.includes(name)]).toEqual([name, true]);
-      expect([name, source.includes(control)]).toEqual([name, true]);
+      // A caller the walker cannot find is an entry that asserts nothing.
+      expect([name, caller, body.length > 0]).toEqual([name, caller, true]);
+      if (via) {
+        // The exempted function *is* the caller; what it must do is run the
+        // helper that carries the ceiling, and the helper must carry it.
+        expect([name, caller, body.includes(`${via}(`)]).toEqual([name, caller, true]);
+        const helper = code(bodyOf(read(file), via));
+        expect([name, via, helper.length > 0]).toEqual([name, via, true]);
+        for (const control of controls) {
+          expect([name, via, control, helper.includes(control)]).toEqual([name, via, control, true]);
+        }
+        continue;
+      }
+      expect([name, caller, body.includes(`${name}(`)]).toEqual([name, caller, true]);
+      for (const control of controls) {
+        // Plain inclusion, not `control(`: the canary's control is an env
+        // var read, not a call.
+        expect([name, caller, control, body.includes(control)]).toEqual([name, caller, control, true]);
+      }
     }
+  });
+
+  it('a ceiling elsewhere in the same file does not count', () => {
+    /*
+      The anti-vacuous case for the rewrite above, shaped like the real
+      defect: the control is present in the file, in a different function,
+      and the calling function has none. The old file-level check passed
+      this; the body-level one must not.
+    */
+    const source = [
+      'export async function unrelated(id: string) {',
+      '  const budget = await checkMonthlyBudget(id);',
+      '  return budget;',
+      '}',
+      'async function step() {',
+      '  return genAI.models.generateContent({ model: FLASH });',
+      '}',
+      'export async function callsStepWithoutAsking() {',
+      '  // The caller above already ran checkMonthlyBudget for us. (It did not.)',
+      '  return step();',
+      '}',
+    ].join('\n');
+
+    expect(source.includes('checkMonthlyBudget')).toBe(true);
+    const body = code(bodyOf(source, 'callsStepWithoutAsking'));
+    expect(body).toContain('step(');
+    // Named in the comment, applied nowhere — and the comment does not count.
+    expect(body).not.toContain('checkMonthlyBudget');
   });
 
   it('can still detect an unmetered call', () => {
@@ -226,5 +329,57 @@ describe('every Gemini call site is metered', () => {
     expect(callingFunctions(source)).toEqual(['spendsFreely', 'asksFirst']);
     expect(bodyOf(source, 'spendsFreely')).not.toMatch(/checkMonthlyBudget/);
     expect(bodyOf(source, 'asksFirst')).toMatch(/checkMonthlyBudget/);
+  });
+});
+
+
+describe('every Gemini call site records what it spent', () => {
+  /*
+    ── ⚠ The finding this exists for (17 Sep) ──────────────────────────────
+
+    The ceiling above is only as good as the meter it reads. `checkDemoBudget`
+    sums `ai_usage_events` rows, and the demo quote's two calls — the only
+    thing the public demo spends on since 30 Aug — had **never written one**.
+    Nor had the consultant's upload check. Three of fourteen call sites, all
+    in `app/actions.ts`, each with a `generateContent` and no
+    `recordAiUsageInBackground` after it; 490 rows in the table and not one
+    from any of them. A budget on an empty gauge is a constant, not a control.
+
+    Same shape as the ceiling scan, for the same reason: the meter is
+    fire-and-forget and cannot fail a request, so a missing call has no
+    runtime symptom at all. The source is the only place it shows.
+
+    No exemption list. The canary meters itself (`surface: 'canary'`), the
+    front door meters itself, every internal step now does. A call site that
+    genuinely must not be metered would be a new argument, and it should be
+    made here rather than by adding a name to a list.
+  */
+  it.each(CALL_SITE_FILES)('%s — every calling function records usage', (file) => {
+    const source = read(file);
+    const unmetered = callingFunctions(source).filter(
+      (name) => !/recordAiUsageInBackground\(/.test(code(bodyOf(source, name)))
+    );
+
+    // Named, not counted — the three this started with were estimateCosts,
+    // generateEmailDraft and validateConsultantDocument.
+    expect(unmetered).toEqual([]);
+  });
+
+  it('can still detect an unmetered call', () => {
+    const source = [
+      'export async function forgetsTheMeter(id: string) {',
+      '  return genAI.models.generateContent({ model: FLASH });',
+      '}',
+      'export async function remembers(id: string) {',
+      '  const result = await genAI.models.generateContent({ model: FLASH });',
+      '  recordAiUsageInBackground({ purpose: \'consultant\', model: FLASH, userId: id }, result.usageMetadata);',
+      '}',
+    ].join('\n');
+
+    const unmetered = callingFunctions(source).filter(
+      (name) => !/recordAiUsageInBackground\(/.test(code(bodyOf(source, name)))
+    );
+
+    expect(unmetered).toEqual(['forgetsTheMeter']);
   });
 });

@@ -57,6 +57,54 @@ const DESIGN_PLATE_STATUS: PlateStatus | null = (() => {
   return PLATE_STATUSES.find((status) => status === raw) ?? null;
 })();
 
+/**
+ * The reading on the design car, from the environment.
+ *
+ * ── 21 Sep · the loop had only ever seen a stale reading ────────────────────
+ *
+ * Every graded frame of the hub (rounds 42–46) carried the pair below as it
+ * was: a sentence written on 30 Jul, records filed 6 Aug, so `healthVerdict`
+ * said *stale* and the HEALTH cell printed its one-line `short`. A current
+ * reading prints the model's whole summary, and the first one anybody looked
+ * at — the reviewer's F-PACE — was six lines in the cell, a void beside it,
+ * the counts under the fold (drift §6.19). The fixture could not show that
+ * state, so the loop could not grade it.
+ *
+ * `EXPO_PUBLIC_DESIGN_VERDICT=current` writes the reading after the records
+ * — the same 70, a sentence in the prompt's post-preamble voice over the
+ * fixture's own facts (five services, two open recalls), the length a real
+ * one has. Unset, the stale pair `health-claims.test.ts` was written around.
+ *
+ * 21 Sep: neither sentence opens with "Based on your provided service
+ * history" — that was the prompt's mandated preamble, on every line of every
+ * real car, and the fixture kept rendering it in the design loop after the
+ * prompt stopped asking for it (`health-recommendations.ts`).
+ */
+function designVerdict() {
+  if (process.env.EXPO_PUBLIC_DESIGN_VERDICT === 'current') {
+    return {
+      health_score: 70,
+      /*
+        Round 47's cut: a first sentence that restated "Based on 5 recorded
+        services" and HISTORY 5. The lead is the assessment now — and it
+        agrees with the schedule the sweep wrote (the drive belt is what
+        NEXT SERVICE says is overdue), because a fixture that contradicts its
+        own rows produces a frame that lies.
+      */
+      summary:
+        'The oil, brakes and coolant are inside their intervals; the drive belt inspection is 3,000 miles past due. ' +
+        'Two open recalls — the air bag inflator and the fuel pump — are what keep this car at fair rather than good, and both are free to have done.',
+      last_generated: '2026-09-20T09:12:00.000+00:00',
+    };
+  }
+  return {
+    health_score: 70,
+    summary:
+      "With no service records on file, the vehicle's health is highly uncertain — a complete lack of documented maintenance.",
+    last_generated: '2026-07-30T01:05:47.583+00:00',
+  };
+}
+
 /** The car the design loop has been grading since the first iteration. */
 const M235I = {
   id: 'db143cdc-e68c-46f0-849e-69f7a1873f58',
@@ -137,12 +185,7 @@ const M235I = {
     written around — and the rows below carry `created_at` after it, so the
     verdict is stale for the reason a real one is.
   */
-  vehicle_health_summary: {
-    health_score: 70,
-    summary:
-      "Based on your provided service history, the vehicle's health is highly uncertain due to a complete lack of documented maintenance.",
-    last_generated: '2026-07-30T01:05:47.583+00:00',
-  },
+  vehicle_health_summary: designVerdict(),
   /*
     ⚠ Real NHTSA field names. The same note in `GarageScreen.test.tsx` explains
     what a bare `{ id: 1 }` costs: `normaliseRecall` drops it, and an entry that
@@ -628,6 +671,13 @@ function designCar() {
     ...M235I,
     plate_key: M235I_PLATE_KEY,
     photo_url,
+    /*
+      What the image is, as both routes say it since 13 Sep (`vehiclePhotoKind`):
+      the owner's photograph, or the plate. Absent, the phone reads an older
+      API's answer as the owner's — and drew CHANGE PHOTO over a plate in the
+      first frame of round 47 (21 Sep), the fixture lying by omission.
+    */
+    photo_kind: photo ? 'owner' : photo_url ? 'plate' : null,
     /* `null` under a photograph or a plate, as the route does it — the empty plate is not showing. */
     plate_status: photo_url ? null : DESIGN_PLATE_STATUS,
   };
@@ -715,10 +765,52 @@ const THREAD_MESSAGES: Record<string, Array<{ role: 'user' | 'assistant'; conten
   ],
 };
 
+/**
+ * The design car's tire set — §0.8 of the tire loop's shared frame, transposed
+ * onto the M235i's odometer (20 Sep).
+ *
+ * The worked example is a 2019 Golf R at 78,412 miles; the design car reads
+ * 66,000. Every figure below is the example's, shifted by that difference, so
+ * the frame the loop graded — `ON THIS SET 24,180 MI`, `11,400` since,
+ * `PAST 5,400 MI`, a run of 78.83pt on a 353pt axis — is what the simulator
+ * shows on the car every other fixture already draws. Rows are the route's
+ * shape (`app/api/v1/tires/route.ts`); `EXPO_PUBLIC_DESIGN_EMPTY=tires` shows
+ * the no-set state, and `=interval` the set with no interval entered.
+ */
+const TIRE_SET = {
+  id: 'set-design',
+  vehicle_id: M235I.id,
+  brand: 'Michelin',
+  line: 'Pilot Sport 4S',
+  size_front: '245/35R19',
+  size_rear: '245/35R19',
+  installed_on: '2025-03-12',
+  install_odometer: M235I.current_mileage - 24_180,
+  purchase_place: 'Discount Tire',
+  rotation_interval_miles: 6_000,
+  interval_source: 'owner',
+  treadwear_miles_entered: 45_000,
+  provenance: 'invoice',
+  retired_at: null,
+};
+const TIRE_ROTATIONS = [
+  { id: 'rot-1', set_id: TIRE_SET.id, rotated_on: '2025-06-28', odometer: M235I.current_mileage - 18_272, provenance: 'invoice' },
+  { id: 'rot-2', set_id: TIRE_SET.id, rotated_on: '2025-11-09', odometer: M235I.current_mileage - 11_400, provenance: 'typed' },
+];
+
 export function fixtureFor(
   path: string,
   request: { method?: string; body?: unknown } = {}
 ): unknown | undefined {
+  if (path.startsWith('/tires')) {
+    /* Writes fall through to the network — a canned "saved" would be a screenshot that lies. */
+    if (request.method && request.method !== 'GET') return undefined;
+    if (DESIGN_EMPTY.has('tires')) return { set: null, rotations: [] };
+    if (DESIGN_EMPTY.has('interval')) {
+      return { set: { ...TIRE_SET, rotation_interval_miles: null, interval_source: null }, rotations: TIRE_ROTATIONS };
+    }
+    return { set: TIRE_SET, rotations: TIRE_ROTATIONS };
+  }
   if (path.startsWith('/upload-photo')) {
     if (request.method === 'DELETE') {
       addedPhotoUri = null;

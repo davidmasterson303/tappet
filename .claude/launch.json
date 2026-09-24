@@ -59,6 +59,46 @@
       ],
       "cwd": "apps/mobile",
       "autoPort": true
+    },
+    {
+      "name": "expo-mobile-spare",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "exec npx expo start --port \"$PORT\" --clear"
+      ],
+      "cwd": "apps/mobile",
+      "autoPort": true
+    },
+    {
+      "name": "expo-mobile-fixtures-hold",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "EXPO_PUBLIC_DESIGN_FIXTURES=1 EXPO_PUBLIC_DESIGN_DECODE_HOLD_MS=8000 EXPO_PUBLIC_DESIGN_PHOTO_URL=\"http://localhost:$PORT/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg\" exec npx expo start --port \"$PORT\" --clear"
+      ],
+      "cwd": "apps/mobile",
+      "autoPort": true
+    },
+    {
+      "name": "expo-mobile-fixtures-tires-no-interval",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "EXPO_PUBLIC_DESIGN_FIXTURES=1 EXPO_PUBLIC_DESIGN_EMPTY=interval EXPO_PUBLIC_DESIGN_PHOTO_URL=\"http://localhost:$PORT/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg\" exec npx expo start --port \"$PORT\" --clear"
+      ],
+      "cwd": "apps/mobile",
+      "autoPort": true
+    },
+    {
+      "name": "expo-mobile-fixtures-tires-no-set",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "EXPO_PUBLIC_DESIGN_FIXTURES=1 EXPO_PUBLIC_DESIGN_EMPTY=tires EXPO_PUBLIC_DESIGN_PHOTO_URL=\"http://localhost:$PORT/assets/?unstable_path=..%2F..%2Fdesign-loop%2Fmobile-ios%2Fowner-photo.jpg\" exec npx expo start --port \"$PORT\" --clear"
+      ],
+      "cwd": "apps/mobile",
+      "autoPort": true
     }
   ]
 }

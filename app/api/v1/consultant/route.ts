@@ -55,6 +55,10 @@ interface ConsultantRequestBody {
 
 /** Keeps a single message from becoming an unbounded prompt. */
 const MAX_MESSAGE_LENGTH = 4000;
+/** Attachments per turn — each is an image in the prompt (23 Sep). */
+const MAX_ATTACHMENTS = 3;
+/** Turns of caller-supplied history the demo path will replay (23 Sep). */
+const MAX_DEMO_HISTORY = 20;
 
 /**
  * The status each coded failure goes out with. 502 is deliberately absent.
@@ -169,7 +173,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       isDemoVehicle,
       sessionId: typeof body.sessionId === 'string' ? body.sessionId : null,
       message,
-      clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory : [],
+      // Bounded: the demo's history is the caller's, and the prompt is paid for.
+      clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory.slice(-MAX_DEMO_HISTORY) : [],
     });
 
     if (!thread.ok) {
@@ -184,7 +189,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       sessionId: thread.sessionId,
       message,
       messageHistory: thread.messageHistory,
-      attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments : undefined,
+      // Each attachment is an inline image part in the prompt; the count is ours to cap, not the caller's.
+      attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments.slice(0, MAX_ATTACHMENTS) : undefined,
     });
 
     if (!result.success) {
@@ -270,6 +276,18 @@ export async function POST(request: NextRequest): Promise<Response> {
         never inferred. Absent has to arrive as absent.
       */
       ...(result.estimate ? { estimate: result.estimate } : {}),
+      /*
+        ⚠ Whether this answer was written in advance rather than generated —
+        the demo, which makes no model call (`demo-answers.ts`). Dropped here
+        until 17 Sep, so through this route a sample arrived indistinguishable
+        from a model answer while the web, which calls the action directly,
+        labelled it. `demo-answers.ts` puts an unlabelled sample beside the
+        scan sweep that depicted an examination nobody ran, and it is right:
+        the label is the honesty of the whole demo, and the route is the only
+        surface a phone can reach it through. Present only when true, like
+        `estimate`, so absent means "a model wrote this" and never "unknown".
+      */
+      ...(result.isSample ? { isSample: true } : {}),
     } as ApiResponse);
   } catch (error) {
     logger.error('API:CONSULTANT', error as Error);

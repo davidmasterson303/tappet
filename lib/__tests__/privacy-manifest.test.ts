@@ -149,20 +149,31 @@ describe('the iOS privacy manifest', () => {
     }
   });
 
-  it('does not yet claim purchase history, because nothing sells anything', () => {
+  it('declares purchase history, because the paywall sells a subscription', () => {
     /*
-      E8 has not been built. Declaring purchases before there is a purchase
-      flow is the mirror of forgetting to declare one afterwards, and it is the
-      easier mistake to make while writing this file in advance.
+      ── 23 Sep · the detector never saw the store ────────────────────────────
 
-      **When Apple IAP lands, add `PurchaseHistory` and delete this test.** It
-      is written to fail the moment a purchase path appears.
+      This case was written before E8 as "does not yet claim purchase history"
+      and told the reader to flip it when IAP landed. IAP landed on 18 Aug
+      (`0f88fef`) as **`expo-iap`** — a name the detector's regex
+      (`react-native-iap|expo-in-app-purchases|revenuecat|StoreKit`) did not
+      match — so the case stayed green for five weeks while the paywall
+      shipped and the manifest said nothing about purchases. CLAUDE.md §5.
+
+      The detector now names the dependency that is actually installed, and
+      the assertion is the one the old comment promised.
     */
-    const hasIAP = /react-native-iap|expo-in-app-purchases|revenuecat|StoreKit/i.test(
-      JSON.stringify(JSON.parse(source('apps/mobile/package.json')).dependencies ?? {})
-    );
+    const deps = JSON.stringify(JSON.parse(source('apps/mobile/package.json')).dependencies ?? {});
+    const hasIAP = /expo-iap|react-native-iap|expo-in-app-purchases|revenuecat|StoreKit/i.test(deps);
 
-    expect(hasIAP).toBe(false);
-    expect(declared).not.toContain('PurchaseHistory');
+    expect(hasIAP).toBe(true);
+    expect(declared).toContain('PurchaseHistory');
+  });
+
+  it('can still tell an installed store from a missing one', () => {
+    // Anti-vacuous: the old regex against the real dependencies found nothing.
+    const deps = JSON.stringify(JSON.parse(source('apps/mobile/package.json')).dependencies ?? {});
+    expect(/react-native-iap|expo-in-app-purchases|revenuecat|StoreKit/i.test(deps)).toBe(false);
+    expect(/expo-iap/.test(deps)).toBe(true);
   });
 });

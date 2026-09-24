@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 import { NavigationContext } from '@react-navigation/native';
 
 import Button from '../components/Button';
@@ -45,6 +46,7 @@ export function ServiceScreen({
   vehicleId,
   vehicleTitle,
   onScan,
+  onUpload,
   onOpenVisit,
   initialSegment = 'due',
   onSignOut,
@@ -79,6 +81,8 @@ export function ServiceScreen({
     prop-injection seam exists to prevent.
   */
   onScan: () => void;
+  /** The library picker, straight away (21 Sep). */
+  onUpload: () => void;
   onOpenVisit: (visit: ServiceVisit) => void;
 }) {
   const [segment, setSegment] = useState<ServiceSegment>(initialSegment);
@@ -141,14 +145,33 @@ export function ServiceScreen({
         </View>
       ) : null}
 
+      {/*
+        ── ⚠ 22 Sep · History is leftmost, and Due moved right ───────────────
+
+        David: *"on service tab, i think we should always land user on
+        leftmost subnav tab, right? im landing on history, which is right
+        tab. either flip them, or land user on Due."*
+
+        He offered both, and **flipping is the one that keeps his own earlier
+        call**: the Service *tab* opens the record — 30 Aug, *"I wanted
+        history tab to show searchable history of line items, like web app
+        version"* — and landing it on Due would have reversed that to satisfy
+        a rule about ordering. `tab-target.ts` carries the pair of decisions
+        together.
+
+        The order reads as a timeline besides: what has been done, then what
+        is next. What it costs is that Due — the more actionable half — is no
+        longer first, and the two paths that *mean* Due reach it explicitly
+        anyway (the hub's NEXT SERVICE cell, and a service-due notification).
+      */}
       <View style={styles.switcher}>
         <Segmented
           accessibilityLabel="Service"
           value={segment}
           onChange={setSegment}
           options={[
-            { value: 'due', label: 'Due' },
             { value: 'history', label: 'History' },
+            { value: 'due', label: 'Due' },
           ]}
         />
       </View>
@@ -170,8 +193,30 @@ export function ServiceScreen({
         primary that appears and disappears as you move between two lists is a
         primary you cannot rely on finding.
       */}
+      {/*
+        ── 21 Sep · scan, or upload — and said so ──────────────────────────
+
+        One SCAN INVOICE button hid the other way in: the library picker was
+        an "instead" line on the viewfinder, and David, on the phone with no
+        receipt to hand, did not know it was there. Two controls under one
+        small heading, the camera first because it is the phone's act, the
+        upload beside it because a photo already taken is the common case
+        for a receipt from last month. The pre-header names what both do.
+      */}
       <View style={styles.scan}>
-        <Button label="Scan invoice" onPress={onScan} />
+        <Text style={styles.scanHeading} accessibilityRole="header">
+          ADD AN INVOICE
+        </Text>
+        <View style={styles.scanRow}>
+          <Button label="Scan" onPress={onScan} style={styles.scanButton} accessibilityLabel="Scan an invoice with the camera" />
+          <Button
+            label="Upload"
+            variant="outline"
+            onPress={onUpload}
+            style={styles.scanButton}
+            accessibilityLabel="Upload an invoice from your photos"
+          />
+        </View>
       </View>
     </>
   );
@@ -224,9 +269,13 @@ const styles = StyleSheet.create({
   scan: {
     paddingHorizontal: space.lg,
     paddingBottom: space.md,
+    gap: space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: border.panel,
   },
+  scanHeading: { ...type.label, color: text.secondary },
+  scanRow: { flexDirection: 'row', gap: space.sm },
+  scanButton: { flex: 1 },
   /*
     Pinned above the content, on the page's own surface. Same rule as the
     history screen's search field: a control whose job is to change what is

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import { formatRange } from '@tappet/core/advice-range';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';

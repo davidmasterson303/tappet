@@ -203,26 +203,38 @@ export function paidMonthlyOutputTokens(): number {
 }
 
 /**
- * ⚠ What a free account is allowed to cost — a decision nobody has made, and
- * one that cannot be applied yet even when they do.
+ * ⚠ What a free account is allowed to cost — decided 17 Sep: **nothing that
+ * calls a model**, and one that cannot be applied yet even so.
  *
  * **A free account earns nothing, so no ceiling makes it breakeven.** The
  * question is not arithmetic, it is what a signup is worth, and that is David's
- * number. `FREE_MONTHLY_COST_USD` is a placeholder sized against the free
- * tier's own legitimate model use, not a considered figure.
+ * number. `FREE_MONTHLY_COST_USD` was a placeholder sized against the free
+ * tier's one legitimate model path; since 17 Sep it is a fuse behind a gate.
  *
- * ── Why a free account can cost anything at all ─────────────────────────────
+ * ── Why a free account could cost anything at all, and the 17 Sep answer ────
  *
- * `paid-features.ts` says the three paid features "are exactly the three that
- * call a model". **That is not quite true, and here is where it shows.** Health
- * summary generation calls Gemini and sits outside `checkFeatureAccess` — by
- * design, because the health dial is the free product's whole face. So the free
- * tier has one legitimate path that costs us money, and its ceiling has to
- * cover that path without covering an abuse case.
+ * `paid-features.ts` said the three paid features "are exactly the three that
+ * call a model". **That was not true, and here is where it showed.** Health
+ * summary generation called Gemini outside `checkFeatureAccess` — by design,
+ * because the health dial was the free product's whole face — and three more
+ * paths (onboarding research, the quote's two calls, performance stats) sat
+ * outside by omission. So the free tier had paths that cost us money, and
+ * this ceiling had to cover them without covering an abuse case.
  *
- * At the 400,000-token ceiling that exposure is about **$3.00 a month per free
- * account against zero revenue** — more than the net on an annual subscription.
- * That number was not chosen for this situation; it is inherited from when the
+ * David's decision of 17 Sep — the fork resolved as "keep the free tier, gate
+ * the model paths" — puts three of the four behind the gate (`PaidFeature`
+ * lists where each went) and **keeps the health score free**, on purpose and
+ * with the number in front of him: 274–789 output-equivalent tokens a
+ * summary, half a cent, at most once a car a day. So once the switch flips a
+ * free account's legitimate model use is exactly that path, and this
+ * constant is its ceiling — which is what it was sized for on 24 Aug. The
+ * garage, the service log and mileage are database writes; a free account is
+ * close to free to serve, and this file says how close.
+ *
+ * At the 400,000-token ceiling the un-enforced exposure is still about
+ * **$3.00 a month per free account against zero revenue** — more than the net
+ * on an annual subscription — and that is the period the app is in. That
+ * number was not chosen for this situation; it is inherited from when the
  * tiers differed by allowance rather than by feature.
  *
  * ── ⛔ Why the smaller number is not live ───────────────────────────────────
@@ -246,39 +258,39 @@ export function paidMonthlyOutputTokens(): number {
 export const FREE_MONTHLY_COST_USD = 0.25;
 
 /**
- * ── ⚠ SUPERSEDED 30 Aug: there is to be no free tier ────────────────────────
+ * ── The free tier: "none" on 30 Aug, kept on 17 Sep ─────────────────────────
  *
- * David: *"I don't want a free tier. I think we should have a demo view/mode
- * without real LLM calls so prospects can explore the app without costing
- * anything."*
+ * David, 30 Aug: *"I don't want a free tier. I think we should have a demo
+ * view/mode without real LLM calls so prospects can explore the app without
+ * costing anything."* That was written here as SUPERSEDING the question above:
+ * a prospect who has not paid makes no model call, so their worst case is
+ * exactly zero. The constants stayed "until the change lands", because
+ * deleting the free tier was a product build — a demo mode, a paywall as the
+ * front door, a decision about lapse — and it never landed: no write path
+ * ever consulted entitlement, and the binary kept its free garage.
  *
- * That answers the question above by removing it. A prospect who has not paid
- * makes no model call at all, so their worst case is **exactly zero** rather
- * than an acquisition cost somebody has to price. It is a better answer than
- * any number that could have gone in `FREE_MONTHLY_COST_USD`, and it closes the
- * one hole this file could not: health summary generation sits outside the
- * feature gate, so a free account was always going to cost something.
+ * David, 17 Sep, after that was put to him: keep the free tier. The 30 Aug
+ * decision was about cost, and gating every model path gets the cost to
+ * ~zero without deleting garage, service log and mileage — database writes
+ * that were never the expense. A lapse drops to the free tier, not to
+ * read-only, which also answers the ⛔ that stood here: a lapsed account keeps
+ * reaching its own records because a lapsed account *is* a free account.
+ * `paid-features.ts` and `access.ts` carry the argument in full.
  *
- * The constants above are kept until the change lands, because deleting the
- * free tier is a product build — a demo mode with answers that are not
- * generated, a paywall that is now the front door, and a decision about lapse —
- * not a constant edit. `budget.ts` still ships `TIERS.free`, and it still has to
- * mean something until nothing reads it.
- *
- * ⛔ **The open question is not new users, it is lapsed ones.** `paid-features.ts`
- * argues that a garage which stops working when a subscription ends is a
- * hostage, and the records in it are the owner's own. That argument is about
- * somebody who *did* pay, so "no free tier" does not settle it: a lapsed
- * account still needs to reach its own service history, even if it makes no
- * model calls ever again. Until David answers that, this file describes the
- * pricing and not the entitlement.
+ * So the constants below are live rather than placeholders-until-deletion,
+ * and they mean this: `TIERS.free` bounds the un-enforced period, when a free
+ * account still reaches every model path; `freeMonthlyOutputTokensWhenGated`
+ * is what it drops to once the gate is on and a free account's one legitimate
+ * model path is the health score — sized for exactly that path, nothing
+ * else, and kept positive because `budget.ts` reads a non-positive ceiling
+ * as "no ceiling".
  */
 
 /**
  * What the free ceiling becomes once the feature gate is enforced.
  *
  * Not what it is today. See the header above: this is the second half of a
- * two-part change whose first half is a product launch.
+ * two-part change whose first half is the switch flipping.
  */
 export function freeMonthlyOutputTokensWhenGated(): number {
   return Math.floor(FREE_MONTHLY_COST_USD / OUTPUT_USD_PER_TOKEN.pro);

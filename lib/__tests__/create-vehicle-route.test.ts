@@ -59,10 +59,15 @@ describe('POST /api/v1/vehicles', () => {
     expect(post).not.toMatch(/body\.user_?[iI]d/);
   });
 
-  it('reuses the mileage rule rather than growing a second opinion', () => {
-    // A first reading is an increase from nothing, so the correction path does
-    // not apply and the bounds do.
-    expect(post).toMatch(/validateMileageUpdate\(\{\s*current:\s*0/);
+  it('reuses the mileage rule rather than growing a second opinion — as a first reading', () => {
+    /*
+      `current: null`, never `0`. With `0` the jump check read any first
+      reading past 100,000 as a typo and this route answered 422 — a 2003
+      Accord at 170,000, refused on 19 Sep with "check the digits".
+      `mileage-update.test.ts` pins the rule at a value that trips the jump.
+    */
+    expect(post).toMatch(/validateMileageUpdate\(\{\s*current:\s*null/);
+    expect(post).not.toMatch(/validateMileageUpdate\(\{\s*current:\s*0/);
   });
 
   it('does not await the dossier research', () => {
@@ -106,6 +111,120 @@ describe('POST /api/v1/vehicles', () => {
     // The vehicle exists and is usable; the dossier is the thing that waits.
     expect(post).toMatch(/kbError/);
     expect(post).toMatch(/logger\.warn/);
+  });
+
+  describe('the VIN — the column that refused every car from 8 Aug to 19 Sep', () => {
+    /*
+      `vehicles.vin` was `text UNIQUE NOT NULL` from the first schema, and
+      this insert never named it, so the database refused the row whole:
+      every car added on the phone answered 500 "Could not save the vehicle"
+      for six weeks, and the table had never held one. The route's docblock
+      said "everything else has a sensible default"; the phone's said a car
+      added here "carries no VIN in the database". Both were the schema
+      stated from a file read — §2 — and the artefact (a PostgREST probe,
+      23502) said otherwise. Every case here reads source, as the rest of
+      this file does; the applied state of the migration is the probe.
+    */
+    const insert = post.slice(post.indexOf(".from('vehicles')"), post.indexOf(".select('id,year,make,model')"));
+
+    it('names the column in the insert at all', () => {
+      expect(insert).toMatch(/\bvin:/);
+    });
+
+    it('carries the VIN the phone decoded, normalised, and refuses a malformed one in the field\'s words', () => {
+      // The same rule the field shows while it is typed, so the phone and
+      // the route cannot disagree about what a VIN is.
+      expect(post).toMatch(/normaliseVin\(body\.vin\)/);
+      expect(post).toMatch(/const vinTrouble = vinProblem\(vin\)/);
+      expect(post).toMatch(/error:\s*vinTrouble[\s\S]{0,80}status:\s*422/);
+    });
+
+    it('stores null when there is none — never the empty string', () => {
+      // `''` is a value, and UNIQUE would let exactly one car in the whole
+      // product have it. `null` is "not given", and NULLs are distinct.
+      expect(insert).toMatch(/vin:\s*vin \|\| null/);
+      expect(insert).not.toMatch(/vin:\s*''/);
+      expect(insert).not.toMatch(/vin:\s*vin,/);
+    });
+
+    it('answers a taken VIN with 409 and a reason, not a 500', () => {
+      expect(post).toMatch(/error\?\.code === '23505'[\s\S]{0,400}status:\s*409/);
+      expect(post).toMatch(/already in a garage/);
+    });
+
+    it('the migration that lets the row exist is on disk, and the first schema shows why it is needed', () => {
+      const schema = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260101215332_create_crewchief_schema.sql'),
+        'utf8'
+      );
+      const migration = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260919160000_a_car_added_from_the_phone_may_have_no_vin.sql'),
+        'utf8'
+      );
+      // Anti-vacuous: the constraint this undoes is really in the first file.
+      expect(schema).toMatch(/vin text UNIQUE NOT NULL/);
+      expect(migration).toMatch(/ALTER TABLE vehicles ALTER COLUMN vin DROP NOT NULL;/);
+      // And UNIQUE is left alone — one real VIN is still one car.
+      expect(migration).not.toMatch(/DROP CONSTRAINT/i);
+    });
+
+    it('can still detect the insert that shipped, so this is not vacuous', () => {
+      const shipped = `
+    .from('vehicles')
+    .insert({
+      year,
+      make,
+      model,
+      trim: typeof body.trim === 'string' ? body.trim.trim() : '',
+      current_mileage: mileage,
+      performance_mindedness: body.wantsModifications === false ? 'stock' : 'mild',
+      user_id: caller.userId,
+    })
+    .select('id,year,make,model')`;
+      const old = shipped.slice(shipped.indexOf(".from('vehicles')"), shipped.indexOf(".select('id,year,make,model')"));
+      expect(old).not.toMatch(/\bvin:/);
+      expect(insert.length).toBeGreaterThan(50);
+    });
+  });
+
+  describe('the use of the car — a default is not an answer (QE 2.2)', () => {
+    /*
+      `vehicle_status DEFAULT 'daily_driver'` since 14 Mar, and nothing in
+      either create path asks. The hero printed the default as "USE · Daily
+      Driver" and the profile screen pre-selected it as an answer the owner
+      gave. Both inserts name the column as null now; the migration drops
+      the default so the next insert that forgets cannot acquire one.
+    */
+    const insert = post.slice(post.indexOf(".from('vehicles')"), post.indexOf(".select('id,year,make,model')"));
+
+    it('the phone route inserts null, never a use nobody stated', () => {
+      expect(insert).toMatch(/vehicle_status:\s*null,/);
+      expect(insert).not.toMatch(/vehicle_status:\s*'daily_driver'/);
+    });
+
+    it('the web wizard does the same', () => {
+      const actions = code(readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8'));
+      const create = actions.slice(actions.indexOf('.from(\'vehicles\')\n      .insert({'));
+      const body = create.slice(0, create.indexOf('.select()'));
+      expect(body).toMatch(/usage_profile: vehicleData\.usage_profile/); // anchored to the right insert
+      expect(body).toMatch(/vehicle_status:\s*null,/);
+    });
+
+    it('the migration drops the default and leaves the rows alone', () => {
+      const added = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260314163304_20260314_add_vehicle_status_and_health_history.sql'),
+        'utf8'
+      );
+      const migration = readFileSync(
+        join(ROOT, 'supabase', 'migrations', '20260920120000_a_cars_use_is_the_owners_answer_or_nothing.sql'),
+        'utf8'
+      );
+      // Anti-vacuous: the default this drops is really in the earlier file.
+      expect(added).toMatch(/vehicle_status TEXT DEFAULT 'daily_driver'/);
+      expect(migration).toMatch(/ALTER TABLE vehicles ALTER COLUMN vehicle_status DROP DEFAULT;/);
+      expect(migration).not.toMatch(/UPDATE vehicles/i);
+      expect(migration).not.toMatch(/DROP CONSTRAINT/i);
+    });
   });
 
   describe('the Track A2a service baseline', () => {

@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import {
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import Text from '../components/Text';
 
 import { apiRequest, ApiRequestError } from '../api/client';
 import Button from '../components/Button';
 import AlertBanner from '../components/AlertBanner';
 import EmptyState from '../components/EmptyState';
 import FirstRun from '../components/FirstRun';
+import BayRail from '../components/BayRail';
 import GarageBay from '../components/GarageBay';
 import { type Stat } from '../components/StatStrip';
 import BrandLockup from '../components/BrandLockup';
@@ -22,16 +24,11 @@ import Working from '../components/Working';
 import type { PlateStatus } from '@tappet/core/plates';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
 import { PushPrimer } from '../notifications/PushPrimer';
-import {
-  currentPushPermission,
-  primerDismissedOn,
-  recordPrimerDismissed,
-  registerForPush,
-} from '../notifications/register';
-import { shouldShowPushPrimer } from '@tappet/core/push-priming';
+import { usePushPrimer } from '../notifications/usePushPrimer';
 import { shouldShowFirstRun } from '@tappet/core/first-run';
 import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-storage';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { healthVerdict } from '@tappet/core/health-claims';
 import { normaliseRecalls } from '@tappet/core/recalls';
 import { localToday } from '@tappet/core/garage-next-service';
 
@@ -74,6 +71,8 @@ interface HealthSummary {
   health_score?: number | null;
   summary?: string | null;
   red_flags?: unknown[] | null;
+  /** When the reading was taken — what `healthVerdict` compares to the records. */
+  last_generated?: string | null;
 }
 
 interface Vehicle {
@@ -97,6 +96,8 @@ interface Vehicle {
     health band and looks like missing data instead of a shape mismatch.
   */
   vehicle_health_summary?: HealthSummary | HealthSummary[] | null;
+  /** The service records behind the score (20 Sep). `null` when the read failed. */
+  records?: { count: number; newestFiledAt: string | null } | null;
   nhtsa_data?: { recalls?: unknown[] | null } | { recalls?: unknown[] | null }[] | null;
   /**
    * Campaigns this owner has marked repaired — embedded by the route.
@@ -154,22 +155,18 @@ function humanise(value: string): string {
  */
 function VehicleBay({
   vehicle,
-  index,
-  total,
   active,
   onOpen,
   onOpenService,
 }: {
   vehicle: Vehicle;
-  index: number;
-  total: number;
   active: boolean;
   onOpen: () => void;
   /** R21. Opens `Service → Due` for this car from the next-service row. */
   onOpenService?: () => void;
 }) {
   const health = first(vehicle.vehicle_health_summary);
-  const score = typeof health?.health_score === 'number' ? health.health_score : null;
+  const rawScore = typeof health?.health_score === 'number' ? health.health_score : null;
 
   /*
     ── Open recalls, and two corrections in one line ─────────────────────────
@@ -194,6 +191,28 @@ function VehicleBay({
   const recallCount = normaliseRecalls(first(vehicle.nhtsa_data)?.recalls).filter(
     (recall) => !recall.campaignNumber || !marked.has(recall.campaignNumber)
   ).length;
+
+  /*
+    ── The same verdict the detail screen applies (QE 1.5, 20 Sep) ───────────
+
+    The M235i's row is the pre-FN-01 constant — 70, `last_generated`
+    2000-01-01 — deliberately stamped stale, and this bay drew a 70 FAIR dial
+    with nothing qualifying it while the detail screen, one tap away, said
+    "read before 5 service records were filed". CLAUDE.md §6: a missing score
+    must never render as a reading, and a stale one is a reading the records
+    have overtaken. The garage payload carries the records behind each score
+    since today, so the bay can ask `healthVerdict` the question the detail
+    asks, and draw no dial for a stale answer.
+  */
+  const verdict = healthVerdict({
+    summary: health?.summary,
+    generatedAt: health?.last_generated,
+    serviceCount: vehicle.records?.count ?? null,
+    newestFiledAt: vehicle.records?.newestFiledAt ?? null,
+    openRecalls: recallCount,
+  });
+  const stale = verdict.state === 'stale';
+  const score = stale ? null : rawScore;
 
   /*
     ⚠ 6 Sep · B2: the strip's cells, assembled here because only the screen knows
@@ -226,8 +245,16 @@ function VehicleBay({
       */
       today={localToday()}
       score={score}
-      index={index}
-      total={total}
+      /*
+        ⚠ 22 Sep · the dial is banded against the file. A reading on a car
+        with fewer than three records names the file rather than judging the
+        car (`bandForReading`), and the count already travels on this payload
+        for the staleness rule above. Without it the bay would say NEEDS
+        ATTENTION about the same 55 the hub calls a thin history, one tap
+        apart — the disagreement this file's own docblock was written about.
+      */
+      records={vehicle.records?.count ?? null}
+      staleReading={stale}
       stats={stats}
       active={active}
       onOpen={onOpen}
@@ -299,6 +326,8 @@ export function GarageScreen({
     which bay is allowed to run its door and its needle — see `GarageBay`.
   */
   const [bayIndex, setBayIndex] = useState(0);
+  /* The pager, so the rail can page it. */
+  const pager = useRef<ScrollView>(null);
 
   const { width } = useWindowDimensions();
 
@@ -347,69 +376,34 @@ export function GarageScreen({
     setHadVehicle(true);
     void recordEverHadVehicle();
   }, [state]);
-  const [primerOpen, setPrimerOpen] = useState(false);
-
   /*
     ── C5: the notification primer ──────────────────────────────────────────
 
-    It is raised from the garage rather than from the navigator because the
-    rule that gates it needs the vehicle count, and this is the screen that
-    has one. That is not incidental — "ask once they have a car" is the design:
-    somebody with an empty garage is being asked to agree to something
-    abstract, and an abstract yes is the one most likely to be no.
+    Asked once they have a car: somebody with an empty garage is being asked
+    to agree to something abstract, and an abstract yes is the one most
+    likely to be no. The rule and both answers live in `usePushPrimer` — one
+    home, shared with the car's page, which is where the primer is actually
+    reached now that this screen is unmounted (23 Sep).
 
-    Runs when the vehicle list resolves, not on mount, so the count is real
-    rather than zero-while-loading. A zero-while-loading read would suppress
-    the primer on every launch and the screen would never appear at all.
+    `null` while the list is loading, so the count is real rather than
+    zero-while-loading: a zero read would suppress the primer on every launch
+    and the screen would never appear at all.
   */
-  useEffect(() => {
-    if (state.status !== 'ok') return;
+  const pushPrimer = usePushPrimer(state.status === 'ok' ? state.vehicles.length : null);
 
-    let cancelled = false;
-
-    void (async () => {
-      const [permission, dismissedOn] = await Promise.all([
-        currentPushPermission(),
-        primerDismissedOn(),
-      ]);
-
-      if (cancelled) return;
-
-      setPrimerOpen(
-        shouldShowPushPrimer({
-          permission,
-          dismissedOn,
-          vehicleCount: state.vehicles.length,
-          today: new Date().toISOString().slice(0, 10),
-        }),
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [state]);
-
-  const acceptPrimer = useCallback(async () => {
+  const load = useCallback(async (isRefresh = false, quiet = false) => {
     /*
-      Closed first, then the system dialog. Leaving our screen up underneath
-      Apple's puts two asks on screen at once, and the person answers the one
-      they can see while the other waits — which reads as the app arguing with
-      itself.
+      ── Quiet, since 20 Sep ──────────────────────────────────────────────────
+
+      The focus refetch added this morning (`c06980e`) fixed a missing car and
+      introduced "OPENING THE GARAGE" on every return to the tab — the
+      opening dial over a list the screen already had, for ~0.7 s, caught on
+      a 10 Hz burst. A quiet reload keeps the bays on screen and swaps the
+      data underneath; the dial is for the first open only.
     */
-    setPrimerOpen(false);
-    await registerForPush();
-  }, []);
-
-  const declinePrimer = useCallback(async () => {
-    setPrimerOpen(false);
-    // Records a date, not a boolean, so the cooldown can expire and somebody
-    // who was busy today can still be asked next month.
-    await recordPrimerDismissed(new Date().toISOString().slice(0, 10));
-  }, []);
-
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+    if (quiet) {
+      // Nothing to show: the rows changing is the whole feedback.
+    } else if (isRefresh) setRefreshing(true);
     else setState({ status: 'loading' });
 
     try {
@@ -432,6 +426,8 @@ export function GarageScreen({
       setState({ status: 'ok', vehicles });
     } catch (error) {
       const apiError = error as ApiRequestError;
+      // A quiet refetch that fails keeps the bays; the next open reloads properly.
+      if (quiet) return;
       setState({
         status: 'error',
         message: apiError.message,
@@ -465,6 +461,22 @@ export function GarageScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /*
+    ── ⚠ 20 Sep · the garage did not know a car had been added ─────────────
+
+    MOB-09 subscribed every screen a write elsewhere can change — except this
+    one, on the reasoning that the garage is the tab root and reloads when
+    the app does. It does not reload when a car is added: ADD CAR replaces
+    itself with the new car's detail, and coming back here found the list as
+    it was before, one bay short, until the app was killed. Seen live on the
+    first car ever saved from the phone (the Accord, 19 Sep) and again on the
+    20 Sep verification run. A garage that does not show the car you just
+    added is the "did anything actually happen" defect on the product's
+    front page. Same hook, same argument; `screens-refetch-on-focus.test.ts`
+    now lists this screen.
+  */
+  useRefetchOnFocus(load);
 
   /*
     ── The header is rendered in every state, and that is a compliance fix ────
@@ -553,7 +565,7 @@ export function GarageScreen({
   );
 
   const primer = (
-    <PushPrimer visible={primerOpen} onAccept={acceptPrimer} onDecline={declinePrimer} />
+    <PushPrimer visible={pushPrimer.open} onAccept={pushPrimer.accept} onDecline={pushPrimer.decline} />
   );
 
 
@@ -693,7 +705,7 @@ export function GarageScreen({
                   to the eye, which has position to go on.
                 */
                 <EmptyState
-                  headline="No vehicles yet"
+                  headline="No cars yet"
                   body="Add your first car and Tappet gets to work on it."
                   actionLabel="Add a car"
                   actionAccessibilityLabel="Add your first car"
@@ -701,12 +713,39 @@ export function GarageScreen({
                 />
               )
             ) : (
+              <>
+                {/*
+                  ── 21 Sep · the rail, above the pager and holding still ──────
+
+                  Which bay is on screen, of how many, each a tap to that bay,
+                  and the door into the car — `BayRail` carries David's words
+                  and the construction. It used to be the bay's own batten
+                  ("BAY 01 … 1 of 3"), one per page, sliding with it.
+                */}
+                <BayRail
+                  total={state.vehicles.length}
+                  index={Math.min(bayIndex, state.vehicles.length - 1)}
+                  onJump={(index) => {
+                    /*
+                      `scrollTo` does not end in `onMomentumScrollEnd`, so the
+                      index is set here; a drag still lands through the event.
+                    */
+                    pager.current?.scrollTo({ x: index * width, animated: true });
+                    setBayIndex(index);
+                  }}
+                  carTitle={bayTitle(state.vehicles[Math.min(bayIndex, state.vehicles.length - 1)])}
+                  onOpenCar={() => {
+                    const shown = state.vehicles[Math.min(bayIndex, state.vehicles.length - 1)];
+                    onOpenVehicle(shown.id, bayTitle(shown));
+                  }}
+                />
               <ScrollView
+                ref={pager}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 /*
-                  Momentum, not `onScroll`. The batten reads "BAY 02 · 2 of 3", and
+                  Momentum, not `onScroll`. The rail lights "BAY 02", and
                   updating it mid-drag would have it flicker through every bay the
                   finger passes rather than naming the one that was landed on.
                 */
@@ -718,8 +757,6 @@ export function GarageScreen({
                   <View key={vehicle.id} style={{ width }}>
                     <VehicleBay
                       vehicle={vehicle}
-                      index={index}
-                      total={state.vehicles.length}
                       active={index === bayIndex}
                       onOpen={() => onOpenVehicle(vehicle.id, bayTitle(vehicle))}
                       /* R21. The next-service row leads to what is due. */
@@ -732,6 +769,7 @@ export function GarageScreen({
                   </View>
                 ))}
               </ScrollView>
+              </>
             )}
 
           </ScrollView>

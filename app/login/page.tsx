@@ -50,8 +50,11 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
       {error && (
-        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div
+          role="alert"
+          className="chamfer-sm border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] p-3 text-sm text-[color:var(--critical)]"
+        >
+          {error}
         </div>
       )}
 
@@ -105,8 +108,9 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/60 transition-colors"
-            tabIndex={-1}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            className="tap-target-44 absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-white/50 hover:text-white/60 transition-colors"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>

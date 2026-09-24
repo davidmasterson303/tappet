@@ -228,6 +228,15 @@ const ROUTE_POSTURE: Record<
   */
   'app/api/v1/document-url/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/route.ts': 'vehicle-scoped',
+  /*
+    The tire tracker, v1.1 (20 Sep). 'vehicle-scoped': the set's GET and POST
+    resolve through `authorizeVehicleAccess` (the POST for `intent: 'write'`,
+    so a demo car is refused), and PATCH, the rotation POST and its DELETE
+    through `authorizeVehicleScopedRow` on `tire_sets` / `tire_rotations`,
+    both of which carry `vehicle_id` for exactly that lookup.
+  */
+  'app/api/v1/tires/route.ts': 'vehicle-scoped',
+  'app/api/v1/tires/rotations/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/check/route.ts': 'vehicle-scoped',
   'app/api/v1/wishlist/complete/route.ts': 'vehicle-scoped',
   'app/api/v1/performance-stats/route.ts': 'vehicle-scoped',
@@ -320,6 +329,35 @@ const ROUTE_POSTURE: Record<
   'app/api/internal/plates/store/route.ts': 'secret-gated',
   'app/api/internal/plates/fail/route.ts': 'secret-gated',
   'app/api/internal/plates/backfill/route.ts': 'secret-gated',
+  /*
+    Research from the phone (20 Sep). The four internal routes are the
+    background function's only way to claim, fetch recalls for, store and
+    fail a car's research; they gate through `requireInternalSecret` like
+    the plate routes, and the claim route is where the gate and the ceiling
+    run (`prepareResearch`). The two v1 routes are the phone's: the trigger
+    and the score, both vehicle-scoped, because each spends on a car.
+  */
+  'app/api/internal/research/claim/route.ts': 'secret-gated',
+  'app/api/internal/research/recalls/route.ts': 'secret-gated',
+  'app/api/internal/research/store/route.ts': 'secret-gated',
+  'app/api/internal/research/fail/route.ts': 'secret-gated',
+  'app/api/v1/research/route.ts': 'vehicle-scoped',
+  'app/api/v1/health/route.ts': 'vehicle-scoped',
+  /*
+    Removing a car from the phone (20 Sep). GET is the inventory the
+    confirmation quotes, DELETE the removal; both take a write intent, so the
+    demo is refused on both — reading what a demo car's removal would take
+    is a question the demo cannot act on.
+  */
+  'app/api/v1/vehicle-removal/route.ts': 'vehicle-scoped',
+  /*
+    The phone's crash report (20 Sep, QE 1.4). Public on purpose — a crash on
+    the sign-in screen is still a crash — and its whole surface is: write a
+    bounded line into our log, rate-limited per client. No table, no model,
+    no read path. Read the front-door entry above before accepting this one;
+    it passes the same test: an abuser can make us log.
+  */
+  'app/api/v1/client-errors/route.ts': 'public',
   'app/api/v1/plates/ensure/route.ts': 'session',
   /*
     The anonymous front door (Phase 2.97b, decision D9). It spends Gemini

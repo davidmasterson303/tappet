@@ -205,7 +205,7 @@ Return ONLY a JSON object, no prose, in exactly this shape:
 Rules:
 
 1. If the image or text is not a vehicle repair quote, estimate or invoice, set "is_quote": false and give a short "rejection_reason". Do not guess. Refusing is a correct and expected answer.
-2. "typical_low" and "typical_high" are what this job usually costs at an independent shop in the United States, in USD, parts and labour together. Give a genuine range that reflects real variation between shops — not a narrow band around a single guess.
+2. "typical_low" and "typical_high" are what this job usually costs at an independent shop in the United States, in USD, parts and labor together. Give a genuine range that reflects real variation between shops — not a narrow band around a single guess.
 3. Never state whether the quote is fair, high, low, a ripoff, or a good deal. Return the numbers only. Someone else decides.
 4. "vehicle" must be copied from the document. If the vehicle is not printed on it, use null. Never infer it.
 5. "quoted_total" is the customer-facing total on the document, including tax if shown. Use null if you cannot read it confidently.

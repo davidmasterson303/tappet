@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text, { typeScale } from './Text';
+import Icon from './Icon';
 
 import { TABULAR, border, space, text, type } from '../theme';
 
@@ -36,21 +38,88 @@ export type Stat = {
   label: string;
   /** The value beneath it. Already formatted; this component does not format. */
   value: string;
+  /**
+   * A line under the value in the eyebrow's ink — the value's provenance
+   * (22 Sep: "4 wk ago" under an odometer, the age of the reading). Short: a
+   * cell is a third of the strip.
+   */
+  note?: string;
+  /**
+   * The note wears the door's mark — a hairline chevron — where the cell is
+   * one (22 Sep: the plate opens the car's details, and the odometer is the
+   * fact that goes stale monthly; UX U6). The press is the caller's.
+   */
+  door?: boolean;
+  /**
+   * The value in the absent ink — an ask standing where a fact would (22 Sep:
+   * "Tell us" under USE while the owner has not said how they use the car).
+   * The cell is not dropped, because this is not a reading we lack; it is a
+   * question the page has, and dropping it hid the question (IA's round-6
+   * parking lot: *"the only empty on the page that does not invite"*).
+   */
+  muted?: boolean;
 };
 
-export default function StatStrip({ stats }: { stats: Stat[] }) {
+/**
+ * ⚠ `onPhoto` puts every ink in this strip at `text.primary`.
+ *
+ * The strip's ladder — a muted label over a secondary value — is written for
+ * a **flat ground**, where muted white measures 5.34:1 on the page. On the
+ * car's plate the ground is the owner's photograph, and over a bright sky the
+ * same label needs a bed alpha of 0.837 to clear AA where primary needs 0.583
+ * (`HeroBed`'s `COVER_FLOOR`). The difference is a scrim that keeps the car
+ * and one that loses it, so on the photograph the ladder collapses to one
+ * rung. Flat grounds keep the ladder; it is doing real work there.
+ *
+ * ⚠ **One rung survives, and a test insisted on it.** `stat.muted` is not a
+ * contrast decision — it is the ask standing where a fact would ("Tell us"
+ * under USE), and `VehicleDetailScreen.test.tsx` pins its ink because David
+ * ruled that question into the strip on 22 Sep. Collapsing it to primary made
+ * a question look like an answer, which is a worse defect than the one this
+ * prop exists to fix. On the photograph the ask takes `text.secondary`: still
+ * a step below the facts around it, and `COVER_FLOOR` is set at the alpha
+ * **that ink** needs rather than the alpha primary needs.
+ */
+export default function StatStrip({ stats, onPhoto = false }: { stats: Stat[]; onPhoto?: boolean }) {
   if (stats.length === 0) return null;
 
   return (
     <View style={styles.strip}>
       {stats.map((stat, i) => (
         <View key={stat.label} style={[styles.cell, i > 0 && styles.celled]}>
-          <Text style={styles.label} numberOfLines={1}>
+          <Text style={[styles.label, onPhoto && styles.onPhoto]} numberOfLines={1}>
             {stat.label}
           </Text>
-          <Text style={styles.value} numberOfLines={1}>
+          {/* A value wraps rather than losing its end once the text is larger (21 Sep: "Daily Dri…"). */}
+          <Text
+            style={[
+              styles.value,
+              stat.muted && styles.valueMuted,
+              onPhoto && (stat.muted ? styles.askOnPhoto : styles.onPhoto),
+            ]}
+            numberOfLines={typeScale() > 1 ? 2 : 1}
+          >
             {stat.value}
           </Text>
+          {stat.note ? (
+            <View style={styles.noteRow}>
+              <Text style={[styles.note, onPhoto && styles.onPhoto]} numberOfLines={1}>
+                {stat.note}
+              </Text>
+              {/*
+                The mark, and the only thing that separates a stale reading
+                from a current one on this strip — so it is findable by a
+                test. `Icon` is hidden from assistive tech by design (it
+                never carries meaning alone), which is why a testID rather
+                than a label.
+              */}
+              {stat.door ? (
+                <View testID="stat-note-door">
+                  <Icon name="chevron-right" size={12} color={onPhoto ? text.primary : text.muted} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       ))}
     </View>
@@ -93,4 +162,12 @@ const styles = StyleSheet.create({
   */
   label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
   value: { ...type.mono, color: text.primary, ...TABULAR },
+  valueMuted: { color: text.muted },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */
+  note: { ...type.monoLabel, color: text.muted, ...TABULAR, flexShrink: 1 },
+  /* One rung, on the photograph — see the prop's note. Last in every array, so it wins. */
+  onPhoto: { color: text.primary },
+  /* Except the ask, which stays a step down so it still reads as a question. */
+  askOnPhoto: { color: text.secondary },
 });

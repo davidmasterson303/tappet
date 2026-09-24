@@ -45,6 +45,7 @@ async function mount(vehicleTitle?: string) {
       vehicleId="v1"
       vehicleTitle={vehicleTitle}
       onScan={jest.fn()}
+      onUpload={jest.fn()}
       onOpenVisit={jest.fn()}
       onSignOut={jest.fn()}
     />
@@ -66,7 +67,7 @@ describe('the root names its car', () => {
   it('draws nothing when the route carried no name — never "undefined"', async () => {
     const view = await mount(undefined);
 
-    await view.findByText('Scan invoice');
+    await view.findByText('Scan');
     expect(view.queryByText(/undefined/)).toBeNull();
   });
 
@@ -76,20 +77,22 @@ describe('the root names its car', () => {
       same name under it is the two-names-on-one-screen `ScreenTitle` retired.
       `canGoBack()` is the question `RootScreen` asks, so they cannot disagree.
     */
-    const navigation = { canGoBack: () => true } as never;
+    // `addListener` because the milestone screen inside subscribes to focus (20 Sep).
+    const navigation = { canGoBack: () => true, addListener: () => () => {} } as never;
     const view = await render(
       <NavigationContext.Provider value={navigation}>
         <ServiceScreen
           vehicleId="v1"
           vehicleTitle="2015 BMW M235i"
           onScan={jest.fn()}
+      onUpload={jest.fn()}
           onOpenVisit={jest.fn()}
           onSignOut={jest.fn()}
         />
       </NavigationContext.Provider>
     );
 
-    await view.findByText('Scan invoice');
+    await view.findByText('Scan');
     expect(view.queryByText('2015 BMW M235i')).toBeNull();
   });
 });
@@ -101,11 +104,11 @@ describe('the pinned band closes with a rule', () => {
       marking the edge. The rule is on the control's wrapper, full-bleed.
     */
     const view = await mount('2015 BMW M235i');
-    await view.findByRole('button', { name: 'Scan invoice' });
+    await view.findByRole('button', { name: 'Scan an invoice with the camera' });
 
     // The innermost host node that carries a bottom hairline and holds the
     // primary — measured off the rendered tree, not asserted off a style name.
-    const ruled = ruledAncestorsOf(view.toJSON(), 'Scan invoice');
+    const ruled = ruledAncestorsOf(view.toJSON(), 'Scan');
     expect(ruled.length).toBeGreaterThan(0);
     const style = StyleSheet.flatten(ruled[ruled.length - 1] as never) as {
       borderBottomWidth?: number;

@@ -1,6 +1,6 @@
 import { evaluateSchedule, type DueStatus, type ServiceDue } from './service-due';
 import { historyLookups, type ServiceHistoryRow } from './service-history';
-import { normaliseRecalls, worstSeverity, type NormalisedRecall } from './recalls';
+import { openRecalls, worstSeverity, type NormalisedRecall } from './recalls';
 
 /**
  * What the health score is made of — the three drivers.
@@ -78,6 +78,56 @@ export interface HealthDriver {
    * `score >= 80` would be inventing the precision this file exists to refuse.
    */
   nothingOutstanding?: boolean;
+  /**
+   * The driver as a reason, for the hub's one line beside the verdict
+   * (22 Sep): a phrase that follows "Held back by" — "2 services overdue,
+   * 1 due now", "too few records to judge", "mileage well above average".
+   * Absent where there is nothing to hold the score back, or nothing the
+   * phrase could honestly say.
+   */
+  cause?: string;
+  /**
+   * The act the cause points at, in the page's own words — "scan an
+   * invoice", "see what is due". Absent where there is nothing the owner
+   * can do about it (a car driven hard is a fact, not a chore).
+   */
+  act?: string;
+}
+
+/**
+ * The driver to name beside the verdict — the one holding the score back.
+ *
+ * ── 22 Sep · the hub lenses' cause line ─────────────────────────────────────
+ *
+ * The lowest scored driver, unless the maintenance driver could not judge at
+ * all: a `null` there means the records are too few to score, which is the
+ * cause of a low reading more often than any scored driver is — the F-PACE
+ * at 55 with one record named "4 recalls on record" while its own summary
+ * said sparse history, and the IA lens asked for the weights to be checked.
+ * `null` where nothing holds the score back: a driver at 100, or one that
+ * found nothing outstanding, has no cause to give.
+ */
+export function holdingBack(drivers: readonly HealthDriver[]): HealthDriver | null {
+  const maintenance = drivers.find((d) => d.key === 'maintenance');
+  // Unjudged, or judged on too few records: the history first, whatever the others score.
+  if (maintenance?.cause && (maintenance.score === null || maintenance.nothingOutstanding)) return maintenance;
+  const scored = drivers.filter((d): d is HealthDriver & { score: number } => typeof d.score === 'number');
+  if (scored.length === 0) return null;
+  const weakest = scored.reduce((low, d) => (d.score < low.score ? d : low));
+  return weakest.score < 100 && !weakest.nothingOutstanding && weakest.cause ? weakest : null;
+}
+
+/**
+ * The second reason, where one shares the blame: the recalls beside a thin
+ * history (22 Sep, the UX lens: *"naming two drivers when two share it —
+ * 'One record on file and 4 open recalls — add a record, review them'"*).
+ * Only recalls, and only beside the history: two scored drivers are one
+ * comparison, and the page names the loser.
+ */
+export function alsoHoldingBack(drivers: readonly HealthDriver[], first: HealthDriver | null): HealthDriver | null {
+  if (!first || first.key !== 'maintenance') return null;
+  const recalls = drivers.find((d) => d.key === 'recalls');
+  return recalls && typeof recalls.score === 'number' && recalls.score < 100 && recalls.cause ? recalls : null;
 }
 
 /* ── Maintenance ─────────────────────────────────────────────────────────── */
@@ -173,6 +223,8 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
       label,
       score: null,
       detail: `No service records yet for any of ${plural(services.length, 'tracked service')}.`,
+      cause: 'no service records to judge from',
+      act: 'scan an invoice',
     };
   }
 
@@ -206,16 +258,31 @@ export function maintenanceDriver(services: ServiceDue[]): HealthDriver {
       score: clamp(100 - penalty),
       detail,
       nothingOutstanding: true,
+      /*
+        A thin history is a reason even when nothing checked is outstanding
+        (22 Sep): the F-PACE at 55 with one record in 69,573 miles named its
+        four recalls while its own summary said sparse history, and three
+        lenses read the same. Half or more of the schedule with no record to
+        count from is the cause an owner can actually move; below that, the
+        gaps are stated in `detail` and nothing here claims they hold the
+        score back.
+      */
+      ...(unknown * 2 >= services.length
+        ? { cause: `${plural(unknown, 'service')} with no record to count from`, act: 'scan an invoice' }
+        : {}),
     };
   }
 
   let detail = `${parts.join(', ')}, across ${plural(services.length, 'tracked service')}.`;
+  /* The reason, in the same counts: "2 services overdue, 1 due now". */
+  const cause = parts.join(', ');
+  const act = 'see what is due';
   if (unknown > 0) {
     // Stated, never absorbed into the score. See STATUS_PENALTY.
     detail += ` ${plural(unknown, 'service')} with no record to count from.`;
   }
 
-  return { key: 'maintenance', label, score: clamp(100 - penalty), detail };
+  return { key: 'maintenance', label, score: clamp(100 - penalty), detail, cause, act };
 }
 
 /* ── Recalls ─────────────────────────────────────────────────────────────── */
@@ -245,13 +312,24 @@ const CEILING: Record<string, number> = { 'do-not-drive': 5, 'park-outside': 25 
 /**
  * Open recalls against this vehicle.
  *
- * ⚠ **The product does not track recall completion**, so a recall the owner had
- * fixed last year still counts here. That is the conservative direction to be
- * wrong in — overstating a safety issue costs a wasted phone call to a dealer,
- * understating it costs the thing the recall was issued for — but it is a real
- * limitation and `detail` says "on record" rather than "open" because of it.
+ * ⚠ **NHTSA does not tell us a car was fixed** — it does not know, and recalls
+ * match on year/make/model, not VIN (§10). What closes a campaign here is the
+ * owner marking it repaired, which is their claim and is stored as one.
+ *
+ * ⚠ 22 Sep · **the marks count.** Until today this counted every campaign on
+ * record while the hub's cell counted the open ones, so marking five repaired
+ * moved the cell from 24 to 19 and left the dial where it was — under a
+ * sentence blaming the recalls for it. David: *"a recall should improve a
+ * score once fixed AND go into history."* Both halves shipped together: the
+ * mark now also files a service record (`api/v1/recalls`). An absent embed
+ * means nothing is marked (`openRecalls`), which keeps a failed read from
+ * clearing a safety notice.
  */
-export function recallDriver(raw: unknown): HealthDriver {
+export function recallDriver(
+  raw: unknown,
+  /** `recall_actions` rows — what the owner has told us they had done. */
+  actions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null
+): HealthDriver {
   const label = 'Recalls';
 
   /*
@@ -269,14 +347,19 @@ export function recallDriver(raw: unknown): HealthDriver {
     };
   }
 
-  const recalls: NormalisedRecall[] = normaliseRecalls(raw);
+  const recalls: NormalisedRecall[] = openRecalls(raw, actions);
 
   if (recalls.length === 0) {
+    /*
+      Every campaign either absent or marked repaired. The detail does not say
+      which, because the two are the same claim from this function's side: as
+      far as the owner has told us, nothing is outstanding.
+    */
     return {
       key: 'recalls',
       label,
       score: 100,
-      detail: 'No recalls on record.',
+      detail: 'No open recalls on record.',
       nothingOutstanding: true,
     };
   }
@@ -287,11 +370,18 @@ export function recallDriver(raw: unknown): HealthDriver {
 
   const score = clamp(ceiling === undefined ? 100 - penalty : Math.min(100 - penalty, ceiling));
 
-  let detail = `${plural(recalls.length, 'recall')} on record.`;
+  let detail = `${plural(recalls.length, 'open recall')} on record.`;
   if (worst === 'do-not-drive') detail += ' One is a do-not-drive.';
   else if (worst === 'park-outside') detail += ' One says park outside.';
+  /*
+    The reason: campaigns for this model, never this VIN (§10). It is the same
+    number the hub's cell prints — both count what the owner has not marked —
+    so one number means one thing wherever it appears.
+  */
+  const cause = `${plural(recalls.length, 'open recall')} for this model`;
+  const act = 'review them';
 
-  return { key: 'recalls', label, score, detail };
+  return { key: 'recalls', label, score, detail, cause, act };
 }
 
 /* ── Mileage load ────────────────────────────────────────────────────────── */
@@ -358,6 +448,8 @@ export function mileageLoadDriver(params: {
     label,
     score,
     detail: `About ${perYear.toLocaleString('en-US')} miles a year over ${plural(age, 'year')}, against a ${AVERAGE_MILES_PER_YEAR.toLocaleString('en-US')} average.`,
+    /* A reason only where the load is the load: a car driven above the average, and nothing to do about it. */
+    cause: currentMileage > expected ? `mileage above average, about ${perYear.toLocaleString('en-US')} a year` : undefined,
   };
 }
 
@@ -376,13 +468,15 @@ export function healthDrivers(params: {
   services: ServiceDue[];
   /** Raw `nhtsa_data.recalls`. Pass `null`/`undefined` when it was never fetched. */
   recalls: unknown;
+  /** `recall_actions` rows. Absent means nothing is marked, never "cleared". */
+  recallActions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null;
   currentMileage?: number | null;
   year?: number | null;
   today?: string;
 }): HealthDriver[] {
   return [
     maintenanceDriver(params.services),
-    recallDriver(params.recalls),
+    recallDriver(params.recalls, params.recallActions),
     mileageLoadDriver({
       currentMileage: params.currentMileage,
       year: params.year,
@@ -430,6 +524,12 @@ export function driversForVehicle(params: {
    * and they must not be collapsed.
    */
   recalls: unknown;
+  /**
+   * `recall_actions` rows for this vehicle — the campaigns the owner has said
+   * they had done (22 Sep). Absent means nothing is marked; a read that failed
+   * must never arrive here as "cleared".
+   */
+  recallActions?: ReadonlyArray<{ campaign_number?: unknown } | null | undefined> | null;
   currentMileage?: number | null;
   year?: number | null;
   today?: string;
@@ -452,6 +552,7 @@ export function driversForVehicle(params: {
   return healthDrivers({
     services,
     recalls: params.recalls,
+    recallActions: params.recallActions,
     currentMileage: params.currentMileage,
     year: params.year,
     today: params.today,
@@ -481,3 +582,20 @@ export function driversSupportAScore(drivers: HealthDriver[]): boolean {
   if (drivers.length === 0) return false;
   return drivers.some((driver) => driver.score !== null);
 }
+
+/**
+ * The line under the drivers, on both clients.
+ *
+ * ── Why the score and the drivers can disagree, and why that is said ────────
+ *
+ * QE 2.8 (20 Sep): the Accord read 50 · Needs attention above drivers of
+ * 95 / 1 / 97. Both are honest. The score is the model's assessment of the
+ * *records* — an empty history is marked down, because a car nobody has
+ * documented is a car nobody can vouch for — while each driver is computed
+ * from what is on file: nothing overdue across nine tracked services is 95
+ * whether or not a receipt proves it. A reader adds them up and cannot, so
+ * one sentence says what each one is rather than hiding either. The web's
+ * drivers table shows the same line, from here, so the two cannot drift.
+ */
+export const DRIVERS_NOTE =
+  'The score is the assessment of the records on file — an empty history marks it down. The drivers are what those records show today.';

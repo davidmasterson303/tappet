@@ -253,6 +253,7 @@ export const config = {
     '/documents/:path*',
     '/vehicle-info/:path*',
     '/plan/:path*',
+    '/tires/:path*',
     '/onboard/:path*',
     '/settings/:path*',
     '/login',

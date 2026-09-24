@@ -203,7 +203,7 @@ export function describeQuote({
     case 'within':
       return `${typical} ${yours}, which sits inside that range.`;
     case 'below':
-      return `${typical} ${yours}, which is below the usual range — worth checking the quote covers the same parts and labour.`;
+      return `${typical} ${yours}, which is below the usual range — worth checking the quote covers the same parts and labor.`;
     case 'above':
       /*
         The hardest of the three to write, and the one B3 exists for. It has to
@@ -213,6 +213,6 @@ export function describeQuote({
         them; and the recommended action is to get another quote, which is both
         the correct advice and the thing the product can actually help with.
       */
-      return `${typical} ${yours}, which is above the usual range. That can happen with dealer labour rates, OEM parts, or additional work included in the quote — a second quote is the cheapest way to find out which.`;
+      return `${typical} ${yours}, which is above the usual range. That can happen with dealer labor rates, OEM parts, or additional work included in the quote — a second quote is the cheapest way to find out which.`;
   }
 }

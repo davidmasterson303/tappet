@@ -33,16 +33,42 @@ export interface CompletionDraft {
   laborCost: string;
   /** ISO date (`YYYY-MM-DD`). */
   serviceDate: string;
+  /**
+   * The odometer when the work was done, as typed. Defaulted to the car's
+   * current reading by `emptyCompletion` — see there for why a record with
+   * no mileage cannot move a due date.
+   */
+  mileage: string;
 }
 
 export interface CompletionProblem {
-  field: 'shopName' | 'serviceDate' | 'partsCost' | 'laborCost';
+  field: 'shopName' | 'serviceDate' | 'partsCost' | 'laborCost' | 'mileage';
   message: string;
 }
 
 /** A blank draft, dated today. */
-export function emptyCompletion(today: string): CompletionDraft {
-  return { isDIY: false, shopName: '', partsCost: '', laborCost: '', serviceDate: today };
+/**
+ * A fresh draft: today, and the car's current odometer.
+ *
+ * ── ⚠ Why the odometer is on the sheet at all (20 Sep) ──────────────────────
+ *
+ * A service marked done wrote `mileage_at_service: null`. The schedule
+ * evaluates a miles interval from the last recorded mileage, so a record
+ * with none could not move the due date: "Engine oil and filter change —
+ * due in 2,500 mi" the moment after it was marked done today, with ADD
+ * offered again. The loop the Plan exists for did not close. The current
+ * reading is the right default — most people mark a job done the day it
+ * was done — and it is editable for the week-old one.
+ */
+export function emptyCompletion(today: string, currentMileage?: number | null): CompletionDraft {
+  return {
+    isDIY: false,
+    shopName: '',
+    partsCost: '',
+    laborCost: '',
+    serviceDate: today,
+    mileage: typeof currentMileage === 'number' && currentMileage > 0 ? String(currentMileage) : '',
+  };
 }
 
 /**
@@ -100,7 +126,25 @@ export function completionProblems(
     }
   }
 
+  /*
+    Optional, like a cost: a record without a mileage is still a record, it
+    just cannot move a miles interval — and the sheet says so. Typed, it
+    must be a whole number of miles.
+  */
+  if (draft.mileage.trim().length > 0 && parseMileage(draft.mileage) === undefined) {
+    problems.push({ field: 'mileage', message: 'Enter whole miles, or leave it blank.' });
+  }
+
   return problems;
+}
+
+/** Whole miles from what was typed, or `undefined` for blank or unusable. */
+export function parseMileage(raw: string): number | undefined {
+  if (raw.trim().length === 0) return undefined;
+  const digits = raw.replace(/[^0-9]/g, '');
+  if (digits.length === 0 || digits.length !== raw.replace(/[\s,]/g, '').length) return undefined;
+  const value = Number(digits);
+  return Number.isInteger(value) && value >= 0 && value < 2_000_000 ? value : undefined;
 }
 
 /** A blank cost stays blank rather than becoming a claimed zero. */
@@ -116,6 +160,8 @@ export interface CompletionPayload {
   isDIY: boolean;
   shopName?: string;
   partsCost?: number;
+  /** Whole miles at the time of the work; absent when not given. */
+  mileageAtService?: number;
   laborCost?: number;
 }
 
@@ -134,6 +180,8 @@ export function completionPayload(itemId: string, draft: CompletionDraft): Compl
   const parts = parseCost(draft.partsCost);
   const labor = parseCost(draft.laborCost);
 
+  const mileage = parseMileage(draft.mileage);
+
   return {
     itemId,
     serviceDate: draft.serviceDate.slice(0, 10),
@@ -141,6 +189,7 @@ export function completionPayload(itemId: string, draft: CompletionDraft): Compl
     ...(draft.isDIY ? {} : { shopName: draft.shopName.trim() }),
     ...(parts === undefined ? {} : { partsCost: parts }),
     ...(labor === undefined ? {} : { laborCost: labor }),
+    ...(mileage === undefined ? {} : { mileageAtService: mileage }),
   };
 }
 

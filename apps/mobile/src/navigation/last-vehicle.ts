@@ -54,3 +54,22 @@ function lastVehicle() {
 }
 
 export { lastVehicle };
+
+/**
+ * Forget a car this app has just removed, so no tab re-opens it.
+ *
+ * `tabTarget` reads `lastVehicle()` to decide which car the Service, Plan
+ * and Advisor tabs land on. A removed car left here sends every one of them
+ * to a 404 — "no longer here" three times over, for a car the owner removed
+ * a moment ago (23 Sep).
+ */
+export function forgetVehicle(vehicleId: string) {
+  if (lastOpenedVehicle?.vehicleId === vehicleId) lastOpenedVehicle = null;
+  if (soleVehicle?.vehicleId === vehicleId) soleVehicle = null;
+}
+
+/** Sign-out: the next account must not be steered to this one's car. */
+export function forgetAllVehicles() {
+  lastOpenedVehicle = null;
+  soleVehicle = null;
+}

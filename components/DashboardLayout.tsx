@@ -115,7 +115,11 @@ const tabs = [
   it. Kept in a list of its own so `activeBreadcrumb` can still name the page a
   reader is standing on.
 */
-const OFF_NAV = [{ key: 'vehicle-info', label: 'Vehicle Info' }] as const;
+const OFF_NAV = [
+  { key: 'vehicle-info', label: 'Vehicle Info' },
+  /* The tire set (20 Sep) — reached from the dashboard's rail, not the bar; see app/tires. */
+  { key: 'tires', label: 'Tires' },
+] as const;
 
 export default function DashboardLayout({ vehicle, knowledge, currentPage, children, vehicleImage, healthSummary, contentSurface = 'panel', mobileLayout = 'page' }: DashboardLayoutProps) {
   const appShell = mobileLayout === 'app-shell';
@@ -809,10 +813,10 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       disabled={isSaving}
                       autoFocus
                     />
-                    <Button size="sm" onClick={handleSaveCurrentMileage} disabled={isSaving} className="h-8 px-2 bg-green-600 hover:bg-green-500">
+                    <Button size="sm" aria-label="Save mileage" onClick={handleSaveCurrentMileage} disabled={isSaving} className="h-8 px-2 bg-green-600 hover:bg-green-500">
                       <Check className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={handleCancelMileageEdit} disabled={isSaving} className="h-8 px-2 text-white/50 hover:text-white hover:bg-white/8">
+                    <Button size="sm" variant="ghost" aria-label="Cancel" onClick={handleCancelMileageEdit} disabled={isSaving} className="h-8 px-2 text-white/50 hover:text-white hover:bg-white/8">
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -863,10 +867,10 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                       disabled={isSaving}
                       autoFocus
                     />
-                    <Button size="sm" onClick={handleSaveAvgMileage} disabled={isSaving} className="h-8 px-2 bg-green-600 hover:bg-green-500">
+                    <Button size="sm" aria-label="Save monthly mileage" onClick={handleSaveAvgMileage} disabled={isSaving} className="h-8 px-2 bg-green-600 hover:bg-green-500">
                       <Check className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={isSaving} className="h-8 px-2 text-white/50 hover:text-white hover:bg-white/8">
+                    <Button size="sm" variant="ghost" aria-label="Cancel" onClick={handleCancelEdit} disabled={isSaving} className="h-8 px-2 text-white/50 hover:text-white hover:bg-white/8">
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -1045,6 +1049,9 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
               Feedback
             </a>
             <Link href={homeHref} className="hover:text-white/50 transition-colors">Garage</Link>
+            {/* 23 Sep: the signed-in site had no route to its own legal pages. */}
+            <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
           </div>
         </footer>
       </div>

@@ -26,6 +26,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SCREENS = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens');
+const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
 
 /**
  * Screens whose content can be changed from somewhere else in the app.
@@ -36,12 +37,21 @@ const SCREENS = join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens');
  * elsewhere changes what is rendered here**.
  */
 const MUST_REFETCH = [
+  // 20 Sep: the garage is the tab root, and a car added on the phone was
+  // missing from it until the app was killed — ADD CAR replaces itself with
+  // the detail screen and the list never re-read. The one screen MOB-09 left out.
+  'GarageScreen',
   'VehicleDetailScreen',
+  // 20 Sep: ADDED was a local set, so a service marked done elsewhere still
+  // read ADDED here. Now derived from the plan on every load, and refetched.
+  'ServiceMilestoneScreen',
   'WishlistScreen',
   'ServiceHistoryScreen',
   'RecallDetailScreen',
   'HealthScreen',
   'BuildScreen',
+  // 20 Sep: the tire set — three forms write behind it and each goes back on save.
+  'TiresScreen',
 ];
 
 describe('screens whose data can change while they are backgrounded', () => {
@@ -66,6 +76,45 @@ describe('screens whose data can change while they are backgrounded', () => {
         true,
       ]);
     }
+  });
+
+  it.each(MUST_REFETCH)('%s honours the quiet mode — no loading state on a focus refetch', (screen) => {
+    /*
+      ── ⚠ 20 Sep · a spinner on every back-navigation ─────────────────────
+
+      `reload()` with no arguments was the *opening* load on every screen in
+      the list: the content vanished behind the wait dial for a request the
+      screen did not need to show — "OPENING THE GARAGE" for ~0.7 s on a
+      10 Hz burst, and the same on six other screens since MOB-09. The rule
+      lives in the hook (`reload(false, true)`, asserted above); this holds
+      each loader to honouring it, from the loader's own body: a `quiet`
+      parameter that nothing consults would pass a signature check and
+      still flash.
+    */
+    const source = strip(readFileSync(join(SCREENS, `${screen}.tsx`), 'utf8'));
+    const start = source.indexOf('const load = useCallback(');
+    expect(start).toBeGreaterThan(-1);
+    const loader = source.slice(start, start + 2500);
+    expect(loader).toMatch(/quiet = false/);
+    const gate = loader.search(/if \(quiet(?: \|\| lean)?\)|if \(!quiet/);
+    const loading = loader.search(/(kind|status): 'loading'/);
+    expect([screen, gate > -1]).toEqual([screen, true]);
+    expect([screen, loading > -1 && gate < loading]).toEqual([screen, true]);
+  });
+
+  it('can still detect the loader that shipped, so the quiet check is not vacuous', () => {
+    const shipped = strip(`
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setState({ kind: 'loading' });
+      try { await apiRequest('/x'); } catch (e) { setState({ kind: 'error' }); }
+    },
+    []
+  );`);
+    const loader = shipped.slice(shipped.indexOf('const load = useCallback('));
+    expect(loader).not.toMatch(/quiet = false/);
+    expect(loader.search(/if \(quiet(?: \|\| lean)?\)|if \(!quiet/)).toBe(-1);
   });
 
   it('the hook does not crash a screen rendered outside a navigator', () => {
@@ -120,8 +169,11 @@ describe('screens whose data can change while they are backgrounded', () => {
       .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('/*'))
       .join('\n');
 
-    expect(code).toMatch(/addListener\('focus', \(\) => reload\(\)\)/);
+    // Since 20 Sep the arrow passes the loader's *quiet* mode — see the case
+    // below — but the point here holds: never the event, never a pull.
+    expect(code).toMatch(/addListener\('focus', \(\) => reload\(false, true\)\)/);
     expect(code).not.toMatch(/addListener\('focus', reload\)/);
+    expect(code).not.toMatch(/reload\(true/);
 
     /* The anti-vacuous half: the pattern that is banned really is a pattern this reader sees. */
     expect("navigation.addListener('focus', reload)").toMatch(/addListener\('focus', reload\)/);

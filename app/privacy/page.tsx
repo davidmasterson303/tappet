@@ -98,7 +98,7 @@ export default function PrivacyPolicyPage() {
 
       <p>
         <strong className="text-white/90">What you write.</strong> Conversations with the advisor,
-        wishlist entries, and notes on service records.
+        items on Needs, and notes on service records.
       </p>
 
       <p>
@@ -172,13 +172,19 @@ export default function PrivacyPolicyPage() {
       <LegalSection>Deleting your account</LegalSection>
 
       <p>
+        We keep your vehicles, invoices, conversations and records for as long as your account
+        exists, and delete them when you delete it. Nothing is kept on a timer while the account is
+        open, and nothing is kept after it closes except the operational line described below.
+      </p>
+
+      <p>
         You can delete your account from inside the app or the website, without asking anyone. It is
         immediate rather than scheduled.
       </p>
 
       <p>
         Deletion removes your uploaded files first, then your account and every record attached to
-        it — vehicles, invoices, conversations, wishlist, notifications and usage records. What
+        it — vehicles, invoices, conversations, Needs, notifications and usage records. What
         survives is a single line in our own operational log recording that an account was deleted,
         how many vehicles it held, and how many files were removed. It contains no personal
         information, and exists so we can tell that deletion is working.

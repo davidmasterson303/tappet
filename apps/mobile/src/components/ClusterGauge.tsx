@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import {
   CX,
@@ -11,7 +12,7 @@ import {
   angleFor,
   pointAt,
 } from '@tappet/core/cluster-geometry';
-import { getHealthBandJudgement, healthBandHex } from '@tappet/core/health-band';
+import { bandForReading, healthBandHex } from '@tappet/core/health-band';
 
 import { DIAL_MIN, TABULAR, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -102,12 +103,35 @@ const TERMINALS = [0, 100];
  */
 const HERO_NUMERAL = 88 / 240;
 
-/** The ignition sweep: 0 → 100 → settle, ~900ms. Split as the web dial splits it. */
-const SWEEP_UP = 420;
-const SETTLE = 480;
+/**
+ * The draw-in: 0 → the reading, once, ~600ms.
+ *
+ * ── ⚠ 22 Sep · it used to go 0 → 100 → settle, and that was a false reading ─
+ *
+ * The sweep was a car's ignition sweep — the tachometer that swings to full
+ * and back when you turn the key — split 420/480 as the web dial splits it.
+ * On a *needle over a scale* that is a gesture. Here it drove a **numeral**,
+ * and a design critic reading four frames of a switch measured what that
+ * means: the dial counted 72, 90, 99, **100** on a car whose reading is 68,
+ * beside a sentence saying what was holding the score back.
+ *
+ * That is a reading the car never had, rendered at display size, twice a
+ * screen, on every appearance — §10's rule ("no claim the data cannot
+ * support") broken by an animation curve. *"A numeral is not a needle."*
+ *
+ * ⚠ The old guard is the reason it survived: it asserted the sweep **lands**
+ * on the reading and not on 100, and it was green the whole time, because
+ * the number it was written against was the end state rather than the path.
+ * `instruments.test.tsx` now samples the path.
+ *
+ * One curve keeps everything the draw-in was for — the arc growing from
+ * nothing, the numeral arriving rather than appearing — and it never passes
+ * through a value the car does not have.
+ */
+const DRAW_IN = 600;
 
 /**
- * The ignition sweep, as a rendered reading.
+ * The draw-in, as a rendered reading.
  *
  * Driving the needle and the arc from one number keeps them on the same value
  * at every frame — they are one quantity drawn twice, not two animations that
@@ -141,20 +165,17 @@ function useIgnitionSweep(target: number, enabled: boolean): number {
     const listener = driver.addListener(({ value }) => setReading(value));
     driver.setValue(0);
 
-    const sweep = Animated.sequence([
-      Animated.timing(driver, {
-        toValue: 100,
-        duration: SWEEP_UP,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(driver, {
-        toValue: target,
-        duration: SETTLE,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]);
+    /*
+      One timing, 0 → the reading. Never above it: every frame of this
+      animation is a number the car actually has, which is the whole of
+      `DRAW_IN`'s note above.
+    */
+    const sweep = Animated.timing(driver, {
+      toValue: target,
+      duration: DRAW_IN,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
 
     /*
       The end state is set from the callback rather than left to the last
@@ -180,20 +201,31 @@ export default function ClusterGauge({
   variant = 'hero',
   size,
   active = true,
+  records = null,
 }: {
   score: number;
   /**
    * `hero` is the full dial — minors, numbered majors, needle, hub, and the
    * readout on its own line. `card` is the same instrument at the plinth's
-   * scale, deliberately still. `row` is not a dial at all.
+   * scale — the hub's HEALTH cell since 21 Sep, and it sweeps in like the hero. `row` is not a dial at all.
    */
   variant?: ClusterGaugeVariant;
   /** Rendered width in points. Defaults to the variant's design size. */
   size?: number;
   /** Hold the sweep until the caller's own reveal has finished. */
   active?: boolean;
+  /**
+   * How many service records the car has, when the caller knows (22 Sep).
+   *
+   * Under `CONFIDENT_RECORDS` the state word names the **file** rather than
+   * judging the car — a 55 on one record said NEEDS ATTENTION in sodium about
+   * a vehicle the app has almost nothing on. `null` means the caller does not
+   * know, and then the ordinary band stands: a failed count must never
+   * suppress a real warning. `bandForReading` in core carries the argument.
+   */
+  records?: number | null;
 }) {
-  const band = getHealthBandJudgement(score);
+  const band = bandForReading(score, records);
   const colour = healthBandHex(band);
   /*
     ── ⚠ 6 Sep · B3 and B7: the arc is off-white unless something is wrong ────
@@ -229,7 +261,14 @@ export default function ClusterGauge({
   */
   const resolved: ClusterGaugeVariant = variant === 'row' || width < DIAL_MIN ? 'row' : variant;
 
-  const swept = useIgnitionSweep(score, active && resolved === 'hero');
+  /*
+    The sweep ran on the hero alone until 21 Sep — the card was "deliberately
+    still" for the plinth it was drawn for, and nothing used it. It is the
+    hub's HEALTH cell now (B3: the dial "draws in"), so it sweeps like the hero
+    and the caller holds it with `active` the same way; a row has nothing to
+    sweep.
+  */
+  const swept = useIgnitionSweep(score, active && resolved !== 'row');
 
   if (resolved === 'row') {
     return (
@@ -261,7 +300,7 @@ export default function ClusterGauge({
   const viewBox = isCard ? `14 14 172 172` : `0 0 ${VIEW_W} ${VIEW_H}`;
   const height = isCard ? width : (width * VIEW_H) / VIEW_W;
 
-  const value = isCard ? score : swept;
+  const value = swept;
   const clamped = Math.max(0, Math.min(100, value));
   const lit = (clamped / 100) * ARC_LENGTH;
 
@@ -303,6 +342,7 @@ export default function ClusterGauge({
   const readoutSize = Math.round(width * (isCard ? 60 / 172 : HERO_NUMERAL));
   const readoutLine = Math.round(readoutSize * 1.02);
   const readoutTop = 0.5 * width - readoutLine / 2;
+  const verdictSize = isCard ? type.label.fontSize : Math.round(width * 0.07);
 
   return (
     <View
@@ -442,10 +482,28 @@ export default function ClusterGauge({
       <Text
         style={[
           styles.verdict,
+          /*
+            ⚠ 21 Sep · on the card the word sits in the arc's opening, between
+            the terminals, the way the north-star's dial carries its state
+            word inside the instrument. Under the box instead, it stood a
+            quarter of the dial's height below the terminals — in the hub's
+            HEALTH cell that put FAIR closer to the legend beneath it than to
+            the 70 it qualifies (round 48's native crop). The opening is ~58%
+            of the box wide; ATTENTION and CRITICAL fit at the label size.
+          */
+          isCard && { position: 'absolute', left: 0, right: 0, top: Math.round(width * 0.8), textAlign: 'center' },
           {
             /* B7: the state word is ink, not a hue, unless it is a warning. */
             color: arcInk,
-            fontSize: isCard ? type.label.fontSize : Math.round(width * 0.07),
+            fontSize: verdictSize,
+            /*
+              ⚠ The line grows with the size. `monoLabel` is 12 on a 16 line;
+              the hero set the size to 13 and kept the 16, and JetBrains Mono's
+              ascenders — 1.32 of the size — ran past the line box, so "GOOD"
+              drew with its tops sliced off: "GUUD", on every garage bay, at
+              native scale (21 Sep, David's eye). 1.4 clears the face.
+            */
+            lineHeight: Math.round(verdictSize * 1.4),
           },
         ]}
       >

@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import Button from '../components/Button';
 import Card from '../components/Card';
 import ClusterGauge from '../components/ClusterGauge';
 import { BAY_DIAL } from '../components/GarageBay';
 import HealthDrivers from '../components/HealthDrivers';
+import { DRIVERS_NOTE } from '@tappet/core/health-drivers';
 import HealthHistory, { type HealthReading } from '../components/HealthHistory';
 import Plinth from '../components/Plinth';
 import ProvenanceRow from '../components/ProvenanceRow';
@@ -16,7 +18,7 @@ import Working from '../components/Working';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { HealthDriver } from '@tappet/core/health-drivers';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
-import { getHealthBandJudgement } from '@tappet/core/health-band';
+import { bandForReading } from '@tappet/core/health-band';
 import { healthVerdict } from '@tappet/core/health-claims';
 import { newestFiledAt, openRecalls } from './verdict-inputs';
 import { space, text, type } from '../theme';
@@ -106,6 +108,13 @@ type State =
        * staleness otherwise, and the inputs the reading was worked out from.
        */
       verdict: ReturnType<typeof healthVerdict>;
+      /**
+       * How many service records are filed, or `null` while the read failed.
+       * The band is drawn against it (22 Sep): under three records the word
+       * names the file rather than judging the car, and the hub's dial one
+       * tap away must not say something different about the same number.
+       */
+      records: number | null;
       drivers: HealthDriver[];
       history: HealthReading[];
     };
@@ -115,19 +124,42 @@ export function HealthScreen({
   title,
   onSignOut,
   onAskAdvisor,
+  focus,
 }: {
   vehicleId: string;
   title?: string;
   onSignOut: () => void;
   /** Threaded through to the recalls section — see `R16` below. */
   onAskAdvisor: (vehicleId: string, question: string) => void;
+  /**
+   * Open scrolled to the recalls block. The recall push says "tap to see
+   * what it means" and its link resolves to this screen, where the recalls
+   * sit two cards under the dial — until 23 Sep the tap landed on the dial
+   * and the recall it promised was below the fold.
+   */
+  focus?: 'recalls';
 }) {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const scroller = useRef<ScrollView>(null);
+  const focused = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       try {
@@ -182,6 +214,7 @@ export function HealthScreen({
             'this car',
           score: typeof health?.health_score === 'number' ? health.health_score : null,
           verdict,
+          records: filedItems === null ? null : filedItems.length,
           drivers: Array.isArray(data.health_drivers) ? data.health_drivers : [],
           history: Array.isArray(data.health_history) ? data.health_history : [],
         });
@@ -210,6 +243,12 @@ export function HealthScreen({
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         if (error instanceof ApiRequestError && error.status === 404) {
           setState({ kind: 'gone' });
           return;
@@ -254,7 +293,7 @@ export function HealthScreen({
   if (state.kind === 'gone') {
     return (
       <View style={styles.centre}>
-        <Text style={styles.errorTitle}>This vehicle is no longer here</Text>
+        <Text style={styles.errorTitle}>This car is no longer here</Text>
         <Text style={styles.errorBody}>It may have been removed from another device.</Text>
       </View>
     );
@@ -270,10 +309,11 @@ export function HealthScreen({
     );
   }
 
-  const band = state.score === null ? null : getHealthBandJudgement(state.score);
+  const band = state.score === null ? null : bandForReading(state.score, state.records);
 
   return (
     <ScrollView
+      ref={scroller}
       contentContainerStyle={styles.body}
       refreshControl={
         <RefreshControl
@@ -315,7 +355,7 @@ export function HealthScreen({
               garage's, on the one screen that exists to explain the score.
               One dial, one size; the garage's constant, not a second copy.
             */}
-            <ClusterGauge score={state.score} size={BAY_DIAL} />
+            <ClusterGauge score={state.score} size={BAY_DIAL} records={state.records} />
             {/*
               `verdict.text`, never the stored summary — the same rule as the
               vehicle screen, which this screen used to break one tap away
@@ -325,6 +365,22 @@ export function HealthScreen({
             */}
             {state.verdict.text ? <Text style={styles.summary}>{state.verdict.text}</Text> : null}
             <ProvenanceRow kinds={state.verdict.inputs} />
+            {/*
+              ⚠ **No act on this screen, and that is a decision (22 Sep).**
+              SCAN INVOICE stood here for an afternoon — David asked for it,
+              placed here rather than under WHAT IS DRIVING IT after a device
+              showed that slot wedged between two dense blocks — and he cut
+              it the same day: *"i dont think we need button there, it now
+              feels redundant with button in #1."*
+
+              What makes it redundant is the move that preceded it: the act
+              left the hub's plate for the head of the hub's lower sheet, a
+              full-width primary a tap away from this screen's own door. Two
+              filled primaries one screen apart, both SCAN INVOICE, is one
+              act asked for twice. This screen explains the number; the hub
+              carries the act.
+            */}
+
           </>
         ) : (
           /*
@@ -334,8 +390,8 @@ export function HealthScreen({
             says "we cannot say" rather than guessing a default.
           */
           <Text style={styles.summary}>
-            No score yet. We work one out once we have looked this car over — that happens a
-            few seconds after it is added, and again as work is recorded.
+            No score yet. We work one out once the research has looked this car over — its
+            own page shows that running — and again as work is recorded.
           </Text>
         )}
       </Card>
@@ -344,6 +400,16 @@ export function HealthScreen({
         <Card>
           <SectionHeader title="What is driving it" />
           <HealthDrivers drivers={state.drivers} />
+          {/*
+            ── ⚠ Two readings that do not add up, said plainly (QE 2.8) ────────
+
+            The Accord read 50 · Needs attention above drivers of 95 / 1 / 97.
+            The score is the model's sentence about the records — it marks
+            an empty history down — and the drivers are computed from what
+            is on file. A reader adds them up and cannot. Rather than hide
+            either, one line says what each one is.
+          */}
+          <Text style={styles.driversNote}>{DRIVERS_NOTE}</Text>
         </Card>
       )}
 
@@ -371,6 +437,13 @@ export function HealthScreen({
           card above it changing height.
         */
         nativeID="health-recalls"
+        onLayout={(event) => {
+          // Once, on the first layout with the block in place; a refresh
+          // re-laying the drivers card must not yank the page back down.
+          if (focus !== 'recalls' || focused.current) return;
+          focused.current = true;
+          scroller.current?.scrollTo({ y: event.nativeEvent.layout.y, animated: false });
+        }}
       >
         <RecallDetailScreen
           embedded
@@ -436,4 +509,5 @@ const styles = StyleSheet.create({
   errorBody: { ...type.body, color: text.muted, textAlign: 'center' },
   summary: { ...type.body, color: text.secondary },
   footnote: { ...type.value, color: text.muted },
+  driversNote: { ...type.value, color: text.muted, paddingTop: space.md, lineHeight: 19 },
 });

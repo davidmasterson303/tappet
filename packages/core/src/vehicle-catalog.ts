@@ -297,6 +297,50 @@ export function vinCheckDigitMatches(vin: string): boolean {
   return vin[8] === expected;
 }
 
+/**
+ * The VIN inside what a barcode reader handed back, or `null`.
+ *
+ * ── The sticker is not a VIN, it is a label with a VIN on it ────────────────
+ *
+ * The certification label on the driver's door jamb carries the number as a
+ * Code 39 (older cars), Code 128 or Data Matrix symbol, and what the reader
+ * returns is the label's *data*, which is rarely the bare seventeen
+ * characters. Two things get in the way and both are normal:
+ *
+ *   - **Sentinels.** Code 39 labels wrap the payload in `*`, some readers keep
+ *     them, and the AIAG/ANSI data-identifier convention prefixes a VIN with
+ *     the letter `I` — a character that is *not in the VIN alphabet*, which is
+ *     what makes it a usable separator rather than a trap.
+ *   - **Neighbours.** A Data Matrix on a newer label may carry more than the
+ *     VIN, and a spoken prefix ("VIN:") shares letters with the alphabet.
+ *
+ * So the rule is not "strip and take seventeen". It is: upper-case, drop
+ * everything outside the alphabet (which drops `I`, `O` and `Q` along with the
+ * punctuation), and then look for a seventeen-character window in what is
+ * left — **preferring the window whose check digit agrees**, and falling back
+ * to a run that is exactly seventeen long. A run longer than seventeen with no
+ * agreeing window is ambiguous, and an ambiguous number is not a VIN this
+ * product will claim to have read: `null`, and the owner reads the plate.
+ *
+ * ⚠ Check-digit agreement is used here to *choose*, never to *refuse* — the
+ * one exact run is returned whether or not position 9 agrees, for the reason
+ * `vinProblem` gives: an import can carry a genuine VIN that fails it.
+ */
+export function vinFromBarcode(data: string): string | null {
+  const runs = data.toUpperCase().match(/[A-HJ-NPR-Z0-9]+/g) ?? [];
+
+  for (const run of runs) {
+    if (run.length < VIN_LENGTH) continue;
+    for (let start = 0; start + VIN_LENGTH <= run.length; start += 1) {
+      const window = run.slice(start, start + VIN_LENGTH);
+      if (vinCheckDigitMatches(window)) return window;
+    }
+  }
+
+  const exact = runs.find((run) => run.length === VIN_LENGTH);
+  return exact ?? null;
+}
+
 /* ── vPIC ─────────────────────────────────────────────────────────────────── */
 
 const VPIC = 'https://vpic.nhtsa.dot.gov/api/vehicles';
@@ -363,6 +407,54 @@ export interface DecodedVin {
    * is worth repeating to the owner and not worth refusing over.
    */
   confidence: 'clean' | 'suspect';
+  /**
+   * The engine as NHTSA states it — "3.0L V6" — or `null`.
+   *
+   * Added 20 Sep for the decode log: the line that says what the number turned
+   * out to be is the payoff of the whole first run, and "2003 Honda Accord" is
+   * the garage's own title. The engine is the one decoded fact an owner
+   * recognises as *their* car rather than its model. Not stored anywhere; it
+   * is said. See `engineFromVpic` for what it will and will not claim.
+   */
+  engine: string | null;
+}
+
+/**
+ * The engine line, from the three vPIC fields that describe one.
+ *
+ * `DisplacementL` arrives as `'2.998832712'` for a 3.0-litre Honda, so it is
+ * printed to one decimal. The cylinder count is joined to the layout only when
+ * vPIC states one — `EngineConfiguration: 'V-Shaped'` gives "V6", `'In-Line'`
+ * gives "inline 6", and nothing gives "6-cylinder". A layout the record does
+ * not carry is not guessed from the count (§10): a 3.0-litre six can be
+ * either, and the M235i's row leaves the field empty.
+ */
+export function engineFromVpic(row: Record<string, unknown>): string | null {
+  const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+  const litres = Number(text(row.DisplacementL));
+  const cylinders = Number(text(row.EngineCylinders));
+  const layout = text(row.EngineConfiguration).toLowerCase();
+
+  const parts: string[] = [];
+  if (Number.isFinite(litres) && litres > 0) parts.push(`${litres.toFixed(1)}L`);
+  if (Number.isInteger(cylinders) && cylinders > 0) {
+    if (layout.startsWith('v')) parts.push(`V${cylinders}`);
+    else if (layout.startsWith('in-line') || layout.startsWith('inline')) parts.push(`inline ${cylinders}`);
+    else parts.push(`${cylinders}-cylinder`);
+  }
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
+/**
+ * The decode as one sentence — "2003 Honda Accord EX-V6, 3.0L V6." — for
+ * the log's answer line and for the screen that asks what only the owner
+ * knows. The name is year, make, model and trim, in that order, skipping
+ * what the record does not carry; the engine follows a comma when there is
+ * one. Never "unknown" for a missing part: a sentence says what was read.
+ */
+export function describeDecodedVin(car: DecodedVin): string {
+  const name = [car.year, car.make, car.model, car.trim].filter(Boolean).join(' ');
+  return car.engine ? `${name}, ${car.engine}.` : `${name}.`;
 }
 
 /**
@@ -407,5 +499,6 @@ export function parseVpicDecode(body: unknown): DecodedVin | null {
     model,
     trim: clean(first.Trim),
     confidence: clean(first.ErrorCode) === '0' ? 'clean' : 'suspect',
+    engine: engineFromVpic(first),
   };
 }

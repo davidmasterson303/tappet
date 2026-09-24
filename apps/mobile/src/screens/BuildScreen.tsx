@@ -5,9 +5,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 
 import AlertBanner from '../components/AlertBanner';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
@@ -160,8 +160,21 @@ export function BuildScreen({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       setActionError(null);
@@ -227,6 +240,12 @@ export function BuildScreen({
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         if (error instanceof ApiRequestError && error.status === 404) {
           setState({ kind: 'gone' });
           return;
@@ -266,7 +285,8 @@ export function BuildScreen({
         method: 'PATCH',
         body: { vehicleId, performanceMindedness: 'mild' satisfies Mindedness },
       });
-      await load();
+      // Quiet: the list stays where it is and the row leaves it (20 Sep).
+      await load(false, true);
     } catch (error) {
       const apiError = error as ApiRequestError;
       if (apiError instanceof ApiRequestError && apiError.isLocallySignedOut) onSignOut();
@@ -401,7 +421,7 @@ export function BuildScreen({
   if (state.kind === 'gone') {
     return (
       <View style={styles.centre}>
-        <Text style={styles.errorTitle}>This vehicle is no longer here</Text>
+        <Text style={styles.errorTitle}>This car is no longer here</Text>
         <Text style={styles.errorBody}>It may have been removed from another device.</Text>
       </View>
     );
@@ -539,12 +559,14 @@ export function BuildScreen({
                 {state.mods.length === 0
                   ? /*
                       Nothing known, rather than nothing to do. The knowledge
-                      base fills in a few seconds after a car is added, and a
+                      base fills in once a car's research has run, and a
                       screen that says "no suggestions" about a lookup that has
                       not run is the recall screen's 21 Aug defect in another
-                      place.
+                      place. No duration is promised (20 Sep): "shortly" and
+                      "in a minute" were claims the app could not keep, and the
+                      car's own page now shows the research working.
                     */
-                    'We have not worked out what suits this car yet. That fills in shortly after a car is added — pull down in a minute.'
+                    'We have not worked out what suits this car yet. That fills in once its research has run — the car\'s page shows it working.'
                   : 'You have said no to everything we had. Anything you dismissed is below.'}
               </Text>
             </Card>

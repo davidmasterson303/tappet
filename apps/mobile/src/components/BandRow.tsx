@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import Icon from './Icon';
 import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '../theme';
@@ -74,6 +75,7 @@ export default function BandRow({
   label,
   detail,
   count,
+  countMuted = false,
   warning = false,
   onPress,
   accessibilityLabel,
@@ -86,6 +88,8 @@ export default function BandRow({
   detail?: string | null;
   /** The value in the numeral column — mono, right-aligned. Omit when there is none. */
   count?: string | null;
+  /** The value in the legend's ink: a prompt ("Not yet") rather than a reading (22 Sep). */
+  countMuted?: boolean;
   /** Draw the sodium `△` beside the label. Only for a genuine warning. */
   warning?: boolean;
   onPress: () => void;
@@ -132,7 +136,7 @@ export default function BandRow({
       </View>
 
       {count ? (
-        <Text style={styles.count} numberOfLines={1}>
+        <Text style={[styles.count, countMuted && styles.countMuted]} numberOfLines={1}>
           {count}
         </Text>
       ) : null}
@@ -183,6 +187,8 @@ const styles = StyleSheet.create({
   /* B1: a section-grade label in the condensed grotesk. */
   label: { ...type.displaySection, color: text.primary },
   detail: { ...type.body, color: text.muted },
+  /* A prompt is a sentence in the legend's ink, the way an empty cell reads "Nothing yet". */
+  countMuted: { color: text.muted },
   /* B6: the numeral, mono and right-aligned. Half the row at most — the label keeps the rest. */
   count: {
     ...type.mono,

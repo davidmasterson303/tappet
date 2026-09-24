@@ -14,7 +14,7 @@
  * rendering, and so the model of a stage has no React in it.
  */
 
-export type WorkingStageState = 'done' | 'active' | 'pending';
+export type WorkingStageState = 'done' | 'active' | 'pending' | 'failed';
 
 export interface WorkingStage {
   label: string;
@@ -23,6 +23,20 @@ export interface WorkingStage {
    * passed is the invoice scanner's UX-15 defect again.
    */
   state: WorkingStageState;
+  /**
+   * The answer the step came back with — "24 on file." — rendered under the
+   * label once it exists (20 Sep, the research log). A stage with an answer
+   * is `done` or `failed`; a running one has none. The coupling is enforced
+   * where the stages are assembled (`@tappet/core/research-milestones`), and
+   * this component only draws what it is handed.
+   */
+  answer?: string;
+  /**
+   * The answer is a value rather than a sentence — a VIN read off a sticker —
+   * and takes the mono, as every value does on this platform (brief B1).
+   * Default off: most answers are sentences about the car.
+   */
+  mono?: boolean;
 }
 
 /**
@@ -80,4 +94,114 @@ export function scanStages(phase: ScanPhase, source: 'camera' | 'library'): Work
 export function scanLine(phase: ScanPhase, source: 'camera' | 'library'): string {
   const active = scanStages(phase, source).find((stage) => stage.state === 'active');
   return active?.label ?? 'Reading the invoice';
+}
+
+/**
+ * The research log's rows — `@tappet/core/research-milestones` is the whole
+ * argument and the whole rule: every answer quotes a row the API handed the
+ * client, so this cannot depict work that has not happened. The mapping here
+ * is one to one; it exists so the screen imports a stage list and not a
+ * milestone list, like every other wait on the phone.
+ */
+export function researchStages(
+  milestones: ReadonlyArray<{ label: string; answer?: string; state: WorkingStageState }>
+): WorkingStage[] {
+  return milestones.map(({ label, answer, state }) => ({ label, answer, state }));
+}
+
+/**
+ * ── The decode: the wait between "which car" and "what only the owner knows" ─
+ *
+ * The rebuilt first run (20 Sep) narrates the VIN decode on the wait
+ * instrument rather than behind a busy button, and the rule above is the
+ * whole design: two rows, each a boundary this screen observes.
+ *
+ *   01  Reading the sticker      → 1HGCM82633A004352
+ *   02  Asking NHTSA what that is → 2003 Honda Accord EX-V6, 3.0L V6.
+ *
+ * The first row is the door's own act. Off the sticker it is the barcode
+ * read, whose answer is the number; off the keyboard it is the check-digit
+ * arithmetic, whose answer is whether position 9 agrees — real, instant,
+ * and the one thing worth saying about a typed number before NHTSA is asked.
+ * The second is the one network call, and its answer is the car or the
+ * stated reason there is none.
+ *
+ * ⚠ A check-digit mismatch is an *answer*, not a failure. Position 9 is
+ * only mandatory for North American builds, so an import fails it with a
+ * genuine number and NHTSA decodes the car anyway (`vinProblem` carries the
+ * argument). The row says so and the decode proceeds; it is `failed` only
+ * when the number cannot be sent at all.
+ */
+export type DecodeSource = 'sticker' | 'typed' | 'document';
+
+export type DecodeObservation = {
+  source: DecodeSource;
+  /** The seventeen characters, once read. `null` while the door has not produced them. */
+  vin: string | null;
+  /** Whether position 9 agrees — known the moment the number is. */
+  checkDigit: boolean | null;
+  /** NHTSA's answer, as the client has seen it. */
+  outcome:
+    | { status: 'asking' }
+    /** The car, as one sentence — `describeDecodedVin`. */
+    | { status: 'named'; sentence: string }
+    | { status: 'failed'; reason: string };
+};
+
+const DECODE_ACT: Record<DecodeSource, string> = {
+  sticker: 'Reading the sticker',
+  typed: 'Checking the number',
+  document: 'Reading the document',
+};
+
+/** The check-digit verdict, as the typed door's first answer. */
+export function checkDigitAnswer(agrees: boolean): string {
+  return agrees
+    ? 'Check digit agrees.'
+    : 'Check digit does not agree — read it over. Asking NHTSA anyway.';
+}
+
+export function decodeStages(observation: DecodeObservation): WorkingStage[] {
+  const { source, vin, checkDigit, outcome } = observation;
+
+  const read: WorkingStage =
+    vin === null
+      ? { label: DECODE_ACT[source], state: 'active' }
+      : source === 'typed'
+        ? { label: DECODE_ACT[source], state: 'done', answer: checkDigitAnswer(checkDigit === true) }
+        : { label: DECODE_ACT[source], state: 'done', answer: vin, mono: true };
+
+  const ask: WorkingStage =
+    vin === null
+      ? { label: 'Asking NHTSA what that is', state: 'pending' }
+      : outcome.status === 'asking'
+        ? { label: 'Asking NHTSA what that is', state: 'active' }
+        : outcome.status === 'named'
+          ? {
+              label: 'Asking NHTSA what that is',
+              state: 'done',
+              /*
+                Off the sticker or a document the mismatch has not been said
+                yet, so it rides the answer: the car is named and the number
+                is flagged in one breath, as the old form's note did.
+              */
+              answer:
+                checkDigit === false && source !== 'typed'
+                  ? `${outcome.sentence} Its check digit does not agree — read the number over.`
+                  : outcome.sentence,
+            }
+          : { label: 'Asking NHTSA what that is', state: 'failed', answer: outcome.reason };
+
+  return [read, ask];
+}
+
+/**
+ * The instrument's line for a decode — the active stage's own label while
+ * one runs, and the outcome's word once it is over, so the status and the
+ * ledger never disagree.
+ */
+export function decodeLine(observation: DecodeObservation): string {
+  const active = decodeStages(observation).find((stage) => stage.state === 'active');
+  if (active) return active.label;
+  return observation.outcome.status === 'failed' ? 'Not identified' : 'Identified';
 }

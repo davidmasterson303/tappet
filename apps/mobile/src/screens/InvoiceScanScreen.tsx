@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import {
   uploadInvoice,
@@ -125,18 +126,27 @@ type State =
     };
 
 function describeVehicle(vehicle: ExtractedVehicle | null): string {
-  if (!vehicle) return 'an unrecognised vehicle';
+  if (!vehicle) return 'a car it could not identify';
+  if (vehicle.label) return vehicle.label;
   const parts = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : 'an unrecognised vehicle';
+  return parts.length > 0 ? parts.join(' ') : 'a car it could not identify';
 }
 
 export function InvoiceScanScreen({
   vehicleId,
   pickImage,
+  startWith = 'camera',
   onSignOut,
   onFiled,
 }: {
   vehicleId: string;
+  /**
+   * `library` opens the picker as soon as consent allows (21 Sep) — the
+   * Service tab's UPLOAD, for a receipt already photographed. The camera is
+   * still behind it when the picker is dismissed. Never before consent: the
+   * sheet at the door stays the first thing a first-time scanner meets.
+   */
+  startWith?: 'camera' | 'library';
   /**
    * Resolves to the chosen image, or `null` if the picker was dismissed.
    *
@@ -360,6 +370,14 @@ export function InvoiceScanScreen({
 
     await openPicker();
   }, [consent, openPicker]);
+
+  /* UPLOAD from the Service tab: the picker, once, the moment consent is known to be granted. */
+  const openedForUpload = useRef(false);
+  useEffect(() => {
+    if (startWith !== 'library' || consent !== 'granted' || openedForUpload.current) return;
+    openedForUpload.current = true;
+    void openPicker();
+  }, [startWith, consent, openPicker]);
 
   /**
    * The viewfinder's capture, as the upload wants it.

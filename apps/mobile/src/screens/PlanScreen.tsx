@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
+import { NavigationContext } from '@react-navigation/native';
 
 import Button from '../components/Button';
 import RootScreen from '../components/RootScreen';
 import Segmented from '../components/Segmented';
 import { BuildScreen } from './BuildScreen';
 import { WishlistScreen } from './WishlistScreen';
-import { PAGE_BODY, border, space } from '../theme';
+import { PAGE_BODY, border, space, text, type } from '../theme';
 
 export type PlanSegment = 'needs' | 'mods';
 
@@ -55,6 +57,12 @@ export function PlanScreen({
   onAdd: () => void;
 }) {
   const [segment, setSegment] = useState<PlanSegment>(showsMods ? initialSegment : 'needs');
+  // The hub navigates here with a segment while the tab may already be
+  // mounted on the other one; a `useState` initialiser reads it once.
+  // `ServiceScreen` has the same effect for the same reason.
+  useEffect(() => {
+    setSegment(showsMods ? initialSegment : 'needs');
+  }, [initialSegment, showsMods]);
 
   /*
     ⚠ 7 Sep · B8: the root's own name, in the condensed grotesk, like every
@@ -94,8 +102,27 @@ export function PlanScreen({
     whether a root's primary should pin or scroll with its list. Whatever
     David rules there rules here; the two roots now make one shape.
   */
+  const navigation = useContext(NavigationContext);
+  const pushed = navigation?.canGoBack() ?? false;
+
   const pinned = (
     <>
+      {/*
+        ── 20 Sep · the Plan root names its car, as the Service root does ──
+
+        QE 2.4: with two cars, PLAN read "1 ITEM" with no car named while
+        SERVICE read "2003 HONDA ACCORD" above its rail — same tab family,
+        different honesty. The Service root's line, to the same numbers, in
+        the same voice; pushed under the car's own header, the back label
+        already says it.
+      */}
+      {title && !pushed ? (
+        <View style={styles.context}>
+          <Text style={styles.contextLabel} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+      ) : null}
       {showsMods ? (
         <View style={styles.switcher}>
           <Segmented
@@ -140,6 +167,9 @@ export function PlanScreen({
 }
 
 const styles = StyleSheet.create({
+  /* The Service root's context line, to the same numbers. */
+  context: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  contextLabel: { ...type.monoLabel, color: text.muted },
   switcher: {
     paddingHorizontal: PAGE_BODY.paddingHorizontal,
     paddingTop: space.md,

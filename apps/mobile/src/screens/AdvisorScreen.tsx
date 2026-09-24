@@ -6,18 +6,20 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import Text, { TextInput } from '../components/Text';
 
 import {
   askAdvisor,
   listAdvisorThreads,
   loadAdvisorThread,
+  loadStarterSource,
   MAX_MESSAGE_LENGTH,
   type AdvisorThread,
 } from '../api/consultant';
+import { advisorStarters, GENERIC_STARTERS } from '@tappet/core/advisor-starters';
+import { openRecalls } from './verdict-inputs';
 import AdvisorThreadsSheet from '../components/AdvisorThreadsSheet';
 import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
@@ -29,6 +31,7 @@ import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ProvenanceRow from '../components/ProvenanceRow';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { refusalCopy } from '@tappet/core/access';
 import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
@@ -113,6 +116,8 @@ type Turn =
        * that renders on ordinary advice would show a price nobody inferred.
        */
       estimate?: ConsultantEstimate;
+      /** Written in advance, not generated — labelled where it is shown. */
+      isSample?: true;
     };
 
 /**
@@ -225,6 +230,34 @@ export function AdvisorScreen({
       live = false;
     };
   }, []);
+
+  /*
+    The opening questions, drawn from the car's rows (QE 2.1). `null` is
+    "still reading": the empty state draws no rows until the read lands, so
+    a generic list is never seen being replaced by the real one. A read that
+    fails falls back to the questions that claim nothing about the car.
+  */
+  const [starters, setStarters] = useState<string[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadStarterSource(vehicleId)
+      .then((source) => {
+        if (!live) return;
+        setStarters(
+          advisorStarters({
+            nextService: source.nextService,
+            knownIssues: source.knownIssues,
+            openRecalls: openRecalls(source.recalls, source.recallActions),
+          })
+        );
+      })
+      .catch(() => {
+        if (live) setStarters([...GENERIC_STARTERS]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [vehicleId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -283,6 +316,7 @@ export function AdvisorScreen({
           text: answer.response,
           kinds: answer.contextKinds,
           ...(answer.estimate ? { estimate: answer.estimate } : {}),
+          ...(answer.isSample ? { isSample: true as const } : {}),
         },
       ]);
       // Only now, because the question is only safely somewhere else once the
@@ -332,9 +366,15 @@ export function AdvisorScreen({
           `@tappet/core/ai/advisor-failure` is the registry.
         */
         setError(apiError.message);
-      } else if (apiError.status === 401) {
+      } else if (apiError.isLocallySignedOut) {
+        // MOB-08: only the phone's own verdict signs out. A server 401 may be
+        // a token the server would accept a second later; this screen was
+        // the one place still reading the status alone, and it ended the
+        // whole session mid-thread (23 Sep).
         setError('Your session ended. Sign in again to keep talking.');
         onSignOut();
+      } else if (apiError.status === 401) {
+        setError('Tappet could not confirm who you are just now. Try again in a moment.');
       } else if (apiError.status === 429) {
         setError('This car has asked a lot of questions recently. Try again in a minute.');
       } else if (apiError.status === 502) {
@@ -605,7 +645,7 @@ export function AdvisorScreen({
               keyExtractor={(turn) => turn.id}
               contentContainerStyle={styles.transcript}
               renderItem={({ item }) => <TurnView turn={item} />}
-              ListEmptyComponent={<AdvisorEmptyState onPick={setDraft} />}
+              ListEmptyComponent={<AdvisorEmptyState starters={starters} onPick={setDraft} />}
               /*
                 Content-size rather than a call after each setState: the answer's
                 height is not known until it has laid out, and scrolling before that
@@ -878,6 +918,19 @@ function TurnView({ turn }: { turn: Turn }) {
       {turn.estimate ? <EstimateWell estimate={turn.estimate} /> : null}
 
       {/*
+        ⚠ A pre-written answer says so, above the disclosure and not instead
+        of it — the two sentences answer different questions, "who wrote this"
+        and "when". The words are `refusalCopy('demo', 'generate')`, the same
+        line the web puts under its samples, so the two clients cannot label
+        one answer two ways. Nothing on the phone reaches a sample today (the
+        garage lists only the signed-in owner's cars), but the route forwards
+        the flag since 17 Sep and the screen must honour it the day a demo
+        garage arrives here — a sample presented as a model's reading of this
+        car is the defect `demo-answers.ts` exists to prevent.
+      */}
+      {turn.isSample ? <Text style={styles.sampleLabel}>{refusalCopy('demo', 'generate')}</Text> : null}
+
+      {/*
         ── ⚠ UX-16 / LEG-05 · the disclosure, where the advice is ────────────
 
         **The product never said its advice was AI-generated**, and the safety
@@ -923,11 +976,16 @@ function TurnView({ turn }: { turn: Turn }) {
  * how the primitive reached 15 Aug with zero callers while four screens rolled
  * their own.
  */
-const STARTERS = [
-  'Is the timing chain something I should worry about?',
-  'What should I do at the next service?',
-  'Is $1,400 fair for front control arms?',
-];
+/*
+  ── 20 Sep · the questions are the car's ────────────────────────────────────
+
+  Three fixed questions lived here — a timing chain, "the next service", and
+  "$1,400 for front control arms" — offered to every car under a heading that
+  said they were about this one. `@tappet/core/advisor-starters` derives them
+  from the rows now (the service due next, the worst known issue, the largest
+  open recall system) and the screen passes them down; `null` while the read
+  is in flight draws the copy and no rows.
+*/
 
 /**
  * ── R50: the starters are rows, and R54: they sit near the composer ─────────
@@ -952,7 +1010,13 @@ const STARTERS = [
  * They moved out of `EmptyState.children` rather than that rule being relaxed —
  * the primitive still takes no controls.
  */
-function AdvisorEmptyState({ onPick }: { onPick: (question: string) => void }) {
+function AdvisorEmptyState({
+  starters,
+  onPick,
+}: {
+  starters: string[] | null;
+  onPick: (question: string) => void;
+}) {
   return (
     <View style={styles.emptyWrap}>
       <EmptyState
@@ -963,7 +1027,7 @@ function AdvisorEmptyState({ onPick }: { onPick: (question: string) => void }) {
       />
 
       <View style={styles.starters}>
-        {STARTERS.map((question) => (
+        {(starters ?? []).map((question) => (
           <Pressable
             key={question}
             onPress={() => onPick(question)}
@@ -1007,6 +1071,7 @@ const styles = StyleSheet.create({
     may be. Same treatment as `ProvenanceRow` above it.
   */
   disclosure: { ...type.label, letterSpacing: 0, lineHeight: 16, color: text.muted },
+  sampleLabel: { ...type.label, letterSpacing: 0, lineHeight: 16, color: text.secondary, fontStyle: 'italic' },
   advisorText: { ...type.body, color: text.primary },
   /* Weight only. A brighter colour as well would make ordinary text read as dimmed. */
   advisorBold: { fontFamily: interFace('700'), fontWeight: '700' },

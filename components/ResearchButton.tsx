@@ -28,7 +28,7 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
       const result = await generateVehicleDossier(vehicleId, vehicleData);
 
       if (result.success) {
-        toast.success('Vehicle research completed! Reloading...', { id: 'research' });
+        toast.success('Research finished. Reloading…', { id: 'research' });
         router.refresh();
       } else {
         const errorMsg = result.error || 'Research failed. Please try again.';

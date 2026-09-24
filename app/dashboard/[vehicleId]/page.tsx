@@ -184,6 +184,13 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
           recalls: recallsAreKnown(data.nhtsa?.lookup_status, data.nhtsa?.recalls)
             ? data.nhtsa?.recalls ?? []
             : undefined,
+          /*
+            ⚠ 22 Sep · the marks count toward the score, so this page passes
+            the same campaigns it already hands the banner below. Shaped back
+            into rows because `addressedCampaigns` is flattened to strings
+            here and `recallDriver` reads `recall_actions`' own column.
+          */
+          recallActions: data.addressedCampaigns.map((campaign_number: string) => ({ campaign_number })),
           currentMileage: data.vehicle?.current_mileage ?? null,
           year: data.vehicle?.year ?? null,
         });
@@ -409,7 +416,11 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
               </CollapsibleSection>
             )}
 
-            <DashboardNextSteps vehicleId={params.vehicleId} knowledge={data.knowledge} />
+            <DashboardNextSteps
+              vehicleId={params.vehicleId}
+              knowledge={data.knowledge}
+              currentMileage={typeof data.vehicle.current_mileage === 'number' ? data.vehicle.current_mileage : null}
+            />
           </div>
         </div>
         {/*

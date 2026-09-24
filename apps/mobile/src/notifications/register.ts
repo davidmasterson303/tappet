@@ -208,3 +208,16 @@ export async function recordPrimerDismissed(today: string): Promise<void> {
     // A failure here costs one repeated screen, not a lost permission.
   }
 }
+
+/**
+ * Sign-out: a "not now" was this person's. The device id is deliberately
+ * kept — it names the phone, not the account, and the token row it keys is
+ * removed by `unregisterPush` before this runs.
+ */
+export async function clearPrimerDismissed(): Promise<void> {
+  try {
+    await secureStorage.removeItem(PRIMER_DISMISSED_KEY);
+  } catch {
+    // One repeated primer at worst.
+  }
+}

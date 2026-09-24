@@ -64,6 +64,18 @@ export const dynamic = 'force-dynamic';
  *
  * The server's clock matters: a device with a wound-forward date could
  * otherwise talk itself out of the warning.
+ *
+ * ── 20 Sep · two more fields, for a sentence (QE 2.3) ───────────────────────
+ *
+ * The Account screen's "Subscription" row read as a paywall link, not a
+ * status. It now says "Not subscribed" / "Active until …" / "Active — renews
+ * …", which needs the period's end and Apple's auto-renew flag — the two
+ * display-only columns the 18 Aug migration added for exactly that sentence.
+ * Neither is a billing identifier; the transaction ids still stay here. Both
+ * are sent only when the subscription is live, and `renews` is passed
+ * through as Apple left it (`null` = never told), because
+ * `subscriptionStatusLine` in core is what turns it into words and it must
+ * not be able to say "renews" on the phone's own authority.
  */
 export async function GET(): Promise<Response> {
   const session = await requireSession();
@@ -76,7 +88,7 @@ export async function GET(): Promise<Response> {
   const client = getServiceRoleClient();
   const { data, error } = await client
     .from('account_entitlements')
-    .select('tier, expires_at')
+    .select('tier, expires_at, auto_renew_status, original_transaction_id, product_id')
     .eq('user_id', session.userId)
     .maybeSingle();
 
@@ -95,14 +107,33 @@ export async function GET(): Promise<Response> {
     logger.warn('API:ACCOUNT_GET', 'Could not read entitlement; warning anyway', {
       message: error.message,
     });
-    return Response.json({ success: true, subscription: { live: true, certain: false } });
+    return Response.json({ success: true, subscription: { live: true, certain: false, billedByApple: true } });
   }
 
   const live = hasLiveEntitlement(
     data ? { tier: data.tier as string | null, expiresAt: data.expires_at as string | null } : null
   );
 
-  return Response.json({ success: true, subscription: { live, certain: true } });
+  /*
+    Whether Apple is the one charging (21 Sep). A comped grant — the App
+    Review account, a lifetime — has no transaction and no product, and the
+    deletion screen must not tell its owner "your subscription is billed by
+    Apple, cancel it first": on the reviewer's own account that sentence is
+    false on the screen Apple reads most carefully. The ids stay here; the
+    fact that they exist is all the phone is told.
+  */
+  const billedByApple = live && Boolean(data?.original_transaction_id || data?.product_id);
+
+  return Response.json({
+    success: true,
+    subscription: {
+      live,
+      certain: true,
+      billedByApple,
+      until: live ? ((data?.expires_at as string | null) ?? null) : null,
+      renews: live ? ((data?.auto_renew_status as boolean | null) ?? null) : null,
+    },
+  });
 }
 
 export async function DELETE(request: NextRequest): Promise<Response> {

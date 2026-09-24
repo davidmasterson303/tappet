@@ -17,6 +17,7 @@ import {
   MINDEDNESS,
   OBJECTIVE_MAX,
   validateProfileUpdate,
+  leadPhrase,
 } from '@tappet/core/vehicle-profile';
 
 describe('what may be written', () => {
@@ -113,5 +114,22 @@ describe('the values it will not take', () => {
 
     expect(decision.ok).toBe(false);
     expect(decision.changes).toBeUndefined();
+  });
+});
+
+describe('leadPhrase — the headline of a prose answer (22 Sep)', () => {
+  it('takes the first phrase, up to a dash, a comma or a full stop', () => {
+    // The Accord's own objective, which the hub row printed as "Keep forever - Dail…".
+    expect(leadPhrase('Keep forever - Daily commuter. Want to keep it reliable past 200,000 miles without over-spending on it.')).toBe('Keep forever');
+    expect(leadPhrase('Sell in two years, keep the value up')).toBe('Sell in two years');
+    expect(leadPhrase('Track days; reliability second.')).toBe('Track days');
+    expect(leadPhrase('Keep it reliable.')).toBe('Keep it reliable');
+  });
+
+  it('returns the whole answer when it is one phrase, and never an empty string', () => {
+    expect(leadPhrase('Keep forever')).toBe('Keep forever');
+    expect(leadPhrase('  Keep forever  ')).toBe('Keep forever');
+    expect(leadPhrase('A-B test car')).toBe('A-B test car');
+    expect(leadPhrase(', odd')).toBe(', odd');
   });
 });

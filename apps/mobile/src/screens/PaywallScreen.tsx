@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Text from '../components/Text';
 
 import AlertBanner, { type AlertTone } from '../components/AlertBanner';
 import Button from '../components/Button';
@@ -85,6 +87,18 @@ export interface SubscriptionOption {
  *
  * No price is rendered in any of them, because none was returned.
  */
+/**
+ * "Four features, one subscription" — counted from the list the screen
+ * renders, so the number can never disagree with the rows under it. It read
+ * "Three" over four rows on the device (21 Sep): recall alerts had joined the
+ * paid set and the sentence had not.
+ */
+const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+export function featuresHeadline(count: number): string {
+  const word = COUNT_WORDS[count] ?? String(count);
+  return `${word} ${count === 1 ? 'feature' : 'features'}, one subscription`;
+}
+
 export default function PaywallScreen({
   visible,
   options,
@@ -136,10 +150,19 @@ export default function PaywallScreen({
     }
   }
 
+  /*
+    21 Sep, on the device: the bar sat under the clock and the Dynamic Island —
+    "Tappet Plus" and "Close" half-hidden behind the status bar. A `Modal`
+    presents in its own window with no inset of its own, so the bar clears
+    the top inset itself, from the provider the app is wrapped in, rather
+    than with a guessed constant.
+  */
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
       <View style={styles.root}>
-        <View style={styles.bar}>
+        <View style={[styles.bar, { paddingTop: insets.top + space.md }]}>
           <Text style={styles.barTitle}>Tappet Plus</Text>
           <Pressable
             onPress={onClose}
@@ -182,7 +205,7 @@ export default function PaywallScreen({
             second source of truth for what somebody just paid for, and the one
             that drifts is always the one the customer read.
           */}
-          <Text style={styles.headline}>Three features, one subscription</Text>
+          <Text style={styles.headline}>{featuresHeadline(PAID_FEATURES.length)}</Text>
 
           {/*
             Why the screen opened, when a refusal opened it. One line naming the

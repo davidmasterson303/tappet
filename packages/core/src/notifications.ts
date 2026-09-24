@@ -25,12 +25,15 @@
  *
  * ── Deliberately not a template system ──────────────────────────────────────
  *
- * Two notification kinds, two functions. A generic
+ * Three notification kinds, three functions. A generic
  * `notification(kind, params)` with a lookup table would be shorter and would
  * make the next kind a data change rather than a code change — but it also
- * makes every kind share one shape, and these two already do not: a recall is
- * an event that happened to a model, a service reminder is a threshold this
- * particular car crossed. When there is a third, look again.
+ * makes every kind share one shape, and these do not: a recall is an event
+ * that happened to a model, a service reminder is a threshold this particular
+ * car crossed, and the tire rotation (20 Sep) is a threshold *the owner set* —
+ * its sentence is licensed by who stated the interval, which neither of the
+ * others has to think about. The third arrived and the answer was the same:
+ * one more function, not a table.
  */
 
 /**
@@ -72,6 +75,11 @@ export function serviceUrl(vehicleId: string): string {
 /** The recall screen for one car. Mirrors `RecallDetail: 'vehicle/:vehicleId/recalls'`. */
 export function recallsUrl(vehicleId: string): string {
   return `${APP_SCHEME}vehicle/${encodeURIComponent(vehicleId)}/recalls`;
+}
+
+/** The tire set for one car. Mirrors `Tires: 'vehicle/:vehicleId/tires'`. */
+export function tiresUrl(vehicleId: string): string {
+  return `${APP_SCHEME}vehicle/${encodeURIComponent(vehicleId)}/tires`;
 }
 
 /**
@@ -158,6 +166,62 @@ export function serviceDueNotification(params: {
     title: `${serviceName} due — ${vehicleName}`,
     body: truncate(reason, 160),
     url: serviceUrl(vehicleId),
+  };
+}
+
+/**
+ * The tire set is past the rotation interval its owner entered.
+ *
+ * **The one place the obligation is a sentence.** On screen the same three
+ * facts are the mono column — numeral, `YOUR INTERVAL`, `PAST n MI` — because
+ * B1 forbids Inter prose with interpolated values on a screen. A push has no
+ * type system and no mono slot, so here it is prose, verbatim from the
+ * approved copy (design-loop/tires, §0.10):
+ *
+ *   `11,400 miles since the last rotation. Your interval is 6,000. You are
+ *   currently outside your warranty's terms.`
+ *
+ * ⚠ **Tappet may say "outside your warranty's terms" only because the owner
+ * entered the interval.** The caller proves that with `mayClaimWarrantyTerms`
+ * before it gets here; this function refuses to build the sentence otherwise
+ * rather than trusting the caller, because a push cannot be recalled. No
+ * interval → no obligation, no notification, no overrun, no sodium.
+ *
+ * ⚠ "Since the last rotation" is false of a set that has never had one. The
+ * first rotation is due at the install odometer plus the interval, so a set
+ * with no rotation logged counts from the install and the sentence says so.
+ *
+ * **Lands on the tire set**, not the advisor: the screen behind the tap
+ * carries the record, the axis and the way to log the rotation. The advisor
+ * is reachable from the car for the judgement calls — "is this wear pattern
+ * normal?" — which are the paid feature and are not this notification's job.
+ */
+export function tireRotationNotification(params: {
+  vehicleId: string;
+  vehicleName: string;
+  /** Miles since the last rotation, or since the install when there is none. */
+  sinceMiles: number;
+  /** The interval the owner entered. */
+  intervalMiles: number;
+  /** What `sinceMiles` counts from. */
+  sinceBasis: 'rotation' | 'install';
+  /** `mayClaimWarrantyTerms(interval)` — the owner entered the interval. */
+  ownerEntered: boolean;
+}): NotificationContent | null {
+  const { vehicleId, vehicleName, sinceMiles, intervalMiles, sinceBasis, ownerEntered } = params;
+  if (!ownerEntered) return null;
+
+  const since = Math.round(sinceMiles).toLocaleString('en-US');
+  const interval = Math.round(intervalMiles).toLocaleString('en-US');
+  const counted =
+    sinceBasis === 'rotation'
+      ? `${since} miles since the last rotation.`
+      : `${since} miles since these tires were installed, with no rotation on record.`;
+
+  return {
+    title: `Tire rotation due — ${vehicleName}`,
+    body: `${counted} Your interval is ${interval}. You are currently outside your warranty's terms.`,
+    url: tiresUrl(vehicleId),
   };
 }
 

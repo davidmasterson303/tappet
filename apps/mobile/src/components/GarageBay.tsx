@@ -4,10 +4,10 @@ import {
   Easing,
   Pressable,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import Text, { typeScale } from './Text';
 
 import StatStrip, { type Stat } from './StatStrip';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
@@ -19,6 +19,7 @@ import type { PlateStatus } from '@tappet/core/plates';
 import {
   UNKNOWN_TIMING,
   describeNextService,
+  displayServiceName,
 } from '@tappet/core/garage-next-service';
 import { SPEC_ROW, TABULAR, border, space, status, surface, text, type } from '../theme';
 import { useReducedMotion } from '../motion/reduced-motion';
@@ -109,8 +110,8 @@ export interface BayVehicle {
 export default function GarageBay({
   vehicle,
   score,
-  index,
-  total,
+  records = null,
+  staleReading = false,
   stats,
   active = true,
   onOpen,
@@ -132,9 +133,18 @@ export default function GarageBay({
   today: string;
   /** Health score, or null when the car has none. Null is not zero. */
   score?: number | null;
-  /** Zero-based position, for the batten. */
-  index: number;
-  total: number;
+  /**
+   * The service records behind that score, or `null` when the count is not
+   * known. Under three the dial's word names the file instead of judging the
+   * car (22 Sep) — `bandForReading` in core carries the argument.
+   */
+  records?: number | null;
+  /**
+   * The car has a reading, and the records have overtaken it (20 Sep). The
+   * screen withholds `score` in that case; this says why the dial is empty,
+   * so "No score yet" is not printed over a car that has one.
+   */
+  staleReading?: boolean;
   /**
    * The stat strip's cells, assembled by the caller.
    *
@@ -268,27 +278,12 @@ export default function GarageBay({
   return (
     <View style={styles.bay}>
       {/*
-        The batten. Bay number in the light's own colour, position on the right.
-
-        ⚠ `bay.light` is `brand.accent` and this is one of the few places a
-        string may wear it — it is signage, not body copy, and it sits on the
-        page surface at full strength rather than over an unknown backdrop.
+        ⚠ 21 Sep: no batten. "BAY 01 … 1 of 3" travelled with each page and read
+        as a count; the garage draws one `BayRail` above the pager instead —
+        the bays as a tab rail, the lit one where you stand, the door beside
+        it. R20 ("1 of 1" is a pager for a list that cannot be paged) lives
+        there now.
       */}
-      <View style={styles.batten}>
-        <Text style={styles.bayNumber}>BAY {String(index + 1).padStart(2, '0')}</Text>
-        {/*
-          ⚠ **R20.** Suppressed at one car. "1 of 1" is a pager for a list that
-          cannot be paged — it takes up the batten's right half to tell somebody
-          with one car that they have one car. Most garages in this product are
-          one car, so this was the common render.
-        */}
-        {total > 1 ? (
-          <Text style={styles.position}>
-            {index + 1} of {total}
-          </Text>
-        ) : null}
-      </View>
-
       {/*
         The room and the name are one target, and the dial is not part of it.
 
@@ -313,7 +308,6 @@ export default function GarageBay({
         <View style={styles.plate}>
           <BayRoom
             photo={vehicle.photo_url}
-            photoKind={vehicle.photo_kind}
             make={vehicle.make}
             busy={uploading}
             height={heroHeight}
@@ -366,7 +360,8 @@ export default function GarageBay({
               and this guards it again.
             */}
             {!vehicle.photo_url ? <PlateStatusLine status={vehicle.plate_status} /> : null}
-            <Text style={styles.name} numberOfLines={1}>
+            {/* One line at the design size; two once the person's text is larger (21 Sep), where "2003 HONDA ACCO…" was the alternative. */}
+            <Text style={styles.name} numberOfLines={typeScale() > 1 ? 2 : 1}>
               {name || 'Vehicle'}
             </Text>
             {stats ? <StatStrip stats={stats} /> : null}
@@ -400,13 +395,15 @@ export default function GarageBay({
             anyway: 22pt of gap that read as air. The export stays for the
             board's record; the bay does not draw it.
           */
-          <ClusterGauge score={score} size={BAY_DIAL} active={open} />
+          <ClusterGauge score={score} size={BAY_DIAL} active={open} records={records} />
         ) : (
           /*
             No score is not a zero, and it is not an empty dial either. A dial
-            drawn at 0 asserts a reading; this says there is none.
+            drawn at 0 asserts a reading; this says there is none — or, since
+            20 Sep, that the one there is was read before the records on file
+            and is being re-read when the car is opened (QE 1.5).
           */
-          <Text style={styles.noScore}>No score yet</Text>
+          <Text style={styles.noScore}>{staleReading ? 'Score out of date — opens the car to refresh it' : 'No score yet'}</Text>
         )}
       </View>
 
@@ -443,7 +440,7 @@ export default function GarageBay({
           accessibilityRole={nextService.kind === 'known' && onOpenService ? 'button' : undefined}
           accessibilityLabel={
             nextService.kind === 'known' && onOpenService
-              ? `Next service: ${nextService.service}, ${nextService.timing}. Opens what is due.`
+              ? `Next service: ${displayServiceName(nextService.service)}, ${nextService.timing}. Opens what is due.`
               : undefined
           }
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
@@ -461,8 +458,16 @@ export default function GarageBay({
               digits (R11) so a stack of bays does not shimmer.
             */
             <View style={styles.rowValue}>
+              {/*
+                ⚠ 22 Sep · the reading's name, not the knowledge base's filing.
+                The hub strips the schedule tier and spells "and" one way
+                (`displayServiceName`, the hub loop's IA and UX critics in one
+                voice); the bay printed "Engine Oil & Filter Change
+                (Enthusiast)" for the same car one tap away — walked on the
+                phone. One job, one name, whichever screen it is on.
+              */}
               <Text style={styles.nextServiceJob} numberOfLines={1}>
-                {nextService.service}
+                {displayServiceName(nextService.service)}
               </Text>
               <Text style={styles.nextServiceTiming} numberOfLines={1}>
                 {nextService.timing}

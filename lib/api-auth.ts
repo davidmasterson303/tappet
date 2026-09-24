@@ -307,7 +307,10 @@ export type VehicleScopedTable =
   | 'vehicle_documents'
   | 'invoice_line_items'
   | 'service_items'
-  | 'consultant_conversations';
+  | 'consultant_conversations'
+  /* The tire tracker (20 Sep). Both carry `vehicle_id` so this lookup needs no join. */
+  | 'tire_sets'
+  | 'tire_rotations';
 
 export async function authorizeVehicleScopedRow(
   table: VehicleScopedTable,

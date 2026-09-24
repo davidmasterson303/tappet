@@ -1,4 +1,10 @@
 export const VIN_LENGTH = 17;
+/**
+ * The one support address, named once. `lib/legal.ts` re-exports it for the
+ * web's legal pages and footer; the phone's account screen reads it here.
+ * It was web-only until 23 Sep, so the app had no way to contact anyone.
+ */
+export const CONTACT_EMAIL = 'support@southmoordigital.com';
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 

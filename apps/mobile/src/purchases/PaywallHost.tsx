@@ -31,7 +31,17 @@ export function PaywallHost({
   const catalog = paywall.catalog;
 
   return (
+    /*
+      Keyed on the opening (20 Sep). The screen is mounted for the life of
+      the app and keeps its last answer — "Your subscription is active.",
+      "Nothing to restore" — so the next opening, minutes or days later,
+      began by showing it. Same shape as the mark-done sheet on the plan:
+      an always-mounted Modal builds its state once. A fresh mount per
+      opening is the whole fix; the catalogue lives in `usePaywall`, so
+      nothing is re-fetched.
+    */
     <PaywallScreen
+      key={paywall.visible ? 'open' : 'closed'}
       visible={paywall.visible}
       feature={paywall.feature}
       /*

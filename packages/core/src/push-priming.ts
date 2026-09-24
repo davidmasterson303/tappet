@@ -151,9 +151,20 @@ function daysBetween(from: string, to: string): number | null {
  * primer that does not answer it is decoration.
  */
 export const PUSH_PRIMER_COPY = {
-  title: 'Two kinds of alert, and nothing else',
-  body: 'Tappet can tell you when a service is coming due for your car, and when a safety recall is issued for it. Nothing else — no offers, no news, no reminders to open the app.',
-  detail: 'A service reminder arrives at most once a month per car. A recall arrives when the manufacturer issues one, which for most cars is never.',
+  /*
+    ── 20 Sep · three kinds, because the tire tracker sends a third ─────────
+
+    This said "two kinds" and "nothing else", and the tire tracker (v1.1)
+    adds a push — the set is past the rotation interval the owner entered.
+    "Nothing else" is a promise the binary makes before it asks for the one
+    irreversible iOS prompt, and a third kind arriving under a two-kind
+    promise is exactly the claim `push-priming.test.ts` exists to keep
+    honest. So the count moves, and the sentence says the condition out
+    loud: the tire alert exists only because the owner entered the interval.
+  */
+  title: 'Three kinds of alert, and nothing else',
+  body: 'Tappet can tell you when a service is coming due for your car, when a safety recall is issued for it, and — if you have entered your tires’ rotation interval — when you are past it. Nothing else — no offers, no news, no reminders to open the app.',
+  detail: 'A service or tire reminder arrives at most once a month per car. A recall arrives when the manufacturer issues one, which for most cars is never.',
   accept: 'Turn on alerts',
   decline: 'Not now',
   /**

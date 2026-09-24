@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import Field from '../components/Field';
 import { apiRequest, ApiRequestError } from '../api/client';
+import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import Working from '../components/Working';
 import { useRootScroll } from '../components/RootScreen';
 import {
@@ -170,7 +172,8 @@ type State =
   | {
       kind: 'ready';
       name: string;
-      mileage: number;
+      /** Null when nothing is on record; the screen asks rather than reasons from 0. */
+      mileage: number | null;
       /** Whether to ask for the odometer now, and what to offer — `mileageCheckIn`. */
       checkIn: MileageCheckIn;
       schedule: ScheduleEntry[];
@@ -268,8 +271,15 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const [added, setAdded] = useState<string[]>([]);
   const [adding, setAdding] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setState({ kind: 'loading' });
+  const load = useCallback(async (isRefresh = false, quiet = false) => {
+    /*
+      Quiet, since 20 Sep: this screen is refetched on focus (it was not —
+      "ADDED" was a local set, so a service marked done elsewhere still read
+      ADDED here), and a focus refetch must not replace the list with the
+      wait dial. `isRefresh` is accepted for the hook's signature; there is no
+      pull-to-refresh on this screen.
+    */
+    if (!quiet && !isRefresh) setState({ kind: 'loading' });
     try {
       /*
         Two requests, in parallel, and only one of them may fail the screen.
@@ -284,15 +294,29 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         blank a screen that a push notification just opened. Handled separately
         so it cannot.
       */
-      const [body, history] = await Promise.all([
+      const [body, history, needs] = await Promise.all([
         apiRequest<VehicleResponse>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`),
         apiRequest<MaintenanceResponse>(
           `/load-maintenance-data?vehicleId=${encodeURIComponent(vehicleId)}`
         ).catch(() => null),
+        /*
+          The needs list, so ADDED is a fact about the plan rather than a
+          memory of this visit (20 Sep). A failed read is an empty list: the
+          button still works, and a 409 on it is treated as added.
+        */
+        apiRequest<{ wishlistItems?: Array<{ item_identifier?: string | null }> }>(
+          `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
+        ).catch(() => ({ wishlistItems: [] })),
       ]);
+      const onThePlan = new Set(
+        (Array.isArray(needs?.wishlistItems) ? needs.wishlistItems : []).flatMap((item) =>
+          typeof item?.item_identifier === 'string' ? [item.item_identifier] : []
+        )
+      );
 
       const vehicle = body.vehicle;
-      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : 0;
+      // Null, never 0: a car with no odometer on file was told "Still around 0 miles?" (23 Sep).
+      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : null;
       const rawSchedule = body.knowledge?.maintenance_schedule;
       /*
         ── 13 Sep · monthly, with a number worked out ──────────────────────
@@ -330,6 +354,12 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       });
       setReading(String(checkIn.assumed));
       setConfirmed(!checkIn.ask);
+      // What the plan already holds, by identifier; a local add joins this set.
+      setAdded(
+        (Array.isArray(rawSchedule) ? (rawSchedule as ScheduleEntry[]) : [])
+          .map((entry) => entry.service)
+          .filter((service) => onThePlan.has(wishlistItemIdentifier('maintenance', service)))
+      );
     } catch (error) {
       const apiError = error as ApiRequestError;
       /*
@@ -344,6 +374,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         onSignOut();
         return;
       }
+      // A quiet refetch that fails keeps what is on screen; the next open reloads.
+      if (quiet) return;
       setState({ kind: 'error', message: apiError.message ?? 'Could not load this car' });
     }
   }, [vehicleId, onSignOut]);
@@ -351,6 +383,9 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Quiet on focus: a service marked done elsewhere leaves ADDED here (20 Sep).
+  useRefetchOnFocus(load);
 
   const confirm = useCallback(async () => {
     if (state.kind !== 'ready' || saving) return;
@@ -540,9 +575,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
       <Text style={styles.confirmLead}>
-        {state.checkIn.projected
-          ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
-          : `Still around ${miles.format(state.mileage)} miles?`}
+        {state.mileage === null
+          ? 'What does the odometer say?'
+          : state.checkIn.projected
+            ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
+            : `Still around ${miles.format(state.mileage)} miles?`}
       </Text>
       {/*
         One sentence. "What is due depends on the odometer" said the same
@@ -553,9 +590,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         miles a month — so "about" is a claim with its basis, not a guess.
       */}
       <Text style={styles.confirmBody}>
-        {state.checkIn.projected
-          ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
-          : 'The list below is worked out from this reading.'}
+        {state.mileage === null
+          ? 'Nothing is on record for this car yet. Enter the reading and the list below is worked out from it.'
+          : state.checkIn.projected
+            ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
+            : 'The list below is worked out from this reading.'}
       </Text>
 
       {/* The field and its verb on one line — it is one question, not a form. */}
@@ -628,7 +667,12 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   */
   const services = evaluateSchedule({
     schedule: state.schedule,
-    currentMileage: state.mileage,
+    // ⚠ 0 when nothing is on record. `evaluateSchedule` takes a number, and
+    // at 0 every mileage interval reads as not yet reached — the same list
+    // the screen always showed. The banner above asks for the reading rather
+    // than presenting 0 as one; the honest "unknown" for the list itself is
+    // still to do.
+    currentMileage: state.mileage ?? 0,
     ...historyLookups(state.history),
   });
   const milestone = nextMilestone(services, { horizonMiles: 5_000 });
@@ -656,7 +700,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     groups.push({
       key: 'milestone',
       label: milestone.mileage === null ? 'Next service' : `${miles.format(milestone.mileage)} service`,
-      detail: milestoneReason(milestone, state.mileage),
+      detail: milestoneReason(milestone, state.mileage ?? 0),
       rows: milestone.services,
     });
   }
@@ -696,7 +740,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       {confirmed ? (
         <View style={styles.readingRow}>
           <Text style={styles.readingLabel}>Odometer</Text>
-          <Text style={styles.readingValue}>{miles.format(state.mileage)} MI</Text>
+          <Text style={styles.readingValue}>{state.mileage === null ? 'Not on record' : `${miles.format(state.mileage)} MI`}</Text>
         </View>
       ) : null}
 

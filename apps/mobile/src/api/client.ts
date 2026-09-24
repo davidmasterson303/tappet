@@ -190,7 +190,88 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 
 import { fixtureFor, fixtureHolds } from '../dev/fixtures';
 
+/*
+  ── The request layer's two habits (QE §3, 20 Sep) ──────────────────────────
+
+  Every screen re-reads on focus (QE 1.1), the research runner polls, and a
+  write reloads what it changed — so the same GET is routinely asked for
+  twice within a few hundred milliseconds, and a phone drops a request for
+  no reason often enough that the first failure is usually not the answer.
+  Two rules, both confined to reads:
+
+  1. **One GET in flight per path.** A second request for a path that is
+     already being fetched joins the first rather than sending another —
+     the detail screen's focus refetch and the runner's lean reload become
+     one round trip, and the `default` rate limit (60 a minute per client,
+     which the runner tripped on 19 Sep) is spent once.
+
+     ⚠ A write breaks the join. A GET that started *before* a write must
+     not be handed to a caller asking *after* it: the post-write reload
+     would read the row as it was. So every non-GET stamps `lastWriteAt`
+     on its way out and on its way back, and a join is offered only to an
+     entry that started after the last write. The stale request still
+     completes for whoever asked first; nobody new is given it.
+
+  2. **One retry, for a read that failed in transport.** `offline` (the
+     runtime's "Network request failed" — a dropped socket, a cell handoff)
+     and a gateway status (502, 503, 504 — a function still cold or a
+     deploy mid-swap) are retried once after half a second. Never a POST,
+     PATCH or DELETE: a write whose answer was lost may have been applied,
+     and sending it again is the duplicate this file cannot detect. Never a
+     `timeout`: twenty seconds have already been spent and the person is
+     looking at the screen; doubling the wait on a request that may be
+     hanging server-side is worse than saying so, and every screen's "Try
+     again" is that retry, chosen by them. Never a device-side 401: nothing
+     was sent.
+*/
+const inFlight = new Map<string, { startedAt: number; promise: Promise<unknown> }>();
+let lastWriteAt = 0;
+export const RETRY_AFTER_MS = 500;
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = options.method ?? 'GET';
+  if (method !== 'GET') {
+    lastWriteAt = Date.now();
+    try {
+      return await performRequest<T>(path, options);
+    } finally {
+      lastWriteAt = Date.now();
+    }
+  }
+
+  const key = `${options.allowAnonymous ? 'anon ' : ''}${path}`;
+  const joined = inFlight.get(key);
+  if (joined && joined.startedAt > lastWriteAt) return joined.promise as Promise<T>;
+
+  const startedAt = Date.now();
+  const promise = readOnce<T>(path, options).finally(() => {
+    if (inFlight.get(key)?.promise === promise) inFlight.delete(key);
+  });
+  inFlight.set(key, { startedAt, promise });
+  return promise;
+}
+
+async function readOnce<T>(path: string, options: RequestOptions): Promise<T> {
+  try {
+    return await performRequest<T>(path, options);
+  } catch (error) {
+    if (!(error instanceof ApiRequestError) || !worthOneRetry(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
+    return performRequest<T>(path, options);
+  }
+}
+
+function worthOneRetry(error: ApiRequestError): boolean {
+  if (error.kind === 'offline') return true;
+  // A gateway status the server actually sent — never the device's own 401.
+  return (
+    error.kind === 'http' &&
+    error.origin === 'server' &&
+    (error.status === 502 || error.status === 503 || error.status === 504)
+  );
+}
+
+async function performRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, allowAnonymous = false, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
 
   /*
@@ -379,7 +460,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       cause: raw ? raw.slice(0, 300) : undefined,
       // The server's own message when it sent one — those are written to be
       // shown and are careful not to leak whether a resource exists.
-      message: typeof payload?.error === 'string' ? payload.error : `Request failed (${response.status})`,
+      message: typeof payload?.error === 'string' ? payload.error : 'Tappet could not complete that. Try again in a moment.',
       // And its reason, when it sent one. See `ApiRequestError.code`.
       code: typeof payload?.code === 'string' ? payload.code : undefined,
     });
@@ -458,7 +539,7 @@ function sendMultipart<T>({
             message:
               typeof parsed?.error === 'string'
                 ? parsed.error
-                : `Request failed (${request.status})`,
+                : 'Tappet could not complete that. Try again in a moment.',
             // The multipart path is the invoice upload, which is gated too.
             code: typeof parsed?.code === 'string' ? parsed.code : undefined,
           })

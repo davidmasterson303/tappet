@@ -21,6 +21,8 @@ import { join } from 'node:path';
 import {
   getHealthBandJudgement,
   healthBandHex,
+  CONFIDENT_RECORDS,
+  bandForReading,
   type HealthBandName,
 } from '@tappet/core/health-band';
 import { getHealthBand } from '@/hooks/use-health-band';
@@ -174,5 +176,50 @@ describe('healthBandHex', () => {
     // A channel below 16 produces one hex digit and silently shifts every
     // channel after it, turning a colour into a different colour.
     expect(healthBandHex({ name: 'good', rgb: '1,2,3', label: 'x', short: 'x' })).toBe('#010203');
+  });
+});
+
+/**
+ * ── A reading on a thin file is not a verdict on the car (22 Sep) ──────────
+ *
+ * The reviewer's F-PACE: one service record in 69,573 miles, the model's
+ * reading 55, and the dial said NEEDS ATTENTION in sodium. The value lens
+ * raised it — *"a 55 built on one record reads as a verdict on the car, not
+ * on the file"* — and David ruled the thin-history state. What is pinned here
+ * is the shape of that ruling: the score is untouched, the **band** is
+ * replaced, an unknown count is not a thin one, and the state carries no hue.
+ */
+describe('bandForReading', () => {
+  it('names the file, not the car, under three records', () => {
+    for (const records of [0, 1, 2]) {
+      const band = bandForReading(55, records);
+      expect(band.name).toBe('thin');
+      expect(band.label).toBe('Thin history');
+      // Never sodium: a thin file is not a warning about the vehicle (B7).
+      expect(band.rgb).toBe(getHealthBandJudgement(95).rgb);
+    }
+  });
+
+  it('bands normally once there are three', () => {
+    expect(bandForReading(55, 3).name).toBe('warn');
+    expect(bandForReading(88, 11).name).toBe('good');
+    expect(bandForReading(55, CONFIDENT_RECORDS).label).toBe('Needs attention');
+  });
+
+  it('treats an unknown count as known-enough, never as thin', () => {
+    /*
+      ⚠ The direction to be wrong in. A count that failed to arrive must not
+      suppress a real warning; the ordinary band stands until something says
+      otherwise.
+    */
+    for (const records of [null, undefined]) {
+      expect(bandForReading(20, records).name).toBe('bad');
+      expect(bandForReading(55, records).name).toBe('warn');
+    }
+  });
+
+  it('leaves the number alone — it replaces the judgement, not the reading', () => {
+    // Nothing here rounds, clamps or hides a score; the dial still draws 55.
+    expect(bandForReading(55, 1).short).not.toMatch(/\d/);
   });
 });

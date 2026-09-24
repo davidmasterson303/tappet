@@ -18,7 +18,18 @@ import type { ServiceSegment } from '../screens/ServiceScreen';
  * name. The traffic argument survives structurally: a tab keeps its own stack,
  * so leaving the car for Service and coming back lands on the car.
  */
-export const TAB_NAMES = ['GarageTab', 'ServiceTab', 'PlanTab', 'AdvisorTab'] as const;
+/*
+  ── 21 Sep · five, in David's order ─────────────────────────────────────────
+
+  `Garage`, `Car`, `Advisor`, `Service`, `Plan`. The car is its own tab —
+  most owners have one, and the car's page is what they come back to — and
+  the garage keeps its own, for the bays, ADD CAR and switching between
+  cars; it keeps landing on the garage. Both persistent, which David chose
+  over a label that changes with the garage's size: "better than being too
+  clever with dynamic". The order is his: the garage leads, the car beside
+  it, then the conversation, then the record and the plan.
+*/
+export const TAB_NAMES = ['CarTab', 'AdvisorTab', 'ServiceTab', 'PlanTab'] as const;
 
 export type TabName = (typeof TAB_NAMES)[number];
 
@@ -32,8 +43,19 @@ export type Car = { vehicleId: string; title?: string };
  * searchable history of line items, like web app version."* The route's own
  * default is `due`, which is what a service-due notification is about; the tab
  * asks for the record.
+ *
+ * ⚠ **22 Sep · this line survived a challenge to it, and the screen moved
+ * instead.** David, seeing the landing: *"i think we should always land user
+ * on leftmost subnav tab, right? im landing on history, which is right tab.
+ * either flip them, or land user on Due."* Two ways to satisfy that, and only
+ * one of them keeps the sentence above: `ServiceScreen` puts **History
+ * leftmost** now, so the tab still opens the record *and* lands on the first
+ * segment. Changing this value to `'due'` would have satisfied the ordering
+ * rule by reversing the 30 Aug decision — which is the kind of quiet reversal
+ * this file's own note exists to prevent.
  */
 const CAR_TAB_ROOT = {
+  CarTab: { screen: 'VehicleDetail', segment: undefined },
   ServiceTab: { screen: 'Service', segment: 'history' as ServiceSegment },
   PlanTab: { screen: 'Plan', segment: undefined as PlanSegment | undefined },
   AdvisorTab: { screen: 'Advisor', segment: undefined },
@@ -41,10 +63,11 @@ const CAR_TAB_ROOT = {
 
 export type TabTarget =
   | { name: TabName; params?: undefined }
+  /** The garage, popped to (21 Sep): the tab's word is the screen it lands on. */
   | {
       name: TabName;
       params: {
-        screen: 'Service' | 'Plan' | 'Advisor';
+        screen: 'VehicleDetail' | 'Service' | 'Plan' | 'Advisor';
         params: { vehicleId: string; title?: string; segment?: ServiceSegment | PlanSegment };
         pop: true;
       };
@@ -84,7 +107,18 @@ export function tabTarget(
   mountedVehicleId: string | undefined,
   car: Car | null
 ): TabTarget {
-  if (tab === 'GarageTab' || !car || mountedVehicleId === car.vehicleId) {
+  /*
+    ⚠ 23 Sep · **no garage branch any more.** The Garage tab used to pop its
+    stack to the garage on every press, because David asked for a tab whose
+    word is the screen it lands on — *"tapping Garage twice… should the label
+    change to say where the first tap goes?"* — and the answer was that the
+    label should not change, the destination should be fixed.
+
+    That rule survives its tab: every remaining tab's word is what it lands
+    on. The garage is gone because a bay was a strict subset of the car's
+    page, and switching cars is the car's own name and the sheet it opens.
+  */
+  if (!car || mountedVehicleId === car.vehicleId) {
     return { name: tab };
   }
 

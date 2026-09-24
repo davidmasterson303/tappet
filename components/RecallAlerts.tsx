@@ -1,6 +1,7 @@
 'use client';
 
 import { RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { unshout } from '@tappet/core/unshout';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
 
   return (
     <div
-      className="border border-red-400/25 rounded-2xl overflow-hidden"
+      className="border border-[color:var(--critical-border)] rounded-2xl overflow-hidden"
       /*
         ⚠ An opaque ground under the wash, not a translucent panel.
 
@@ -76,21 +77,21 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         window. The wash is composited over `--background` here so the red
         reads exactly as it did.
       */
-      style={{ background: 'linear-gradient(rgb(239 68 68 / 0.08), rgb(239 68 68 / 0.08)), #100F0D' }}
+      style={{ background: 'linear-gradient(var(--critical-wash), var(--critical-wash)), #100F0D' }}
     >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-red-400/15">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--critical-border)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-400/25 flex items-center justify-center flex-shrink-0">
-            <ShieldAlert className="h-5 w-5 text-red-400" />
+          <div className="w-9 h-9 rounded-xl bg-[color:var(--critical-wash)] border border-[color:var(--critical-border)] flex items-center justify-center flex-shrink-0">
+            <ShieldAlert className="h-5 w-5 text-[color:var(--critical)]" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white leading-tight">
               {activeRecalls.length} Active Recall{activeRecalls.length !== 1 ? 's' : ''}
               {addressedCount > 0 && (
-                <span className="ml-2 text-xs text-green-400/70 font-normal">({addressedCount} addressed)</span>
+                <span className="ml-2 text-xs text-[color:var(--confirm)] font-normal">({addressedCount} addressed)</span>
               )}
             </h3>
-            <p className="text-xs text-red-300/70 mt-0.5">Action may be required</p>
+            <p className="text-xs text-[color:var(--critical)] mt-0.5">Action may be required</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -98,7 +99,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
             variant="ghost"
             size="sm"
             onClick={() => window.open('https://www.nhtsa.gov/recalls', '_blank')}
-            className="text-red-300/70 hover:text-red-300 hover:bg-red-500/12 h-8 px-3 text-xs gap-1.5"
+            className="text-[color:var(--critical)] hover:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] h-8 px-3 text-xs gap-1.5"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             NHTSA
@@ -125,7 +126,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         </div>
       </div>
 
-      <div className="divide-y divide-red-400/10">
+      <div className="divide-y divide-[color:var(--critical-border)]">
         {visibleRecalls.map((recall: any, index: number) => {
           const campaignNum = recall.NHTSACampaignNumber;
           const isAddressing = addressingId === campaignNum;
@@ -133,7 +134,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
           return (
             <div key={index} className="px-5 py-4">
               <div className="flex items-start gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[color:var(--critical)] mt-2 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   {/*
                     Stacks on a phone. Beside a two-line component title the
@@ -165,7 +166,8 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                       */}
                       {recall.Summary && (
                         <p className="text-xs text-white/55 mt-1 leading-relaxed">
-                          {recall.Summary}
+                          {/* Pre-2011 campaigns arrive in capitals; lowered to sentences, prose untouched (QE 2.12). */}
+                          {unshout(recall.Summary, [recall.Manufacturer])}
                         </p>
                       )}
                       {campaignNum && (
@@ -208,7 +210,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         <div className="px-5 pb-4">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1.5 text-xs text-red-300/60 hover:text-red-300 transition-colors font-medium"
+            className="flex items-center gap-1.5 text-xs text-[color:var(--critical)] hover:text-[color:var(--critical)] transition-colors font-medium"
           >
             {expanded ? (
               <>
@@ -240,7 +242,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         The mobile recall screen renders the identical string. One sentence, two
         clients, from one constant.
       */}
-      <p className="px-5 py-3 text-xs text-white/50 border-t border-red-400/15">
+      <p className="px-5 py-3 text-xs text-white/50 border-t border-[color:var(--critical-border)]">
         {RECALL_MATCH_CAVEAT}
       </p>
 

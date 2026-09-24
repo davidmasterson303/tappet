@@ -29,6 +29,8 @@ export const PROTECTED_ROUTES = [
     per-vehicle sections from `app/` so the next tab cannot be forgotten.
   */
   '/plan',
+  /* The tire set (20 Sep) — a per-vehicle section like the four above, caught by `security.test.ts` the day it was made. */
+  '/tires',
   '/onboard',
   '/settings',
 ] as const;

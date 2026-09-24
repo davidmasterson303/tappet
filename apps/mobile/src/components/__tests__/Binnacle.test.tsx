@@ -99,11 +99,34 @@ describe('Binnacle', () => {
     expect(edge('Plan, 0. Opens it.')).toBeGreaterThan(0);
   });
 
+  it('pins the value to the head of the cell and the legend to its foot', async () => {
+    /*
+      Round 51 (22 Sep) measured the count row at 1:1: cells anchored to the
+      foot, so "11" over two caption lines sat 20pt under "24" over three,
+      and the row's numerals never shared a cap line. Space-between is the
+      whole fix — one cap line at the head, one legend baseline at the foot,
+      only the captions between them varying — and it is a style a still
+      cannot prove was not quietly returned to `flex-end`.
+    */
+    const view = await render(panel([{ legend: 'History', value: '5' }]));
+    const style = flat(view.getByLabelText('History, 5. Opens it.').props.style);
+
+    expect(style.justifyContent).toBe('space-between');
+  });
+
   it('clears the touch floor, and presses with a fill rather than a fade', async () => {
     const view = await render(panel([{ legend: 'History', value: '5' }]));
     const style = flat(view.getByLabelText('History, 5. Opens it.').props.style);
 
-    expect(BINNACLE_CELL_MIN).toBeGreaterThanOrEqual(TARGET_MIN);
+    /*
+      The floor is the thumb's exactly (22 Sep, round 51). Above it the floor
+      was a rhythm — 96, then 80 — and the only cell it ever reached was the
+      one shorter than it, which it stretched into a band with a title's
+      worth of graphite over its reading. A cell is its content's height; the
+      floor is for a cell with nothing read yet, whose legend alone would
+      fall under the thumb.
+    */
+    expect(BINNACLE_CELL_MIN).toBe(TARGET_MIN);
     expect(style.minHeight).toBe(BINNACLE_CELL_MIN);
     // The rest state paints no fill; `mobile-pressed-states` holds the swap
     // is to `surface.well` and never an opacity — the fill has to exist.

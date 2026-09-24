@@ -205,7 +205,13 @@ export const VehicleDataSchema = z.object({
     zero_to_sixty: z.number().nullable().optional(),
   }).optional().default({}),
   interesting_facts: z.array(z.string()).default([]),
-  reliability_score: z.number().min(1).max(10).default(5),
+  /*
+    Nullable, since 23 Sep. `.default(5)` wrote a middling score for every
+    dossier whose model returned none, and the advisor was then told
+    "Reliability Score: 5/10" — a default masquerading as a reading, which is
+    the §6 shape exactly. Null renders as nothing; 5 rendered as a fact.
+  */
+  reliability_score: z.number().min(1).max(10).nullable().default(null),
 });
 
 export function extractJSON(text: string): any {

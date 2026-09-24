@@ -5,6 +5,8 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
+import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
@@ -177,6 +179,41 @@ export async function GET(request: NextRequest): Promise<Response> {
       getServiceRoleClient(),
     );
 
+    /*
+      ── The records behind the score, so the bay can refuse a stale one ──────
+
+      QE 1.5 (20 Sep): the M235i's row was the pre-FN-01 constant — 70,
+      `last_generated` 2000-01-01, "complete lack of documented maintenance"
+      beside five filed line items — deliberately stamped stale, and the bay
+      drew a 70 FAIR dial with nothing qualifying it while the detail screen
+      applied `healthVerdict` and said "read before 5 service records were
+      filed". The verdict needs the newest filing time; this is one query for
+      the garage, folded per car. `null` when the read fails: the verdict
+      then has no evidence of staleness and leaves the reading alone, which
+      is the same degrade `load-vehicle` makes.
+    */
+    const records = new Map<string, { count: number; newestFiledAt: string | null }>();
+    let recordsKnown = true;
+    if (rows.length > 0) {
+      const { data: filed, error: filedError } = await getServiceRoleClient()
+        .from('maintenance_line_items')
+        .select('vehicle_id, created_at')
+        .in('vehicle_id', rows.map((row) => row.id));
+      if (filedError) {
+        recordsKnown = false;
+        logger.warn('API:GET_VEHICLES', 'Could not read the records behind the scores', { error: filedError.message });
+      } else {
+        for (const item of filed ?? []) {
+          const id = item.vehicle_id as string;
+          const at = (item.created_at as string | null) ?? null;
+          const held = records.get(id) ?? { count: 0, newestFiledAt: null };
+          held.count += 1;
+          if (at && (held.newestFiledAt === null || at > held.newestFiledAt)) held.newestFiledAt = at;
+          records.set(id, held);
+        }
+      }
+    }
+
     const vehicles = rows.map((row) => {
       const { custom_image_url, ...vehicle } = row;
       const photo_url = photos.get(row.id) ?? null;
@@ -187,6 +224,9 @@ export async function GET(request: NextRequest): Promise<Response> {
         // or the plate — so the garage grades only the owner's. Additive.
         photo_kind: vehiclePhotoKind(row.id, row as VehiclePhotoColumns, photo_url),
         plate_status: plates.get(row.id) ?? null,
+        // 20 Sep: the service records behind the score, for `healthVerdict`.
+        // Additive; `null` means the read failed, not that there are none.
+        records: recordsKnown ? (records.get(row.id) ?? { count: 0, newestFiledAt: null }) : null,
       };
     });
 
@@ -365,6 +405,13 @@ export async function PATCH(request: NextRequest): Promise<Response> {
     })
     .eq('id', vehicleId);
 
+  /*
+    A new reading moves what is due (20 Sep). The projection was the
+    sweep's nightly write, so a confirmed odometer changed the NEXT SERVICE
+    cell the next day; it is the sweep's own maths, best-effort, run now.
+  */
+  if (!writeError) await projectNextService(vehicleId as string);
+
   if (writeError) {
     logger.error('API:PATCH_VEHICLE', new Error(writeError.message), { vehicleId });
     return Response.json({ success: false, error: 'Could not save the reading' } as ApiResponse, {
@@ -403,6 +450,36 @@ export async function PATCH(request: NextRequest): Promise<Response> {
  * and a first-run flow that asks for a VIN and a drivetrain before showing
  * anything is a first-run flow people abandon.
  *
+ * ── ⚠ The VIN — and the six weeks this route saved nothing ─────────────────
+ *
+ * "Everything else has a sensible default" was written from the wizard's
+ * point of view, and it was wrong about one column: `vehicles.vin` was
+ * `NOT NULL` from the first schema, because the wizard opens with a decode
+ * and always has one. This insert never named it, so from 8 Aug to 19 Sep
+ * every car added on the phone answered 500 "Could not save the vehicle",
+ * with the column's name in a function log nobody read. The table showed it
+ * — five rows, all from the wizard or the demo seed — and the phone's own
+ * docblocks said a car added this way "carries no VIN in the database",
+ * which was the claim CLAUDE.md §2 forbids: the schema stated from a file
+ * read. It carried no row.
+ *
+ * `20260919160000_a_car_added_from_the_phone_may_have_no_vin.sql` drops the
+ * `NOT NULL`; `UNIQUE` stays, and NULLs are distinct under it. This route
+ * now carries the VIN when the phone decoded one — normalised, and refused
+ * with the field's own words when malformed — and `null` when it did not.
+ * Never `''`: an empty string is a value, and UNIQUE would let exactly one
+ * car in the whole product have it. A 500 here with `"vin"` in the log after
+ * 19 Sep means the migration has not been applied, not that this regressed.
+ *
+ * ⚠ **One 503 on record (20 Sep, 00:06 UTC).** The first submit after the
+ * migration answered 503 with no JSON body — the phone showed its fallback
+ * "Request failed (503)" — and no row was written; the identical retry
+ * seconds later succeeded. Nothing on this path answers 503, and the route
+ * was answering 401 to an unauthenticated POST at the same moment, so it was
+ * in front of the handler (a cold function or the gateway), not in it. One
+ * occurrence, not chased. If it recurs, the function log for that minute is
+ * the place — and the next person to see it will be a customer.
+ *
  * ── `user_id` is never accepted from the caller ─────────────────────────────
  *
  * Ownership comes from the verified session. `createVehicle`'s own comment
@@ -410,13 +487,23 @@ export async function PATCH(request: NextRequest): Promise<Response> {
  * request body reads as authoritative even when the handler ignores it, which
  * is one careless edit away from being trusted.
  *
- * ── Research is not awaited ─────────────────────────────────────────────────
+ * ── Research is not awaited — and, since 20 Sep, the phone starts it ────────
  *
  * The dossier generation measured ~23s on a warm server. Holding the response
  * open for it would put a half-minute spinner between "add my car" and seeing
  * anything. The row is returned immediately and the knowledge base fills in
- * behind it — `research_status: 'pending'` is what `VehicleInsights` already
- * watches for, so the existing machinery does the rest.
+ * behind it.
+ *
+ * ⚠ Until 20 Sep this paragraph ended "`research_status: 'pending'` is what
+ * `VehicleInsights` already watches for, so the existing machinery does the
+ * rest." `VehicleInsights` is a **web** component calling a cookie-authenticated
+ * action; the phone can never reach it, and nothing else started the research.
+ * So the first car ever saved from the phone (19 Sep — the night this route
+ * first worked at all) sat at "No score yet" until its page was opened on the
+ * web, and a phone-only owner's car would have waited for the nightly sweep,
+ * under a form that promised "a few seconds". The phone now posts
+ * `/api/v1/research` when it opens a pending car and narrates what lands
+ * (`research-milestones.ts`); `lib/research-job.ts` carries the shape.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   const identifier = getClientIdentifier(request);
@@ -457,13 +544,17 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   /*
-    Mileage reuses `validateMileageUpdate` against a current of 0 rather than
-    growing a second opinion about what a plausible odometer reading is. A first
-    reading is only ever an increase from nothing, so the correction path does
-    not apply and the bounds do.
+    Mileage reuses `validateMileageUpdate` rather than growing a second opinion
+    about what a plausible odometer reading is — with `current: null`, which
+    is what a first reading is. ⚠ Until 19 Sep this passed `0`, on the
+    reasoning that "a first reading is only ever an increase from nothing, so
+    the correction path does not apply and the bounds do". The bounds did;
+    so did the jump check, and every car past 100,000 miles was refused here
+    with 422 and "check the digits". The phone made the same call. The web's
+    wizard goes through a different action and never saw it.
   */
   const mileage = Number(body.currentMileage ?? 0);
-  const mileageCheck = validateMileageUpdate({ current: 0, next: mileage });
+  const mileageCheck = validateMileageUpdate({ current: null, next: mileage });
   if (!mileageCheck.ok) {
     return Response.json(
       { success: false, error: mileageCheck.message } as ApiResponse,
@@ -471,11 +562,25 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
+  /*
+    Optional, and the same rule the phone's field shows while it is typed:
+    `vinProblem` is null for nothing and for seventeen valid characters, and
+    a sentence for anything between. The check digit is deliberately not
+    asked here — see `vinProblem`'s docblock for why a client stricter than
+    NHTSA refuses genuine imports.
+  */
+  const vin = typeof body.vin === 'string' ? normaliseVin(body.vin) : '';
+  const vinTrouble = vinProblem(vin);
+  if (vinTrouble) {
+    return Response.json({ success: false, error: vinTrouble } as ApiResponse, { status: 422 });
+  }
+
   const client = getServiceRoleClient();
 
   const { data: vehicle, error } = await client
     .from('vehicles')
     .insert({
+      vin: vin || null,
       year,
       make,
       model,
@@ -488,10 +593,34 @@ export async function POST(request: NextRequest): Promise<Response> {
         that reads them.
       */
       performance_mindedness: body.wantsModifications === false ? 'stock' : 'mild',
+      /*
+        ⚠ Named as null on purpose (QE 2.2, 20 Sep). The column carries
+        `DEFAULT 'daily_driver'` (migration 20260314163304), so an insert that
+        leaves it out gets an answer the owner never gave — and the hero then
+        printed "USE · Daily Driver" and the profile screen pre-selected it
+        under "these are the answers you gave". Nothing here asks how the car
+        is used; `null` is "not said", which every reader of this column
+        already renders as nothing. The default itself is dropped by
+        20260920120000; the explicit null is right with or without it.
+      */
+      vehicle_status: null,
       user_id: caller.userId,
     })
     .select('id,year,make,model')
     .single();
+
+  if (error?.code === '23505') {
+    /*
+      `vin` is the only UNIQUE column besides the key, so this is a VIN that
+      is already somebody's car — possibly this owner's, added twice. Said
+      plainly rather than as a 500: the number is on the windscreen, and the
+      fix is theirs to make.
+    */
+    return Response.json(
+      { success: false, error: 'A car with that VIN is already in a garage.' } as ApiResponse,
+      { status: 409 }
+    );
+  }
 
   if (error || !vehicle) {
     logger.error('API:CREATE_VEHICLE', new Error(error?.message ?? 'Insert returned no row'), {

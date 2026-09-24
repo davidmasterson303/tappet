@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
+import Text from './Text';
 
 import { TARGET_MIN, border, brand, radius, space, surface, text, type } from '../theme';
 

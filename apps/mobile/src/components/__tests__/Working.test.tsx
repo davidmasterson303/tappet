@@ -291,10 +291,54 @@ describe('the ledger', () => {
     // Two labels, two rows: the one that is done and the one that is running.
     const done = view.getByLabelText('Opening your photos — done');
     const active = view.getByLabelText('Reading the invoice — in progress');
-    const inkOf = (row: { children: unknown[] }) =>
-      flat((row.children[1] as { props: { style: unknown } }).props.style).color;
+    // Since 20 Sep a row is [index · label · mark] on one line with the
+    // answer, when there is one, under it — so the label is the first
+    // line's second child.
+    const inkOf = (row: { children: unknown[] }) => {
+      const line = row.children[0] as { children: unknown[] };
+      return flat((line.children[1] as { props: { style: unknown } }).props.style).color;
+    };
     expect(inkOf(done as unknown as { children: unknown[] })).toBe(text.primary);
     expect(inkOf(active as unknown as { children: unknown[] })).toBe(register.accent);
+  });
+
+  it('prints a stage’s answer under its label, and only when it has one', async () => {
+    /*
+      The research log (20 Sep). An answer is the step's result quoted from
+      a row — "24 on file." — and its arrival is the only thing on the panel
+      that can honestly be read as progress. A running stage has none.
+    */
+    const view = await render(
+      <Working
+        frozen
+        line="Researching what this model is known for"
+        stages={[
+          { label: 'Asking NHTSA about open campaigns', state: 'done', answer: '24 on file.' },
+          { label: 'Researching what this model is known for', state: 'active' },
+          { label: 'Scoring condition', state: 'pending' },
+        ]}
+      />
+    );
+    view.getByText('→ 24 on file.');
+    view.getByLabelText('Asking NHTSA about open campaigns — done. 24 on file.');
+    view.getByLabelText('Researching what this model is known for — in progress');
+    expect(view.queryAllByText(/^→ /)).toHaveLength(1);
+  });
+
+  it('draws a failed stage in the warning ink with its reason, and says so to a screen reader', async () => {
+    const view = await render(
+      <Working
+        frozen
+        line="Research stopped"
+        stages={[{ label: 'Asking NHTSA about open campaigns', state: 'failed', answer: 'NHTSA did not answer. It is asked again overnight.' }]}
+      />
+    );
+    const row = view.getByLabelText(
+      'Asking NHTSA about open campaigns — did not finish. NHTSA did not answer. It is asked again overnight.'
+    ) as unknown as { children: unknown[] };
+    const line = row.children[0] as { children: Array<{ props: { style: unknown } }> };
+    expect(flat(line.children[1].props.style).color).toBe(status.attention);
+    expect(flat(view.getByText(/NHTSA did not answer/).props.style).color).toBe(status.attention);
   });
 
   it('draws no ledger when the work is one opaque call', async () => {

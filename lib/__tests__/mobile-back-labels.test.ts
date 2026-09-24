@@ -166,7 +166,7 @@ describe('RootNavigator — back labels are the product\'s words', () => {
     */
     expect(screens.length).toBeGreaterThanOrEqual(9);
     expect(screens.map((screen) => screen.name)).toEqual(
-      expect.arrayContaining(['Garage', 'VehicleDetail', 'RecallDetail', 'InvoiceScan'])
+      expect.arrayContaining(['VehicleDetail', 'RecallDetail', 'InvoiceScan'])
     );
   });
 

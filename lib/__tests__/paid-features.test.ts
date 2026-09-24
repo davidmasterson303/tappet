@@ -33,6 +33,7 @@ import {
   PAID_FEATURES,
   PAID_FEATURE_COPY,
   decideFeatureAccess,
+  featureUpsellMessage,
   isPaidFeature,
   type PaidFeature,
 } from '@tappet/core/paid-features';
@@ -72,15 +73,24 @@ describe('what is sold', () => {
     expect([...PAID_FEATURES]).toEqual(['advisor', 'invoice-scanning', 'dossier', 'recalls']);
   });
 
-  it('leaves the owner’s own records readable', () => {
+  it('the free tier — the record, and the health score', () => {
     /*
-      ⚠ This list is no longer "the free tier" — there is not one as of 30 Aug.
-      It is what a **lapsed** account keeps, and the argument is unchanged: a
-      garage that stops working when a subscription ends is a hostage, and the
-      records in it are the owner's own. Everything on it is stored rather than
-      generated, so showing it costs nothing.
+      17 Sep, David: free = garage · service log · mileage · health score.
+      The first three are stored rather than generated, so showing them costs
+      nothing, and the argument for them is unchanged: a garage that stops
+      working when a subscription ends is a hostage, and the records in it
+      are the owner's own. The fourth is the free tier's one model call —
+      half a cent a summary, once a car a day, bounded by the free ceiling —
+      kept free because without it the free tier is a spreadsheet with a car
+      photo. `paid-features.ts` and `model-paths-behind-the-gate.test.ts`
+      carry the reasoning and the guard.
+
+      20 Sep: tires — the v1.1 tire tracker, David's call. A database write
+      plus a notification, free by the file's own rule; the advisor is the
+      paid hook. This is exactly the change the derived-blurb guard below
+      exists for, and it is the list that moves, never a sentence.
     */
-    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage']);
+    expect([...FREE_FEATURES]).toEqual(['garage', 'service-log', 'mileage', 'health-score', 'tires']);
   });
 
   it('puts recalls behind the paywall — David’s call, 30 Aug', () => {
@@ -125,12 +135,16 @@ describe('what is sold', () => {
       `RECALL_ALERTS_AFTER_LAPSE = false` and lives in the nightly sweep. That
       is E8 work, because enforcement is off until there is something to buy.
     */
-    const UNGATED: Record<string, string> = {
-      recalls:
-        'gate belongs in the sweep’s refresh and notify, not the read path — E8',
-    };
+    /*
+      Empty since 19 Sep: `recalls` sat here as "gate belongs in the sweep's
+      refresh and notify, not the read path — E8" until the sweep asked
+      `usersEntitledTo(owners, 'recalls')` once per page
+      (`recall-alerts-are-paid.test.ts`). The allowlist stays as a type so the
+      next exemption has to be written down with its reason.
+    */
+    const UNGATED: Record<string, string> = {};
 
-    const sources = ['app/actions.ts', 'lib/vehicle-research.ts']
+    const sources = ['app/actions.ts', 'lib/vehicle-research.ts', 'app/api/internal/notify-sweep/route.ts']
       .map((file) =>
         readFileSync(join(__dirname, '..', '..', file), 'utf8')
       )
@@ -139,9 +153,10 @@ describe('what is sold', () => {
     // Anti-vacuous: the scan must be able to see the gates that do exist.
     expect(sources).toMatch(/checkFeatureAccess\([^)]*'advisor'\)/);
 
+    // The single check at a call site, or the sweep's batch form of it.
     const missing = PAID_FEATURES.filter(
       (feature) =>
-        !new RegExp(`checkFeatureAccess\\([^)]*'${feature}'\\)`).test(sources) &&
+        !new RegExp(`(checkFeatureAccess|usersEntitledTo)\\([^)]*'${feature}'\\)`).test(sources) &&
         !(feature in UNGATED)
     );
 
@@ -267,6 +282,30 @@ describe('the paywall and the gate are one list', () => {
     expect(body).toMatch(/PAID_FEATURE_COPY\[feature\]/);
   });
 
+  it('the refusal names what is kept from the list, and never a paid feature — 17 Sep', () => {
+    /*
+      The sentence was typed out and said "recall alerts stay free" for
+      eighteen days after `recalls` moved to paid. Read off `FREE_FEATURES`
+      now, so the list and the sentence cannot part again; and asserted
+      against `PAID_FEATURE_COPY`, so no paid label can be called free.
+    */
+    const keptClause = (sentence: string) => sentence.slice(sentence.indexOf('Tappet Plus.') + 'Tappet Plus.'.length).toLowerCase();
+    for (const feature of PAID_FEATURES) {
+      const sentence = featureUpsellMessage(feature);
+      expect(sentence).toContain(`${PAID_FEATURE_COPY[feature].label} is part of Tappet Plus.`);
+      const kept = keptClause(sentence);
+      for (const free of FREE_FEATURES) {
+        expect(kept).toContain(FREE_FEATURE_COPY[free].label.replace(/^Your /, '').toLowerCase());
+      }
+      for (const paid of PAID_FEATURES) {
+        expect(kept).not.toContain(PAID_FEATURE_COPY[paid].label.toLowerCase().replace(/^the /, ''));
+      }
+    }
+    // Anti-vacuous: the same reader against the sentence that shipped.
+    const before = 'The advisor is part of Tappet Plus. Your garage, service log, mileage and recall alerts stay free.';
+    expect(keptClause(before)).toContain(PAID_FEATURE_COPY.recalls.label.toLowerCase());
+  });
+
   it('no longer exports the multiple from budget', () => {
     const budget = readFileSync(
       join(ROOT, 'packages', 'core', 'src', 'ai', 'budget.ts'),
@@ -299,15 +338,31 @@ describe('every paid path is gated', () => {
 
   it('leaves the demo consultant ungated', () => {
     /*
-      The demo reaches the consultant through its own budget and must keep doing
-      so — a portfolio piece with its own ceiling, not an account. A paywall on
+      The demo answers from a fixed list and must keep doing so without a
+      paywall in front of it — a portfolio piece, not an account. A paywall on
       it is a paywall on the page recruiters are sent to.
+
+      ── ⚠ Re-anchored 17 Sep; the slice had been empty since 30 Aug ─────────
+
+      This used to slice from `const demo = await checkDemoBudget()` to the
+      advisor's `checkFeatureAccess`. On 30 Aug the demo advisor stopped
+      calling a model and stopped checking the demo budget — the only
+      `checkDemoBudget()` left in the file is the demo *quote's*, five
+      thousand lines *after* the gate. `slice(6807, 1280)` is the empty
+      string, and the empty string contains no paywall. Green for eighteen
+      days on nothing (CLAUDE.md §5). The demo branch is now anchored on the
+      line that is actually its start, and the slice is asserted non-empty.
     */
     const actions = readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8');
-    const demoBranch = actions.slice(
-      actions.indexOf('const demo = await checkDemoBudget()'),
-      actions.indexOf("checkFeatureAccess(access.userId, 'advisor')")
-    );
+    const start = actions.indexOf('const sample = demoAnswerFor(');
+    const end = actions.indexOf("checkFeatureAccess(access.userId, 'advisor')");
+
+    // Anti-vacuous: both anchors exist, in this order, with code between.
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const demoBranch = actions.slice(start, end);
+    expect(demoBranch).toMatch(/isSample: true/);
+
     expect(demoBranch).not.toMatch(/checkFeatureAccess/);
   });
 });

@@ -50,6 +50,14 @@ export interface AdvisorAnswer {
   /** Always present, and always the id to send with the next message. */
   sessionId: string;
   response: string;
+  /**
+   * True when the answer was written in advance rather than generated — the
+   * demo's pre-written answers (`@tappet/core/demo-answers`). The screen must
+   * say so at the point it is shown; a sample presented as a model's reading
+   * of this car is the defect that file exists to prevent. Absent means a
+   * model wrote it.
+   */
+  isSample?: true;
   /** What the server loaded and put in front of the model. Rendered "Based on". */
   contextKinds: ContextKind[];
   /**
@@ -119,8 +127,23 @@ export async function askAdvisor({
     response?: unknown;
     contextKinds?: unknown;
     estimate?: unknown;
+    isSample?: unknown;
   }>('/consultant', {
     method: 'POST',
+    /*
+      ── 23 Sep · sixty seconds, not the client's twenty ──────────────────────
+
+      The advisor is a model call with the car's whole record in context and,
+      on a thread with attachments, an image or two — the one request in the
+      app whose honest duration is not a round trip. Under the default the
+      phone abandoned the request at 20 s while the route went on to answer
+      and *store* the turn; the screen then rolled the question back, said
+      "did not answer within 20 seconds", and a "try again" appended a second
+      identical turn to the thread the server already held. The invoice path
+      took 90 s on 21 Sep for the same reason (`documents.ts`); this is the
+      same argument at the advisor's scale.
+    */
+    timeoutMs: 60_000,
     body: {
       vehicleId,
       message,
@@ -153,6 +176,7 @@ export async function askAdvisor({
     // and differently in an `'estimate' in answer` check, and this is a field
     // whose whole contract is that absent means absent.
     ...(estimate ? { estimate } : {}),
+    ...(body.isSample === true ? { isSample: true as const } : {}),
   };
 }
 
@@ -221,5 +245,42 @@ export async function loadAdvisorThread(
     id: typeof conversation.id === 'string' ? conversation.id : sessionId,
     title: typeof conversation.title === 'string' && conversation.title.trim() ? conversation.title : null,
     turns,
+  };
+}
+
+/**
+ * The rows the empty thread's opening questions are drawn from — one
+ * `load-vehicle` read, kept to the four fields `advisorStarters` reads.
+ *
+ * QE 2.1 (20 Sep): the questions used to be a static list under a heading
+ * that claimed they were about this car. The screen derives them now; this
+ * is the read. `nhtsa_data` arrives as an object or a one-element array
+ * depending on the join, the same as everywhere else the phone reads it.
+ */
+export interface StarterSource {
+  nextService: string | null;
+  knownIssues: unknown;
+  recalls: unknown;
+  recallActions: Array<{ campaign_number?: string | null }>;
+}
+
+export async function loadStarterSource(vehicleId: string): Promise<StarterSource> {
+  const body = await apiRequest<{
+    vehicle?: {
+      next_service_label?: unknown;
+      nhtsa_data?: { recalls?: unknown } | { recalls?: unknown }[] | null;
+      recall_actions?: unknown;
+    };
+    knowledge?: { known_issues?: unknown } | null;
+  }>(`/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`);
+  const vehicle = body.vehicle ?? {};
+  const nhtsa = Array.isArray(vehicle.nhtsa_data) ? vehicle.nhtsa_data[0] : vehicle.nhtsa_data;
+  return {
+    nextService: typeof vehicle.next_service_label === 'string' ? vehicle.next_service_label : null,
+    knownIssues: body.knowledge?.known_issues ?? null,
+    recalls: nhtsa?.recalls ?? null,
+    recallActions: Array.isArray(vehicle.recall_actions)
+      ? (vehicle.recall_actions as Array<{ campaign_number?: string | null }>)
+      : [],
   };
 }

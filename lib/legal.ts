@@ -20,10 +20,26 @@
  * ⚠ **The Apple half has not moved with it.** The membership submitted 16 Aug
  * is Individual, so the App Store listing still names David personally. A
  * privacy policy naming an LLC beside a store listing naming a person is a
- * disagreement anybody can read in one sitting, and closing it means enrolling
- * as an Organization — D-U-N-S, a fresh enrolment, an app transfer. Nothing in
- * this file can fix that. It is recorded here because this is where the next
- * person will be standing when they notice.
+ * disagreement anybody can read in one sitting, and closing it is the
+ * Individual → Organization step at Apple. Nothing in this file can fix that.
+ * It is recorded here because this is where the next person will be standing
+ * when they notice.
+ *
+ * ⚠ **What that step is — corrected 19 Sep, and sourced.** Until then this
+ * paragraph said "a fresh enrolment, an app transfer", and the planning record
+ * outside the repo added "~4 weeks"; neither had a source. Apple's page says
+ * otherwise:
+ *
+ *   Individual → Organization is a MIGRATION request on the existing
+ *   membership, not a re-enrolment. Requires founder/cofounder + D-U-N-S;
+ *   business documents may be asked for.
+ *   Source: developer.apple.com/help/account/manage-your-team/update-your-account-information/
+ *   Form:   developer.apple.com/contact/request/migrate-individual-account
+ *   ⚠ UNKNOWN: whether the Team ID survives. Apple's page is silent. Do not
+ *   assume either way — ask on the form.
+ *   Timeline: unknown. Developers report submissions and updates FROZEN while
+ *   pending (inferred, developer.apple.com/forums/thread/740208 — not
+ *   Apple-confirmed). Do not replace the struck number with another one.
  *
  * ⚠ **No company address appears in either document, and that is not an
  * oversight.** Nobody has given one, and what Colorado publishes is the
@@ -105,7 +121,7 @@ export const OPERATOR = 'Southmoor Digital LLC';
  * A monitored address on the operator's own domain — confirmed by David, 30 Aug,
  * and verified receiving from an external sender the same day.
  */
-export const CONTACT_EMAIL = 'support@southmoordigital.com';
+export { CONTACT_EMAIL } from '@tappet/core/constants';
 
 /**
  * The date the substance of these documents last changed.

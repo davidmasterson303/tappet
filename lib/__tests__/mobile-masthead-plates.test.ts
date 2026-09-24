@@ -29,14 +29,26 @@
  * ── The geometry ────────────────────────────────────────────────────────────
  *
  * The plate fills the root's title band on the device the loop grades against
- * — an iPhone 16 Pro, 402pt wide, 59pt status inset, `TITLE_BAND` = 58 —
- * so 117pt over 402pt: 1206 × 351 at 3×. The title's caps sit in the band's
- * lower third from the page gutter; ACCOUNT sits on the nav row at the right
- * edge (`AccountControl`). Both boxes are stated as fractions of the plate so
- * a re-cut at another size is measured the same way, and both are a little
- * larger than the glyphs so a highlight beside a letter counts too. On other
- * devices `cover` takes a centred crop of the same file, which keeps the same
- * rows in the dark lower half.
+ * — an iPhone 16 Pro, 402pt wide, 59pt status inset, `TITLE_BAND` = 58 — plus
+ * that plate's `MASTHEAD_DROP`. So 117pt over 402pt on the advisor (1206 ×
+ * 351 at 3×) and 170pt on service and plan (1206 × 511). The title's caps sit
+ * where they always did, in the short band's lower third and two-thirds up a
+ * tall one; ACCOUNT is on the nav row at the right edge (`AccountControl`).
+ * The boxes are stated in the **short band's** fractions and converted, so a
+ * plate of either height is measured on the same screen rows, and both are a
+ * little larger than the glyphs so a highlight beside a letter counts too. On
+ * other devices `cover` takes a centred crop of the same file, which keeps
+ * the same rows under the name.
+ *
+ * ⚠ 22 Sep · **the fractions moved and the pixels did not.** Service and Plan
+ * grew by 53pt under the title (David: *"it's a cool image, make it a bit
+ * more visible"*) and were re-cut from 1206 × 351 to the frames' own 1206 ×
+ * 511; because the source lands at 7.88 rows a point either way, every row
+ * that was measured before is at the same place on screen. So this suite's
+ * numbers must not move for the re-cut, and if they do, the cut moved the
+ * ground under the name. The advisor's band is unchanged, and `MastheadPlate`
+ * says why: the tall cut puts its two blooms under the title and measures
+ * 1.8:1 against the 4.5 below.
  *
  * Luminance is read after a small blur, because what legibility depends on is
  * the area behind a stroke, not a single specular pixel of wet grit; the blur
@@ -79,13 +91,37 @@ const ROOTS: Record<string, string> = {
 };
 
 /** A plate the app ships must stay a band, and must stay small. */
-const PLATE = { width: 1206, height: 351, maxBytes: 120 * 1024 };
+const PLATE = { width: 1206, maxBytes: 120 * 1024 };
 
-/** The boxes, as fractions of the plate: [x0, x1, y0, y1]. */
+/** The title band alone at 3×, and the band with `MASTHEAD_DROP` under it. */
+const TITLE_BAND = 351;
+const TALL_BAND = 511;
+
+/** Which height each plate ships at — `MASTHEAD_DROP` in `MastheadPlate`, in pixels. */
+const HEIGHTS: Record<string, number> = {
+  'masthead-service.jpg': TALL_BAND,
+  'masthead-plan.jpg': TALL_BAND,
+  'masthead-advisor.jpg': TITLE_BAND,
+};
+
+/**
+ * The boxes, in the short band's fractions: [x0, x1, y0, y1]. `rows` converts
+ * them for a plate of either height, so the same screen rows are read on both
+ * and a re-cut at another size is measured the same way.
+ */
 const TITLE_BOX = [0.03, 0.4, 0.61, 0.86] as const;
 const ACCOUNT_BOX = [0.78, 0.97, 0.62, 0.77] as const;
 /** Where the lamps live — the anti-vacuous half reads this. */
 const SKY_BOX = [0, 1, 0, 0.48] as const;
+
+/** One box against one plate's height. */
+function rows(
+  box: readonly [number, number, number, number],
+  height: number
+): readonly [number, number, number, number] {
+  const scale = TITLE_BAND / height;
+  return [box[0], box[1], box[2] * scale, box[3] * scale];
+}
 
 /** `text.secondary` is white at an alpha; composite it over the ground it sits on. */
 function inkOver(ink: string, groundLuminance: number): number {
@@ -165,17 +201,44 @@ describe('the masthead plates', () => {
     expect(source).toMatch(/<RootScreen title="Garage"/);
   });
 
-  it.each(plates)('%s is the band, at a weight a phone should carry', async (file) => {
+  it.each(plates)('%s is the band its root draws, at a weight a phone should carry', async (file) => {
     const path = join(ASSETS, file);
     expect(statSync(path).size).toBeLessThanOrEqual(PLATE.maxBytes);
-    expect(await size(path)).toEqual([PLATE.width, PLATE.height]);
+    expect(await size(path)).toEqual([PLATE.width, HEIGHTS[file]]);
+  });
+
+  it('holds the two band heights the app actually draws', () => {
+    /*
+      ⚠ The map above is the assertion's own input, so it is pinned against
+      the component: a plate whose band grew in `MASTHEAD_DROP` without being
+      re-cut would otherwise be measured at the height this file expects and
+      pass while shipping a stretched crop.
+    */
+    const source = readFileSync(
+      join(MOBILE, 'src', 'components', 'MastheadPlate.tsx'),
+      'utf8'
+    );
+    const drops = /MASTHEAD_DROP[^{]*{([^}]*)}/.exec(source)?.[1] ?? '';
+    for (const [file, height] of Object.entries(HEIGHTS)) {
+      const key = /^masthead-(.*)\.jpg$/.exec(file)?.[1] as string;
+      const drop = Number(new RegExp(`${key}:\\s*(\\d+)`).exec(drops)?.[1]);
+      expect(Number.isFinite(drop)).toBe(true);
+      /*
+        3× the drop is the pixels the plate gains, within a row: the drop is
+        the frame's own aspect rounded to the point (53 for a band that wants
+        53.3), so a tall plate ships one row taller than 3 × 53 and `cover`
+        takes that row back. A plate more than a row out is a band and a cut
+        that disagree.
+      */
+      expect(Math.abs(height - (TITLE_BAND + drop * 3))).toBeLessThanOrEqual(1);
+    }
   });
 
   it.each(plates)('%s carries the title and ACCOUNT on ground that clears AA', async (file) => {
     const image = await decode(join(ASSETS, file));
 
-    const underTitle = brightest(image, TITLE_BOX);
-    const underAccount = brightest(image, ACCOUNT_BOX);
+    const underTitle = brightest(image, rows(TITLE_BOX, HEIGHTS[file]));
+    const underAccount = brightest(image, rows(ACCOUNT_BOX, HEIGHTS[file]));
 
     /*
       The title is 34pt bold and would be allowed 3:1 as large text; it is held
@@ -194,7 +257,7 @@ describe('the masthead plates', () => {
       frame, and the same reader must find them bright.
     */
     const image = await decode(join(ASSETS, file));
-    expect(brightest(image, SKY_BOX)).toBeGreaterThan(0.3);
+    expect(brightest(image, rows(SKY_BOX, HEIGHTS[file]))).toBeGreaterThan(0.3);
   });
 
   it('would fail a plate whose ground is lit', () => {

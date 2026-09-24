@@ -2845,6 +2845,700 @@ clean in both. Files: `components/Binnacle.tsx` and its test are new;
 critiques: `design-loop/mobile-ios/44-hub/` … `46-hub/`,
 `critique-44.md` … `critique-46.md`; `43-hub/` stays frames only.
 
+### 6.19 The hub, seen with a current reading — the cell is an instrument again, 21 Sep
+
+David, from the phone, on the reviewer account's 2017 F-PACE: *"it's a
+critical section and it looks disorganized and hard to follow"*, then
+*"honestly the whole page feels disorganized and hard to follow."* Two
+causes, both accretions since the graded loop, neither visible in it.
+
+**The HEALTH cell was graded on one line and shipped with six.** Every
+frame of rounds 42–46 stood the M235i, whose verdict is *stale* — so the
+cell carried `short`, "Read before 5 service records were filed.", one
+line, and the first row was the instrument the pick praised. A *current*
+reading prints `verdict.text`, the model's whole summary. On the F-PACE
+that is two sentences, 270 characters, six lines in a three-fifths cell:
+the NEXT SERVICE cell beside it stretched to match with its content
+bottom-hung under a void (round 45's parking lot had named exactly this),
+the count row went under the fold at rest, and the row the pick led with
+— *"the owner reads 70 FAIR, overdue by 3,000 mi, 2 recalls …"* — was a
+paragraph with a hole beside it. Core's own docblock had said it on 13
+Sep: a reading, its band word and a paragraph do not fit one cell.
+
+Now: the cell is the reading, its band word, the one-line caveat when
+the reading is stale (the qualification the critic's reservation was
+about, still never separated from the number), and the provenance line.
+A current reading's sentence is the **check-control line** under the
+panel — concept A's own idiom, one row nearer the number than the concept
+drew it — as `leadOf(verdict.text)`: whole sentences while they fit 180
+characters, the first always, never an ellipsis (§10: half a claim is
+invented precision; a sentence that ends is one the owner can hold Tappet
+to). `Health` prints all of it, and the HEALTH cell is its door. The F-PACE's
+row is 128pt beside 128pt; the counts are back above the fold.
+
+**TIRES was the loudest thing on the lower sheet.** 20 Sep's thread put the
+fourth leaf under the switches as a `BandRow` — a section-sized condensed
+word with an edge chevron, no index, no section, alone between the acts and
+WHAT YOU TOLD US — in an idiom nothing near it shared. Its own note said
+*not a fifth cell*, because the count row's three are at the width floor
+and a row between readings and switches pushed the switches under the tab
+bar on the 16 Pro Max. The first half holds; the second was the Max's: on
+the 16 Pro the loop measured for, the switches sit under the fold already
+(round 44's arithmetic), and whatever meets the fold on a taller display is
+sliced — before today, this row. So it is the panel's **third row**: a
+full-width cell reading "500 mi since last rotation" in the NEXT SERVICE
+cell's timing voice, the sodium `△` only past the owner's interval, "No
+set yet" in the absent ink where HEALTH says "No score yet", nothing for a
+set with no odometer to count to. Six leaves, one idiom.
+
+The lower sheet is now panel → check-control line → the two switches →
+WHAT YOU TOLD US → REMOVE THIS CAR. Seen on the simulator on the F-PACE
+(one answer, no set) and the Accord (500 mi since rotation, 24 recalls);
+ungraded — no critic round, David's eye is the next one.
+
+**Recorded deviations — for Design:**
+
+- *The check-control line is body text on the sheet, not a cell.* 14/20
+  secondary on the gutter, 24pt under the panel's rule, the switches' own
+  24pt beneath it. Concept A drew the verdict there; the loop moved it into
+  the cell for the stale case and never saw the current one.
+- *A full-width cell in the binnacle* — the first; the pattern's rules
+  (value over legend, 96pt floor, sodium as the triangle) unchanged.
+- *The fold is content-dependent and always was.* Round 44's "rows end on
+  the fold" held for one car on one device. A three-line service name or a
+  two-line provenance moves it. The rule that survives: what meets the fold
+  is a rule, air or a cell's dark — never a sliced control.
+
+**Parking lot — for David:**
+
+- *The model should write the hub's line itself.* `leadOf` takes the first
+  sentence of whatever the health prompt wrote; a `headline` field from the
+  prompt (one sentence for the cell, the paragraph for `Health`) is the
+  durable shape, and needs a column, a prompt change, a promote and a
+  regeneration of every stored summary.
+- *REMOVE THIS CAR in the delete variant's sodium* is the second-loudest
+  colour on the sheet after the 55. B7 gives sodium one job; a destructive
+  act with a confirmation behind it may not need it. Not changed.
+- *WHAT YOU TOLD US with one row* (the F-PACE) is thin; the unanswered
+  questions as muted rows would give the section its shape and invite the
+  answer — a product call.
+
+### 6.20 The hub loop, back on a current reading — rounds 47–50, 21 Sep
+
+David: *"run design critic loop over new page until it hits a 9."* The
+loop ran on the state rounds 42–46 never saw — a **current** reading —
+which needed the fixture to be able to show one: `EXPO_PUBLIC_DESIGN_
+VERDICT=current` writes the M235i's reading after its records, in the
+prompt's post-preamble voice, agreeing with the schedule the sweep wrote
+(a fixture that contradicts its own rows produces a frame that lies), and
+the fixture now says what its image is (`photo_kind`), so a plate no
+longer wears CHANGE PHOTO in a frame. iPhone 16 Pro Max (18.5), Expo Go,
+fixtures Metro on 8094; native 1320×2868. The concepts 16 Pro would not
+finish booting on a Mac 18 GB into swap — the machine was thrashing under
+two simulators and two Metros, and the phone's Metro had to go for the
+duration. Every round handed the critic 1:1 crops beside the stills, after
+§6.13's four rounds of a face read wrong from a scaled frame.
+
+**47 → 48 → 49 → 50: 7 → 8 → 8 → 9, `Continue: no`.** 5 ✅ / 4 🟡 in
+round 47 became 8 ✅ / 1 🟡 in round 50. Committed after every round
+(`3d0031e`, `c7d7170`, `61f5d93`, `ca7e63b`), the rule §6.18's dead worktree cost.
+
+**Taken, by round:**
+
+- **47.** [B3] `ClusterGauge`'s card — the garage's own track, terminals
+  and band word — at 120pt in the HEALTH cell, and the card sweeps in like
+  the hero (it had been "deliberately still" for a plinth nothing used).
+  [B9] `PhotoGrade` gains a multiplied highlight pull (`grade.pull`, 0.55)
+  over the whole frame and a graphite scrim falling from the top edge
+  where the nav controls stand — CHANGE PHOTO and ACCOUNT had vanished
+  into a white sky; the controls have no plate of their own by design, so
+  the photograph has to be dark where they stand. [B8] The back control is
+  gone from the car root: *"CAR is the lit tab yet the screen opens with
+  '< GARAGE' — two doors to the same room and a chevron on a root."* The
+  collapsed title takes the row's start as every root's does.
+- **48.** Seatings from the native crop: the card's state word in the
+  arc's opening between the terminals (under the box it stood nearer the
+  legend than the numeral); two gauges share the first row 1:1 and the
+  timing is `type.mono`'s size ("overdue by 3,000 / mi" had wrapped in the
+  2/5 cell); the card's box pulled left by the arc's inset so the arc
+  lands on the content edge. The cut taken: no provenance line under the
+  hub's sentence — the counts row directly above it is what a current
+  reading was worked out from, and the line restated it; `Health` keeps
+  it beside the dial. Both of the round's gaps were checked against the
+  source and the native frame first: the PLAN 0 is the same mono at the
+  legend's ink (the pick's own note) — not changed; the plate's 8pt cut
+  was where round 46 put it — not enlarged, and the sheet's leading
+  hairline now turns 45° up the bevel so the corner registers as line
+  whatever the photograph does.
+- **49.** `type.displayHead` — Archivo Narrow Bold 17/22, the web's
+  section head (`.display-instrument-narrow text-[17px]`) transposed — on
+  `SectionHeader`, so the hub, Health and Build move together. The 12pt
+  eyebrow *was* the condensed face, and five critiques across three
+  surfaces read it as a proportional sans, twice at native scale; the web
+  had the same four-critique history and answered it with width and size,
+  and the phone, with no `wdth` axis, answers with size and weight.
+  `displayLabel` stays the eyebrow over a value. `BINNACLE_CELL_MIN` 96 →
+  80: the count row and the TIRES row carried 28pt of air borrowed from a
+  first row that has something to align; the fold gets 32pt back (round
+  45 had refused 68, which put the primary on the fold).
+
+**Held, with the source as the fact:** the count row's three numerals are
+one file at one weight (JetBrains Mono 500, 20/24; `font-assets.ts` loads
+Mono 400 and 500 and `mobile-font-faces.test.ts` holds that no weight is
+synthesised); the 0 differs in ink alone. Three critics read the mono's 2
+and 5 beside its dotted zero in grey as two faces; handed the fact in
+round 50, the critic marked B1 met. ACCOUNT stays on the car page — it is
+a root since 21 Sep and 5.1.1(v)'s guarantee is the control as a sibling
+of the navigator on every root; the brief's four-root line is David's to
+rewrite.
+
+**The one 🟡 at the stop — for Design.** B2: the plate's cut is at the
+brief's 8 and, at the plate's foot, invisible: the fade reaches the page
+colour at full opacity where the lockup lands (`HERO_FADE`, "flush, not
+overlapping"), so graphite laid into graphite is a shape nobody finds and
+the bevel's hairline — already the stat strip's rule, `border.panel` at
+0.08 — is faint. The critic's way to a 10 is to let the photograph's tone
+survive at the plate's foot; that is the plate/sheet seam on every car,
+not this surface's. The alternative the system already has is `nonText`
+(0.40, "a hairline token, never a word") on the seam and the bevel, which
+would make the seam a visible line across every car page.
+
+**Recorded deviations — for Design:**
+
+- *A card dial in a binnacle cell*, sweeping in, its state word in the
+  arc's opening. The 23 Aug cut was of the hero dial over the photograph;
+  a 120pt card in the sheet covers nothing. The prose brief's 88pt dial
+  is a half-width row-sharer here; the checklist's "dominant" is met, the
+  prose is not (round 50's parking lot).
+- *The house grade has six layers now*, not four: lifted blacks,
+  highlight pull, split tone (0.65, from 0.55), vignette, nav scrim,
+  grain. A daylight driveway shot reads as dusk under it, which is as far
+  as compositing can take a photograph the owner supplied.
+- *`displayHead` beside `displayLabel`*: the section head at 17 bold, the
+  eyebrow at 12 semibold — two jobs, two tokens, as `displaySection` and
+  `displayLabel` already were.
+- *`BINNACLE_CELL_MIN` at 80.* The floor still clears the thumb.
+- *No back control on the car root, and no provenance line on the hub.*
+
+**Parking lot — for David:**
+
+- *M235I.* B1 forces caps and BMW writes M235i; the plate's name has
+  always read M235I.
+- *The service cell's headline* hung from the top of its cell beside the
+  arc, the two legends keeping their shared baseline (round 50).
+- *The check-control line's second clause* restates the service cell on
+  the fixture; on a real car the lead is whatever the model wrote, whole
+  sentences while they fit (`leadOf`). A model-written headline is the
+  durable shape (§6.19).
+- *The four-root line of the brief* is superseded by the Car tab (21 Sep)
+  and is yours to write down; until then every critic will ask why a root
+  carries ACCOUNT over a photograph.
+
+**The numbers.** Mobile jest in band 53/53 suites, 904/904 tests; root
+mobile guards 30/30, 296; tsc clean in both. Frames and critiques:
+`design-loop/mobile-ios/47-hub/` … `50-hub/`, `critique-47.md` …
+`critique-50.md`.
+
+### 6.21 The hub under three lenses — rounds 1–6, and the visual critic after them, 51–52 — 22 Sep
+
+David: *"i want critic to think about UI/UX of the page, the information
+architecture, and the value of the functionality… perhaps with 3
+subagents, one for each type of review. Get this page to a 9."* Three
+critics, then — `general-purpose` agents on the same model as the design
+critic, each in a fresh context with the frames and one shared frame of
+reference (`design-loop/mobile-ios/hub-lenses/lenses.md`: the studio
+standard, the product as data, the seven-section structure, and the
+lens). Round 1 was BRIEF mode — each wrote the studio version under its
+lens and a checklist, frozen as `brief-ux.md` (U1–U9), `brief-ia.md`
+(I1–I8) and `brief-value.md` (V1–V8); every later round was GRADE mode
+against it, gaps citing lines, three at most. The visual system stayed
+the design critic's (`brief.md`, §6.20) and the three were told not to
+spend a gap on it. Frames from the **reviewer account on the live API**,
+not the fixture: the 2003 Accord (11 records, 24 open recalls, a tire
+set, three answers) and the 2017 F-PACE (one record, 4 recalls, no set,
+one answer), at rest and scrolled, iPhone 16 Pro Max (18.5), Expo Go on
+the phone's Metro. Committed after every round; the three ran in
+parallel and each round's three critiques sit in `hub-lenses/round-0N-
+<lens>.md` beside its frames in `hub-lenses/0N/`.
+
+**The scores, UX / IA / value:** 5 / 5 / 5 → 6 / 7 / 6 → 7 / 8 / 7 →
+7 / **9** / 6 → 8 / 9 / 6 → 8 / 9 / 7. IA reached 9 in round 4 with
+every line ✅ and `Continue: no`, and held it through rounds 5 and 6
+while the other two lenses' gaps were taken around it. UX stopped at 8
+(two 🟡: U4, U6), value at 7 (three 🟡, one ❌: V6) — and the loop was
+stopped there rather than run on, because every gap left open on one
+lens is a line another lens closed by cutting it. The record is below;
+the disagreements are David's, not the implementer's.
+
+**Taken, by round** (`8a06116` · `70f0df4`, `dd2658d` · `570cf75`,
+`acf5015` · `679cea2`, `b26f680` · `ed5534c`, `9e5e9b1`):
+
+- **1 → 2.** All three briefs converged on the same page and it was
+  built in one round. HEALTH is a row: the card dial at its start, the
+  reading's cause beside it, one door for all of it. NEXT SERVICE by
+  its name — `displayServiceName` leaves the schedule tier and the
+  second spelling of "and" behind — with the owner's own months beside
+  the miles (`monthsAway`; 500 a month and 4,500 mi is "about 9
+  months"). The plate is the door to the car: a press on the name or
+  the strip opens THIS CAR, which gained the odometer as a field (its
+  own PATCH through `validateMileageUpdate`, the reading's age in its
+  hint) and the removal at its foot; MILEAGE on the strip says how old
+  it is. Counts carry a verdict, never a bare or dimmed 0. TIRES counts
+  down where an interval was entered. WHAT YOU TOLD US lists every
+  question, the unanswered as doors. ASK THE ADVISOR is gone (the
+  ADVISOR tab is beneath it) and ACCOUNT no longer floats over the
+  car's page.
+- **2 → 3.** The prime slot is SCAN INVOICE, always: round 2 had chosen
+  REVIEW RECALLS by state (value V6) and two lenses read it as a second
+  entrance to the △ RECALLS cell that evicts the record act on a 2003
+  Accord for good. The photograph's acts leave the hub for THIS CAR —
+  the lenses' cut, twice, *"an act slot spent on decoration"* — as two
+  plain buttons, Remove asking in the car's words; the hub's sheet went
+  with them (it existed because the nav held one control). The cause
+  beside the verdict is the weakest driver's own line. The plate wears
+  the door's mark, THIS CAR ›. The count cells stack the numeral over
+  its word ("24 to review" had truncated at the count's size in a third
+  of the row).
+- **3 → 4.** The cause is a sentence with its reason: core's drivers
+  carry `cause` and `act` in their own counts, and `holdingBack` names
+  an unjudged history before any scored driver. The model's paragraph
+  and the basis line are HEALTH's now, one tap through the cell — three
+  lenses read them as the counts told a second and third time, and the
+  paragraph pushed TIRES under the fold. "24 / open" ("to review" read
+  as an inbox that empties by being looked at); PLAN and HISTORY report,
+  TIRES invites with its reason. Every unanswered question says what
+  answering buys.
+- **4 → 5.** A thin history is a reason: `alsoHoldingBack` puts the open
+  recalls beside a maintenance cause, and — because a mileage-driven
+  schedule counts a service with no record from its next boundary,
+  `later` not `unknown`, so the drivers read the F-PACE's one record in
+  69,573 miles as nothing outstanding — the hub names a history under
+  three records from its own count (`ed5534c`). The match on the count:
+  "24 / open / this model", the year-make-model scope where the number
+  is, not only in a sentence that changes with the driver (§10).
+- **5 → 6.** The three cuts all three lenses agreed on: no imperative on
+  the HEALTH line (*"— scan an invoice, review them"* pointed past the
+  cell's door at two others and read as a to-do list; the cause is the
+  reading, SCAN INVOICE and △ RECALLS are the acts); the service row
+  says why there is no date rather than asking in a cell whose door does
+  not take the answer; one mark on the plate — the odometer's note keeps
+  its age and loses its own chevron.
+
+**Held — three lenses, one page, and where they contradict, for David:**
+
+- *The button.* Value V6 wants the prime act chosen by state — REVIEW
+  RECALLS on the Accord, SCAN INVOICE on a thin file, none when nothing
+  is pending — and calls the sentence-and-button disagreement its one
+  ❌. UX U1 and IA I2 want SCAN INVOICE as the hub's only button and
+  marked round 2's state-chosen slot as a second entrance to the cell
+  beneath it. The slot is the scan.
+- *PLAN's empty cell.* UX U4 wants the verb, "Plan work"; IA I5 wants a
+  sentence, never a command from a tab's cell, and round 3 cut the
+  verbs. It reads "Nothing planned yet".
+- *Provenance on the reading.* Value V1 wants "From 11 records." before
+  the cause on a healthy car; IA cut the basis line in round 3, and the
+  design critic cut it in round 48 — the counts row beneath is what a
+  reading was worked out from. There is none.
+- *The odometer's own door.* UX U6 wants "4 WK AGO ›" on the stale
+  line; IA I7 wants one door to the car's details, and round 6's cut
+  was two handles on one door. One mark, THIS CAR ›.
+- *The service row's ask.* Value V2 wants "tell us your miles a month
+  for a date ›" as a door into the answer; IA holds that a cell's door
+  goes where its legend says. The row explains; "Tell us ›" under MILES
+  A MONTH is the door.
+
+**Recorded deviations — for Design:**
+
+- *No ACCOUNT on the car root.* `AccountControl` is shown on every root
+  but the Car tab's (`RootNavigator`, `focusedTab !== 'CarTab'`); the
+  garage, one tab away, carries it, and 5.1.1(v)'s structure — a
+  sibling of the navigator no screen can swallow — is unchanged. The
+  brief's four-root line was already superseded by the fifth tab.
+- *The photograph's acts and the removal live on THIS CAR*, off the hub.
+- *No advisor button on the hub, and no prose*: the model's paragraph
+  and the basis line are the Health screen's; the hub's HEALTH cell
+  carries the cause line alone (`cause` style, primary ink).
+- *`StatStrip` takes a `note` under a value* (MILEAGE's age); the
+  identity block closes with a mono legend and chevron, THIS CAR ›,
+  over a press target the height of the block.
+- *The count cells stack* a 20pt mono numeral over its word at the
+  timing's size, with the scope beneath ("this model").
+- *`BandRow` has a muted count* ("Tell us") and a detail line for what
+  answering buys; the lower sheet is three rows under WHAT YOU TOLD US
+  and nothing else.
+- *`displayServiceName`* prints a schedule entry without its tier.
+
+**Parking lot — product questions the lenses parked, for David:**
+
+- *USE.* The Accord's strip carries "Daily Driver"; the F-PACE's drops
+  the column. Is it a fact of the car (then the empty slot is a door)
+  or the owner's answer (then it belongs in WHAT YOU TOLD US on both
+  cars, and the strip gives it up)?
+- *Marking a recall.* The open count falls as the owner marks repairs
+  — does the score move with it, and should the hub say so?
+- *A 55 on one record* reads as a verdict on the car, not on the file.
+  Should a history under three records carry a confidence band rather
+  than a health band?
+- *Countdowns age with the odometer:* "in 4,500 mi" is counted from a
+  reading four weeks old at 500 a month — nearer 4,000 today.
+- *SCAN INVOICE or ADD RECORD* in the slot — the camera path is the
+  named act; a record typed by hand is behind HISTORY.
+- *The 01–03 ordinals* on WHAT YOU TOLD US label nothing; the locked
+  visual brief's B6 keeps them.
+- *The F-PACE at rest:* its extra NEXT SERVICE line pushes the count
+  row's legends under the tab bar until a nudge.
+- *The cause and the cells beneath it can never disagree by one*, or
+  the hub reads as broken — the caption is derived from the same rows,
+  and `VehicleDetailScreen.test.tsx` pins it, but it is a rule worth
+  writing down.
+
+**The visual critic, after the lenses — rounds 51 and 52.** The visual
+loop had closed at 9 on round 50's page, and the lenses then changed the
+page six times with nobody grading the visual system. Round 51
+(`critique-51.md`) re-graded the lenses' page against `brief.md`: **nine
+lines ✅ for the first time** — B2's 🟡 gone with the plate untouched —
+and **8/10**, on three faults it measured at native scale, each checked
+against the frame before it was acted on (`scripts/frame-rows.swift`,
+new: per-row luminance of a native still, so a critic's "33pt" is read
+off the pixels rather than believed). *The count row's numerals 19pt
+apart* — 20, measured: `BinnacleCell` anchored to the foot, so a
+three-line cell's numeral floated under a four-line cell's; the value is
+pinned to the head now and the legend to the foot (`space-between`), and
+only the captions vary. *TIRES 33pt under its hairline* — 33.7: the
+band was `BINNACLE_CELL_MIN`'s 80 over 62pt of content, the stretch over
+the reading; the floor is `TARGET_MIN` now — every cell carries a value
+and a legend and clears the thumb by itself — and the band is 62, 16pt
+to its reading like every other. *141pt of graphite at the foot* — 103
+measured, and **not the padding**: the sheet's `minHeight` is the travel
+`sheetMinHeight` needs for the plate's name to fade and the nav title to
+arrive, and on the Max the content is shorter than that travel (the
+hub's own docblock: *"the tail it leaves under the foot is the price of
+the title arriving"*). The two paddings under the last row were 80 where
+the head is 24 and are one 24 now, which shows only on a display the
+content outgrows; the tail was handed to round 52 as a fact a still
+cannot carry, not shortened. Committed `f4ddb8f`. Round 52
+(`critique-52.md`): **9/10, nine ✅, `Continue: no`** — the count row on
+one cap line, TIRES 16pt to its reading, the tail read as *"the collapse
+mechanic showing through, not an element"*. Its one gap, verified at
+native as it asked: the scroll's end under the nav's foot reads as a
+clip, *"no rule visible"*. `frame-rows` finds the rule — `navPlate`'s
+bottom hairline in `border.panel`, row 317 at the weight of every band
+rule — so the gap is the token, not a missing rule: a 0.08 hairline at
+a scroll edge, which is the question §6.20 left for Design on the
+plate's bevel, asked again at the nav's foot. Not taken: one rule at
+`nonText` over six at `border.panel` is a second hairline idiom on one
+page. The critic's parking lot is David's: a nav-title crossfade keyed
+to the plate name's exit rather than to sheet travel (which would retire
+`sheetMinHeight` and the tail with it — a motion change across every
+hero screen), and one more stop on the owner-photo grade.
+
+**The numbers.** Mobile jest in band 54/54 suites, 923/923 tests; root
+mobile guards and the four core suites 34/34, 400; tsc clean in both.
+Server-side, `web-live` was promoted twice in the loop for the drivers'
+causes (`health_drivers` are computed on `/load-vehicle`): `740fa286`
+after round 4 and `7bd90035` after round 5; nothing in `packages/core`,
+`lib/` or `app/` changed after it, so the host carries everything the
+hub reads. Frames and critiques: `design-loop/mobile-ios/hub-lenses/`,
+`51-hub/`, `52-hub/`, `critique-51.md`, `critique-52.md`.
+
+### 6.22 David's rulings on the lenses' parking lot — 22 Sep
+
+The three-lens loop (§6.21) stopped with five disagreements between the
+lenses and eight product questions, all recorded for David. He answered
+them the same evening, and the first answer was a revert.
+
+**The house grade is gone from owner photographs.** Shown his own
+daylight snapshot of the BMW on the bay — the frame the visual loop had
+asked for and graded in round 47 — David: *"I hate the new image style
+in the plate. I loved the old plate … keep all the new changes but
+revert back to old plate style."* The plate's style had not changed;
+what he was looking at was **B9's grade over his photograph**: lifted
+blacks, a highlight pull, split tone, vignette, a nav scrim and grain,
+six layers whose stated job was to make a daylight photograph read as
+night. It does, and what it reads as on a grey driveway is grey mud.
+His ruling on the product question beneath it — *"let owners add their
+images if they prefer to our plate"* — settles a tension B9 had carried
+since 13 Sep: **the generated plate is the house film; a photograph is
+the owner's, as shot.** `PhotoGrade`, the `grade` tokens and
+`grain.png` are deleted; the hub, the bay and the tire plate draw the
+image plain. `photo_kind` still travels — THIS CAR reads it to know
+whether there is a photograph to remove.
+
+⚠ **For Design:** B9's second clause ("owner photos are graded") is
+overruled by the product's owner and the brief line is now half-true.
+The first clause — the scan as a first-class primary — stands.
+
+**The other rulings, and what each one was.** Each names the lens that
+raised it and the side the page had been holding:
+
+- *A recall that is fixed counts as fixed, and lands in the history.*
+  The hub's cell counted open campaigns; `recallDriver` counted every
+  campaign on record. Marking five repaired moved the cell 24 → 19 and
+  left the dial where it was, under a sentence blaming the recalls for
+  it. `openRecalls` moved into core and the driver subtracts the marks
+  — only then may the wording say "open". And the mark files one
+  `maintenance_line_items` row, because a score that rises with nothing
+  in the record to show for it is a rise the owner cannot check. Probed
+  before writing: `source: 'recall'` is refused by
+  `maintenance_line_items_source_check` (`23514`) and `'manual'` walks
+  every constraint to the FK (`23503`), so the row is `'manual'` — "a
+  person in the app said this happened", the value
+  `wishlist/complete` already files under. No cost and no shop: nobody
+  told us either, and a `0` prints as a price (§10). The campaign
+  number is in the description (`recallRecordDescription`), because
+  there is no campaign column and the undo has to find the row again.
+- *A thin file is not a verdict on the car.* The F-PACE's 55 on one
+  record said NEEDS ATTENTION in sodium. `bandForReading` replaces the
+  **band** — never the score — under `CONFIDENT_RECORDS` (3, the
+  number the hub's cause line already treats as thin), in the neutral
+  ink. The hub, the Health screen and the garage bay all pass their
+  count, so no two surfaces say different words about one number; an
+  unknown count is not a thin one, or a failed read would suppress a
+  warning.
+- *A reading over a month old asks to be set.* The countdown still
+  counts from the real odometer — never an estimate (§10) — and past
+  `STALE_READING_DAYS` the strip's note takes the door's mark back. A
+  month, because the countdown's other input is the owner's miles *a
+  month*. ⚠ The mark is the whole ask, by measurement: it shipped as
+  "5 wk ago · update ›" for one build and the word truncated to a
+  middot and an ellipsis in a third of the strip, saying less than the
+  age alone. The chevron is the system's word for "this opens"; the
+  door is named in full to a screen reader.
+- *USE is a question when unanswered.* It lives on the strip so it is
+  printed once, and unanswered the cell used to drop — which left the
+  question nowhere on the page (IA, round 6: "the only empty that does
+  not invite"). "Tell us" in the absent ink; `StatStrip` takes `muted`.
+- *No ask under the service timing.* "no date without your miles a
+  month" was the thin car's third NEXT SERVICE line and pushed the
+  count row's legends under the tab bar at rest. An unknown date shows
+  as nothing, and "Tell us ›" under MILES A MONTH is where the answer
+  goes.
+- *No ordinals on WHAT YOU TOLD US.* B6's `01` belongs to record lists;
+  three questions in no order are not one. David: follow the critic.
+
+**Found by walking it, not by the suites.** Two defects the tests could
+not have named, both on the live reviewer account:
+
+- **A withdrawn claim kept its credit.** Marking a recall took the
+  F-PACE 55 → 62 and filed the repair; undoing left the score at 62.
+  The drivers are computed and gave the credit back at once, but the
+  model's score is a stored row and `healthVerdict`'s staleness rule
+  compares the reading's time against the newest *filed* record —
+  records went **down**, and nothing compares that way. Both paths
+  stamp `last_generated` back now, the way
+  `invalidateHealthSummaryCache` does: it invents no score, it says the
+  reading is out of date, and the next open takes a new one. Verified
+  end to end: mark → 62 and a record; undo → the mark, the record and
+  the reading's currency all gone; reopen → re-read at 68 against one
+  record, in a summary that names the oil change and nothing else.
+- **The bay and the hub named one service two ways.** "Engine Oil &
+  Filter Change (Enthusiast)" on the bay, "ENGINE OIL AND FILTER
+  CHANGE" on the hub, one tap apart: `displayServiceName` landed on the
+  hub in round 1 and the bay kept the knowledge base's filing.
+
+**Recorded deviations — for Design:**
+
+- *No house grade anywhere.* Owner photographs are drawn as shot on the
+  hub, the bay and the tire plate. B9's grade clause is David's to
+  rewrite.
+- *A fifth band name, `thin`.* `HealthBandName` gains it; the web's
+  `WEB_STYLING` maps it to `--ring-good`, the off-white the system uses
+  for "no hue". It is not a ramp step and must not become one — a thin
+  file is not a degree of bad.
+- *`StatStrip` has a muted value* for a question standing where a fact
+  would.
+- *No ordinals on the hub's three answers*, against B6's letter.
+
+**The numbers.** Mobile jest in band 53/53 suites, 924/924 tests; root
+234/234 suites, 4,123 tests; tsc clean in both. `web-live` promoted
+twice for the server halves (`c6082366`, `4356a034`).
+
+**Three placements, later the same day — and the one that a device
+overruled.** David moved the page's act twice and settled where a
+sub-navigation lands:
+
+- *SCAN INVOICE leaves the hero plate.* It was a pinned pill on the nav
+  row over the photograph; it is a full-width primary at the head of the
+  lower sheet, above WHAT YOU TOLD US (*"remove from there, put new
+  button above 'what you told us' section"*). ⚠ **UX U1's "reachable at
+  rest, no scroll" is spent**, and the docblock says so rather than
+  being left arguing for a placement that is gone — on a tall display
+  the act is below the fold now, and what it buys is a plate with
+  nothing floating on it. `dialChip` and `pill` go with it.
+- *The act reached the Health screen and was taken back the same day.*
+  It was asked for, placed under WHAT IS DRIVING IT, moved above that
+  divider when a device showed the first slot wedged between two dense
+  blocks — and then cut: *"i dont think we need button there, it now
+  feels redundant with button in #1."* Which it is, and the move above
+  is what made it so: the act had just left the plate for the head of
+  the hub's lower sheet, one tap away at full width, so a second filled
+  primary on the screen the hub opens is one act asked for twice.
+  ⚠ **The screen now carries no filled primary at all**, deliberately,
+  and both the reasoning and a guard live with it
+  (`HealthScreen.test.tsx`) — an explanation with no act on it is what a
+  later critic asks to "fix".
+
+  Two things worth keeping from the hour it existed. The **placement
+  reasons generalise** to any act on a long screen: under the drivers
+  card it landed wedged between that card's note and the recall chip;
+  proximity made it read as the recalls section's act rather than the
+  drivers'; and nine tappable controls followed it, so a tenth in a
+  different style was noise rather than emphasis. And the **copy rule**
+  stands wherever this act lands next: say what it *does*, never what it
+  achieves. A button under a number that promised the number would move
+  is the defect family this codebase keeps naming — the scan sweep that
+  depicted an examination nobody performed, the hero timer that counted
+  nothing, the quote bar that reached 100% mid-flight.
+- *History is the Service screen's leftmost segment.* David: *"either
+  flip them, or land user on Due."* The landing stayed and the control
+  moved, because landing on Due would have reversed his 30 Aug call
+  (the tab opens the record) to satisfy a rule about ordering. Held in
+  `mobile-tab-roots.test.ts` **against** the screen's own order: the
+  landing is a value in `tab-target.ts`, the order is a JSX literal,
+  and nothing at runtime relates them.
+
+⚠ For Design: the hub carries the one filled primary, and the Health
+screen carries none — counted by label ink in both suites, zero being
+the stronger statement. Mobile 54/54 suites, 927 tests; root 234/234,
+4,126.
+
+### 6.23 The garage and the car were one screen — the switcher loop, 22 Sep
+
+David: *"how can we make Garage and Car tabs feel less redundant? Ideate
+before implementing … put on your product hat and eval from jobs to be
+done POV."*
+
+**The finding, measured rather than felt.** A garage bay draws the plate
+photograph, the name, the MILEAGE/TRIM/USE strip, the health dial with its
+band word, NEXT SERVICE and OPEN RECALLS. **Every one of those six is on
+the car's hub a tap later**, in the same form or a fuller one. The garage
+was not a different view of the car; it was the hub with things removed,
+one tap from the hub. Two tells beyond the duplication:
+
+- **The garage is a pager**, one car on screen at a time. That does the
+  *switch* job and cannot do the *compare* job — "does anything need me,
+  across my cars?" takes three swipes and a memory. Which matters because
+  the compare job is the decided one: `cc-product-0001` (advisor KB,
+  verified, high confidence) names mobile as three flows, and one is
+  *"glance at garage health"*. The pager is the one shape that cannot
+  serve it. ⚠ The KB was otherwise **silent** on garage-versus-hub — best
+  similarity 0.55 against a 0.57 threshold on a healthy local index —
+  so nothing had been decided and this is the first record of it.
+- **Tapping a bay changed the selected tab programmatically**
+  (`openCarTab`), which tab-bar guidance warns against: a tab changes when
+  the user picks it and not otherwise.
+
+Outside, the same problem has a settled answer. Tesla — multiple owned
+things, each with a rich detail view — has **no list tab at all**: it
+opens on a product, and the set is a dropdown beside its name plus a swipe
+between products. NN/g and the Android pattern docs name what the garage
+tab produces (*pogo-sticking*, bouncing between a list and a detail) and
+the documented fix is swiping to the next detail rather than a better list.
+
+David ruled on the three directions offered: *"a and c are ruled out for
+the subpar solution to single car owner, which is not an edge case at all
+… let's try b. but this is a major change, so we must have an authentic
+run of design critic loop and we must hit a 9 or a 10."*
+
+**The premise, and what had to be answered before the concepts.** Four
+tabs — CAR · ADVISOR · SERVICE · PLAN — the set as a control on the car,
+so a one-car owner never meets a set UI at all. Two things the garage tab
+did had to keep working and belong to the structure rather than to any
+concept: **adding a car**, and **the cold start** — `withCar` drew *"Open
+a car in the garage and this tab follows it"*, which names a place that no
+longer exists. `FirstCar` opens the owner's first car instead and offers
+to add one only when there are none; opening nothing would leave a blank
+screen that reads as an empty garage.
+
+**Three concepts, built as real screens** on the reviewer account's three
+cars — the fixture garage holds one, and a switcher between one car cannot
+be judged — behind a dev gate so `main` stayed the five-tab app:
+
+- **A · NAME RAIL** — `BayRail`'s own construction moved onto the car:
+  mono short names under the plate, the lit one ruled in cyan, `+` at the
+  end. Cost: the only concept whose width grows with the set.
+- **B · THE NAME IS THE DOOR** — the name takes the door's mark and opens
+  a sheet listing every car. Costs no element at rest and nothing at all
+  on a one-car account; the sheet is the one thing the hub cannot be,
+  every car at once.
+- **C · PLATE SHELF** — a shelf of 104×64 plates, switching by
+  recognition rather than reading. Cost: a row of photographs under a
+  photograph.
+
+**The pick, blind, with the shipped structure as a fourth candidate: B —
+and the shipped structure ranked last**, as the shipped hub did on 13 Sep.
+The critic reached David's own conclusion from the frames alone (*"the
+right switcher is absent for the majority and a list for the rest"*) and
+named the incumbent's two faults without being told what it was: a fifth
+tab spent on one job, and a CAR tab reading NO CAR CHOSEN on an account
+holding three cars.
+
+**The loop: 6 → 7 → 7 → 7 → 8 → 9, `Continue: no`.**
+
+- **1.** The affordance (`CAR 01 OF 03` over the name), and the sheet's
+  geometry — the 8pt cut, the head's count, `01/02/03` indices.
+- **2.** The switch became a crossfade; `ADD A CAR` became the table's
+  last row rather than a footer over a hole; the plate's type left with
+  the sheet's rise.
+- **3.** The switch **witnessed**. `scripts/movie-frames.swift` walks a
+  simctl recording with `AVAssetReader` — there is no ffmpeg here — and
+  with `scripts/frame-rows.swift` puts a number on it: 93.5 → 48.2 over
+  283ms, monotonic, no graphite frame. It also found two defects no still
+  could: the incoming car's **name set over the outgoing car's plate**,
+  and a crossfade that had been running while the page was still in its
+  *loading* branch with nothing on screen.
+- **4.** The dial — see below. Plus the whole dossier arriving on the
+  crossfade rather than only the name, the set held from the last read so
+  the eyebrow is on the first frame, and the sheet's reading as a column.
+- **5.** Under the scrim, only the photograph reads.
+
+⚠ **The loop's most valuable find was not the switcher.** Reading four
+frames of a switch, the critic counted the health numeral at 72, 90, 99,
+**100** on a car whose reading is 68, beside the sentence saying what was
+holding that score back. `useIgnitionSweep` ran the dial's appear as a
+car's ignition sweep — 0 → 100 → settle, 420/480 — on **every mount of
+every dial in the app**: the garage bays, the car's page, the health
+screen. On a needle over a scale that is a gesture; driving a numeral it
+is a claim, and §10 has no exemption for an animation curve. *"A numeral
+is not a needle."* One curve now, 0 → the reading, 600ms.
+
+⚠ **And the guard was green the whole time.** It asserted the sweep
+*landed* on the reading and not on 100 — written against the end state,
+because that was the failure imagined when it was written. The path was
+never sampled. The new case collects every value the numeral takes during
+the animation and holds the maximum to the reading; restored against the
+old code it fails at 82 for a 61 car, which was checked rather than
+assumed. This is CLAUDE.md §5's pattern arriving in motion rather than in
+a scan: *a guard that is green while the defect is on screen.*
+
+**Recorded deviations — for Design:**
+
+- *`CAR 01 OF 03`, not `BAY 01`.* The critic asked for the brief's bay
+  line; a bay is a slot in a place and this structure has no place.
+- *Absent on a one-car account*, against the critic's *"a one-car owner
+  reads BAY 01 alone"*: `BayRail`'s R20 rule — a pager for a list that
+  cannot be paged is chrome — and a count of a set nobody has is the same.
+- *The sheet's head is `SectionHeader`*, not the mono the critic asked
+  for: a second head idiom in one sheet is the §6.13 drift arriving again.
+- *The dial's appear is 600ms and no longer an ignition sweep.* B3's
+  "draws in with one haptic" is unchanged; what is gone is the overshoot.
+
+**⚠ What is still David's.** The structure sits behind
+`EXPO_PUBLIC_CAR_FIRST` (`dev/car-first.ts`), one line from being the app.
+He ordered those five tabs on 21 Sep in that order and for stated reasons;
+a loop reaching 9 says the replacement is good, not that the trade was
+his to have made for him. What he would be trading: the garage as a
+destination, its photography at full size, and ADD CAR's place in a
+masthead — against a one-car owner never meeting a set UI, a switcher
+that compares, and a tab back.
+
+**The numbers.** Mobile jest in band 54/54 suites, 928 tests; root
+234/234, 4,126; tsc clean in both. Frames, the four candidates, `pick.md`
+and the rounds: `design-loop/mobile-ios/concepts/switcher/` and
+`switcher-01/` … `switcher-05/` — **gitignored**, so this section and the
+commit messages are the record.
+
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
@@ -3289,3 +3983,108 @@ other. Both were left identical on purpose — one treatment for "the product
 is speaking" until Design says otherwise. `components/ConsultantChat.tsx`
 carries the flag (`isFailure`); the phone shows the same sentences under the
 composer, where its refusals already live, and needed no new treatment.
+
+### 6.24 The switcher's handle moved, and the floor under the plate was not there — 23 Sep
+
+David, on the switcher the loop had just taken to 9/10: *"i love the concept
+and the car selector menu after tap of chevron/carrot, but the carrot/chevron
+is perhaps not obvious for all users. let's replace w/ a more obvious cta in
+top right or top left … in accessibility review in critic loop this time, i'm
+worried about small fonts and contrast in some cases."*
+
+**The handle.** `CarSheetMark` — a 22pt `chevron-down` beside the car's name —
+is deleted. `components/switcher/CarSwitch.tsx` is a labelled control in the
+nav row's trailing slot: `YOUR CARS` plus a chevron, mono at the 12pt floor,
+`text.primary` on an opaque `surface.nav` cut surface, drawn 32pt inside a
+44pt press target. The slot it takes had been **reserved and empty since
+22 Sep**, when ADD PHOTO moved into the car's details (IA I3) and ACCOUNT
+stopped floating over a car's page (IA I8) — 150pt held open for a control
+that no longer existed, with the arriving nav title truncating against it.
+
+⚠ The chevron was not only quiet, it was **contradicted**. On a multi-car
+account the name opened the *switcher* while the legend 14pt under it read
+`This car ›` and `detailsDoor`'s accessibility label promised "mileage, your
+answers, the photo, removal". A sighted owner got the wrong word and a screen
+reader the wrong sentence. The name opens the car again on every account.
+
+**The flag was a live defect.** `dev/car-first.ts` gated the switcher behind
+`EXPO_PUBLIC_CAR_FIRST`, which is `__DEV__`-only — and the navigator had
+already dropped the Garage tab unconditionally. A release build would have had
+no garage tab *and* no switcher: a three-car account could reach exactly one
+car. All 54 suites were green, because a flag that is off in production is off
+under jest too. The flag is deleted and the switcher is the app.
+
+**The floor under the plate had stopped reaching the type.** `HeroBed` is the
+mechanism that makes type over an owner's photograph legal here — web's rule
+is that nothing is printed over a photograph, and the phone satisfies the rule
+underneath it (*no type whose contrast depends on the photograph*) with a
+guaranteed dark floor. Its stops were fixed fractions: 0.95 at the hero's
+foot, 0.55 at 22%, **zero at 52%**. Correct when written. Then the block grew
+three times — the stat strip, the `THIS CAR` legend, and on 22 Sep the
+switcher's own `CAR 01 OF 03` eyebrow — until its top sat at ~48%, where the
+bed delivered **0.08**. Worst case on a bright sky, computed from those stops:
+
+```
+  THIS CAR legend   bed 0.65   2.92:1
+  MILEAGE label     bed 0.46   1.94:1
+  the car's name    bed 0.25   1.61:1
+  CAR 01 OF 03      bed 0.08   1.09:1
+```
+
+Every string on the plate under AA, and the largest type on the screen at
+1.61:1. Nothing failed: the screen's own style sheet said the type was *"Legal
+here because of `HeroBed`'s guaranteed floor"*, and every captured round of the
+loop was shot against a night photograph, which is the one input that hides it.
+
+The bed is driven by the block now (`coverTo`, from the identity block's
+measured extent) and holds `COVER_FLOOR` across the type, easing off above
+**and below** it. Three numbers are load-bearing and each is derived rather
+than chosen:
+
+- **0.68** is what `text.secondary` needs to clear AA at 12pt over a white
+  photograph. `text.primary` needs 0.583; `text.muted` needs **0.837**, which
+  is a scrim heavy enough to lose the car — so nothing on the plate may be
+  muted, and `StatStrip` gained an `onPhoto` prop that collapses its ink
+  ladder to one rung.
+- **One rung survives**, because a test insisted: `stat.muted` is the ask
+  ("Tell us") standing where a fact would, David's 22 Sep ruling, and a
+  question set in a fact's ink is not a question. It takes `text.secondary` on
+  the photograph, which is why the floor is set at secondary's number and not
+  primary's.
+- **The plateau starts at 14%**, under `THIS CAR`. Holding the floor to the
+  hero's foot took the last 40pt of photograph to luminance 9.3 against the
+  panel's 15.1 — the plate ended up darker than the surface it sits on, and
+  the 45° cut that lives on that edge had nothing to read against.
+
+**Edges: `border.panel` is too quiet to carry the geometry.** Three critics in
+a row reported the car sheet's cut as absent and two reported the collapsed
+bar as having no bottom rule. Pixel scans found all of them present — the bar's
+rule one row at 32.3 against 13.6, the sheet's cut an 8pt diagonal six
+luminance points from its ground. Round 46's finding, on the same surface:
+*"a cut nobody can see does not meet the line."* The nav plate's rule, the
+plate's cut and the sheet's cut take `border.field` (0.14); seams between two
+still bands keep `panel`.
+
+**Guards.** The switcher had shipped at 9/10 with **no test of any kind** —
+not the sheet, not `car-set`, not the cold start. `components/switcher/
+__tests__/car-switch.test.tsx` and `components/__tests__/hero-bed.test.ts` are
+its first: the affordance exists on a three-car account and is absent on one
+car; the name opens the car; the control's ground is opaque and declared to
+the contrast audit; the 44pt floor is asserted on the **press target**, not the
+drawn box; every string on the hub and in the sheet clears AA and 12pt; the
+bed's floor holds across the block at both ends; and an anti-vacuous case
+evaluates the *shipped* stops so the old bed cannot come back green. Verified
+red against the defect: four of the first seven fail with the flag off.
+
+⚠ **Where the loop stopped, and why it is David's call.** Rounds scored
+7 → 7 → 8 → 7 across four fresh critics, and the switcher was called finished
+in each: *"the right answer — labelled, in the nav slot, its own guaranteed
+floor, persistent on scroll"*, *"it is done."* What holds the score is the
+hero, and the last two rounds **contradict each other about the same edge**:
+round 9 praised the plate's foot matching the panel's tone (*"the photograph
+dissolves into the instrument instead of sitting on it as a darker slab"*),
+round 10 asked for the opposite (*"hold the photograph's asphalt tone to the
+foot so the notch reads"*). Its other open asks are a **different crop of the
+owner's photograph**, which the app does not control, and the type scale on
+WHAT YOU TOLD US, which predates this change. Per the loop's own rule, that is
+where it is handed back rather than resolved.

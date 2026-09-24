@@ -15,6 +15,7 @@
 import { act, render, screen, userEvent, waitFor } from '@testing-library/react-native';
 
 import { PaywallHost } from '../PaywallHost';
+import { withSafeArea } from '../../test-support/safe-area';
 import { requestUpgrade } from '../upgrade-prompt';
 import { verifyPurchase } from '../../api/purchases';
 import { applePurchase } from '../../test-support/purchases';
@@ -42,13 +43,13 @@ beforeEach(() => {
 
 describe('opening', () => {
   it('is closed until something asks', async () => {
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     expect(screen.queryByText('Tappet Plus')).toBeNull();
   });
 
   it('opens on a refusal and names the feature', async () => {
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     await act(async () => {
       requestUpgrade('advisor');
@@ -58,7 +59,7 @@ describe('opening', () => {
   });
 
   it('opens from settings without claiming a reason', async () => {
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     await act(async () => {
       requestUpgrade(null);
@@ -71,7 +72,7 @@ describe('opening', () => {
 
 describe('what this build can do', () => {
   it('says it cannot buy when there is no store — Expo Go, and this runner', async () => {
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     await act(async () => {
       requestUpgrade('advisor');
@@ -84,7 +85,7 @@ describe('what this build can do', () => {
   it('says the plans are not on sale when the store has none', async () => {
     mockNativeModule = {};
     iap.fetchProducts.mockResolvedValue([]);
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     await act(async () => {
       requestUpgrade('advisor');
@@ -99,7 +100,7 @@ describe('what this build can do', () => {
     iap.fetchProducts.mockResolvedValue([
       { id: MONTHLY, displayPrice: '£7.99', platform: 'ios', type: 'subs', subscriptionPeriodUnitIOS: 'month' },
     ] as never);
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
 
     await act(async () => {
       requestUpgrade('advisor');
@@ -126,7 +127,7 @@ describe('a purchase, end to end', () => {
       iap.__emit('purchase-error', { code: 'user-cancelled', message: 'cancelled', productId: MONTHLY });
       return [];
     });
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
     await act(async () => {
       requestUpgrade('advisor');
     });
@@ -146,7 +147,7 @@ describe('a purchase, end to end', () => {
       return purchase;
     });
     verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
     await act(async () => {
       requestUpgrade('advisor');
     });
@@ -158,6 +159,29 @@ describe('a purchase, end to end', () => {
     expect(iap.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false });
   });
 
+  it('opens clean the next time — the last answer does not wait on the screen (20 Sep)', async () => {
+    const purchase = applePurchase({ productId: MONTHLY, purchaseToken: 'signed' });
+    iap.requestPurchase.mockImplementation(async () => {
+      iap.__emit('purchase-updated', purchase);
+      return purchase;
+    });
+    verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
+    await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade('advisor');
+    });
+    await userEvent.press(await screen.findByText('£7.99 / month'));
+    await screen.findByText('Your subscription is active.');
+
+    await userEvent.press(screen.getByLabelText('Close'));
+    await act(async () => {
+      requestUpgrade('advisor');
+    });
+
+    await screen.findByText('£7.99 / month');
+    expect(screen.queryByText('Your subscription is active.')).toBeNull();
+  });
+
   it('does not say active, and does not finish, when the server could not record it', async () => {
     const purchase = applePurchase({ productId: MONTHLY, purchaseToken: 'signed' });
     iap.requestPurchase.mockImplementation(async () => {
@@ -165,7 +189,7 @@ describe('a purchase, end to end', () => {
       return purchase;
     });
     verify.mockResolvedValue({ kind: 'retry-later' });
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
     await act(async () => {
       requestUpgrade('advisor');
     });
@@ -194,7 +218,7 @@ describe('what the rest of the app is told', () => {
   });
 
   async function buy(onEntitled: () => void) {
-    await render(<PaywallHost onEntitled={onEntitled} />);
+    await render(withSafeArea(<PaywallHost onEntitled={onEntitled} />));
     await act(async () => {
       requestUpgrade('advisor');
     });
@@ -221,7 +245,7 @@ describe('what the rest of the app is told', () => {
     iap.getAvailablePurchases.mockResolvedValue([applePurchase({ productId: MONTHLY })]);
     verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
     const onEntitled = jest.fn();
-    await render(<PaywallHost onEntitled={onEntitled} />);
+    await render(withSafeArea(<PaywallHost onEntitled={onEntitled} />));
     await act(async () => {
       requestUpgrade(null);
     });
@@ -268,7 +292,7 @@ describe('what the rest of the app is told', () => {
 
 describe('restore', () => {
   it('says this build cannot restore either, when there is no store', async () => {
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
     await act(async () => {
       requestUpgrade(null);
     });
@@ -282,7 +306,7 @@ describe('restore', () => {
   it('says no subscription was found when the store holds nothing', async () => {
     mockNativeModule = {};
     iap.getAvailablePurchases.mockResolvedValue([]);
-    await render(<PaywallHost />);
+    await render(withSafeArea(<PaywallHost />));
     await act(async () => {
       requestUpgrade(null);
     });

@@ -429,6 +429,16 @@ function GarageContents() {
             */}
             <p className="text-xs text-white/55">
               Tappet — Southmoor Digital
+              {/*
+                23 Sep: the site had no link to its own privacy policy or
+                terms anywhere — the pages existed, the App Store listing
+                pointed at /privacy, and a reviewer landing here could not
+                reach either from the page.
+              */}
+              {' · '}
+              <a href="/privacy" className="underline-offset-2 hover:underline">Privacy</a>
+              {' · '}
+              <a href="/terms" className="underline-offset-2 hover:underline">Terms</a>
             </p>
             {/*
               13 Sep: the notice line. One sentence, the same words on every

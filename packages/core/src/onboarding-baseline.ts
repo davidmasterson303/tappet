@@ -41,11 +41,18 @@
  */
 
 /** How long ago the owner reckons it was. */
-export type BaselineAge = 'under-6-months' | 'six-to-twelve' | 'over-a-year' | 'not-sure';
+export type BaselineAge = 'just-done' | 'under-6-months' | 'six-to-twelve' | 'over-a-year' | 'not-sure';
 
 export interface BaselineAgeOption {
   value: BaselineAge;
   label: string;
+  /**
+   * The same answer at chip length — "UNDER 6 MO" — for the phone's one-row
+   * question (20 Sep), where five sentences would not fit and a keyboard is
+   * the thing being avoided. Set in mono caps by the screen; held here so the
+   * two spellings of one answer live on one line.
+   */
+  short: string;
   /**
    * The oldest point in the range, in months. `null` means the answer carries
    * no date at all.
@@ -54,19 +61,36 @@ export interface BaselineAgeOption {
 }
 
 /**
- * Four options, and the fourth is not a filler.
+ * Five options, and the last is not a filler.
  *
  * "Not sure" has to be reachable, and reachable *without feeling like a
  * failure*, or people guess — and a guessed date recorded as an owner-reported
  * baseline is worse than no baseline, because it is indistinguishable from a
  * real one afterwards. A mileage with no date is still useful on its own: every
  * mileage-based service can count from it.
+ *
+ * ── 20 Sep · "Just done", and why it is a month rather than today ───────────
+ *
+ * The phone's rebuilt first run asks this as one chip row with no keyboard,
+ * and the answer most owners of a car that just left the shop want to give
+ * was not on the list: "In the last 6 months" resolved to six months ago, so
+ * an oil change done on Tuesday put the next one due at once. "Just done" is
+ * that answer. It resolves to **one month**, not to today, under the same
+ * rule as every other option — the oldest point in the range, because "just"
+ * means "recently" and recording it as this morning would be the one place
+ * this module rounded toward "fine".
+ *
+ * The 6-to-12 band stays. It is the band an oil change is most likely to be
+ * *due* in, and a row that dropped it would make its owners choose between a
+ * wrong answer and "not sure" — the exact guess the last paragraph is
+ * written against.
  */
 export const BASELINE_AGE_OPTIONS: BaselineAgeOption[] = [
-  { value: 'under-6-months', label: 'In the last 6 months', months: 6 },
-  { value: 'six-to-twelve', label: '6 to 12 months ago', months: 12 },
-  { value: 'over-a-year', label: 'Over a year ago', months: 18 },
-  { value: 'not-sure', label: "I'm not sure", months: null },
+  { value: 'just-done', label: 'Just done', short: 'Just done', months: 1 },
+  { value: 'under-6-months', label: 'In the last 6 months', short: 'Under 6 mo', months: 6 },
+  { value: 'six-to-twelve', label: '6 to 12 months ago', short: '6–12 mo', months: 12 },
+  { value: 'over-a-year', label: 'Over a year ago', short: 'Over a year', months: 18 },
+  { value: 'not-sure', label: "I'm not sure", short: 'Not sure', months: null },
 ];
 
 export function isBaselineAge(value: unknown): value is BaselineAge {

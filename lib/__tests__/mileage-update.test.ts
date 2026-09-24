@@ -30,8 +30,23 @@ describe('validateMileageUpdate', () => {
     expect(validateMileageUpdate({ current: 60_300, next: 60_300 }).ok).toBe(true);
   });
 
-  it('accepts a first reading against a car with none recorded', () => {
-    expect(validateMileageUpdate({ current: 0, next: 42_000 }).ok).toBe(true);
+  it('accepts a first reading against a car with none recorded — including a high one', () => {
+    /*
+      ⚠ This case used 42,000 against `current: 0` and passed while proving
+      nothing: 42,000 is under the jump threshold. A 2003 Accord at 170,000
+      was refused by both surfaces that add a car on 19 Sep. A first reading
+      is `current: null` — no baseline, so no backwards, no jump — and the
+      value here is one the jump check would have caught.
+    */
+    expect(validateMileageUpdate({ current: null, next: 42_000 }).ok).toBe(true);
+    expect(validateMileageUpdate({ current: null, next: 170_000 }).ok).toBe(true);
+    expect(validateMileageUpdate({ current: null, next: 350_000 }).ok).toBe(true);
+    // The checks that need no baseline still run on a first reading.
+    expect(validateMileageUpdate({ current: null, next: -1 }).reason).toBe('out-of-range');
+    expect(validateMileageUpdate({ current: null, next: 2_000_001 }).reason).toBe('out-of-range');
+    expect(validateMileageUpdate({ current: null, next: 12.5 }).reason).toBe('not-a-number');
+    // Anti-vacuous: the shape that shipped refuses the same reading.
+    expect(validateMileageUpdate({ current: 0, next: 170_000 }).reason).toBe('implausible-jump');
   });
 
   describe('going backwards', () => {

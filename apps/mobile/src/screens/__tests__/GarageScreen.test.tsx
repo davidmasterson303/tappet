@@ -1,4 +1,4 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { everHadVehicle, recordEverHadVehicle } from '../../onboarding/first-run-storage';
 
@@ -101,6 +101,7 @@ const M235I = {
 function renderGarage(
   overrides: {
     onAddVehicle?: () => void;
+    onOpenVehicle?: (vehicleId: string, title: string) => void;
   } = {}
 ) {
   return render(
@@ -108,7 +109,7 @@ function renderGarage(
       accessToken="test-token"
       email="owner@example.test"
       onSignOut={jest.fn()}
-      onOpenVehicle={jest.fn()}
+      onOpenVehicle={overrides.onOpenVehicle ?? jest.fn()}
       onAddVehicle={overrides.onAddVehicle ?? jest.fn()}
     />
   );
@@ -283,7 +284,7 @@ describe('which empty garage you get', () => {
     const view = await renderGarage();
 
     expect(await view.findByText('Start with one car')).toBeTruthy();
-    expect(view.queryByText('No vehicles yet')).toBeNull();
+    expect(view.queryByText('No cars yet')).toBeNull();
   });
 
   it('says only that it is empty to someone who has had one before', async () => {
@@ -298,7 +299,7 @@ describe('which empty garage you get', () => {
 
     const view = await renderGarage();
 
-    expect(await view.findByText('No vehicles yet')).toBeTruthy();
+    expect(await view.findByText('No cars yet')).toBeTruthy();
     expect(view.queryByText('Start with one car')).toBeNull();
   });
 
@@ -495,19 +496,54 @@ describe('the bay’s hierarchy', () => {
     const view = await renderGarage();
 
     await view.findByText(/M235i/);
-    // R20. "1 of 1" is a pager for a list that cannot be paged.
+    // R20. A rail of one is a pager for a list that cannot be paged: the bay
+    // is named, nothing is selectable, and the count is not printed.
+    view.getByText('BAY 01');
+    expect(view.queryAllByRole('tab')).toHaveLength(0);
     expect(view.queryByText('1 of 1')).toBeNull();
   });
 
-  it('still pages a garage of two', async () => {
-    // The anti-vacuous half: suppressing the pager everywhere would pass above.
+  it('pages a garage of two from the rail, and lights the bay you are on (21 Sep)', async () => {
+    /*
+      The anti-vacuous half of R20, and David's ask from the phone: "1 of 3"
+      was a count in a light sans that said nothing about sliding. The bays
+      are a rail now — the tab rail's construction — and a tap on a number is
+      a way to that bay.
+    */
+    const user = userEvent.setup();
     request.mockResolvedValue({
       vehicles: [M235I, { ...M235I, id: 'v2', year: 2018, make: 'Honda', model: 'Accord' }],
     });
     const view = await renderGarage();
 
     await view.findByText(/M235i/);
-    view.getByText('1 of 2');
+    view.getByLabelText('Bays, 1 of 2');
+    const first = view.getByRole('tab', { name: 'Bay 1' });
+    const second = view.getByRole('tab', { name: 'Bay 2' });
+    expect(first.props.accessibilityState).toMatchObject({ selected: true });
+    expect(second.props.accessibilityState).toMatchObject({ selected: false });
+
+    await user.press(second);
+    expect(view.getByRole('tab', { name: 'Bay 2' }).props.accessibilityState).toMatchObject({ selected: true });
+    view.getByLabelText('Bays, 2 of 2');
+  });
+
+  it('opens the car on screen from the rail\'s door', async () => {
+    const user = userEvent.setup();
+    const onOpenVehicle = jest.fn();
+    request.mockResolvedValue({
+      vehicles: [M235I, { ...M235I, id: 'v2', year: 2018, make: 'Honda', model: 'Accord' }],
+    });
+    const view = await renderGarage({ onOpenVehicle });
+
+    await view.findByText(/M235i/);
+    await user.press(view.getByLabelText('Open 2015 BMW M235i'));
+    expect(onOpenVehicle).toHaveBeenCalledWith(M235I.id, '2015 BMW M235i');
+
+    // The door follows the bay: after paging, it opens the second car.
+    await user.press(view.getByRole('tab', { name: 'Bay 2' }));
+    await user.press(view.getByLabelText('Open 2018 Honda Accord'));
+    expect(onOpenVehicle).toHaveBeenLastCalledWith('v2', '2018 Honda Accord');
   });
 });
 
@@ -518,6 +554,40 @@ describe('the bay’s hierarchy', () => {
  * the home screen, and it was a readout. It opens `Service → Due` now.
  */
 describe('the next-service row', () => {
+  it('names the job as the hub names it — no schedule tier, one spelling of "and" (22 Sep)', async () => {
+    /*
+      Walked on the phone: the F-PACE's bay read "Engine Oil & Filter Change
+      (Enthusiast)" and its hub, one tap away, read "ENGINE OIL AND FILTER
+      CHANGE". Same car, same row, two names — the hub applied
+      `displayServiceName` and the bay printed the knowledge base's filing.
+    */
+    request.mockResolvedValue({
+      vehicles: [
+        {
+          ...M235I,
+          next_service_label: 'Engine Oil & Filter Change (Enthusiast)',
+          next_service_at_miles: 70_000,
+        },
+      ],
+    });
+
+    const view = await render(
+      <GarageScreen
+        accessToken="test-token"
+        email="owner@example.test"
+        onSignOut={jest.fn()}
+        onOpenVehicle={jest.fn()}
+        onOpenService={jest.fn()}
+        onAddVehicle={jest.fn()}
+      />
+    );
+
+    await view.findByText('Engine Oil and Filter Change');
+    expect(view.queryByText(/Enthusiast|&/)).toBeNull();
+    // The spoken name is the printed one, not the filing.
+    view.getByLabelText(/^Next service: Engine Oil and Filter Change,/);
+  });
+
   it('opens what is due when there is an answer', async () => {
     const onOpenService = jest.fn();
     request.mockResolvedValue({
@@ -569,5 +639,93 @@ describe('the next-service row', () => {
 
     await view.findByText(/M235i/);
     expect(view.queryByLabelText(/^Next service:/)).toBeNull();
+  });
+});
+
+describe('coming back into view (20 Sep)', () => {
+  /*
+    The focus refetch (`c06980e`, this morning) fixed a car missing from the
+    garage and introduced "OPENING THE GARAGE" over the bays on every return
+    to the tab — the opening dial for a request the screen did not need to
+    show, caught on a 10 Hz burst. The hook now calls the loader quietly;
+    this drives the focus event through a mock navigation and holds the bays
+    on screen throughout.
+  */
+  const { NavigationContext } = jest.requireActual('@react-navigation/native');
+
+  it('refetches quietly — the bays stay, the dial never appears, the data still swaps', async () => {
+    const listeners: Array<() => void> = [];
+    const navigation = {
+      canGoBack: () => false,
+      setOptions: jest.fn(),
+      navigate: jest.fn(),
+      addListener: jest.fn((event: string, cb: () => void) => {
+        if (event === 'focus') listeners.push(cb);
+        return () => {};
+      }),
+      isFocused: () => true,
+    };
+    request.mockResolvedValueOnce({ vehicles: [M235I] } as never);
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <GarageScreen accessToken="t" email="owner@example.test" onSignOut={jest.fn()} onOpenVehicle={jest.fn()} onAddVehicle={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText('2015 BMW M235i');
+    expect(listeners).toHaveLength(1);
+
+    // A second car appeared elsewhere; the focus refetch brings it in.
+    let release: (value: unknown) => void = () => {};
+    request.mockReturnValueOnce(new Promise((resolve) => (release = resolve)) as never);
+    await act(async () => {
+      listeners[0]();
+    });
+    // In flight: the bays are still there and no dial has replaced them.
+    view.getByText('2015 BMW M235i');
+    expect(view.queryByText('Opening the garage')).toBeNull();
+
+    await act(async () => {
+      release({ vehicles: [M235I, { ...M235I, id: 'v2', year: 2003, make: 'Honda', model: 'Accord' }] });
+    });
+    await view.findByText('2003 Honda Accord');
+  });
+});
+
+describe('a stale score on the bay (QE 1.5, 20 Sep)', () => {
+  /*
+    The M235i's row is the pre-FN-01 constant — 70, read 2000-01-01 — and the
+    bay drew it as a reading while the detail screen, one tap away, said
+    "read before 5 service records were filed". Same verdict on both now.
+  */
+  it('draws no dial for a reading the records have overtaken, and says why', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'A complete lack of documented maintenance.', last_generated: '2000-01-01T00:00:00.000Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    expect(view.queryByText('70')).toBeNull();
+    view.getByText('Score out of date — opens the car to refresh it');
+    expect(view.queryByText('No score yet')).toBeNull();
+  });
+
+  it('still draws a current reading — one taken after the newest record', async () => {
+    request.mockResolvedValueOnce({
+      vehicles: [
+        {
+          ...M235I,
+          vehicle_health_summary: { health_score: 70, summary: 'Fair.', last_generated: '2026-09-20T12:00:00Z' },
+          records: { count: 5, newestFiledAt: '2026-08-06T10:00:00Z' },
+        },
+      ],
+    } as never);
+    const view = await renderGarage();
+    await view.findByText('2015 BMW M235i');
+    view.getByText('70');
   });
 });

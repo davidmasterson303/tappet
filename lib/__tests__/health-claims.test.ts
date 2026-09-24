@@ -13,6 +13,7 @@
 import {
   healthClaim,
   healthVerdict,
+  leadOf,
   mayReassure,
   recallEvidenceForPrompt,
   type ClaimKind,
@@ -232,6 +233,19 @@ describe('healthVerdict', () => {
     expect(verdict.short).not.toContain('complete lack');
   });
 
+  it('agrees with one record — "was filed", "account for it" (seen live on the Accord, 20 Sep)', () => {
+    const verdict = healthVerdict({
+      summary: SUMMARY,
+      generatedAt: '2000-01-01T00:00:00.000Z',
+      serviceCount: 1,
+      newestFiledAt: '2026-09-20T21:50:31.600899+00:00',
+      openRecalls: 24,
+    });
+    expect(verdict.state).toBe('stale');
+    expect(verdict.text).toBe('This reading was taken before your 1 service record was filed, so it does not account for it.');
+    expect(verdict.short).toBe('Read before 1 service record was filed.');
+  });
+
   it('has no short caveat for a reading that needs none', () => {
     const current = healthVerdict({
       summary: SUMMARY,
@@ -349,5 +363,40 @@ describe('healthVerdict', () => {
     });
 
     expect(verdict.inputs).toEqual(['1 recorded service', '1 open recall']);
+  });
+});
+
+describe('leadOf — the hub\'s check-control line', () => {
+  const FPACE =
+    'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles. ' +
+    'Given the mileage, key factory-recommended maintenance and inspections for common platform issues are overdue for verification.';
+
+  it('takes whole sentences while they fit, and the first however long', () => {
+    // 21 Sep, the reviewer's F-PACE: two sentences, 270 characters. The lead
+    // is the first, entire — never a cut mid-claim with an ellipsis.
+    expect(leadOf(FPACE)).toBe(
+      'The vehicle has a very sparse documented service history, showing only a single recent oil change recorded at 69,573 miles.'
+    );
+    expect(leadOf(FPACE, 1000)).toBe(FPACE);
+    expect(leadOf('Fine. Nothing overdue. Tires are new.')).toBe('Fine. Nothing overdue. Tires are new.');
+    expect(leadOf('Fine. Nothing overdue. Tires are new.', 25)).toBe('Fine. Nothing overdue.');
+    expect(leadOf('Fine. Nothing overdue. Tires are new.', 4)).toBe('Fine.');
+  });
+
+  it('does not split inside a number or an abbreviation', () => {
+    expect(leadOf('It takes approx. 5.5 quarts of 5W-30. Check it monthly.', 45)).toBe(
+      'It takes approx. 5.5 quarts of 5W-30.'
+    );
+  });
+
+  it('keeps a closing quote or bracket with its sentence', () => {
+    expect(leadOf('The log says "overdue." The owner disagrees.', 30)).toBe('The log says "overdue."');
+  });
+
+  it('returns the text itself when it is one sentence, and nothing for nothing', () => {
+    expect(leadOf('A single run-on assessment with no end punctuation at all')).toBe(
+      'A single run-on assessment with no end punctuation at all'
+    );
+    expect(leadOf('   ')).toBe('');
   });
 });

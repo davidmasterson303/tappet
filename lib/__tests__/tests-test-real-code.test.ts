@@ -37,6 +37,14 @@ const TESTS_DIR = __dirname;
  * used as a blanket excuse.
  */
 const STATIC_ANALYSIS_SUITES = [
+  /*
+    Asks git which tracked files name each export of `prompts.ts`. Nothing to
+    import: the subject is whether a prompt has a caller at all, and importing
+    the prompt would be the one thing that makes every prompt look called.
+    The failure it pins is three exported prompts nobody sent for months,
+    read by an auditor as the product's behaviour (23 Sep).
+  */
+  'prompts-have-callers.test.ts',
   // Reads globals.css and tailwind.config.ts to prove the sport register
   // overrides only tokens something actually reads. There is nothing to
   // import: the subject is a block of CSS custom properties, and the failure
@@ -140,7 +148,7 @@ const STATIC_ANALYSIS_SUITES = [
   // is only observable *after* a build has been spent: Apple cross-checks the
   // manifest against the App Store Connect answers and rejects a mismatch.
   'privacy-manifest.test.ts',
-  // Reads the mobile navigator, garage and primer off disk to prove the app
+  // Reads the mobile navigator, the hub, the hook and primer off disk to prove the app
   // obeys the priming rule rather than merely containing it. It cannot import
   // its subject: those are React Native modules and this runner would fail on
   // the transform. The failure it pins — iOS's one irreversible permission

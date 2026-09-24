@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Text, { TextInput } from '../components/Text';
 import Field from '../components/Field';
 import { border, brand, radius, status, surface, text } from '../theme';
 
@@ -45,16 +46,23 @@ export function MarkDoneSheet({
   saving,
   onCancel,
   onConfirm,
+  currentMileage = null,
 }: {
   visible: boolean;
   itemName: string;
+  /**
+   * The car's current reading, which the odometer field opens on (20 Sep).
+   * `null` when the caller does not know it: the field opens blank, and the
+   * record it produces cannot move a miles interval — the field says so.
+   */
+  currentMileage?: number | null;
   /** ISO date, injected so the sheet has no clock of its own. */
   today: string;
   saving: boolean;
   onCancel: () => void;
   onConfirm: (draft: CompletionDraft) => void;
 }) {
-  const [draft, setDraft] = useState<CompletionDraft>(() => emptyCompletion(today));
+  const [draft, setDraft] = useState<CompletionDraft>(() => emptyCompletion(today, currentMileage));
   const [showProblems, setShowProblems] = useState(false);
 
   const problems = useMemo(() => completionProblems(draft, today), [draft, today]);
@@ -85,7 +93,13 @@ export function MarkDoneSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onCancel}>
-      <View style={styles.root}>
+      {/*
+        23 Sep: the odometer and cost fields raise a number pad with no Done
+        key, and the footer's MARK DONE sat under it until a tap outside
+        dismissed the keyboard. The sheet is its own window, so `padding`
+        with no offset is the right arithmetic (VehicleProfileScreen's note).
+      */}
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.bar}>
           <Pressable onPress={onCancel} hitSlop={12} disabled={saving} accessibilityRole="button">
             <Text style={[styles.barAction, saving && styles.dim]}>Cancel</Text>
@@ -153,6 +167,37 @@ export function MarkDoneSheet({
           </FieldGroup>
 
           {/*
+            ── The odometer (20 Sep) ─────────────────────────────────────────
+
+            A record with no mileage cannot move a miles interval, so a job
+            marked done stayed "due in 2,500 mi" with ADD offered again — the
+            loop the Plan exists for did not close. The field opens on the
+            car's current reading, the right answer for a job done today, and
+            is editable for the one done last week. A reading newer than the
+            car's becomes the car's reading. Blank is allowed and says what
+            it costs.
+          */}
+          <FieldGroup
+            label="Odometer at the time"
+            note={
+              draft.mileage.trim().length === 0
+                ? 'Without it, this record cannot move a mileage-based due date.'
+                : undefined
+            }
+            problem={problemFor('mileage')}
+          >
+            <TextInput
+              style={[styles.input, styles.inputTight, problemFor('mileage') && styles.inputBad]}
+              value={draft.mileage}
+              onChangeText={(mileage) => set({ mileage })}
+              placeholder="Miles"
+              placeholderTextColor={text.muted}
+              keyboardType="number-pad"
+              accessibilityLabel="Odometer at the time of the work"
+            />
+          </FieldGroup>
+
+          {/*
             Both costs are optional and the label says so, because the honest
             answer at the moment a job finishes is often "I do not know yet" —
             and a guessed number in permanent history is worse than a blank one.
@@ -203,7 +248,7 @@ export function MarkDoneSheet({
             <Text style={styles.ctaText}>{saving ? 'Saving…' : 'Mark done'}</Text>
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -224,11 +269,20 @@ export function MarkDoneSheet({
 function FieldGroup({
   label,
   hint,
+  note,
   problem,
   children,
 }: {
   label: string;
+  /** A word beside the label — "Optional". A sentence goes in `note`. */
   hint?: string;
+  /**
+   * A sentence under the input. Seen live (20 Sep): the odometer's sentence
+   * sat beside its label in the row and ran off the right edge of the
+   * screen, unwrapped — a row that is `space-between` gives a long hint
+   * nowhere to go.
+   */
+  note?: string;
   problem?: string;
   children: React.ReactNode;
 }) {
@@ -239,6 +293,7 @@ function FieldGroup({
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
       {children}
+      {note && !problem ? <Text style={styles.note}>{note}</Text> : null}
       {problem ? <Text style={styles.problem}>{problem}</Text> : null}
     </View>
   );
@@ -289,6 +344,7 @@ const styles = StyleSheet.create({
   label: { color: text.secondary, fontSize: 14, fontFamily: interFace('600'), fontWeight: '600' },
   hint: { color: text.muted, fontFamily: interFace('400'),
     fontSize: 12 },
+  note: { color: text.muted, fontFamily: interFace('400'), fontSize: 13, lineHeight: 18 },
   problem: { color: status.dangerText, fontFamily: interFace('400'),
     fontSize: 13, lineHeight: 18 },
 

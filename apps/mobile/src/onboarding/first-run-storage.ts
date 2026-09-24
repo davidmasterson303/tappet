@@ -51,3 +51,12 @@ export async function recordEverHadVehicle(): Promise<void> {
     // Costs one repeated explanation on an empty garage, nothing more.
   }
 }
+
+/** Sign-out: the next account's first run is its own. */
+export async function clearEverHadVehicle(): Promise<void> {
+  try {
+    await secureStorage.removeItem(EVER_HAD_VEHICLE_KEY);
+  } catch {
+    // Costs one extra first-run screen at worst.
+  }
+}

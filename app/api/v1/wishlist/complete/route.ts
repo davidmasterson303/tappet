@@ -3,6 +3,9 @@ import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { recomputePerformanceStats } from '@/lib/performance-stats';
+import { projectNextService } from '@/lib/next-service';
+import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +26,7 @@ export async function POST(request: NextRequest) {
       isDIY,
       partsCost,
       laborCost,
+      mileageAtService,
       notes,
       invoiceFile,
     } = body;
@@ -53,6 +57,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /*
+      23 Sep: `invoiceFile.url` was written to `vehicle_documents.file_url` as
+      sent, and `serviceDate` to a date column as sent. A URL that is not a
+      stored path for this car cannot be a document of this car; a string
+      that is not a date turned into a 500 after the item had been read.
+    */
+    if (invoiceFile !== undefined && invoiceFile !== null) {
+      const path = typeof invoiceFile?.url === 'string' ? storagePathFromStoredUrl(invoiceFile.url) : null;
+      if (!path || vehicleIdFromStoragePath(path) !== wishlistItem.vehicle_id) {
+        return NextResponse.json({ error: 'That invoice is not one of this car\'s' }, { status: 400 });
+      }
+    }
+    if (serviceDate !== undefined && serviceDate !== null) {
+      if (typeof serviceDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate) || Number.isNaN(Date.parse(serviceDate))) {
+        return NextResponse.json({ error: 'Service date must be a date, like 2026-09-23' }, { status: 400 });
+      }
+    }
+
     let documentId = null;
     if (invoiceFile) {
       const { data: document, error: docError } = await client
@@ -73,7 +95,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const totalCost = (partsCost || 0) + (laborCost || 0);
+    /*
+      ── ⚠ Costs: null when not given, never 0 (20 Sep) ──────────────────────
+
+      `partsCost || 0` stored a claim that the job was free for every blank
+      field, and the sums above the history read it as one. CLAUDE.md §6:
+      null is never 0. A cost is written only when one was sent; the total
+      is the sum of what was sent, or null when nothing was.
+    */
+    const parts = typeof partsCost === 'number' && Number.isFinite(partsCost) ? partsCost : null;
+    const labor = typeof laborCost === 'number' && Number.isFinite(laborCost) ? laborCost : null;
+    const totalCost = parts === null && labor === null ? null : (parts ?? 0) + (labor ?? 0);
+
+    /*
+      ── The odometer, and why the record carries it (20 Sep) ─────────────────
+
+      A record with no mileage cannot move a miles interval: the schedule
+      counts from the last recorded mileage, so a service marked done today
+      stayed "due in 2,500 mi" with ADD offered again. The sheet now sends
+      the reading it showed (the car's current one, editable). A reading
+      *newer* than the car's is the car's new reading — the owner is telling
+      us where the odometer is — and it goes through the same rule every
+      mileage write uses.
+    */
+    const mileage =
+      typeof mileageAtService === 'number' && Number.isInteger(mileageAtService) && mileageAtService >= 0
+        ? mileageAtService
+        : null;
 
     const { data: maintenanceItem, error: insertError } = await client
       .from('maintenance_line_items')
@@ -83,9 +131,10 @@ export async function POST(request: NextRequest) {
         shop_name: isDIY ? 'DIY' : shopName || 'Unknown',
         item_description: wishlistItem.item_name,
         category: wishlistItem.category || 'other',
-        parts_cost: partsCost || 0,
-        labor_cost: laborCost || 0,
+        parts_cost: parts,
+        labor_cost: labor,
         total_cost: totalCost,
+        mileage_at_service: mileage,
         source_document_id: documentId,
         notes: notes || wishlistItem.notes,
         quantity: 1,
@@ -120,6 +169,48 @@ export async function POST(request: NextRequest) {
       logger.error('WISHLIST_COMPLETE:DELETE', deleteError as Error, { itemId });
     }
 
+    /*
+      ── What a new record changes, changed here (20 Sep) ──────────────────────
+
+      1. The odometer, when the record's reading is newer than the car's —
+         validated by the rule the mileage PATCH uses, and refused silently
+         (the record stands; the reading does not move) rather than failing
+         a completion that already happened.
+      2. The next service, re-projected from the schedule and the records —
+         the sweep's maths, run now rather than at 3 am, so the due date
+         moves the moment the job is marked done.
+      3. The score, stamped stale the way an invoice upload stamps it: the
+         phone and the web each refresh a stale reading when they next show
+         the car, and a Flash call here would hold "Mark done" for it.
+    */
+    const vehicleId = wishlistItem.vehicle_id as string;
+    if (mileage !== null) {
+      const { data: car } = await client.from('vehicles').select('current_mileage').eq('id', vehicleId).maybeSingle();
+      const current = typeof car?.current_mileage === 'number' ? car.current_mileage : null;
+      if (current !== null && mileage > current) {
+        const check = validateMileageUpdate({ current, next: mileage });
+        if (check.ok) {
+          const { error: odometerError } = await client
+            .from('vehicles')
+            .update({ current_mileage: mileage, last_mileage_update_date: new Date().toISOString() })
+            .eq('id', vehicleId);
+          if (odometerError) {
+            logger.warn('WISHLIST_COMPLETE:ODOMETER', 'Could not move the reading', { vehicleId, error: odometerError.message });
+          }
+        } else {
+          logger.warn('WISHLIST_COMPLETE:ODOMETER_REFUSED', check.message ?? 'refused', { vehicleId, mileage, current });
+        }
+      }
+    }
+    await projectNextService(vehicleId);
+    const { error: staleError } = await client
+      .from('vehicle_health_summary')
+      .update({ last_generated: '2000-01-01T00:00:00.000Z' })
+      .eq('vehicle_id', vehicleId);
+    if (staleError) {
+      logger.warn('WISHLIST_COMPLETE:STALE_SCORE', 'Could not mark the score stale', { vehicleId, error: staleError.message });
+    }
+
     if (wishlistItem.item_type === 'modification') {
       /*
         Completing a mod changes the vehicle's service history, so its
@@ -148,6 +239,7 @@ export async function POST(request: NextRequest) {
         recomputePerformanceStats({
           vehicleId: wishlistItem.vehicle_id,
           client,
+          userId: access.userId,
           isDemo: false,
         }).catch(err => {
           logger.error('WISHLIST_COMPLETE:PERF_RECALC', err as Error, { vehicleId: wishlistItem.vehicle_id });

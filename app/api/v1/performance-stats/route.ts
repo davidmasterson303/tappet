@@ -34,12 +34,18 @@ export async function POST(request: NextRequest) {
     const result = await recomputePerformanceStats({
       vehicleId,
       client: access.client,
+      userId: access.userId,
       isDemo: access.isDemo,
       forceRefresh,
     });
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
+      // A gate refusal carries its code and feature beside the sentence —
+      // E6's wire — so a client opens the paywall on the code, never on 402.
+      return NextResponse.json(
+        { error: result.error, ...(result.code ? { code: result.code, feature: result.feature } : {}) },
+        { status: result.status }
+      );
     }
 
     return NextResponse.json({

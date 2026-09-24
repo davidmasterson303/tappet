@@ -1,4 +1,5 @@
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import type { AdvisorThread } from '../api/consultant';
 import { PAGE_BODY, TARGET_MIN, border, brand, space, surface, text, type } from '../theme';

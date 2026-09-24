@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { TextInput } from './Text';
 
 import { FIELD_FONT_MIN, TARGET_MIN, border, brand, cut, space, surface, text } from '../theme';
 import { interFace } from '../theme/fonts';
@@ -81,7 +82,8 @@ export default function SearchField({
           onPress={() => onChangeText('')}
           accessibilityRole="button"
           accessibilityLabel={clearAccessibilityLabel}
-          style={styles.clear}
+          hitSlop={8}
+          style={({ pressed }) => [styles.clear, pressed && styles.clearPressed]}
         >
           <Icon name="x" size={16} />
         </Pressable>
@@ -107,5 +109,7 @@ const styles = StyleSheet.create({
     fontSize: FIELD_FONT_MIN,
     paddingVertical: space.sm,
   },
-  clear: { minHeight: TARGET_MIN, justifyContent: 'center', paddingLeft: space.xs },
+  // A 44pt square, not a 20pt glyph with a tall column (23 Sep).
+  clear: { minHeight: TARGET_MIN, minWidth: TARGET_MIN, alignItems: 'center', justifyContent: 'center' },
+  clearPressed: { backgroundColor: surface.raised },
 });

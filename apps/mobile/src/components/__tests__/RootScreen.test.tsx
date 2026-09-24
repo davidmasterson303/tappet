@@ -5,6 +5,7 @@ import { Animated, ScrollView, StyleSheet, Text, type StyleProp, type ViewStyle 
 import RootScreen, { useRootScroll } from '../RootScreen';
 import { cornerCovers } from '../CutSurface';
 import { TITLE_BAND } from '../ScreenTitle';
+import { MASTHEAD_DROP } from '../MastheadPlate';
 import { REFERENCE, withSafeArea } from '../../test-support/safe-area';
 import { cut, space, surface, type } from '../../theme';
 
@@ -364,7 +365,7 @@ describe('RootScreen', () => {
       nativeEvent: { layout: { width: 390, height: 105, x: 0, y: 0 } },
     });
 
-    const expanded = REFERENCE.insets.top + TITLE_BAND;
+    const expanded = REFERENCE.insets.top + TITLE_BAND + MASTHEAD_DROP.plan;
     const paths = svgPaths(view.toJSON());
     /* One corner, not four — B2's "one 45° cut" — and the geometry the garage plate's cover uses. */
     expect(paths).toHaveLength(1);

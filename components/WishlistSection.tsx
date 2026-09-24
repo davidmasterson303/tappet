@@ -131,7 +131,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
     queryClient.invalidateQueries({ queryKey: ['wishlist', vehicleId] });
     setShowMarkComplete(false);
     setSelectedItem(null);
-    toast.success('Item marked as complete!');
+    toast.success('Marked done');
   };
 
   const handleAddSuccess = () => {
@@ -328,7 +328,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                         <Button
                           size="sm"
                           onClick={() => handleMarkComplete(item)}
-                          className="bg-green-500/10 text-green-400 border border-green-400/25 hover:bg-green-500/20 h-7 px-2.5 text-xs gap-1"
+                          className="bg-[color:var(--confirm-wash)] text-[color:var(--confirm)] border border-[color:var(--confirm-border)] hover:bg-white/5 px-2.5 text-xs gap-1"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
                           Done
@@ -342,7 +342,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                           */
                           onClick={() => setPendingDelete(item)}
                           disabled={deletingId === item.id}
-                          className="tap-target-44 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          className="tap-target-44 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-[color:var(--critical)] hover:bg-[color:var(--critical-wash)] transition-colors disabled:opacity-50"
                           aria-label="Remove item"
                         >
                           {deletingId === item.id ? (
@@ -373,6 +373,14 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
 
       {selectedItem && (
         <MarkCompleteDialog
+          /*
+            Keyed on the item (CLAUDE.md §6): the dialog derives its draft —
+            parts, labor, shop — in `useState` initialisers, which run once
+            per mount. Without the key it stayed mounted from item A to item
+            B and opened B's "Done" with A's costs, the same defect the
+            phone's mark-done sheet had on 20 Sep.
+          */
+          key={selectedItem.id}
           open={showMarkComplete}
           onOpenChange={setShowMarkComplete}
           wishlistItem={selectedItem}
@@ -397,7 +405,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
           category: item.category || 'repair',
         }))}
         onQuoteSaved={() => {
-          toast.success('Quote request saved!');
+          toast.success('Quote request saved');
           handleQuoteSaved();
         }}
       />
@@ -444,7 +452,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                           </p>
                         )}
                       </div>
-                      <button className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors flex-shrink-0">
+                      <button aria-label="Show quote details" className="tap-target-44 w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/8 transition-colors flex-shrink-0">
                         <Eye className="h-4 w-4" />
                       </button>
                     </div>

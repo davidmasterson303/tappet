@@ -57,6 +57,12 @@ const WEB_STYLING: Record<HealthBandName, { color: string; textClass: string }> 
   ok: { color: 'var(--ring-ok)', textClass: 'text-health-ok' },
   warn: { color: 'var(--ring-warn)', textClass: 'text-health-warn' },
   bad: { color: 'var(--ring-bad)', textClass: 'text-health-bad' },
+  /*
+    A thin history is not a judgement about the car, so it takes the neutral
+    ink rather than a ramp step — `--ring-good` is the off-white the system
+    uses for "no hue" (22 Sep; `health-band.ts` carries the argument).
+  */
+  thin: { color: 'var(--ring-good)', textClass: 'text-health-good' },
 };
 
 /**

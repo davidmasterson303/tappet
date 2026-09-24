@@ -34,20 +34,32 @@ import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
 import type { ServiceVisit } from '@tappet/core/service-record';
 import { WishlistAddScreen } from '../screens/WishlistAddScreen';
 import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
-import { GarageScreen } from '../screens/GarageScreen';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
+import { DescribeCarScreen } from '../screens/DescribeCarScreen';
+import { OwnerAnswersScreen } from '../screens/OwnerAnswersScreen';
+import { ScanVinScreen } from '../screens/ScanVinScreen';
+import { TypeVinScreen } from '../screens/TypeVinScreen';
+import type { CarIdentity } from '../onboarding/car-identity';
+import type { Prefill } from '../onboarding/useVinDecode';
 import { VehicleDetailScreen } from '../screens/VehicleDetailScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import AccountControl from './AccountControl';
 import { PaywallHost } from '../purchases/PaywallHost';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import BackControl from '../components/BackControl';
-import ChooseACar from '../components/ChooseACar';
-import { rememberVehicle } from './last-vehicle';
+import FirstCar from '../components/switcher/FirstCar';
+import { forgetVehicle, rememberVehicle } from './last-vehicle';
+import { forgetCar } from '../components/switcher/car-set';
 import TabBar from './TabBar';
 import { PlanScreen, type PlanSegment } from '../screens/PlanScreen';
 import { ServiceScreen, type ServiceSegment } from '../screens/ServiceScreen';
 import { VehicleProfileScreen } from '../screens/VehicleProfileScreen';
+import { RemoveVehicleScreen } from '../screens/RemoveVehicleScreen';
+import { TiresScreen } from '../screens/TiresScreen';
+import { TireSetFormScreen } from '../screens/TireSetFormScreen';
+import { TireIntervalScreen } from '../screens/TireIntervalScreen';
+import { TireRotationScreen } from '../screens/TireRotationScreen';
+import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { surface, text, type } from '../theme';
 
 /**
@@ -79,7 +91,7 @@ import { surface, text, type } from '../theme';
  *
  *     NavigationContainer
  *     └─ Stack (root)            Tabs · Account
- *        └─ Tabs                 GarageTab · ServiceTab · PlanTab · AdvisorTab
+ *        └─ Tabs                 CarTab · AdvisorTab · ServiceTab · PlanTab
  *           ├─ Stack (garage)    Garage → VehicleDetail → Health / Service / Plan / …
  *           ├─ Stack (service)   Service → InvoiceScan / InvoiceDetail
  *           ├─ Stack (plan)      Plan → WishlistAdd / Advisor
@@ -144,12 +156,28 @@ type DossierScreens = {
   */
   AddVehicle: undefined;
   /*
+    ── 20 Sep · the first run is two screens and the doors between them ─────
+
+    `AddVehicle` is the doors; each door is its own pushed screen so the
+    native back gesture is the way out of it; the decode narrates on the
+    door's own screen; and every route into the second screen carries the
+    identified car as a param (`CarIdentity` is plain data on purpose). A
+    door `replace`s itself with the answers screen, so back from there is
+    the doors and not a log that has already run. None of these are
+    deep-linkable, for the reason `AddVehicle` is not.
+  */
+  AddVehicleScan: undefined;
+  AddVehicleType: undefined;
+  /** The escape hatch, with whatever a failed decode read. */
+  AddVehicleDescribe: { vin?: string; prefill?: Prefill } | undefined;
+  AddVehicleAnswers: { identity: CarIdentity };
+  /*
     `title` is optional because a deep link cannot supply one — see `linking`
     below. It stays a param rather than being dropped: a tap from the garage
     already knows the car's name, and passing it means the header is correct
     during the fetch instead of appearing a second later. A link falls back.
   */
-  VehicleDetail: { vehicleId: string; title?: string };
+  VehicleDetail: { vehicleId: string; title?: string; fromPhoto?: string };
   /*
     3.4. The advisor answers about *one* car — `/api/v1/consultant` requires a
     `vehicleId` and authorizes against it — so there is no sensible advisor
@@ -199,7 +227,8 @@ type DossierScreens = {
     worse than no button, and the screen was reachable by deep link in the
     meantime so it could still be rendered and reviewed.
   */
-  InvoiceScan: { vehicleId: string; title?: string };
+  /** `openLibrary` (21 Sep): the Service tab's UPLOAD opens the picker at once, the camera stays put. */
+  InvoiceScan: { vehicleId: string; title?: string; openLibrary?: boolean };
   /*
     ── 30 Aug · the visit behind a line item ─────────────────────────────────
 
@@ -282,6 +311,39 @@ type DossierScreens = {
     is a URL that can be put in front of someone who did not mean to open it.
   */
   VehicleProfile: { vehicleId: string; title?: string };
+  /** The removal confirmation (20 Sep) — reached from the car, never a deep link. */
+  RemoveVehicle: { vehicleId: string; title?: string };
+  /**
+   * ── 20 Sep · Tires — the fourth leaf, v1.1 ────────────────────────────────
+   *
+   * The tire set on the car, beside Health · Service · Plan: a record, its
+   * own instrument, and the one push the feature sends. Linkable, because
+   * that push carries `tappet://vehicle/<id>/tires` (`tiresUrl` in core,
+   * held to this table by `push-notification-links.test.ts`). `title` is
+   * the car's name, for the way back while the vehicle loads.
+   *
+   * ⚠ The tab bar was considered and rejected for it in all three design
+   * concepts: the bar names tenses and places, not objects, and a tab for
+   * one car's consumable is a category error (`shared-frame.md` §0.11).
+   */
+  Tires: { vehicleId: string; title?: string };
+  /*
+    The three entry screens. Not deep-linkable, for the reason `AddVehicle`
+    is not: a URL that opens a form which writes rows is a URL that can be
+    put in front of someone who did not mean to open it. Each carries the
+    set it acts on as a param — plain data, read once on the way in — so a
+    form opens on what the tire screen was already showing rather than
+    refetching it.
+  */
+  TireSetForm: { vehicleId: string; title?: string; set?: TireSet | null };
+  TireInterval: { vehicleId: string; title?: string; set: TireSet };
+  TireRotation: {
+    vehicleId: string;
+    title?: string;
+    set: TireSet;
+    rotations: TireRotation[];
+    odometer: number | null;
+  };
 };
 
 /**
@@ -290,7 +352,7 @@ type DossierScreens = {
  * hands down. `tab-target.ts` carries the order and the argument for it.
  */
 export type TabParamList = {
-  GarageTab: NavigatorScreenParams<DossierScreens> | undefined;
+  CarTab: NavigatorScreenParams<DossierScreens> | undefined;
   ServiceTab: NavigatorScreenParams<DossierScreens> | undefined;
   PlanTab: NavigatorScreenParams<DossierScreens> | undefined;
   AdvisorTab: NavigatorScreenParams<DossierScreens> | undefined;
@@ -356,15 +418,15 @@ type StackNavigation = NativeStackNavigationProp<RootStackParamList>;
  *
  *   - `initialRouteName: 'Tabs'` on the root stack, so `tappet://account` opens
  *     over the tabs rather than as the only screen in the app.
- *   - `initialRouteName: 'Garage'` on the **garage stack's** config, so a link
- *     to a car or its recalls seeds the garage underneath, and the back button
- *     and the gesture both land somewhere that makes sense.
+ *   - `initialRouteName: 'VehicleDetail'` on the **car stack's** config, so a
+ *     link to a car or its recalls seeds the car's page underneath, and the
+ *     back button and the gesture both land somewhere that makes sense.
  *
- * ⚠ The second one has to be inside `GarageTab`. At the root it would name a
- * route the root stack does not have, type-check anyway, and seed nothing —
- * `mobile-push-routing.test.ts` pins it to the object that registers
- * `vehicle/:vehicleId`. The tab roots need none: a tab's root has the bar
- * under it, which is a way out.
+ * ⚠ The second one has to be inside a tab's own config. At the root it would
+ * name a route the root stack does not have, type-check anyway, and seed
+ * nothing — `mobile-push-routing.test.ts` pins it to the object that
+ * registers `vehicle/:vehicleId`. It was the garage stack's until 23 Sep,
+ * when the garage tab went and the car's page became the thing underneath.
  *
  * ── What is deliberately not linkable ───────────────────────────────────────
  *
@@ -396,10 +458,20 @@ type StackNavigation = NativeStackNavigationProp<RootStackParamList>;
  * route names and the initial route are checked; the single cast where the
  * four are inserted below bridges only the inference gap.
  */
-const garageLinks: PathConfig<DossierScreens> = {
-  initialRouteName: 'Garage',
+/*
+  ⚠ 23 Sep · `tappet://garage` still resolves, and lands on the car.
+
+  The garage tab is gone, but a link an installed build already emits has to
+  keep working — the same rule `RecallDetail` is kept alive by. The honest
+  destination is the car's page: "show me my garage" and "show me my car" are
+  the same request in an app whose front door is a car, and the switcher is
+  one tap from it. A path left pointing at a removed navigator is a crash on
+  a cold start, which is the worst place to find one.
+*/
+/* The car's own paths (21 Sep): the Car tab is where a vehicle link lands now. */
+const carLinks: PathConfig<DossierScreens> = {
+  initialRouteName: 'VehicleDetail',
   screens: {
-    Garage: 'garage',
     VehicleDetail: 'vehicle/:vehicleId',
     InvoiceScan: 'vehicle/:vehicleId/scan',
     /*
@@ -408,6 +480,8 @@ const garageLinks: PathConfig<DossierScreens> = {
     */
     RecallDetail: 'vehicle/:vehicleId/recalls',
     Health: 'vehicle/:vehicleId/health',
+    /* The tire-rotation push lands here (20 Sep). */
+    Tires: 'vehicle/:vehicleId/tires',
   },
 };
 
@@ -431,7 +505,7 @@ const linking: LinkingOptions<RootStackParamList> = {
     screens: {
       Tabs: {
         screens: {
-          GarageTab: garageLinks,
+          CarTab: carLinks,
           ServiceTab: serviceLinks,
           PlanTab: planLinks,
           AdvisorTab: advisorLinks,
@@ -639,7 +713,7 @@ export function carBackTitle(title: string | undefined): string {
  * honest answer because it is the one that will be there.
  */
 const TAB_TITLES: Record<keyof TabParamList, string> = {
-  GarageTab: 'GARAGE',
+  CarTab: 'CAR',
   ServiceTab: 'SERVICE',
   PlanTab: 'PLAN',
   AdvisorTab: 'ADVISOR',
@@ -647,7 +721,7 @@ const TAB_TITLES: Record<keyof TabParamList, string> = {
 
 export function tabsBackTitle(route: RouteProp<RootStackParamList, 'Tabs'>): string {
   const focused = getFocusedRouteNameFromRoute(route) as keyof TabParamList | undefined;
-  return TAB_TITLES[focused ?? 'GarageTab'];
+  return TAB_TITLES[focused ?? 'CarTab'];
 }
 
 /**
@@ -662,6 +736,21 @@ export function tabsBackTitle(route: RouteProp<RootStackParamList, 'Tabs'>): str
  * Nested state is absent until a navigator mounts, and a tab that has not
  * mounted is at its root by definition.
  */
+/**
+ * Which tab is focused, off the container's whole state — or `null` before
+ * the tabs have mounted, or when the root stack is showing something else.
+ */
+export function focusedTabOf(
+  state: NavigationState | PartialState<NavigationState> | undefined
+): keyof TabParamList | null {
+  if (!state) return null;
+  const root = state.routes[state.index ?? state.routes.length - 1];
+  if (root?.name !== 'Tabs' || !root.state) return null;
+  const tabs = root.state;
+  const tab = tabs.routes[tabs.index ?? tabs.routes.length - 1];
+  return (tab?.name as keyof TabParamList | undefined) ?? null;
+}
+
 export function atTabRoot(
   state: NavigationState | PartialState<NavigationState> | undefined
 ): boolean {
@@ -680,8 +769,17 @@ export function atTabRoot(
   return (stack.index ?? stack.routes.length - 1) === 0;
 }
 
-/** The car every dossier screen is about, as the params that name it. */
-type Car = { vehicleId: string; title?: string };
+/**
+ * The car every dossier screen is about, as the params that name it.
+ *
+ * ⚠ `fromPhoto` is temporary, 22 Sep's switcher round: the **outgoing**
+ * car's plate, carried so the incoming page can cross to its own rather than
+ * blink. The car screens are keyed on `vehicleId` (`withCar` says why —
+ * state under the wrong car's name is the bug class that key prevents), so
+ * the page genuinely rebuilds and the photograph is what gives the switch
+ * its continuity.
+ */
+type Car = { vehicleId: string; title?: string; fromPhoto?: string };
 
 /**
  * Switch to the Advisor tab, about a car.
@@ -691,6 +789,22 @@ type Car = { vehicleId: string; title?: string };
  * conversation lives. A question that travels with the screen (`ask`) does not
  * come through here; see the `Advisor` param's note.
  */
+/** The Car tab, about this car — from a bay, or from a car just added (21 Sep). */
+function openCarTab(navigation: StackNavigation, car: Car) {
+  navigation.navigate('Tabs', {
+    screen: 'CarTab',
+    params: { screen: 'VehicleDetail', params: car, pop: true },
+  });
+}
+
+/** The add-a-car doors, addressed through their tab so any stack can open them. */
+function openAddCar(navigation: StackNavigation) {
+  navigation.navigate('Tabs', {
+    screen: 'CarTab',
+    params: { screen: 'AddVehicle' },
+  });
+}
+
 function openAdvisorTab(navigation: StackNavigation, car: Car) {
   navigation.navigate('Tabs', {
     screen: 'AdvisorTab',
@@ -699,9 +813,9 @@ function openAdvisorTab(navigation: StackNavigation, car: Car) {
 }
 
 /** The tabs a question can come from, and what their way back is called. */
-export type OriginTab = 'GarageTab' | 'ServiceTab' | 'PlanTab';
+export type OriginTab = 'CarTab' | 'ServiceTab' | 'PlanTab';
 export const ORIGIN_LABELS: Record<OriginTab, string> = {
-  GarageTab: 'Garage',
+  CarTab: 'Car',
   ServiceTab: 'Service',
   PlanTab: 'Plan',
 };
@@ -734,7 +848,7 @@ export function advisorThreadParams(
 export function originTabOf(navigation: { getParent?: () => { getState?: () => { routes: Array<{ name: string }>; index: number } | undefined } | undefined }): OriginTab {
   const tabs = navigation.getParent?.()?.getState?.();
   const name = tabs?.routes[tabs.index]?.name;
-  return name && name in ORIGIN_LABELS ? (name as OriginTab) : 'GarageTab';
+  return name && name in ORIGIN_LABELS ? (name as OriginTab) : 'CarTab';
 }
 
 function askAdvisor(navigation: StackNavigation, car: Car, ask: string, from: OriginTab = originTabOf(navigation)) {
@@ -743,60 +857,110 @@ function askAdvisor(navigation: StackNavigation, car: Car, ask: string, from: Or
 
 /** Everything a stack needs to render its screens. */
 type Session = {
+  /**
+   * The sentence to show once the account is gone — "2 vehicles and 3 files
+   * deleted…". Deletion unmounts this whole navigator, so the sign-in gate
+   * is the only surface left to say it on; `App.tsx` carries it there.
+   * Optional because the fixture and specimen hosts have no account to lose.
+   */
+  onAccountDeleted?: (summary: string) => void;
   accessToken: string;
   email: string | null;
   onSignOut: () => void;
 };
 
 /**
- * ── The dossier stack: the garage tab ───────────────────────────────────────
- *
- * Garage → VehicleDetail → Health / Service / Plan / InvoiceScan / …, which is
- * the stack the brief describes and the one every deep link into a car seeds.
+ * The Car tab (21 Sep) — the car's own page as a root, and everything pushed
+ * from it: health, tires, the profile, removal, and the shared invoice and
+ * plan screens. It used to be pushed over the garage in that stack, so a
+ * one-car owner coming back from Service landed on the garage — one bay,
+ * which is that car's summary drawn twice — and needed a second tap to reach
+ * the car. David, from the phone: most people have one car and want the car.
+ * A fifth tab was chosen over a label that changes with the garage's size:
+ * "better than being too clever with dynamic". The garage keeps its own tab,
+ * for the bays, adding a car, and switching between cars.
  */
-function GarageStack({ accessToken, email, onSignOut }: Session) {
+function CarStack({ onSignOut }: Session) {
   return (
-    <Stack.Navigator initialRouteName="Garage" screenOptions={screenOptions}>
+    <Stack.Navigator initialRouteName="VehicleDetail" screenOptions={screenOptions}>
       {/*
-        `title` with the header off is the back label and nothing else — see
-        `carBackTitle`. "Garage" is what the route is called anyway, so this
-        changes no pixel; it is here so the label is a decision rather than a
-        coincidence that survives the next rename.
+        ⚠ 23 Sep · **the add-a-car flow lives here now.** It was the garage
+        stack's, and the garage stack is gone with the garage tab — the set
+        is a control on the car (`CarSheet`), and `ADD A CAR` is its last
+        row.
+
+        ⚠ `GarageScreen` is no longer imported by this file, and that was a
+        second edit rather than a consequence of the first: the import
+        survived the stack it fed, unused and unflagged, because this project
+        does not set `noUnusedLocals`. An unrendered screen reached through a
+        live import is still in the bundle. The file itself is kept — whether
+        the garage comes back is David's, not a tidy-up's — and its own suite
+        still mounts it, which keeps it compiling without shipping it. A flow that creates the thing this tab is about belongs in this
+        tab's stack; anywhere else it would be a second navigator opened from
+        a sheet, with its own back behaviour to reason about.
+
+        `popTo('VehicleDetail')` rather than `popTo('Garage')` for the reason
+        the note below already gives: back from a new car must not be the
+        answers screen that created it, and the root of this stack is the
+        car's page rather than a list of them.
       */}
-      <Stack.Screen name="Garage" options={{ headerShown: false, title: 'Garage' }}>
+      <Stack.Screen name="AddVehicle" options={{ title: 'ADD A CAR' }}>
         {({ navigation }) => (
-          <GarageScreen
-            accessToken={accessToken}
-            email={email}
-            onSignOut={onSignOut}
-            onOpenVehicle={(vehicleId, title) =>
-              navigation.navigate('VehicleDetail', { vehicleId, title })
-            }
-            /*
-              R21. The bay's next-service row was the most actionable string
-              on the home screen and led nowhere. It opens what is due.
-            */
-            onOpenService={(vehicleId, title) =>
-              navigation.navigate('Service', { vehicleId, title, segment: 'due' })
-            }
-            onAddVehicle={() => navigation.navigate('AddVehicle')}
+          <AddVehicleScreen
+            onScan={() => navigation.navigate('AddVehicleScan')}
+            onType={() => navigation.navigate('AddVehicleType')}
           />
         )}
       </Stack.Screen>
 
-      <Stack.Screen name="AddVehicle" options={{ title: 'ADD A CAR' }}>
+      <Stack.Screen name="AddVehicleScan" options={{ title: 'SCAN THE STICKER' }}>
         {({ navigation }) => (
-          <AddVehicleScreen
+          <ScanVinScreen
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+            onType={() => navigation.replace('AddVehicleType')}
+            onDescribe={(carry) => navigation.replace('AddVehicleDescribe', carry)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleType" options={{ title: 'TYPE THE VIN' }}>
+        {({ navigation }) => (
+          <TypeVinScreen
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+            onDescribe={(carry) => navigation.replace('AddVehicleDescribe', carry)}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleDescribe" options={{ title: 'DESCRIBE THE CAR' }}>
+        {({ route, navigation }) => (
+          <DescribeCarScreen
+            vin={route.params?.vin}
+            prefill={route.params?.prefill}
+            onIdentified={(identity) => navigation.replace('AddVehicleAnswers', { identity })}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="AddVehicleAnswers" options={{ title: 'ABOUT YOUR CAR' }}>
+        {({ route, navigation }) => (
+          <OwnerAnswersScreen
+            identity={route.params.identity}
             onSignOut={onSignOut}
             /*
               `replace`, not `navigate`. Going back to a form that has already
               created the car would let someone add it twice, and the natural
               place to go from a new car is the car.
             */
-            onAdded={(vehicleId, title) => navigation.replace('VehicleDetail', { vehicleId, title })}
+            onAdded={(vehicleId, title) => {
+              // The doors are done with: back from the car must not be the answers screen.
+              navigation.popTo('VehicleDetail');
+              openCarTab(navigation, { vehicleId, title });
+            }}
           />
         )}
       </Stack.Screen>
+
 
       <Stack.Screen
         name="VehicleDetail"
@@ -822,90 +986,125 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
         */
         options={({ route }) => ({
           headerShown: false,
-          title: carBackTitle(route.params.title),
+          title: carBackTitle(route.params?.title),
         })}
       >
-        {({ route, navigation }) => (
-          <VehicleDetailScreen
-            title={route.params.title}
-            vehicleId={route.params.vehicleId}
-            onSignOut={onSignOut}
-            /*
-              ⚠ `popTo('Garage')`, not `navigate` — 11 Sep, and the difference is
-              React Navigation 7's. `navigate` used to find the garage already on
-              the stack; in v7 it **pushes** a second one unless told to pop, so
-              the control that says "back to the garage" was quietly growing the
-              stack behind it. `popTo` goes back to the garage this stack was
-              seeded with, on the tap path and on the deep-link path alike.
-            */
-            onBack={() => navigation.popTo('Garage')}
-            /*
-              ⚠ The tab, not a push. There is no question in hand here — this is
-              "let me talk about this car" — and the conversation lives on the
-              Advisor tab. See the `Advisor` param's note for the other case.
-            */
-            onAskAdvisor={() =>
-              openAdvisorTab(navigation, {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-              })
-            }
-            onScanInvoice={() =>
-              navigation.navigate('InvoiceScan', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-              })
-            }
-            /*
-              ⚠ **R16.** The banner opens `Health`, not a recalls screen. The
-              recalls are a section of it, under the dial they drive — cause
-              beside effect rather than one navigation apart.
-            */
-            onViewRecalls={() =>
-              navigation.navigate('Health', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-              })
-            }
-            /* R15. One destination, opening on the segment the row named. */
-            onOpenWishlist={() =>
-              navigation.navigate('Plan', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-                segment: 'needs',
-              })
-            }
-            /* R14. One destination, opening on the segment the row named. */
-            onOpenHistory={() =>
-              navigation.navigate('Service', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-                segment: 'history',
-              })
-            }
-            onOpenHealth={() =>
-              navigation.navigate('Health', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-              })
-            }
-            onOpenMilestone={() =>
-              navigation.navigate('Service', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-                segment: 'due',
-              })
-            }
-            onOpenProfile={() =>
-              navigation.navigate('VehicleProfile', {
-                vehicleId: route.params.vehicleId,
-                title: route.params.title,
-              })
-            }
-            // The same seam as the garage's. See `pick-image.ts`.
-            pickPhoto={() => pickVehiclePhoto('library')}
-          />
-        )}
+        {/*
+          ⚠ `withCar`, like the other three car tabs: the Car tab pressed
+          before any car has been on screen mounts this root with no params,
+          and the first build read `route.params.title` and crashed the tab.
+          The root explains what it needs instead (`ChooseACar`).
+        */}
+        {({ route, navigation }) =>
+          withCar(route, navigation, 'Car', (vehicleId) => (
+            <VehicleDetailScreen
+              title={route.params?.title}
+              vehicleId={vehicleId}
+              /* Round 2: the plate this page is crossing from — see `Car`. */
+              fromPhoto={route.params?.fromPhoto}
+              onSignOut={onSignOut}
+              /*
+                "‹ GARAGE" is a tab switch now, not a pop: the garage is its own
+                tab since 21 Sep, and this screen is the Car tab's root with
+                nothing beneath it. `pop: true` for the reason the 11 Sep note
+                gave when this was `popTo('Garage')` — React Navigation 7's
+                `navigate` pushes a second garage unless told to pop, and the
+                garage tab may have an add-a-car flow standing on it.
+              */
+              /*
+                ⚠ 23 Sep · the way out of "this car is gone" is **another
+                car**, not a garage. Clearing the params drops this root back
+                to `FirstCar`, which opens whichever car is left and offers to
+                add one when none are.
+              */
+              onBack={() => navigation.navigate('Tabs', { screen: 'CarTab', params: { screen: 'VehicleDetail' } })}
+              /*
+                ⚠ Temporary, 22 Sep's concept round: the two things the garage
+                tab did that nothing else does. Switching re-seats this root on
+                another car — `openCarTab`, the same call a bay made, so a
+                switch and an open are one navigation and the tab keeps its
+                own stack.
+              */
+              /*
+                ⚠ Round 2 · `fromPhoto` is the **outgoing** car's plate, and
+                it is what makes a remount look like a switch. The screen is
+                keyed on `vehicleId` for a reason `withCar` states — state
+                under the wrong car's name is the bug class — so the page
+                genuinely rebuilds. Handing the new page the old photograph
+                lets it hold that image on screen and cross to its own, so
+                the one element the eye is tracking never blinks.
+              */
+              onSwitchCar={(id, carTitle, fromPhoto) =>
+                openCarTab(navigation, { vehicleId: id, title: carTitle, fromPhoto: fromPhoto ?? undefined })
+              }
+              onAddCar={() => navigation.navigate('AddVehicle')}
+              /*
+                No `onAskAdvisor` since 22 Sep: the hub's ASK THE ADVISOR was
+                cut by three critics in one round — the ADVISOR tab is directly
+                beneath it, about this car. `openAdvisorTab` stays for the bays.
+              */
+              onScanInvoice={() =>
+                navigation.navigate('InvoiceScan', {
+                  vehicleId,
+                  title: route.params?.title,
+                })
+              }
+              /*
+                ⚠ **R16.** The banner opens `Health`, not a recalls screen. The
+                recalls are a section of it, under the dial they drive — cause
+                beside effect rather than one navigation apart.
+              */
+              onViewRecalls={() =>
+                navigation.navigate('Health', {
+                  vehicleId,
+                  title: route.params?.title,
+                })
+              }
+              /* R15. One destination, opening on the segment the row named. */
+              onOpenWishlist={() =>
+                navigation.navigate('Plan', {
+                  vehicleId,
+                  title: route.params?.title,
+                  segment: 'needs',
+                })
+              }
+              /* R14. One destination, opening on the segment the row named. */
+              onOpenHistory={() =>
+                navigation.navigate('Service', {
+                  vehicleId,
+                  title: route.params?.title,
+                  segment: 'history',
+                })
+              }
+              onOpenHealth={() =>
+                navigation.navigate('Health', {
+                  vehicleId,
+                  title: route.params?.title,
+                })
+              }
+              onOpenMilestone={() =>
+                navigation.navigate('Service', {
+                  vehicleId,
+                  title: route.params?.title,
+                  segment: 'due',
+                })
+              }
+              onOpenProfile={() =>
+                navigation.navigate('VehicleProfile', {
+                  vehicleId,
+                  title: route.params?.title,
+                })
+              }
+              /* The fourth leaf (20 Sep). */
+              onOpenTires={() =>
+                navigation.navigate('Tires', {
+                  vehicleId,
+                  title: route.params?.title,
+                })
+              }
+            />
+          ))
+        }
       </Stack.Screen>
 
       {/*
@@ -925,9 +1124,11 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
           <HealthScreen
             vehicleId={route.params.vehicleId}
             title={route.params.title}
+            /* The recall link's promise: land on the recalls, not the dial. */
+            focus="recalls"
             onSignOut={onSignOut}
             onAskAdvisor={(vehicleId, ask) =>
-              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
             }
           />
         )}
@@ -941,7 +1142,7 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
             onSignOut={onSignOut}
             /* R16: each recall's question starts its own thread — in the Advisor tab, 13 Sep. */
             onAskAdvisor={(vehicleId, ask) =>
-              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask, 'GarageTab')
+              askAdvisor(navigation, { vehicleId, title: route.params.title }, ask)
             }
           />
         )}
@@ -958,7 +1159,122 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
       {invoiceScreens(onSignOut)}
       {wishlistAddScreen(onSignOut)}
 
-      <Stack.Screen name="VehicleProfile" options={{ title: 'WHAT YOU TOLD US' }}>
+      {/*
+        ── 20 Sep · Tires — the fourth leaf ─────────────────────────────────
+
+        Header hidden, like the car's own: the plate runs under the status bar
+        and the screen floats `BackControl` over it. `title` here is the back
+        label of the three forms pushed from it, so they read `‹ TIRES`.
+      */}
+      <Stack.Screen name="Tires" options={{ headerShown: false, title: 'TIRES' }}>
+        {({ route, navigation }) => (
+          <TiresScreen
+            vehicleId={route.params.vehicleId}
+            title={route.params.title}
+            onSignOut={onSignOut}
+            onBack={() => navigation.goBack()}
+            onAddSet={() =>
+              navigation.navigate('TireSetForm', { vehicleId: route.params.vehicleId, title: route.params.title })
+            }
+            onEditSet={(set) =>
+              navigation.navigate('TireSetForm', { vehicleId: route.params.vehicleId, title: route.params.title, set })
+            }
+            onEnterInterval={(set) =>
+              navigation.navigate('TireInterval', { vehicleId: route.params.vehicleId, title: route.params.title, set })
+            }
+            onAddRotation={(set, rotations, odometer) =>
+              navigation.navigate('TireRotation', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+                set,
+                rotations,
+                odometer,
+              })
+            }
+          />
+        )}
+      </Stack.Screen>
+
+      {/*
+        The three forms. Each goes back on save — the tire screen refetches on
+        focus, so the record it returns to already carries the write.
+      */}
+      <Stack.Screen
+        name="TireSetForm"
+        options={({ route }) => ({ title: route.params.set ? 'WHAT YOU ENTERED' : 'ADD A TIRE SET' })}
+      >
+        {({ route, navigation }) => (
+          <TireSetFormScreen
+            vehicleId={route.params.vehicleId}
+            set={route.params.set ?? null}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="TireInterval" options={{ title: 'ENTER THE INTERVAL' }}>
+        {({ route, navigation }) => (
+          <TireIntervalScreen
+            vehicleId={route.params.vehicleId}
+            set={route.params.set}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="TireRotation" options={{ title: 'ADD A ROTATION' }}>
+        {({ route, navigation }) => (
+          <TireRotationScreen
+            set={route.params.set}
+            rotations={route.params.rotations}
+            currentMileage={route.params.odometer}
+            onSignOut={onSignOut}
+            onSaved={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="RemoveVehicle" options={{ title: 'REMOVE THIS CAR' }}>
+        {({ route, navigation }) => (
+          <RemoveVehicleScreen
+            vehicleId={route.params.vehicleId}
+            onSignOut={onSignOut}
+            /*
+              The car is gone: straight to the garage, which refetches on
+              focus and no longer shows it. `popToTop` rather than `goBack`,
+              because the screen behind this one is the car's own, and a car
+              that no longer exists answers 404 to the reload it would do.
+            */
+            onRemoved={() => {
+              /*
+                ⚠ 23 Sep · not `popToTop`. The top of this stack was the
+                removed car's own page, which refetched on focus, answered
+                404, and told the owner the car "may have been removed from
+                another device" — about their own act — and then `FirstCar`
+                opened it again from the held set. The two holds that still
+                named the car are cleared first, and the root is dropped to
+                `FirstCar` with no car, which opens whichever is left and
+                offers to add one when none are.
+              */
+              forgetCar(route.params.vehicleId);
+              forgetVehicle(route.params.vehicleId);
+              navigation.navigate('Tabs', { screen: 'CarTab', params: { screen: 'VehicleDetail' } });
+            }}
+            onKeep={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      {/*
+        ── 22 Sep · the car's details, not only the answers ────────────────
+
+        THIS CAR: the odometer with its as-of, the owner's answers, and at
+        the foot the removal — the hub's plate is its door, and the hub no
+        longer ends on REMOVE THIS CAR (the three lenses' I7, U8, V8).
+      */}
+      <Stack.Screen name="VehicleProfile" options={{ title: 'THIS CAR' }}>
         {({ route, navigation }) => (
           <VehicleProfileScreen
             vehicleId={route.params.vehicleId}
@@ -969,6 +1285,14 @@ function GarageStack({ accessToken, email, onSignOut }: Session) {
               the stack does not grow a second copy of the screen behind.
             */
             onSaved={() => navigation.goBack()}
+            onRemove={() =>
+              navigation.navigate('RemoveVehicle', {
+                vehicleId: route.params.vehicleId,
+                title: route.params.title,
+              })
+            }
+            // The same seam as the garage's. See `pick-image.ts`. Here since 22 Sep, off the hub.
+            pickPhoto={() => pickVehiclePhoto('library')}
           />
         )}
       </Stack.Screen>
@@ -1036,10 +1360,27 @@ function withCar(
   const vehicleId = route.params?.vehicleId;
 
   if (!vehicleId) {
+    /*
+      ⚠ 23 Sep · a car-first app **opens a car** rather than asking which.
+      `ChooseACar` used to stand here — *"Open a car in the garage and this
+      tab follows it"* — and with the garage gone that sentence names a place
+      that does not exist, on the one screen a first-time owner sees.
+      `FirstCar` carries the argument and the two states it must not
+      collapse: no cars yet is an invitation, a set that could not be read is
+      a failure that says so.
+    */
     return (
-      <ChooseACar
-        title={title}
-        onOpenGarage={() => navigation.navigate('Tabs', { screen: 'GarageTab' })}
+      <FirstCar
+        onOpenCar={(id, carTitle) => openCarTab(navigation, { vehicleId: id, title: carTitle })}
+        /*
+          ⚠ 23 Sep · nested, not a bare `navigate('AddVehicle')`. `withCar`
+          renders on the Service, Plan and Advisor roots too, and `AddVehicle`
+          is registered on the Car tab's stack only — React Navigation does
+          not search sibling navigators, so from those three tabs the bare
+          form was silently unhandled: "No cars yet — Add a car", and the
+          button did nothing. `openAddCar` addresses the screen by its tab.
+        */
+        onAddCar={() => openAddCar(navigation)}
       />
     );
   }
@@ -1065,6 +1406,9 @@ function serviceScreen(onSignOut: () => void) {
             */
             onScan={() =>
               navigation.navigate('InvoiceScan', { vehicleId, title: route.params?.title })
+            }
+            onUpload={() =>
+              navigation.navigate('InvoiceScan', { vehicleId, title: route.params?.title, openLibrary: true })
             }
             onOpenVisit={(visit) =>
               navigation.navigate('InvoiceDetail', { visit, vehicleId, title: route.params?.title })
@@ -1180,8 +1524,17 @@ function invoiceScreens(onSignOut: () => void) {
         SCAN INVOICE, as the Service root's primary and the hub's row say it
         — the nav read SCAN AN INVOICE, and round 34's Cut list counted the
         article: *"the act has one name."*
+
+        21 Sep: two acts now, so two names. The Service root splits the way in
+        (SCAN · UPLOAD, under ADD AN INVOICE) because one button hid the
+        library. Opened for the library the nav says so; the screen beneath
+        is the same one, with the library button still on it once the picker
+        is dismissed.
       */}
-      <Stack.Screen name="InvoiceScan" options={{ title: 'SCAN INVOICE' }}>
+      <Stack.Screen
+        name="InvoiceScan"
+        options={({ route }) => ({ title: route.params.openLibrary ? 'UPLOAD INVOICE' : 'SCAN INVOICE' })}
+      >
         {({ route }) => (
           <InvoiceScanScreen
             vehicleId={route.params.vehicleId}
@@ -1192,6 +1545,7 @@ function invoiceScreens(onSignOut: () => void) {
               (`components/Viewfinder.tsx`).
             */
             pickImage={pickInvoiceImage}
+            startWith={route.params.openLibrary ? 'library' : 'camera'}
             onSignOut={onSignOut}
           />
         )}
@@ -1203,7 +1557,16 @@ function invoiceScreens(onSignOut: () => void) {
         to `route.name` when there is none, which is how six screens came to
         read "‹ VehicleDetail" on 23 Aug.
       */}
-      <Stack.Screen name="InvoiceDetail" options={{ title: 'INVOICE' }}>
+      <Stack.Screen
+        name="InvoiceDetail"
+        /*
+          RECORD for a visit that was typed in — a job marked done on the
+          Plan — and INVOICE only for lines read off a scanned document
+          (QE 2.7, 20 Sep): a DIY oil change opened under a title naming a
+          document that does not exist.
+        */
+        options={({ route }) => ({ title: route.params.visit.scanned ? 'INVOICE' : 'RECORD' })}
+      >
         {({ route }) => (
           <InvoiceDetailScreen visit={route.params.visit} vehicleId={route.params.vehicleId} />
         )}
@@ -1252,6 +1615,8 @@ function wishlistAddScreen(onSignOut: () => void) {
 function Tabs(session: Session) {
   return (
     <Tab.Navigator
+      /* Temporary: with no garage tab the car is the first, which is the point. */
+      initialRouteName="CarTab"
       backBehavior="none"
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: surface.page } }}
       /*
@@ -1263,15 +1628,31 @@ function Tabs(session: Session) {
       */
       tabBar={(props) => <TabBar state={props.state} navigation={props.navigation} />}
     >
-      <Tab.Screen name="GarageTab">{() => <GarageStack {...session} />}</Tab.Screen>
+      {/* The bar draws these in this order — `TAB_NAMES` in `tab-target.ts` says why it is this one. */}
+      {/*
+        ── ⚠ 23 Sep · four tabs, and no garage ──────────────────────────────
+
+        David, after the switcher loop closed at 9/10: *"i like this much
+        better, ship it."* The garage tab is gone because a garage bay was a
+        strict subset of the car's hub — the same plate, strip, dial, next
+        service and recall count, one tap from the fuller page — so two tabs
+        were one screen, and tapping a bay changed the selected tab
+        programmatically, which a tab bar should never do.
+
+        What the garage did that something still must: **switching** is the
+        car's own name and the sheet it opens (`CarSheet`), **adding** is
+        that sheet's last row into this stack's `AddVehicle`, and **the cold
+        start** is `FirstCar` in `withCar` below. Drift §6.23 is the record.
+      */}
+      <Tab.Screen name="CarTab">{() => <CarStack {...session} />}</Tab.Screen>
+      <Tab.Screen name="AdvisorTab">{() => <AdvisorStack {...session} />}</Tab.Screen>
       <Tab.Screen name="ServiceTab">{() => <ServiceStack {...session} />}</Tab.Screen>
       <Tab.Screen name="PlanTab">{() => <PlanStack {...session} />}</Tab.Screen>
-      <Tab.Screen name="AdvisorTab">{() => <AdvisorStack {...session} />}</Tab.Screen>
     </Tab.Navigator>
   );
 }
 
-export function RootNavigator({ accessToken, email, onSignOut }: Session) {
+export function RootNavigator({ accessToken, email, onSignOut, onAccountDeleted }: Session) {
   /*
     The container ref, so the account control can navigate and the tree can
     be read. `useNavigationContainerRef` rather than a plain ref: it is the
@@ -1279,6 +1660,7 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
   */
   const navigation = useNavigationContainerRef<RootStackParamList>();
   const [atRoot, setAtRoot] = useState(true);
+  const [focusedTab, setFocusedTab] = useState<keyof TabParamList | null>(null);
 
   /*
     ── E8 · the one account fact that can go stale on this device ───────────
@@ -1303,6 +1685,7 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
    */
   const noteRoute = useCallback(() => {
     setAtRoot(atTabRoot(navigation.getRootState()));
+    setFocusedTab(focusedTabOf(navigation.getRootState()));
 
     const params = navigation.getCurrentRoute()?.params as Partial<Car> | undefined;
     if (params?.vehicleId) rememberVehicle(params.vehicleId, params.title);
@@ -1329,8 +1712,10 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
 
       Now: a device that **already** has permission still registers silently,
       because its token must be filed against the account and there is nothing
-      to explain. Everyone else is offered `PushPrimer` first — see
-      `GarageScreen`, which is where the vehicle count that gates it lives.
+      to explain. Everyone else is offered `PushPrimer` first — from the
+      car's page, via `usePushPrimer`, which is where the vehicle count that
+      gates it lives. ⚠ It was the garage until 23 Sep, and the garage left
+      this navigator on 22 Sep: for a day no build could ask at all.
 
       `shouldRegisterSilently` and `shouldShowPushPrimer` are complementary by
       construction and there is a test asserting they can never both be true.
@@ -1396,9 +1781,16 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
               /*
                 Deletion clears the session, which unmounts this whole navigator
                 — so there is nothing here to navigate back to and nothing to
-                show a confirmation on. `App.tsx`'s gate takes over.
+                show a confirmation on. `App.tsx`'s gate takes over, and it is
+                handed the sentence first: until 23 Sep the summary
+                `AccountScreen` built was dropped here and the app cut
+                straight to the sign-in form, with nothing to say the deletion
+                the person just confirmed had happened.
               */
-              onDeleted={() => onSignOut()}
+              onDeleted={(summary) => {
+                onAccountDeleted?.(summary);
+                onSignOut();
+              }}
               /*
                 E8: the settings way into the paywall. The same signal a
                 refused screen sends, with no feature — `PaywallHost` below is
@@ -1432,8 +1824,17 @@ export function RootNavigator({ accessToken, email, onSignOut }: Session) {
         control, and a floating word would sit on top of it. `atTabRoot` reads
         the whole tree to decide, because a name alone cannot.
       */}
+      {/*
+        ⚠ 22 Sep · every root but the car's. The Car tab's root is a dossier
+        under a photograph, and three critics in one round read ACCOUNT
+        floating over it as *"a global control on a car's page"* (IA I8; the
+        design critic's cut, twice). 5.1.1(v)'s guarantee is unchanged: the
+        control is a sibling of the navigator that no screen can swallow, on
+        the garage and the three car tabs — the garage is one tab away from
+        the car. `mobile-account-reachable.test.ts` holds the structure.
+      */}
       <AccountControl
-        visible={atRoot}
+        visible={atRoot && focusedTab !== 'CarTab'}
         /*
           ⚠ `navigate`, and it lands on the root stack. The account is somewhere
           you go and come back from; pushed there, it gets a header and a back

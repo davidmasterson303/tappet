@@ -10,7 +10,9 @@
  */
 
 import {
+  alsoHoldingBack,
   healthDrivers,
+  holdingBack,
   maintenanceDriver,
   mileageLoadDriver,
   recallDriver,
@@ -172,7 +174,7 @@ describe('recallDriver', () => {
     const driver = recallDriver([]);
 
     expect(driver.score).toBe(100);
-    expect(driver.detail).toBe('No recalls on record.');
+    expect(driver.detail).toBe('No open recalls on record.');
   });
 
   it('charges the first recall most', () => {
@@ -211,11 +213,41 @@ describe('recallDriver', () => {
     expect(driver.detail).not.toMatch(/do-not-drive/);
   });
 
-  it('says "on record" rather than "open", because completion is not tracked', () => {
-    // A recall the owner had fixed last year still counts. Conservative in the
-    // right direction, but the wording must not overclaim.
-    expect(recallDriver([recall()]).detail).toMatch(/on record/);
-    expect(recallDriver([recall()]).detail).not.toMatch(/\bopen\b/i);
+  it('counts what the owner has not marked repaired, and says "open" because it can (22 Sep)', () => {
+    /*
+      Until today this counted every campaign on record while the hub's cell
+      counted the open ones: marking five repaired moved the cell from 24 to
+      19 and left the dial where it was, under a sentence blaming the recalls
+      for it. David: *"a recall should improve a score once fixed."* So the
+      driver subtracts the marks, and only then may the wording say "open".
+    */
+    const two = [recall({ NHTSACampaignNumber: '21V123' }), recall({ NHTSACampaignNumber: '22V456' })];
+    const marked = [{ campaign_number: '21V123' }];
+
+    expect(recallDriver(two).detail).toBe('2 open recalls on record.');
+    expect(recallDriver(two, marked).detail).toBe('1 open recall on record.');
+    expect(recallDriver(two, marked).score!).toBeGreaterThan(recallDriver(two).score!);
+
+    // Every campaign marked is nothing outstanding, and it scores as such.
+    const all = [{ campaign_number: '21V123' }, { campaign_number: '22V456' }];
+    expect(recallDriver(two, all)).toMatchObject({ score: 100, nothingOutstanding: true });
+    expect(recallDriver(two, all).detail).toBe('No open recalls on record.');
+  });
+
+  it('treats a missing or malformed marks embed as nothing marked, never as cleared', () => {
+    /*
+      ⚠ The direction to be wrong in. A `recall_actions` read that failed must
+      not clear a safety notice; it must leave every campaign standing.
+    */
+    const one = [recall()];
+    const open = recallDriver(one).score;
+
+    expect(recallDriver(one, undefined).score).toBe(open);
+    expect(recallDriver(one, null).score).toBe(open);
+    expect(recallDriver(one, []).score).toBe(open);
+    expect(recallDriver(one, [null, { campaign_number: 42 } as never]).score).toBe(open);
+    // And the mark that does match still counts, so the cases above mean something.
+    expect(recallDriver(one, [{ campaign_number: '21V123' }]).score).toBe(100);
   });
 });
 
@@ -374,5 +406,104 @@ describe('a driver says when it found nothing outstanding', () => {
     expect(recallDriver([]).nothingOutstanding).toBe(true);
     // Never checked — the FN-03 case. Absence is not a clean result.
     expect(recallDriver(undefined).nothingOutstanding).toBeFalsy();
+  });
+});
+
+/**
+ * ── The cause beside the verdict (22 Sep) ───────────────────────────────────
+ *
+ * The hub's three lenses asked for one line that says what holds the score
+ * back and what to do about it. Each driver carries its reason and its act
+ * in its own counts; `holdingBack` picks the one to name — and names an
+ * unjudged history before any scored driver, because too few records is the
+ * cause of a low reading more often than anything a score can say.
+ */
+describe('the cause beside the verdict', () => {
+  it('phrases a scored maintenance driver as a reason with an act', () => {
+    const driver = maintenanceDriver([
+      { ...due('overdue'), service: 'Brake fluid' },
+      { ...due('overdue'), service: 'Coolant' },
+      { ...due('due'), service: 'Engine oil and filter' },
+      due('later'),
+    ]);
+    expect(driver.cause).toBe('2 services overdue, 1 due now');
+    expect(driver.act).toBe('see what is due');
+  });
+
+  it('gives a history nobody can judge its own reason and act, and nothing to a clean one', () => {
+    const unjudged = maintenanceDriver([due('unknown'), due('unknown')]);
+    expect(unjudged.score).toBeNull();
+    expect(unjudged.cause).toBe('no service records to judge from');
+    expect(unjudged.act).toBe('scan an invoice');
+
+    const clean = maintenanceDriver([due('later'), due('later')]);
+    expect(clean.cause).toBeUndefined();
+    expect(maintenanceDriver([]).cause).toBeUndefined();
+  });
+
+  it('phrases recalls as the model\'s, never this car\'s', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const driver = recallDriver([recall, { ...recall, NHTSACampaignNumber: '22V456' }]);
+    expect(driver.cause).toBe('2 open recalls for this model');
+    expect(driver.act).toBe('review them');
+    expect(recallDriver([]).cause).toBeUndefined();
+    expect(recallDriver(null).cause).toBeUndefined();
+  });
+
+  it('names mileage only above the average, with no act', () => {
+    const today = '2026-08-15';
+    const hard = mileageLoadDriver({ currentMileage: 200_000, year: 2015, today });
+    expect(hard.cause).toMatch(/^mileage above average, about [\d,]+ a year$/);
+    expect(hard.act).toBeUndefined();
+    expect(mileageLoadDriver({ currentMileage: 30_000, year: 2015, today }).cause).toBeUndefined();
+  });
+
+  it('calls a thin history a reason even when nothing checked is outstanding', () => {
+    // One record among many tracked services: nothing overdue among the checked, most unknown.
+    const thin = maintenanceDriver([due('later'), due('unknown'), due('unknown'), due('unknown')]);
+    expect(thin.nothingOutstanding).toBe(true);
+    expect(thin.cause).toBe('3 services with no record to count from');
+    expect(thin.act).toBe('scan an invoice');
+    // A history with a few gaps is not thin: the gaps are stated, not blamed.
+    const patchy = maintenanceDriver([due('later'), due('later'), due('later'), due('unknown')]);
+    expect(patchy.cause).toBeUndefined();
+    expect(patchy.detail).toMatch(/1 service with no record/);
+  });
+
+  it('names the history beside the recalls where both hold a thin car back, and only then', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const today = '2026-08-15';
+    const thin = maintenanceDriver([due('later'), due('unknown'), due('unknown')]);
+    const recalls = recallDriver([recall, recall, recall, recall]);
+    const load = mileageLoadDriver({ currentMileage: 69_573, year: 2017, today });
+    const first = holdingBack([thin, recalls, load]);
+    expect(first?.key).toBe('maintenance');
+    expect(alsoHoldingBack([thin, recalls, load], first)?.key).toBe('recalls');
+    // No recalls open: the history alone.
+    expect(alsoHoldingBack([thin, recallDriver([]), load], first)).toBeNull();
+    // Recalls first (a scored history): nothing second — one comparison, one loser.
+    const overdue = maintenanceDriver([due('overdue'), due('later')]);
+    const weakest = holdingBack([overdue, recalls, load]);
+    if (weakest?.key === 'recalls') expect(alsoHoldingBack([overdue, recalls, load], weakest)).toBeNull();
+  });
+
+  it('names an unjudged history before any scored driver, then the weakest, and nothing for a clean car', () => {
+    const recall = { NHTSACampaignNumber: '21V123', Component: 'AIR BAGS', Summary: 'Inflator may rupture.' };
+    const today = '2026-08-15';
+    const unjudged = maintenanceDriver([due('unknown')]);
+    const recalls = recallDriver([recall, recall, recall, recall]);
+    const load = mileageLoadDriver({ currentMileage: 69_573, year: 2017, today });
+    // The F-PACE: one record, four recalls — the history is the cause, not the recalls.
+    expect(holdingBack([unjudged, recalls, load])?.key).toBe('maintenance');
+
+    const overdue = maintenanceDriver([due('overdue'), due('later')]);
+    // Scored on both sides: the lower wins.
+    const weakest = holdingBack([overdue, recalls, load]);
+    expect(weakest).not.toBeNull();
+    expect(weakest!.score).toBe(Math.min(overdue.score!, recalls.score!, load.score!));
+
+    const clean = maintenanceDriver([due('later'), due('later')]);
+    expect(holdingBack([clean, recallDriver([]), mileageLoadDriver({ currentMileage: 20_000, year: 2020, today })])).toBeNull();
+    expect(holdingBack([])).toBeNull();
   });
 });

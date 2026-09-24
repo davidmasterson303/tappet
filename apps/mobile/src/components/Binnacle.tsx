@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 
 import Icon from './Icon';
-import { border, space, status, surface, text, type } from '../theme';
+import { TARGET_MIN, border, space, status, surface, text, type } from '../theme';
 
 /**
  * The binnacle — a panel of readings, each of which opens its own screen.
@@ -26,8 +27,11 @@ import { border, space, status, surface, text, type } from '../theme';
  * under a windscreen, and **every cell is a reading and every reading is the
  * door to its own screen** — HEALTH opens the account of the score, NEXT
  * SERVICE what is due, RECALLS the campaigns, HISTORY the records, PLAN the
- * needs. There is no list of places, no chevron column, and no verb outranks
- * the instruments; the acts are switches at the panel's foot.
+ * needs, TIRES the set (a third row since 21 Sep; it had been a `BandRow`
+ * under the switches, alone in an idiom nothing near it shared). There is no
+ * list of places, no chevron column, and no verb outranks the instruments;
+ * the acts are switches at the panel's foot, and a current reading's
+ * sentence is the check-control line between the two.
  *
  * ── The legend is under the value, not over it ──────────────────────────────
  *
@@ -112,19 +116,42 @@ export function BinnacleCell({
   );
 }
 
-/** A gauge's floor — room for a value, its legend, and a thumb. */
-export const BINNACLE_CELL_MIN = 96;
+/**
+ * A gauge's floor — the thumb's, and nothing else.
+ *
+ * ⚠ `TARGET_MIN`, from 80 (22 Sep, round 51). The floor had been a rhythm:
+ * 96 (13 Sep), then 80 (21 Sep, round 49's cut) — "a 20pt value, a 20pt
+ * legend, the padding and the thumb". But every cell already carries a
+ * value and a legend, so a cell's own content clears the thumb by itself,
+ * and the only thing a floor above it did was stretch the one row shorter
+ * than it: TIRES, a reading and its legend, sat in an 80pt band with 33pt
+ * of graphite over the reading against 16pt in every band around it —
+ * measured at 1:1, the critic's *"phantom title slot"*. A cell is as tall
+ * as what it holds; the floor stays only for a cell with nothing to read
+ * yet, which is the one case a legend alone would fall under the thumb.
+ */
+export const BINNACLE_CELL_MIN = TARGET_MIN;
 
 const styles = StyleSheet.create({
   /* No top rule: the sheet's own leading edge is the rule above the first row. */
   panel: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border.panel },
   row: { flexDirection: 'row', alignItems: 'stretch' },
   rowRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border.panel },
+  /*
+    ⚠ The value is pinned to the cell's head and the legend to its foot
+    (22 Sep, round 51). Cells had anchored to the foot, so in a row the
+    numeral of a three-line cell floated 20pt under the numeral of a
+    four-line one — "24" and "11" never on a cap line, the count row
+    ragged where every other band is ruled. Space-between gives a row one
+    cap line at the top and one legend baseline at the foot, and only the
+    caption lines between them vary; a cell alone in its row is its own
+    height and is not changed by it.
+  */
   cell: {
     minHeight: BINNACLE_CELL_MIN,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     gap: space.xs,
   },
   celled: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: border.panel },

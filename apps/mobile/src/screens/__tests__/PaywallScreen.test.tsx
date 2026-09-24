@@ -14,7 +14,9 @@
 
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 
-import PaywallScreen, { type SubscriptionOption } from '../PaywallScreen';
+import PaywallScreen, { featuresHeadline, type SubscriptionOption } from '../PaywallScreen';
+import { PAID_FEATURES } from '@tappet/core/paid-features';
+import { withSafeArea } from '../../test-support/safe-area';
 import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 
 const OPTIONS: SubscriptionOption[] = [
@@ -34,15 +36,18 @@ async function setup(props: Partial<React.ComponentProps<typeof PaywallScreen>> 
   const onRestore = jest.fn(async () => ENTITLED);
   const onClose = jest.fn();
 
+  // Under a real provider: the bar clears the status bar from the insets (21 Sep).
   await render(
-    <PaywallScreen
-      visible
-      options={OPTIONS}
-      onPurchase={onPurchase}
-      onRestore={onRestore}
-      onClose={onClose}
-      {...props}
-    />
+    withSafeArea(
+      <PaywallScreen
+        visible
+        options={OPTIONS}
+        onPurchase={onPurchase}
+        onRestore={onRestore}
+        onClose={onClose}
+        {...props}
+      />
+    )
   );
 
   return { onPurchase, onRestore, onClose };
@@ -149,6 +154,26 @@ describe('it never decides anybody is entitled', () => {
 
     resolve(ENTITLED);
     await waitFor(() => expect(screen.getByText('Your subscription is active.')).toBeTruthy());
+  });
+});
+
+describe('the bar and the headline — seen on the device, 21 Sep', () => {
+  it('counts the headline from the list it renders, so the two cannot disagree', async () => {
+    await setup();
+    expect(screen.getByText(featuresHeadline(PAID_FEATURES.length))).toBeTruthy();
+    // "Three features" over four rows was the shipped sentence.
+    expect(screen.queryByText(/Three features/)).toBeNull();
+    expect(featuresHeadline(4)).toBe('Four features, one subscription');
+    expect(featuresHeadline(1)).toBe('One feature, one subscription');
+  });
+
+  it('clears the status bar from the insets, not a constant', async () => {
+    await setup();
+    const bar = screen.getByText('Tappet Plus').parent;
+    const { StyleSheet } = require('react-native');
+    const flat = StyleSheet.flatten(bar?.props.style) as { paddingTop?: number };
+    const { REFERENCE } = require('../../test-support/safe-area');
+    expect(flat.paddingTop).toBeGreaterThan(REFERENCE.insets.top);
   });
 });
 

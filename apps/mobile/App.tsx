@@ -7,11 +7,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 
 import { COMPACT_SIZE, WorkingMark } from './src/components/Working';
+import CrashBoundary from './src/components/CrashBoundary';
 import { register, surface } from './src/theme';
 import { FONT_ASSETS } from './src/theme/font-assets';
 
 import { onSessionChange, signOut, startSessionAutoRefresh } from './src/auth/session';
 import { unregisterPush } from './src/notifications/register';
+import { forgetThisAccount } from './src/auth/forget-account';
 import { supabase } from './src/auth/supabase';
 import { SignInScreen } from './src/screens/SignInScreen';
 import DesignSpecimen from './src/dev/DesignSpecimen';
@@ -78,6 +80,19 @@ import { RootNavigator } from './src/navigation/RootNavigator';
  */
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  /*
+    What the account screen said as it deleted the account — "2 vehicles and
+    3 files deleted…" — held here because the screen that built it is
+    unmounted by the same act. Cleared when a session next appears, so a
+    later sign-in does not open under a sentence about a different account.
+  */
+  const [deletionNotice, setDeletionNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (session) setDeletionNotice(null);
+    // A session that ends without a tap — revoked, expired past refresh —
+    // must leave the phone as clean as a tap does.
+    if (session === null) void forgetThisAccount();
+  }, [session]);
 
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
 
@@ -115,6 +130,13 @@ export default function App() {
       screen added outside the stack quietly gets none.
     */
     <SafeAreaProvider>
+      {/*
+        The boundary sits inside the safe area and outside the gate (20 Sep):
+        a throw anywhere below — the navigator, a screen, the sign-in form —
+        renders the recovery screen in place of the tree, and "Try again"
+        remounts it with the session untouched. See `CrashBoundary`.
+      */}
+      <CrashBoundary>
       <View style={styles.root}>
         {session === undefined || !fontsReady ? (
           /*
@@ -173,13 +195,23 @@ export default function App() {
             */
             onSignOut={() => {
               void unregisterPush().finally(() => void signOut());
+              // Independent of the request above: it clears what this phone
+              // holds for the account, and reads nothing the token protects.
+              void forgetThisAccount();
             }}
+            /*
+              The one thing the navigator cannot show, because deletion
+              unmounts it: that the deletion happened. The sentence lands on
+              the sign-in form, which is the next thing the person sees.
+            */
+            onAccountDeleted={setDeletionNotice}
           />
         ) : (
-          <SignInScreen />
+          <SignInScreen initialNotice={deletionNotice} />
         )}
         <StatusBar style="light" />
       </View>
+      </CrashBoundary>
     </SafeAreaProvider>
   );
 }

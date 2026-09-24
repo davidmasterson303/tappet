@@ -55,6 +55,15 @@ describe('baselineDate', () => {
     expect(baselineDate('six-to-twelve', TODAY)).toBe('2025-08-08');
   });
 
+  it('treats "just done" as a month ago, not this morning', () => {
+    /*
+      20 Sep. The one option that could tempt the module toward "recently":
+      resolving to today would suppress the next reminder by however long
+      "just" turned out to mean. A month is the oldest honest reading of it.
+    */
+    expect(baselineDate('just-done', TODAY)).toBe('2026-07-08');
+  });
+
   it('treats "over a year" as eighteen months, not twelve', () => {
     // An open-ended range. Taking its lower bound would be the single place
     // this rounds toward "recently done".

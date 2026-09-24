@@ -50,7 +50,12 @@ the one that works. PostgREST cannot see `information_schema` and there is no
 `exec_sql` RPC, so grant-level facts need the SQL editor — which is David's.
 
 A column that does not exist returns `42703`. That is the cheapest applied/not
-check there is.
+check there is. And a `23502` names the column an insert forgot: the phone's
+ADD CAR docblock said a car added there "carries no VIN in the database" —
+`vin` was `NOT NULL`, it carried no row, and the form saved nothing for six
+weeks while its source-scan test stayed green (19 Sep,
+`create-vehicle-route.test.ts`). A dry insert with an impossible `user_id`
+walks the constraints for free: it fails on the FK last.
 
 ## 3. Only the diff proves the commit
 
@@ -104,6 +109,13 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
   the stylesheet keeps reviewing perfectly while applying to nothing. See
   `inclusive-affordances.test.ts`.
 - **A monitor that is not running reads as good news.** See rule 7.
+- **A component mounted for the app's lifetime derives its state once.** A
+  sheet rendered unconditionally with `visible` runs its `useState`
+  initialisers at the *screen's* mount — before the rows it reads have
+  arrived — and keeps them across openings. The mark-done sheet opened blank
+  and carried one item's shop to the next; the paywall showed "Your
+  subscription is active" to the next opener (20 Sep). Key it on the opening
+  (`33d164f`, `0dde57e`); the test is open, type, cancel, open another.
 - `null` is never `0`. A missing score, odometer or schedule is "we cannot say",
   and must never render as a reading.
 
@@ -122,8 +134,8 @@ Prefer the loud failure. The expensive bugs in this codebase have no error:
 
 ```
 tappet-web       deploys web-live   tappet.southmoordigital.com  [primary, 12 Sep]
-                 (was effulgent-    + wellkept.southmoordigital.com   (200, redirect pending)
-                 blancmange-6adfdf)  + crewchief.davidmasterson.co    (200, redirect pending)
+                 (was effulgent-    + wellkept.southmoordigital.com   (301 → primary, 17 Sep)
+                 blancmange-6adfdf)  + crewchief.davidmasterson.co    (301 → primary, 17 Sep)
                                     App Store URL + the app's API
 
 tappet-demo      deploys demo-live  tappet-demo.davidmasterson.co  [primary, 12 Sep]
@@ -139,12 +151,12 @@ luxuryphotoenhancer-demo           unrelated
 ⚠ **Both projects were renamed on 7 Sep and the old names are gone from the
 dashboard.** Three hostnames per site, all answering.
 
-⚠ **Five hostnames now serve the same two sites, and that is deliberate.**
+⚠ **Five hostnames answer, two serve, and that is deliberate.**
 The 7 Sep rename to Tappet added `tappet.southmoordigital.com` and
-`tappet-demo.davidmasterson.co` as **aliases**. Nothing was retired: both
-`wellkept*` hostnames and `crewchief-demo.davidmasterson.co` still serve, which
-costs nothing and means no window where a link is dead — the recruiter-facing
-one especially, while David is job hunting.
+`tappet-demo.davidmasterson.co` as **aliases**. Nothing was deleted: the old
+hostnames all 301 to their primary (demo pair 12 Sep, product pair 17 Sep on
+David's word), which costs nothing and means no window where a link is dead —
+the recruiter-facing one especially, while David is job hunting.
 
 Verified 7 Sep, and a `200` alone would not have shown it:
 
@@ -161,12 +173,14 @@ subdomains, and every hostname here is a subdomain. The redirect is the
 `[[redirects]]` rules in `netlify.toml`, host-scoped and `force = true`, and
 `lib/__tests__/hostname-redirects.test.ts` pins what they say. What *was*
 right survives: a 301 downgrades a POST to a GET, so the product pair — the
-host the app writes to — redirects only after the demo pair is verified live
-and no installed build calls the old host. That check is done once: the only
+host the app writes to — redirected only after the demo pair was verified live
+and no installed build called the old host. That check was done once: the only
 device build ever made (22 Aug, `co.davidmasterson.crewchief`) is a dev
 client that takes `apiBaseUrl` from Metro's manifest, and
-`apps/mobile/src/config.ts` falls back to the new host. Verify a redirect
-with `curl -sI` on the old host after the deploy, never from the merge.
+`apps/mobile/src/config.ts` falls back to the new host. Both promotes now ask
+the old hosts after the deploy; `curl -sI` on the old host is the same proof,
+never the merge. Done 17 Sep: a POST to either old product host answers 301,
+which is exactly why nothing may write there.
 
 ⚠ **The canary hardcodes its hostname.** `.github/workflows/consultant-canary.yml`
 passes `https://tappet-demo.davidmasterson.co` explicitly (moved off the

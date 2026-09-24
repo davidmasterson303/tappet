@@ -154,7 +154,9 @@ export default function SignupPage() {
                 </>
               )}
 
-              {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
+              {error && (
+                <p role="alert" className="text-sm text-[color:var(--critical)] mt-3">{error}</p>
+              )}
             </div>
 
             <p className="text-xs text-white/50 mt-6">
@@ -177,7 +179,7 @@ export default function SignupPage() {
         <div className="w-full max-w-md text-center">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
             <CheckCircle2 className="h-14 w-14 text-emerald-400 mx-auto mb-5" />
-            <h2 className="text-2xl font-bold text-white mb-3">Account created!</h2>
+            <h2 className="text-2xl font-bold text-white mb-3">Account created</h2>
             <p className="text-white/55 text-sm leading-relaxed">
               Logging you in and setting up your garage...
             </p>
@@ -197,7 +199,7 @@ export default function SignupPage() {
             <BrandLockup width={200} trademark />
           </Link>
           <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
-          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI consultant that knows your car.</p>
+          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
@@ -239,8 +241,9 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/60 transition-colors"
-                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="tap-target-44 absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-white/50 hover:text-white/60 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -290,9 +293,12 @@ export default function SignupPage() {
             </div>
 
             {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
+              <div
+          role="alert"
+          className="chamfer-sm border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] p-3 text-sm text-[color:var(--critical)]"
+        >
+          {error}
+        </div>
             )}
 
             <Button

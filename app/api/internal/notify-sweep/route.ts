@@ -5,10 +5,22 @@ import { logger } from '@tappet/core/logger';
 import type { NextRequest } from 'next/server';
 
 import { getServiceRoleClient } from '@/lib/supabase';
+import { usersEntitledTo } from '@/lib/feature-gate';
 import { backfillPlates } from '@/lib/plates';
 import { sendToAccount } from '@/lib/push-send';
 import { normaliseRecalls } from '@tappet/core/recalls';
-import { recallNotification, serviceDueNotification } from '@tappet/core/notifications';
+import {
+  recallNotification,
+  serviceDueNotification,
+  tireRotationNotification,
+} from '@tappet/core/notifications';
+import {
+  mayClaimWarrantyTerms,
+  tireReading,
+  tireRotationFromRow,
+  tireSetFromRow,
+} from '@tappet/core/tires';
+import { TIRES_UNAVAILABLE, readTireRecords } from '@/lib/tires-store';
 import {
   evaluateSchedule,
   isWorthNotifying,
@@ -23,6 +35,7 @@ import {
   headlineService,
   recallsToRaise,
   shouldRaiseService,
+  shouldRaiseTireRotation,
   vehiclesToGenerate,
   type GenerationCandidate,
   recallsToRefresh,
@@ -124,6 +137,15 @@ interface SweepSummary {
   schedulesGenerated: number;
   /** Eligible cars left for tomorrow because the generation budget ran out. */
   generationBacklog: number;
+  /**
+   * The third kind — a tire set past the interval its owner entered (20 Sep).
+   * Planned before the delivery branch like the other two, for the same
+   * reason: a dry run has to be able to answer "what would tonight send".
+   * Not in `sweep_runs` — its columns are the two original decisions, and
+   * adding one is a migration for a count the response and the log carry.
+   */
+  tiresPlanned: number;
+  tiresSent: number;
   capped: boolean;
   dryRun: boolean;
 }
@@ -196,6 +218,8 @@ export async function POST(request: NextRequest) {
     recallsRefreshBacklog: 0,
     schedulesGenerated: 0,
     generationBacklog: 0,
+    tiresPlanned: 0,
+    tiresSent: 0,
     capped: false,
     dryRun,
   };
@@ -225,8 +249,24 @@ export async function POST(request: NextRequest) {
     nextCheckDue: string | null;
     lookupStatus: string | null;
   }> = [];
+  /*
+    The tire tracker's candidates (20 Sep) — one per set past the interval its
+    owner entered, outside the cooldown. Collected across the run and capped
+    with the other two, for the reason they are.
+  */
+  const tireCandidates: TireCandidate[] = [];
+  /*
+    ⚠ Checked once per run, not once per car. Until David applies
+    `20260920200000` the tables do not exist and PostgREST answers `PGRST205`;
+    the first such answer marks the feature unavailable for the rest of the
+    night, so the log carries one warning rather than one per vehicle, and
+    the service and recall halves are unaffected either way.
+  */
+  const tires = { unavailable: false };
   /** Vehicle rows kept by id, so a generated car can be re-evaluated without re-reading it. */
   const scanned = new Map<string, { row: VehicleRow; name: string }>();
+  /** Cars whose owner the gate refused recall alerts to — reported, not stored. */
+  let recallsGated = 0;
 
   for (let page = 0; ; page += 1) {
     const { data: vehicles, error } = await client
@@ -243,6 +283,21 @@ export async function POST(request: NextRequest) {
 
     if (!vehicles || vehicles.length === 0) break;
 
+    /*
+      ── Recall alerts are paid — 17 Sep ───────────────────────────────────
+
+      The refresh and the notification are the paid feature; every recall
+      already stored stays readable on the car. So the recall half of the
+      walk is skipped for owners the gate refuses, and the service half —
+      what is due by mileage, a free feature — runs for everyone. One
+      entitlement read per page (`usersEntitledTo`), the same verdict the
+      single check gives. Off until `PAID_FEATURES_ENFORCED`, when this
+      returns every owner; `access.ts` names the decision and the argument
+      that lost to it.
+    */
+    const owners = vehicles.map((v) => v.user_id as string | null).filter((id): id is string => !!id);
+    const recallsAllowed = await usersEntitledTo(owners, 'recalls');
+
     for (const vehicle of vehicles) {
       /*
         Demo cars are seeded fixtures nobody owns. A notification about one
@@ -257,8 +312,13 @@ export async function POST(request: NextRequest) {
       const name = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'your car';
       scanned.set(vehicle.id, { row: vehicle, name });
 
-      await collectRecalls(client, vehicle, name, recallCandidates, refreshCandidates);
+      if (recallsAllowed.has(vehicle.user_id)) {
+        await collectRecalls(client, vehicle, name, recallCandidates, refreshCandidates);
+      } else {
+        recallsGated += 1;
+      }
       await collectService(client, vehicle, name, today, serviceCandidates, generationCandidates);
+      await collectTires(client, vehicle, name, today, tireCandidates, tires);
     }
 
     if (vehicles.length < PAGE_SIZE) break;
@@ -420,7 +480,8 @@ export async function POST(request: NextRequest) {
   */
   const recallPlan = applySendCap(digestRecalls(recallCandidates));
   const servicePlan = applySendCap(serviceCandidates);
-  summary.capped = recallPlan.capped || servicePlan.capped;
+  const tirePlan = applySendCap(tireCandidates);
+  summary.capped = recallPlan.capped || servicePlan.capped || tirePlan.capped;
 
   /*
     Recorded before the delivery branch, so a dry run reports what it decided
@@ -433,6 +494,7 @@ export async function POST(request: NextRequest) {
     0
   );
   summary.servicesPlanned = servicePlan.send.length;
+  summary.tiresPlanned = tirePlan.send.length;
 
   if (summary.capped) {
     /*
@@ -444,6 +506,7 @@ export async function POST(request: NextRequest) {
       stage: 'Truncated — a dedupe has probably stopped working',
       recallsConsidered: recallPlan.considered,
       servicesConsidered: servicePlan.considered,
+      tiresConsidered: tirePlan.considered,
     });
   }
 
@@ -502,9 +565,47 @@ export async function POST(request: NextRequest) {
 
       if (outcome.delivered > 0) summary.servicesSent += 1;
     }
+
+    for (const candidate of tirePlan.send) {
+      /*
+        The sentence is licensed by who entered the interval, and the licence
+        is checked again at the send rather than trusted from the collection:
+        `tireRotationNotification` returns null without it, and a null is
+        skipped. Nothing about a push can be taken back.
+      */
+      const content = tireRotationNotification({
+        vehicleId: candidate.vehicleId,
+        vehicleName: candidate.name,
+        sinceMiles: candidate.sinceMiles,
+        intervalMiles: candidate.intervalMiles,
+        sinceBasis: candidate.sinceBasis,
+        ownerEntered: candidate.ownerEntered,
+      });
+      if (!content) continue;
+
+      const outcome = await sendToAccount(candidate.userId, content);
+
+      /*
+        Stamped whether or not a device was reachable — the service kind's
+        rule. The cooldown is what stops a set past its interval producing a
+        push every night, and an unstamped set is one with no cooldown.
+      */
+      const { error: stampError } = await client
+        .from('tire_sets')
+        .update({ rotation_notified_at: new Date().toISOString() })
+        .eq('id', candidate.setId);
+      if (stampError) {
+        logger.error('CRON:SWEEP', new Error(stampError.message), {
+          stage: 'Tire notification sent but not stamped — will re-raise after the cooldown check fails',
+          setId: candidate.setId,
+        });
+      }
+
+      if (outcome.delivered > 0) summary.tiresSent += 1;
+    }
   }
 
-  logger.info('CRON:SWEEP', 'Sweep complete', { ...summary });
+  logger.info('CRON:SWEEP', 'Sweep complete', { ...summary, recallsGated });
 
   await recordSweepRun(client, summary);
 
@@ -704,6 +805,93 @@ async function resolveSignInActivity(client: Client, candidates: GenerationCandi
   for (const candidate of candidates) {
     candidate.lastSignInAt = byUser.get(candidate.userId) ?? null;
   }
+}
+
+/** One tire set past the interval its owner entered, outside the cooldown. */
+interface TireCandidate {
+  userId: string;
+  vehicleId: string;
+  setId: string;
+  name: string;
+  sinceMiles: number;
+  intervalMiles: number;
+  sinceBasis: 'rotation' | 'install';
+  /** `mayClaimWarrantyTerms` — carried so the send can check it again. */
+  ownerEntered: boolean;
+}
+
+/**
+ * The third kind, 20 Sep: is this car's tire set past the interval its owner
+ * entered?
+ *
+ * Everything decidable is decided in core — `tireReading` for the arithmetic,
+ * `shouldRaiseTireRotation` for the three gates (owner-entered, overrun,
+ * cooldown) — and this is the IO around it: the set and its rotations, read
+ * through the same `readTireRecords` the phone's route uses, so the sweep
+ * and the screen cannot count from different rows.
+ *
+ * ── Why a car with no reading is skipped ────────────────────────────────────
+ *
+ * "Miles since" needs an odometer to count to. A car whose `current_mileage`
+ * is null or zero has no `since`, and `tireReading` answers null for every
+ * figure — so there is nothing to be past. `collectService` makes the same
+ * refusal for the same reason.
+ *
+ * ── The tables may not exist yet ────────────────────────────────────────────
+ *
+ * See `tires` at the call site: the first `PGRST205` marks the feature
+ * unavailable for the rest of the run and logs once, at warn. It is not an
+ * error — it is the state every night is in until the migration is applied,
+ * and an error a night for an expected state is how a log stops being read.
+ */
+async function collectTires(
+  client: Client,
+  vehicle: VehicleRow,
+  name: string,
+  today: string,
+  into: TireCandidate[],
+  tires: { unavailable: boolean }
+) {
+  if (tires.unavailable) return;
+
+  const mileage = typeof vehicle.current_mileage === 'number' ? vehicle.current_mileage : null;
+  if (mileage === null || mileage <= 0) return;
+
+  const records = await readTireRecords(client, vehicle.id);
+  if (!records.ok) {
+    if (records.reason === TIRES_UNAVAILABLE) {
+      tires.unavailable = true;
+      logger.warn('CRON:SWEEP', 'Tire tables are not applied yet; the tire half of the sweep is skipped tonight', {
+        vehicleId: vehicle.id,
+      });
+    }
+    return;
+  }
+  if (!records.set) return;
+
+  const set = tireSetFromRow(records.set);
+  const reading = tireReading(set, records.rotations.map(tireRotationFromRow), mileage);
+  const ownerEntered = mayClaimWarrantyTerms(reading.interval);
+
+  const raise = shouldRaiseTireRotation({
+    overrun: reading.overrun,
+    ownerEntered,
+    lastNotifiedOn: records.set.rotation_notified_at ?? null,
+    today,
+  });
+
+  if (!raise || reading.since === null || !reading.interval || !reading.sinceBasis) return;
+
+  into.push({
+    userId: vehicle.user_id,
+    vehicleId: vehicle.id,
+    setId: set.id,
+    name,
+    sinceMiles: reading.since,
+    intervalMiles: reading.interval.miles,
+    sinceBasis: reading.sinceBasis,
+    ownerEntered,
+  });
 }
 
 async function collectService(

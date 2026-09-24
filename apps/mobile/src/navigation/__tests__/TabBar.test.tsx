@@ -106,43 +106,48 @@ describe('the tab bar', () => {
     );
 
     /*
-      ⚠ 11 Sep: Garage, Service, Plan, Advisor. The order is the navigator's,
-      not this file's — `tab-target.ts` carries the argument. Asserted in order
-      because the last graded round was judged against exactly this sequence,
-      and a bar that read the table rather than the state could reorder itself
-      without anything else going red.
+      ⚠ The order is the navigator's, not this file's — `tab-target.ts`
+      carries the argument. Asserted in order because a graded round was
+      judged against exactly this sequence, and a bar that read the table
+      rather than the state could reorder itself without anything else going
+      red.
     */
     const tabs = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
-    expect(tabs).toEqual(['Garage', 'Service', 'Plan', 'Advisor']);
+    expect(tabs).toEqual(['Car', 'Advisor', 'Service', 'Plan']);
   });
 
-  it('names the first tab for the garage, which is the car now', async () => {
+  it('leads with the car, and spends no tab on the set it belongs to (23 Sep)', async () => {
     /*
-      ⚠ Re-pointed 11 Sep. This asserted "Car", not "Garage", on David's 30 Aug
-      reasoning that the tab opened the vehicle rather than the list. The locked
-      brief settles it the other way — *"Garage is the web dossier header
-      re-stacked"* — the garage root **is** the car, plate and dial included, and
-      the tab agrees with its screen the way the critique made Service agree with
-      its own. The traffic argument survives as structure: a tab keeps its own
-      stack, so leaving the car and coming back lands on the car.
+      The 6 Sep brief folded the car into the garage's first tab, and a
+      one-car owner then needed two taps to get back to the car. 21 Sep gave
+      the car its own tab beside the garage's — *"most people may only have
+      one car"* — which left two tabs about one car: a bay was the hub's
+      plate, strip, dial, next service and recall count, one tap from the
+      fuller page.
+
+      23 Sep spends the slot properly. The car leads and the set is a sheet
+      its name opens, so a one-car owner never meets a set UI at all. What is
+      pinned here is the **absence**: a garage tab returning is a regression
+      to the redundancy the switcher loop removed, not a new feature.
     */
     const view = await render(
       withSafeArea(<TabBar state={tabState(0)} navigation={helpers().navigation} />)
     );
 
-    expect(view.queryByLabelText('Car')).toBeNull();
-    expect(view.getByLabelText('Garage')).toBeTruthy();
+    const labels = view.getAllByRole('tab').map((tab) => tab.props.accessibilityLabel);
+    expect(labels[0]).toBe('Car');
+    expect(labels).not.toContain('Garage');
   });
 
   it('announces which one is current, not only tints it', async () => {
     const view = await render(
-      withSafeArea(<TabBar state={tabState(3)} navigation={helpers().navigation} />)
+      withSafeArea(<TabBar state={tabState(2)} navigation={helpers().navigation} />)
     );
 
-    expect(view.getByLabelText('Advisor').props.accessibilityState).toMatchObject({
+    expect(view.getByLabelText('Service').props.accessibilityState).toMatchObject({
       selected: true,
     });
-    expect(view.getByLabelText('Garage').props.accessibilityState).toMatchObject({
+    expect(view.getByLabelText('Car').props.accessibilityState).toMatchObject({
       selected: false,
     });
   });
@@ -216,9 +221,9 @@ describe('the tab bar', () => {
 
   it('does not navigate on the focused tab — its stack answers the re-tap', async () => {
     const { navigation, emit, dispatch } = helpers();
-    const view = await render(withSafeArea(<TabBar state={tabState(1)} navigation={navigation} />));
+    const view = await render(withSafeArea(<TabBar state={tabState(0)} navigation={navigation} />));
 
-    await userEvent.press(view.getByLabelText('Service'));
+    await userEvent.press(view.getByLabelText('Car'));
 
     expect(emit).toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
@@ -244,6 +249,6 @@ describe('the tab bar', () => {
     );
 
     expect(view.getByLabelText('Plan')).toBeTruthy();
-    expect(view.getByLabelText('Garage')).toBeTruthy();
+    expect(view.getByLabelText('Car')).toBeTruthy();
   });
 });

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
+import Button from '../components/Button';
 
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
@@ -172,14 +174,41 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [doneItem, setDoneItem] = useState<WishlistItem | null>(null);
+  /*
+    The car's current reading, for the Mark-done sheet's odometer field
+    (20 Sep). Read with the list; `null` until it arrives or if it cannot
+    be read, in which case the sheet opens blank and says what that costs.
+  */
+  const [odometer, setOdometer] = useState<number | null>(null);
   const [completing, setCompleting] = useState(false);
 
   const load = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
+    async (isRefresh = false, quiet = false) => {
+      /*
+        ── Quiet, since 20 Sep ────────────────────────────────────────────────
+
+        `useRefetchOnFocus` reloads this screen every time it comes back into
+        view, and until 20 Sep that reload was the *opening* one: the content
+        vanished behind the wait dial for a request the screen did not need
+        to show — a spinner on every back-navigation, the opposite of the
+        no-spinners brief, on seven screens. A quiet reload keeps what is on
+        screen and swaps the data underneath; the dial is for the first open
+        and the refresh control for a pull, and nothing else.
+      */
+      if (quiet) {
+        // Nothing to show: the rows changing is the whole feedback.
+      } else if (isRefresh) setRefreshing(true);
       else setState({ kind: 'loading' });
 
       try {
+        void apiRequest<{ vehicle?: { current_mileage?: number | null } }>(
+          `/load-vehicle?vehicleId=${encodeURIComponent(vehicleId)}`
+        )
+          .then((car) => {
+            const reading = car.vehicle?.current_mileage;
+            setOdometer(typeof reading === 'number' && reading > 0 ? reading : null);
+          })
+          .catch(() => undefined);
         const body = await apiRequest<{ wishlistItems?: WishlistItem[] }>(
           `/wishlist?vehicleId=${encodeURIComponent(vehicleId)}`
         );
@@ -198,6 +227,12 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
           onSignOut();
           return;
         }
+        /*
+          A quiet refetch that fails keeps what is on screen (20 Sep): the
+          content is the last known state, which is exactly what it was
+          before the refetch. The next open, or a pull, reloads properly.
+        */
+        if (quiet) return;
         setState({ kind: 'error', message: apiError.message ?? 'Could not load Needs' });
       } finally {
         setRefreshing(false);
@@ -241,7 +276,8 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
                 await apiRequest(`/wishlist?itemId=${encodeURIComponent(item.id)}`, {
                   method: 'DELETE',
                 });
-                await load(true);
+                // Quiet: the list stays where it is and the row leaves it (20 Sep).
+                await load(false, true);
               } catch (error) {
                 const apiError = error as ApiRequestError;
                 /*
@@ -278,7 +314,8 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
           body: completionPayload(item.id, draft),
         });
         setDoneItem(null);
-        await load(true);
+        // Quiet: the list stays where it is and the row leaves it (20 Sep).
+        await load(false, true);
       } catch (error) {
         const apiError = error as ApiRequestError;
         /*
@@ -320,9 +357,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
       <View style={styles.centre}>
         <Text style={styles.errorTitle}>Could not load Needs</Text>
         <Text style={styles.errorBody}>{state.message}</Text>
-        <Pressable style={styles.button} onPress={() => void load()} accessibilityRole="button">
-          <Text style={styles.buttonText}>Try again</Text>
-        </Pressable>
+        <Button label="Try again" variant="outline" onPress={() => void load()} />
       </View>
     );
   }
@@ -504,9 +539,18 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
         ))
       )}
 
+      {/*
+        Keyed on the item, so each opening is a fresh sheet (seen live, 20
+        Sep). Mounted once with the screen, the sheet built its draft before
+        the odometer had been read — the field opened blank on every car —
+        and kept the draft between items, so the shop and costs typed for one
+        job were waiting in the sheet for the next.
+      */}
       <MarkDoneSheet
+        key={doneItem?.id ?? 'closed'}
         visible={doneItem !== null}
         itemName={doneItem?.item_name ?? ''}
+        currentMileage={odometer}
         today={new Date().toISOString().slice(0, 10)}
         saving={completing}
         onCancel={() => setDoneItem(null)}

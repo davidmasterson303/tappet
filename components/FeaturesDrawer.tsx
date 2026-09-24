@@ -7,6 +7,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import Link from 'next/link';
+import { useIsDemoSite } from '@/components/SiteRoleProvider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,7 +44,7 @@ interface FeaturesDrawerProps {
 const FEATURES = [
   {
     icon: Brain,
-    label: 'AI Consultant',
+    label: 'AI Advisor',
     badge: 'Core',
     heading: 'Answers about your car, not cars in general',
     body:
@@ -55,7 +56,7 @@ const FEATURES = [
     badge: 'Safety',
     heading: 'Open recalls, pulled from the NHTSA',
     body:
-      'Live recall data for your exact year, make and model, surfaced in the garage rather than buried on a federal website. A health score summarises what needs attention now.',
+      'Live recall data for your exact year, make and model, surfaced in the garage rather than buried on a federal website. A health score summarizes what needs attention now.',
   },
   {
     icon: ClipboardList,
@@ -63,7 +64,7 @@ const FEATURES = [
     badge: 'Records',
     heading: 'Photograph a receipt, get a timeline',
     body:
-      'Upload an invoice and the line items are read out of it — parts, labour, cost, date. What you get back is a searchable history instead of a folder of scans.',
+      'Upload an invoice and the line items are read out of it — parts, labor, cost, date. What you get back is a searchable history instead of a folder of scans.',
   },
   {
     icon: ListChecks,
@@ -71,7 +72,7 @@ const FEATURES = [
     badge: 'Planning',
     heading: 'A queue for everything the car needs',
     body:
-      'Repairs, maintenance and modifications in one list, with your cost and labour estimates against each. Sort out what is urgent and what can wait until the next visit.',
+      'Repairs, maintenance and modifications in one list, with your cost and labor estimates against each. Sort out what is urgent and what can wait until the next visit.',
   },
   {
     icon: FileText,
@@ -79,7 +80,7 @@ const FEATURES = [
     badge: 'Savings',
     heading: 'Arrive with the job already written down',
     body:
-      'Pick items off Needs and get a quote request you can hand to a shop. Bundling related work is where the labour savings are, so the draft groups it for you.',
+      'Pick items off Needs and get a quote request you can hand to a shop. Bundling related work is where the labor savings are, so the draft groups it for you.',
   },
   {
     icon: Zap,
@@ -95,7 +96,7 @@ const FEATURES = [
     badge: 'Intelligence',
     heading: 'What owners of your car have already learned',
     body:
-      'Common failure points, real service intervals and owner-community findings, collected per model and used as the basis for the consultant’s answers and the health score.',
+      'Common failure points, real service intervals and owner-community findings, collected per model and used as the basis for the advisor’s answers and the health score.',
   },
   {
     icon: MessageSquare,
@@ -111,11 +112,12 @@ const FEATURES = [
     badge: 'Storage',
     heading: 'Paperwork attached to the car it belongs to',
     body:
-      'Invoices, inspections and service records stored against the vehicle. The consultant reads them too, so an answer can cite what a shop actually did.',
+      'Invoices, inspections and service records stored against the vehicle. The advisor reads them too, so an answer can cite what a shop actually did.',
   },
 ];
 
 export default function FeaturesDrawer({ open, onOpenChange }: FeaturesDrawerProps) {
+  const isDemoSite = useIsDemoSite();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -182,9 +184,10 @@ export default function FeaturesDrawer({ open, onOpenChange }: FeaturesDrawerPro
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="text-xs text-white/50 hover:text-white/70 transition-colors"
+              className="tap-target-44 min-h-[44px] px-3 text-xs text-white/50 hover:text-white/70 transition-colors"
             >
-              Keep looking around the demo
+              {/* 23 Sep: the product host read "the demo" — this drawer had no site gate. */}
+              {isDemoSite ? 'Keep looking around the demo' : 'Close'}
             </button>
           </div>
         </div>

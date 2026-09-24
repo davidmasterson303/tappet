@@ -1,6 +1,7 @@
 import { CommonActions, getFocusedRouteNameFromRoute, type NavigationState } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon, { type IconName } from '../components/Icon';
@@ -39,7 +40,14 @@ import { tabTarget, type TabName } from './tab-target';
  * reason the account did not simply become a fifth entry.
  */
 const TABS: Record<TabName, { label: string; icon: IconName }> = {
-  GarageTab: { label: 'Garage', icon: 'car' },
+  /*
+    21 Sep: the car is the first tab and takes the car glyph.
+    ⚠ 23 Sep: and the only one about *which* car — the garage tab is gone,
+    and the set is a sheet the car's own name opens (`CarSheet`). A bay was a
+    strict subset of the car's page, so the bar was spending a slot on a
+    lesser copy of its neighbour.
+  */
+  CarTab: { label: 'Car', icon: 'car' },
   /*
     ⚠ 7 Sep: labelled "Service", not "History".
 
@@ -135,7 +143,12 @@ function mountedVehicle(route: NavigationState['routes'][number]): string | unde
  * pads its own foot by the safe-area inset for the same reason the bar does:
  * without the bar the home indicator is its neighbour.
  */
-const ROUTES_WITHOUT_A_BAR = new Set(['InvoiceScan']);
+/*
+  20 Sep: the sticker door is the same act on the same frame — `ScanVinScreen`
+  is the viewfinder pointed at the door jamb — and it stands the bar down for
+  the same reason. The other add-a-car screens keep it: a form is a place.
+*/
+const ROUTES_WITHOUT_A_BAR = new Set(['InvoiceScan', 'AddVehicleScan']);
 
 /** The route the focused tab is showing — a pushed screen's name, or the tab's own. */
 export function focusedRouteName(state: Pick<BottomTabBarProps['state'], 'routes' | 'index'>): string {

@@ -301,10 +301,14 @@ export function healthVerdict(params: {
     to postdate anything.
   */
   if (filed !== null && (generated === null || generated < filed)) {
+    const one = params.serviceCount === 1;
     const missed =
       params.serviceCount !== null && params.serviceCount > 0
         ? plural(params.serviceCount, 'service record', 'service records')
         : 'service records';
+    // "your 1 service record were filed" — seen live on the Accord, 20 Sep.
+    const were = one ? 'was' : 'were';
+    const them = one ? 'it' : 'them';
 
     /*
       ⚠ `inputs` is empty here, deliberately — 11 Sep. The screen prints them
@@ -318,8 +322,8 @@ export function healthVerdict(params: {
     */
     return {
       state: 'stale',
-      text: `This reading was taken before your ${missed} were filed, so it does not account for them.`,
-      short: `Read before ${missed} were filed.`,
+      text: `This reading was taken before your ${missed} ${were} filed, so it does not account for ${them}.`,
+      short: `Read before ${missed} ${were} filed.`,
       inputs: [],
     };
   }
@@ -333,4 +337,53 @@ function timestamp(value: string | null | undefined): number | null {
 
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
+ * The lead of a reading's text — whole sentences, as many as fit — for a
+ * surface that shows the reading and keeps the rest one tap away.
+ *
+ * ── 21 Sep · the hub's check-control line ────────────────────────────────
+ *
+ * The phone's hub was graded (drift §6.18) on a fixture whose verdict was
+ * stale, so every frame showed the HEALTH cell with `short` — one line. A
+ * *current* reading prints `text`, which is the model's whole summary: on
+ * the reviewer's F-PACE that was six lines in a three-fifths cell, the
+ * NEXT SERVICE cell beside it stretched to match with a void above its
+ * reading, and the row the pick led with was under the fold. David: *"a
+ * critical section and it looks disorganized and hard to follow."*
+ *
+ * So the hub shows the reading in its cell and the summary's lead beneath
+ * the panel — concept A's own check-control message — and the `Health`
+ * screen carries all of it. Sentences are taken whole while they fit
+ * `limit`; the first is always taken, however long. ⚠ Never a cut mid-way
+ * with an ellipsis: half a claim is the invented precision §10 forbids, and
+ * a sentence that ends is one the reader can hold Tappet to.
+ *
+ * A boundary is end punctuation followed by space and a capital, a digit or
+ * an opening quote — so "3.5 quarts" and "approx. 5,000 mi" do not split.
+ * "e.g. Brake" would; the health prompt does not write that way.
+ */
+export function leadOf(text: string, limit = 180): string {
+  const whole = text.trim();
+  if (whole === '') return '';
+
+  const sentences: string[] = [];
+  const boundary = /[.!?]["”’)]?(?=\s+["“(]?[A-Z0-9])/g;
+  let from = 0;
+  let match: RegExpExecArray | null;
+  while ((match = boundary.exec(whole)) !== null) {
+    const end = match.index + match[0].length;
+    sentences.push(whole.slice(from, end).trim());
+    from = end;
+  }
+  if (from < whole.length) sentences.push(whole.slice(from).trim());
+
+  let lead = sentences[0] ?? whole;
+  for (const sentence of sentences.slice(1)) {
+    const longer = `${lead} ${sentence}`;
+    if (longer.length > limit) break;
+    lead = longer;
+  }
+  return lead;
 }

@@ -136,6 +136,8 @@ jest.mock('expo-camera', () => {
       height: 4032,
       format: 'jpg',
     })),
+    /** The still decoder (21 Sep): nothing read unless a test says so. */
+    scanFromURLAsync: jest.fn(async () => []),
     /** Whether the stub view reports ready on mount. */
     ready: true,
     reset() {
@@ -149,6 +151,7 @@ jest.mock('expo-camera', () => {
         height: 4032,
         format: 'jpg',
       });
+      __camera.scanFromURLAsync.mockReset().mockResolvedValue([]);
     },
   };
 
@@ -161,11 +164,24 @@ jest.mock('expo-camera', () => {
     React.useEffect(() => {
       if (__camera.ready) onCameraReady?.();
     }, [onCameraReady]);
-    return React.createElement(View, { testID: 'camera-view', style: props.style });
+    /*
+      The barcode props ride on the stub view (20 Sep), so a test can read
+      `onBarcodeScanned` off `getByTestId('camera-view')` and call it with a
+      result the way the native module would — and can assert it is
+      `undefined` once the screen has paused delivery.
+    */
+    return React.createElement(View, {
+      testID: 'camera-view',
+      style: props.style,
+      onBarcodeScanned: props.onBarcodeScanned,
+      barcodeScannerSettings: props.barcodeScannerSettings,
+      zoom: props.zoom,
+    });
   });
 
   return {
     CameraView,
+    scanFromURLAsync: (...args) => __camera.scanFromURLAsync(...args),
     /*
       The hook's tuple: the current answer (`null` for the first frame, as the
       real hook), a request that resolves the stub's answer, and a get.
@@ -298,3 +314,13 @@ jest.mock('expo-iap', () => {
     __listenerCount: (event) => listeners[event].size,
   };
 });
+
+/*
+  The person's text size, as the runner sees it: the design size. React
+  Native's preset mocks `PixelRatio.getFontScale` to 2, and since 21 Sep the
+  app's own `Text` scales its sizes by that (clamped to 1.35), so every test
+  asserting a `fontSize` would read the scaled figure. The tests describe the
+  design at ×1; `Text.test.tsx` is the one that sets the scale on purpose.
+*/
+const { PixelRatio } = require('react-native');
+PixelRatio.getFontScale = () => 1;
