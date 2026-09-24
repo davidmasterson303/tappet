@@ -63,12 +63,13 @@ const env = Object.fromEntries(
 );
 
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
-// The legacy service_role JWT is invalid — signed by a rotated key. The modern
-// sb_secret_ key is what actually authenticates.
-const KEY = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+// The legacy service_role JWT is invalid — Supabase has disabled that key
+// format on this project — so it is not read at all. The modern sb_secret_
+// key is what actually authenticates.
+const KEY = env.SUPABASE_SECRET_KEY;
 
 if (!URL_ || !KEY) {
-  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or a secret key in .env');
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY in .env');
   process.exit(1);
 }
 

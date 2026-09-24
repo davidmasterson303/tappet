@@ -9,9 +9,19 @@ import { createBrowserClient, createServerClient as ssrCreateServerClient } from
  *   current sb_publishable_...          sb_secret_...
  *
  * Both are sent the same way — as the `apikey` header — so supabase-js does
- * not care which it gets. Only the environment variable name differs. Accept
- * either so the app works on a project of either generation, and so migrating
- * off the legacy keys is an env change rather than a code change.
+ * not care which it gets. Only the environment variable name differs.
+ *
+ * ⚠ The server key reads `SUPABASE_SECRET_KEY` and nothing else (24 Sep).
+ * Supabase has disabled the legacy JWT format on this project: the
+ * service_role key answers `401 Invalid API key` on every call, verified
+ * against production over REST. A fallback to it could never help — it only
+ * fired when the secret key was missing (a new Netlify context, a CI job, a
+ * `.env` restored from backup), and then it picked a key that 401s, so a
+ * config mistake presented as a database outage. Missing now throws, naming
+ * the variable (CLAUDE.md §6: prefer the loud failure).
+ * `secret-key-no-legacy-fallback.test.ts` pins it.
+ *
+ * The client-safe pair still reads both names; that is a separate door.
  */
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
@@ -21,13 +31,9 @@ export const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   '';
 
-/** Server-only key: legacy service_role JWT or modern secret key. Never expose. */
+/** Server-only key: the modern secret key, and only that. Never expose. */
 function getSecretKey(): string {
-  return (
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    ''
-  );
+  return process.env.SUPABASE_SECRET_KEY || '';
 }
 
 export function hasSupabaseConfig(): boolean {
@@ -142,10 +148,15 @@ export function getServiceRoleClient() {
   const url = supabaseUrl;
   const secretKey = getSecretKey();
 
-  if (!url || !secretKey) {
+  if (!url) {
+    throw new Error('Missing Supabase server config: NEXT_PUBLIC_SUPABASE_URL is not set.');
+  }
+  if (!secretKey) {
+    // Deliberately not a fallback: the legacy service_role key 401s on this
+    // project, so reaching for it would turn this error into a fake outage.
     throw new Error(
-      'Missing Supabase server config. Set NEXT_PUBLIC_SUPABASE_URL and either ' +
-        'SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY.'
+      'Missing Supabase server config: SUPABASE_SECRET_KEY is not set. ' +
+        'The legacy service_role key is not read — it is disabled on this project.'
     );
   }
 
