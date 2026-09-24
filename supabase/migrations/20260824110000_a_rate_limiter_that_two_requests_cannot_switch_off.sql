@@ -42,6 +42,8 @@
   ran it (24 Sep, SQL editor) — a month after it was committed, because no one
   had. `(array_agg(id ORDER BY id))[1]` is the uuid-safe spelling of the same
   thing.
+  `scripts/replay-migrations.sh` now replays the folder in CI, and would have
+  failed this file the day it was committed.
 
   ⚠ **The two `keep_id` expressions must pick the same row.** The `UPDATE`
   writes the summed count into one row and the `DELETE` keeps one row; if they

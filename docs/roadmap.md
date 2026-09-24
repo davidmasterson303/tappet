@@ -106,7 +106,8 @@
 >   The read-then-insert fallback in `lib/rate-limit.ts` is deleted, and
 >   `rate-limit-atomic.test.ts` holds that it stays deleted. **Takes effect on
 >   the next `promote-web`**, and the log line to watch is then
->   `RATE_LIMIT:RPC_FAILED`, not `RPC_MISSING`.
+>   `RATE_LIMIT:RPC_FAILED`, not `RPC_MISSING`. The whole folder now replays in
+>   CI (`scripts/replay-migrations.sh`), which would have caught it.
 > - **Gemini prepay balance.** `ai_usage_events` cannot compute it: the plate
 >   and plate-image REST calls bypass the meter entirely, which is also why
 >   the table's burn (~$0.02/day) is an order below `lib/gemini.ts`'s $0.66.
