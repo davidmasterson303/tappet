@@ -313,7 +313,7 @@ function summariseTires(
   body: { set?: TireSetRow | null; rotations?: TireRotationRow[] },
   vehicle: { current_mileage?: number | null }
 ): NonNullable<HubCounts['tires']> {
-  if (!body.set) return { absent: true, since: null, basis: null, overrun: false, toNext: null };
+  if (!body.set) return { absent: true, name: null, since: null, basis: null, overrun: false, toNext: null };
   const odometer =
     typeof vehicle.current_mileage === 'number' && vehicle.current_mileage > 0 ? vehicle.current_mileage : null;
   const reading = tireReading(
@@ -329,7 +329,9 @@ function summariseTires(
     where either is missing; `since` still says what it can.
   */
   const toNext = reading.interval && reading.since !== null ? reading.interval.miles - reading.since : null;
-  return { absent: false, since: reading.since, basis: reading.sinceBasis, overrun: reading.overrun, toNext };
+  /* The set by name, as NEXT SERVICE names its service: "Michelin Pilot Sport 4S". */
+  const name = [body.set.brand, body.set.line].map((part) => part?.trim()).filter(Boolean).join(' ') || null;
+  return { absent: false, name, since: reading.since, basis: reading.sinceBasis, overrun: reading.overrun, toNext };
 }
 
 /**
@@ -366,8 +368,9 @@ interface HubCounts {
    * past the interval its owner entered. `null` when the request failed or
    * the tables are not applied yet; `since: null` when there is a set with
    * nothing to count from; `absent` when the car has no set on record.
+   * `name` is the brand and line the owner typed, for the cell's head.
    */
-  tires: { absent: boolean; since: number | null; basis: 'rotation' | 'install' | null; overrun: boolean; toNext: number | null } | null;
+  tires: { absent: boolean; name: string | null; since: number | null; basis: 'rotation' | 'install' | null; overrun: boolean; toNext: number | null } | null;
 }
 
 /** One of the owner's answers, as the WHAT YOU TOLD US section rows it: a label and its value in the numeral column. */
@@ -1349,9 +1352,8 @@ export function VehicleDetailScreen({
   })();
   const tiresSpoken = (() => {
     if (!counts.tires || counts.tires.absent) return 'Tires. No set on record — add one to count down to each rotation.';
-    if (counts.tires.since === null) return 'Tires.';
-    if (tiresReading) return `Tires, ${tiresReading}.`;
-    return 'Tires.';
+    const parts = [counts.tires.name, tiresReading].filter(Boolean);
+    return parts.length > 0 ? `Tires, ${parts.join(', ')}.` : 'Tires.';
   })();
 
   const wishlistCount =
@@ -2125,13 +2127,35 @@ export function VehicleDetailScreen({
                 onPress={onOpenTires ?? (() => {})}
                 accessibilityLabel={`${tiresSpoken} Opens the set.`}
               >
-                {tiresReading ? (
-                  <Text style={[styles.count, styles.timing]} numberOfLines={1}>
-                    {tiresReading}
-                  </Text>
-                ) : counts.tires?.absent ? (
-                  <Text style={styles.absent}>Add a tire set to count down to each rotation</Text>
-                ) : null}
+                {/*
+                  24 Sep · the set by name over its timing, as NEXT SERVICE
+                  names its service over its timing — "rotation in 500 mi"
+                  alone did not say which tires. With no set, the cell was
+                  one muted mono line, the panel's quietest string on its
+                  only invitation, and a sentence in the face the system
+                  keeps for values. Now it reads the absence in the absent
+                  ink, as HEALTH's "No score yet" does, and says what adding
+                  a set buys in Inter beneath it.
+                */}
+                {counts.tires?.absent ? (
+                  <>
+                    <Text style={styles.absent}>No tire set yet</Text>
+                    <Text style={styles.summary}>Add your tires to count down to each rotation.</Text>
+                  </>
+                ) : (
+                  <>
+                    {counts.tires?.name ? (
+                      <Text style={styles.serviceName} numberOfLines={1}>
+                        {counts.tires.name}
+                      </Text>
+                    ) : null}
+                    {tiresReading ? (
+                      <Text style={[styles.count, styles.timing]} numberOfLines={1}>
+                        {tiresReading}
+                      </Text>
+                    ) : null}
+                  </>
+                )}
               </BinnacleCell>
             </BinnacleRow>
           </Binnacle>
@@ -2548,8 +2572,21 @@ const styles = StyleSheet.create({
     what it reads. The `Health` screen is where the 88 is spent. Tabular so it
     does not shift as the score moves between sweeps.
   */
-  absent: { ...type.mono, color: text.muted },
-  summary: { ...type.body, fontSize: 14, lineHeight: 20, color: text.secondary },
+  /*
+    ── ⚠ 24 Sep · the panel's small tier, 13–14 → 15–16 ────────────────────
+
+    David: *"we may have a problem with small font sizes on that page."*
+    Measured at 1:1 on the 16 Pro Max, every reading in the panel but the
+    numerals sat at 13 or 14 — the timing, the count words, the absences,
+    the cause — under the 20pt condensed rows of WHAT YOU TOLD US beneath
+    it, so the car's readings were set smaller than its settings. The
+    timing's 13 was for "overdue by 3,000 mi" on one line in *half* a row;
+    NEXT SERVICE has been full width since 22 Sep, and TIRES always was.
+    The legends stay `monoLabel` at the 12pt floor: a token change is the
+    system's (drift §6.25).
+  */
+  absent: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.muted },
+  summary: { ...type.body, color: text.secondary },
   /*
     The HEALTH row: the dial at the start, the sentence beside it (22 Sep).
     Top-aligned, so the sentence's first line sits with the arc's crown and
@@ -2558,7 +2595,7 @@ const styles = StyleSheet.create({
   healthRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   healthText: { flex: 1, gap: space.xs, paddingTop: space.xs },
   /* The cause, in the reading's ink; the model's prose beneath it in the secondary. */
-  cause: { ...type.body, fontSize: 14, lineHeight: 20, color: text.primary },
+  cause: { ...type.body, color: text.primary },
   /*
     The card dial sits at the cell's start, not centred in it — `ClusterGauge`
     centres within its own box — and the arc's left extreme (x = 30 of the
@@ -2579,11 +2616,11 @@ const styles = StyleSheet.create({
   /* A zero the screen did read, in the legend's ink: an empty list is not a warning. */
   countEmpty: { color: text.muted },
   /* The numeral's noun or verb, beneath it in the timing's voice: "records", "open". */
-  countWord: { ...type.mono, color: text.secondary },
+  countWord: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.secondary },
   /* The count's scope, beneath the word in the legend's ink: "this model". */
   countNote: { ...type.monoLabel, color: text.muted, textTransform: 'lowercase' },
-  /* `type.mono`'s size, from 15 (21 Sep): "overdue by 3,000 mi" on one line in half a row on the 16 Pro. */
-  timing: { fontSize: type.mono.fontSize, lineHeight: type.mono.lineHeight },
+  /* 15 again (24 Sep): it was cut to 13 for half a row, and both cells that carry it are full width. */
+  timing: { fontSize: 15, lineHeight: 20 },
 
   /* ── The lower sheet ──────────────────────────────────────────────────── */
   /* The answers head the lower sheet under the panel's 24pt of air (the Service root's figure). */

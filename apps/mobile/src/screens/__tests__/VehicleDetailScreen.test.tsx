@@ -1067,10 +1067,11 @@ describe('the health verdict, against what the screen is holding', () => {
  *
  * 20 Sep put the fourth leaf under the switches as a `BandRow` — alone, in
  * an idiom nothing near it shared, and the loudest thing on the lower sheet.
- * It is the panel's third row now: a full-width cell that reads the miles
- * since the set was rotated or fitted, says "No set yet" in the absent ink
- * where HEALTH says "No score yet", draws the sodium mark only past the
- * owner's interval, and opens the set.
+ * It is the panel's third row now: a full-width cell that names the set
+ * over its timing, as NEXT SERVICE names its service (24 Sep), says "No tire
+ * set yet" in the absent ink where HEALTH says "No score yet" with what a set
+ * buys in a sentence beneath, draws the sodium mark only past the owner's
+ * interval, and opens the set.
  */
 describe('the tires cell', () => {
   const SET = {
@@ -1107,8 +1108,12 @@ describe('the tires cell', () => {
     const { view } = await mount(REFERENCE, { onOpenTires });
 
     // 22 Sep: a countdown, as NEXT SERVICE counts (value V5) — the owner's 6,000 mi interval, 5,500 since.
-    const cell = await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
-    await view.findByText('rotation in 500 mi');
+    const cell = await view.findByLabelText(/^Tires, Michelin Pilot Sport 4S, rotation in 500 mi\. Opens the set\.$/);
+    // The set by name over its timing (24 Sep) — "rotation in 500 mi" alone did not say which tires.
+    await view.findByText('Michelin Pilot Sport 4S');
+    const timing = await view.findByText('rotation in 500 mi');
+    // The timing at 15, not the 13 it was cut to for a half-width cell.
+    expect(StyleSheet.flatten(timing.props.style).fontSize).toBe(15);
     // A reading of the panel: inside the readings summary, not a row below the switches.
     const panel = view.getByLabelText('Readings');
     let node: { parent: unknown } | null = cell;
@@ -1126,7 +1131,7 @@ describe('the tires cell', () => {
   it('marks a set past its interval, and only then', async () => {
     serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-06-28', odometer: 59_000, provenance: 'typed' }] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires, rotation overdue by 1,000 mi\./);
+    await view.findByLabelText(/^Tires, Michelin Pilot Sport 4S, rotation overdue by 1,000 mi\./);
     // The mark is drawn beside the legend (the cell's own `warning`), hidden from the reader
     // because the spoken label already says it. No recalls served, so it is the only one.
     expect(view.getAllByText('△', { includeHiddenElements: true })).toHaveLength(1);
@@ -1135,7 +1140,7 @@ describe('the tires cell', () => {
   it('draws no mark for a set inside its interval', async () => {
     serveTires({ set: SET, rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires, rotation in 500 mi\. Opens the set\.$/);
+    await view.findByLabelText(/^Tires, Michelin Pilot Sport 4S, rotation in 500 mi\. Opens the set\.$/);
     expect(view.queryAllByText('△', { includeHiddenElements: true })).toHaveLength(0);
   });
 
@@ -1143,17 +1148,21 @@ describe('the tires cell', () => {
     serveTires({ set: null, rotations: [] });
     const { view } = await mount();
     await view.findByLabelText(/^Tires\. No set on record — add one to count down to each rotation\. Opens the set\.$/);
-    const absent = await view.findByText('Add a tire set to count down to each rotation');
+    const absent = await view.findByText('No tire set yet');
     expect(readoutColor(absent)).toBe(text.muted);
+    // What a set buys, as a sentence in the sentence face — not a muted mono placeholder.
+    const ask = await view.findByText('Add your tires to count down to each rotation.');
+    expect(readoutColor(ask)).toBe(text.secondary);
+    expect(StyleSheet.flatten(ask.props.style).fontFamily).toBe(type.body.fontFamily);
     expect(view.queryByText(/^0 mi/)).toBeNull();
   });
 
   it('draws nothing for a set it cannot count to', async () => {
-    // An install with no odometer and no rotation: no "miles since" exists.
+    // An install with no odometer and no rotation: no "miles since" exists — the set by name, and no figure.
     serveTires({ set: { ...SET, install_odometer: null }, rotations: [] });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires\. Opens the set\.$/);
-    expect(view.queryByText(/Add a tire set/)).toBeNull();
+    await view.findByLabelText(/^Tires, Michelin Pilot Sport 4S\. Opens the set\.$/);
+    expect(view.queryByText('No tire set yet')).toBeNull();
     expect(view.queryByText(/mi since|rotation in/)).toBeNull();
   });
 
@@ -1163,7 +1172,7 @@ describe('the tires cell', () => {
       rotations: [{ id: 'r1', set_id: 'set-1', rotated_on: '2025-11-09', odometer: 60_500, provenance: 'typed' }],
     });
     const { view } = await mount();
-    await view.findByLabelText(/^Tires, 5,500 mi since last rotation\. Opens the set\.$/);
+    await view.findByLabelText(/^Tires, Michelin Pilot Sport 4S, 5,500 mi since last rotation\. Opens the set\.$/);
     await view.findByText('5,500 mi since last rotation');
   });
 });
