@@ -1,7 +1,7 @@
 /*
   ANTI-VACUOUS FIXTURE — this file must FAIL.
 
-  `scripts/replay-migrations.sh --self-test` replays it and requires the runner
+  `scripts/replay-migrations.sh` replays it first, and requires the runner
   to report it as failing. If the runner ever reports this green, the runner is
   not checking anything (CLAUDE.md §5), and CI fails for that reason alone.
 
