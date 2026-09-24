@@ -44,8 +44,8 @@ malformed model output; all Gemini-backed actions are rate limited
 | Variable | Where | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | client + server | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client + server | Public anon key (RLS enforced) |
-| `SUPABASE_SERVICE_ROLE_KEY` | server only | Service-role operations |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | client + server | Public key (RLS enforced); legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` also read |
+| `SUPABASE_SECRET_KEY` | server only | Service-role operations. The legacy `SUPABASE_SERVICE_ROLE_KEY` is not read — it 401s on this project |
 | `GEMINI_API_KEY` | server only | Google Gemini |
 
 ## Running locally
