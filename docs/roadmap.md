@@ -100,7 +100,10 @@
 >   product host's console for CSP report-only violations before enforcing.
 > - **Rate-limit migration `20260824110000` is not applied** — the limiter is
 >   on its read-then-insert fallback (five rows for one identifier and window
->   in `rate_limit_entries` prove it). SQL editor.
+>   in `rate_limit_entries` prove it). SQL editor. ⚠ **Re-copy the file
+>   first:** as committed it failed on first paste (24 Sep, `42883: function
+>   min(uuid) does not exist`, so nothing applied); fixed 24 Sep, and the
+>   whole folder now replays in CI (`scripts/replay-migrations.sh`).
 > - **Gemini prepay balance.** `ai_usage_events` cannot compute it: the plate
 >   and plate-image REST calls bypass the meter entirely, which is also why
 >   the table's burn (~$0.02/day) is an order below `lib/gemini.ts`'s $0.66.

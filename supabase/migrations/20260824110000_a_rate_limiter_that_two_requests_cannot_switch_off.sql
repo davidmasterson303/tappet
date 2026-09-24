@@ -36,6 +36,14 @@
   discarding one would hand back the allowance it recorded. Rows in expired
   windows are deleted outright — `cleanupExpiredWindows` would have taken them
   anyway.
+
+  ⚠ `MIN(id::text)::uuid`, not `MIN(id)`. `id` is a uuid and Postgres has no
+  `min(uuid)`, so as first committed (24 Aug) this file failed on its first
+  execution (24 Sep) with `42883: function min(uuid) does not exist` — and,
+  being one transaction, applied nothing. The text form picks the same row:
+  uuid ordering is byte order, which is the order of its lowercase hex text.
+  This is why `scripts/replay-migrations.sh` exists; it replays the folder in
+  CI and would have failed this file the day it was committed.
 */
 DELETE FROM api_rate_limits
 WHERE window_start < NOW() - INTERVAL '1 day';
@@ -46,7 +54,7 @@ WITH merged AS (
     endpoint,
     window_start,
     SUM(request_count) AS total,
-    MIN(id) AS keep_id
+    MIN(id::text)::uuid AS keep_id
   FROM api_rate_limits
   GROUP BY identifier, endpoint, window_start
   HAVING COUNT(*) > 1
@@ -58,7 +66,7 @@ WHERE a.id = merged.keep_id;
 
 DELETE FROM api_rate_limits AS a
 USING (
-  SELECT identifier, endpoint, window_start, MIN(id) AS keep_id
+  SELECT identifier, endpoint, window_start, MIN(id::text)::uuid AS keep_id
   FROM api_rate_limits
   GROUP BY identifier, endpoint, window_start
 ) AS keep
