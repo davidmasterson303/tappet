@@ -257,7 +257,7 @@ describe('failure states, which are where sub-floor text hides', () => {
       />
     );
 
-    await view.findByText('No vehicles yet');
+    await view.findByText('No cars yet');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 
@@ -277,7 +277,7 @@ describe('failure states, which are where sub-floor text hides', () => {
       onOpenProfile={jest.fn()}
       />));
 
-    await view.findByText('This vehicle is no longer here');
+    await view.findByText('This car is no longer here');
     expect(belowFloor(auditText(view))).toEqual([]);
   });
 });

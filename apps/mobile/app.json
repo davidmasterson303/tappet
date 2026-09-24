@@ -75,6 +75,14 @@
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePurchaseHistory",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
           }
         ]
       }
@@ -83,8 +91,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Tappet needs your photo library so you can attach an invoice you have already photographed.",
-          "cameraPermission": "Tappet uses the camera so you can photograph a service invoice and have its line items read for you."
+          "microphonePermission": false
         }
       ],
       "expo-notifications",

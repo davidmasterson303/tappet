@@ -284,7 +284,7 @@ describe('which empty garage you get', () => {
     const view = await renderGarage();
 
     expect(await view.findByText('Start with one car')).toBeTruthy();
-    expect(view.queryByText('No vehicles yet')).toBeNull();
+    expect(view.queryByText('No cars yet')).toBeNull();
   });
 
   it('says only that it is empty to someone who has had one before', async () => {
@@ -299,7 +299,7 @@ describe('which empty garage you get', () => {
 
     const view = await renderGarage();
 
-    expect(await view.findByText('No vehicles yet')).toBeTruthy();
+    expect(await view.findByText('No cars yet')).toBeTruthy();
     expect(view.queryByText('Start with one car')).toBeNull();
   });
 

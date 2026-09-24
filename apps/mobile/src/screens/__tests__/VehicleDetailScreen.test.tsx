@@ -43,6 +43,19 @@ function readoutColor(node: { props: Record<string, unknown> }): unknown {
   return ((StyleSheet.flatten(node.props.style as never) ?? {}) as { color?: unknown }).color;
 }
 
+/**
+ * How present an ink is, 0…1 — an `rgba()`'s alpha, and 1 for an opaque hex.
+ *
+ * Lets a test say "dimmer than" across the ladder's two spellings: the ramp
+ * is `rgba(255,255,255,α)` at the quiet end and `#F5F3F0` at the loud one, so
+ * comparing the literals would only work while both rungs happen to be
+ * written the same way.
+ */
+function alphaOf(color: unknown): number {
+  const match = /rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\s*\)/.exec(String(color));
+  return match ? Number(match[1]) : 1;
+}
+
 /** Every matched node's rendered `fontSize`, flattened the way RN merges. */
 function readoutSizes(nodes: Array<{ props: Record<string, unknown> }>): number[] {
   return nodes.map((node) => {
@@ -400,16 +413,16 @@ describe('when the vehicle is gone', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
     const { view } = await mount();
 
-    expect(await view.findByText('This vehicle is no longer here')).toBeTruthy();
+    expect(await view.findByText('This car is no longer here')).toBeTruthy();
   });
 
-  it('offers the way back to the garage', async () => {
+  it('offers the way to another car', async () => {
     const user = userEvent.setup();
     request.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
     const { props, view } = await mount();
 
-    await view.findByText('This vehicle is no longer here');
-    await user.press(view.getByText('Back to garage'));
+    await view.findByText('This car is no longer here');
+    await user.press(view.getByText('Open another car'));
 
     expect(props.onBack).toHaveBeenCalledTimes(1);
   });
@@ -449,7 +462,7 @@ describe('when it simply failed', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
     const { props, view } = await mount();
 
-    expect(await view.findByText('Could not load this vehicle')).toBeTruthy();
+    expect(await view.findByText('Could not load this car')).toBeTruthy();
     expect(view.getByText('Try again')).toBeTruthy();
     expect(props.onSignOut).not.toHaveBeenCalled();
   });
@@ -459,7 +472,7 @@ describe('when it simply failed', () => {
     request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
     const { view } = await mount();
 
-    await view.findByText('Could not load this vehicle');
+    await view.findByText('Could not load this car');
     const before = request.mock.calls.length;
 
     await user.press(view.getByText('Try again'));
@@ -542,14 +555,18 @@ describe('what this screen leads to stays reachable', () => {
     expect(at('Review recalls')).toBe(-1);
     expect(at('Scan invoice')).toBeGreaterThan(-1);
 
-    // The act is in the nav layer, drawn after the sheet in render order but
-    // over the plate on screen — reachable at rest, no scroll; the tree's
-    // order says nothing about that, so only its presence is asserted here.
-    // The reading, then what it needs, then the places to go, then the door to the answers.
+    /*
+      The reading, then what it needs, then the places to go — then **the
+      act**, then the door to the answers. The act's position is an
+      assertion now rather than a presence check: it left the nav layer for
+      the sheet on 22 Sep (David), and the one thing a refactor must not be
+      able to do quietly is slide it inside the section it sits above.
+    */
     expect(at('Fair')).toBeLessThan(at('Next service'));
     expect(at('Next service')).toBeLessThan(at('Plan'));
     expect(at('Plan')).toBeLessThan(at('Tires'));
-    expect(at('Tires')).toBeLessThan(at('What you told us'));
+    expect(at('Tires')).toBeLessThan(at('Scan invoice'));
+    expect(at('Scan invoice')).toBeLessThan(at('What you told us'));
   });
 
   it('keeps the record act in the slot whatever the recalls say (22 Sep, round 2)', async () => {
@@ -809,15 +826,30 @@ describe('the hero pullback', () => {
       "no cut a user can see": 8pt of page graphite into a near-black corner
       of a photograph is a shape nobody finds, and the rule stopping short
       read as a broken line. The hairline runs the hypotenuse — (0, cut) to
-      (cut, 0), the cover's own edge — in the panel's ink, so the geometry
-      registers as line whatever the photograph does.
+      (cut, 0), the cover's own edge — so the geometry registers as line
+      whatever the photograph does.
+
+      ⚠ **23 Sep · and it still could not be seen, so the ink went up a
+      step.** The line went in at `border.panel` and three more design
+      critics, in three separate rounds, each reported this cut as absent
+      from the native frames. A pixel scan finds it exactly where it belongs:
+      an 8pt diagonal about four luminance points from its surroundings,
+      drawn and invisible. `border.field` is the same hairline one step
+      louder, and it is what the collapsed bar's rule took the same day for
+      the same reason.
+
+      Pinned as a literal on purpose. What is being protected is not "some
+      stroke exists" — the 21 Sep version had that and failed the thing it
+      was for. It is that this edge is louder than a seam between two still
+      bands, which is a decision someone could undo by reaching for the
+      panel token out of habit.
     */
     const bevel = hostNodes(view.root, 'RNSVGLine').find(
       (props) => Number(props.x1) === 0 && Number(props.y1) === cut.plate && Number(props.x2) === cut.plate && Number(props.y2) === 0,
     );
     expect(bevel).toBeDefined();
     const stroke = bevel!.stroke as { payload?: unknown } | undefined;
-    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.panel));
+    expect(stroke && typeof stroke === 'object' && 'payload' in stroke ? stroke.payload : stroke).toBe(processColor(border.field));
   });
 
   it('renders the house plate and no photograph when there is no photo', async () => {
@@ -1197,30 +1229,77 @@ describe('the hero’s nav, as controls', () => {
     expect(nav?.textAlign).toBe('left');
   });
 
-  it('gives the prime slot to the record act, alone (22 Sep)', async () => {
+  it('floats nothing on the plate — the act is in the sheet (22 Sep, David)', async () => {
     /*
-      "ADD PHOTO holds the only bordered button above the fold — a once-ever
-      act — while SCAN INVOICE, the act an owner repeats for years, sits a
-      scroll down" (UX U1). The act is the filled button at the row's end;
-      the photo control is a mono word and a chevron at its start. ACCOUNT no
-      longer floats over a car's page (IA I8), so the act sits on the gutter.
+      The act was a pinned pill on the nav row over the photograph, and the
+      photo control before it. David: *"i really don't like the scan invoice
+      button placement, on the plate on car tab. remove from there, put new
+      button above 'what you told us' section."*
+
+      What this pins is the **absence**: nothing on this screen is absolutely
+      positioned over the hero any more. Asserted by walking up from the act
+      to its ancestors and finding no `position: 'absolute'` with a `right`
+      — the shape the pill had — rather than by the button's own style,
+      which a re-pinned button would keep.
     */
     respond({ nhtsa_data: { recalls: [] } });
     const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
 
-    // The act, on the gutter: up from the button to the plane that places it.
     let node: { parent: unknown; props: Record<string, unknown> } | null = view.getByLabelText(/^Scan an invoice/);
-    let right: unknown;
-    while (node && right === undefined) {
-      const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as { right?: unknown };
-      right = flat.right;
+    let pinned = false;
+    while (node) {
+      const flat = (StyleSheet.flatten(node.props.style as never) ?? {}) as { position?: unknown; right?: unknown };
+      if (flat.position === 'absolute' && flat.right !== undefined) pinned = true;
       node = node.parent as typeof node;
     }
-    expect(right).toBe(space.lg);
+    expect(pinned).toBe(false);
 
     // And nothing else in the nav at rest: the photograph's acts are THIS CAR's.
     expect(view.queryByLabelText('Add photo')).toBeNull();
+  });
+
+  it('carries one filled primary, and it is the act', async () => {
+    /*
+      `Button`'s rule — "one filled primary per screen; two means neither is
+      one". The error and gone states each carry an `outline` and replace
+      this screen rather than sharing it, so the loaded hub must hold
+      exactly one filled button.
+    */
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    /*
+      `Button` paints its fill on a `CutSurface` behind the label, so the
+      variant is not readable from the Pressable. The **label's ink** is:
+      only `primaryLabel` is the page colour, because it is the only variant
+      whose ground is off-white. Counting that is counting filled primaries.
+    */
+    const inkedPage = (node: { props: Record<string, unknown> }) =>
+      ((StyleSheet.flatten(node.props.style as never) ?? {}) as { color?: unknown }).color === surface.page;
+    const filled = view
+      .getAllByRole('button', { includeHiddenElements: true })
+      .filter((button) => within(button).queryAllByText(/.+/).some(inkedPage));
+
+    expect(filled).toHaveLength(1);
+    expect(within(filled[0]).getByText('Scan invoice')).toBeTruthy();
+
+    /*
+      Anti-vacuous: a filter that matched nothing would report "one primary"
+      on a screen with none. The error state carries an `outline`, whose ink
+      is `text.primary` — so the same reader must find **zero** there, not
+      fail to read.
+    */
+    request.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Network is down' }));
+    const failed = await mount();
+    await failed.view.findByText('Could not load this car');
+    expect(
+      failed.view
+        .getAllByRole('button', { includeHiddenElements: true })
+        .filter((button) => within(button).queryAllByText(/.+/).some(inkedPage))
+    ).toHaveLength(0);
+    expect(failed.view.getByText('Try again')).toBeTruthy();
   });
 });
 
@@ -1607,7 +1686,26 @@ describe('the hub under three lenses (22 Sep)', () => {
     const { view } = await mount();
     await view.findAllByText(/2018 Honda Accord/);
     const ask = view.getByText('Tell us', { includeHiddenElements: true });
-    expect(readoutColor(ask)).toBe(text.muted);
+    /*
+      ⚠ **Dimmer than the fact beside it**, rather than one hard-coded ink —
+      and the change is 23 Sep, after this assertion caught a real defect by
+      accident. It read `toBe(text.muted)`, and the plate's inks moved off
+      muted when `HeroBed`'s floor was found not to reach the type: over a
+      bright photograph, white at 0.5 needs a bed alpha of 0.837 to clear AA,
+      which is a scrim that loses the car. The first pass took the ask to
+      primary with everything else, and this test failed — correctly, because
+      what it is protecting is David's 22 Sep ruling that the strip carries
+      the *question* ("Tell us"), and a question set in the same ink as an
+      answer is not a question any more.
+
+      So the ask is `text.secondary` on the photograph now, and the assertion
+      is the property rather than the literal: **the ask is a step below the
+      fact in the same strip.** That is what would break if it were flattened
+      again, on this ground or any other, and the old form could not have
+      said so without being edited each time an ink moved.
+    */
+    const fact = view.getByText('EX-L', { includeHiddenElements: true });
+    expect(alphaOf(readoutColor(ask))).toBeLessThan(alphaOf(readoutColor(fact)));
     expect(view.getByText('Use', { includeHiddenElements: true })).toBeTruthy();
 
     respond({ ...answered, vehicle_status: 'daily_driver', trim: 'EX-L' });

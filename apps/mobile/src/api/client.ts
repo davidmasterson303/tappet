@@ -460,7 +460,7 @@ async function performRequest<T>(path: string, options: RequestOptions = {}): Pr
       cause: raw ? raw.slice(0, 300) : undefined,
       // The server's own message when it sent one — those are written to be
       // shown and are careful not to leak whether a resource exists.
-      message: typeof payload?.error === 'string' ? payload.error : `Request failed (${response.status})`,
+      message: typeof payload?.error === 'string' ? payload.error : 'Tappet could not complete that. Try again in a moment.',
       // And its reason, when it sent one. See `ApiRequestError.code`.
       code: typeof payload?.code === 'string' ? payload.code : undefined,
     });
@@ -539,7 +539,7 @@ function sendMultipart<T>({
             message:
               typeof parsed?.error === 'string'
                 ? parsed.error
-                : `Request failed (${request.status})`,
+                : 'Tappet could not complete that. Try again in a moment.',
             // The multipart path is the invoice upload, which is gated too.
             code: typeof parsed?.code === 'string' ? parsed.code : undefined,
           })

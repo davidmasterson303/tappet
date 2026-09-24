@@ -3,7 +3,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
-import { vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
+import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,7 +111,17 @@ export async function GET(request: NextRequest): Promise<Response> {
       });
     }
 
-    const filePath = document?.file_url;
+    /*
+      ⚠ 23 Sep · the row holds a *stored URL*, not a path. Every real invoice
+      is written as `placeholder://<vehicleId>/invoices/<file>` (`storedUrl`),
+      and this signed the value raw: `vehicleIdFromStoragePath` read
+      "placeholder:" as the first segment, answered null, and the ownership
+      check below 404'd every invoice an owner tried to open from the phone —
+      which the app then reported as "needs a newer version of the Tappet
+      API". `downloadStoredFile` (`lib/storage-objects.ts`) had it right;
+      this is the same two steps in the same order.
+    */
+    const filePath = storagePathFromStoredUrl(document?.file_url);
     if (!filePath) {
       return Response.json({ success: false, error: 'Document not found' } as ApiResponse, {
         status: 404,

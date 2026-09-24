@@ -4,6 +4,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -38,11 +39,17 @@ import { interFace } from '../theme/fonts';
  * verb. A separate screen would duplicate the inputs, the keyboard handling and
  * the error surface to change one label and one call.
  */
-export function SignInScreen() {
+export function SignInScreen({ initialNotice = null }: { initialNotice?: string | null } = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /*
+    `initialNotice` is the account-deletion summary `App.tsx` hands across
+    the gate (23 Sep). Read once at mount, which is right: this form mounts
+    fresh each time the session ends, and the sentence belongs to that one
+    moment rather than to every later render of the form.
+  */
+  const [notice, setNotice] = useState<string | null>(initialNotice);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'in' | 'up'>('in');
 
@@ -113,6 +120,12 @@ export function SignInScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/*
+        23 Sep: with the keyboard up on a 667pt device the top of the form was
+        pushed off-screen and nothing could scroll it back — the lockup, two
+        fields, the button and two links are ~500pt against ~330pt left.
+      */}
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <View style={styles.form}>
         {/* The stacked lockup, per the Sweep handoff: this screen had no mark. */}
         <View style={styles.lockup}>
@@ -261,6 +274,7 @@ export function SignInScreen() {
         <DevAutoSignIn />
         <DevCoreCheck />
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -381,7 +395,8 @@ function DevCoreCheck() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: surface.page, justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: surface.page },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
   form: { padding: 28, gap: 14 },
   lockup: { alignItems: 'flex-start', marginBottom: 4 },
   subtitle: { color: text.muted, fontFamily: interFace('400'),

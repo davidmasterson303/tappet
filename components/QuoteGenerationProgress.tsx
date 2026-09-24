@@ -82,7 +82,7 @@ export function QuoteGenerationProgress({ items, zipCode }: QuoteGenerationProgr
     <Working
       panel={false}
       line={count === 1 ? 'Pricing your service item' : `Pricing ${count} service items`}
-      detail={`Pricing ${count} service ${count === 1 ? 'item' : 'items'}. Your ZIP code ${zipCode} goes with the request so the ranges can allow for local labour rates.`}
+      detail={`Pricing ${count} service ${count === 1 ? 'item' : 'items'}. Your ZIP code ${zipCode} goes with the request so the ranges can allow for local labor rates.`}
     >
       {count > 0 && (
         <div className="w-full max-w-md text-left">
@@ -117,7 +117,7 @@ export function QuoteGenerationProgress({ items, zipCode }: QuoteGenerationProgr
         the same as claiming to be part-way through producing it.
       */}
       <p className="text-xs text-white/50 leading-relaxed max-w-md">
-        You will get parts and labour ranges for each item, and an email draft you can send to a
+        You will get parts and labor ranges for each item, and an email draft you can send to a
         shop.
       </p>
     </Working>

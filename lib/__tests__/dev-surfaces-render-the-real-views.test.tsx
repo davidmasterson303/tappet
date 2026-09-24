@@ -201,7 +201,7 @@ describe('SettingsView renders the profile it is handed and writes through the a
     }
     expect(screen.getByDisplayValue('Ada')).toBeInTheDocument();
     // The segmented control shows the unit and reads the word — "KM, kilometres".
-    expect(screen.getByRole('radio', { name: /kilometres/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /kilometers/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: /miles/i })).toHaveAttribute('aria-checked', 'false');
   });
 
@@ -217,7 +217,7 @@ describe('SettingsView renders the profile it is handed and writes through the a
     // Save is disabled until something changed — B7 — so the write must
     // follow a change, and a click on a disabled Save must not reach it.
     expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
-    await user.click(screen.getByRole('radio', { name: /kilometres/i }));
+    await user.click(screen.getByRole('radio', { name: /kilometers/i }));
     expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: /save changes/i }));
     expect(updateProfile).toHaveBeenCalledWith({ display_name: 'Ada', distance_unit: 'km' });

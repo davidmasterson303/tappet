@@ -484,7 +484,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
                 accessibilityRole="button"
                 accessibilityState={{ selected: answers.vehicleStatus === value }}
                 accessibilityLabel={`Use: ${USAGE_PROFILES[value].label}`}
-                style={[styles.choice, answers.vehicleStatus === value && styles.choiceOn]}
+                style={({ pressed }) => [styles.choice, answers.vehicleStatus === value && styles.choiceOn, pressed && styles.choicePressed]}
               >
                 <Text
                   style={[
@@ -520,7 +520,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
                 accessibilityRole="button"
                 accessibilityState={{ selected: answers.performanceMindedness === value }}
                 accessibilityLabel={`Goal: ${MINDEDNESS_LABELS[value]}`}
-                style={[styles.choice, answers.performanceMindedness === value && styles.choiceOn]}
+                style={({ pressed }) => [styles.choice, answers.performanceMindedness === value && styles.choiceOn, pressed && styles.choicePressed]}
               >
                 <Text
                   style={[
@@ -612,6 +612,8 @@ const styles = StyleSheet.create({
     variant caused, one control down. See `Button`'s docblock.
   */
   choiceOn: { backgroundColor: brand.primary, borderColor: brand.primary },
+  /* Under the finger: a fill swap like every other control here (23 Sep). */
+  choicePressed: { backgroundColor: surface.raised, borderColor: border.field },
   choiceText: { ...type.uiStrong, color: text.secondary },
   choiceTextOn: { color: text.onPrimary },
 

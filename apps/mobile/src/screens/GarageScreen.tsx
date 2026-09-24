@@ -24,13 +24,7 @@ import Working from '../components/Working';
 import type { PlateStatus } from '@tappet/core/plates';
 import { radius, space, status, surface, text, type, TARGET_MIN } from '../theme';
 import { PushPrimer } from '../notifications/PushPrimer';
-import {
-  currentPushPermission,
-  primerDismissedOn,
-  recordPrimerDismissed,
-  registerForPush,
-} from '../notifications/register';
-import { shouldShowPushPrimer } from '@tappet/core/push-priming';
+import { usePushPrimer } from '../notifications/usePushPrimer';
 import { shouldShowFirstRun } from '@tappet/core/first-run';
 import { everHadVehicle, recordEverHadVehicle } from '../onboarding/first-run-storage';
 import { getHealthBandJudgement } from '@tappet/core/health-band';
@@ -382,66 +376,20 @@ export function GarageScreen({
     setHadVehicle(true);
     void recordEverHadVehicle();
   }, [state]);
-  const [primerOpen, setPrimerOpen] = useState(false);
-
   /*
     ── C5: the notification primer ──────────────────────────────────────────
 
-    It is raised from the garage rather than from the navigator because the
-    rule that gates it needs the vehicle count, and this is the screen that
-    has one. That is not incidental — "ask once they have a car" is the design:
-    somebody with an empty garage is being asked to agree to something
-    abstract, and an abstract yes is the one most likely to be no.
+    Asked once they have a car: somebody with an empty garage is being asked
+    to agree to something abstract, and an abstract yes is the one most
+    likely to be no. The rule and both answers live in `usePushPrimer` — one
+    home, shared with the car's page, which is where the primer is actually
+    reached now that this screen is unmounted (23 Sep).
 
-    Runs when the vehicle list resolves, not on mount, so the count is real
-    rather than zero-while-loading. A zero-while-loading read would suppress
-    the primer on every launch and the screen would never appear at all.
+    `null` while the list is loading, so the count is real rather than
+    zero-while-loading: a zero read would suppress the primer on every launch
+    and the screen would never appear at all.
   */
-  useEffect(() => {
-    if (state.status !== 'ok') return;
-
-    let cancelled = false;
-
-    void (async () => {
-      const [permission, dismissedOn] = await Promise.all([
-        currentPushPermission(),
-        primerDismissedOn(),
-      ]);
-
-      if (cancelled) return;
-
-      setPrimerOpen(
-        shouldShowPushPrimer({
-          permission,
-          dismissedOn,
-          vehicleCount: state.vehicles.length,
-          today: new Date().toISOString().slice(0, 10),
-        }),
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [state]);
-
-  const acceptPrimer = useCallback(async () => {
-    /*
-      Closed first, then the system dialog. Leaving our screen up underneath
-      Apple's puts two asks on screen at once, and the person answers the one
-      they can see while the other waits — which reads as the app arguing with
-      itself.
-    */
-    setPrimerOpen(false);
-    await registerForPush();
-  }, []);
-
-  const declinePrimer = useCallback(async () => {
-    setPrimerOpen(false);
-    // Records a date, not a boolean, so the cooldown can expire and somebody
-    // who was busy today can still be asked next month.
-    await recordPrimerDismissed(new Date().toISOString().slice(0, 10));
-  }, []);
+  const pushPrimer = usePushPrimer(state.status === 'ok' ? state.vehicles.length : null);
 
   const load = useCallback(async (isRefresh = false, quiet = false) => {
     /*
@@ -617,7 +565,7 @@ export function GarageScreen({
   );
 
   const primer = (
-    <PushPrimer visible={primerOpen} onAccept={acceptPrimer} onDecline={declinePrimer} />
+    <PushPrimer visible={pushPrimer.open} onAccept={pushPrimer.accept} onDecline={pushPrimer.decline} />
   );
 
 
@@ -757,7 +705,7 @@ export function GarageScreen({
                   to the eye, which has position to go on.
                 */
                 <EmptyState
-                  headline="No vehicles yet"
+                  headline="No cars yet"
                   body="Add your first car and Tappet gets to work on it."
                   actionLabel="Add a car"
                   actionAccessibilityLabel="Add your first car"

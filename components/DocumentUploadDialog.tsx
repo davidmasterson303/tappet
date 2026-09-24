@@ -333,7 +333,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
 
       router.refresh();
     } catch (err) {
-      setError('An error occurred during upload');
+      setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
       toast.error('Upload failed');
     } finally {
       setUploading(false);
@@ -424,7 +424,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
         setUploading(false);
       }
     } catch (err) {
-      setError('An error occurred during upload');
+      setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
       toast.error('Upload failed');
       setUploading(false);
       setCurrentFileForMismatch(null);

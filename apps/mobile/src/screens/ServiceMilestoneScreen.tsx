@@ -172,7 +172,8 @@ type State =
   | {
       kind: 'ready';
       name: string;
-      mileage: number;
+      /** Null when nothing is on record; the screen asks rather than reasons from 0. */
+      mileage: number | null;
       /** Whether to ask for the odometer now, and what to offer — `mileageCheckIn`. */
       checkIn: MileageCheckIn;
       schedule: ScheduleEntry[];
@@ -314,7 +315,8 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       );
 
       const vehicle = body.vehicle;
-      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : 0;
+      // Null, never 0: a car with no odometer on file was told "Still around 0 miles?" (23 Sep).
+      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : null;
       const rawSchedule = body.knowledge?.maintenance_schedule;
       /*
         ── 13 Sep · monthly, with a number worked out ──────────────────────
@@ -573,9 +575,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   const confirmBanner = confirmed ? null : (
     <View style={styles.confirm}>
       <Text style={styles.confirmLead}>
-        {state.checkIn.projected
-          ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
-          : `Still around ${miles.format(state.mileage)} miles?`}
+        {state.mileage === null
+          ? 'What does the odometer say?'
+          : state.checkIn.projected
+            ? `About ${miles.format(state.checkIn.assumed)} miles by now?`
+            : `Still around ${miles.format(state.mileage)} miles?`}
       </Text>
       {/*
         One sentence. "What is due depends on the odometer" said the same
@@ -586,9 +590,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
         miles a month — so "about" is a claim with its basis, not a guess.
       */}
       <Text style={styles.confirmBody}>
-        {state.checkIn.projected
-          ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
-          : 'The list below is worked out from this reading.'}
+        {state.mileage === null
+          ? 'Nothing is on record for this car yet. Enter the reading and the list below is worked out from it.'
+          : state.checkIn.projected
+            ? `Worked out from ${miles.format(state.mileage)} and your usual miles a month. Correct it if the odometer says otherwise.`
+            : 'The list below is worked out from this reading.'}
       </Text>
 
       {/* The field and its verb on one line — it is one question, not a form. */}
@@ -661,7 +667,12 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   */
   const services = evaluateSchedule({
     schedule: state.schedule,
-    currentMileage: state.mileage,
+    // ⚠ 0 when nothing is on record. `evaluateSchedule` takes a number, and
+    // at 0 every mileage interval reads as not yet reached — the same list
+    // the screen always showed. The banner above asks for the reading rather
+    // than presenting 0 as one; the honest "unknown" for the list itself is
+    // still to do.
+    currentMileage: state.mileage ?? 0,
     ...historyLookups(state.history),
   });
   const milestone = nextMilestone(services, { horizonMiles: 5_000 });
@@ -689,7 +700,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     groups.push({
       key: 'milestone',
       label: milestone.mileage === null ? 'Next service' : `${miles.format(milestone.mileage)} service`,
-      detail: milestoneReason(milestone, state.mileage),
+      detail: milestoneReason(milestone, state.mileage ?? 0),
       rows: milestone.services,
     });
   }
@@ -729,7 +740,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       {confirmed ? (
         <View style={styles.readingRow}>
           <Text style={styles.readingLabel}>Odometer</Text>
-          <Text style={styles.readingValue}>{miles.format(state.mileage)} MI</Text>
+          <Text style={styles.readingValue}>{state.mileage === null ? 'Not on record' : `${miles.format(state.mileage)} MI`}</Text>
         </View>
       ) : null}
 

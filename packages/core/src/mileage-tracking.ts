@@ -144,7 +144,7 @@ export function formatMileagePromptMessage(status: MileageUpdateStatus): string 
   }
 
   const months = Math.max(1, status.monthsSinceLast);
-  return `Time to update! You've driven an estimated ${status.estimatedMilesDriven} miles in the last ${months} month${months > 1 ? 's' : ''}`;
+  return `You've driven an estimated ${status.estimatedMilesDriven} miles in the last ${months} month${months > 1 ? 's' : ''}. Update the odometer.`;
 }
 
 /**

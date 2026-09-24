@@ -153,7 +153,7 @@ export function TypeVinScreen({
             </Text>
           ) : (
             <Text style={styles.where}>
-              On the driver's door jamb, at the base of the windscreen, or on your insurance card.
+              On the driver's door jamb, at the base of the windshield, or on your insurance card.
             </Text>
           )}
         </View>

@@ -103,12 +103,35 @@ const TERMINALS = [0, 100];
  */
 const HERO_NUMERAL = 88 / 240;
 
-/** The ignition sweep: 0 → 100 → settle, ~900ms. Split as the web dial splits it. */
-const SWEEP_UP = 420;
-const SETTLE = 480;
+/**
+ * The draw-in: 0 → the reading, once, ~600ms.
+ *
+ * ── ⚠ 22 Sep · it used to go 0 → 100 → settle, and that was a false reading ─
+ *
+ * The sweep was a car's ignition sweep — the tachometer that swings to full
+ * and back when you turn the key — split 420/480 as the web dial splits it.
+ * On a *needle over a scale* that is a gesture. Here it drove a **numeral**,
+ * and a design critic reading four frames of a switch measured what that
+ * means: the dial counted 72, 90, 99, **100** on a car whose reading is 68,
+ * beside a sentence saying what was holding the score back.
+ *
+ * That is a reading the car never had, rendered at display size, twice a
+ * screen, on every appearance — §10's rule ("no claim the data cannot
+ * support") broken by an animation curve. *"A numeral is not a needle."*
+ *
+ * ⚠ The old guard is the reason it survived: it asserted the sweep **lands**
+ * on the reading and not on 100, and it was green the whole time, because
+ * the number it was written against was the end state rather than the path.
+ * `instruments.test.tsx` now samples the path.
+ *
+ * One curve keeps everything the draw-in was for — the arc growing from
+ * nothing, the numeral arriving rather than appearing — and it never passes
+ * through a value the car does not have.
+ */
+const DRAW_IN = 600;
 
 /**
- * The ignition sweep, as a rendered reading.
+ * The draw-in, as a rendered reading.
  *
  * Driving the needle and the arc from one number keeps them on the same value
  * at every frame — they are one quantity drawn twice, not two animations that
@@ -142,20 +165,17 @@ function useIgnitionSweep(target: number, enabled: boolean): number {
     const listener = driver.addListener(({ value }) => setReading(value));
     driver.setValue(0);
 
-    const sweep = Animated.sequence([
-      Animated.timing(driver, {
-        toValue: 100,
-        duration: SWEEP_UP,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(driver, {
-        toValue: target,
-        duration: SETTLE,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]);
+    /*
+      One timing, 0 → the reading. Never above it: every frame of this
+      animation is a number the car actually has, which is the whole of
+      `DRAW_IN`'s note above.
+    */
+    const sweep = Animated.timing(driver, {
+      toValue: target,
+      duration: DRAW_IN,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
 
     /*
       The end state is set from the callback rather than left to the last

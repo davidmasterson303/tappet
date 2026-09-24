@@ -40,9 +40,14 @@ import { tabTarget, type TabName } from './tab-target';
  * reason the account did not simply become a fifth entry.
  */
 const TABS: Record<TabName, { label: string; icon: IconName }> = {
-  /* 21 Sep: the car is the first tab and takes the car glyph; the garage is the fifth, a warehouse. */
+  /*
+    21 Sep: the car is the first tab and takes the car glyph.
+    ⚠ 23 Sep: and the only one about *which* car — the garage tab is gone,
+    and the set is a sheet the car's own name opens (`CarSheet`). A bay was a
+    strict subset of the car's page, so the bar was spending a slot on a
+    lesser copy of its neighbour.
+  */
   CarTab: { label: 'Car', icon: 'car' },
-  GarageTab: { label: 'Garage', icon: 'warehouse' },
   /*
     ⚠ 7 Sep: labelled "Service", not "History".
 

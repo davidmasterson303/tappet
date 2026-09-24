@@ -103,7 +103,7 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
             loading
               ? 'Loading…'
               : error
-              ? 'Unable to load your vehicles'
+              ? 'Could not load your cars.'
               : vehicles.length === 0
               ? 'Nothing here yet.'
               : 'Open a car for its dossier.'
@@ -128,7 +128,7 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
               Error loading vehicles
             </h2>
             <p className="text-[color:var(--text-primary)] mb-2">{error}</p>
-            <p className="text-sm text-[color:var(--text-muted)]">Check the console for more details.</p>
+            <p className="text-sm text-[color:var(--text-muted)]">Reload the page to try again.</p>
           </div>
         ) : (
           // Identical to the dashboard's grid on purpose — these disagreed

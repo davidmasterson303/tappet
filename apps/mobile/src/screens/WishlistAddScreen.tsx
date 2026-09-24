@@ -375,7 +375,15 @@ export function WishlistAddScreen({ vehicleId, title, onSignOut, onAskAdvisor, o
         clearAccessibilityLabel="Clear the filter"
       />
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        // The "Add “…”" row and the no-match line come after the matches and
+        // exist only while the keyboard is up; without insets they sat under
+        // it (23 Sep).
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
+      >
       {state.suggestions.length === 0 ? (
         /*
           Nothing known, rather than nothing to suggest. The knowledge base

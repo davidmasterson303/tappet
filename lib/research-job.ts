@@ -103,10 +103,26 @@ export async function startResearch(vehicleId: string): Promise<TriggerOutcome> 
     below is what the in-flight rule reads; it is written before the trigger
     so a second tap while the function is spinning up finds it.
   */
-  await client
+  /*
+    ── 23 Sep · one job per car, decided by the database ─────────────────────
+
+    Read-then-write: two POSTs arriving together both read a row that was
+    not in flight, both wrote `pending`, both triggered — two Pro dossiers
+    for one car, under a per-vehicle limiter that admits ten a minute. The
+    marker write is now conditional on the row not already carrying a live
+    marker (`pending` newer than `IN_FLIGHT_MS`), and only the request whose
+    write returned the row triggers the job. The other reports `researching`,
+    which is true.
+  */
+  const cutoff = new Date(Date.now() - IN_FLIGHT_MS).toISOString();
+  const { data: claimed } = await client
     .from('vehicle_knowledge_base')
     .update({ research_status: 'pending', last_research_date: new Date().toISOString() })
-    .eq('vehicle_id', vehicleId);
+    .eq('vehicle_id', vehicleId)
+    .or(`research_status.neq.pending,last_research_date.lt.${cutoff}`)
+    .select('vehicle_id');
+
+  if (!claimed || claimed.length === 0) return 'researching';
 
   await triggerResearchJob(vehicleId);
   return 'researching';

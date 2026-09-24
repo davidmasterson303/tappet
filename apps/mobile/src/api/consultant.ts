@@ -130,6 +130,20 @@ export async function askAdvisor({
     isSample?: unknown;
   }>('/consultant', {
     method: 'POST',
+    /*
+      ── 23 Sep · sixty seconds, not the client's twenty ──────────────────────
+
+      The advisor is a model call with the car's whole record in context and,
+      on a thread with attachments, an image or two — the one request in the
+      app whose honest duration is not a round trip. Under the default the
+      phone abandoned the request at 20 s while the route went on to answer
+      and *store* the turn; the screen then rolled the question back, said
+      "did not answer within 20 seconds", and a "try again" appended a second
+      identical turn to the thread the server already held. The invoice path
+      took 90 s on 21 Sep for the same reason (`documents.ts`); this is the
+      same argument at the advisor's scale.
+    */
+    timeoutMs: 60_000,
     body: {
       vehicleId,
       message,

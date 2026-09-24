@@ -421,7 +421,7 @@ export function BuildScreen({
   if (state.kind === 'gone') {
     return (
       <View style={styles.centre}>
-        <Text style={styles.errorTitle}>This vehicle is no longer here</Text>
+        <Text style={styles.errorTitle}>This car is no longer here</Text>
         <Text style={styles.errorBody}>It may have been removed from another device.</Text>
       </View>
     );

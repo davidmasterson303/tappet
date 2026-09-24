@@ -65,3 +65,12 @@ export async function recordAiConsent(answer: 'granted' | 'declined'): Promise<v
     */
   }
 }
+
+/** Sign-out. Consent was this person's; the next account on the phone gives its own. */
+export async function clearAiConsent(): Promise<void> {
+  try {
+    await secureStorage.removeItem(KEY);
+  } catch {
+    // A failure here costs one repeated sheet, not a lost answer.
+  }
+}

@@ -94,14 +94,14 @@ export default function PowertrainSelector({
           <Label>Drivetrain</Label>
           <Skeleton className="h-10 w-full mt-1" />
         </div>
-        <p className="text-sm text-slate-500">Loading factory configurations...</p>
+        <p className="text-sm text-[color:var(--text-muted)]">Loading factory configurations…</p>
       </div>
     );
   }
 
   if (error || !options) {
     return (
-      <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+      <div className="flex items-center gap-2 text-sm text-[color:var(--attention)] bg-[color:var(--attention-wash)] p-3 rounded-lg border border-[color:var(--attention-border)]">
         <AlertCircle className="h-4 w-4 flex-shrink-0" />
         <span>Could not load powertrain options. This step will be skipped.</span>
       </div>
@@ -167,7 +167,7 @@ export default function PowertrainSelector({
       {options.engine_options.length <= 1 &&
         options.transmission_options.length <= 1 &&
         options.drivetrain_options.length <= 1 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[color:var(--text-muted)]">
             Only one configuration available for this vehicle. Auto-selected.
           </p>
         )}

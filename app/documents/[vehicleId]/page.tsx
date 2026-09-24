@@ -424,7 +424,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
             </div>
             <h3 className="text-lg font-semibold text-white">No service records yet</h3>
             <p className="text-sm text-white/50 mt-2 max-w-md mx-auto">
-              Attach a repair invoice in the Consultant and its line items are read and filed here
+              Attach a repair invoice in the Advisor and its line items are read and filed here
               automatically.
             </p>
             <Button
@@ -433,7 +433,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
               onClick={() => router.push(`/consultant/${params.vehicleId}`)}
             >
               <MessageSquare className="w-4 h-4 mr-2" />
-              Go to Consultant
+              Go to Advisor
             </Button>
           </div>
         )}

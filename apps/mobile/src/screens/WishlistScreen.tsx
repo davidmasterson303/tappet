@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
+import Button from '../components/Button';
 
 import EmptyState from '../components/EmptyState';
 import { apiRequest, ApiRequestError } from '../api/client';
@@ -356,9 +357,7 @@ export function WishlistScreen({ vehicleId, onSignOut }: Props) {
       <View style={styles.centre}>
         <Text style={styles.errorTitle}>Could not load Needs</Text>
         <Text style={styles.errorBody}>{state.message}</Text>
-        <Pressable style={styles.button} onPress={() => void load()} accessibilityRole="button">
-          <Text style={styles.buttonText}>Try again</Text>
-        </Pressable>
+        <Button label="Try again" variant="outline" onPress={() => void load()} />
       </View>
     );
   }

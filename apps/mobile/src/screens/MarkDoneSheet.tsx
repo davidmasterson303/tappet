@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Text, { TextInput } from '../components/Text';
 import Field from '../components/Field';
 import { border, brand, radius, status, surface, text } from '../theme';
@@ -93,7 +93,13 @@ export function MarkDoneSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onCancel}>
-      <View style={styles.root}>
+      {/*
+        23 Sep: the odometer and cost fields raise a number pad with no Done
+        key, and the footer's MARK DONE sat under it until a tap outside
+        dismissed the keyboard. The sheet is its own window, so `padding`
+        with no offset is the right arithmetic (VehicleProfileScreen's note).
+      */}
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.bar}>
           <Pressable onPress={onCancel} hitSlop={12} disabled={saving} accessibilityRole="button">
             <Text style={[styles.barAction, saving && styles.dim]}>Cancel</Text>
@@ -242,7 +248,7 @@ export function MarkDoneSheet({
             <Text style={styles.ctaText}>{saving ? 'Saving…' : 'Mark done'}</Text>
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

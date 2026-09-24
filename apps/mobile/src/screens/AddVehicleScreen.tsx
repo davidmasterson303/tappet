@@ -139,7 +139,7 @@ export function AddVehicleScreen({ onScan, onType }: Props) {
         <BandRow
           index="02"
           label="Type it"
-          detail="Seventeen characters, from the door jamb, the windscreen or your insurance card."
+          detail="Seventeen characters, from the door jamb, the windshield or your insurance card."
           onPress={onType}
           last
         />

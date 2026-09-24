@@ -39,12 +39,13 @@ describe('a question from another tab', () => {
   });
 
   it('reads its origin off the tab the screen stands in, and has a label for every tab it can name', () => {
-    const tabs = { routes: [{ name: 'GarageTab' }, { name: 'PlanTab' }], index: 1 };
+    const tabs = { routes: [{ name: 'CarTab' }, { name: 'PlanTab' }], index: 1 };
     expect(originTabOf({ getParent: () => ({ getState: () => tabs }) })).toBe('PlanTab');
-    expect(originTabOf({ getParent: () => ({ getState: () => ({ ...tabs, index: 0 }) }) })).toBe('GarageTab');
+    expect(originTabOf({ getParent: () => ({ getState: () => ({ ...tabs, index: 0 }) }) })).toBe('CarTab');
     // No parent state (a screen rendered on its own): the garage is the
     // honest default — every dossier begins there.
-    expect(originTabOf({})).toBe('GarageTab');
+    /* ⚠ 23 Sep: the car is the fallback, because it is the first tab now. */
+    expect(originTabOf({})).toBe('CarTab');
     for (const label of Object.values(ORIGIN_LABELS)) expect(label.length).toBeGreaterThan(0);
   });
 });

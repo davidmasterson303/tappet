@@ -94,11 +94,21 @@ export function RemoveVehicleScreen({ vehicleId, onSignOut, onRemoved, onKeep }:
     if (state.kind !== 'ready' || state.removing) return;
     setState({ ...state, removing: true, failure: null });
     try {
-      await apiRequest(`/vehicle-removal?vehicleId=${encodeURIComponent(vehicleId)}`, { method: 'DELETE' });
+      // A purge of objects and rows can outlive the 20 s default; and a car
+      // that is already gone (a retry after a timeout) answers 404, which is
+      // the outcome that was asked for, not a failure.
+      await apiRequest(`/vehicle-removal?vehicleId=${encodeURIComponent(vehicleId)}`, {
+        method: 'DELETE',
+        timeoutMs: 45_000,
+      });
       onRemoved();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isLocallySignedOut) {
         onSignOut();
+        return;
+      }
+      if (error instanceof ApiRequestError && error.status === 404) {
+        onRemoved();
         return;
       }
       // The route's own sentence — a refused purge says what stayed and why.

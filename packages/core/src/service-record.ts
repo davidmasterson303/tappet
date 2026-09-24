@@ -206,7 +206,7 @@ export function describeRemoval(record: ServiceRecord): string {
   }
 
   if (record.is_combined) {
-    parts.push('This row covers labour and its parts together — all of it goes.');
+    parts.push('This row covers labor and its parts together — all of it goes.');
   }
 
   parts.push('Anything due is worked out from these records, so removing it may change a due date.');

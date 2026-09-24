@@ -3353,6 +3353,192 @@ not have named, both on the live reviewer account:
 234/234 suites, 4,123 tests; tsc clean in both. `web-live` promoted
 twice for the server halves (`c6082366`, `4356a034`).
 
+**Three placements, later the same day — and the one that a device
+overruled.** David moved the page's act twice and settled where a
+sub-navigation lands:
+
+- *SCAN INVOICE leaves the hero plate.* It was a pinned pill on the nav
+  row over the photograph; it is a full-width primary at the head of the
+  lower sheet, above WHAT YOU TOLD US (*"remove from there, put new
+  button above 'what you told us' section"*). ⚠ **UX U1's "reachable at
+  rest, no scroll" is spent**, and the docblock says so rather than
+  being left arguing for a placement that is gone — on a tall display
+  the act is below the fold now, and what it buys is a plate with
+  nothing floating on it. `dialChip` and `pill` go with it.
+- *The act reached the Health screen and was taken back the same day.*
+  It was asked for, placed under WHAT IS DRIVING IT, moved above that
+  divider when a device showed the first slot wedged between two dense
+  blocks — and then cut: *"i dont think we need button there, it now
+  feels redundant with button in #1."* Which it is, and the move above
+  is what made it so: the act had just left the plate for the head of
+  the hub's lower sheet, one tap away at full width, so a second filled
+  primary on the screen the hub opens is one act asked for twice.
+  ⚠ **The screen now carries no filled primary at all**, deliberately,
+  and both the reasoning and a guard live with it
+  (`HealthScreen.test.tsx`) — an explanation with no act on it is what a
+  later critic asks to "fix".
+
+  Two things worth keeping from the hour it existed. The **placement
+  reasons generalise** to any act on a long screen: under the drivers
+  card it landed wedged between that card's note and the recall chip;
+  proximity made it read as the recalls section's act rather than the
+  drivers'; and nine tappable controls followed it, so a tenth in a
+  different style was noise rather than emphasis. And the **copy rule**
+  stands wherever this act lands next: say what it *does*, never what it
+  achieves. A button under a number that promised the number would move
+  is the defect family this codebase keeps naming — the scan sweep that
+  depicted an examination nobody performed, the hero timer that counted
+  nothing, the quote bar that reached 100% mid-flight.
+- *History is the Service screen's leftmost segment.* David: *"either
+  flip them, or land user on Due."* The landing stayed and the control
+  moved, because landing on Due would have reversed his 30 Aug call
+  (the tab opens the record) to satisfy a rule about ordering. Held in
+  `mobile-tab-roots.test.ts` **against** the screen's own order: the
+  landing is a value in `tab-target.ts`, the order is a JSX literal,
+  and nothing at runtime relates them.
+
+⚠ For Design: the hub carries the one filled primary, and the Health
+screen carries none — counted by label ink in both suites, zero being
+the stronger statement. Mobile 54/54 suites, 927 tests; root 234/234,
+4,126.
+
+### 6.23 The garage and the car were one screen — the switcher loop, 22 Sep
+
+David: *"how can we make Garage and Car tabs feel less redundant? Ideate
+before implementing … put on your product hat and eval from jobs to be
+done POV."*
+
+**The finding, measured rather than felt.** A garage bay draws the plate
+photograph, the name, the MILEAGE/TRIM/USE strip, the health dial with its
+band word, NEXT SERVICE and OPEN RECALLS. **Every one of those six is on
+the car's hub a tap later**, in the same form or a fuller one. The garage
+was not a different view of the car; it was the hub with things removed,
+one tap from the hub. Two tells beyond the duplication:
+
+- **The garage is a pager**, one car on screen at a time. That does the
+  *switch* job and cannot do the *compare* job — "does anything need me,
+  across my cars?" takes three swipes and a memory. Which matters because
+  the compare job is the decided one: `cc-product-0001` (advisor KB,
+  verified, high confidence) names mobile as three flows, and one is
+  *"glance at garage health"*. The pager is the one shape that cannot
+  serve it. ⚠ The KB was otherwise **silent** on garage-versus-hub — best
+  similarity 0.55 against a 0.57 threshold on a healthy local index —
+  so nothing had been decided and this is the first record of it.
+- **Tapping a bay changed the selected tab programmatically**
+  (`openCarTab`), which tab-bar guidance warns against: a tab changes when
+  the user picks it and not otherwise.
+
+Outside, the same problem has a settled answer. Tesla — multiple owned
+things, each with a rich detail view — has **no list tab at all**: it
+opens on a product, and the set is a dropdown beside its name plus a swipe
+between products. NN/g and the Android pattern docs name what the garage
+tab produces (*pogo-sticking*, bouncing between a list and a detail) and
+the documented fix is swiping to the next detail rather than a better list.
+
+David ruled on the three directions offered: *"a and c are ruled out for
+the subpar solution to single car owner, which is not an edge case at all
+… let's try b. but this is a major change, so we must have an authentic
+run of design critic loop and we must hit a 9 or a 10."*
+
+**The premise, and what had to be answered before the concepts.** Four
+tabs — CAR · ADVISOR · SERVICE · PLAN — the set as a control on the car,
+so a one-car owner never meets a set UI at all. Two things the garage tab
+did had to keep working and belong to the structure rather than to any
+concept: **adding a car**, and **the cold start** — `withCar` drew *"Open
+a car in the garage and this tab follows it"*, which names a place that no
+longer exists. `FirstCar` opens the owner's first car instead and offers
+to add one only when there are none; opening nothing would leave a blank
+screen that reads as an empty garage.
+
+**Three concepts, built as real screens** on the reviewer account's three
+cars — the fixture garage holds one, and a switcher between one car cannot
+be judged — behind a dev gate so `main` stayed the five-tab app:
+
+- **A · NAME RAIL** — `BayRail`'s own construction moved onto the car:
+  mono short names under the plate, the lit one ruled in cyan, `+` at the
+  end. Cost: the only concept whose width grows with the set.
+- **B · THE NAME IS THE DOOR** — the name takes the door's mark and opens
+  a sheet listing every car. Costs no element at rest and nothing at all
+  on a one-car account; the sheet is the one thing the hub cannot be,
+  every car at once.
+- **C · PLATE SHELF** — a shelf of 104×64 plates, switching by
+  recognition rather than reading. Cost: a row of photographs under a
+  photograph.
+
+**The pick, blind, with the shipped structure as a fourth candidate: B —
+and the shipped structure ranked last**, as the shipped hub did on 13 Sep.
+The critic reached David's own conclusion from the frames alone (*"the
+right switcher is absent for the majority and a list for the rest"*) and
+named the incumbent's two faults without being told what it was: a fifth
+tab spent on one job, and a CAR tab reading NO CAR CHOSEN on an account
+holding three cars.
+
+**The loop: 6 → 7 → 7 → 7 → 8 → 9, `Continue: no`.**
+
+- **1.** The affordance (`CAR 01 OF 03` over the name), and the sheet's
+  geometry — the 8pt cut, the head's count, `01/02/03` indices.
+- **2.** The switch became a crossfade; `ADD A CAR` became the table's
+  last row rather than a footer over a hole; the plate's type left with
+  the sheet's rise.
+- **3.** The switch **witnessed**. `scripts/movie-frames.swift` walks a
+  simctl recording with `AVAssetReader` — there is no ffmpeg here — and
+  with `scripts/frame-rows.swift` puts a number on it: 93.5 → 48.2 over
+  283ms, monotonic, no graphite frame. It also found two defects no still
+  could: the incoming car's **name set over the outgoing car's plate**,
+  and a crossfade that had been running while the page was still in its
+  *loading* branch with nothing on screen.
+- **4.** The dial — see below. Plus the whole dossier arriving on the
+  crossfade rather than only the name, the set held from the last read so
+  the eyebrow is on the first frame, and the sheet's reading as a column.
+- **5.** Under the scrim, only the photograph reads.
+
+⚠ **The loop's most valuable find was not the switcher.** Reading four
+frames of a switch, the critic counted the health numeral at 72, 90, 99,
+**100** on a car whose reading is 68, beside the sentence saying what was
+holding that score back. `useIgnitionSweep` ran the dial's appear as a
+car's ignition sweep — 0 → 100 → settle, 420/480 — on **every mount of
+every dial in the app**: the garage bays, the car's page, the health
+screen. On a needle over a scale that is a gesture; driving a numeral it
+is a claim, and §10 has no exemption for an animation curve. *"A numeral
+is not a needle."* One curve now, 0 → the reading, 600ms.
+
+⚠ **And the guard was green the whole time.** It asserted the sweep
+*landed* on the reading and not on 100 — written against the end state,
+because that was the failure imagined when it was written. The path was
+never sampled. The new case collects every value the numeral takes during
+the animation and holds the maximum to the reading; restored against the
+old code it fails at 82 for a 61 car, which was checked rather than
+assumed. This is CLAUDE.md §5's pattern arriving in motion rather than in
+a scan: *a guard that is green while the defect is on screen.*
+
+**Recorded deviations — for Design:**
+
+- *`CAR 01 OF 03`, not `BAY 01`.* The critic asked for the brief's bay
+  line; a bay is a slot in a place and this structure has no place.
+- *Absent on a one-car account*, against the critic's *"a one-car owner
+  reads BAY 01 alone"*: `BayRail`'s R20 rule — a pager for a list that
+  cannot be paged is chrome — and a count of a set nobody has is the same.
+- *The sheet's head is `SectionHeader`*, not the mono the critic asked
+  for: a second head idiom in one sheet is the §6.13 drift arriving again.
+- *The dial's appear is 600ms and no longer an ignition sweep.* B3's
+  "draws in with one haptic" is unchanged; what is gone is the overshoot.
+
+**⚠ What is still David's.** The structure sits behind
+`EXPO_PUBLIC_CAR_FIRST` (`dev/car-first.ts`), one line from being the app.
+He ordered those five tabs on 21 Sep in that order and for stated reasons;
+a loop reaching 9 says the replacement is good, not that the trade was
+his to have made for him. What he would be trading: the garage as a
+destination, its photography at full size, and ADD CAR's place in a
+masthead — against a one-car owner never meeting a set UI, a switcher
+that compares, and a tab back.
+
+**The numbers.** Mobile jest in band 54/54 suites, 928 tests; root
+234/234, 4,126; tsc clean in both. Frames, the four candidates, `pick.md`
+and the rounds: `design-loop/mobile-ios/concepts/switcher/` and
+`switcher-01/` … `switcher-05/` — **gitignored**, so this section and the
+commit messages are the record.
+
+
 ---
 
 ## 12. The identity, redrawn against a design critic — 7 Sep 2026
@@ -3797,3 +3983,108 @@ other. Both were left identical on purpose — one treatment for "the product
 is speaking" until Design says otherwise. `components/ConsultantChat.tsx`
 carries the flag (`isFailure`); the phone shows the same sentences under the
 composer, where its refusals already live, and needed no new treatment.
+
+### 6.24 The switcher's handle moved, and the floor under the plate was not there — 23 Sep
+
+David, on the switcher the loop had just taken to 9/10: *"i love the concept
+and the car selector menu after tap of chevron/carrot, but the carrot/chevron
+is perhaps not obvious for all users. let's replace w/ a more obvious cta in
+top right or top left … in accessibility review in critic loop this time, i'm
+worried about small fonts and contrast in some cases."*
+
+**The handle.** `CarSheetMark` — a 22pt `chevron-down` beside the car's name —
+is deleted. `components/switcher/CarSwitch.tsx` is a labelled control in the
+nav row's trailing slot: `YOUR CARS` plus a chevron, mono at the 12pt floor,
+`text.primary` on an opaque `surface.nav` cut surface, drawn 32pt inside a
+44pt press target. The slot it takes had been **reserved and empty since
+22 Sep**, when ADD PHOTO moved into the car's details (IA I3) and ACCOUNT
+stopped floating over a car's page (IA I8) — 150pt held open for a control
+that no longer existed, with the arriving nav title truncating against it.
+
+⚠ The chevron was not only quiet, it was **contradicted**. On a multi-car
+account the name opened the *switcher* while the legend 14pt under it read
+`This car ›` and `detailsDoor`'s accessibility label promised "mileage, your
+answers, the photo, removal". A sighted owner got the wrong word and a screen
+reader the wrong sentence. The name opens the car again on every account.
+
+**The flag was a live defect.** `dev/car-first.ts` gated the switcher behind
+`EXPO_PUBLIC_CAR_FIRST`, which is `__DEV__`-only — and the navigator had
+already dropped the Garage tab unconditionally. A release build would have had
+no garage tab *and* no switcher: a three-car account could reach exactly one
+car. All 54 suites were green, because a flag that is off in production is off
+under jest too. The flag is deleted and the switcher is the app.
+
+**The floor under the plate had stopped reaching the type.** `HeroBed` is the
+mechanism that makes type over an owner's photograph legal here — web's rule
+is that nothing is printed over a photograph, and the phone satisfies the rule
+underneath it (*no type whose contrast depends on the photograph*) with a
+guaranteed dark floor. Its stops were fixed fractions: 0.95 at the hero's
+foot, 0.55 at 22%, **zero at 52%**. Correct when written. Then the block grew
+three times — the stat strip, the `THIS CAR` legend, and on 22 Sep the
+switcher's own `CAR 01 OF 03` eyebrow — until its top sat at ~48%, where the
+bed delivered **0.08**. Worst case on a bright sky, computed from those stops:
+
+```
+  THIS CAR legend   bed 0.65   2.92:1
+  MILEAGE label     bed 0.46   1.94:1
+  the car's name    bed 0.25   1.61:1
+  CAR 01 OF 03      bed 0.08   1.09:1
+```
+
+Every string on the plate under AA, and the largest type on the screen at
+1.61:1. Nothing failed: the screen's own style sheet said the type was *"Legal
+here because of `HeroBed`'s guaranteed floor"*, and every captured round of the
+loop was shot against a night photograph, which is the one input that hides it.
+
+The bed is driven by the block now (`coverTo`, from the identity block's
+measured extent) and holds `COVER_FLOOR` across the type, easing off above
+**and below** it. Three numbers are load-bearing and each is derived rather
+than chosen:
+
+- **0.68** is what `text.secondary` needs to clear AA at 12pt over a white
+  photograph. `text.primary` needs 0.583; `text.muted` needs **0.837**, which
+  is a scrim heavy enough to lose the car — so nothing on the plate may be
+  muted, and `StatStrip` gained an `onPhoto` prop that collapses its ink
+  ladder to one rung.
+- **One rung survives**, because a test insisted: `stat.muted` is the ask
+  ("Tell us") standing where a fact would, David's 22 Sep ruling, and a
+  question set in a fact's ink is not a question. It takes `text.secondary` on
+  the photograph, which is why the floor is set at secondary's number and not
+  primary's.
+- **The plateau starts at 14%**, under `THIS CAR`. Holding the floor to the
+  hero's foot took the last 40pt of photograph to luminance 9.3 against the
+  panel's 15.1 — the plate ended up darker than the surface it sits on, and
+  the 45° cut that lives on that edge had nothing to read against.
+
+**Edges: `border.panel` is too quiet to carry the geometry.** Three critics in
+a row reported the car sheet's cut as absent and two reported the collapsed
+bar as having no bottom rule. Pixel scans found all of them present — the bar's
+rule one row at 32.3 against 13.6, the sheet's cut an 8pt diagonal six
+luminance points from its ground. Round 46's finding, on the same surface:
+*"a cut nobody can see does not meet the line."* The nav plate's rule, the
+plate's cut and the sheet's cut take `border.field` (0.14); seams between two
+still bands keep `panel`.
+
+**Guards.** The switcher had shipped at 9/10 with **no test of any kind** —
+not the sheet, not `car-set`, not the cold start. `components/switcher/
+__tests__/car-switch.test.tsx` and `components/__tests__/hero-bed.test.ts` are
+its first: the affordance exists on a three-car account and is absent on one
+car; the name opens the car; the control's ground is opaque and declared to
+the contrast audit; the 44pt floor is asserted on the **press target**, not the
+drawn box; every string on the hub and in the sheet clears AA and 12pt; the
+bed's floor holds across the block at both ends; and an anti-vacuous case
+evaluates the *shipped* stops so the old bed cannot come back green. Verified
+red against the defect: four of the first seven fail with the flag off.
+
+⚠ **Where the loop stopped, and why it is David's call.** Rounds scored
+7 → 7 → 8 → 7 across four fresh critics, and the switcher was called finished
+in each: *"the right answer — labelled, in the nav slot, its own guaranteed
+floor, persistent on scroll"*, *"it is done."* What holds the score is the
+hero, and the last two rounds **contradict each other about the same edge**:
+round 9 praised the plate's foot matching the panel's tone (*"the photograph
+dissolves into the instrument instead of sitting on it as a darker slab"*),
+round 10 asked for the opposite (*"hold the photograph's asphalt tone to the
+foot so the notch reads"*). Its other open asks are a **different crop of the
+owner's photograph**, which the app does not control, and the type scale on
+WHAT YOU TOLD US, which predates this change. Per the loop's own rule, that is
+where it is handed back rather than resolved.

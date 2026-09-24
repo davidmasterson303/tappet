@@ -179,6 +179,6 @@ describe('describeQuote — the sentence the front door returns', () => {
     // does not cover the same work.
     const sentence = describeQuote({ quoted: 400, range, job: 'a timing belt' });
     expect(sentence.toLowerCase()).toContain('below the usual range');
-    expect(sentence.toLowerCase()).toContain('same parts and labour');
+    expect(sentence.toLowerCase()).toContain('same parts and labor');
   });
 });

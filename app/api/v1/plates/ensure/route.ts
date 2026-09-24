@@ -43,11 +43,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!Number.isInteger(year) || !make || !model) {
     return Response.json({ success: false, error: 'Need a year, make and model' } as ApiResponse, { status: 400 });
   }
+  // Bounded: a novel make/model pair reaches a model call (23 Sep).
+  const trim = typeof body.trim === 'string' ? body.trim.trim() : '';
+  if (make.length > 60 || model.length > 60 || trim.length > 60 || year < 1900 || year > 2100) {
+    return Response.json({ success: false, error: 'That does not look like a car' } as ApiResponse, { status: 400 });
+  }
   const result = await ensurePlate({
     year,
     make,
     model,
-    trim: typeof body.trim === 'string' ? body.trim : null,
+    trim: trim || null,
   });
   return Response.json({ success: true, data: result });
 }

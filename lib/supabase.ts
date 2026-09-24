@@ -184,7 +184,7 @@ export type Database = {
     maintenance_schedule: any;
     fluid_specs: any;
     common_mods: any;
-    reliability_score?: number;
+    reliability_score?: number | null;
     last_research_date: string;
     research_status: 'pending' | 'completed' | 'failed' | 'unsupported';
     created_at: string;

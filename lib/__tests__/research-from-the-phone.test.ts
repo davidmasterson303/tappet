@@ -27,6 +27,8 @@ const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\
 /* The job's reads and writes, mocked at the seam. */
 const seeded: { row: Record<string, unknown> | null } = { row: null };
 const updates: Array<Record<string, unknown>> = [];
+/** Whether the conditional marker write returns the row — i.e. this request claimed the job. */
+const claim = { won: true };
 jest.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => ({
     from: () => ({
@@ -35,7 +37,14 @@ jest.mock('@/lib/supabase', () => ({
       }),
       update: (values: Record<string, unknown>) => {
         updates.push(values);
-        return { eq: () => Promise.resolve({ error: null }) };
+        // The conditional claim: `data` is the row when this request won it.
+        return {
+          eq: () => ({
+            or: () => ({
+              select: () => Promise.resolve({ data: claim.won ? [{ vehicle_id: 'v1' }] : [], error: null }),
+            }),
+          }),
+        };
       },
     }),
   }),
@@ -113,6 +122,38 @@ describe('startResearch — idempotent, and it never spends on a dossier that ex
     expect(updates[0]).toMatchObject({ research_status: 'pending' });
     expect(typeof updates[0].last_research_date).toBe('string');
     expect(Date.parse(updates[0].last_research_date as string)).toBeGreaterThan(Date.parse(created));
+  });
+
+  it('a request that did not win the marker does not trigger a second job', async () => {
+    /*
+      23 Sep: two POSTs arriving together both read a row that was not in
+      flight and both triggered — two Pro dossiers for one car. The marker
+      write is conditional now; the request whose write returns no row
+      reports `researching` and hands nothing off.
+    */
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 202 } as Response);
+    const previous = { URL: process.env.URL, CRON_SECRET: process.env.CRON_SECRET };
+    process.env.URL = 'https://example.test';
+    process.env.CRON_SECRET = 'secret';
+    try {
+      const created = ago(5_000);
+      seeded.row = { research_status: 'pending', last_research_date: created, created_at: created };
+
+      claim.won = false;
+      expect(await startResearch('v1')).toBe('researching');
+      expect(updates).toHaveLength(1);
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // Anti-vacuous: the same row, and the write that wins, does hand off.
+      claim.won = true;
+      expect(await startResearch('v1')).toBe('researching');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      claim.won = true;
+      fetchSpy.mockRestore();
+      process.env.URL = previous.URL;
+      process.env.CRON_SECRET = previous.CRON_SECRET;
+    }
   });
 
   it('a failed row starts again — that is the retry, and the sweep never offers a failed car', async () => {

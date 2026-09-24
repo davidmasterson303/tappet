@@ -281,7 +281,7 @@ export function SettingsView({
                         }`}
                       >
                         {unit}
-                        <span className="sr-only">{unit === 'mi' ? ', miles' : ', kilometres'}</span>
+                        <span className="sr-only">{unit === 'mi' ? ', miles' : ', kilometers'}</span>
                       </button>
                     );
                   })}
@@ -325,7 +325,7 @@ export function SettingsView({
               tone="critical"
             >
               <p className="mb-4 max-w-prose text-sm text-muted-foreground">
-                This deletes your vehicles, maintenance history, uploaded invoices and consultant
+                This deletes your vehicles, maintenance history, uploaded invoices and advisor
                 conversations. It cannot be undone, and we cannot recover it for you afterwards.
               </p>
               {/*
@@ -344,6 +344,11 @@ export function SettingsView({
             </SettingsSection>
           </div>
         </div>
+        <footer className="mt-10 border-t border-white/6 pt-6 text-xs text-white/50 flex items-center gap-4">
+          {/* 23 Sep: the pages existed and nothing on the site linked to them. */}
+          <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+        </footer>
       </main>
 
       <DeleteAccountDialog

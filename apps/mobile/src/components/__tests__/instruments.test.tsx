@@ -207,8 +207,8 @@ describe('ClusterGauge', () => {
 
   it('finishes the sweep on the reading and not on the end of the scale', async () => {
     /*
-      The sweep runs 0 → 100 → settle. A mis-sequenced one lands on 100, which
-      would read as a perfect score on every car.
+      A mis-sequenced draw-in lands on 100, which would read as a perfect
+      score on every car.
     */
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
 
@@ -216,6 +216,49 @@ describe('ClusterGauge', () => {
 
     await waitFor(() => view.getByText('61'), { timeout: 3000 });
     expect(view.queryByText('100')).toBeNull();
+  });
+
+  it('never draws a number above the reading on its way there (22 Sep)', async () => {
+    /*
+      ⚠ **The case above was green while this was broken**, and that is the
+      point of writing this one down. It asserted where the sweep *lands*;
+      the sweep ran **0 → 100 → settle**, so a 61 car rendered 72, 90, 99 and
+      100 at display size on every appearance, for about 400ms, beside a
+      sentence about what was holding the score down. A design critic found
+      it in four frames of a screen recording, not in a test — the guard was
+      written against the end state because that was the failure imagined at
+      the time.
+
+      So this samples the **path**: every value the numeral takes while the
+      animation runs, against the reading it is going to. The rule is §10's —
+      no claim the data cannot support — and an animation is not exempt from
+      it.
+    */
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+
+    const seen: number[] = [];
+    const view = await render(<ClusterGauge score={61} />);
+
+    /*
+      Stepped by hand rather than waited on: `waitFor` samples when the tree
+      settles, which is exactly when the overshoot is over. 40ms × 20 covers
+      the 600ms draw-in with frames to spare.
+    */
+    for (let i = 0; i < 20; i += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime?.(40);
+        await Promise.resolve();
+      });
+      const numeral = view.queryAllByText(/^\d+$/).map((node) => Number(node.props.children));
+      seen.push(...numeral.filter((value) => Number.isFinite(value)));
+    }
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(Math.max(...seen)).toBeLessThanOrEqual(61);
+
+    /* Anti-vacuous: the reader can see a number above the reading when one is drawn. */
+    const over = await render(<ClusterGauge score={61} active={false} />);
+    expect(over.queryAllByText(/^\d+$/).length).toBeGreaterThan(0);
   });
 
   it('bands from the target, so the face never cycles on its way to a reading', async () => {

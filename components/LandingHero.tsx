@@ -155,7 +155,7 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
           <h1 className="display-serif text-4xl sm:text-5xl md:text-[4.5rem] text-white leading-[1.08] tracking-tight">
             Your personal
             <br />
-            auto-ownership consultant
+            auto-ownership advisor
           </h1>
         </motion.div>
 

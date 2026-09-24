@@ -210,7 +210,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             {addedToWishlist ? (
               <Badge className="bg-green-500/20 text-green-300 border-green-500/30 w-full justify-center py-2">
                 <Plus className="h-3 w-3 mr-1" />
-                Added to Wishlist
+                Added to Needs
               </Badge>
             ) : (
               <Button
