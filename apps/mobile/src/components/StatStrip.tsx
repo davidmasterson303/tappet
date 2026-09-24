@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Text, { typeScale } from './Text';
+import Text from './Text';
 import Icon from './Icon';
 
 import { TABULAR, border, space, text, type } from '../theme';
@@ -90,14 +90,18 @@ export default function StatStrip({ stats, onPhoto = false }: { stats: Stat[]; o
           <Text style={[styles.label, onPhoto && styles.onPhoto]} numberOfLines={1}>
             {stat.label}
           </Text>
-          {/* A value wraps rather than losing its end once the text is larger (21 Sep: "Daily Dri…"). */}
+          {/*
+            A value wraps rather than losing its end (21 Sep: "Daily Dri…").
+            Two lines at every size since 24 Sep: at 15pt "Daily Driver" is
+            108pt of JetBrains Mono in the 16 Pro plate's ~97pt third.
+          */}
           <Text
             style={[
               styles.value,
               stat.muted && styles.valueMuted,
               onPhoto && (stat.muted ? styles.askOnPhoto : styles.onPhoto),
             ]}
-            numberOfLines={typeScale() > 1 ? 2 : 1}
+            numberOfLines={2}
           >
             {stat.value}
           </Text>
@@ -161,7 +165,14 @@ const styles = StyleSheet.create({
     eyebrow names what follows and takes the grotesk with the other heads.
   */
   label: { ...type.monoLabel, color: text.muted, textTransform: 'uppercase' },
-  value: { ...type.mono, color: text.primary, ...TABULAR },
+  /*
+    ⚠ 24 Sep · 15, from `type.mono`'s 13. David: *"fix the stat strip font
+    sizes too"*, after the car panel's readings moved to 15 (drift §6.25).
+    The value is the strip's reading; the eyebrow and note stay
+    `monoLabel` at the 12pt floor with every other label, which is
+    Design's question, not this component's.
+  */
+  value: { ...type.mono, fontSize: 15, lineHeight: 20, color: text.primary, ...TABULAR },
   valueMuted: { color: text.muted },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   /* The value's provenance: the eyebrow's face and ink, sentence case, under the value. */

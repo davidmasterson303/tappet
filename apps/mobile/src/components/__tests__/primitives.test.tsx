@@ -12,6 +12,7 @@ import ProvenanceRow from '../ProvenanceRow';
 import RecallBand from '../RecallBand';
 import RowActions from '../RowActions';
 import SearchField from '../SearchField';
+import StatStrip from '../StatStrip';
 import {
   CONTROL_HEIGHT,
   FIELD_FONT_MIN,
@@ -873,5 +874,26 @@ describe('SearchField — one search box, not two', () => {
     const typed = await mount('oil');
     await userEvent.setup().press(typed.view.getByLabelText('Clear the search'));
     expect(typed.onChange).toHaveBeenCalledWith('');
+  });
+});
+
+/**
+ * ── StatStrip — the value is the reading (24 Sep) ────────────────────────────
+ *
+ * The value moved from `type.mono`'s 13 to 15 (drift §6.25), and at 15 "Daily
+ * Driver" is wider than the 16 Pro plate's third — so the value wraps to two
+ * lines at every size rather than ending "Daily Dri…". The eyebrow stays the
+ * 12pt label.
+ */
+describe('StatStrip', () => {
+  it('sets the value at 15 over a 12pt eyebrow, and lets it wrap rather than truncate', async () => {
+    const view = await render(
+      <StatStrip stats={[{ label: 'Mileage', value: '66,000 mi' }, { label: 'Use', value: 'Daily Driver' }]} />
+    );
+    // Found at all — a strip that rendered nothing would pass every assertion below vacuously.
+    const value = view.getByText('Daily Driver');
+    expect(flat(value.props.style).fontSize).toBe(15);
+    expect(value.props.numberOfLines).toBe(2);
+    expect(flat(view.getByText('Mileage').props.style).fontSize).toBe(12);
   });
 });

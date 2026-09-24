@@ -4131,5 +4131,8 @@ string on the panel, on every door it has.
 2. **The 12pt legend in `text.muted`** is the label of every door on the
    panel. The floor is right as a floor; whether a *door's* label should sit
    at it, in the quietest ink, is the question.
-3. **The stat strip on the plate** (`MILEAGE 66,000 mi`) is 12/13 too, and is
-   shared with the garage — not touched here.
+3. **The stat strip** (`MILEAGE 66,000 mi`, on the car's plate, the garage bay
+   and the tires screen) — done the same day on David's word: the value
+   13 → 15, wrapping to two lines at every size, since at 15 "Daily Driver"
+   is ~108pt of mono in the 16 Pro plate's ~97pt third. The eyebrow and the
+   note (`6 WK AGO ›`) stay at the 12pt label floor, which is question 2.
