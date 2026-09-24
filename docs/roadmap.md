@@ -98,9 +98,15 @@
 >   `7c79067` (22 Sep); none of today's legal-link, copy, header or API fixes
 >   are on it. Then read `/api/version` for the merge commit, and check the
 >   product host's console for CSP report-only violations before enforcing.
-> - **Rate-limit migration `20260824110000` is not applied** — the limiter is
->   on its read-then-insert fallback (five rows for one identifier and window
->   in `rate_limit_entries` prove it). SQL editor.
+> - ~~**Rate-limit migration `20260824110000` is not applied**~~ — ✅ **applied
+>   and verified 24 Sep.** It had never run: it died on `min(uuid)` (`42883`)
+>   the first time David pasted it. Fixed, tested on a local Postgres, then
+>   applied; Cowork verified on production over REST (1 then 2, a deliberate
+>   duplicate refused with `23505`, zero duplicate windows, probe removed).
+>   The read-then-insert fallback in `lib/rate-limit.ts` is deleted, and
+>   `rate-limit-atomic.test.ts` holds that it stays deleted. **Takes effect on
+>   the next `promote-web`**, and the log line to watch is then
+>   `RATE_LIMIT:RPC_FAILED`, not `RPC_MISSING`.
 > - **Gemini prepay balance.** `ai_usage_events` cannot compute it: the plate
 >   and plate-image REST calls bypass the meter entirely, which is also why
 >   the table's burn (~$0.02/day) is an order below `lib/gemini.ts`'s $0.66.

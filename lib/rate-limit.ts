@@ -55,20 +55,21 @@ export async function checkRateLimit(
       What it replaces was read-then-insert against a table with **no unique
       constraint**, and the consequence was not a lost count. Two concurrent
       requests both inserted; every later `.maybeSingle()` in that window hit two
-      rows, PostgREST answered `PGRST116`, and that landed in the `fetchError`
-      branch below — which **returns `allowed: true` with a full allowance**.
+      rows, PostgREST answered `PGRST116`, and that landed in its `fetchError`
+      branch — which **returns `allowed: true` with a full allowance**.
       The limiter switched off for that identifier for the rest of the window,
       and an attacker triggered it deliberately with two parallel requests at
       each boundary. It defeated the `ai` (10/min) and `upload` (5/min) tiers,
       the two standing in front of Gemini spend.
 
-      ⚠ The fallback below is **not** dead code and must not be deleted as
-      such. `CLAUDE.md` §2: the database and the migrations folder disagree in
-      both directions, and this function arrives in `20260824110000`. A deploy
-      carrying this file can reach production before somebody runs it, and a
-      limiter that throws because an RPC is missing is a limiter that takes the
-      product down. It is loud and it is temporary — delete it once the
-      migration is confirmed applied.
+      ⚠ **There is no second path.** Until 24 Sep this function fell back to
+      the old read-then-insert when the RPC was missing, because the migration
+      that creates it had been committed but never applied — and, it turned
+      out, could not be: `20260824110000` died on `min(uuid)` the first time
+      anyone ran it, a month after it landed. Fixed, applied and verified on
+      production that day (1 then 2, and a deliberate duplicate refused with
+      `23505`), so the fallback went with it. Keeping it would have kept the
+      race it exists to close one silent RPC error away.
     */
     const { data: atomicCount, error: rpcError } = await client.rpc('consume_rate_limit', {
       p_identifier: identifier,
@@ -100,91 +101,20 @@ export async function checkRateLimit(
       };
     }
 
+    /*
+      Fails open, like every other error here: a database hiccup must not take
+      the product down. It is logged at `error` rather than `warn` because the
+      function exists and is granted, so reaching this is an outage or a
+      permissions regression, never an expected state.
+    */
     logger.error(
-      'RATE_LIMIT:RPC_MISSING',
-      new Error(
-        `consume_rate_limit is unavailable (${rpcError?.code ?? 'no result'}) — run migration 20260824110000`
-      ),
+      'RATE_LIMIT:RPC_FAILED',
+      new Error(`consume_rate_limit failed (${rpcError?.code ?? 'no result'})`),
       { tier }
     );
-
-    /*
-      ⚠ **Summed, not `.maybeSingle()`.** Without the unique constraint a window
-      can genuinely hold more than one row, and asking for a single one turns
-      that into an error which fails *open*. Adding the counts up is the honest
-      reading — every row records requests that actually happened — and it makes
-      the duplicate-window state costly to the attacker rather than free.
-    */
-    const { data: rows, error: fetchError } = await client
-      .from('api_rate_limits')
-      .select('id, request_count')
-      .eq('identifier', identifier)
-      .eq('endpoint', tier)
-      .eq('window_start', windowStart.toISOString())
-      .order('id', { ascending: true });
-
-    const existing =
-      rows && rows.length > 0
-        ? {
-            id: rows[0].id,
-            request_count: rows.reduce((sum, row) => sum + (row.request_count ?? 0), 0),
-          }
-        : null;
-
-    if (fetchError) {
-      logger.warn('RATE_LIMIT:FETCH', 'Failed to fetch rate limit record, allowing request', {
-        identifier,
-        tier,
-        error: fetchError.message,
-      });
-      return {
-        allowed: true,
-        remaining: config.maxRequests,
-        resetAt,
-        retryAfterSeconds: 0,
-      };
-    }
-
-    if (existing) {
-      const newCount = existing.request_count + 1;
-      const allowed = newCount <= config.maxRequests;
-
-      if (allowed) {
-        await client
-          .from('api_rate_limits')
-          .update({ request_count: newCount, updated_at: now.toISOString() })
-          .eq('id', existing.id);
-      } else {
-        logger.warn('RATE_LIMIT:EXCEEDED', 'Rate limit exceeded', {
-          identifier,
-          tier,
-          count: newCount,
-          limit: config.maxRequests,
-        });
-      }
-
-      const retryAfterSeconds = allowed ? 0 : Math.ceil((resetAt.getTime() - now.getTime()) / 1000);
-
-      return {
-        allowed,
-        remaining: Math.max(0, config.maxRequests - newCount),
-        resetAt,
-        retryAfterSeconds,
-      };
-    }
-
-    await client.from('api_rate_limits').insert({
-      identifier,
-      endpoint: tier,
-      window_start: windowStart.toISOString(),
-      request_count: 1,
-    });
-
-    cleanupExpiredWindows(client, tier);
-
     return {
       allowed: true,
-      remaining: config.maxRequests - 1,
+      remaining: config.maxRequests,
       resetAt,
       retryAfterSeconds: 0,
     };
