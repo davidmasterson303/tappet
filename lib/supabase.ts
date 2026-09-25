@@ -31,7 +31,12 @@ export const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   '';
 
-/** Server-only key: the modern secret key, and only that. Never expose. */
+/**
+ * Server-only key: the modern secret key, and only that. Never expose.
+ *
+ * The anon pair keeps both names on purpose: the legacy anon JWT still
+ * answers 200 (measured 24 Sep).
+ */
 function getSecretKey(): string {
   return process.env.SUPABASE_SECRET_KEY || '';
 }
