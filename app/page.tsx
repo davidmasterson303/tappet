@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import BrandLockup, { BrandWordmark } from '@/components/brand/BrandLockup';
 import { TRADEMARK_NOTICE } from '@tappet/core/brand';
+import { CONTACT_EMAIL } from '@/lib/legal';
 import { VehicleCard } from '@/components/VehicleCard';
 import GarageDoor, { useIntroRevealed } from '@/components/GarageDoor';
 import LandingHero from '@/components/LandingHero';
@@ -439,6 +440,18 @@ function GarageContents() {
               <a href="/privacy" className="underline-offset-2 hover:underline">Privacy</a>
               {' · '}
               <a href="/terms" className="underline-offset-2 hover:underline">Terms</a>
+              {/*
+                24 Sep: this page is the App Store listing's Support URL, and
+                Guideline 1.5 wants contact information on it. It had none —
+                every link here led to a page, none to a person (Cowork, read
+                anonymously on the product host). The address is shown, not
+                hidden behind a "Contact" label, because a reviewer checks by
+                reading it and a `curl | grep` checks by finding it.
+              */}
+              {' · '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-2 hover:underline">
+                {CONTACT_EMAIL}
+              </a>
             </p>
             {/*
               13 Sep: the notice line. One sentence, the same words on every

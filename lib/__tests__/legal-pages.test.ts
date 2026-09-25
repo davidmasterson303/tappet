@@ -264,6 +264,36 @@ describe('who operates the service, and who to write to about it', () => {
     expect(Array.from(literals)).toEqual([]);
   });
 
+  it('the landing page — the App Store Support URL — shows the address and links it', () => {
+    /*
+      ⚠ 24 Sep, Guideline 1.5: the Support URL must carry contact information.
+      It is `/` on the product host, and its footer linked Privacy and Terms
+      and nobody. The policy pages named the address; the page Apple reads
+      first did not. Both hosts render this file, so one assertion covers both.
+
+      Comments are stripped, so an explanation that mentions the address (this
+      file's own habit) cannot satisfy it.
+    */
+    const page = read('app/page.tsx')
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const footer = page.slice(page.indexOf('<footer'), page.indexOf('</footer>'));
+    expect(footer.length).toBeGreaterThan(0); // no footer found is not a pass
+
+    // Linked, and shown as text rather than only in the href: the listing's
+    // reader reads it.
+    const carriesContact = (markup: string) =>
+      markup.includes('href={`mailto:${CONTACT_EMAIL}`}') && />\s*\{CONTACT_EMAIL\}\s*</.test(markup);
+    expect(carriesContact(footer)).toBe(true);
+
+    // Anti-vacuous: the same predicate refuses the footer as it was on 23 Sep,
+    // and a link whose visible text hides the address.
+    expect(
+      carriesContact('<p>Tappet — Southmoor Digital · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>')
+    ).toBe(false);
+    expect(carriesContact('<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>')).toBe(false);
+  });
+
   it('names a contact address somebody actually reads', () => {
     /*
       ⚠ Moved 30 Aug: `crewchief.support@gmail.com` → `support@southmoordigital.com`,
