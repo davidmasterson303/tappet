@@ -13,6 +13,38 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 26 Sep 2026 — the Apple account is the LLC's; the bank is now the long pole
+>
+> **Individual → Organization is done**, and every ⏳ on it below is stale.
+> Apple accepted the company enrollment (`23MWUL2X8Q`, case `102969823175`)
+> on 24 Sep and assigned the Program License Agreement to **Southmoor Digital
+> LLC** that evening — same team, `P4873P8FQ9`. Source: Apple's two 24 Sep
+> emails ("now assigned to an organization", "Consent to Assignment … signed").
+> The IDFV reset happened at zero users, as it had to.
+>
+> The chain that is left, and whose clock each link is on:
+>
+> ```
+> bank account (David, 26–28 Sep) → ASC Banking, holder Southmoor Digital LLC
+>   → Paid Apps agreement Active (Apple's clock — the real risk to the week)
+>   → IAP products → device build + one sandbox purchase + Restore
+>   → PAID_FEATURES_ENFORCED → production build → eas submit
+> ```
+>
+> **Ruled 26 Sep: no free v1.0.** Shipping free would have taken the bank off
+> the path; David declined — the release waits for the agreement.
+>
+> Verified the same morning, not carried from the board:
+>
+> - `web-live` is still `43b989e` (23 Sep). `main` is 12 ahead; the
+>   `promote-web` dry run passes (typecheck, build, both suites). **Not applied.**
+>   `next build` now refuses to run without `SUPABASE_SECRET_KEY` — confirm the
+>   variable is scoped to **Builds** on both Netlify projects first.
+> - `20260921120000` (drop `message_count`) is **not applied** —
+>   `consultant_conversations?select=message_count` answers 200.
+> - The tire migrations are applied (`tire_sets` answers 200).
+> - `.claude/worktrees/inspiring-hodgkin-3c09bb` holds nothing `main` lacks.
+
 > ### ⚠ 23 Sep 2026 (later) — the pre-launch audit: eight reviews, nine commits, and what is still yours
 >
 > *"we're getting really close to launch, we need to tighten everything up …
