@@ -1,0 +1,77 @@
+# Migration replay — every file in supabase/migrations/, in order, against a
+# throwaway Postgres 16, on every push and PR that touches one.
+#
+# Why: `20260824110000_a_rate_limiter_that_two_requests_cannot_switch_off.sql`
+# sat in the folder for a month and failed on its first execution
+# (`42883: function min(uuid) does not exist`). Nothing in the repo ever ran the
+# SQL; `scripts/check-migrations.mjs` only probes the live database for shape.
+# The reasoning, the Supabase stand-in and the drift list are in
+# `scripts/replay-migrations.sh` and `scripts/replay/`.
+#
+# ⚠ CLAUDE.md §7 — "scheduled things need checking that they are scheduled".
+# This workflow deliberately has NO `schedule` trigger, so the default-branch
+# rule does not bite: `push` and `pull_request` fire from any branch that
+# carries this file. But a file on a side branch still protects nothing on
+# `main`, so the proof it is live is a run in the Actions tab against a `main`
+# commit, not the existence of this file.
+#
+# Postgres 16 matches Supabase's major version. No secrets: nothing here talks
+# to the live database.
+name: Migration replay
+
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/replay-migrations.sh'
+      - 'scripts/replay/**'
+      - '.github/workflows/migration-replay.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/replay-migrations.sh'
+      - 'scripts/replay/**'
+      - '.github/workflows/migration-replay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: psql client
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -q && sudo apt-get install -yq postgresql-client
+          fi
+          psql --version
+
+      # Exit 1: a migration cannot run. 2: a recent one fails when run twice.
+      # 3: the runner cannot be trusted (self-test green, no files, dead drift).
+      - name: Replay supabase/migrations
+        run: bash scripts/replay-migrations.sh

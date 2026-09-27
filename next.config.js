@@ -222,4 +222,28 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+/*
+  ── 24 Sep · a build without the secret key fails, and says which key ─────
+
+  Every server route that writes reaches the database through
+  `getServiceRoleClient`, and that reads `SUPABASE_SECRET_KEY` only. It used to
+  fall back to `SUPABASE_SERVICE_ROLE_KEY`, whose value 401s — so a deploy
+  missing the real key would have gone out green and then answered every
+  write with what looked like a database outage. That is the silent shape
+  CLAUDE.md §6 asks to trade for a loud one, and the loudest place is here:
+  a failed Netlify build leaves the hostname on its last good deploy, and
+  `promote-web` reports it.
+
+  ⚠ `next build` only (`phase`), never dev or jest, which load this file too.
+  ⚠ On Netlify the variable must be in the **Builds** scope as well as
+  Functions; if this fires on a site where the app works, that is the fix.
+*/
+module.exports = (phase) => {
+  if (phase === require('next/constants').PHASE_PRODUCTION_BUILD && !process.env.SUPABASE_SECRET_KEY) {
+    throw new Error(
+      'SUPABASE_SECRET_KEY is not set. The server reaches Supabase with it and nothing else ' +
+        '(SUPABASE_SERVICE_ROLE_KEY is dead and no longer read). Set it for this build.'
+    );
+  }
+  return nextConfig;
+};

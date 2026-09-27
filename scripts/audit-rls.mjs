@@ -29,7 +29,8 @@ const env = Object.fromEntries(
 
 const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SECRET = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+// SUPABASE_SECRET_KEY only: the legacy service_role key 401s on this project.
+const SECRET = env.SUPABASE_SECRET_KEY;
 
 if (!URL_ || !ANON) {
   console.error('Missing URL or anon key in .env');
