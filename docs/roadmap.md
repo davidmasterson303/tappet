@@ -69,8 +69,20 @@
 > Active 26 Sep (Mercury ••3598). Still to set in ASC: the Server Notifications
 > URL (Production **and** Sandbox →
 > `https://tappet.southmoordigital.com/api/internal/apple-notifications`, V2)
-> and Streamlined Purchasing **off** (a purchase from the product page arrives
-> with no account to attach to, and is dropped until the owner taps Restore).
+> — **set**, per Cowork.
+>
+> **Streamlined Purchasing cannot be turned off before a binary is approved**
+> (Cowork, from ASC's refusal), so it is on at launch. A purchase from the
+> product page arrives with no account to attach to and the server drops it.
+> So the launch-time reconciliation this board parked (see "Not yours, and
+> deliberately not built" below, and `store.ts`) **is built**, and its old
+> reason — "the webhook writes the entitlement regardless" — was false for
+> exactly this purchase. `heldSubscription()` reads
+> `Transaction.currentEntitlements` (never `restorePurchases()`, which can
+> prompt for an Apple ID); `usePaywall` sends a held subscription through
+> `settle` on sign-in and on foreground (≤ once per 30 min, never while the
+> paywall is open), silently. Nothing held → no request. JS only; proven on
+> the device with the sandbox walk.
 > Cowork reported POSTs to unknown routes answering 500; re-probed on three
 > paths, all 404 — not reproduced.
 >
