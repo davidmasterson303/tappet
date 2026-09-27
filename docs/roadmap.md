@@ -13,6 +13,50 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ⚠ 27 Sep 2026 — web promoted; the demo is held for a recruiter; Apple is unblocked
+>
+> ⛔ **Do not run `promote-demo` before the evening of Monday 28 Sep.** David
+> has a recruiter screen at 1:00pm MT that day and
+> `tappet-demo.davidmasterson.co` is the artefact they will open. The demo
+> (`demo-live` at `30ba90b`, a 24 Sep build) works and needs none of this
+> promote's fixes — the support contact matters on the product host. A fresh
+> deploy the night before is unforced risk. Promote Monday evening or later.
+>
+> **Verified 27 Sep:**
+>
+> - **`web-live` is `fdb95f5`** (13 commits, `main` at `b10f581`), serving on
+>   `tappet.southmoordigital.com`, built 17:18 UTC. Support address in the
+>   footer (Guideline 1.5 closed), the four security headers present, CSP still
+>   report-only with no violations on `/`, `/login`, `/privacy` signed out —
+>   the signed-in app is still unwatched. Both old hosts 301.
+>   The first `--apply` stopped in the test step and was not captured (the
+>   dry run passed immediately after); the second went through.
+> - **`20260921120000` is applied** — `message_count` answers `42703`, `id`
+>   on the same table answers 200 as the control.
+> - **Apple, per Cowork (not read here):** Paid Apps agreement, Free Apps
+>   agreement, bank account and W-9 all Active under Southmoor Digital LLC;
+>   the personal entity is Deprecated. **E8 / IAP is unblocked** — StoreKit
+>   should return products in the sandbox once they exist in ASC.
+> - ⚠ Set availability to **United States only** (D3): the entity shows a DSA
+>   compliance row across 27 countries, and US-only is what takes it out of
+>   scope.
+>
+> ⚠ **Reading a deployed page is not reading the deploy.** Cowork's first two
+> reads after this promote said "not landed" — old commit, no support address —
+> and were stale. Measured afterwards, not assumed:
+>
+> - `/api/version` is **never cached** (`no-store`; `"Netlify Durable";
+>   fwd=bypass`). It is the check, and `lib/await-deploy.mjs` polls it with
+>   `cache: 'no-store'`, which sends `Cache-Control: no-cache` + `Pragma`.
+>   A read of it before the deploy finishes is simply early.
+> - **Pages are cached, and neither cache-bust gets past it.** A random query
+>   string returns the same edge copy — `netlify-vary` keys only on
+>   `__nextDataReq`/`_rsc`, so other params are ignored (`age` unchanged). A
+>   `Cache-Control: no-cache` header passes the edge and still hits the durable
+>   cache. So: confirm the commit on `/api/version` first; grep a page only
+>   after that, and a miss on a page is a cache question before it is a deploy
+>   question.
+
 > ### ⚠ 26 Sep 2026 — the Apple account is the LLC's; the bank is now the long pole
 >
 > **Individual → Organization is done**, and every ⏳ on it below is stale.
