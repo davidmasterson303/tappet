@@ -259,10 +259,25 @@ function monthsBetween(from: string, to: string): number {
  * point, so it comes back `unknown` rather than being dropped. The screen shows
  * it and says why; `isWorthNotifying` ignores it, because "we cannot tell when
  * this is due" is not something to wake someone up for.
+ *
+ * ── A car with no odometer reading has no mileage half ──────────────────────
+ *
+ * `currentMileage` is `null` when nothing is on record, and it must never be
+ * passed as 0 (`CLAUDE.md` §6). The phone's Service tab did exactly that until
+ * 27 Sep: at 0 every mileage interval read as "not yet reached", so a car of
+ * unknown mileage showed a confident list of work 7,500 miles away.
+ *
+ * With `null`, the mileage half is unanswered the same way a time half with no
+ * date is: `milesRemaining` is null, and a service with nothing else to go on
+ * comes back `unknown`. `dueAtMiles` survives only when a recorded last
+ * service fixes it — "due at 67,500" is still true without knowing where the
+ * car is now. A service carrying both intervals and a dated last service is
+ * driven by time alone until a reading arrives, which is the half we can
+ * answer, not a verdict on the other.
  */
 export function evaluateSchedule(params: {
   schedule: ScheduleEntry[];
-  currentMileage: number;
+  currentMileage: number | null;
   lastServiceMileage?: (service: string) => number | null;
   lastServiceDate?: (service: string) => string | null;
   /**
@@ -294,9 +309,12 @@ export function evaluateSchedule(params: {
 
       let dueAtMiles: number | null = null;
       let milesRemaining: number | null = null;
-      if (intervalMiles !== null) {
+      if (intervalMiles !== null && currentMileage !== null) {
         dueAtMiles = nextDueMileage(intervalMiles, currentMileage, lastMileage);
         milesRemaining = dueAtMiles - currentMileage;
+      } else if (intervalMiles !== null && lastMileage !== null && lastMileage >= 0) {
+        // No reading: the due point is known, the distance to it is not.
+        dueAtMiles = lastMileage + intervalMiles;
       }
 
       /*
@@ -480,7 +498,7 @@ export function isWorthNotifying(milestone: Milestone | null): boolean {
  * miles overdue" and lands on a screen saying "due soon" has been told two
  * things about one car.
  */
-export function milestoneReason(milestone: Milestone, currentMileage: number): string {
+export function milestoneReason(milestone: Milestone, currentMileage: number | null): string {
   const overdue = milestone.services.filter((service) => service.status === 'overdue');
 
   if (overdue.length > 0) {
@@ -505,9 +523,10 @@ export function milestoneReason(milestone: Milestone, currentMileage: number): s
 
   /*
     A visit with no mileage to name it after is driven by a date, and saying
-    "due in 0 miles" would be both wrong and alarming.
+    "due in 0 miles" would be both wrong and alarming. With no odometer
+    reading the distance is unknown too, so the visit is worded by its date.
   */
-  if (milestone.mileage === null) {
+  if (milestone.mileage === null || currentMileage === null) {
     const soonest = milestone.services[0];
     const when = soonest?.dueOn ? ` by ${soonest.dueOn}` : '';
 

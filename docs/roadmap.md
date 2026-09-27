@@ -41,6 +41,15 @@
 >   compliance row across 27 countries, and US-only is what takes it out of
 >   scope.
 >
+> **Closed from the 23 Sep "smaller" list: `evaluateSchedule` no longer takes
+> 0 for a missing odometer.** `currentMileage` is `number | null`; with null the
+> mileage half is unanswered (`unknown`, no `milesRemaining`), and the phone's
+> Service tab puts those rows under *Waiting on the odometer* instead of "due in
+> 7,500 miles" on a car nobody has a reading for. Only the phone had the bug:
+> the nightly sweep already skips a car with no reading (`notify-sweep`
+> `collectService`) and the web list refuses to render without one. JS only —
+> reaches the phone with the next build, costs none.
+>
 > ⚠ **Reading a deployed page is not reading the deploy.** Cowork's first two
 > reads after this promote said "not landed" — old commit, no support address —
 > and were stale. Measured afterwards, not assumed:
