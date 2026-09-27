@@ -167,10 +167,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     has the transaction already; what it does not have is our verdict on it, and
     that verdict is the only thing it should be rendering.
   */
+  /*
+    `keeps` is the one ignore that still answers "paid": a sandbox purchase on
+    an account granted access by hand — App Review's — is refused so it cannot
+    replace the grant, and the account is paid regardless. Without it the
+    reviewer's purchase would read as `recorded-not-entitled` on the phone.
+  */
   return Response.json({
     success: true,
     entitlement: {
-      tier: result.applied ? result.tier : null,
+      tier: result.applied ? result.tier : (result.keeps ?? null),
       recorded: result.applied,
     },
   });

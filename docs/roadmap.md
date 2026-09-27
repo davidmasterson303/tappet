@@ -50,6 +50,30 @@
 > `collectService`) and the web list refuses to render without one. JS only —
 > reaches the phone with the next build, costs none.
 >
+> **Ruled 27 Sep: sandbox purchases keep granting in production, and cannot
+> replace a hand grant.** App Review buys in sandbox against the live server,
+> so refusing sandbox would be a rejection. But the review account
+> (`5e3dcb0e-…`, the only `account_entitlements` row — paid, no transaction)
+> would have had its grant *replaced* by the reviewer's sandbox subscription,
+> which Apple lapses on a minutes-long clock: free mid-review.
+> `applyAppleNotification` now refuses a Sandbox event against a hand grant
+> (`isHandGranted`: paid, not revoked, no `originalTransactionId`) with
+> `sandbox-would-overwrite-grant`, and hands back `keeps: 'paid'` so
+> `/api/v1/iap/verify` still answers paid and the purchase reads as a success.
+> A Production purchase on a grant takes over as normal. **Server change —
+> live only after the next `promote-web`, which must precede review.**
+>
+> **IAP products exist** (Cowork, 27 Sep): group *Tappet Paid* `22418994`;
+> `com.southmoordigital.tappet.paid.annual` (level 1, $39.99/yr) and `.monthly`
+> (level 2, $3.99/mo) — the ids match `PRODUCT_TIERS`. Paid Apps agreement
+> Active 26 Sep (Mercury ••3598). Still to set in ASC: the Server Notifications
+> URL (Production **and** Sandbox →
+> `https://tappet.southmoordigital.com/api/internal/apple-notifications`, V2)
+> and Streamlined Purchasing **off** (a purchase from the product page arrives
+> with no account to attach to, and is dropped until the owner taps Restore).
+> Cowork reported POSTs to unknown routes answering 500; re-probed on three
+> paths, all 404 — not reproduced.
+>
 > ⚠ **Reading a deployed page is not reading the deploy.** Cowork's first two
 > reads after this promote said "not landed" — old commit, no support address —
 > and were stale. Measured afterwards, not assumed:
