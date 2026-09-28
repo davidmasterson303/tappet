@@ -13,7 +13,15 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
-> ### ▶ 27 Sep, night — multi-page invoices: committed (`b1884b4`), not live
+> ### ▶ 27–28 Sep — multi-page invoices: live on `web-live` (`2ba72ff6`), not yet walked on a phone
+>
+> **28 Sep:** promoted. The host serves `2ba72ff6`, and the new routes answer
+> 401 without a session. The first promote failed on "tests failed twice"
+> and passed on a rerun; the suite passed alone and through the gate's own
+> runner, so the failure was load, not the change. Probing the live route found
+> a bare POST answering 500. `add9088` makes that a 400 on both upload routes,
+> and it is **on `main`, not yet promoted**. `/api/v1/upload-photo` has the
+> same shape, untouched. The walk below is still owed.
 >
 > The board item from the 21 Sep walk ("page 2 of a Dinan invoice"). The scan's
 > camera now stays up after the shutter. Pages collect in a strip under the frame
@@ -27,8 +35,9 @@
 > stopped on misreads). Frames came from a **web harness**, because this Mac has
 > no Xcode any more — `design-loop/.webdeps/harness/README.md`.
 >
-> ⚠ **Promote before any phone build carries it.** `/api/v1/invoice-pages`
-> is new, so on an unpromoted host every page upload 404s (§8). The screen
+> ⚠ **Promoted 28 Sep, so this is done — kept for the next route like it.**
+> `/api/v1/invoice-pages` was new, and on an unpromoted host every page
+> upload 404s (§8). The screen
 > degrades: a one-page scan falls back to the old single-file upload. A
 > multi-page scan says it needs a newer API. It must never ship depending on
 > that fallback.
