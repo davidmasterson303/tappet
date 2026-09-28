@@ -11,6 +11,7 @@
 
 import {
   applyAppleNotification,
+  isHandGranted,
   PRODUCT_TIERS,
   type AppleSubscriptionEvent,
   type StoredEntitlement,
@@ -322,6 +323,85 @@ describe('sandbox cannot reach a production subscription', () => {
       )
     );
     expect(record.environment).toBe('Production');
+  });
+});
+
+/*
+  Ruled 27 Sep: sandbox purchases keep granting in production (App Review buys
+  in sandbox against the live server), but they must not replace access granted
+  by hand. The review account is such a row, and a sandbox subscription lapses
+  on Apple's minutes-long clock — it would have dropped the reviewer to free.
+*/
+describe('sandbox cannot replace access granted by hand', () => {
+  const GRANT = stored({
+    tier: 'paid',
+    expiresAt: null,
+    originalTransactionId: null,
+    productId: null,
+    environment: null,
+    autoRenewStatus: null,
+    latestTransactionId: null,
+    lastSignedDate: null,
+  });
+
+  it('keeps the grant, and says which tier stays in force', () => {
+    const decision = applyAppleNotification(
+      GRANT,
+      event({ environment: 'Sandbox', notificationType: 'SUBSCRIBED' })
+    );
+
+    expect(decision).toMatchObject({
+      action: 'ignore',
+      reason: 'sandbox-would-overwrite-grant',
+      keeps: 'paid',
+    });
+  });
+
+  it('refuses the lapse that would otherwise follow', () => {
+    const decision = applyAppleNotification(
+      GRANT,
+      event({ environment: 'Sandbox', notificationType: 'EXPIRED' })
+    );
+    expect(decision.action).toBe('ignore');
+  });
+
+  it('can still detect a purchase on an ordinary account', () => {
+    // Anti-vacuous: the same event with no grant writes, as App Review needs.
+    const record = writeOf(
+      applyAppleNotification(null, event({ environment: 'Sandbox', notificationType: 'SUBSCRIBED' }))
+    );
+    expect(record.environment).toBe('Sandbox');
+  });
+
+  it('lets a real purchase take over from a grant', () => {
+    const record = writeOf(
+      applyAppleNotification(
+        GRANT,
+        event({ environment: 'Production', notificationType: 'SUBSCRIBED' })
+      )
+    );
+    expect(record.environment).toBe('Production');
+  });
+
+  it('protects nothing that is not a live paid grant', () => {
+    for (const row of [
+      stored({ ...GRANT, tier: 'free' }),
+      stored({ ...GRANT, revokedAt: '2026-08-01T00:00:00.000Z' }),
+      stored({ environment: 'Sandbox' }), // a sandbox purchase's own row
+    ]) {
+      expect(isHandGranted(row)).toBe(false);
+    }
+    expect(isHandGranted(GRANT)).toBe(true);
+  });
+
+  it('marks no other refusal as keeping access', () => {
+    // A stale event must never be read as an entitlement by the verify route.
+    const decision = applyAppleNotification(
+      stored(),
+      event({ signedDate: at('2026-08-18T08:00:00Z') })
+    );
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event' });
+    expect('keeps' in decision && decision.keeps !== undefined).toBe(false);
   });
 });
 

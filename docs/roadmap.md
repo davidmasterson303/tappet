@@ -13,6 +13,127 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ Pick up here — 27 Sep, evening
+>
+> **The first sandbox purchase worked end to end** (00:06 UTC 28 Sep, on the
+> 21 Sep dev build `b7a9f6e9` against `web-live` `fdb95f5`): StoreKit sold
+> `…paid.monthly`, `/api/v1/iap/verify` accepted it, `account_entitlements`
+> got `paid / Sandbox / 2000001243132371`. The failure path was seen too: with
+> no sandbox tester, "That purchase could not be completed. You have not been
+> charged." — correct. Sandbox tester now exists
+> (`david.masterson13+tappetsandbox@gmail.com`, signed in on the phone).
+>
+> ⚠ **The phone was signed in to the review account**
+> (`crewchief.support+appreview@gmail.com`, `5e3dcb0e-…`), so the purchase
+> **replaced its hand grant** — the defect `5d360b8` fixes, not yet live. The
+> sandbox subscription lapses within ~an hour; **the review account is (or
+> will be) free.** It must be restored before submission. Next, in order:
+>
+> 1. `promote-web --apply` (David) — puts `5d360b8` live, so sandbox events
+>    can no longer overwrite a grant.
+> 2. Restore the grant on `5e3dcb0e-…` to its 20 Sep shape — `tier: paid`,
+>    every Apple column null (`original_transaction_id`, `product_id`,
+>    `environment`, `expires_at`, `last_signed_date`, …). Needs David's yes;
+>    after step 1, never before, or a late `EXPIRED` rewrites it to free.
+> 3. David signs out and into **his own** account, taps nothing. The sandbox
+>    subscription then belongs to no account — the Streamlined-Purchasing
+>    case — and `843ff4d`'s quiet check should attach it on sign-in. Read his
+>    row; then one tap of Restore.
+> 4. Then: `PAID_FEATURES_ENFORCED` on `tappet-web`, the production build,
+>    `eas submit`. Monday evening, after the 1pm screen: `promote-demo`.
+>
+> Seen in passing: `[Push] Could not register this device: Tappet did not
+> answer within 20 seconds.` on the dev build — not yet looked at.
+
+> ### ⚠ 27 Sep 2026 — web promoted; the demo is held for a recruiter; Apple is unblocked
+>
+> ⛔ **Do not run `promote-demo` before the evening of Monday 28 Sep.** David
+> has a recruiter screen at 1:00pm MT that day and
+> `tappet-demo.davidmasterson.co` is the artefact they will open. The demo
+> (`demo-live` at `30ba90b`, a 24 Sep build) works and needs none of this
+> promote's fixes — the support contact matters on the product host. A fresh
+> deploy the night before is unforced risk. Promote Monday evening or later.
+>
+> **Verified 27 Sep:**
+>
+> - **`web-live` is `fdb95f5`** (13 commits, `main` at `b10f581`), serving on
+>   `tappet.southmoordigital.com`, built 17:18 UTC. Support address in the
+>   footer (Guideline 1.5 closed), the four security headers present, CSP still
+>   report-only with no violations on `/`, `/login`, `/privacy` signed out —
+>   the signed-in app is still unwatched. Both old hosts 301.
+>   The first `--apply` stopped in the test step and was not captured (the
+>   dry run passed immediately after); the second went through.
+> - **`20260921120000` is applied** — `message_count` answers `42703`, `id`
+>   on the same table answers 200 as the control.
+> - **Apple, per Cowork (not read here):** Paid Apps agreement, Free Apps
+>   agreement, bank account and W-9 all Active under Southmoor Digital LLC;
+>   the personal entity is Deprecated. **E8 / IAP is unblocked** — StoreKit
+>   should return products in the sandbox once they exist in ASC.
+> - ⚠ Set availability to **United States only** (D3): the entity shows a DSA
+>   compliance row across 27 countries, and US-only is what takes it out of
+>   scope.
+>
+> **Closed from the 23 Sep "smaller" list: `evaluateSchedule` no longer takes
+> 0 for a missing odometer.** `currentMileage` is `number | null`; with null the
+> mileage half is unanswered (`unknown`, no `milesRemaining`), and the phone's
+> Service tab puts those rows under *Waiting on the odometer* instead of "due in
+> 7,500 miles" on a car nobody has a reading for. Only the phone had the bug:
+> the nightly sweep already skips a car with no reading (`notify-sweep`
+> `collectService`) and the web list refuses to render without one. JS only —
+> reaches the phone with the next build, costs none.
+>
+> **Ruled 27 Sep: sandbox purchases keep granting in production, and cannot
+> replace a hand grant.** App Review buys in sandbox against the live server,
+> so refusing sandbox would be a rejection. But the review account
+> (`5e3dcb0e-…`, the only `account_entitlements` row — paid, no transaction)
+> would have had its grant *replaced* by the reviewer's sandbox subscription,
+> which Apple lapses on a minutes-long clock: free mid-review.
+> `applyAppleNotification` now refuses a Sandbox event against a hand grant
+> (`isHandGranted`: paid, not revoked, no `originalTransactionId`) with
+> `sandbox-would-overwrite-grant`, and hands back `keeps: 'paid'` so
+> `/api/v1/iap/verify` still answers paid and the purchase reads as a success.
+> A Production purchase on a grant takes over as normal. **Server change —
+> live only after the next `promote-web`, which must precede review.**
+>
+> **IAP products exist** (Cowork, 27 Sep): group *Tappet Paid* `22418994`;
+> `com.southmoordigital.tappet.paid.annual` (level 1, $39.99/yr) and `.monthly`
+> (level 2, $3.99/mo) — the ids match `PRODUCT_TIERS`. Paid Apps agreement
+> Active 26 Sep (Mercury ••3598). Still to set in ASC: the Server Notifications
+> URL (Production **and** Sandbox →
+> `https://tappet.southmoordigital.com/api/internal/apple-notifications`, V2)
+> — **set**, per Cowork.
+>
+> **Streamlined Purchasing cannot be turned off before a binary is approved**
+> (Cowork, from ASC's refusal), so it is on at launch. A purchase from the
+> product page arrives with no account to attach to and the server drops it.
+> So the launch-time reconciliation this board parked (see "Not yours, and
+> deliberately not built" below, and `store.ts`) **is built**, and its old
+> reason — "the webhook writes the entitlement regardless" — was false for
+> exactly this purchase. `heldSubscription()` reads
+> `Transaction.currentEntitlements` (never `restorePurchases()`, which can
+> prompt for an Apple ID); `usePaywall` sends a held subscription through
+> `settle` on sign-in and on foreground (≤ once per 30 min, never while the
+> paywall is open), silently. Nothing held → no request. JS only; proven on
+> the device with the sandbox walk.
+> Cowork reported POSTs to unknown routes answering 500; re-probed on three
+> paths, all 404 — not reproduced.
+>
+> ⚠ **Reading a deployed page is not reading the deploy.** Cowork's first two
+> reads after this promote said "not landed" — old commit, no support address —
+> and were stale. Measured afterwards, not assumed:
+>
+> - `/api/version` is **never cached** (`no-store`; `"Netlify Durable";
+>   fwd=bypass`). It is the check, and `lib/await-deploy.mjs` polls it with
+>   `cache: 'no-store'`, which sends `Cache-Control: no-cache` + `Pragma`.
+>   A read of it before the deploy finishes is simply early.
+> - **Pages are cached, and neither cache-bust gets past it.** A random query
+>   string returns the same edge copy — `netlify-vary` keys only on
+>   `__nextDataReq`/`_rsc`, so other params are ignored (`age` unchanged). A
+>   `Cache-Control: no-cache` header passes the edge and still hits the durable
+>   cache. So: confirm the commit on `/api/version` first; grep a page only
+>   after that, and a miss on a page is a cache question before it is a deploy
+>   question.
+
 > ### ⚠ 26 Sep 2026 — the Apple account is the LLC's; the bank is now the long pole
 >
 > **Individual → Organization is done**, and every ⏳ on it below is stale.

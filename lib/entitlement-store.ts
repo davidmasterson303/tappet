@@ -72,8 +72,12 @@ const COLUMNS = [
 
 export type EntitlementWriteOutcome =
   | { ok: true; applied: true; tier: string }
-  /** Correctly declined — a stale or irrelevant notification. Not an error. */
-  | { ok: true; applied: false; reason: string }
+  /**
+   * Correctly declined — a stale or irrelevant notification. Not an error.
+   * `keeps` is set only when the refusal protected access the account already
+   * has (a hand grant against a sandbox purchase), and names that tier.
+   */
+  | { ok: true; applied: false; reason: string; keeps?: string }
   /** The migration has not been applied. Retryable, and Apple will retry. */
   | { ok: false; reason: 'schema-not-ready'; detail: string }
   | { ok: false; reason: 'read-failed' | 'write-failed'; detail: string };
@@ -135,7 +139,7 @@ export async function applyVerifiedAppleEvent(
       detail: decision.detail,
       notificationType: event.notificationType,
     });
-    return { ok: true, applied: false, reason: decision.reason };
+    return { ok: true, applied: false, reason: decision.reason, keeps: decision.keeps };
   }
 
   if (decision.warning) {

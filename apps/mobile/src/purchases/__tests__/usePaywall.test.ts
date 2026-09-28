@@ -14,9 +14,9 @@
  * server's `entitled`.
  */
 
-import { settle } from '../usePaywall';
+import { reconcile, settle } from '../usePaywall';
 import { verifyPurchase } from '../../api/purchases';
-import { finish } from '../../api/store';
+import { finish, heldSubscription } from '../../api/store';
 import type { StoreResult } from '../../api/store';
 import type { VerifyOutcome } from '@tappet/core/purchase-flow';
 import { applePurchase } from '../../test-support/purchases';
@@ -24,6 +24,7 @@ import { applePurchase } from '../../test-support/purchases';
 jest.mock('../../api/purchases', () => ({ verifyPurchase: jest.fn() }));
 jest.mock('../../api/store', () => ({
   finish: jest.fn(async () => undefined),
+  heldSubscription: jest.fn(async () => null),
   loadSubscriptionOptions: jest.fn(),
   purchase: jest.fn(),
   restore: jest.fn(),
@@ -31,6 +32,7 @@ jest.mock('../../api/store', () => ({
 
 const verify = verifyPurchase as jest.MockedFunction<typeof verifyPurchase>;
 const finished = finish as jest.MockedFunction<typeof finish>;
+const held = heldSubscription as jest.MockedFunction<typeof heldSubscription>;
 
 const PURCHASE = applePurchase();
 const PURCHASED: StoreResult = {
@@ -155,5 +157,44 @@ describe('everything that is not a purchase', () => {
       message: null,
       offerRestore: false,
     });
+  });
+});
+
+describe('the quiet check — reconcile (27 Sep)', () => {
+  beforeEach(() => held.mockReset());
+
+  it('sends nothing when nothing is held', async () => {
+    held.mockResolvedValue(null);
+
+    await expect(reconcile()).resolves.toBeNull();
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing for a purchase still pending approval', async () => {
+    held.mockResolvedValue({ kind: 'pending' });
+
+    await expect(reconcile()).resolves.toBeNull();
+    expect(verify).not.toHaveBeenCalled();
+  });
+
+  it('can still detect a held subscription, and settles it as a Restore would', async () => {
+    held.mockResolvedValue(PURCHASED);
+    verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
+
+    const resolution = await reconcile();
+
+    expect(verify).toHaveBeenCalledWith(PURCHASED.jwsRepresentation);
+    expect(finished).toHaveBeenCalledWith(PURCHASE);
+    expect(resolution?.grantsAccess).toBe(true);
+  });
+
+  it('grants nothing for a subscription that belongs to another account', async () => {
+    held.mockResolvedValue(PURCHASED);
+    verify.mockResolvedValue({ kind: 'belongs-to-another-account' });
+
+    const resolution = await reconcile();
+
+    expect(resolution?.grantsAccess).toBe(false);
+    expect(finished).not.toHaveBeenCalled();
   });
 });

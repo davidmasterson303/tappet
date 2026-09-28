@@ -95,9 +95,10 @@ import type { SubscriptionOption } from '../screens/PaywallScreen';
  * `purchase-updated` event while no `purchase()` is in flight, so it goes to
  * no listener; Restore is what picks it up, because `getAvailablePurchases()`
  * reads `Transaction.currentEntitlements` and an unfinished live subscription
- * is one. A launch-time reconciliation is deliberately not built here — it is
- * a second path to the same server call, untestable off-device, and the
- * webhook writes the entitlement regardless. Open, and named in the roadmap.
+ * is one. Until 27 Sep a launch-time reconciliation was deliberately not
+ * built, on the ground that "the webhook writes the entitlement regardless".
+ * It does not for a purchase no account made — see `heldSubscription`, which
+ * is that reconciliation now, and whose argument replaced this one.
  */
 
 /** The two subscriptions, in the order the paywall lists them. */
@@ -366,6 +367,45 @@ export async function restore(): Promise<StoreResult> {
   if (!newest) return { kind: 'failed', message: null };
 
   return outcomeOfPurchase(newest);
+}
+
+/**
+ * A subscription this Apple ID already holds, read without asking anyone.
+ *
+ * The quiet half of Restore, for `usePaywall`'s check on sign-in and on
+ * foreground (27 Sep). Streamlined Purchasing cannot be switched off before
+ * the first approved binary, so a person can subscribe from the App Store
+ * page before any Tappet account exists. Apple's notification for that
+ * purchase names no account, the server drops it, and the webhook the file
+ * docblock leaned on never writes it. The app is the only place the
+ * transaction and a signed-in account meet, so the app has to look.
+ *
+ * ⚠ **No `restorePurchases()`.** That is `AppStore.sync()`, which can put an
+ * Apple ID password prompt in front of someone who only opened the app.
+ * `getAvailablePurchases()` reads `Transaction.currentEntitlements` from the
+ * device, silently — the tap-to-restore path keeps the sync.
+ *
+ * Only our own products, and `null` for every way of there being nothing to
+ * send: no store, no connection, nothing held. A free account on a phone
+ * with no subscription makes no network call to us at all.
+ */
+export async function heldSubscription(): Promise<StoreResult | null> {
+  if (storeAvailability() === 'unavailable') return null;
+
+  let held: Purchase[];
+  try {
+    await connect();
+    held = await getAvailablePurchases();
+  } catch {
+    return null;
+  }
+
+  const newest = held
+    .filter((candidate) => candidate.productId in PRODUCT_TIERS)
+    .filter((candidate) => typeof candidate.purchaseToken === 'string' && candidate.purchaseToken !== '')
+    .sort((a, b) => (b.transactionDate ?? 0) - (a.transactionDate ?? 0))[0];
+
+  return newest ? outcomeOfPurchase(newest) : null;
 }
 
 /**

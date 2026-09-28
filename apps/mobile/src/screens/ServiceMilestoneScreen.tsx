@@ -222,7 +222,10 @@ function positionLabel(service: ServiceDue): string | null {
 
 /** The same position, as a sentence for the reader. */
 function positionSentence(service: ServiceDue): string | null {
-  if (service.status === 'unknown') return 'no date on record';
+  if (service.status === 'unknown') {
+    // Unknown with a mileage interval only happens when there is no reading.
+    return service.intervalMiles !== null ? 'no odometer reading' : 'no date on record';
+  }
 
   if (service.drivenBy === 'time' && service.monthsRemaining !== null) {
     const months = Math.round(Math.abs(service.monthsRemaining));
@@ -667,12 +670,11 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   */
   const services = evaluateSchedule({
     schedule: state.schedule,
-    // ⚠ 0 when nothing is on record. `evaluateSchedule` takes a number, and
-    // at 0 every mileage interval reads as not yet reached — the same list
-    // the screen always showed. The banner above asks for the reading rather
-    // than presenting 0 as one; the honest "unknown" for the list itself is
-    // still to do.
-    currentMileage: state.mileage ?? 0,
+    // Null when nothing is on record — never 0. Until 27 Sep this passed 0,
+    // and every mileage interval read as "not yet reached": a confident list
+    // for a car of unknown mileage. Null makes those services `unknown`, and
+    // they get their own group below.
+    currentMileage: state.mileage,
     ...historyLookups(state.history),
   });
   const milestone = nextMilestone(services, { horizonMiles: 5_000 });
@@ -700,7 +702,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     groups.push({
       key: 'milestone',
       label: milestone.mileage === null ? 'Next service' : `${miles.format(milestone.mileage)} service`,
-      detail: milestoneReason(milestone, state.mileage ?? 0),
+      detail: milestoneReason(milestone, state.mileage),
       rows: milestone.services,
     });
   }
@@ -712,13 +714,30 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
       rows: later,
     });
   }
-  if (unknowns.length > 0) {
+  /*
+    Two kinds of unknown, and they have different cures. A service counted in
+    miles is unknown only because the car has no odometer reading — the
+    banner above asks for it. A time-only one is unknown because nothing says
+    when it was last done. One head over both would tell an owner to scan an
+    invoice to fix a missing odometer.
+  */
+  const awaitingReading = unknowns.filter((service) => service.intervalMiles !== null);
+  const undated = unknowns.filter((service) => service.intervalMiles === null);
+  if (awaitingReading.length > 0) {
+    groups.push({
+      key: 'awaiting-reading',
+      label: 'Waiting on the odometer',
+      detail: 'These are counted in miles, and there is no reading to count from. Enter it above.',
+      rows: awaitingReading,
+    });
+  }
+  if (undated.length > 0) {
     groups.push({
       key: 'unknown',
       label: 'Timed by date, not mileage',
       detail:
         'Nothing on record says when these were last done, so there is no due date to work out. Scanning the invoice would fix that.',
-      rows: unknowns,
+      rows: undated,
     });
   }
 

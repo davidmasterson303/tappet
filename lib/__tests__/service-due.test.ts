@@ -460,3 +460,76 @@ describe('milestoneReason', () => {
     );
   });
 });
+
+/*
+  A car with no odometer reading. Until 27 Sep the phone passed 0 here, and at
+  0 every mileage interval read as "not yet reached" — a confident list for a
+  car whose mileage nobody knows (CLAUDE.md §6: null is never 0).
+*/
+describe('no odometer reading', () => {
+  it('leaves a mileage service unknown rather than counting from 0', () => {
+    const [plugs] = evaluateSchedule({ schedule: [PLUGS], currentMileage: null });
+
+    expect(plugs.status).toBe('unknown');
+    expect(plugs.milesRemaining).toBeNull();
+    expect(plugs.dueAtMiles).toBeNull();
+    expect(plugs.drivenBy).toBeNull();
+  });
+
+  it('can still detect the 0 it replaced', () => {
+    // Anti-vacuous: at 0 the same entry is a confident "later", which is the
+    // answer the null case must not give.
+    const [plugs] = evaluateSchedule({ schedule: [PLUGS], currentMileage: 0 });
+
+    expect(plugs.status).toBe('later');
+    expect(plugs.milesRemaining).toBe(30_000);
+  });
+
+  it('keeps the due point a recorded service fixes, without a distance to it', () => {
+    const [plugs] = evaluateSchedule({
+      schedule: [PLUGS],
+      currentMileage: null,
+      lastServiceMileage: () => 40_000,
+    });
+
+    expect(plugs.dueAtMiles).toBe(70_000);
+    expect(plugs.milesRemaining).toBeNull();
+    expect(plugs.status).toBe('unknown');
+  });
+
+  it('answers the time half when that is the half it has', () => {
+    const [oil] = evaluateSchedule({
+      schedule: [OIL],
+      currentMileage: null,
+      lastServiceDate: () => '2025-06-01',
+      today: '2026-09-27',
+    });
+
+    expect(oil.drivenBy).toBe('time');
+    expect(oil.status).toBe('overdue');
+    expect(oil.milesRemaining).toBeNull();
+  });
+
+  it('never raises a milestone from mileage it does not have', () => {
+    const due = evaluateSchedule({ schedule: [OIL, PLUGS, TRANS], currentMileage: null });
+
+    expect(due.every((service) => service.status === 'unknown')).toBe(true);
+    expect(nextMilestone(due)).toBeNull();
+  });
+
+  it('words a visit by its date, not a distance, when there is no reading', () => {
+    const due = evaluateSchedule({
+      schedule: [OIL],
+      currentMileage: null,
+      lastServiceMileage: () => 50_000,
+      lastServiceDate: () => '2025-10-15',
+      today: '2026-09-27',
+    });
+    const milestone = nextMilestone(due, { horizonMiles: 5_000 })!;
+
+    expect(milestone).not.toBeNull();
+    const reason = milestoneReason(milestone, null);
+    expect(reason).toBe('Engine oil and filter is due by 2026-10-15.');
+    expect(reason).not.toMatch(/miles/);
+  });
+});

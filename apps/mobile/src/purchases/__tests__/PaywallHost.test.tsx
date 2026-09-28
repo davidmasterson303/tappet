@@ -13,6 +13,7 @@
  */
 
 import { act, render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 
 import { PaywallHost } from '../PaywallHost';
 import { withSafeArea } from '../../test-support/safe-area';
@@ -39,6 +40,12 @@ beforeEach(() => {
   mockNativeModule = null;
   jest.clearAllMocks();
   iap.fetchProducts.mockResolvedValue([]);
+  /*
+    Nothing held unless a test says so. `clearAllMocks` keeps implementations,
+    and since 27 Sep the host reads what is held on mount — a purchase left
+    here by one test would be verified by the next one's mount.
+  */
+  iap.getAvailablePurchases.mockResolvedValue([]);
 });
 
 describe('opening', () => {
@@ -242,10 +249,12 @@ describe('what the rest of the app is told', () => {
   });
 
   it('announces one after a restore the server granted', async () => {
-    iap.getAvailablePurchases.mockResolvedValue([applePurchase({ productId: MONTHLY })]);
     verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
     const onEntitled = jest.fn();
+    // Nothing held at mount, so the quiet check announces nothing of its own.
     await render(withSafeArea(<PaywallHost onEntitled={onEntitled} />));
+    await waitFor(() => expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(1));
+    iap.getAvailablePurchases.mockResolvedValue([applePurchase({ productId: MONTHLY })]);
     await act(async () => {
       requestUpgrade(null);
     });
@@ -315,5 +324,67 @@ describe('restore', () => {
 
     expect(await screen.findByText(/no previous subscription was found/i)).toBeTruthy();
     expect(verify).not.toHaveBeenCalled();
+  });
+});
+
+/*
+  27 Sep. Streamlined Purchasing cannot be switched off before the first
+  approved binary, so a subscription can be bought from the App Store page
+  before any account exists. Apple's notice for it names nobody and the
+  server drops it; the app is where the transaction and an account meet.
+*/
+describe('the quiet check on sign-in and foreground', () => {
+  beforeEach(() => {
+    mockNativeModule = {};
+  });
+
+  it('attaches a subscription already held, and says so to the app only', async () => {
+    iap.getAvailablePurchases.mockResolvedValue([applePurchase({ productId: MONTHLY })]);
+    verify.mockResolvedValue({ kind: 'entitled', tier: 'paid' });
+    const onEntitled = jest.fn();
+
+    await render(withSafeArea(<PaywallHost onEntitled={onEntitled} />));
+
+    await waitFor(() => expect(onEntitled).toHaveBeenCalledTimes(1));
+    expect(iap.restorePurchases).not.toHaveBeenCalled();
+    // Silent: no paywall, no banner.
+    expect(screen.queryByText('Your subscription is active.')).toBeNull();
+  });
+
+  it('sends nothing when nothing is held', async () => {
+    const onEntitled = jest.fn();
+
+    await render(withSafeArea(<PaywallHost onEntitled={onEntitled} />));
+
+    await waitFor(() => expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(1));
+    expect(verify).not.toHaveBeenCalled();
+    expect(onEntitled).not.toHaveBeenCalled();
+  });
+
+  it('checks again on foreground, but not twice inside half an hour', async () => {
+    const handlers: Array<(state: string) => void> = [];
+    const spy = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation(((_type: string, handler: (state: string) => void) => {
+        handlers.push(handler);
+        return { remove: () => undefined };
+      }) as never);
+    const now = jest.spyOn(Date, 'now');
+    try {
+      now.mockReturnValue(1_000_000);
+      await render(withSafeArea(<PaywallHost />));
+      await waitFor(() => expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(1));
+
+      now.mockReturnValue(1_000_000 + 10 * 60 * 1000);
+      await act(async () => handlers.forEach((handler) => handler('active')));
+      expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+
+      now.mockReturnValue(1_000_000 + 31 * 60 * 1000);
+      await act(async () => handlers.forEach((handler) => handler('active')));
+      await waitFor(() => expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(2));
+    } finally {
+      spy.mockRestore();
+      now.mockRestore();
+    }
   });
 });
