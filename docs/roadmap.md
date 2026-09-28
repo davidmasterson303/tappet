@@ -57,6 +57,36 @@
 > - The critic asked twice for FILED to list the lines it read (B6). That needs
 >   the filing to return its items. It is worth doing, but it is not this change.
 
+> ### ▶ 28 Sep — purchases proven on the device; the production build is running
+>
+> Steps 1–3 of the block below are **done**, each read in the database:
+>
+> - **Review grant restored** 20:36 UTC to its 20 Sep shape (`paid`, every
+>   Apple column null) — after `5d360b8` was live, so it holds.
+> - **Protection proven live.** A sandbox purchase *as the review account*
+>   (21:26) left its row untouched (`updated_at` still 20:36) and the app still
+>   said the purchase succeeded.
+> - **Quiet reattach proven live.** David then signed out and into his own
+>   account (`75834ade-…`) and tapped nothing; at 21:28:40 his row appeared —
+>   `paid / Sandbox / 2000001243132371`. The only writer that joins a
+>   transaction to a session is `/api/v1/iap/verify`, so this is `843ff4d`'s
+>   sign-in check: the Streamlined-Purchasing case, end to end. (Sandbox reused
+>   last night's original transaction id for the re-subscribe.)
+> - Both hosts promoted: `web-live` `5f8c973b`, `demo-live` `81f98881` (merge).
+> - **Production build 2** queued 15:24 MDT from `2b34085`. Next: `eas submit
+>   --platform ios --latest` → TestFlight → store screenshots from it (no
+>   simulator on this Mac any more).
+> - ASC: Cowork has `COWORK_PROMPT_asc_submission_prep_2026-09-28.md` and the
+>   recovered pack `TAPPET_ASC_SUBMISSION_PACK_2026-09-28.md` (decisions
+>   folder). **Name conflict found by Cowork:** the record is *Tappet: Car
+>   Maintenance Log* (17 Sep ASO decision); `app/layout.tsx:50` still calls
+>   *Tappet: Know Your Car* "the App Store name". Recommended: keep the 17 Sep
+>   set and retitle the site to match — awaiting David.
+> - Gemini prepay **$11.02, auto-reload off** (Cowork, 28 Sep) — ~2 weeks at
+>   the August–September burn, before review traffic. David's to switch on.
+> - Push registration: the 20 s timeout seen 27 Sep was one slow attempt; the
+>   phone's row shows `last_registered_at` 00:05:46 that night. Not a defect.
+
 > ### ▶ Pick up here — 27 Sep, evening
 >
 > **The first sandbox purchase worked end to end** (00:06 UTC 28 Sep, on the
