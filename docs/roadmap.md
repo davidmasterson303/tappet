@@ -13,6 +13,38 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ Pick up here — 27 Sep, evening
+>
+> **The first sandbox purchase worked end to end** (00:06 UTC 28 Sep, on the
+> 21 Sep dev build `b7a9f6e9` against `web-live` `fdb95f5`): StoreKit sold
+> `…paid.monthly`, `/api/v1/iap/verify` accepted it, `account_entitlements`
+> got `paid / Sandbox / 2000001243132371`. The failure path was seen too: with
+> no sandbox tester, "That purchase could not be completed. You have not been
+> charged." — correct. Sandbox tester now exists
+> (`david.masterson13+tappetsandbox@gmail.com`, signed in on the phone).
+>
+> ⚠ **The phone was signed in to the review account**
+> (`crewchief.support+appreview@gmail.com`, `5e3dcb0e-…`), so the purchase
+> **replaced its hand grant** — the defect `5d360b8` fixes, not yet live. The
+> sandbox subscription lapses within ~an hour; **the review account is (or
+> will be) free.** It must be restored before submission. Next, in order:
+>
+> 1. `promote-web --apply` (David) — puts `5d360b8` live, so sandbox events
+>    can no longer overwrite a grant.
+> 2. Restore the grant on `5e3dcb0e-…` to its 20 Sep shape — `tier: paid`,
+>    every Apple column null (`original_transaction_id`, `product_id`,
+>    `environment`, `expires_at`, `last_signed_date`, …). Needs David's yes;
+>    after step 1, never before, or a late `EXPIRED` rewrites it to free.
+> 3. David signs out and into **his own** account, taps nothing. The sandbox
+>    subscription then belongs to no account — the Streamlined-Purchasing
+>    case — and `843ff4d`'s quiet check should attach it on sign-in. Read his
+>    row; then one tap of Restore.
+> 4. Then: `PAID_FEATURES_ENFORCED` on `tappet-web`, the production build,
+>    `eas submit`. Monday evening, after the 1pm screen: `promote-demo`.
+>
+> Seen in passing: `[Push] Could not register this device: Tappet did not
+> answer within 20 seconds.` on the dev build — not yet looked at.
+
 > ### ⚠ 27 Sep 2026 — web promoted; the demo is held for a recruiter; Apple is unblocked
 >
 > ⛔ **Do not run `promote-demo` before the evening of Monday 28 Sep.** David
