@@ -13,15 +13,16 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
-> ### ▶ 27–28 Sep — multi-page invoices: live on `web-live` (`2ba72ff6`), not yet walked on a phone
+> ### ▶ 27–28 Sep — multi-page invoices: live on `web-live` (`07bffe03`), not yet walked on a phone
 >
 > **28 Sep:** promoted. The host serves `2ba72ff6`, and the new routes answer
 > 401 without a session. The first promote failed on "tests failed twice"
 > and passed on a rerun; the suite passed alone and through the gate's own
 > runner, so the failure was load, not the change. Probing the live route found
-> a bare POST answering 500. `add9088` makes that a 400 on both upload routes,
-> and it is **on `main`, not yet promoted**. `/api/v1/upload-photo` has the
-> same shape, untouched. The walk below is still owed.
+> a bare POST answering 500. `add9088` makes that a 400 on both upload routes;
+> promoted the same day (`07bffe03`), and both routes answer 400 live.
+> `/api/v1/upload-photo` has the same shape, untouched. The walk below is
+> still owed.
 >
 > The board item from the 21 Sep walk ("page 2 of a Dinan invoice"). The scan's
 > camera now stays up after the shutter. Pages collect in a strip under the frame
