@@ -68,10 +68,53 @@ export interface WorkingStage {
  * the camera" over a photograph already taken, or over a library picker, is
  * a lie in the state voice.
  */
-export type ScanPhase = 'picking' | 'reading' | 'filing';
+/*
+  ── 27 Sep · pages, and the fourth boundary they add ─────────────────────────
 
-export function scanStages(phase: ScanPhase, source: 'camera' | 'library'): WorkingStage[] {
+  A multi-page scan uploads each page as it is photographed, so at Done there
+  is a boundary the client *can* see: every page's upload has answered, or it
+  has not. `sending` is that wait, and its answer is a count the screen holds
+  — "2 of 3", one per upload that has actually resolved. Most scans skip it
+  entirely: the pages went up while the next one was being photographed, and
+  the ledger opens with the row already done. The first row's answer is the
+  page count, a fact, never an estimate.
+
+  Without `pages` the ledger is the single-file one, exactly as before.
+*/
+export type ScanPhase = 'picking' | 'sending' | 'reading' | 'filing';
+
+export interface ScanPages {
+  count: number;
+  /** Uploads that have answered with a stored page. */
+  sent: number;
+}
+
+const pagesWord = (count: number) => `${count} ${count === 1 ? 'page' : 'pages'}`;
+
+export function scanStages(
+  phase: ScanPhase,
+  source: 'camera' | 'library',
+  pages?: ScanPages
+): WorkingStage[] {
   const picking = source === 'camera' ? 'Photographing the invoice' : 'Opening your photos';
+
+  if (pages && phase !== 'picking') {
+    const at = ['sending', 'reading', 'filing'].indexOf(phase);
+    const mark = (index: number) => (index < at ? 'done' : index === at ? 'active' : 'pending') as WorkingStageState;
+    const stages: WorkingStage[] = [
+      { label: picking, answer: pagesWord(pages.count), mono: true, state: 'done' },
+      {
+        label: pages.count === 1 ? 'Sending the page' : 'Sending the pages',
+        answer: `${Math.min(pages.sent, pages.count)} of ${pages.count}`,
+        mono: true,
+        state: mark(0),
+      },
+      { label: 'Reading the invoice', state: mark(1) },
+    ];
+    // The filing row exists only on the path that has one — see above.
+    if (phase === 'filing') stages.push({ label: 'Filing it against this car', state: 'active' });
+    return stages;
+  }
 
   if (phase === 'filing') {
     return [
@@ -91,8 +134,8 @@ export function scanStages(phase: ScanPhase, source: 'camera' | 'library'): Work
  * The line the instrument prints for a phase — the active stage's own label,
  * so the status and the ledger never disagree about what is running.
  */
-export function scanLine(phase: ScanPhase, source: 'camera' | 'library'): string {
-  const active = scanStages(phase, source).find((stage) => stage.state === 'active');
+export function scanLine(phase: ScanPhase, source: 'camera' | 'library', pages?: ScanPages): string {
+  const active = scanStages(phase, source, pages).find((stage) => stage.state === 'active');
   return active?.label ?? 'Reading the invoice';
 }
 

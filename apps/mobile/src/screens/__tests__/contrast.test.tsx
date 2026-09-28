@@ -287,7 +287,7 @@ describe('the invoice scanner', () => {
     const view = await render(
       <InvoiceScanScreen
         vehicleId="db143cdc-e68c-46f0-849e-69f7a1873f58"
-        pickImage={jest.fn()}
+        pickImages={jest.fn(async () => [])}
         onSignOut={jest.fn()}
       />
     );

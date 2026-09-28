@@ -630,3 +630,41 @@ describe('the spec table', () => {
     expect(groupDigits('')).toBe('');
   });
 });
+
+describe('a car with no odometer reading', () => {
+  /*
+    Until 27 Sep the screen passed `state.mileage ?? 0`, and at 0 the oil
+    change read "due in 7,500 miles" on a car whose mileage nobody knows.
+    CLAUDE.md §6: null is never 0.
+  */
+  const NO_READING = {
+    ...VEHICLE,
+    vehicle: { ...VEHICLE.vehicle, current_mileage: null },
+  };
+
+  it('puts a mileage service under the odometer, not under a distance', async () => {
+    respondWith([], NO_READING);
+
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    expect(await view.findByText('What does the odometer say?')).toBeTruthy();
+    expect(view.getByText('Waiting on the odometer')).toBeTruthy();
+    expect(view.getByText('Engine oil and filter')).toBeTruthy();
+    expect(view.queryByText(/7,500 MI/)).toBeNull();
+    expect(view.queryAllByLabelText(/due in [\d,]+ miles/)).toHaveLength(0);
+    // Brake fluid is unknown for its own reason, and keeps its own head.
+    expect(view.getByText('Timed by date, not mileage')).toBeTruthy();
+  });
+
+  it('can still detect the reading when there is one', async () => {
+    // Anti-vacuous: the same car with a reading has no odometer group.
+    const user = userEvent.setup();
+    respondWith([]);
+
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await passTheGate(user, view);
+
+    expect(await view.findByText('Engine oil and filter')).toBeTruthy();
+    expect(view.queryByText('Waiting on the odometer')).toBeNull();
+  });
+});

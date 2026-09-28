@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { resolvePurchase, type PurchaseResolution } from '@tappet/core/purchase-flow';
 import type { PaidFeature } from '@tappet/core/paid-features';
 import { verifyPurchase } from '../api/purchases';
 import {
   finish,
+  heldSubscription,
   loadSubscriptionOptions,
   purchase,
   restore,
@@ -94,6 +96,28 @@ export async function settle(store: StoreResult): Promise<PurchaseResolution> {
   return resolution;
 }
 
+/**
+ * Send a subscription this Apple ID already holds to the server, quietly.
+ *
+ * `null` when there is nothing to send — the common case, and it costs no
+ * request. Otherwise it is `settle` exactly as a Restore would run it, so the
+ * server decides what the transaction is worth and `finish` keeps its order.
+ * A transaction that belongs to another Tappet account comes back as that
+ * resolution and grants nothing; the caller shows nothing either way.
+ */
+export async function reconcile(): Promise<PurchaseResolution | null> {
+  const held = await heldSubscription();
+  if (!held || held.kind !== 'purchased') return null;
+  return settle(held);
+}
+
+/**
+ * How often a return to the foreground may check again. On mount — which is
+ * sign-in, since the root navigator mounts only for a session — it always
+ * checks.
+ */
+const RECHECK_MS = 30 * 60 * 1000;
+
 export function usePaywall({
   onEntitled,
 }: {
@@ -150,6 +174,46 @@ export function usePaywall({
     [relay]
   );
   const onRestore = useCallback(async () => relay(await settle(await restore())), [relay]);
+
+  /*
+    ── The quiet check, 27 Sep ───────────────────────────────────────────────
+
+    A subscription bought from the App Store page, before this account
+    existed, reaches the server attached to nobody; only the app can attach
+    it. So on sign-in and on foreground the held subscription, if any, is
+    sent as a Restore would send it — and nothing is shown, whatever the
+    answer. A person with nothing held never leaves the device.
+
+    Not while the paywall is open: a purchase in flight is already on its way
+    to the server, and a second verify of the same transaction would race
+    its `finish`.
+  */
+  const showing = useRef(visible);
+  showing.current = visible;
+  const checking = useRef(false);
+  const checkedAt = useRef<number | null>(null);
+
+  const check = useCallback(async () => {
+    if (checking.current || showing.current) return;
+    if (checkedAt.current !== null && Date.now() - checkedAt.current < RECHECK_MS) return;
+
+    checking.current = true;
+    checkedAt.current = Date.now();
+    try {
+      const resolution = await reconcile();
+      if (resolution) relay(resolution);
+    } finally {
+      checking.current = false;
+    }
+  }, [relay]);
+
+  useEffect(() => {
+    void check();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void check();
+    });
+    return () => subscription.remove();
+  }, [check]);
 
   return { visible, feature, catalog, open, close, onPurchase, onRestore };
 }

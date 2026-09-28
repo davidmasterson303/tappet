@@ -187,3 +187,46 @@ describe('what actually reaches the table', () => {
     });
   });
 });
+
+describe('a hand grant against a sandbox purchase (ruled 27 Sep)', () => {
+  // The review account's row as it stands in production: paid, no transaction.
+  const GRANT_ROW = {
+    user_id: USER,
+    tier: 'paid',
+    expires_at: null,
+    original_transaction_id: null,
+    product_id: null,
+    environment: null,
+    auto_renew_status: null,
+    revoked_at: null,
+    latest_transaction_id: null,
+    last_signed_date: null,
+  };
+
+  it('writes nothing, and hands the kept tier to the verify route', async () => {
+    maybeSingle.mockResolvedValue({ data: GRANT_ROW, error: null });
+
+    const result = await applyVerifiedAppleEvent(
+      USER,
+      event({ environment: 'Sandbox', notificationType: 'SUBSCRIBED' })
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      applied: false,
+      reason: 'sandbox-would-overwrite-grant',
+      keeps: 'paid',
+    });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('can still detect a sandbox purchase on an account with no row', async () => {
+    const result = await applyVerifiedAppleEvent(
+      USER,
+      event({ environment: 'Sandbox', notificationType: 'SUBSCRIBED' })
+    );
+
+    expect(result).toMatchObject({ ok: true, applied: true, tier: 'paid' });
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+});

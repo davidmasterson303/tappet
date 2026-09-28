@@ -185,6 +185,10 @@ export default function Viewfinder({
   paused = false,
   beside,
   foot,
+  strip,
+  captureLabel,
+  captureDisabled = false,
+  disabledWord,
   alternative = 'choose a photo from your library',
 }: {
   /**
@@ -222,6 +226,21 @@ export default function Viewfinder({
   beside?: ReactNode;
   /** Drawn beneath the controls — the model caveat, or the stood-down note. */
   foot?: ReactNode;
+  /**
+   * Drawn between the frame and the readout — the scan's page strip (27 Sep).
+   * Under the feed and never over it, for the reason the readout is: nothing
+   * sits on a live image whose contrast nobody can promise.
+   */
+  strip?: ReactNode;
+  /** The shutter's word — "Capture page 02" once a page is in. Defaults to the act. */
+  captureLabel?: string;
+  /** Stand the shutter down with the camera still up — a scan that is full. */
+  captureDisabled?: boolean;
+  /**
+   * The readout's word while the shutter is stood down — FULL. Without it
+   * the readout said READY beside a CAPTURE that could not fire (round 53).
+   */
+  disabledWord?: string;
   /**
    * The other way to finish the task, for the two notes that name one —
    * "choose a photo from your library" for the scan, "type the number" for
@@ -281,7 +300,7 @@ export default function Viewfinder({
 
   const capture = useCallback(async () => {
     const view = camera.current;
-    if (state !== 'ready' || !view) return;
+    if (state !== 'ready' || !view || captureDisabled) return;
     setCapturing(true);
     /*
       Once, here, and not awaited. A second call anywhere on this path is the
@@ -298,9 +317,10 @@ export default function Viewfinder({
     } finally {
       setCapturing(false);
     }
-  }, [state, barcodes, onCapture, onCaptureFailed]);
+  }, [state, barcodes, onCapture, onCaptureFailed, captureDisabled]);
 
   const warning = state === 'off' || state === 'failed';
+  const word = captureDisabled && disabledWord && state === 'ready' ? disabledWord : READOUT[state];
   const alternativeSentence = `${alternative.charAt(0).toUpperCase()}${alternative.slice(1)} instead.`;
   const showCamera = live && permission?.granted === true && mountError === null;
 
@@ -353,6 +373,8 @@ export default function Viewfinder({
         </View>
       </View>
 
+      {strip}
+
       {/*
         The readout: the act on the left, the camera's word on the right, in
         the spec row's grammar — a label, a right-aligned mono value, a
@@ -361,12 +383,12 @@ export default function Viewfinder({
         change of one element.
       */}
       <View style={styles.readout} accessibilityRole="text" accessibilityLabel={
-        READOUT[state] ? `${label}. Camera: ${READOUT[state]}` : label
+        word ? `${label}. Camera: ${word}` : label
       }>
         <Text style={styles.readoutLabel} numberOfLines={1}>
           {label}
         </Text>
-        {READOUT[state] ? (
+        {word ? (
           <View style={styles.state}>
             {warning ? (
               /*
@@ -382,7 +404,7 @@ export default function Viewfinder({
               style={[styles.readoutState, warning && styles.readoutWarning]}
               testID="viewfinder-readout"
             >
-              {READOUT[state]}
+              {word}
             </Text>
           </View>
         ) : null}
@@ -438,11 +460,11 @@ export default function Viewfinder({
               back when nothing was read. Same control, same edge.
             */}
             <Button
-              label={barcodes ? 'Read a photo' : 'Capture'}
+              label={barcodes ? 'Read a photo' : captureLabel ?? 'Capture'}
               variant="primary"
               size="small"
               onPress={() => void capture()}
-              disabled={state !== 'ready' && state !== 'capturing'}
+              disabled={captureDisabled || (state !== 'ready' && state !== 'capturing')}
               busy={state === 'capturing'}
               busyLabel=""
               style={styles.capture}

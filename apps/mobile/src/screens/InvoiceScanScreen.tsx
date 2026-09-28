@@ -4,15 +4,23 @@ import Text from '../components/Text';
 
 import {
   uploadInvoice,
+  uploadInvoicePage,
+  fileInvoicePages,
+  discardInvoicePages,
   describeUploadError,
   diagnoseUploadError,
+  PageMissingError,
   type ExtractedVehicle,
   type InvoiceFile,
+  type InvoiceUploadResult,
 } from '../api/documents';
 import Button from '../components/Button';
 import Viewfinder from '../components/Viewfinder';
 import Working from '../components/Working';
-import { scanLine, scanStages, type ScanPhase } from '../components/working-stages';
+import PageStrip, { type PageState } from '../components/PageStrip';
+import PageReview from '../components/PageReview';
+import { scanLine, scanStages, type ScanPhase, type ScanPages } from '../components/working-stages';
+import { INVOICE_PAGE_LIMIT } from '@tappet/core/validation';
 import { ApiRequestError } from '../api/client';
 import { requestUpgrade } from '../purchases/upgrade-prompt';
 import { PAGE_BODY, space, text, type } from '../theme';
@@ -66,13 +74,31 @@ import { interFace } from '../theme/fonts';
  * "uploaded" for both, which is the defect `documents.ts` is shaped to prevent
  * and the reason that shape is worth the extra type.
  *
+ * ── ⚠ 27 Sep · an invoice is pages, not a photograph ───────────────────────
+ *
+ * The scan took one photograph and filed it, so page 2 of a Dinan invoice
+ * was a second invoice — its own row, its own model call, its own "Labor"
+ * total counted again. Now the camera stays up after the shutter: each page
+ * joins a strip under the frame (`PageStrip`) and uploads while the next is
+ * lined up, the first page asks — in a sentence, not a dialog — whether the
+ * invoice runs on, and DONE files every page as one document in one read
+ * (`uploadInvoicePages` on the server). The canvas that settled it, with the
+ * question-per-page alternative drawn beside it, is "Multi-page invoice scan"
+ * in the design artifacts; `PageStrip`'s header says why the strip won.
+ *
+ * The one-photograph invoice costs nothing extra: CAPTURE, then DONE · 1 PAGE,
+ * which is the first frame's own control row with the library swapped for
+ * the verb that ends the scan.
+ *
  * ── What is kept when something goes wrong ──────────────────────────────────
  *
- * The chosen file. Every failure path leaves `file` set, so "Try again" resends
- * what was already picked rather than reopening the camera — the same rule as
- * the advisor's composer, where losing what someone produced is worse than any
- * error message. Re-photographing a bill you are standing next to is a small
- * cost; re-photographing one you have already thrown away is not.
+ * The pages. Every failure path leaves them in the strip — on the phone and
+ * in storage — so "Try again" re-files what was already photographed rather
+ * than reopening the camera — the same rule as the advisor's composer, where
+ * losing what someone produced is worse than any error message.
+ * Re-photographing a bill you are standing next to is a small cost;
+ * re-photographing one you have already thrown away is not. They are
+ * discarded only when the person starts over, or leaves.
  */
 
 /*
@@ -95,7 +121,7 @@ type ScanSource = 'camera' | 'library';
 type State =
   | { status: 'idle' }
   | { status: 'working'; phase: ScanPhase; source: ScanSource }
-  | { status: 'done'; itemsExtracted: number }
+  | { status: 'done'; itemsExtracted: number; pageCount: number }
   | {
       status: 'mismatch';
       message: string;
@@ -125,6 +151,24 @@ type State =
       diagnostic?: string;
     };
 
+/** One page of the scan, as the screen holds it. */
+interface Page {
+  key: string;
+  file: InvoiceFile;
+  state: PageState;
+  /** The stored page, once its upload has answered. */
+  path?: string;
+  /**
+   * The API this phone talks to has no `/invoice-pages` (a 404 — §8's "new
+   * route, unpromoted host"). A one-page scan then files the old way.
+   */
+  legacy?: boolean;
+}
+
+const two = (n: number) => String(n).padStart(2, '0');
+const pagesWord = (n: number) => `${n} ${n === 1 ? 'page' : 'pages'}`;
+let pageSerial = 0;
+
 function describeVehicle(vehicle: ExtractedVehicle | null): string {
   if (!vehicle) return 'a car it could not identify';
   if (vehicle.label) return vehicle.label;
@@ -134,7 +178,7 @@ function describeVehicle(vehicle: ExtractedVehicle | null): string {
 
 export function InvoiceScanScreen({
   vehicleId,
-  pickImage,
+  pickImages,
   startWith = 'camera',
   onSignOut,
   onFiled,
@@ -148,17 +192,19 @@ export function InvoiceScanScreen({
    */
   startWith?: 'camera' | 'library';
   /**
-   * Resolves to the chosen image, or `null` if the picker was dismissed.
+   * Resolves to the chosen images in the order they were tapped — up to
+   * `limit` — or `[]` if the picker was dismissed.
    *
    * Injected so this file stays free of native imports — see the header.
-   * `src/media/pick-image.ts` is the real implementation and the only
-   * module that imports `expo-image-picker`.
+   * `src/media/pick-image.ts` (`pickInvoiceImages`) is the real
+   * implementation and the only module that imports `expo-image-picker`.
    *
-   * ⚠ `'library'` only, since 12 Sep. The camera is the viewfinder's, and
-   * narrowing the type here is what stops a future "Take a photo" reaching
-   * for the system sheet again by habit.
+   * ⚠ The library only, since 12 Sep. The camera is the viewfinder's, and
+   * there is no source argument so a future "Take a photo" cannot reach for
+   * the system sheet again by habit. Plural since 27 Sep: several photos of
+   * one invoice are its pages.
    */
-  pickImage: (source: 'library') => Promise<InvoiceFile | null>;
+  pickImages: (limit: number) => Promise<InvoiceFile[]>;
   onSignOut: () => void;
   /** Lets the caller refresh the vehicle once line items have changed. */
   onFiled?: () => void;
@@ -213,146 +259,345 @@ export function InvoiceScanScreen({
       live = false;
     };
   }, []);
-  const [file, setFile] = useState<InvoiceFile | null>(null);
   /*
-    Where the file came from, for the ledger's first row. A ref rather than
-    state: it is read inside `send`, which "Try again" and "Yes, file it here"
+    ── The pages (27 Sep) ─────────────────────────────────────────────────────
+
+    State for drawing, and a ref mirroring it for the work: an upload that
+    answers after three more photographs must update the page it was for,
+    and Done must read the pages as they are when it runs, not as they were
+    when the handler was made.
+  */
+  const [pages, setPagesState] = useState<Page[]>([]);
+  const pagesRef = useRef<Page[]>([]);
+  const setPages = useCallback((next: (current: Page[]) => Page[]) => {
+    pagesRef.current = next(pagesRef.current);
+    setPagesState(pagesRef.current);
+  }, []);
+  /** The upload in flight for each page, so Done can wait for exactly those. */
+  const uploads = useRef(new Map<string, Promise<void>>());
+  /** The page the next capture replaces, when a retake is under way. */
+  const [retaking, setRetaking] = useState<string | null>(null);
+  /** The page open in `PageReview`. */
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const mounted = useRef(true);
+
+  /*
+    Where the pages came from, for the ledger's first row. A ref rather than
+    state: it is read inside `fileScan`, which "Try again" and "Yes, file it here"
     both call without a source in scope, and it never needs to redraw anything
     on its own.
   */
   const source = useRef<ScanSource>('library');
 
-  const send = useCallback(
-    async (chosen: InvoiceFile, confirmVehicle: boolean) => {
-      /*
-        Two different waits, and the second is the long one — the model is
-        reading the document. `filing` is the confirm path only: the file is
-        being sent again with the vehicle check overridden, after the question
-        the first send came back with. See `scanStages`.
-      */
-      setState({
-        status: 'working',
-        phase: confirmVehicle ? 'filing' : 'reading',
-        source: source.current,
+  /**
+   * Send one page, now — while the next is being lined up. Resolves whatever
+   * happens; the page's own `state` carries the answer.
+   */
+  const sendPage = useCallback(
+    (key: string) => {
+      const page = pagesRef.current.find((p) => p.key === key);
+      if (!page) return Promise.resolve();
+      setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sending', legacy: false } : p)));
+
+      const upload = uploadInvoicePage(vehicleId, page.file).then(
+        (path) => {
+          if (!pagesRef.current.some((p) => p.key === key) || !mounted.current) {
+            // Removed, or the screen left, while it was on its way: nobody is filing it.
+            void discardInvoicePages(vehicleId, [path]);
+            return;
+          }
+          setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sent', path } : p)));
+        },
+        (caught) => {
+          const legacy = caught instanceof ApiRequestError && caught.status === 404;
+          setPages((all) =>
+            all.map((p) => (p.key === key ? { ...p, state: legacy ? 'sent' : 'failed', legacy } : p))
+          );
+        }
+      );
+      uploads.current.set(key, upload);
+      void upload.finally(() => {
+        if (uploads.current.get(key) === upload) uploads.current.delete(key);
       });
+      return upload;
+    },
+    [vehicleId, setPages]
+  );
 
-      try {
-        const result = await uploadInvoice({ vehicleId, file: chosen, confirmVehicle });
+  /** Put photographs in the strip — appended, or in place of the page being retaken. */
+  const addPages = useCallback(
+    (files: InvoiceFile[]) => {
+      const room = INVOICE_PAGE_LIMIT - pagesRef.current.length + (retaking ? 1 : 0);
+      const fresh = files.slice(0, Math.max(0, room)).map<Page>((file) => ({
+        key: `page-${++pageSerial}`,
+        file,
+        state: 'sending',
+      }));
+      if (fresh.length === 0) return [];
 
-        if (result.status === 'vehicle-mismatch') {
-          setState({
-            status: 'mismatch',
-            message: result.message,
-            extracted: result.extracted,
-            expected: result.expected,
-          });
-          return;
-        }
+      if (retaking && pagesRef.current.some((p) => p.key === retaking)) {
+        const old = pagesRef.current.find((p) => p.key === retaking);
+        if (old?.path) void discardInvoicePages(vehicleId, [old.path]);
+        const [first, ...rest] = fresh;
+        setPages((all) => {
+          const at = all.findIndex((p) => p.key === retaking);
+          const next = [...all];
+          next.splice(at, 1, first, ...rest);
+          return next;
+        });
+        setRetaking(null);
+      } else {
+        setPages((all) => [...all, ...fresh]);
+      }
+      fresh.forEach((page) => void sendPage(page.key));
+      return fresh;
+    },
+    [retaking, vehicleId, sendPage, setPages]
+  );
 
-        if (result.status === 'not-an-invoice') {
-          setState({ status: 'not-invoice', message: result.message });
-          return;
-        }
+  /** Throw the scan away — on the phone and in storage. */
+  const discardAll = useCallback(() => {
+    const paths = pagesRef.current.flatMap((p) => (p.path ? [p.path] : []));
+    setPages(() => []);
+    setRetaking(null);
+    setReviewing(null);
+    void discardInvoicePages(vehicleId, paths);
+  }, [vehicleId, setPages]);
 
-        setState({ status: 'done', itemsExtracted: result.itemsExtracted });
-        onFiled?.();
-      } catch (caught) {
-        if (caught instanceof ApiRequestError && caught.needsSubscription) {
-          /*
-            ── E6's wire · a refusal is not a failure ─────────────────────────
+  /*
+    Leaving mid-scan discards what was sent. Best-effort — the screen is going
+    and nobody is left to tell; a page this misses sits under the car's own
+    prefix, where the account sweep reaches it. An upload still out when the
+    screen goes discards itself when it lands (`sendPage`).
+  */
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      const paths = pagesRef.current.flatMap((p) => (p.path ? [p.path] : []));
+      void discardInvoicePages(vehicleId, paths);
+    };
+  }, [vehicleId]);
 
-            The gate said invoice scanning is part of the subscription
-            (`lib/feature-gate.ts`, forwarded by `/upload-document` as 402
-            with `code: 'needs-subscription'`). The server's sentence is the
-            message — it names the feature and what stays free — under a
-            heading that is not "That did not upload", because it did not
-            fail; and it is not retryable, because trying again cannot help
-            when the answer is a purchase. The paywall opens over it, the same
-            way the advisor's refusal does.
-
-            ⚠ Off today. `PAID_FEATURES_ENFORCED` is what makes this branch
-            reachable, and it stays off until a sandbox purchase has been
-            through Restore.
-          */
-          setState({
-            status: 'error',
-            heading: 'Part of Tappet Plus',
-            message: caught.message,
-            retryable: false,
-          });
-          requestUpgrade('invoice-scanning');
-          return;
-        }
-
-        const message = describeUploadError(caught);
+  /**
+   * A failure, as this screen reports it. Shared by every await in `file`.
+   */
+  const report = useCallback(
+    (caught: unknown) => {
+      if (caught instanceof ApiRequestError && caught.needsSubscription) {
         /*
-          Reached only from `uploadInvoice`'s network and server paths — a
-          timeout, a 500, a rate limit — all of which can succeed on a second
-          attempt with the same file.
+          ── E6's wire · a refusal is not a failure ─────────────────────────
+
+          The gate said invoice scanning is part of the subscription
+          (`lib/feature-gate.ts`, forwarded by `/upload-document` as 402
+          with `code: 'needs-subscription'`). The server's sentence is the
+          message — it names the feature and what stays free — under a
+          heading that is not "That did not upload", because it did not
+          fail; and it is not retryable, because trying again cannot help
+          when the answer is a purchase. The paywall opens over it, the same
+          way the advisor's refusal does.
+
+          ⚠ Off today. `PAID_FEATURES_ENFORCED` is what makes this branch
+          reachable, and it stays off until a sandbox purchase has been
+          through Restore.
         */
         setState({
           status: 'error',
-          message,
-          retryable: true,
-          // Instructing someone to sign in without giving them a way to is the
-          // defect this pairs with — see the button below.
-          signInMayHelp: caught instanceof ApiRequestError && caught.status === 401,
-          // Unconditional. Gating this on the error *type* is what left the
-          // one unanticipated branch with nothing to report.
-          diagnostic: diagnoseUploadError(caught),
+          heading: 'Part of Tappet Plus',
+          message: caught.message,
+          retryable: false,
         });
-
-        /*
-          **No longer signs the user out on any 401.** It used to, and that was
-          wrong twice over: a *server* 401 may be a token the server would
-          accept a second later, so clearing the session destroys a working one
-          over a single response — and when `signOut()` itself then failed, the
-          app sat on an error saying "sign in again" while every other screen
-          stayed happily authenticated. That is exactly what a real tester hit
-          on 5 Aug, three times out of three.
-
-          Only a device-side 401 — this client knowing it holds no session — is
-          acted on automatically, because there is nothing to preserve. Anything
-          else offers the button below and lets the person decide.
-        */
-        if (caught instanceof ApiRequestError && caught.isLocallySignedOut) onSignOut();
+        requestUpgrade('invoice-scanning');
+        return;
       }
+
+      const message = describeUploadError(caught);
+      /*
+        Reached only from `uploadInvoice`'s network and server paths — a
+        timeout, a 500, a rate limit — all of which can succeed on a second
+        attempt with the same file.
+      */
+      setState({
+        status: 'error',
+        message,
+        retryable: true,
+        // Instructing someone to sign in without giving them a way to is the
+        // defect this pairs with — see the button below.
+        signInMayHelp: caught instanceof ApiRequestError && caught.status === 401,
+        // Unconditional. Gating this on the error *type* is what left the
+        // one unanticipated branch with nothing to report.
+        diagnostic: diagnoseUploadError(caught),
+      });
+
+      /*
+        **No longer signs the user out on any 401.** It used to, and that was
+        wrong twice over: a *server* 401 may be a token the server would
+        accept a second later, so clearing the session destroys a working one
+        over a single response — and when `signOut()` itself then failed, the
+        app sat on an error saying "sign in again" while every other screen
+        stayed happily authenticated. That is exactly what a real tester hit
+        on 5 Aug, three times out of three.
+
+        Only a device-side 401 — this client knowing it holds no session — is
+        acted on automatically, because there is nothing to preserve. Anything
+        else offers the button below and lets the person decide.
+      */
+      if (caught instanceof ApiRequestError && caught.isLocallySignedOut) onSignOut();
     },
-    [vehicleId, onSignOut, onFiled]
+    [onSignOut]
+  );
+
+  const settle = useCallback(
+    (result: InvoiceUploadResult) => {
+      if (result.status === 'vehicle-mismatch') {
+        setState({
+          status: 'mismatch',
+          message: result.message,
+          extracted: result.extracted,
+          expected: result.expected,
+        });
+        return;
+      }
+
+      if (result.status === 'not-an-invoice') {
+        setState({ status: 'not-invoice', message: result.message });
+        return;
+      }
+
+      const pageCount = result.pageCount ?? pagesRef.current.length;
+      // Filed: the server has removed its copies of the pages; drop ours.
+      setPages(() => []);
+      setState({ status: 'done', itemsExtracted: result.itemsExtracted, pageCount });
+      onFiled?.();
+    },
+    [onFiled, setPages]
   );
 
   /**
-   * Open the library and run the upload. **No consent check** — see `choose`.
+   * DONE — file every page as one invoice.
+   *
+   * Waits for any upload still out (the ledger's SENDING row, counted from
+   * the pages themselves), sends a failed page once more, then files the
+   * paths in strip order. `confirmVehicle` is the mismatch's second send:
+   * the same paths, the heuristic overridden.
+   */
+  const fileScan = useCallback(
+    async (confirmVehicle: boolean) => {
+      setReviewing(null);
+      setRetaking(null);
+      setState({ status: 'working', phase: confirmVehicle ? 'filing' : 'sending', source: source.current });
+
+      try {
+        await Promise.all([...uploads.current.values()]);
+        const unsent = pagesRef.current.filter((p) => p.state === 'failed' || (!p.path && !p.legacy));
+        await Promise.all(unsent.map((p) => sendPage(p.key)));
+
+        const current = pagesRef.current;
+        if (current.length === 0) {
+          setState({ status: 'idle' });
+          return;
+        }
+
+        if (current.some((p) => p.legacy)) {
+          /*
+            The API this phone is talking to predates pages. One page files
+            the way it always did; more cannot be filed as one invoice there,
+            and saying so beats filing them as several.
+          */
+          if (current.length === 1) {
+            if (!confirmVehicle) setState({ status: 'working', phase: 'reading', source: source.current });
+            settle(await uploadInvoice({ vehicleId, file: current[0].file, confirmVehicle }));
+            return;
+          }
+          setState({
+            status: 'error',
+            heading: 'That did not upload',
+            message:
+              'Filing more than one page needs a newer version of the Tappet API than this app is talking to. Remove all but one page, or try again later.',
+            retryable: false,
+          });
+          return;
+        }
+
+        const failed = current.filter((p) => p.state === 'failed' || !p.path);
+        if (failed.length > 0) {
+          setState({
+            status: 'error',
+            heading: failed.length === 1 ? `Page ${two(current.indexOf(failed[0]) + 1)} did not send` : 'Some pages did not send',
+            message:
+              'Your pages are still here. Check your connection and try again — nothing has been filed yet.',
+            retryable: true,
+          });
+          return;
+        }
+
+        if (!confirmVehicle) setState({ status: 'working', phase: 'reading', source: source.current });
+        const paths = current.map((p) => p.path as string);
+        try {
+          settle(await fileInvoicePages({ vehicleId, pagePaths: paths, confirmVehicle }));
+        } catch (caught) {
+          if (!(caught instanceof PageMissingError)) throw caught;
+          /*
+            The server no longer holds a page the phone does — a discard that
+            raced, a sweep. Send every page again, once, and file those.
+          */
+          setPages((all) => all.map((p) => ({ ...p, path: undefined })));
+          await Promise.all(pagesRef.current.map((p) => sendPage(p.key)));
+          const again = pagesRef.current;
+          if (again.some((p) => !p.path)) throw caught;
+          settle(
+            await fileInvoicePages({ vehicleId, pagePaths: again.map((p) => p.path as string), confirmVehicle })
+          );
+        }
+      } catch (caught) {
+        report(caught);
+      }
+    },
+    [vehicleId, sendPage, settle, report, setPages]
+  );
+
+  /**
+   * Open the library. **No consent check** — see `choose`.
+   *
+   * `thenFile` is UPLOAD from the Service tab: the photographs chosen *are*
+   * the invoice, and choosing them is the Done. From the viewfinder they
+   * join the strip instead, beside anything already photographed.
    *
    * ⚠ Split out on purpose, and still so: `choose` closes over `consent`, and
    * the work must not re-read the gate that just admitted it.
    */
-  const openPicker = useCallback(async () => {
-    source.current = 'library';
-    setState({ status: 'working', phase: 'picking', source: 'library' });
+  const openPicker = useCallback(
+    async (thenFile: boolean) => {
+      const room = INVOICE_PAGE_LIMIT - pagesRef.current.length + (retaking ? 1 : 0);
+      if (room <= 0) return;
+      source.current = 'library';
+      setState({ status: 'working', phase: 'picking', source: 'library' });
 
-    try {
-      const chosen = await pickImage('library');
-      if (!chosen) {
-        // Dismissing the picker is not a failure and must not read as one.
-        setState({ status: 'idle' });
-        return;
+      try {
+        const chosen = await pickImages(room);
+        if (chosen.length === 0) {
+          // Dismissing the picker is not a failure and must not read as one.
+          setState({ status: 'idle' });
+          return;
+        }
+        addPages(chosen);
+        if (thenFile) await fileScan(false);
+        else setState({ status: 'idle' });
+      } catch (caught) {
+        /*
+          A refused permission or a rejected file type. Resending changes
+          nothing, so this offers a different file rather than a doomed retry.
+        */
+        setState({
+          status: 'error',
+          message: describeUploadError(caught),
+          retryable: false,
+          diagnostic: diagnoseUploadError(caught),
+        });
       }
-      setFile(chosen);
-      await send(chosen, false);
-    } catch (caught) {
-      /*
-        A refused permission or a rejected file type. Resending changes
-        nothing, so this offers a different file rather than a doomed retry.
-      */
-      setState({
-        status: 'error',
-        message: describeUploadError(caught),
-        retryable: false,
-        diagnostic: diagnoseUploadError(caught),
-      });
-    }
-  }, [pickImage, send]);
+    },
+    [pickImages, addPages, fileScan, retaking]
+  );
 
   /**
    * The consent gate in front of the library — LEG-02.
@@ -368,7 +613,7 @@ export function InvoiceScanScreen({
       return;
     }
 
-    await openPicker();
+    await openPicker(false);
   }, [consent, openPicker]);
 
   /* UPLOAD from the Service tab: the picker, once, the moment consent is known to be granted. */
@@ -376,23 +621,20 @@ export function InvoiceScanScreen({
   useEffect(() => {
     if (startWith !== 'library' || consent !== 'granted' || openedForUpload.current) return;
     openedForUpload.current = true;
-    void openPicker();
+    void openPicker(true);
   }, [startWith, consent, openPicker]);
 
   /**
-   * The viewfinder's capture, as the upload wants it.
-   *
-   * The haptic has already fired and the file is on disk; what remains is the
-   * same `send` the library path calls, with the ledger's first row named for
-   * the camera (`scanStages`).
+   * The viewfinder's capture, as the scan wants it: one more page in the
+   * strip, sending at once. The haptic has already fired and the file is on
+   * disk; the camera stays up for the next page.
    */
   const captured = useCallback(
     async (chosen: InvoiceFile) => {
       source.current = 'camera';
-      setFile(chosen);
-      await send(chosen, false);
+      addPages([chosen]);
     },
-    [send]
+    [addPages]
   );
 
   /*
@@ -461,6 +703,40 @@ export function InvoiceScanScreen({
       </Text>
     );
 
+  /*
+    ── 27 Sep · once a page is in, the foot asks the question ────────────────
+
+    The ask David described — "after the first page, ask if there are more,
+    or Done" — as a sentence under the readout, not a dialog over the frame:
+    the frame is where the next page would be lined up, and a question per
+    page is the pattern the strip was chosen over (`PageStrip`). It is asked
+    once, after the first page, which is the only moment it is news; from the
+    second page on the controls speak for themselves and the line says what
+    a tap on a page does.
+  */
+  const count = pages.length;
+  const full = count >= INVOICE_PAGE_LIMIT && !retaking;
+  const retakeIndex = retaking ? pages.findIndex((p) => p.key === retaking) : -1;
+  const nextNumber = retakeIndex >= 0 ? retakeIndex + 1 : count + 1;
+  const scanFoot =
+    retakeIndex >= 0 ? (
+      <Text style={styles.body_}>{`Photograph page ${two(nextNumber)} again. It replaces the one in the strip.`}</Text>
+    ) : full ? (
+      <Text style={styles.body_}>
+        {`${pagesWord(INVOICE_PAGE_LIMIT)} is the most one scan reads. Press Done to file these — a longer invoice goes in as a second scan.`}
+      </Text>
+    ) : count === 1 ? (
+      <Text style={styles.body_}>
+        Page 01 is in. If the invoice runs on, photograph the next page. If that was all of it, press Done.
+      </Text>
+    ) : (
+      <Text style={styles.body_}>Tap a page to retake or remove it.</Text>
+    );
+
+  const reviewed = reviewing ? pages.findIndex((p) => p.key === reviewing) : -1;
+  const sentCount = pages.filter((p) => p.state === 'sent').length;
+  const scanPages: ScanPages | undefined = count > 0 ? { count, sent: sentCount } : undefined;
+
   return (
     <>
     <AiConsentSheet
@@ -507,7 +783,54 @@ export function InvoiceScanScreen({
         live={consent === 'granted'}
         onCapture={captured}
         onCaptureFailed={captureFailed}
+        label={
+          count === 0
+            ? undefined
+            : full
+              ? // The act, not the count — the strip already says 6 OF 6.
+                'Ready to file'
+              : retakeIndex >= 0
+                ? `Retake page ${two(nextNumber)}`
+                : `Photograph page ${two(nextNumber)}`
+        }
+        captureLabel={count === 0 ? undefined : full ? 'Capture' : retakeIndex >= 0 ? `Retake page ${two(nextNumber)}` : `Capture page ${two(nextNumber)}`}
+        captureDisabled={full}
+        disabledWord="Full"
+        strip={
+          count > 0 ? (
+            <PageStrip
+              pages={pages.map((p) => ({ key: p.key, uri: p.file.uri, state: p.state }))}
+              current={retaking ?? pages[count - 1]?.key ?? null}
+              onOpen={setReviewing}
+              onAddFromLibrary={full || retaking ? undefined : () => void choose()}
+              limit={INVOICE_PAGE_LIMIT}
+            />
+          ) : null
+        }
         beside={
+          retakeIndex >= 0 ? (
+            /*
+              While a page is being retaken DONE cannot be pressed, so its slot
+              holds the way out of the retake instead — one control row, and
+              the frame keeps its height (round 53: a ghost line under the
+              sentence pushed the brackets up, and DONE sat there disabled).
+            */
+            <Button label="Keep the old page" variant="outline" size="small" onPress={() => setRetaking(null)} />
+          ) : count > 0 ? (
+            /*
+              DONE takes the library's place once there is something to file —
+              the library moves into the strip as its last tile. Outline beside
+              the shutter, which is still the thing most scans press next; the
+              filled control only when the shutter can no longer be pressed.
+            */
+            <Button
+              label={`Done · ${pagesWord(count)}`}
+              variant={full ? 'primary' : 'outline'}
+              size="small"
+              onPress={() => void fileScan(false)}
+              style={full ? styles.grow : undefined}
+            />
+          ) : (
           /*
             Not a fallback. Plenty of invoices arrive as an emailed PDF or a
             photo taken days ago — and the simulator has no camera at all, so
@@ -528,8 +851,9 @@ export function InvoiceScanScreen({
             size="small"
             onPress={() => void choose()}
           />
+          )
         }
-        foot={idleFoot}
+        foot={count > 0 && consent === 'granted' ? scanFoot : idleFoot}
       />
     ) : (
     <ScrollView
@@ -570,9 +894,9 @@ export function InvoiceScanScreen({
           for above.
         */
         <Working
-          line={scanLine(state.phase, state.source)}
-          value={state.phase === 'picking' ? undefined : file?.name}
-          stages={scanStages(state.phase, state.source)}
+          line={scanLine(state.phase, state.source, scanPages)}
+          value={state.phase === 'picking' || count !== 1 ? undefined : pages[0]?.file.name}
+          stages={scanStages(state.phase, state.source, scanPages)}
         />
       )}
 
@@ -581,7 +905,7 @@ export function InvoiceScanScreen({
           <Text style={styles.title}>Filed</Text>
           <Text style={styles.body_}>
             {state.itemsExtracted > 0
-              ? `${state.itemsExtracted} line ${state.itemsExtracted === 1 ? 'item' : 'items'} added to this car's history.`
+              ? `${state.itemsExtracted} line ${state.itemsExtracted === 1 ? 'item' : 'items'}${state.pageCount > 1 ? ` from ${state.pageCount} pages` : ''} added to this car's history.`
               : /*
                   Zero is honest and not a failure — the document is stored, its
                   lines just could not be itemised. Claiming a number here would
@@ -613,13 +937,16 @@ export function InvoiceScanScreen({
           <Button
             label="Yes, file it here"
             variant="primary"
-            onPress={() => file && void send(file, true)}
-            disabled={!file}
+            onPress={() => void fileScan(true)}
+            disabled={count === 0}
           />
           <Button
             label="No, cancel"
             variant="outline"
-            onPress={() => setState({ status: 'idle' })}
+            onPress={() => {
+              discardAll();
+              setState({ status: 'idle' });
+            }}
           />
         </View>
       )}
@@ -636,12 +963,18 @@ export function InvoiceScanScreen({
           <Button
             label="Try another photo"
             variant="primary"
-            onPress={() => setState({ status: 'idle' })}
+            onPress={() => {
+              discardAll();
+              setState({ status: 'idle' });
+            }}
           />
           <Button
             label="Choose from library"
             variant="outline"
-            onPress={() => void choose()}
+            onPress={() => {
+              discardAll();
+              void choose();
+            }}
           />
         </View>
       )}
@@ -681,7 +1014,7 @@ export function InvoiceScanScreen({
             <Button label="Sign in again" variant="primary" onPress={onSignOut} />
           ) : null}
 
-          {state.retryable && file ? (
+          {state.retryable && count > 0 ? (
             <Button
               label="Try again"
               /*
@@ -690,25 +1023,64 @@ export function InvoiceScanScreen({
                 variant names rather than two whites competing.
               */
               variant={state.signInMayHelp ? 'outline' : 'primary'}
-              onPress={() => void send(file, false)}
+              onPress={() => void fileScan(false)}
             />
           ) : null}
 
-          <Button
-            label="Choose a different file"
-            variant={state.retryable && file ? 'outline' : 'primary'}
-            onPress={() => void choose()}
-          />
-
-          <Button
-            label="Take a photo"
-            variant="outline"
-            onPress={() => setState({ status: 'idle' })}
-          />
+          {count > 0 ? (
+            /*
+              With pages in hand the way back is to them, not to a fresh
+              picker — they are what "Try again" files. Starting over is
+              offered, and is the one control here that throws them away.
+            */
+            <>
+              <Button
+                label="Back to the pages"
+                variant={state.retryable ? 'outline' : 'primary'}
+                onPress={() => setState({ status: 'idle' })}
+              />
+              <Button
+                label="Start over"
+                variant="ghost"
+                onPress={() => {
+                  discardAll();
+                  setState({ status: 'idle' });
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <Button label="Choose a different file" variant="primary" onPress={() => void choose()} />
+              <Button label="Take a photo" variant="outline" onPress={() => setState({ status: 'idle' })} />
+            </>
+          )}
         </View>
       )}
     </ScrollView>
     )}
+
+    {reviewed >= 0 ? (
+      <PageReview
+        key={pages[reviewed].key}
+        uri={pages[reviewed].file.uri}
+        number={reviewed + 1}
+        total={count}
+        state={pages[reviewed].state}
+        onClose={() => setReviewing(null)}
+        onRetake={() => {
+          setRetaking(pages[reviewed].key);
+          setReviewing(null);
+        }}
+        onRemove={() => {
+          const gone = pages[reviewed];
+          if (gone.path) void discardInvoicePages(vehicleId, [gone.path]);
+          setPages((all) => all.filter((p) => p.key !== gone.key));
+          if (retaking === gone.key) setRetaking(null);
+          setReviewing(null);
+        }}
+        onResend={() => void sendPage(pages[reviewed].key)}
+      />
+    ) : null}
     </>
   );
 }
@@ -716,7 +1088,13 @@ export function InvoiceScanScreen({
 const styles = StyleSheet.create({
   body: { ...PAGE_BODY },
   block: { gap: 12 },
-  title: { color: text.primary, fontSize: 22, fontFamily: interFace('700'), fontWeight: '700', letterSpacing: -0.3 },
+  grow: { flex: 1 },
+  /*
+    B1: a title in the condensed grotesk, caps — `displaySection`, the step
+    under a screen's own name, since the nav already carries that. It was
+    Inter 22 bold, which round 53 read as "a system alert" on FILED.
+  */
+  title: { ...type.displaySection, color: text.primary },
   /* `body_` because `body` is the container above. */
   body_: { color: text.muted, fontFamily: interFace('400'),
     fontSize: 15, lineHeight: 22 },

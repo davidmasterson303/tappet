@@ -108,6 +108,8 @@ export interface EntitlementWrite {
 export type IgnoreReason =
   | 'stale-event'
   | 'sandbox-would-overwrite-production'
+  /** A sandbox event against access granted by hand — see `isHandGranted`. */
+  | 'sandbox-would-overwrite-grant'
   /**
    * IAP-09. A mapped paid product arriving with no expiry.
    *
@@ -124,6 +126,13 @@ export type EntitlementDecision =
       reason: IgnoreReason;
       /** Present when the reason is worth a log line rather than a shrug. */
       detail?: string;
+      /**
+       * The tier that stays in force because nothing was written. Set only
+       * when the refusal *protects* access — a caller answering "what may this
+       * account use" reads it; every other ignore leaves it unset, so a stale
+       * event is never read as an entitlement.
+       */
+      keeps?: string;
     }
   | {
       action: 'write';
@@ -245,6 +254,31 @@ export function applyAppleNotification(
   }
 
   /*
+    Nor may a Sandbox event overwrite access granted by hand — ruled 27 Sep.
+
+    The review account is exactly this: a row with a paid tier and no Apple
+    transaction behind it. App Review buys in Sandbox against the production
+    server, and before this rule its purchase *replaced* the grant with a
+    sandbox subscription — which Apple renews on a minutes-long clock and then
+    lets lapse, so the account would have dropped to free mid-review.
+
+    Refused rather than merged, and the grant's tier is handed back as `keeps`
+    so the purchase still reads as a success on the reviewer's screen: the
+    account *is* paid, which is the only thing the paywall asks.
+
+    Sandbox only. A real Production purchase on a hand-granted account is the
+    owner choosing to pay, and it takes over as any purchase would.
+  */
+  if (event.environment === 'Sandbox' && isHandGranted(current)) {
+    return {
+      action: 'ignore',
+      reason: 'sandbox-would-overwrite-grant',
+      detail: event.originalTransactionId,
+      keeps: current.tier,
+    };
+  }
+
+  /*
     The ordering guard. `>=` rather than `>` is wrong here and it is worth
     saying why: Apple can legitimately sign two notifications in the same
     millisecond, and re-applying an identical event is harmless, but replaying
@@ -345,6 +379,26 @@ export function applyAppleNotification(
       revokedAt: null,
     },
   };
+}
+
+/**
+ * Paid access that no Apple transaction stands behind — granted by hand.
+ *
+ * Every row this module writes carries an `originalTransactionId`
+ * (`EntitlementWrite` requires one), so a paid row without one was written by
+ * a person, not by a purchase. Revoked or free rows are not a grant worth
+ * protecting.
+ */
+export function isHandGranted(
+  current: StoredEntitlement | null | undefined
+): current is StoredEntitlement & { tier: string } {
+  return (
+    !!current &&
+    current.originalTransactionId === null &&
+    current.revokedAt === null &&
+    typeof current.tier === 'string' &&
+    current.tier !== 'free'
+  );
 }
 
 /** The later of two optional epoch-ms values, or null when neither is usable. */

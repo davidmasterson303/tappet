@@ -425,6 +425,64 @@ describe('restore', () => {
   });
 });
 
+describe('the quiet check — heldSubscription (27 Sep)', () => {
+  it('reads what is held without syncing, so no Apple ID prompt can appear', async () => {
+    const { store, iap } = load();
+    iap.getAvailablePurchases.mockResolvedValue([PURCHASE]);
+
+    await store.heldSubscription();
+
+    expect(iap.getAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(iap.restorePurchases).not.toHaveBeenCalled();
+  });
+
+  it('answers null when nothing is held, so nothing is sent', async () => {
+    const { store, iap } = load();
+    iap.getAvailablePurchases.mockResolvedValue([]);
+
+    await expect(store.heldSubscription()).resolves.toBeNull();
+  });
+
+  it('can still detect a held subscription, and takes the newest of ours', async () => {
+    const { store, iap } = load();
+    const older = { ...PURCHASE, id: 'txn-0', transactionDate: 1, purchaseToken: 'older' };
+    const newest = { ...PURCHASE, id: 'txn-2', productId: ANNUAL, transactionDate: 2_000_000_000_000, purchaseToken: 'newest' };
+    iap.getAvailablePurchases.mockResolvedValue([older, newest]);
+
+    await expect(store.heldSubscription()).resolves.toEqual({
+      kind: 'purchased',
+      jwsRepresentation: 'newest',
+      purchase: newest,
+    });
+  });
+
+  it('ignores a product that is not ours, however new', async () => {
+    const { store, iap } = load();
+    const foreign = { ...PURCHASE, productId: 'com.example.other', transactionDate: 3_000_000_000_000, purchaseToken: 'foreign' };
+    iap.getAvailablePurchases.mockResolvedValue([foreign]);
+
+    await expect(store.heldSubscription()).resolves.toBeNull();
+  });
+
+  it('answers null rather than failing when the store cannot be read', async () => {
+    const { store, iap } = load();
+    iap.getAvailablePurchases.mockRejectedValue(new Error('no connection'));
+
+    await expect(store.heldSubscription()).resolves.toBeNull();
+  });
+
+  it('answers null on a build with no store', async () => {
+    mockNativeModule = null;
+    try {
+      const { store, iap } = load();
+      await expect(store.heldSubscription()).resolves.toBeNull();
+      expect(iap.getAvailablePurchases).not.toHaveBeenCalled();
+    } finally {
+      mockNativeModule = {};
+    }
+  });
+});
+
 describe('finish', () => {
   it('finishes the purchase it was given, as a subscription', async () => {
     const { store, iap } = load();

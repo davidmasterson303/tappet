@@ -4088,3 +4088,83 @@ foot so the notch reads"*). Its other open asks are a **different crop of the
 owner's photograph**, which the app does not control, and the type scale on
 WHAT YOU TOLD US, which predates this change. Per the loop's own rule, that is
 where it is handed back rather than resolved.
+
+### 6.25 The car panel's small tier, and the TIRES cell — 24 Sep, for Design
+
+David: *"i think the tires element on main car screen can be improved,
+especially when no tires have been added. and, generally, we may have a
+problem with small font sizes on that page."* It is the second time in two
+days; 6.24 quotes the first (*"i'm worried about small fonts"*).
+
+**What was measured**, at 1:1 on the 16 Pro Max (18.5), fixtures car: every
+reading in the binnacle but the numerals sat at **13 or 14pt** — the timing
+(`overdue by 3,000 mi`), the count words (`open`, `records`), the absences
+(`No score yet`, `Nothing planned yet`), the cause beside the dial — while the
+WHAT YOU TOLD US rows beneath it are 20pt condensed. The car's readings were
+set smaller than its settings. The legends (`HEALTH ›`, `TIRES ›`) are
+`monoLabel` at the 12pt floor in `text.muted`, the smallest and quietest
+string on the panel, on every door it has.
+
+**What the build changed** (`VehicleDetailScreen.tsx`, screen-local styles):
+
+- `timing` 13 → **15**. It was cut from 15 on 21 Sep for "overdue by 3,000 mi"
+  on one line in *half* a row; NEXT SERVICE went full width on 22 Sep, and
+  TIRES always was. The reason had expired.
+- `countWord` and `absent` 13 → **15** (`type.mono`'s face, a local size).
+  "Nothing planned yet" still breaks after "Nothing" and fits the third on
+  the 16 Pro's 402pt with ~2pt spare — the tightest line on the panel.
+- `cause` and `summary` 14 → **`type.body` (16)**, dropping the local override.
+- **TIRES** names the set over its timing, as NEXT SERVICE names its service
+  (`MICHELIN PILOT SPORT 4S` / `rotation overdue by 5,400 mi`). With no set,
+  the cell was one muted mono line — the panel's quietest string on its only
+  invitation, and a sentence in the values face. It now reads `No tire set
+  yet` in the absent ink and says what a set buys in Inter beneath: *"Add
+  your tires to count down to each rotation."*
+
+**What Design needs to decide:**
+
+1. **Is 13pt `type.mono` still the right base for values?** Every screen sets
+   mono values at 13; the car panel now overrides it to 15 locally, which is
+   drift inside the build. Either `mono` moves up (and every spec table is
+   re-checked for width), or the system names a second mono size for
+   readings in a cell.
+2. **The 12pt legend in `text.muted`** is the label of every door on the
+   panel. The floor is right as a floor; whether a *door's* label should sit
+   at it, in the quietest ink, is the question.
+3. **The stat strip** (`MILEAGE 66,000 mi`, on the car's plate, the garage bay
+   and the tires screen) — done the same day on David's word: the value
+   13 → 15, wrapping to two lines at every size, since at 15 "Daily Driver"
+   is ~108pt of mono in the 16 Pro plate's ~97pt third. The eyebrow and the
+   note (`6 WK AGO ›`) stay at the 12pt label floor, which is question 2.
+
+### 6.26 The scan's page strip and page sheet — 27 Sep, for Design
+
+A multi-page invoice added two pieces the system has no spec for. Both are
+built from existing tokens, and each was graded by the critic (rounds 53–56):
+
+- **The page strip** (`components/PageStrip.tsx`) sits between the viewfinder
+  and its readout. Thumbnails are 44×52pt in a `border.field` hairline, and the
+  current one has an off-white edge. Indices are 12pt mono. While a page
+  uploads, a 2pt `brand.accent` rule sits under it (cyan's refresh-ramp job,
+  B7). A failed page gets the sodium △. The last tile is a hairline box, `+
+  PHOTOS`, and the count (`3 OF 6`) is right-aligned. There are no radii and no
+  cut: the thumbnails are photographs, not containers.
+- **The page sheet** (`components/PageReview.tsx`) is full screen. The
+  photograph is contained, never cropped, and runs edge to edge. Below it: the
+  readout band (`PAGE 02` / `SENT`), then RETAKE (outline) beside REMOVE PAGE
+  (`delete`, sodium hairline).
+- **The scan's result titles** (FILED, "Is this the right car?", the errors)
+  moved from Inter 22 bold to `type.displaySection`. That follows B1, and the
+  critic read the Inter as "a system alert".
+
+**What Design needs to decide:**
+
+1. Should a thumbnail strip become a system component? Photographs in a strip
+   will recur (the car's photos, the tires).
+2. The critic twice read `displaySection` (Archivo Narrow SemiBold 20) as
+   Inter. That is `displayHead`'s history of being read as a plain sans. Does
+   a result title want `displayHead`'s 700?
+3. Declined, and recorded here: the critic asked for disabled buttons to drop
+   to reduced opacity with no fill. The system's rule is a disabled fill and
+   never group opacity. The build keeps the rule.
+

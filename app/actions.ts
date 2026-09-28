@@ -56,10 +56,12 @@ import {
   vehicleIdFromStoragePath,
   storedUrl,
   storagePathFromStoredUrl,
+  isInvoicePagePath,
 } from '@tappet/core/storage-paths';
+import { stitchInvoicePdf, isStitchable } from '@/lib/invoice-pdf';
 import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@tappet/core/consultant-commands';
 import { parseEstimate } from '@tappet/core/consultant-estimate';
-import { ALLOWED_IMAGE_TYPES, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
+import { ALLOWED_IMAGE_TYPES, INVOICE_PAGE_LIMIT, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
 import { withRetry, withTimeout, TimeoutError } from '@tappet/core/retry';
 import type { Vehicle, ServiceItem, MaintenanceLineItem, KnowledgeBase, ApiResponse, ConsultantContext } from '@tappet/core/types';
 import { z } from 'zod';
@@ -3904,7 +3906,13 @@ function combineLineItems(items: any[]): any[] {
   return combined;
 }
 
-export async function parseInvoiceLineItems(documentId: string, vehicleId: string, fileBase64?: string, mimeType?: string, bypassVehicleCheck: boolean = false) {
+/*
+  `morePages` (27 Sep): pages 2… of a multi-page scan, in order, read in the
+  same call as the first — see `uploadInvoicePages`. Capped here as well as
+  there: this is a `'use server'` export, so its caller may be anyone, and the
+  cap is what bounds a single paid call.
+*/
+export async function parseInvoiceLineItems(documentId: string, vehicleId: string, fileBase64?: string, mimeType?: string, bypassVehicleCheck: boolean = false, morePages: { data: string; mimeType: string }[] = []) {
   // Cost control: server actions are publicly invokable POST endpoints
   // and demo mode has no auth, so every Gemini-backed path is rate limited.
   {
@@ -4099,6 +4107,23 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
             mimeType: mimeType,
             data: fileBase64,
           },
+        });
+      }
+
+      /*
+        The remaining pages, each announced before its image so the model's
+        `page_number` is the photograph's and not a guess. Only when there is
+        more than one: a single page reads exactly as it always has.
+      */
+      const extraPages = Array.isArray(morePages) ? morePages.slice(0, INVOICE_PAGE_LIMIT - 1) : [];
+      if (fileBase64 && mimeType && extraPages.length > 0) {
+        contentParts.splice(1, 0, {
+          text: `The invoice below is ${extraPages.length + 1} photographed pages of ONE document, in order. Page 1 follows.`,
+        });
+        extraPages.forEach((page, index) => {
+          if (typeof page?.data !== 'string' || typeof page?.mimeType !== 'string') return;
+          contentParts.push({ text: `Page ${index + 2}:` });
+          contentParts.push({ inlineData: { mimeType: page.mimeType, data: page.data } });
         });
       }
 
@@ -4428,7 +4453,7 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
   }
 }
 
-export async function uploadInvoice(formData: FormData) {
+export async function uploadInvoice(formData: FormData): Promise<InvoiceFilingResult> {
   try {
     const file = formData.get('file') as File;
     const vehicleId = formData.get('vehicleId') as string;
@@ -4470,12 +4495,193 @@ export async function uploadInvoice(formData: FormData) {
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
+    return await fileStoredInvoice({
+      access,
+      vehicleId,
+      storagePath: fileName,
+      pages: [{ data: base64Data, mimeType: file.type || 'image/jpeg' }],
+      bypassVehicleCheck,
+    });
+  } catch (error: any) {
+    console.error('[Upload Failed]:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * ── A multi-page invoice, from pages already uploaded (27 Sep) ──────────────
+ *
+ * The phone uploads each page as it is photographed
+ * (`/api/v1/invoice-pages`), so by the time Done is pressed the pages are in
+ * storage and this is handed their paths, in order — never their bytes. That
+ * is what keeps a six-page scan inside a function's request body, and what
+ * lets page 3 upload while page 4 is being photographed.
+ *
+ * Then: one stored document (a PDF of the pages, or the page itself when
+ * there is one — `lib/invoice-pdf.ts` says why a PDF), one row, and **one**
+ * model call over every page. The single call is the point — the prompt has
+ * always asked the model to dedupe across pages ("DO NOT extract the summary
+ * Labor line from page 2 if page 1 already has itemized labor"), and it could
+ * never act on that while each page arrived as its own invoice.
+ *
+ * ── What happens to the pages ───────────────────────────────────────────────
+ *
+ * Removed once the invoice is filed. **Kept** on every other answer: a
+ * vehicle mismatch is re-sent with the owner's confirmation, and a failure is
+ * re-sent by Try again, and both send these same paths — re-photographing an
+ * invoice is exactly what keeping them avoids. The phone discards them
+ * (`DELETE /api/v1/invoice-pages`) when the person abandons the scan; a page
+ * that outlives both is under the car's prefix, so the account sweep reaches
+ * it.
+ *
+ * ⚠ A `'use server'` export, so a public endpoint. It authorizes the vehicle
+ * and then refuses any path that is not that vehicle's pending page — the
+ * same "one authorization does not cover two ids" rule as SEC-01, applied to
+ * a list of paths.
+ */
+export async function uploadInvoicePages(
+  vehicleId: string,
+  pagePaths: unknown,
+  bypassVehicleCheck = false
+): Promise<InvoiceFilingResult> {
+  try {
+    if (!vehicleId) throw new Error('Missing vehicle ID');
+
+    const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
+    if (!access.ok) {
+      return { success: false, error: access.error };
+    }
+
+    if (
+      !Array.isArray(pagePaths) ||
+      pagePaths.length === 0 ||
+      pagePaths.length > INVOICE_PAGE_LIMIT ||
+      new Set(pagePaths).size !== pagePaths.length ||
+      !pagePaths.every((path) => isInvoicePagePath(vehicleId, path))
+    ) {
+      logger.warn('UPLOAD_INVOICE_PAGES:BAD_PATHS', 'Refused a page list', {
+        vehicleId,
+        count: Array.isArray(pagePaths) ? pagePaths.length : null,
+      });
+      return { success: false, error: 'INVALID_PAGES' };
+    }
+
+    const client = access.client;
+    const paths = pagePaths as string[];
+
+    /*
+      Every page read before anything is written. A page that is gone — a
+      discard that raced the Done, a sweep — fails the scan here, before a
+      document row or a model call exists, with the one word the phone
+      answers by re-sending the page it still holds.
+    */
+    const pages: { bytes: Buffer; type: string }[] = [];
+    for (const path of paths) {
+      const { data, error } = await client.storage.from('vehicle-documents').download(path);
+      if (error || !data) {
+        logger.warn('UPLOAD_INVOICE_PAGES:MISSING', 'A page could not be read', { vehicleId, path });
+        return { success: false, error: 'PAGE_MISSING', missingPath: path };
+      }
+      const type = data.type && isStitchable(data.type) ? data.type : path.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      pages.push({ bytes: Buffer.from(await data.arrayBuffer()), type });
+    }
+
+    /*
+      One page is stored as it came — the same object the single-file upload
+      would have stored. More than one becomes a PDF, so every viewer opens
+      the whole invoice.
+    */
+    const single = pages.length === 1;
+    const storagePath = single
+      ? vehicleStoragePath(vehicleId, 'invoices', paths[0].split('/').pop() ?? 'invoice.jpg')
+      : vehicleStoragePath(vehicleId, 'invoices', `invoice-${pages.length}-pages.pdf`);
+    const body = single ? pages[0].bytes : Buffer.from(await stitchInvoicePdf(pages));
+    const contentType = single ? pages[0].type : 'application/pdf';
+
+    const { error: uploadError } = await client.storage
+      .from('vehicle-documents')
+      .upload(storagePath, new Blob([body], { type: contentType }), { contentType, upsert: false });
+
+    if (uploadError) {
+      console.error('[Storage Upload Error]', uploadError);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    console.log(`[Upload] ${pages.length} page(s) stored as ${storagePath}${bypassVehicleCheck ? ' [BYPASS VEHICLE CHECK]' : ''}`);
+
+    const result = await fileStoredInvoice({
+      access,
+      vehicleId,
+      storagePath,
+      pages: pages.map((page) => ({ data: page.bytes.toString('base64'), mimeType: page.type })),
+      bypassVehicleCheck,
+    });
+
+    if (result.success) {
+      const { error: cleanupError } = await client.storage.from('vehicle-documents').remove(paths);
+      if (cleanupError) {
+        logger.error('UPLOAD_INVOICE_PAGES:CLEANUP', new Error(cleanupError.message), { vehicleId });
+      }
+    }
+
+    return { ...result, pageCount: pages.length };
+  } catch (error: any) {
+    console.error('[Upload Pages Failed]:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * What filing an invoice answers — one shape for both uploads and the route
+ * that forwards them. `message` is typed loosely because the parser's is.
+ */
+export type InvoiceFilingResult = {
+  success: boolean;
+  error?: string;
+  message?: any;
+  code?: string;
+  feature?: string;
+  extractedVehicle?: unknown;
+  expectedVehicle?: unknown;
+  documentId?: string;
+  itemsExtracted?: number;
+  /** Pages upload only: the page that could not be read. */
+  missingPath?: string;
+  /** Pages upload only. */
+  pageCount?: number;
+};
+
+/**
+ * Everything after the stored object exists — shared by the single-file
+ * upload and the pages upload, so the two cannot drift on what filing means:
+ * the row, the model, the cleanup of a refused parse, the score and stats
+ * refresh, the dossier sync.
+ *
+ * Not exported: it trusts `access` and `storagePath`, which only its two
+ * callers have proven.
+ */
+async function fileStoredInvoice({
+  access,
+  vehicleId,
+  storagePath,
+  pages,
+  bypassVehicleCheck,
+}: {
+  access: Extract<Awaited<ReturnType<typeof authorizeVehicleAccess>>, { ok: true }>;
+  vehicleId: string;
+  storagePath: string;
+  /** In reading order. At least one. */
+  pages: { data: string; mimeType: string }[];
+  bypassVehicleCheck: boolean;
+}): Promise<InvoiceFilingResult> {
+  const client = access.client;
+  try {
     const documentRecord = {
       vehicle_id: vehicleId,
       document_type: 'invoice' as const,
       // The path, not a URL — the bucket is private, so a public URL is dead
       // on arrival and a signed one expires. See `storedUrl`.
-      file_url: storedUrl(fileName),
+      file_url: storedUrl(storagePath),
       extracted_data: {},
     };
 
@@ -4491,12 +4697,14 @@ export async function uploadInvoice(formData: FormData) {
     }
 
     console.log('[Gemini] Parsing invoice with AI...');
+    const [firstPage, ...morePages] = pages;
     const parseResult = await parseInvoiceLineItems(
       document.id,
       vehicleId,
-      base64Data,
-      file.type || 'image/jpeg',
-      bypassVehicleCheck
+      firstPage.data,
+      firstPage.mimeType,
+      bypassVehicleCheck,
+      morePages
     );
 
     if (!parseResult.success) {
@@ -4516,12 +4724,12 @@ export async function uploadInvoice(formData: FormData) {
       */
       const { error: orphanError } = await client.storage
         .from('vehicle-documents')
-        .remove([fileName]);
+        .remove([storagePath]);
 
       if (orphanError) {
         logger.error('UPLOAD_INVOICE:ORPHAN_CLEANUP', new Error(orphanError.message), {
           vehicleId,
-          fileName,
+          storagePath,
         });
       }
 
@@ -4634,7 +4842,6 @@ export async function uploadInvoice(formData: FormData) {
     await syncInvoiceWithDossier(vehicleId, parseResult.maintenanceItems || []);
 
     return { success: true, documentId: document.id, itemsExtracted };
-
   } catch (error: any) {
     console.error('[Upload Failed]:', error);
     return { success: false, error: error.message };
