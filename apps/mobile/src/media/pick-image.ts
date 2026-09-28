@@ -137,6 +137,21 @@ export async function pickInvoiceImage(
  * — the server returns its refusal reason and the screen shows it, rather than
  * failing generically. A guaranteed dimension cap needs that native module.
  */
+/**
+ * Several pages of one invoice from the library, in the order they were
+ * tapped (27 Sep). `[]` when the picker was dismissed.
+ *
+ * `allowsMultipleSelection` with `selectionLimit` is PHPicker's own
+ * multi-select, already in the binary — no new native module, no build.
+ * `orderedSelection` numbers the ticks, so the order the person chose is the
+ * page order, which is the one thing a set of photographs of a document does
+ * not carry by itself. Same permission, same HEIC-to-JPEG representation and
+ * same quality as a single pick — the options are `pickImage`'s.
+ */
+export async function pickInvoiceImages(limit: number): Promise<InvoiceFile[]> {
+  return pickImages(Math.max(1, limit));
+}
+
 export async function pickVehiclePhoto(
   source: InvoiceImageSource = 'library',
 ): Promise<InvoiceFile | null> {
@@ -219,6 +234,45 @@ async function pickImage(
       ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
   };
 
+  return pickFrom(source, options, namePrefix);
+}
+
+async function pickImages(limit: number): Promise<InvoiceFile[]> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    throw new ImagePickerUnavailable(
+      permission.canAskAgain
+        ? PROMPTS.invoice.library
+        : 'Photo access is off for Tappet. You can turn it on in Settings.',
+    );
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: INVOICE_QUALITY,
+    preferredAssetRepresentationMode:
+      ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+    allowsMultipleSelection: limit > 1,
+    selectionLimit: limit,
+    orderedSelection: true,
+  });
+  if (result.canceled) return [];
+
+  return (result.assets ?? [])
+    .filter((asset) => !!asset?.uri)
+    .map((asset, index) => ({
+      uri: asset.uri,
+      name: asset.fileName ?? `invoice-${Date.now()}-${index + 1}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+      size: asset.fileSize,
+    }));
+}
+
+async function pickFrom(
+  source: InvoiceImageSource,
+  options: ImagePicker.ImagePickerOptions,
+  namePrefix: string,
+): Promise<InvoiceFile | null> {
   const result =
     source === 'camera'
       ? await ImagePicker.launchCameraAsync(options)

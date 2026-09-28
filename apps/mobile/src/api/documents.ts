@@ -1,5 +1,9 @@
 import { apiRequest, ApiRequestError } from './client';
-import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
+import {
+  MAX_FILE_SIZE,
+  ALLOWED_DOCUMENT_TYPES,
+  ALLOWED_INVOICE_PAGE_TYPES,
+} from '@tappet/core/validation';
 
 /**
  * Invoice upload — Phase 3.3's half that needs no camera.
@@ -67,7 +71,7 @@ export interface ExtractedVehicle {
 
 export type InvoiceUploadResult =
   /** Filed. `itemsExtracted` is how many line items came off it. */
-  | { status: 'uploaded'; documentId: string | null; itemsExtracted: number }
+  | { status: 'uploaded'; documentId: string | null; itemsExtracted: number; pageCount?: number }
   /**
    * The invoice appears to be for a different car. **Not an error** — the
    * owner is the one who knows, and `confirmVehicle` re-sends the same file
@@ -188,6 +192,26 @@ export async function uploadInvoice({
     timeoutMs: 90_000,
   });
 
+  return readFiling(body);
+}
+
+type FilingBody = {
+  success?: unknown;
+  error?: unknown;
+  message?: unknown;
+  documentId?: unknown;
+  itemsExtracted?: unknown;
+  extractedVehicle?: unknown;
+  expectedVehicle?: unknown;
+  pageCount?: unknown;
+};
+
+/**
+ * The route's answer, as the taxonomy above. Shared by the single-file and
+ * the pages upload, which the route answers with one mapping — so the phone
+ * reads them with one too.
+ */
+function readFiling(body: FilingBody): InvoiceUploadResult {
   /*
     The 200-with-`success: false` branch. Checked before the success branch
     because both carry HTTP 200 and only this field separates them.
@@ -233,7 +257,111 @@ export async function uploadInvoice({
     // Zero is a real answer — an invoice whose lines could not be itemised is
     // still filed, and the screen says so rather than claiming a number.
     itemsExtracted: typeof body.itemsExtracted === 'number' ? body.itemsExtracted : 0,
+    ...(typeof body.pageCount === 'number' ? { pageCount: body.pageCount } : {}),
   };
+}
+
+/*
+  ── Pages (27 Sep) ─────────────────────────────────────────────────────────
+
+  A multi-page scan sends each page as it is photographed and files them
+  together at Done — `app/api/v1/invoice-pages/route.ts` says why the bytes
+  cannot all travel in one request. Three calls: store a page, file the
+  pages, discard pages nobody is going to file.
+*/
+
+/** Checked before a page leaves the phone, for the reason `uploadInvoice` checks. */
+function checkPage(file: InvoiceFile): void {
+  if (!ALLOWED_INVOICE_PAGE_TYPES.includes(file.type)) {
+    throw new InvoiceFileError('That file type cannot be read. Choose a photo.');
+  }
+  if (typeof file.size === 'number' && file.size > MAX_FILE_SIZE) {
+    throw new InvoiceFileError(`That photo is too large — the limit is ${megabytes(MAX_FILE_SIZE)} MB.`);
+  }
+}
+
+/**
+ * Store one page. Resolves to its storage path, which is all Done sends.
+ *
+ * 45 s: a storage write of a few megabytes on a cellular uplink, with nothing
+ * behind it — the model runs at the filing, not here.
+ */
+export async function uploadInvoicePage(vehicleId: string, file: InvoiceFile): Promise<string> {
+  checkPage(file);
+
+  const form = new FormData();
+  // RN's file-part convention — see `uploadInvoice`.
+  form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  form.append('vehicleId', vehicleId);
+
+  const body = await apiRequest<{ success?: unknown; path?: unknown; error?: unknown }>('/invoice-pages', {
+    method: 'POST',
+    body: form,
+    timeoutMs: 45_000,
+  });
+
+  if (typeof body.path !== 'string') {
+    throw new ApiRequestError({
+      status: 200,
+      message: typeof body.error === 'string' ? body.error : 'That page could not be stored.',
+    });
+  }
+  return body.path;
+}
+
+/**
+ * File the stored pages as one invoice, in the order given.
+ *
+ * The same answers as `uploadInvoice` — including the mismatch, whose
+ * confirmation re-sends these same paths — plus one only this form can
+ * reach: a page the server could not find, which the screen answers by
+ * sending that page again (`PageMissingError`).
+ */
+export async function fileInvoicePages({
+  vehicleId,
+  pagePaths,
+  confirmVehicle = false,
+}: {
+  vehicleId: string;
+  pagePaths: string[];
+  confirmVehicle?: boolean;
+}): Promise<InvoiceUploadResult> {
+  try {
+    const body = await apiRequest<FilingBody>('/upload-document', {
+      method: 'POST',
+      body: { vehicleId, pagePaths, ...(confirmVehicle ? { bypassVehicleCheck: true } : {}) },
+      // The single-file budget, for its reasons: one model call reads every page.
+      timeoutMs: 90_000,
+    });
+    return readFiling(body);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.code === 'page-missing') {
+      throw new PageMissingError();
+    }
+    throw error;
+  }
+}
+
+/** A page the server no longer holds. The phone still does; it sends it again. */
+export class PageMissingError extends Error {
+  constructor() {
+    super('A page was missing on the server.');
+    this.name = 'PageMissingError';
+  }
+}
+
+/**
+ * Discard pages the person abandoned. Best-effort by design — it runs as the
+ * screen goes away, when there is nobody left to tell, and a page it misses
+ * sits under the car's own prefix where the account sweep reaches it.
+ */
+export async function discardInvoicePages(vehicleId: string, paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  try {
+    await apiRequest('/invoice-pages', { method: 'DELETE', body: { vehicleId, paths } });
+  } catch {
+    // Nothing to say and nobody to say it to.
+  }
 }
 
 function asVehicle(value: unknown): ExtractedVehicle | null {

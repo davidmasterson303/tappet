@@ -243,6 +243,9 @@ const ROUTE_POSTURE: Record<
   'app/api/v1/delete-maintenance-item/route.ts': 'vehicle-scoped',
   // Both delegate to server actions in app/actions.ts, which authorize there.
   'app/api/v1/upload-document/route.ts': 'vehicle-scoped',
+  // 27 Sep — a scanned page before its invoice exists; write intent, and every
+  // path it deletes must be that vehicle's pending page (`isInvoicePagePath`).
+  'app/api/v1/invoice-pages/route.ts': 'vehicle-scoped',
   'app/api/v1/consultant/upload-document/route.ts': 'vehicle-scoped',
   /*
     The vehicle photograph (15 Aug). Same shape as the invoice upload above and

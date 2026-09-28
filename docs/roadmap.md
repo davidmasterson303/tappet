@@ -13,6 +13,40 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ 27 Sep, night — multi-page invoices: committed (`b1884b4`), not live
+>
+> The board item from the 21 Sep walk ("page 2 of a Dinan invoice"). The scan's
+> camera now stays up after the shutter. Pages collect in a strip under the frame
+> (`PageStrip`), each one uploads as it is taken (`POST /api/v1/invoice-pages`),
+> and DONE files every page as **one** document in **one** model call
+> (`uploadInvoicePages` → `fileStoredInvoice`, the filing both uploads now share).
+> Several pages are stored as one PDF (`lib/invoice-pdf.ts`), so every viewer
+> opens `file_url` whole. The limit is 6 pages (`INVOICE_PAGE_LIMIT`). The library
+> picker is multi-select (PHPicker, JS only, no build). Design canvas: "Multi-page
+> invoice scan" in the design artifacts. Critic rounds 53–56 (7 → 7, then
+> stopped on misreads). Frames came from a **web harness**, because this Mac has
+> no Xcode any more — `design-loop/.webdeps/harness/README.md`.
+>
+> ⚠ **Promote before any phone build carries it.** `/api/v1/invoice-pages`
+> is new, so on an unpromoted host every page upload 404s (§8). The screen
+> degrades: a one-page scan falls back to the old single-file upload. A
+> multi-page scan says it needs a newer API. It must never ship depending on
+> that fallback.
+>
+> Open, not done:
+> - **Unmeasured:** six dense pages in one Gemini call. One Dinan page took
+>   27–28 s alone and the phone waits 90 s. Measure a 3-page and a 6-page scan
+>   on the device before trusting the limit. If it is too slow, the durable
+>   shape is still the research runner's (accept → file → extract in the
+>   background → narrate the poll).
+> - Back-swiping mid-scan discards the photographed pages with no
+>   confirmation. Storage is cleaned (unmount discard), but the photographs are
+>   lost.
+> - A page abandoned when the app is killed stays at `<car>/invoices/pages/`
+>   until the account sweep. A daily sweep of pages older than a day is cheap.
+> - The critic asked twice for FILED to list the lines it read (B6). That needs
+>   the filing to return its items. It is worth doing, but it is not this change.
+
 > ### ▶ Pick up here — 27 Sep, evening
 >
 > **The first sandbox purchase worked end to end** (00:06 UTC 28 Sep, on the

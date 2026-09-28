@@ -30,6 +30,27 @@ export const ALLOWED_DOCUMENT_TYPES = [
   ...ALLOWED_IMAGE_TYPES,
 ];
 
+/**
+ * The most pages one invoice scan may hold (27 Sep).
+ *
+ * Every page goes to the model in **one** call, so the model can see that the
+ * summary "Labor" on page 2 is the itemised labour on page 1 — reading pages
+ * one at a time filed that total twice. One call is also one wait: a dense
+ * Dinan page measured 27–28 s on its own (21 Sep), and the phone gives the
+ * whole scan 90 s. Six covers every multi-page invoice seen so far (two) with
+ * room, and keeps a scan inside that budget. The phone and the server read
+ * this one number, so the strip and the route cannot disagree about it.
+ */
+export const INVOICE_PAGE_LIMIT = 6;
+
+/**
+ * What a scanned page may be: a photograph the server can embed in the
+ * stitched PDF (`lib/invoice-pdf.ts`) — JPEG or PNG, which is everything the
+ * phone's viewfinder and picker produce. A PDF is already a whole document
+ * and goes through the single-file upload; WebP cannot be embedded.
+ */
+export const ALLOWED_INVOICE_PAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+
 export const CURRENT_YEAR = new Date().getFullYear();
 export const MIN_YEAR = 1900;
 export const MAX_YEAR = CURRENT_YEAR + 2; // Allow next year's models
