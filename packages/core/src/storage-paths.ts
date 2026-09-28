@@ -65,6 +65,35 @@ export function vehicleStoragePath(
 }
 
 /**
+ * ── A scanned page, before the invoice it belongs to exists ─────────────────
+ *
+ * A multi-page scan uploads each page as it is photographed (27 Sep), so the
+ * pages sit here while the person photographs the next one, and Done sends
+ * their paths rather than their bytes. Under the vehicle's own `invoices/`
+ * prefix on purpose: account deletion sweeps by vehicle prefix
+ * (`vehicleStoragePrefixes`), so a page abandoned mid-scan goes with the car.
+ */
+export function invoicePagePath(vehicleId: string, fileName: string): string {
+  return vehicleStoragePath(vehicleId, 'invoices', fileName, ['pages']);
+}
+
+/**
+ * Whether `path` is one of **this vehicle's** pending pages.
+ *
+ * ⚠ The only thing standing between a caller-supplied path and a read or
+ * delete of somebody else's object — the routes authorize the vehicle, and
+ * this is what ties the path to it. Exact shape, not a prefix test: a
+ * `startsWith` would take `…/pages/../../other-car/…` or a nested folder.
+ * The file segment is `safeFileName`'s alphabet and nothing else.
+ */
+export function isInvoicePagePath(vehicleId: string, path: unknown): path is string {
+  if (typeof path !== 'string' || path.length > 300) return false;
+  const prefix = `${vehicleId}/invoices/pages/`;
+  if (!path.startsWith(prefix)) return false;
+  return /^[A-Za-z0-9._-]+$/.test(path.slice(prefix.length)) && !path.includes('..');
+}
+
+/**
  * The vehicle a path belongs to, or null if it predates the convention.
  *
  * Used to authorize signed-URL requests and to sweep storage on account

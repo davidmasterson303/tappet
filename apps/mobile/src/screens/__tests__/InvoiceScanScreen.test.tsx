@@ -3,7 +3,13 @@ import { Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import { InvoiceScanScreen } from '../InvoiceScanScreen';
-import { uploadInvoice, type InvoiceFile } from '../../api/documents';
+import {
+  uploadInvoice,
+  uploadInvoicePage,
+  fileInvoicePages,
+  discardInvoicePages,
+  type InvoiceFile,
+} from '../../api/documents';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
 import { READOUT } from '../../components/Viewfinder';
@@ -19,7 +25,7 @@ import { READOUT } from '../../components/Viewfinder';
  *
  * ── What is native here, and where it is stubbed ────────────────────────────
  *
- * `pickImage` is a **prop**. The screen never imports `expo-image-picker` —
+ * `pickImages` is a **prop**. The screen never imports `expo-image-picker` —
  * `src/media/pick-image.ts` is the only module that does — so the library
  * path is injected as a plain function and exercised with no stubbing at all.
  *
@@ -71,10 +77,29 @@ jest.mock('../../onboarding/ai-consent', () => ({
 
 jest.mock('../../api/documents', () => {
   const actual = jest.requireActual('../../api/documents');
-  return { ...actual, uploadInvoice: jest.fn() };
+  return {
+    ...actual,
+    uploadInvoice: jest.fn(),
+    uploadInvoicePage: jest.fn(),
+    fileInvoicePages: jest.fn(),
+    discardInvoicePages: jest.fn(async () => {}),
+  };
 });
 
-const upload = uploadInvoice as jest.MockedFunction<typeof uploadInvoice>;
+/*
+  ── 27 Sep · the scan files pages ───────────────────────────────────────────
+
+  A page uploads as it is taken (`uploadInvoicePage`, answered here with a
+  path named for the file) and DONE files the paths (`fileInvoicePages`) —
+  so `upload` below is the filing, the call whose answer every outcome test
+  is about, and `sendPage` is the per-page store. `legacyUpload` is the old
+  single-file route, reached only when the API has no pages route.
+*/
+const upload = fileInvoicePages as jest.MockedFunction<typeof fileInvoicePages>;
+const sendPage = uploadInvoicePage as jest.MockedFunction<typeof uploadInvoicePage>;
+const discard = discardInvoicePages as jest.MockedFunction<typeof discardInvoicePages>;
+const legacyUpload = uploadInvoice as jest.MockedFunction<typeof uploadInvoice>;
+let mockPathSerial = 0;
 
 /** The camera stub's dial — see `jest.setup.js`. */
 const { __camera: camera } = jest.requireMock('expo-camera') as {
@@ -103,20 +128,24 @@ const FILE: InvoiceFile = {
   type: 'image/jpeg',
 };
 
-async function mount(over: { pickImage?: jest.Mock; startWith?: 'camera' | 'library' } = {}) {
-  const pickImage = over.pickImage ?? jest.fn(async () => FILE);
+async function mount(over: { pickImages?: jest.Mock; startWith?: 'camera' | 'library' } = {}) {
+  const pickImages = over.pickImages ?? jest.fn(async () => [FILE]);
   const props = {
     vehicleId: 'v1',
-    pickImage: pickImage as (s: 'library') => Promise<InvoiceFile | null>,
+    pickImages: pickImages as (limit: number) => Promise<InvoiceFile[]>,
     ...(over.startWith ? { startWith: over.startWith } : {}),
     onSignOut: jest.fn(),
     onFiled: jest.fn(),
   };
-  return { props, pickImage, view: await render(<InvoiceScanScreen {...props} />) };
+  return { props, pickImages, view: await render(<InvoiceScanScreen {...props} />) };
 }
 
 beforeEach(() => {
   upload.mockReset();
+  legacyUpload.mockReset();
+  discard.mockClear();
+  sendPage.mockReset();
+  sendPage.mockImplementation(async (_vehicle, file) => `v1/invoices/pages/${++mockPathSerial}-${file.name}`);
   camera.reset();
   haptic.mockClear();
 });
@@ -126,6 +155,26 @@ const readout = (view: Awaited<ReturnType<typeof mount>>['view']): string | null
   const node = view.queryByTestId('viewfinder-readout');
   return node ? String(node.props.children) : null;
 };
+
+/** One page from the library, then DONE — the shortest scan there is. */
+async function pickAndFile(
+  view: Awaited<ReturnType<typeof mount>>['view'],
+  user: ReturnType<typeof userEvent.setup>
+) {
+  await user.press(view.getByText('Choose from library'));
+  await user.press(await view.findByRole('button', { name: 'Done · 1 page' }));
+}
+
+/** A photograph from the viewfinder's shutter, once the camera says READY. */
+async function capture(
+  view: Awaited<ReturnType<typeof mount>>['view'],
+  user: ReturnType<typeof userEvent.setup>,
+  name = 'Capture'
+) {
+  await view.findByTestId('camera-view');
+  await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+  await user.press(view.getByRole('button', { name }));
+}
 
 describe('the first frame is the viewfinder — brief B9', () => {
   it('opens on the camera, not on a page about the camera', async () => {
@@ -236,7 +285,7 @@ describe('the first frame is the viewfinder — brief B9', () => {
 });
 
 describe('the capture', () => {
-  it('fires one firm haptic at the press, then takes the picture, then sends it', async () => {
+  it('fires one firm haptic at the press, then takes the picture, then sends the page', async () => {
     /*
       "One firm haptic on capture" — once, `Heavy`, and before the shutter:
       the feel is the press. The count is the assertion; a second impact
@@ -245,13 +294,11 @@ describe('the capture', () => {
     */
     const user = userEvent.setup();
     upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
-    const { pickImage, view } = await mount();
+    const { pickImages, view } = await mount();
 
-    await view.findByTestId('camera-view');
-    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
-    await user.press(view.getByRole('button', { name: 'Capture' }));
+    await capture(view, user);
 
-    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(1));
     expect(haptic).toHaveBeenCalledTimes(1);
     expect(haptic).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Heavy);
     expect(haptic.mock.invocationCallOrder[0]).toBeLessThan(
@@ -259,20 +306,19 @@ describe('the capture', () => {
     );
 
     // The picker is the library's; the camera path never touches it.
-    expect(pickImage).not.toHaveBeenCalled();
+    expect(pickImages).not.toHaveBeenCalled();
+    // A page is not an invoice: nothing is filed until DONE.
+    expect(upload).not.toHaveBeenCalled();
   });
 
-  it('hands send an InvoiceFile the upload will accept', async () => {
+  it('hands the page upload an InvoiceFile it will accept', async () => {
     const user = userEvent.setup();
-    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
     const { view } = await mount();
 
-    await view.findByTestId('camera-view');
-    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
-    await user.press(view.getByRole('button', { name: 'Capture' }));
+    await capture(view, user);
 
-    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
-    const { file } = upload.mock.calls[0][0];
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(1));
+    const file = sendPage.mock.calls[0][1];
     expect(file).toMatchObject({ uri: 'file:///tmp/capture.jpg', type: 'image/jpeg' });
     expect(file.name).toMatch(/\.jpg$/);
     // Unknown, not invented: the camera does not report bytes.
@@ -304,6 +350,7 @@ describe('the capture', () => {
     await user.press(view.getByRole('button', { name: 'Capture' }));
 
     await view.findByText('That photograph did not take');
+    expect(sendPage).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
     view.getByText('Take a photo');
     view.getByText('Choose a different file');
@@ -312,17 +359,15 @@ describe('the capture', () => {
   it('returns to the viewfinder from "Take a photo", never to the system sheet', async () => {
     camera.takePictureAsync.mockRejectedValue(new Error('Camera is not running'));
     const user = userEvent.setup();
-    const { pickImage, view } = await mount();
+    const { pickImages, view } = await mount();
 
-    await view.findByTestId('camera-view');
-    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
-    await user.press(view.getByRole('button', { name: 'Capture' }));
+    await capture(view, user);
     await view.findByText('That photograph did not take');
 
     await user.press(view.getByText('Take a photo'));
 
     await view.findByTestId('camera-view');
-    expect(pickImage).not.toHaveBeenCalled();
+    expect(pickImages).not.toHaveBeenCalled();
   });
 });
 
@@ -348,30 +393,31 @@ describe('choosing an image', () => {
       know it was there.
     */
     upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
-    const { pickImage } = await mount({ startWith: 'library' });
-    await waitFor(() => expect(pickImage).toHaveBeenCalledWith('library'));
-    expect(pickImage).toHaveBeenCalledTimes(1);
+    const { pickImages } = await mount({ startWith: 'library' });
+    await waitFor(() => expect(pickImages).toHaveBeenCalledWith(6));
+    expect(pickImages).toHaveBeenCalledTimes(1);
+    // Choosing the photographs is the Done: they are filed without another press.
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
   });
 
   it('does not open the library for UPLOAD before consent — the sheet at the door comes first', async () => {
     mockConsent = 'unknown';
     try {
-      const { pickImage, view } = await mount({ startWith: 'library' });
+      const { pickImages, view } = await mount({ startWith: 'library' });
       await view.findByText('Reading an invoice uses Google’s AI');
-      expect(pickImage).not.toHaveBeenCalled();
+      expect(pickImages).not.toHaveBeenCalled();
     } finally {
       mockConsent = 'granted';
     }
   });
 
-  it('asks the injected picker for the right source', async () => {
+  it('asks the injected picker for as many photos as the scan has room for', async () => {
     const user = userEvent.setup();
-    upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
-    const { pickImage, view } = await mount();
+    const { pickImages, view } = await mount();
 
     await user.press(view.getByText('Choose from library'));
 
-    await waitFor(() => expect(pickImage).toHaveBeenCalledWith('library'));
+    await waitFor(() => expect(pickImages).toHaveBeenCalledWith(6));
   });
 
   it('uploads nothing when the picker is dismissed', async () => {
@@ -379,12 +425,13 @@ describe('choosing an image', () => {
     // Treating `null` as a file would send an empty upload and show an error
     // for something the person deliberately cancelled.
     const user = userEvent.setup();
-    const pickImage = jest.fn(async () => null);
-    const { view } = await mount({ pickImage });
+    const pickImages = jest.fn(async () => []);
+    const { view } = await mount({ pickImages });
 
     await user.press(view.getByText('Choose from library'));
 
-    await waitFor(() => expect(pickImage).toHaveBeenCalled());
+    await waitFor(() => expect(pickImages).toHaveBeenCalled());
+    expect(sendPage).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
   });
 
@@ -395,9 +442,10 @@ describe('choosing an image', () => {
     upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 3 } as never);
     const { view } = await mount();
 
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(sendPage).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -419,7 +467,7 @@ describe('a vehicle mismatch', () => {
     upload.mockResolvedValue(mismatch as never);
     const { view } = await mount();
 
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     expect(await view.findByText('Is this the right car?')).toBeTruthy();
   });
@@ -436,7 +484,7 @@ describe('a vehicle mismatch', () => {
     } as never);
 
     const { view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
     await view.findByText('Is this the right car?');
 
     await user.press(view.getByText('Yes, file it here'));
@@ -455,15 +503,18 @@ describe('a vehicle mismatch', () => {
     upload.mockResolvedValueOnce(mismatch as never);
     upload.mockResolvedValueOnce({ status: 'uploaded', documentId: 'd1', itemsExtracted: 1 } as never);
 
-    const { pickImage, view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    const { pickImages, view } = await mount();
+    await pickAndFile(view, user);
     await view.findByText('Is this the right car?');
 
-    const picksBefore = pickImage.mock.calls.length;
+    const picksBefore = pickImages.mock.calls.length;
     await user.press(view.getByText('Yes, file it here'));
 
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
-    expect(pickImage.mock.calls.length).toBe(picksBefore);
+    expect(pickImages.mock.calls.length).toBe(picksBefore);
+    // The same stored pages, not a second upload of them.
+    expect(sendPage).toHaveBeenCalledTimes(1);
+    expect(upload.mock.calls[1][0].pagePaths).toEqual(upload.mock.calls[0][0].pagePaths);
   });
 
   it('sends nothing more if the answer is no', async () => {
@@ -471,12 +522,14 @@ describe('a vehicle mismatch', () => {
     upload.mockResolvedValue(mismatch as never);
     const { view } = await mount();
 
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
     await view.findByText('Is this the right car?');
 
     await user.press(view.getByText('No, cancel'));
 
     expect(upload).toHaveBeenCalledTimes(1);
+    // Nobody is filing those pages now: they are thrown away, not left in storage.
+    expect(discard).toHaveBeenCalledWith('v1', [expect.stringMatching(/^v1\/invoices\/pages\//)]);
   });
 });
 
@@ -491,7 +544,7 @@ describe('when it is not an invoice', () => {
     } as never);
 
     const { view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     expect(await view.findByText('That does not look like an invoice')).toBeTruthy();
     expect(view.getByText('Try another photo')).toBeTruthy();
@@ -518,7 +571,7 @@ describe('when the upload fails', () => {
     );
 
     const { props, view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     await waitFor(() => expect(props.onSignOut).toHaveBeenCalledTimes(1));
   });
@@ -533,7 +586,7 @@ describe('when the upload fails', () => {
     );
 
     const { props, view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     expect(await view.findByText('That did not upload')).toBeTruthy();
     expect(props.onSignOut).not.toHaveBeenCalled();
@@ -560,7 +613,7 @@ describe('when the upload fails', () => {
     const stop = onUpgradeRequested(upgrade);
 
     const { view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     expect(await view.findByText(/is part of Tappet Plus/)).toBeTruthy();
     expect(view.getByText('Part of Tappet Plus')).toBeTruthy();
@@ -578,7 +631,7 @@ describe('when the upload fails', () => {
     upload.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Upstream failed' }));
 
     const { view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     expect(await view.findByText('That did not upload')).toBeTruthy();
   });
@@ -595,7 +648,7 @@ describe('when it works', () => {
     upload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 4 } as never);
 
     const { props, view } = await mount();
-    await user.press(view.getByText('Choose from library'));
+    await pickAndFile(view, user);
 
     await waitFor(() => expect(props.onFiled).toHaveBeenCalled());
   });
@@ -629,17 +682,17 @@ describe('asking before an invoice goes to Google', () => {
     */
     mockConsent = 'unknown';
     camera.permission = { status: 'undetermined', granted: false, canAskAgain: true, expires: 'never' };
-    const pickImage = jest.fn();
+    const pickImages = jest.fn(async () => []);
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={pickImage} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={pickImages} onSignOut={jest.fn()} />
     );
 
     await view.findByText('Reading an invoice uses Google’s AI');
     expect(camera.requestPermission).not.toHaveBeenCalled();
     expect(view.queryByTestId('camera-view')).toBeNull();
     expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
-    expect(pickImage).not.toHaveBeenCalled();
+    expect(pickImages).not.toHaveBeenCalled();
   });
 
   it('names Google, and names what is in the photograph', async () => {
@@ -651,7 +704,7 @@ describe('asking before an invoice goes to Google', () => {
     mockConsent = 'unknown';
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
     );
 
     await view.findByText(/The photograph goes to Google/);
@@ -675,7 +728,7 @@ describe('asking before an invoice goes to Google', () => {
     const user = userEvent.setup();
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
     );
 
     await user.press(await view.findByText('Scan invoices'));
@@ -696,7 +749,7 @@ describe('asking before an invoice goes to Google', () => {
     mockConsent = 'declined';
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
     );
 
     await view.findByText(/You can still add services by hand/);
@@ -711,14 +764,14 @@ describe('asking before an invoice goes to Google', () => {
 
   it('sends nothing when they decline', async () => {
     mockConsent = 'declined';
-    const pickImage = jest.fn();
+    const pickImages = jest.fn(async () => []);
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={pickImage} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={pickImages} onSignOut={jest.fn()} />
     );
 
     await view.findByText(/You can still add services by hand/);
-    expect(pickImage).not.toHaveBeenCalled();
+    expect(pickImages).not.toHaveBeenCalled();
     expect(camera.takePictureAsync).not.toHaveBeenCalled();
   });
 
@@ -727,7 +780,7 @@ describe('asking before an invoice goes to Google', () => {
     const user = userEvent.setup();
 
     const view = await render(
-      <InvoiceScanScreen vehicleId="v1" pickImage={jest.fn()} onSignOut={jest.fn()} />
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
     );
 
     await user.press(await view.findByText('Change that'));
@@ -735,5 +788,189 @@ describe('asking before an invoice goes to Google', () => {
 
     await view.findByText(/You can still add services by hand/);
     expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
+  });
+});
+
+/**
+ * ── 27 Sep · an invoice of several pages ─────────────────────────────────────
+ *
+ * Page 2 of a Dinan invoice used to be filed as a second invoice, its summary
+ * "Labor" line counted again. The camera now stays up after the shutter, the
+ * pages collect in a strip, and DONE files them as one document in one read.
+ * What these hold: the question after the first page is asked without a
+ * dialog; the paths go to the filing in strip order and in one call; a page
+ * removed or retaken never reaches it, and what it held in storage is thrown
+ * away; a page that did not send stops the filing rather than filing without
+ * it; and leaving mid-scan cleans up.
+ */
+describe('an invoice of several pages', () => {
+  const filed = { status: 'uploaded', documentId: 'd1', itemsExtracted: 14, pageCount: 3 } as never;
+
+  it('keeps the camera up after the first page and asks, in a sentence, whether there is another', async () => {
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await capture(view, user);
+
+    await view.findByText(/Page 01 is in\. If the invoice runs on, photograph the next page\./);
+    expect(view.getByTestId('camera-view')).toBeTruthy();
+    expect(view.getByTestId('page-strip')).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Capture page 02' })).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Done · 1 page' })).toBeTruthy();
+    // The library moved into the strip; the control row holds the verb that ends the scan.
+    expect(view.queryByText('Choose from library')).toBeNull();
+    expect(view.getByTestId('page-strip-library')).toBeTruthy();
+    // Nothing filed yet.
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('files every page in one call, in the order they were taken', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue(filed);
+    const { props, view } = await mount();
+
+    await capture(view, user);
+    await capture(view, user, 'Capture page 02');
+    await capture(view, user, 'Capture page 03');
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(3));
+
+    await user.press(view.getByRole('button', { name: 'Done · 3 pages' }));
+
+    await view.findByText('14 line items from 3 pages added to this car\'s history.');
+    expect(upload).toHaveBeenCalledTimes(1);
+    const { pagePaths } = upload.mock.calls[0][0];
+    expect(pagePaths).toHaveLength(3);
+    // Sent in order, so their serials ascend in the order the pages were taken.
+    const serials = pagePaths.map((path) => Number(path.split('/').pop()!.split('-')[0]));
+    expect([...serials].sort((a, b) => a - b)).toEqual(serials);
+    expect(props.onFiled).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes a page — it is not filed, and its stored copy is thrown away', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue(filed);
+    const { view } = await mount();
+
+    await capture(view, user);
+    await capture(view, user, 'Capture page 02');
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(2));
+    const second = await sendPage.mock.results[1].value;
+
+    await user.press(view.getByTestId('page-thumb-2'));
+    await view.findByText('Page 02 of 02');
+    await user.press(view.getByRole('button', { name: 'Remove page' }));
+
+    expect(discard).toHaveBeenCalledWith('v1', [second]);
+    await user.press(await view.findByRole('button', { name: 'Done · 1 page' }));
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(upload.mock.calls[0][0].pagePaths).not.toContain(second);
+  });
+
+  it('retakes a page in its place, not at the end', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue(filed);
+    const { view } = await mount();
+
+    await capture(view, user);
+    await capture(view, user, 'Capture page 02');
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(2));
+    const [first, second] = [await sendPage.mock.results[0].value, await sendPage.mock.results[1].value];
+
+    await user.press(view.getByTestId('page-thumb-1'));
+    await user.press(await view.findByRole('button', { name: 'Retake' }));
+    await view.findByText(/Photograph page 01 again/);
+    // DONE's slot holds the way out of the retake; DONE comes back after it.
+    expect(view.getByRole('button', { name: 'Keep the old page' })).toBeTruthy();
+    expect(view.queryByRole('button', { name: /^Done/ })).toBeNull();
+    await capture(view, user, 'Retake page 01');
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(3));
+    const retaken = await sendPage.mock.results[2].value;
+
+    expect(discard).toHaveBeenCalledWith('v1', [first]);
+    await user.press(view.getByRole('button', { name: 'Done · 2 pages' }));
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(upload.mock.calls[0][0].pagePaths).toEqual([retaken, second]);
+  });
+
+  it('stops at the limit: the shutter stands down and DONE becomes the verb', async () => {
+    const user = userEvent.setup();
+    const six = Array.from({ length: 6 }, (_, i) => ({ ...FILE, name: `p${i + 1}.jpg` }));
+    const pickImages = jest.fn(async (limit: number) => six.slice(0, limit));
+    const { view } = await mount({ pickImages });
+
+    await user.press(view.getByText('Choose from library'));
+
+    await view.findByText(/6 pages is the most one scan reads/);
+    // Round 53: the readout said READY beside a shutter that could not fire.
+    await waitFor(() => expect(readout(view)).toBe('Full'));
+    expect(view.getByRole('button', { name: 'Capture' })).toBeDisabled();
+    expect(view.getByRole('button', { name: 'Done · 6 pages' })).toBeEnabled();
+    // Full: no way to add a seventh from the strip either.
+    expect(view.queryByTestId('page-strip-library')).toBeNull();
+  });
+
+  it('can still tell a scan below the limit — the stand-down is real', async () => {
+    // The pair for the case above: five pages leave the shutter live.
+    const user = userEvent.setup();
+    const five = Array.from({ length: 5 }, (_, i) => ({ ...FILE, name: `p${i + 1}.jpg` }));
+    const { view } = await mount({ pickImages: jest.fn(async () => five) });
+
+    await user.press(view.getByText('Choose from library'));
+
+    await view.findByRole('button', { name: 'Done · 5 pages' });
+    // And the readout is the camera's word, not FULL.
+    await waitFor(() => expect(readout(view)).toBe(READOUT.ready));
+    expect(view.getByRole('button', { name: 'Capture page 06' })).toBeEnabled();
+  });
+
+  it('files nothing when a page will not send, names it, and keeps every page', async () => {
+    const user = userEvent.setup();
+    sendPage.mockImplementation(async (_v, file) => {
+      if (file.name === 'p2.jpg') throw new ApiRequestError({ status: 0, message: 'offline', kind: 'offline' } as never);
+      return `v1/invoices/pages/${++mockPathSerial}-${file.name}`;
+    });
+    const two = [{ ...FILE, name: 'p1.jpg' }, { ...FILE, name: 'p2.jpg' }];
+    const { view } = await mount({ pickImages: jest.fn(async () => two) });
+
+    await user.press(view.getByText('Choose from library'));
+    await user.press(await view.findByRole('button', { name: 'Done · 2 pages' }));
+
+    await view.findByText('Page 02 did not send');
+    // Sent once as it was added, once more at DONE — then it stops.
+    expect(sendPage.mock.calls.filter(([, f]) => f.name === 'p2.jpg')).toHaveLength(2);
+    expect(upload).not.toHaveBeenCalled();
+
+    await user.press(view.getByText('Back to the pages'));
+    expect(await view.findByTestId('page-thumb-2')).toBeTruthy();
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it('throws the stored pages away when the scan is left unfinished', async () => {
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await capture(view, user);
+    await waitFor(() => expect(sendPage).toHaveBeenCalledTimes(1));
+    const path = await sendPage.mock.results[0].value;
+    // Let the page's state settle before leaving.
+    await view.findByRole('button', { name: 'Done · 1 page' });
+    await waitFor(() => expect(view.getByLabelText('Page 1, sent. Open to retake or remove.')).toBeTruthy());
+
+    await view.unmount();
+
+    expect(discard).toHaveBeenCalledWith('v1', [path]);
+  });
+
+  it('files a one-page scan the old way when the API has no pages route (§8)', async () => {
+    const user = userEvent.setup();
+    sendPage.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
+    legacyUpload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 2 } as never);
+    const { view } = await mount();
+
+    await pickAndFile(view, user);
+
+    await view.findByText('2 line items added to this car\'s history.');
+    expect(legacyUpload).toHaveBeenCalledTimes(1);
+    expect(upload).not.toHaveBeenCalled();
   });
 });

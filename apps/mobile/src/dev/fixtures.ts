@@ -811,6 +811,28 @@ export function fixtureFor(
     }
     return { set: TIRE_SET, rotations: TIRE_ROTATIONS };
   }
+  /*
+    ── 27 Sep · the pages of a scan ─────────────────────────────────────────
+
+    A page is answered with a path named for its own file, and Done — the
+    JSON form of `/upload-document` — with a filing over however many paths
+    it named. So the strip, the ledger and FILED can be shot on a simulator,
+    which has no camera: the library's multi-select fills the strip. Hold
+    `/invoice-pages` to photograph a page still sending, `/upload-document`
+    to photograph READING. The single-file form still falls through.
+  */
+  if (path.startsWith('/invoice-pages')) {
+    if (request.method === 'DELETE') return { success: true };
+    // The path is a name and nothing reads it back, so a body this file
+    // cannot open (a browser's FormData) still gets one.
+    const name = filePartUri(request.body)?.split('/').pop() ?? 'page.jpg';
+    return { success: true, path: `design/invoices/pages/${Date.now()}-${name}` };
+  }
+  if (path.startsWith('/upload-document')) {
+    const pagePaths = (request.body as { pagePaths?: unknown } | undefined)?.pagePaths;
+    if (!Array.isArray(pagePaths)) return undefined;
+    return { success: true, documentId: 'design-invoice', itemsExtracted: 14, pageCount: pagePaths.length };
+  }
   if (path.startsWith('/upload-photo')) {
     if (request.method === 'DELETE') {
       addedPhotoUri = null;

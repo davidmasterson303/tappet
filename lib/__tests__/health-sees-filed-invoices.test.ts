@@ -57,13 +57,28 @@ function healthSummarySource(): string {
   return actions.slice(start, end === -1 ? undefined : end);
 }
 
-/** The body of `uploadInvoice`. */
+/**
+ * The body of the shared filing path — `fileStoredInvoice` since 27 Sep,
+ * when the multi-page upload arrived. Both `uploadInvoice` and
+ * `uploadInvoicePages` hand their stored object to it, so the refresh lives
+ * there once rather than twice; the case below proves both callers do.
+ */
 function uploadInvoiceSource(): string {
-  const start = actions.indexOf('export async function uploadInvoice');
+  const start = actions.indexOf('async function fileStoredInvoice(');
   expect(start).toBeGreaterThan(-1);
 
   const end = actions.indexOf('\nexport ', start + 1);
-  return actions.slice(start, end === -1 ? undefined : end);
+  const next = actions.indexOf('\nasync function ', start + 1);
+  const stop = [end, next].filter((i) => i > -1).sort((a, b) => a - b)[0];
+  return actions.slice(start, stop);
+}
+
+/** An exported upload's own body. */
+function exportedBody(name: string): string {
+  const start = actions.indexOf(`export async function ${name}(`);
+  expect(start).toBeGreaterThan(-1);
+  const end = actions.indexOf('\n}\n', start);
+  return actions.slice(start, end);
 }
 
 describe('the health summary reads what an invoice actually writes', () => {
@@ -101,6 +116,13 @@ describe('the health summary reads what an invoice actually writes', () => {
 
 describe('the refresh runs for every client', () => {
   const source = uploadInvoiceSource();
+
+  it('is the path both uploads take — the single file and the pages', () => {
+    expect(exportedBody('uploadInvoice')).toMatch(/fileStoredInvoice\(/);
+    expect(exportedBody('uploadInvoicePages')).toMatch(/fileStoredInvoice\(/);
+    // Anti-vacuous: the helper found a body at all.
+    expect(source.length).toBeGreaterThan(500);
+  });
 
   it('refreshes the score inside the shared upload path', () => {
     expect(source).toMatch(/generateVehicleHealthSummary\(vehicleId,\s*true\)/);

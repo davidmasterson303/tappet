@@ -393,3 +393,38 @@ describe('the plate line', () => {
     expect(nothing.toJSON()).toBeNull();
   });
 });
+
+/*
+  ── 27 Sep · a scan of pages ─────────────────────────────────────────────────
+
+  Every row a thing the screen observed: the page count on the first, the
+  uploads that have answered on the second, and the filing row only on the
+  confirm path. Without pages the ledger is the single-file one, unchanged.
+*/
+describe('the scan ledger, with pages', () => {
+  it('counts what has been sent, and holds READING until the sending is done', () => {
+    const stages = scanStages('sending', 'camera', { count: 3, sent: 2 });
+    expect(stages.map((s) => [s.label, s.state, s.answer])).toEqual([
+      ['Photographing the invoice', 'done', '3 pages'],
+      ['Sending the pages', 'active', '2 of 3'],
+      ['Reading the invoice', 'pending', undefined],
+    ]);
+    expect(scanLine('sending', 'camera', { count: 3, sent: 2 })).toBe('Sending the pages');
+  });
+
+  it('reads once every page is in, and files only on the confirm path', () => {
+    expect(scanStages('reading', 'library', { count: 1, sent: 1 }).map((s) => s.state)).toEqual([
+      'done',
+      'done',
+      'active',
+    ]);
+    const filing = scanStages('filing', 'camera', { count: 2, sent: 2 });
+    expect(filing).toHaveLength(4);
+    expect(filing[3]).toMatchObject({ label: 'Filing it against this car', state: 'active' });
+  });
+
+  it('is the single-file ledger when no pages are given — the old waits are untouched', () => {
+    expect(scanStages('reading', 'camera')).toHaveLength(2);
+    expect(scanStages('reading', 'camera', undefined)[1]).toMatchObject({ label: 'Reading the invoice', state: 'active' });
+  });
+});

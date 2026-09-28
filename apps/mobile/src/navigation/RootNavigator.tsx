@@ -33,7 +33,7 @@ import { InvoiceScanScreen } from '../screens/InvoiceScanScreen';
 import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
 import type { ServiceVisit } from '@tappet/core/service-record';
 import { WishlistAddScreen } from '../screens/WishlistAddScreen';
-import { pickInvoiceImage, pickVehiclePhoto } from '../media/pick-image';
+import { pickInvoiceImages, pickVehiclePhoto } from '../media/pick-image';
 import { AddVehicleScreen } from '../screens/AddVehicleScreen';
 import { DescribeCarScreen } from '../screens/DescribeCarScreen';
 import { OwnerAnswersScreen } from '../screens/OwnerAnswersScreen';
@@ -1544,7 +1544,7 @@ function invoiceScreens(onSignOut: () => void) {
               for the library path; the camera is the viewfinder's own
               (`components/Viewfinder.tsx`).
             */
-            pickImage={pickInvoiceImage}
+            pickImages={pickInvoiceImages}
             startWith={route.params.openLibrary ? 'library' : 'camera'}
             onSignOut={onSignOut}
           />

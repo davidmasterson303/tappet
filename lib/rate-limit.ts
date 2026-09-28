@@ -2,7 +2,7 @@ import { getServiceRoleClient } from './supabase';
 import { logger } from '@tappet/core/logger';
 import { platformClientIp } from '@tappet/core/client-ip';
 
-export type RateLimitTier = 'ai' | 'upload' | 'default';
+export type RateLimitTier = 'ai' | 'upload' | 'page' | 'default';
 
 interface RateLimitConfig {
   windowSeconds: number;
@@ -17,6 +17,17 @@ const TIER_CONFIG: Record<RateLimitTier, RateLimitConfig> = {
   upload: {
     windowSeconds: 60,
     maxRequests: 5,
+  },
+  /*
+    A scanned invoice page (27 Sep). Not `upload`: a six-page invoice is six
+    page uploads and a filing inside a minute, and `upload`'s five would refuse
+    the fifth page of an ordinary scan. A page is a storage write and nothing
+    else — the model is spent once, at the filing, which stays on `upload`
+    and `ai`.
+  */
+  page: {
+    windowSeconds: 60,
+    maxRequests: 30,
   },
   default: {
     windowSeconds: 60,

@@ -220,6 +220,12 @@ const PORTABLE: string[] = [
     not one component), and nothing outside the web asks for stage rows.
   */
   'lib/working.ts',
+  /*
+    27 Sep. Stitches a multi-page scan's photographs into the filed PDF.
+    pdf-lib is pure JS with no Node import, so the module is portable; it runs
+    on the server only because that is where the stored pages are.
+  */
+  'lib/invoice-pdf.ts',
 ];
 
 /**
