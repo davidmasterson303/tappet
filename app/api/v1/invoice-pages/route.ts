@@ -33,7 +33,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!rateLimit.allowed) return rateLimitResponse(rateLimit);
 
   try {
-    const formData = await request.formData();
+    /*
+      An unreadable body is the caller's mistake, not ours: 400. Inside the
+      catch-all below, a POST with no multipart body answered 500 "Failed to
+      store the page" — found probing the live route, 28 Sep.
+    */
+    const formData = await request.formData().catch(() => null);
+    if (!formData) {
+      return NextResponse.json({ success: false, error: 'Expected a multipart form' }, { status: 400 });
+    }
     const file = formData.get('file');
     const vehicleId = formData.get('vehicleId');
 

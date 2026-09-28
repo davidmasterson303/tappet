@@ -79,7 +79,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       return respond(result, vehicleId);
     }
 
-    const formData = await request.formData();
+    // A body that is neither JSON nor a readable form is a 400, not the 500
+    // the catch-all below would give it (28 Sep, as `/invoice-pages`).
+    const formData = await request.formData().catch(() => null);
+    if (!formData) {
+      return NextResponse.json(
+        { success: false, error: 'Expected a multipart form or JSON' } as ApiResponse,
+        { status: 400 }
+      );
+    }
     const file = formData.get('file') as File;
     const vehicleId = formData.get('vehicleId') as string;
     const bypassVehicleCheck = formData.get('bypassVehicleCheck') as string;
