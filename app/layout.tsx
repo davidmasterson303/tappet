@@ -47,17 +47,23 @@ export const metadata: Metadata = {
   */
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || siteOrigin(IS_DEMO)),
   /*
-    ── ⚠ Design's string table, 30 Aug — this is the App Store name ──────────
+    ── ⚠ This is the App Store name — the 17 Sep ASO set, adopted 28 Sep ──────
 
-    `Tappet: Know Your Car` is the App Store name, and the page title is the
-    same string on purpose: a listing and its own marketing URL disagreeing
+    `Tappet: Car Maintenance Log` is the App Store name, and the page title is
+    the same string on purpose: a listing and its own marketing URL disagreeing
     about what the product is called is the first thing a reviewer sees.
+
+    ⚠ It said `Tappet: Know Your Car` (Design's 30 Aug string table) until
+    28 Sep, while the App Store record already carried the 17 Sep name — and
+    this comment called the stale one "the App Store name", which is how it
+    reached the submission pack. The name spends its words on the phrase people
+    search for; "AI" lives in the subtitle, not here (David, 28 Sep).
 
     It replaces "Tappet — Your Personal Auto Ownership Consultant", which was
     the CrewChief title with the name swapped — a description standing where a
     name belongs, and forty characters of it.
   */
-  title: 'Tappet: Know Your Car',
+  title: 'Tappet: Car Maintenance Log',
   /*
      The favicon, apple-touch-icon and SVG icon are NOT declared here — they
      are app/favicon.ico, app/icon.svg and app/apple-icon.png, served by the
@@ -83,12 +89,12 @@ export const metadata: Metadata = {
   */
   manifest: '/manifest.json',
   /*
-    ⚠ Leads with the App Store subtitle — `AI-kept service records`, 23
-    characters, inside Apple's 30 — so the phrase somebody meets in the store
-    and the phrase they meet on the page are the same one.
+    ⚠ Leads with the App Store subtitle — `Service log with an AI advisor`,
+    30 characters, exactly Apple's limit (28 Sep) — so the phrase somebody
+    meets in the store and the phrase they meet on the page are the same one.
   */
   description:
-    'AI-kept service records. Track your vehicles, log service history, and get answers from an AI that knows your car — its issues, schedule, and history.',
+    "Service log with an AI advisor. Track your vehicles, log service history, and ask an AI advisor that has read your car's records — its issues, schedule and history.",
   /*
      Canonical, cheap insurance. `og:url` is treated as a canonicalisation hint
      by search engines, and the product site previously had no `<link rel=
@@ -96,7 +102,7 @@ export const metadata: Metadata = {
   */
   alternates: { canonical: '/' },
   openGraph: {
-    title: 'Tappet: Know Your Car',
+    title: 'Tappet: Car Maintenance Log',
     // Per-deployment. The product must never describe itself as a demo — see
     // `lib/site-role.ts` for why that sentence is expensive on this hostname.
     description: shareDescription(IS_DEMO),
