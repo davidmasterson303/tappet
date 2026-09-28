@@ -4136,3 +4136,35 @@ string on the panel, on every door it has.
    13 → 15, wrapping to two lines at every size, since at 15 "Daily Driver"
    is ~108pt of mono in the 16 Pro plate's ~97pt third. The eyebrow and the
    note (`6 WK AGO ›`) stay at the 12pt label floor, which is question 2.
+
+### 6.26 The scan's page strip and page sheet — 27 Sep, for Design
+
+A multi-page invoice added two pieces the system has no spec for. Both are
+built from existing tokens, and each was graded by the critic (rounds 53–56):
+
+- **The page strip** (`components/PageStrip.tsx`) sits between the viewfinder
+  and its readout. Thumbnails are 44×52pt in a `border.field` hairline, and the
+  current one has an off-white edge. Indices are 12pt mono. While a page
+  uploads, a 2pt `brand.accent` rule sits under it (cyan's refresh-ramp job,
+  B7). A failed page gets the sodium △. The last tile is a hairline box, `+
+  PHOTOS`, and the count (`3 OF 6`) is right-aligned. There are no radii and no
+  cut: the thumbnails are photographs, not containers.
+- **The page sheet** (`components/PageReview.tsx`) is full screen. The
+  photograph is contained, never cropped, and runs edge to edge. Below it: the
+  readout band (`PAGE 02` / `SENT`), then RETAKE (outline) beside REMOVE PAGE
+  (`delete`, sodium hairline).
+- **The scan's result titles** (FILED, "Is this the right car?", the errors)
+  moved from Inter 22 bold to `type.displaySection`. That follows B1, and the
+  critic read the Inter as "a system alert".
+
+**What Design needs to decide:**
+
+1. Should a thumbnail strip become a system component? Photographs in a strip
+   will recur (the car's photos, the tires).
+2. The critic twice read `displaySection` (Archivo Narrow SemiBold 20) as
+   Inter. That is `displayHead`'s history of being read as a plain sans. Does
+   a result title want `displayHead`'s 700?
+3. Declined, and recorded here: the critic asked for disabled buttons to drop
+   to reduced opacity with no fill. The system's rule is a disabled fill and
+   never group opacity. The build keeps the rule.
+
