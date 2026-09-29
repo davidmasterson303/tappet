@@ -57,6 +57,26 @@
 > - The critic asked twice for FILED to list the lines it read (B6). That needs
 >   the filing to return its items. It is worth doing, but it is not this change.
 
+> ### ▶ 28 Sep, evening — build 2 is in App Store Connect; submission is Tuesday
+>
+> - **Build 2 uploaded** (`eas submit`, 19:3x MDT): EAS build `de37b4c7`, 1.0.0 (2),
+>   from `2b34085`. An App Store Connect API key now lives on EAS servers —
+>   `NQDYMJCP23`, role **APP_MANAGER** (least privilege; ADMIN was refused on
+>   purpose) — so later submits need no Apple sign-in. `eas.json` names
+>   `ascAppId 6815909097` and team `P4873P8FQ9` (`66318ff`).
+> - **Name decided (David, 28 Sep):** `Tappet: Car Maintenance Log`, subtitle
+>   `Service log with an AI advisor`, the 17 Sep keywords with `vin` and
+>   `mechanic`. "AI" in the subtitle, not the name: the name spends its words on
+>   the search phrase, the AI features are paid, and "mechanic" never appears
+>   where a customer reads it. Site title matches (`cbd1a12`, live on the next
+>   promote). Cowork has `COWORK_NOTE_asc_name_2026-09-28.md`.
+>
+> **Tuesday, in order:** TestFlight install → store screenshots (6.9", no
+> dev-client gear) + the IAP review screenshot + the 3- and 6-page scan timing →
+> Cowork fills ASC (Chrome must be signed in; David answers Name and Crash
+> Data) → Gemini auto-reload on → "enforce" (`PAID_FEATURES_ENFORCED=true` on
+> `tappet-web`) + `promote-web` → reviewer password, attach build 2, Submit.
+
 > ### ▶ 28 Sep — purchases proven on the device; the production build is running
 >
 > Steps 1–3 of the block below are **done**, each read in the database:
