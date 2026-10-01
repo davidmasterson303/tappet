@@ -39,6 +39,14 @@ import { interFace } from '../theme/fonts';
  * verb. A separate screen would duplicate the inputs, the keyboard handling and
  * the error surface to change one label and one call.
  */
+/**
+ * The password floor sign-up states before the press — the Supabase project's
+ * minimum, which the web's `/signup` and `/reset-password` enforce as
+ * `password.length < 6`. `SignInScreen.test.tsx` reads both pages so the
+ * three cannot drift apart silently.
+ */
+export const PASSWORD_MIN_LENGTH = 6;
+
 export function SignInScreen({ initialNotice = null }: { initialNotice?: string | null } = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -184,6 +192,14 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
             saved, which is why this was here before sign-up existed.
           */
           textContentType={isNew ? 'newPassword' : 'password'}
+          /*
+            ⚠ Audit 360, UX-10 (1 Oct): the rule, before the press. Sign-up
+            stated none, so the first an owner heard of it was Supabase's
+            sentence after CREATE ACCOUNT. The number is the project's —
+            the web sign-up and reset forms refuse under the same
+            (`PASSWORD_MIN_LENGTH`, pinned against them in the suite).
+          */
+          hint={isNew ? `at least ${PASSWORD_MIN_LENGTH} characters` : undefined}
           editable={!busy}
           onSubmitEditing={handleSubmit}
         />

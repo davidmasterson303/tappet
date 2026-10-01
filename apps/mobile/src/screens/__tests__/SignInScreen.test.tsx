@@ -1,6 +1,9 @@
 import { render, userEvent } from '@testing-library/react-native';
 
-import { SignInScreen } from '../SignInScreen';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { PASSWORD_MIN_LENGTH, SignInScreen } from '../SignInScreen';
 import { resetPassword, signIn, signUp } from '../../auth/session';
 
 /**
@@ -58,7 +61,7 @@ async function fill(
   password = 'correct-horse'
 ) {
   await user.type(view.getByLabelText('Email'), email);
-  await user.type(view.getByLabelText('Password'), password);
+  await user.type(view.getByLabelText(/^Password/), password);
 }
 
 beforeEach(() => {
@@ -83,7 +86,7 @@ describe('what a screen reader finds', () => {
 
     return view.then((resolved) => {
       expect(resolved.getByLabelText('Email')).toBeTruthy();
-      expect(resolved.getByLabelText('Password')).toBeTruthy();
+      expect(resolved.getByLabelText(/^Password/)).toBeTruthy();
     });
   });
 
@@ -246,6 +249,33 @@ describe('creating an account', () => {
   });
 });
 
+describe('the password rule, before the press — audit 360, UX-10', () => {
+  it('states the floor on the create form, and only there', async () => {
+    const user = userEvent.setup();
+    const view = await render(<SignInScreen />);
+
+    // Signing in asks for the password you have; a rule there is noise.
+    expect(view.queryByText(/at least \d+ characters/)).toBeNull();
+
+    await user.press(view.getByText('New here? Create an account'));
+    expect(view.getByText(`at least ${PASSWORD_MIN_LENGTH} characters`)).toBeTruthy();
+    expect(view.getByLabelText(`Password, at least ${PASSWORD_MIN_LENGTH} characters`)).toBeTruthy();
+  });
+
+  it('names the same number the web refuses under', () => {
+    const root = join(__dirname, '..', '..', '..', '..', '..');
+    const pages = ['app/signup/page.tsx', 'app/reset-password/page.tsx'].map((page) =>
+      readFileSync(join(root, page), 'utf8')
+    );
+    for (const page of pages) {
+      // Found the rule at all — a page that lost it would pass vacuously.
+      const floor = /password\.length < (\d+)\)/.exec(page)?.[1];
+      expect(floor).toBeDefined();
+      expect(Number(floor)).toBe(PASSWORD_MIN_LENGTH);
+    }
+  });
+});
+
 describe('when the project requires email confirmation', () => {
   /*
     ⚠ Whether confirmation is on is a Supabase dashboard setting, not anything
@@ -296,7 +326,7 @@ describe('when the project requires email confirmation', () => {
     await user.press(view.getByText('Create account'));
 
     await view.findByText(/check your email/i);
-    expect(view.getByLabelText('Password').props.value).toBe('');
+    expect(view.getByLabelText(/^Password/).props.value).toBe('');
   });
 
   it('leaves the screen usable, so they can sign in once confirmed', async () => {
@@ -311,7 +341,7 @@ describe('when the project requires email confirmation', () => {
     await user.press(view.getByText('Create account'));
     await view.findByText(/check your email/i);
 
-    await user.type(view.getByLabelText('Password'), 'correct-horse');
+    await user.type(view.getByLabelText(/^Password/), 'correct-horse');
     await user.press(view.getByText('Sign in'));
 
     expect(mockSignIn).toHaveBeenCalledTimes(1);
@@ -410,7 +440,7 @@ describe('the way back in when the password is gone', () => {
     await user.press(view.getByText('Forgot your password?'));
 
     expect(mockResetPassword).toHaveBeenCalledTimes(1);
-    expect(view.getByLabelText('Password').props.value).toBe('');
+    expect(view.getByLabelText(/^Password/).props.value).toBe('');
   });
 
   it('never says whether the address has an account', async () => {
