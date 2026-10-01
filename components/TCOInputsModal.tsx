@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DollarSign, Check, Fuel, ShieldCheck, Gauge } from 'lucide-react';
+import { DollarSign, Check, Fuel, ShieldCheck, Gauge, AlertTriangle } from 'lucide-react';
 import { updateVehicleTCOFields } from '@/app/actions';
+import { COULD_NOT_SAVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 
 interface TCOInputsModalProps {
   open: boolean;
@@ -24,6 +25,8 @@ const FIELDS = [
 
 type FieldKey = typeof FIELDS[number]['key'];
 
+export const NEGATIVE_FIGURE = 'Each figure is a number of zero or more. Correct the negative one and save again.';
+
 export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle, onSaved }: TCOInputsModalProps) {
   const [fields, setFields] = useState({
     purchase_price: '',
@@ -33,8 +36,11 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  /** What the server answered when it did not save, in its own words. */
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setError(null);
     if (vehicle) {
       setFields({
         purchase_price: vehicle.purchase_price != null ? String(vehicle.purchase_price) : '',
@@ -45,8 +51,22 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
     }
   }, [vehicle?.id, open]);
 
+  /*
+    ── Audit 360, UX-21 (1 Oct) · Saved only when it was ──────────────────────
+
+    This awaited \`updateVehicleTCOFields\`, discarded the answer, and showed a
+    green *Saved* — then pushed the typed numbers into the page's cost
+    figures. The action never throws: a lapsed session, a refused patch (a
+    negative price, SEC-14) and a failed write all answer \`success: false\`.
+    So an owner read figures recomputed from numbers that were never stored,
+    and the next load quietly put the old ones back. Now the answer is read:
+    a refusal keeps the dialog open with the server's sentence, and only a
+    save that landed says *Saved* and repaints the page. A request that threw
+    may still have landed, and says so (\`NO_ANSWER\`).
+  */
   async function handleSave() {
     setSaving(true);
+    setError(null);
     try {
       const parsed = {
         purchase_price: fields.purchase_price ? parseFloat(fields.purchase_price) : null,
@@ -54,7 +74,20 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
         fuel_price_per_gallon: fields.fuel_price_per_gallon ? parseFloat(fields.fuel_price_per_gallon) : null,
         insurance_monthly: fields.insurance_monthly ? parseFloat(fields.insurance_monthly) : null,
       };
-      await updateVehicleTCOFields(vehicleId, parsed);
+      /*
+        The server refuses a negative figure with its general "could not
+        save… try again", which trying again will not fix. Said here, before
+        the request, in words that will.
+      */
+      if (Object.values(parsed).some((value) => value !== null && !(value >= 0))) {
+        setError(NEGATIVE_FIGURE);
+        return;
+      }
+      const result = await updateVehicleTCOFields(vehicleId, parsed);
+      if (!result?.success) {
+        setError(answerSentence(result, COULD_NOT_SAVE));
+        return;
+      }
       setSaved(true);
       onSaved?.(parsed);
       setTimeout(() => {
@@ -62,6 +95,7 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
         onOpenChange(false);
       }, 1200);
     } catch {
+      setError(NO_ANSWER);
     } finally {
       setSaving(false);
     }
@@ -75,9 +109,9 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
             <DollarSign className="h-5 w-5 text-info" />
             Cost of Ownership Inputs
           </DialogTitle>
-          <p className="text-xs text-white/50 mt-1">
+          <DialogDescription className="text-xs text-white/50 mt-1">
             These figures power your real-world cost-per-mile and TCO breakdown.
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
@@ -95,6 +129,7 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
                 )}
                 <Input
                   type="number"
+                  min={0}
                   inputMode="decimal"
                   placeholder={placeholder}
                   value={fields[key as FieldKey]}
@@ -106,6 +141,13 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
             </div>
           ))}
         </div>
+
+        {error && (
+          <div role="alert" className="flex items-start gap-2.5 p-3.5 mt-4 bg-red-500/10 border border-red-400/25 rounded-xl">
+            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-300">{error}</p>
+          </div>
+        )}
 
         <div className="flex gap-3 mt-6">
           <Button
