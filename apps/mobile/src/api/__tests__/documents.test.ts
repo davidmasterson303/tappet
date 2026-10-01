@@ -20,7 +20,7 @@ jest.mock('../client', () => {
   }
   return { ApiRequestError, apiRequest: (...args: unknown[]) => mockApiRequest(...args) };
 });
-import { uploadInvoice } from '../documents';
+import { invoiceUrl, uploadInvoice } from '../documents';
 
 const FILE = { uri: 'file:///invoice.jpg', name: 'invoice.jpg', type: 'image/jpeg', size: 1000 };
 
@@ -111,5 +111,22 @@ describe('pages', () => {
   it('resolves a stored page to its path', async () => {
     mockApiRequest.mockResolvedValue({ success: true, path: 'v1/invoices/pages/1-a.jpg' });
     await expect(docs().uploadInvoicePage('v1', FILE as never)).resolves.toBe('v1/invoices/pages/1-a.jpg');
+  });
+});
+
+describe('invoiceUrl — audit 360, TL-9', () => {
+  it('says a 404 is the invoice being gone, not the API being old', async () => {
+    const { ApiRequestError } = jest.requireMock('../client');
+    mockApiRequest.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
+
+    const answer = await invoiceUrl('v1', 'd1');
+
+    expect(answer).toEqual({ error: 'That invoice is no longer here.' });
+    expect(JSON.stringify(answer)).not.toMatch(/newer version|API/);
+  });
+
+  it('still opens one that is there (anti-vacuous)', async () => {
+    mockApiRequest.mockResolvedValue({ success: true, url: 'https://signed.example/invoice.pdf' });
+    await expect(invoiceUrl('v1', 'd1')).resolves.toEqual({ url: 'https://signed.example/invoice.pdf' });
   });
 });
