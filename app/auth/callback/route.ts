@@ -4,37 +4,18 @@ import { logger } from '@tappet/core/logger';
 import { readVisitorId } from '@/lib/funnel-visitor';
 import { recordFunnelStepInBackground } from '@/lib/funnel';
 import { claimScansForVisitor } from '@/lib/quote-check';
+import { safeRedirect } from '@/lib/safe-redirect';
 
-/**
- * Where a sign-in callback is allowed to send somebody.
+/*
+ * Where a sign-in callback is allowed to send somebody: `lib/safe-redirect.ts`.
  *
- * ── ⚠ SEC-04 · this was an open redirect, on the App Store hostname ─────────
- *
- * The handler did `new URL(redirectTo, requestUrl.origin)`, and a `URL`
- * constructor only uses its base for **relative** inputs. So
- * `?redirect=https://evil.example` produced exactly that URL, and the response
- * carried the user there with a freshly-set session cookie on the way out.
- *
- * There was no allowlist and no `startsWith('/')` check, and `/auth/callback`
- * is absent from the middleware matcher, so nothing upstream saw it either.
- *
- * It matters more here than the shape usually does: this is the domain Apple's
- * reviewer opens, and a phishing page reached from a `tappet.southmoordigital.com`
- * link inherits whatever trust that name carries.
- *
- * ⚠ **`//` is rejected too.** `//evil.example` is protocol-relative — it starts
- * with a slash and is not a path, which is precisely the case a naive
- * `startsWith('/')` lets through. Same for `/\evil.example`, which some
- * browsers normalise to the same thing.
+ * ⚠ SEC-04 (24 Aug): this was an open redirect on the App Store hostname —
+ * `new URL(redirectTo, requestUrl.origin)` uses its base only for relative
+ * inputs, so `?redirect=https://evil.example` was followed with a fresh
+ * session cookie set on the way out. The guard lived here, private, and the
+ * password form at `/login` went on reading the same parameter raw until
+ * audit 360 SEC-4 (1 Oct). One module now, imported by both.
  */
-function safeRedirect(raw: string | null): string {
-  if (!raw) return '/garage';
-  if (!raw.startsWith('/')) return '/garage';
-  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/garage';
-
-  return raw;
-}
-
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');

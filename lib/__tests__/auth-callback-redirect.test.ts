@@ -27,22 +27,16 @@ const ROUTE = readFileSync(
   'utf8'
 );
 
-/**
- * The guard itself, lifted out of the route.
- *
- * ⚠ Re-declared rather than imported: the route is a Next.js request handler
- * that pulls in `@supabase/ssr` and `next/server` at module scope, and this
- * suite runs under the node environment with no request context. The source
- * scan below is what pins the two copies together — it fails if the route stops
- * routing its input through a function of this name.
+/*
+ * The guard itself, imported — not re-declared. Until audit 360 (SEC-4, 1 Oct)
+ * this file carried its own copy of the function, pinned to the route by a
+ * name match, which is how the login form could read the same parameter raw
+ * while this suite stayed green: the copy was tested, the second caller was
+ * not. `lib/safe-redirect.ts` is pure and imports nothing.
  */
-function safeRedirect(raw: string | null): string {
-  if (!raw) return '/garage';
-  if (!raw.startsWith('/')) return '/garage';
-  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/garage';
+import { safeRedirect } from '../safe-redirect';
 
-  return raw;
-}
+const LOGIN = readFileSync(join(__dirname, '..', '..', 'app', 'login', 'page.tsx'), 'utf8');
 
 describe('safeRedirect', () => {
   it('keeps an ordinary in-app path', () => {
@@ -75,9 +69,31 @@ describe('safeRedirect', () => {
     expect(safeRedirect('data:text/html,<script>')).toBe('/garage');
   });
 
+  it('refuses a control character the URL parser would strip into `//`', () => {
+    // `/\t/evil.example` reaches the parser as `//evil.example`.
+    expect(safeRedirect('/\t/evil.example')).toBe('/garage');
+    expect(safeRedirect('/\n/evil.example')).toBe('/garage');
+  });
+
   it('falls back for an absent or empty parameter', () => {
     expect(safeRedirect(null)).toBe('/garage');
     expect(safeRedirect('')).toBe('/garage');
+  });
+});
+
+describe('the password form uses it (audit 360, SEC-4)', () => {
+  it('reads ?redirect= through the guard before router.push', () => {
+    expect(LOGIN).toMatch(/import \{ safeRedirect \} from '@\/lib\/safe-redirect'/);
+    expect(LOGIN).toMatch(/const redirect = safeRedirect\(searchParams\.get\('redirect'\)\)/);
+    expect(LOGIN).toMatch(/router\.push\(redirect\)/);
+  });
+
+  it('can still detect the shape that shipped, so this is not vacuous', () => {
+    const shipped = "const redirect = searchParams.get('redirect') || '/garage';";
+    expect(shipped).not.toMatch(/const redirect = safeRedirect\(/);
+    // And every reader of the parameter in the file goes through the guard.
+    const reads = LOGIN.match(/searchParams\.get\('redirect'\)/g) ?? [];
+    expect(reads.length).toBe(1);
   });
 });
 
@@ -88,7 +104,9 @@ describe('the route uses it', () => {
       back to reading `searchParams.get('redirect')` straight into a `URL`, this
       is what fails.
     */
+    expect(ROUTE).toMatch(/import \{ safeRedirect \} from '@\/lib\/safe-redirect'/);
     expect(ROUTE).toMatch(/const redirectTo = safeRedirect\(/);
+    expect(ROUTE).not.toMatch(/function safeRedirect/);
     expect(ROUTE).not.toMatch(/const redirectTo = requestUrl\.searchParams\.get/);
   });
 

@@ -8,11 +8,18 @@ import { Eye, EyeOff } from 'lucide-react';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { safeRedirect } from '@/lib/safe-redirect';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/garage';
+  /*
+    ⚠ Through the guard, never raw (audit 360, SEC-4). `router.push` hands an
+    absolute URL to `location.href`, so `?redirect=https://evil.example` took
+    a genuine sign-in on our address bar and delivered the owner elsewhere.
+    `lib/safe-redirect.ts`.
+  */
+  const redirect = safeRedirect(searchParams.get('redirect'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
