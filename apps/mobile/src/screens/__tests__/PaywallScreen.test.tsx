@@ -398,6 +398,9 @@ describe('a subscriber sees their standing, not a sale', () => {
     expect(view.queryByLabelText(/^Manage your subscription/)).toBeNull();
     expect(view.getByText(/nothing to manage in your Apple Account/)).toBeTruthy();
     expect(view.getByText(/You can still subscribe below/)).toBeTruthy();
+    // COPY-28: says what a purchase would change for an account that holds Plus — nothing.
+    expect(view.getByText(/keeps the same features either way/)).toBeTruthy();
+    expect(view.queryByText(/Apple then bills it/)).toBeNull();
     expect(view.getByText('£7.99 / month')).toBeTruthy();
     expect(view.getByText('£69.99 / year')).toBeTruthy();
 

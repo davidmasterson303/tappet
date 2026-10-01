@@ -325,9 +325,15 @@ export default function PaywallScreen({
                     )}
                   </Pressable>
                 ) : (
+                  /*
+                    COPY-28 (1 Oct): "nothing to manage" then "you can still
+                    subscribe" left a comped owner unable to tell whether
+                    paying adds anything. It does not, and the line says so.
+                  */
                   <Text style={styles.featureBlurb}>
-                    Tappet Plus was added to this account, so there is nothing to manage in your
-                    Apple Account. You can still subscribe below, and Apple then bills it.
+                    Tappet added Plus to this account, so there is nothing to manage in your Apple
+                    Account. You can still subscribe below — Apple bills it, and this account keeps
+                    the same features either way.
                   </Text>
                 )}
               </View>
