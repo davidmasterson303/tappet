@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import {
   NavigationContainer,
   getFocusedRouteNameFromRoute,
+  getStateFromPath as parseLinkPath,
   useNavigation,
   useNavigationContainerRef,
   type LinkingOptions,
@@ -19,6 +20,7 @@ import {
   type NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
 
+import { safeLinkPath } from './safe-link-path';
 import {
   configureNotificationHandler,
   initialNotificationUrl,
@@ -533,6 +535,15 @@ export const linking: LinkingOptions<RootStackParamList> = {
   */
   async getInitialURL() {
     return (await Linking.getInitialURL()) ?? (await initialNotificationUrl());
+  },
+
+  /*
+    ⚠ Audit 360, SEC-9 (1 Oct). A malformed or oversized query is dropped
+    before the library parses it — its decoder is super-linear on malformed
+    percent-encoding, and a crafted link hung the app. `safe-link-path.ts`.
+  */
+  getStateFromPath(path, options) {
+    return parseLinkPath(safeLinkPath(path), options);
   },
 
   subscribe(listener) {
