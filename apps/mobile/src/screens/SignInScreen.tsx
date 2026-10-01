@@ -119,6 +119,11 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      /*
+        0, and stated: the signed-out gate has no header above it, so the
+        view's frame and the window agree (`keyboard-offset.ts`, UX-2).
+      */
+      keyboardVerticalOffset={0}
     >
       {/*
         23 Sep: with the keyboard up on a 667pt device the top of the form was

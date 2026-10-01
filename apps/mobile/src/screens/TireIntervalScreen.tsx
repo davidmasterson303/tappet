@@ -16,6 +16,8 @@ import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Field from '../components/Field';
 import IntervalHelp, { useVehicleRotationInterval } from '../components/IntervalHelp';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { OPTICAL_CENTRE, PAGE_BODY, space, surface, text, type } from '../theme';
 
 /**
@@ -54,7 +56,15 @@ export function TireIntervalScreen({
   onSaved: () => void;
   onSignOut: () => void;
 }) {
-  const [value, setValue] = useState(set.rotationIntervalMiles === null ? '' : String(set.rotationIntervalMiles));
+  const opening = set.rotationIntervalMiles === null ? '' : String(set.rotationIntervalMiles);
+  const [value, setValue] = useState(opening);
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  const releaseDiscard = useConfirmDiscard(value.trim() !== opening);
+  const keyboardOffset = usePushedFormKeyboardOffset();
   /* The car's own schedule figure, offered under the field — never filled in (21 Sep, `IntervalHelp`). */
   const vehicleInterval = useVehicleRotationInterval(vehicleId);
   const [showProblems, setShowProblems] = useState(false);
@@ -81,6 +91,7 @@ export function TireIntervalScreen({
         // A claim the server checks against the schedule; the owner's otherwise.
         intervalSource: miles !== null && miles === vehicleInterval ? 'vehicle' : undefined,
       });
+      releaseDiscard();
       onSaved();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isLocallySignedOut) {
@@ -94,7 +105,11 @@ export function TireIntervalScreen({
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
+    >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.lede}>
           The rotation interval on your warranty card. Tappet holds this set to it and tells you when you are past

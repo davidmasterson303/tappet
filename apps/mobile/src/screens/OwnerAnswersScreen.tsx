@@ -12,6 +12,8 @@ import Text from '../components/Text';
 import Button from '../components/Button';
 import CutSurface from '../components/CutSurface';
 import Field from '../components/Field';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { apiRequest, ApiRequestError } from '../api/client';
 import { carTitle, type CarIdentity } from '../onboarding/car-identity';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
@@ -86,6 +88,16 @@ export function OwnerAnswersScreen({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  const releaseDiscard = useConfirmDiscard(
+    mileage.trim().length > 0 || !wantsMods || serviceAge !== null
+  );
+  const keyboardOffset = usePushedFormKeyboardOffset();
+
   const reading = Number(mileage.replace(/[^0-9]/g, '') || '0');
   const canSubmit = mileage.trim().length > 0 && !busy;
 
@@ -142,6 +154,7 @@ export function OwnerAnswersScreen({
         return;
       }
 
+      releaseDiscard();
       onAdded(body.vehicle.id, carTitle(identity));
     } catch (err) {
       const apiError = err as ApiRequestError;
@@ -166,6 +179,7 @@ export function OwnerAnswersScreen({
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {/*

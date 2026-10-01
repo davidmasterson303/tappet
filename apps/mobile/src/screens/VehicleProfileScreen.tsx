@@ -16,6 +16,8 @@ import Field from '../components/Field';
 import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
 import Working from '../components/Working';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { InvoiceFile } from '../api/documents';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
@@ -123,6 +125,24 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
   /** The photograph's own work in flight, and its own refusal — never mixed with the form's. */
   const [photoBusy, setPhotoBusy] = useState<'uploading' | 'removing' | null>(null);
   const [photoProblem, setPhotoProblem] = useState<{ headline: string; body: string } | null>(null);
+
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops an
+    unsaved answer, and the form's foot clears the keyboard under the header.
+    "Changed" is the save's own test, field by field, so the question is
+    asked exactly when SAVE would have sent something.
+  */
+  const dirty =
+    state.kind === 'loaded' &&
+    answers !== null &&
+    ((answers.currentMileage.replace(/[^0-9]/g, '') !== '' &&
+      answers.currentMileage.replace(/[^0-9]/g, '') !== state.initial.currentMileage) ||
+      answers.avgMilesPerMonth !== state.initial.avgMilesPerMonth ||
+      answers.vehicleStatus !== state.initial.vehicleStatus ||
+      answers.performanceMindedness !== state.initial.performanceMindedness ||
+      answers.ownershipObjective.trim() !== state.initial.ownershipObjective.trim());
+  const releaseDiscard = useConfirmDiscard(dirty);
+  const keyboardOffset = usePushedFormKeyboardOffset();
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -322,6 +342,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
       // "Nothing to change" is not an error worth showing — it is a no-op.
       if (Object.keys(fields).length === 0) {
         if (mileage === null) {
+          releaseDiscard();
           onSaved();
           return;
         }
@@ -341,6 +362,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
       if (Object.keys(fields).length > 0) {
         await apiRequest('/vehicles', { method: 'PATCH', body: changed });
       }
+      releaseDiscard();
       onSaved();
     } catch (error) {
         /*
@@ -371,7 +393,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     } finally {
       setSaving(false);
     }
-  }, [state, answers, saving, vehicleId, onSaved, onSignOut]);
+  }, [state, answers, saving, vehicleId, onSaved, onSignOut, releaseDiscard]);
 
   if (state.kind === 'loading') {
     /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
@@ -401,6 +423,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {problem && <AlertBanner tone="critical" headline="Not saved" body={problem} />}

@@ -18,6 +18,8 @@ import { addTireRotation } from '../api/tires';
 import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Field from '../components/Field';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { OPTICAL_CENTRE, PAGE_BODY, space, surface, text, type } from '../theme';
 
 /**
@@ -64,7 +66,15 @@ export function TireRotationScreen({
   onSignOut: () => void;
 }) {
   const today = localToday();
-  const [draft, setDraft] = useState<RotationDraft>(() => emptyRotationDraft(today, currentMileage));
+  const [opening] = useState<RotationDraft>(() => emptyRotationDraft(today, currentMileage));
+  const [draft, setDraft] = useState<RotationDraft>(opening);
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  const releaseDiscard = useConfirmDiscard(JSON.stringify(draft) !== JSON.stringify(opening));
+  const keyboardOffset = usePushedFormKeyboardOffset();
   const [showProblems, setShowProblems] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -86,6 +96,7 @@ export function TireRotationScreen({
     setRefused(null);
     try {
       await addTireRotation(set.id, rotationPayload(draft));
+      releaseDiscard();
       onSaved();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isLocallySignedOut) {
@@ -99,7 +110,11 @@ export function TireRotationScreen({
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
+    >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.lede}>
           {set.brand} {set.line}. When were the tires rotated, and what did the odometer read?

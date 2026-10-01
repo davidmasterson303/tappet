@@ -99,7 +99,11 @@ export function MarkDoneSheet({
         dismissed the keyboard. The sheet is its own window, so `padding`
         with no offset is the right arithmetic (VehicleProfileScreen's note).
       */}
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.bar}>
           <Pressable onPress={onCancel} hitSlop={12} disabled={saving} accessibilityRole="button">
             <Text style={[styles.barAction, saving && styles.dim]}>Cancel</Text>

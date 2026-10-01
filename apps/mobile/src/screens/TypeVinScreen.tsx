@@ -13,6 +13,8 @@ import type { TextInput as RNTextInput } from 'react-native';
 import Button from '../components/Button';
 import CutSurface from '../components/CutSurface';
 import DecodeLog from '../components/DecodeLog';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { useVinDecode, type Prefill } from '../onboarding/useVinDecode';
 import type { CarIdentity } from '../onboarding/car-identity';
 import { VIN_LENGTH, normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
@@ -68,6 +70,13 @@ export function TypeVinScreen({
   const [focused, setFocused] = useState(false);
   const input = useRef<RNTextInput>(null);
   const decode = useVinDecode('typed');
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  useConfirmDiscard(vin.length > 0);
+  const keyboardOffset = usePushedFormKeyboardOffset();
 
   /*
     The only mistake a normalised VIN can hold. `normaliseVin` has already
@@ -93,6 +102,7 @@ export function TypeVinScreen({
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>

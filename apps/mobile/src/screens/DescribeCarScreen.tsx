@@ -5,6 +5,8 @@ import Text from '../components/Text';
 import Button from '../components/Button';
 import Field from '../components/Field';
 import Suggest from '../components/Suggest';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { fetchModels } from '../api/vpic';
 import type { CarIdentity } from '../onboarding/car-identity';
 import type { Prefill } from '../onboarding/useVinDecode';
@@ -84,6 +86,20 @@ export function DescribeCarScreen({
   const [vin, setVin] = useState(carriedVin ? normaliseVin(carriedVin) : '');
   const [error, setError] = useState<string | null>(null);
 
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  const releaseDiscard = useConfirmDiscard(
+    year !== (prefill?.year ? String(prefill.year) : '') ||
+      make !== (prefill?.make ?? '') ||
+      model !== (prefill?.model ?? '') ||
+      trim !== (prefill?.trim ?? '') ||
+      vin !== (carriedVin ? normaliseVin(carriedVin) : '')
+  );
+  const keyboardOffset = usePushedFormKeyboardOffset();
+
   const [openField, setOpenField] = useState<OpenField>(null);
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
@@ -159,6 +175,7 @@ export function DescribeCarScreen({
     }
 
     setError(null);
+    releaseDiscard();
     onIdentified({
       vin: typedVin || null,
       year: yearNumber,
@@ -174,6 +191,7 @@ export function DescribeCarScreen({
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {/*
