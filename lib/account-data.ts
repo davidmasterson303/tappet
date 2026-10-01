@@ -185,6 +185,12 @@ export async function getProfile() {
     profile: (data as Profile) ?? null,
     vehicleCount: count ?? 0,
     hasLiveSubscription,
+    /*
+      COPY-20: whether `hasLiveSubscription` was read or assumed. The
+      assumed `true` above still warns; this lets the dialog say it could
+      not check rather than state a subscription as the owner's fact.
+    */
+    subscriptionCertain: !(entitlementError && !tableAbsent),
   };
 }
 

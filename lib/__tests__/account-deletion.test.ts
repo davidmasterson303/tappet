@@ -402,6 +402,50 @@ describe('subscriptionNotice — Guideline 3.1.2 and the E5 rejection reason', (
   });
 });
 
+/*
+  Audit 360, COPY-20 (1 Oct). LEGAL-15 made an unread subscription warn — and
+  the one sentence stated it as the owner's fact. Both rules now hold: the
+  warning always shows on a failed read, and it says what Tappet could not
+  check instead of what the owner has.
+*/
+describe('subscriptionNotice — an unread subscription warns, conditionally', () => {
+  const { subscriptionNotice, SUBSCRIPTION_CANCEL_PATH } = require('@tappet/core/account-deletion');
+
+  it('still warns when the read failed (LEGAL-15)', () => {
+    const notice = subscriptionNotice(true, false);
+    expect(notice).not.toBeNull();
+    expect(notice.action).toContain(SUBSCRIPTION_CANCEL_PATH);
+    expect(notice.action.toLowerCase()).toContain('cancel it first');
+  });
+
+  it('says it could not check, and puts the subscription behind an "if" (COPY-20)', () => {
+    const notice = subscriptionNotice(true, false);
+    const text = `${notice.headline} ${notice.action}`;
+    expect(notice.headline).toMatch(/^If you subscribe through Apple, /);
+    expect(text).toMatch(/could not check/);
+    expect(text).not.toMatch(/Your subscription is billed by Apple|you will keep being charged/);
+    expect(text.toLowerCase()).not.toMatch(/we will cancel|automatically cancel/);
+  });
+
+  it('a read answer keeps the definite sentence (anti-vacuous)', () => {
+    expect(subscriptionNotice(true).headline).toBe('Deleting your account does not cancel your subscription.');
+    expect(subscriptionNotice(true, true).action).toMatch(/^Your subscription is billed by Apple/);
+    expect(subscriptionNotice(false, false)).toBeNull();
+  });
+
+  it('both surfaces pass the read’s certainty, not only whether to warn', () => {
+    const read = (p: string) =>
+      require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', p), 'utf8');
+    expect(read('components/DeleteAccountDialog.tsx')).toMatch(
+      /subscriptionNotice\(hasLiveSubscription, subscriptionCertain\)/
+    );
+    expect(read('apps/mobile/src/screens/AccountScreen.tsx')).toMatch(/subscription\?\.certain === true/);
+    expect(read('app/settings/SettingsView.tsx')).toMatch(/subscriptionCertain=\{initial\.subscriptionCertain === true\}/);
+    // The web's read says when its `true` was assumed on a failed entitlement read.
+    expect(read('lib/account-data.ts')).toMatch(/subscriptionCertain: !\(entitlementError && !tableAbsent\)/);
+  });
+});
+
 describe('both delete surfaces show the subscription notice', () => {
   /*
     The parity check, and the reason `subscriptionNotice` lives in core at all.

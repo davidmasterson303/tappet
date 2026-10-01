@@ -147,7 +147,11 @@ export function AccountScreen({
 
   const confirmed = isDeletionConfirmed(confirmText);
   // Live and billed by Apple — a comped grant has nothing to cancel (21 Sep).
-  const notice = subscriptionNotice(subscribed && (subscription?.billedByApple ?? true));
+  // COPY-20: an unread standing still warns (LEGAL-15), in words that say so.
+  const notice = subscriptionNotice(
+    subscribed && (subscription?.billedByApple ?? true),
+    subscription?.certain === true
+  );
   const standing = subscription ? subscriptionStatusLine(subscription) : null;
 
   /*

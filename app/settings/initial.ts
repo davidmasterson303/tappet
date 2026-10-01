@@ -8,6 +8,8 @@ export interface ProfileAnswer {
   profile?: { display_name?: string | null; distance_unit: DistanceUnit } | null;
   vehicleCount?: number;
   hasLiveSubscription?: boolean;
+  /** False when the entitlement read failed and the warning is assumed (COPY-20). */
+  subscriptionCertain?: boolean;
 }
 
 /**
@@ -29,5 +31,11 @@ export function settingsInitialFrom(result: ProfileAnswer | null): SettingsIniti
     distanceUnit: ok && result.profile ? result.profile.distance_unit : 'mi',
     vehicleCount: ok ? result.vehicleCount ?? 0 : 0,
     hasLiveSubscription: ok ? result.hasLiveSubscription ?? true : true,
+    /*
+      COPY-20: certain only when the server read it. A failed, thrown or
+      silent read still warns (above) — conditionally, never as their fact.
+    */
+    subscriptionCertain:
+      ok && typeof result.hasLiveSubscription === 'boolean' && result.subscriptionCertain !== false,
   };
 }

@@ -398,7 +398,17 @@ describe('the subscription warning — Guideline 3.1.2 / E5', () => {
     const { view } = mount();
     const resolved = await view;
 
-    expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
+    /*
+      COPY-20 (1 Oct): the warning still shows (LEGAL-15), and it is
+      conditional — the read failed, so the screen does not tell a free user
+      that they have a subscription Apple bills.
+    */
+    expect(
+      await resolved.findByText(/^If you subscribe through Apple, deleting your account does not stop the billing\./)
+    ).toBeTruthy();
+    expect(resolved.getByText(/could not check this account’s subscription/)).toBeTruthy();
+    expect(resolved.queryByText(/does not cancel your subscription/i)).toBeNull();
+    expect(resolved.queryByText(/^Your subscription is billed by Apple/)).toBeNull();
     // The row keeps its neutral name: an unread standing is not "active".
     expect(resolved.queryByText(/^Active/)).toBeNull();
     expect(resolved.queryByText(/^Not subscribed/)).toBeNull();

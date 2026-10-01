@@ -49,6 +49,12 @@ interface DeleteAccountDialogProps {
    * one is the one a subscriber is most likely to use.
    */
   hasLiveSubscription?: boolean;
+  /**
+   * The subscription was read rather than assumed (COPY-20). Defaults to
+   * false: an unread standing still warns, in words that do not state it as
+   * the owner's fact.
+   */
+  subscriptionCertain?: boolean;
 }
 
 /**
@@ -68,13 +74,14 @@ export function DeleteAccountDialog({
   onOpenChange,
   vehicleCount,
   hasLiveSubscription = false,
+  subscriptionCertain = false,
 }: DeleteAccountDialogProps) {
   const router = useRouter();
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const confirmed = isDeletionConfirmed(confirmText);
-  const notice = subscriptionNotice(hasLiveSubscription);
+  const notice = subscriptionNotice(hasLiveSubscription, subscriptionCertain);
 
   async function handleDelete() {
     if (!confirmed || deleting) return;

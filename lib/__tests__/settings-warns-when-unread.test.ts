@@ -23,10 +23,25 @@ describe('the settings page warns when it cannot read the subscription', () => {
       vehicleCount: 0,
     });
     expect(initial.hasLiveSubscription).toBe(true);
+    // COPY-20: assumed, not read — the dialog words it conditionally.
+    expect(initial.subscriptionCertain).toBe(false);
   });
 
   it('warns when the read threw', () => {
     expect(settingsInitialFrom(null).hasLiveSubscription).toBe(true);
+    expect(settingsInitialFrom(null).subscriptionCertain).toBe(false);
+  });
+
+  it('warns, conditionally, when the server could not read the entitlement (COPY-20)', () => {
+    const initial = settingsInitialFrom({
+      success: true,
+      profile: { display_name: 'Sam', distance_unit: 'mi' },
+      vehicleCount: 1,
+      hasLiveSubscription: true,
+      subscriptionCertain: false,
+    });
+    expect(initial.hasLiveSubscription).toBe(true);
+    expect(initial.subscriptionCertain).toBe(false);
   });
 
   it('passes a real "no subscription" through (anti-vacuous)', () => {
@@ -41,6 +56,7 @@ describe('the settings page warns when it cannot read the subscription', () => {
       distanceUnit: 'km',
       vehicleCount: 2,
       hasLiveSubscription: false,
+      subscriptionCertain: true,
     });
   });
 

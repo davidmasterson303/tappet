@@ -112,6 +112,8 @@ export interface SettingsInitial {
   distanceUnit: DistanceUnit;
   vehicleCount: number;
   hasLiveSubscription: boolean;
+  /** The subscription was read, not assumed — see `settingsInitialFrom` (COPY-20). */
+  subscriptionCertain?: boolean;
 }
 
 /**
@@ -356,6 +358,7 @@ export function SettingsView({
         onOpenChange={setDeleteOpen}
         vehicleCount={vehicleCount}
         hasLiveSubscription={hasLiveSubscription}
+        subscriptionCertain={initial.subscriptionCertain === true}
       />
     </SignedInShell>
   );
