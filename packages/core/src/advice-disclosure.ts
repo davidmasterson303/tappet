@@ -131,6 +131,23 @@ export function adviceDisclosure(surface: AdviceSurface): string {
 }
 
 /**
+ * The line under a modified car's performance figures.
+ *
+ * ⚠ Audit 360, LEGAL-16 (1 Oct). `/vehicle-info` showed "+52 from stock"
+ * under only the research line — "not from your specific car" — while the
+ * modified figures are the one thing on that page that *is* drawn from this
+ * car: `lib/performance-stats.ts` sends its service-history line items to find
+ * the modifications, and the consent sheet and the policy both say so. The
+ * stock figures keep the research line; the modified ones get this.
+ *
+ * Not a sixth `AdviceSurface`: it sits beside the research line on one web
+ * page (the phone never shows the figures), and it is shown only when there
+ * are modified figures to describe.
+ */
+export const MODIFIED_FIGURES_DISCLOSURE =
+  'The modified figures are estimated by AI from the work recorded on this car — not measured on it.';
+
+/**
  * ── ⚠ Recalls are deliberately not in this list ─────────────────────────────
  *
  * A recall is **not** generated advice. It is NHTSA's own record, quoted, and

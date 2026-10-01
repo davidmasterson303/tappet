@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ADVISOR_NAME } from '@tappet/core/prompts';
-import { adviceDisclosure, RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
+import { adviceDisclosure, MODIFIED_FIGURES_DISCLOSURE, RECALL_MATCH_CAVEAT } from '@tappet/core/advice-disclosure';
 import { ADVISOR_AI_CONSENT, INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 
 const ROOT = join(__dirname, '..', '..');
@@ -390,5 +390,47 @@ describe('the AI consent', () => {
 
       expect([name, /goes to Google/.test(rendered)]).toEqual([name, false]);
     }
+  });
+});
+
+describe('a modified car’s figures say where they came from — audit 360, LEGAL-16', () => {
+  /*
+    The modified figures are estimated from this car's service history
+    (`lib/performance-stats.ts`), and the page's only disclosure said "not
+    from your specific car". They now carry their own line, shown when there
+    are modified figures; the research line still covers the stock ones.
+  */
+  it('says a model estimated them from this car, not that they were measured', () => {
+    expect(MODIFIED_FIGURES_DISCLOSURE).toMatch(/\bAI\b/);
+    expect(MODIFIED_FIGURES_DISCLOSURE).toMatch(/recorded on this car/);
+    expect(MODIFIED_FIGURES_DISCLOSURE).toMatch(/not measured/);
+    expect(MODIFIED_FIGURES_DISCLOSURE).not.toMatch(/not from your specific car/);
+  });
+
+  it('is what the figures are drawn from', () => {
+    const stats = read('lib', 'performance-stats.ts');
+    expect(rendered(stats)).toMatch(/from\('maintenance_line_items'\)/);
+  });
+
+  const BAND_OPEN = '<SpecBand title="Performance">';
+  const SHOWS_LINE = /\{hasModifications \? \(\s*<p[^>]*>\s*\{MODIFIED_FIGURES_DISCLOSURE\}/;
+  function performanceBand(source: string): string {
+    const page = rendered(source);
+    const start = page.indexOf(BAND_OPEN);
+    return start < 0 ? '' : page.slice(start, page.indexOf('</SpecBand>', start));
+  }
+
+  it('renders in the Performance band, only when there are modified figures', () => {
+    const band = performanceBand(WEB_RESEARCH);
+    expect(band.length).toBeGreaterThan(100);
+    expect(band).toMatch(SHOWS_LINE);
+    // The stock figures keep the research line.
+    expect(rendered(WEB_RESEARCH)).toMatch(/adviceDisclosure\('research'\)/);
+  });
+
+  it('can still tell a band without it (anti-vacuous)', () => {
+    const withoutLine = WEB_RESEARCH.replace(/\{hasModifications \? \([\s\S]*?\) : null\}/, '');
+    expect(withoutLine).not.toBe(WEB_RESEARCH);
+    expect(performanceBand(withoutLine)).not.toMatch(SHOWS_LINE);
   });
 });

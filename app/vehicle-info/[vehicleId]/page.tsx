@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import SpecBand from '@/components/SpecBand';
 import { Working } from '@/components/Working';
 import ResearchButton from '@/components/ResearchButton';
-import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { adviceDisclosure, MODIFIED_FIGURES_DISCLOSURE } from '@tappet/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
 import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { logger } from '@tappet/core/logger';
@@ -413,6 +413,18 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                     </div>
                   ))}
                 </div>
+
+                {/*
+                  Audit 360, LEGAL-16 (1 Oct): the modified figures are drawn
+                  from this car's recorded work, and the only line on the page
+                  said the opposite ("not from your specific car"). The
+                  research line at the foot still covers the stock figures.
+                */}
+                {hasModifications ? (
+                  <p className="mono mt-4 max-w-2xl text-xs leading-relaxed text-white/50">
+                    {MODIFIED_FIGURES_DISCLOSURE}
+                  </p>
+                ) : null}
 
                 {/*
                   ⚠ The second loading indicator is gone.
