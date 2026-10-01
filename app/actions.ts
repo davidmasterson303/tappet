@@ -33,7 +33,7 @@ import {
 } from '@tappet/core/model-json';
 import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
 import { explainVinConflict } from '@/lib/vin-conflict';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { aiCallerKey, checkRateLimit } from '@/lib/rate-limit';
 import {
   isModDetailCacheFresh,
   modDetailCacheKey,
@@ -1171,14 +1171,6 @@ export async function sendConsultantMessage(params: {
    * caller, like one that works.
    */
 }) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`consultant:${params.vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
   try {
     /*
      * The intent has to match what this function actually does, and what it
@@ -1219,6 +1211,27 @@ export async function sendConsultantMessage(params: {
     });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    /*
+      Cost control: server actions are publicly invokable POST endpoints and
+      demo mode has no auth, so every Gemini-backed path is rate limited.
+      ⚠ Audit 360, SEC-6 (1 Oct): after authorization and keyed on the caller
+      — it was `consultant:${vehicleId}` ahead of it, which let anybody holding
+      a vehicle id lock its owner's advisor. Same key as the route's.
+    */
+    {
+      const rl = await checkRateLimit(
+        aiCallerKey('consultant', {
+          userId: access.userId,
+          visitor: access.userId ? null : await demoClientIp(),
+          vehicleId: params.vehicleId,
+        }),
+        'ai'
+      );
+      if (!rl.allowed) {
+        return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+      }
     }
 
     /*
@@ -2219,18 +2232,22 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
 }
 
 export async function generateVehicleHealthSummary(vehicleId: string, forceRefresh: boolean = false) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`health:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    /*
+      Cost control: every Gemini-backed path is rate limited. ⚠ Audit 360,
+      SEC-2 (1 Oct): keyed on the account, after authorization — it was
+      `health:${vehicleId}`, so an account with N cars had N × 10 a minute.
+    */
+    {
+      const rl = await checkRateLimit(aiCallerKey('health', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+      }
     }
 
     /*

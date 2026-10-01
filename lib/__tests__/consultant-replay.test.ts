@@ -17,6 +17,8 @@ jest.mock('@/lib/api-auth', () => ({ authorizeVehicleAccess: jest.fn() }));
 jest.mock('@/lib/rate-limit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
   rateLimitResponse: jest.fn(),
+  getClientIdentifier: jest.fn(() => '203.0.113.7'),
+  aiCallerKey: jest.fn(() => 'consultant:caller'),
 }));
 
 import { NextRequest } from 'next/server';

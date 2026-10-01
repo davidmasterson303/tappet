@@ -1,7 +1,7 @@
 import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { aiCallerKey, checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { retryCannotHelp, type AdvisorFailureCode } from '@tappet/core/ai/advisor-failure';
@@ -104,6 +104,14 @@ const FAILURE_STATUS: Record<AdvisorFailureCode, number> = {
 export async function POST(request: NextRequest): Promise<Response> {
   logger.info('API:CONSULTANT', 'Consultant message received');
 
+  /*
+    The address limiter every route has, ahead of authentication — the
+    model's own 'ai' bucket waits until the caller is known (SEC-6, below),
+    so this is what bounds unauthenticated traffic.
+  */
+  const addressLimit = await checkRateLimit(getClientIdentifier(request), 'default');
+  if (!addressLimit.allowed) return rateLimitResponse(addressLimit);
+
   let body: ConsultantRequestBody;
   try {
     body = (await request.json()) as ConsultantRequestBody;
@@ -138,19 +146,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  /*
-    Keyed by vehicle rather than by client address, matching the action's own
-    limiter so the two cannot be used to double an allowance by alternating
-    between them. The 'ai' tier, because this call spends Gemini tokens — the
-    unbounded-cost bug recorded against `performance-stats`, where demo
-    vehicles reached a model call on every anonymous page view.
-  */
-  const rateLimit = await checkRateLimit(`consultant:${vehicleId}`, 'ai');
-  if (!rateLimit.allowed) {
-    logger.warn('API:CONSULTANT', 'Rate limit exceeded', { vehicleId });
-    return rateLimitResponse(rateLimit);
-  }
-
   try {
     /*
       Conditional intent, and it must stay that way. `authorizeVehicleAccess`
@@ -167,6 +162,26 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
     if (!access.ok) {
       return access.response;
+    }
+
+    /*
+      ⚠ Audit 360, SEC-6 (1 Oct) · after authorization, keyed on the caller.
+      This was `consultant:${vehicleId}` and ran first, so ten unauthenticated
+      POSTs a minute with anybody's vehicle id locked that owner's advisor.
+      The action uses the same key, so alternating between the two still
+      cannot double an allowance. 'ai' tier: this call spends Gemini tokens.
+    */
+    const rateLimit = await checkRateLimit(
+      aiCallerKey('consultant', {
+        userId: access.userId,
+        visitor: access.userId ? null : getClientIdentifier(request, 'ai'),
+        vehicleId,
+      }),
+      'ai'
+    );
+    if (!rateLimit.allowed) {
+      logger.warn('API:CONSULTANT', 'Rate limit exceeded', { vehicleId });
+      return rateLimitResponse(rateLimit);
     }
 
     const thread = await resolveThread({
