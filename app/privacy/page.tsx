@@ -244,7 +244,7 @@ export default function PrivacyPolicyPage() {
       <p>
         We keep your vehicles, invoices, conversations and records for as long as your account
         exists, and delete them when you delete it. Nothing is kept on a timer while the account is
-        open, and nothing is kept after it closes except the two things described below.
+        open, and nothing is kept after it closes except the records described below.
       </p>
 
       <p>
@@ -259,6 +259,25 @@ export default function PrivacyPolicyPage() {
         internal account identifier, how many vehicles it held, and how many files were removed. It
         carries no name, email, vehicle or file, and exists so we can tell that deletion is working;
         if a step fails, the error line carries the same identifier.
+      </p>
+
+      {/*
+        Audit 360, LEGAL-21 (1 Oct): the policy disclosed log lines carrying
+        the account id one at a time (crash reports, deletion), and the third
+        and fourth — PUSH_TOKEN:CLAIMED with two accounts' ids, the profile's
+        entitlement read — were undisclosed by default. One rule instead, true
+        of every \`logger\` call with a \`userId\`: no line logs an email or a
+        name (\`legal-pages.test.ts\` scans for it). Netlify's retention is not
+        stated because nobody has read it.
+      */}
+      <p>
+        <strong className="text-white/90">Operational logs.</strong> Our server keeps a running log
+        of what it does — a request that failed, a crash report, a deletion, a phone registering for
+        alerts or taking over another account&rsquo;s registration on the same phone — so we can find
+        and fix problems. A line may carry your account&rsquo;s internal identifier, or a
+        vehicle&rsquo;s identifier or its year, make and model, beside the event it records; we do
+        not write your name or email to it. The
+        log is held by our host, Netlify, and is not removed when you delete your account.
       </p>
 
       {/*

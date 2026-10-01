@@ -431,6 +431,47 @@ describe('the policy names every path and every processor (LEGAL-1, 4, 5, 6)', (
     expect(privacyText).not.toMatch(/except the operational line described below/);
   });
 
+  /*
+    LEGAL-21 (1 Oct): log lines carrying an account id were disclosed one at a
+    time, and new ones (PUSH_TOKEN:CLAIMED, two ids) arrived undisclosed. The
+    policy now states the rule; this holds the rule true of the code.
+  */
+  describe('operational logs, as a rule rather than a list (LEGAL-21)', () => {
+    const serverSources = (dir: string): string[] =>
+      readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+        const rel = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) return entry.name === '__tests__' ? [] : serverSources(rel);
+        return /\.tsx?$/.test(entry.name) ? [rel] : [];
+      });
+    const sources = [...serverSources('app'), ...serverSources('lib')];
+    // A logger call's context object, read to its closing parenthesis on the next few lines.
+    const LOG_CALL = /logger\.(?:info|warn|error|debug)\([\s\S]{0,400}?\);/g;
+    const logCalls = sources.flatMap((file) => src(file).match(LOG_CALL) ?? []);
+
+    it('found the log lines that carry an account id', () => {
+      expect(sources.length).toBeGreaterThan(100);
+      expect(logCalls.filter((call) => /userId/.test(call)).length).toBeGreaterThan(5);
+      expect(src('app/api/v1/push-token/route.ts')).toMatch(/displacedUserId/);
+    });
+
+    it('states the rule: an internal identifier may be logged, a name or email is not', () => {
+      expect(flat(privacyText)).toMatch(/Operational logs\.<\/strong> Our server keeps a running log/);
+      expect(flat(privacyText)).toMatch(/may carry your account&rsquo;s internal identifier/);
+      expect(flat(privacyText)).toMatch(/we do not write your name or email to it/);
+      expect(flat(privacyText)).toMatch(/not removed when you delete your account/);
+    });
+
+    it('keeps the rule true: no log line carries an email or a name', () => {
+      const offenders = logCalls.filter((call) => /\b(email|displayName|display_name|fullName|full_name)\s*[:,}]/.test(call));
+      expect(offenders).toEqual([]);
+    });
+
+    it('can still see an email in a log line (anti-vacuous)', () => {
+      const shipped = `logger.warn('X', 'y', { userId, email: user.email });`;
+      expect(shipped.match(LOG_CALL)?.some((call) => /\b(email|displayName|display_name)\s*[:,}]/.test(call))).toBe(true);
+    });
+  });
+
   it('can still detect the sentences that shipped', () => {
     // Anti-vacuous: the 13 Sep text, which every assertion above must reject.
     const shipped =
