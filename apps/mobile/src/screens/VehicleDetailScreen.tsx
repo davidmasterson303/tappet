@@ -1178,11 +1178,17 @@ export function VehicleDetailScreen({
 
     "Worst:" is gone with it. The banner already sits under a count, so the
     superlative was doing nothing a reader could act on — it now reads as one
-    sentence: *"Airbags — free to fix at a franchised dealer."*
+    sentence: *"Airbags — a franchised dealer does the repair."*
+
+    ⚠ Audit 360, COPY-1 (1 Oct): it said "free to fix". The remedy is free
+    by law only for a car first sold within 15 years of the notice (49 U.S.C.
+    §30120(g)), and Tappet has never seen this car's sale date — so the line
+    names who does the work, and the recalls screen says "usually at no
+    charge — ask when you book".
   */
   const worstComponent = componentPlainName(open[0]?.component ?? null, { short: true });
   const worstRecall = worstComponent
-    ? `${worstComponent} — free to fix at a franchised dealer.`
+    ? `${worstComponent} — a franchised dealer does the repair.`
     : null;
 
   /*

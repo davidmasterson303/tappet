@@ -343,7 +343,7 @@ export function recallDriver(
       key: 'recalls',
       label,
       score: null,
-      detail: 'Recalls have not been checked for this vehicle.',
+      detail: 'Recalls for this year, make and model have not been checked yet.',
     };
   }
 

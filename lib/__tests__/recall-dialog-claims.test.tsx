@@ -71,7 +71,10 @@ describe('the recall dialog, rendered', () => {
       other is not there.
     */
     expect((await screen.findAllByText(/no recalls to date/i)).length).toBeGreaterThan(0);
-    expect(screen.getByText(/clean safety record/i)).toBeInTheDocument();
+    // Audit 360, COPY-8: "a clean safety record" was a verdict on a car the
+    // lookup never saw; the reassurance now says whose record it is.
+    expect(screen.getByText(/NHTSA’s record, not a guarantee/)).toBeInTheDocument();
+    expect(screen.queryByText(/clean safety record/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Recalls not checked yet/i)).not.toBeInTheDocument();
   });
 });

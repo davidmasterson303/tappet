@@ -163,8 +163,14 @@ export const PUSH_PRIMER_COPY = {
     loud: the tire alert exists only because the owner entered the interval.
   */
   title: 'Three kinds of alert, and nothing else',
-  body: 'Tappet can tell you when a service is coming due for your car, when a safety recall is issued for it, and — if you have entered your tires’ rotation interval — when you are past it. Nothing else — no offers, no news, no reminders to open the app.',
-  detail: 'A service or tire reminder arrives at most once a month per car. A recall arrives when the manufacturer issues one, which for most cars is never.',
+  body: 'Tappet can tell you when a service is coming due for your car, when a safety recall is issued for its year, make and model, and — if you have entered your tires’ rotation interval — when you are past it. Nothing else — no offers, no news, no reminders to open the app.',
+  /*
+    ⚠ Audit 360, COPY-7 (1 Oct). It said a recall "for most cars is never"
+    comes — a number Tappet does not hold, on the screen that decides whether
+    the do-not-drive notice can reach the owner at all. And "issued for it"
+    claimed the car, where every other surface says year, make and model.
+  */
+  detail: 'A service or tire reminder arrives at most once a month per car. A recall arrives only when the manufacturer issues one for your car’s year, make and model — some models never have one, some have several.',
   accept: 'Turn on alerts',
   decline: 'Not now',
   /**

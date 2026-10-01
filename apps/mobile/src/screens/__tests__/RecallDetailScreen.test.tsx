@@ -263,7 +263,7 @@ describe('a vehicle nobody has checked yet', () => {
     const { view } = await mount();
 
     expect(await view.findByText('Recalls not checked yet')).toBeTruthy();
-    expect(await view.findByText(/have not checked this vehicle for recalls/i)).toBeTruthy();
+    expect(await view.findByText(/have not checked recalls for this year, make and model/i)).toBeTruthy();
   });
 
   it('refuses the all-clear reading in words', async () => {

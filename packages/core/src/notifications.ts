@@ -89,7 +89,7 @@ export function tiresUrl(vehicleId: string): string {
  * the question pre-typed until 7 Aug 2026, which explained a notice well and
  * gave nobody a way to act on it. David's call: the point of the alert is to
  * drive an action. So the destination carries the notice, what it means, what
- * NHTSA says the remedy is, and the fact that the repair is free — and the
+ * NHTSA says the remedy is, and who does the repair — and the
  * advisor is reachable from there, per recall, still carrying the question.
  *
  * The old reasoning was not wrong, only incomplete: "FMVSS 111 rear visibility"

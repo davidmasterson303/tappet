@@ -416,7 +416,7 @@ export function componentPlainName(
    * `short` drops the qualifiers and names the system alone.
    *
    * For the hub banner, which is one line carrying a severity, a component and
-   * an instruction — *"Airbags — free to fix at a franchised dealer"*. The full
+   * an instruction — *"Airbags — a franchised dealer does the repair"*. The full
    * form belongs on the card, where there is room for it.
    */
   { short = false }: { short?: boolean } = {}

@@ -54,7 +54,7 @@ export interface HealthClaim {
  */
 const NOT_CHECKED: Record<ClaimKind, string> = {
   recall:
-    'We have not checked this vehicle for recalls yet, so we cannot say whether any apply. This is not a clear result.',
+    'We have not checked recalls for this year, make and model yet, so we cannot say whether any apply. This is not a clear result.',
   maintenance:
     'We have not built a maintenance schedule for this vehicle yet.',
   issues:

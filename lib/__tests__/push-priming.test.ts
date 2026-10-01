@@ -167,6 +167,22 @@ describe('the primer copy', () => {
     expect(text).toMatch(/service|due/);
   });
 
+  /*
+    ⚠ Audit 360, COPY-7 (1 Oct). The detail said a recall "for most cars is
+    never" comes — a figure Tappet does not hold, on the screen that decides
+    whether the do-not-drive notice can reach anyone — and the body said a
+    recall is "issued for it", the car, where the lookup matches year, make
+    and model (CLAUDE.md §10).
+  */
+  it('scopes the recall to the model and invents no frequency', () => {
+    const text = `${PUSH_PRIMER_COPY.body} ${PUSH_PRIMER_COPY.detail}`;
+    const invented = /most cars|for it\b|rarely|almost never/i;
+    expect('A recall arrives when the manufacturer issues one, which for most cars is never.').toMatch(invented);
+    expect(text).not.toMatch(invented);
+    expect(PUSH_PRIMER_COPY.body).toMatch(/recall is issued for its year, make and model/);
+    expect(PUSH_PRIMER_COPY.detail).toMatch(/year, make and model/);
+  });
+
   it('offers a refusal that costs nothing, and says so', () => {
     expect(PUSH_PRIMER_COPY.decline).toBeTruthy();
     expect(PUSH_PRIMER_COPY.reassurance.toLowerCase()).toMatch(/later|again|account|settings/);
