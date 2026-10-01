@@ -10,6 +10,7 @@ import { Working } from '@/components/Working';
 import ResearchButton from '@/components/ResearchButton';
 import { adviceDisclosure, MODIFIED_FIGURES_DISCLOSURE } from '@tappet/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
+import { carPageSentence, CAR_NOT_FOUND, isCarNotFound } from '@/lib/api-error-copy';
 import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { logger } from '@tappet/core/logger';
 import TCOCard from '@/components/TCOCard';
@@ -114,7 +115,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
       ]);
 
       if (vehicleResult.error) throw vehicleResult.error;
-      if (!vehicleResult.data) throw new Error('Vehicle not found');
+      if (!vehicleResult.data) throw new Error(CAR_NOT_FOUND);
 
       return {
         vehicle: vehicleResult.data,
@@ -192,7 +193,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
   }
 
   if (error) {
-    if (error.message === 'Vehicle not found') {
+    if (isCarNotFound(error)) {
       router.replace('/garage');
       return null;
     }
@@ -200,10 +201,10 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
         <div className="max-w-md w-full mx-auto px-4 sm:px-6">
           <div className="bg-red-500/10 border border-red-400/25 rounded-2xl p-4 sm:p-6">
-            <h2 className="text-red-300 font-semibold mb-2">Error Loading Vehicle Info</h2>
-            <p className="text-red-200/60 mb-5 text-sm">{error.message}</p>
+            <h2 className="text-red-300 font-semibold mb-2">Could not open the specifications</h2>
+            <p className="text-red-200/60 mb-5 text-sm">{carPageSentence(error, 'the specifications')}</p>
             <Button onClick={() => router.push('/garage')} variant="outline" className="border-white/15 text-white/70 hover:bg-white/8">
-              Back to Garage
+              Back to garage
             </Button>
           </div>
         </div>

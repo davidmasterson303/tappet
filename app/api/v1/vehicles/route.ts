@@ -159,7 +159,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (error) {
       logger.error('API:GET_VEHICLES', new Error(error.message));
       return Response.json(
-        { success: false, error: error.message, vehicles: [] } as ApiResponse,
+        { success: false, error: couldNotLoad('your garage'), vehicles: [] } as ApiResponse,
         { status: 500 }
       );
     }

@@ -9,6 +9,7 @@ import { getClientSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
+import { carPageSentence, CAR_NOT_FOUND, isCarNotFound } from '@/lib/api-error-copy';
 
 export default function ConsultantPage({ params }: { params: { vehicleId: string } }) {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
       ]);
 
       if (vehicleResult.error) throw vehicleResult.error;
-      if (!vehicleResult.data) throw new Error('Vehicle not found');
+      if (!vehicleResult.data) throw new Error(CAR_NOT_FOUND);
 
       const allServiceItems = allServiceResult.data || [];
 
@@ -95,7 +96,7 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
   }
 
   if (error) {
-    const isNotFound = error.message === 'Vehicle not found';
+    const isNotFound = isCarNotFound(error);
     if (isNotFound) {
       router.replace('/garage');
       return null;
@@ -105,9 +106,9 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
         <DashboardLayout vehicle={shellVehicle} currentPage="consultant" vehicleImage={vehicleImage}>
           <div className="bg-red-500/10 border border-red-400/25 rounded-2xl p-4 sm:p-6">
             <h2 className="text-red-300 font-semibold mb-2">Could not open the advisor</h2>
-            <p className="text-red-200/60 mb-5 text-sm">{error.message}</p>
+            <p className="text-red-200/60 mb-5 text-sm">{carPageSentence(error, 'the advisor')}</p>
             <Button onClick={() => router.push('/garage')} variant="outline" className="border-white/15 text-white/70 hover:bg-white/8">
-              Back to Garage
+              Back to garage
             </Button>
           </div>
         </DashboardLayout>
@@ -118,9 +119,9 @@ export default function ConsultantPage({ params }: { params: { vehicleId: string
         <div className="max-w-md w-full mx-auto px-4 sm:px-6">
           <div className="bg-red-500/10 border border-red-400/25 rounded-2xl p-4 sm:p-6">
             <h2 className="text-red-300 font-semibold mb-2">Could not open the advisor</h2>
-            <p className="text-red-200/60 mb-5 text-sm">{error.message}</p>
+            <p className="text-red-200/60 mb-5 text-sm">{carPageSentence(error, 'the advisor')}</p>
             <Button onClick={() => router.push('/garage')} variant="outline" className="border-white/15 text-white/70 hover:bg-white/8">
-              Back to Garage
+              Back to garage
             </Button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { logger } from '@tappet/core/logger';
+import { COULD_NOT_REMOVE } from '@/lib/api-error-copy';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import type { WishlistSourceData } from '@tappet/core/wishlist-source';
 import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
@@ -179,7 +180,7 @@ export async function removeFromWishlist(
 
       if (error) {
         logger.error('WISHLIST:REMOVE_ERROR', error as Error, { vehicleId, itemType });
-        return { success: false, error: `Database error: ${error.message}` };
+        return { success: false, error: COULD_NOT_REMOVE };
       }
     } else {
       const { error } = await client
@@ -190,14 +191,14 @@ export async function removeFromWishlist(
 
       if (error) {
         logger.error('WISHLIST:REMOVE_LEGACY_ERROR', error as Error, { vehicleId });
-        return { success: false, error: `Database error: ${error.message}` };
+        return { success: false, error: COULD_NOT_REMOVE };
       }
     }
 
     return { success: true };
   } catch (error) {
     logger.error('WISHLIST:REMOVE_EXCEPTION', error as Error, { vehicleId });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 

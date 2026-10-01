@@ -55,6 +55,7 @@ jest.mock(
 
 const auth = {
   signInWithPassword: jest.fn(),
+  signUp: jest.fn(),
   signOut: jest.fn(),
   getSession: jest.fn(),
   onAuthStateChange: jest.fn(),
@@ -89,6 +90,7 @@ jest.mock(
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
   signIn,
+  signUp,
   signOut,
   getAccessToken,
   onSessionChange,
@@ -355,5 +357,58 @@ describe('the rest of the surface', () => {
 
     stop();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('signUp says Tappet’s sentence, never the library’s (COPY-30)', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  const { AuthApiError, AuthRetryableFetchError, AuthWeakPasswordError } = require('@supabase/auth-js');
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  /* eslint-enable @typescript-eslint/no-var-requires */
+
+  it('shows no "{}" when the auth service answers 503', async () => {
+    /*
+      auth-js builds a 5xx's message with `JSON.stringify(response)`, and a
+      `Response` has no own enumerable fields — this is the string the screen
+      showed in red.
+    */
+    const message = JSON.stringify(new Response('', { status: 503 }));
+    expect(message).toBe('{}');
+    auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error: new AuthRetryableFetchError(message, 503) });
+
+    const result = await signUp('a@b.co', 'longenough');
+
+    expect(result.ok).toBe(false);
+    expect(result.error).not.toMatch(/[{}]/);
+    expect(result.error).toMatch(/could not make the account just now, so nothing was set up/);
+  });
+
+  it.each([
+    ['a short password', new AuthWeakPasswordError('Password should be at least 6 characters.', 422, ['length']), /at least 6 characters/],
+    ['an address in use', new AuthApiError('User already registered', 422, 'user_already_exists'), /already an account for that email/],
+    ['a malformed address', new AuthApiError('Unable to validate email address: invalid format', 400, 'email_address_invalid'), /does not look right/],
+    ['too many emails', new AuthApiError('Email rate limit exceeded', 429, 'over_email_send_rate_limit'), /as many emails as it can/],
+    ['a dropped connection', new AuthRetryableFetchError('Network request failed', 0), /may already have been made/],
+  ])('gives %s its own sentence, in Tappet’s words', async (_name, error, expected) => {
+    auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error });
+
+    const result = await signUp('a@b.co', 'pw');
+
+    expect(result.error).toMatch(expected);
+    expect(result.error).not.toBe((error as Error).message);
+    expect(result.error).not.toMatch(/Password should|User already registered|Unable to validate|rate limit exceeded|Network request failed/);
+  });
+
+  it('still reports which success happened', async () => {
+    auth.signUp.mockResolvedValue({ data: { user: { id: 'u' }, session: null }, error: null });
+    await expect(signUp(' a@b.co ', 'pw')).resolves.toEqual({ ok: true, needsConfirmation: true });
+    expect(auth.signUp).toHaveBeenCalledWith({ email: 'a@b.co', password: 'pw' });
+  });
+
+  it('no longer returns the library’s message (the shape that shipped)', () => {
+    const source = readFileSync(join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'auth', 'session.ts'), 'utf8');
+    expect(source).not.toMatch(/error:\s*error\.message/);
+    expect(source).toMatch(/authErrorSentence\(error, 'sign-up'\)/);
   });
 });

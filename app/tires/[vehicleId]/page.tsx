@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { NO_ANSWER } from '@/lib/api-error-copy';
+import { CAR_NOT_FOUND, NO_ANSWER, carPageSentence } from '@/lib/api-error-copy';
 import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { formatDateMono, formatMiles } from '@tappet/core/tires';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -51,7 +51,7 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
       const supabase = getClientSupabase();
       const { data, error } = await supabase.from('vehicles').select('*').eq('id', params.vehicleId).maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Vehicle not found');
+      if (!data) throw new Error(CAR_NOT_FOUND);
       return data;
     },
   });
@@ -86,7 +86,7 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
   if (vehicleQuery.error || !vehicleQuery.data) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8 text-center">
-        <p className="text-white/70">Could not load this vehicle.</p>
+        <p className="text-white/70">{carPageSentence(vehicleQuery.error, 'this car')}</p>
       </div>
     );
   }

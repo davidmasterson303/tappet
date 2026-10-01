@@ -147,7 +147,7 @@ export class ErrorBoundary extends Component<Props, State> {
               {showDetails && this.state.error && (
                 <details className="text-xs space-y-2">
                   <summary className="cursor-pointer font-semibold text-slate-200 hover:text-white">
-                    Error Details (Development Mode)
+                    Error details (development mode)
                   </summary>
                   <div className="mt-2 space-y-2">
                     <div>
@@ -158,7 +158,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     </div>
                     {this.state.error.stack && (
                       <div>
-                        <p className="font-semibold text-red-400">Stack Trace:</p>
+                        <p className="font-semibold text-red-400">Stack trace:</p>
                         <pre className="mt-1 overflow-auto rounded bg-slate-900 p-3 text-slate-400 text-xs max-h-40">
                           {this.state.error.stack}
                         </pre>
@@ -167,7 +167,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     {this.state.errorInfo?.componentStack && (
                       <div>
                         <p className="font-semibold text-red-400">
-                          Component Stack:
+                          Component stack:
                         </p>
                         <pre className="mt-1 overflow-auto rounded bg-slate-900 p-3 text-slate-400 text-xs max-h-40">
                           {this.state.errorInfo.componentStack}
@@ -216,12 +216,13 @@ export class ErrorBoundary extends Component<Props, State> {
                 </Button>
               </div>
 
-              {!showDetails && (
-                <p className="text-xs text-slate-500 mt-4">
-                  Error ID: {this.state.error?.message?.substring(0, 16)}...
-                  {Date.now()}
-                </p>
-              )}
+              {/*
+                Audit 360, COPY-29: an "Error ID" stood here in production —
+                the exception's first sixteen characters ("TypeError: Cannot
+                r...") and the time in milliseconds. It was recorded nowhere,
+                so it identified nothing an owner could quote, and it put the
+                exception's text on screen. The logger has the error.
+              */}
             </CardContent>
           </Card>
         </div>

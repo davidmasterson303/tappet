@@ -25,7 +25,17 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { customerSentence, isDeveloperSpeak } from '@tappet/core/customer-copy';
-import { COULD_NOT_SAVE, UNREADABLE_REQUEST, couldNotLoad, removedInvoice } from '@/lib/api-error-copy';
+import {
+  CAR_NOT_FOUND,
+  CAR_NOT_ON_FILE,
+  COULD_NOT_SAVE,
+  NOT_SIGNED_IN,
+  UNREADABLE_REQUEST,
+  carPageSentence,
+  couldNotLoad,
+  isCarNotFound,
+  removedInvoice,
+} from '@/lib/api-error-copy';
 
 const ROOT = join(__dirname, '..', '..');
 
@@ -279,6 +289,123 @@ describe('route errors are customer sentences', () => {
     expect(SHOWS_EXCEPTION.test(`setError(authErrorSentence(signInError, 'sign-in'));`)).toBe(false);
   });
 
+  /*
+    COPY-29: the same text rendered as a JSX child — `<p>{error.message}</p>`
+    on the dashboard, the specifications and the advisor, beside a heading
+    that said "Error Loading Vehicle". A `useQuery` throw is the database
+    client's error: "TypeError: Failed to fetch" on a dropped connection,
+    PostgREST's "JWT expired" otherwise. Neither toast nor setError, so the
+    rule above never read it.
+
+    One exemption, by file and text: the error boundary's details block,
+    which renders only under `showDetails`, defaulting to development.
+  */
+  const RENDERS_EXCEPTION = /\{[^{}]*\b(?:\w*[Ee]rror|\w*[Ee]rr|e)\??\.message\b[^{}]*\}/;
+  const DEV_ONLY = { file: 'components/ErrorBoundary.tsx', text: '{this.state.error.name}: {this.state.error.message}' };
+
+  it('never renders an exception’s message as page text (COPY-29)', () => {
+    const offenders = WEB.flatMap((file) =>
+      withoutComments(readFileSync(file, 'utf8'))
+        .split('\n')
+        .map((line, index) => ({ line, rel: file.slice(ROOT.length + 1), at: index + 1 }))
+        .filter(({ line }) => /<|\/>|^\s*\{/.test(line) || /^\s*[^=:(]*\{/.test(line))
+        .filter(({ line }) => !/\b(logger|console)\./.test(line) && !/\b(?:setError|toast\.error|SET_ERROR)\b/.test(line))
+        .filter(({ line }) => RENDERS_EXCEPTION.test(line.replace(/\$\{[^}]*\}/g, '')))
+        .filter(({ line, rel }) => !(rel === DEV_ONLY.file && line.includes(DEV_ONLY.text)))
+        .map(({ rel, at, line }) => `${rel}:${at}  ${line.trim()}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('the one exemption is still behind showDetails, which defaults to development', () => {
+    const boundary = readFileSync(join(ROOT, ...DEV_ONLY.file.split('/')), 'utf8');
+    expect(boundary).toContain(DEV_ONLY.text);
+    expect(boundary).toMatch(/const showDetails = this\.props\.showDetails \?\? isDevelopment;/);
+    expect(boundary).toMatch(/\{showDetails && this\.state\.error && \(/);
+  });
+
+  it('can still see an exception rendered as text (anti-vacuous)', () => {
+    for (const shipped of [
+      `          <p className="text-gray-400 mb-6">{error.message}</p>`,
+      `            <p className="text-red-200/60 mb-5 text-sm">{error.message}</p>`,
+      `                  Error ID: {this.state.error?.message?.substring(0, 16)}...`,
+    ]) {
+      expect(RENDERS_EXCEPTION.test(shipped)).toBe(true);
+    }
+    expect(RENDERS_EXCEPTION.test(`<p>{carPageSentence(error, 'this car')}</p>`)).toBe(false);
+    expect(RENDERS_EXCEPTION.test(`<p>{data.message}</p>`)).toBe(false);
+  });
+
+  /*
+    COPY-31: an exception's text spliced into a sentence — `Delete failed:
+    ${error.message}`, `Vehicle not found (${vehicleError?.message})`. The
+    literal scan blanks a template's holes, so it read "Vehicle not found ()"
+    and passed. And the plainer shape beside it: `error: error.message`,
+    returned by 25 actions and two routes, which reached the screen through
+    `answerSentence` because "JWT expired" is not developer-speak to a filter
+    that looks for phrases. An `error:` (not a logger's) never carries one.
+  */
+  const SPLICES_EXCEPTION = /\berror\s*:\s*`[^`]*\$\{[^}]*(?:\.message\b|\b\w*Msg\b)/;
+  const RETURNS_EXCEPTION = /\berror\s*:\s*\(?\s*[\w.?]*?(?:[Ee]rror|[Ee]rr|\be)\b[^,}]*?\??\.message\b/;
+  const SERVER_SOURCES = [...FILES, join(ROOT, 'lib', 'actions', 'wishlist.ts')];
+
+  /** Whether line `n` sits inside a `logger.x(` / `console.x(` call opened on it or up to three lines above. */
+  function insideALoggerCall(lines: string[], n: number): boolean {
+    if (/\b(?:logger|console)\.\w+\(/.test(lines[n])) return true;
+    for (let start = n - 1; start >= Math.max(0, n - 3); start--) {
+      const opened = lines[start].search(/\b(?:logger|console)\.\w+\(/);
+      if (opened === -1) continue;
+      // Still open at the end of the line before `n`?
+      let depth = 0;
+      for (const ch of [lines[start].slice(opened), ...lines.slice(start + 1, n)].join('\n')) {
+        depth += ch === '(' ? 1 : ch === ')' ? -1 : 0;
+      }
+      return depth > 0;
+    }
+    return false;
+  }
+
+  it('never answers with an exception’s text, whole or spliced (COPY-31)', () => {
+    const offenders = SERVER_SOURCES.flatMap((file) => {
+      const lines = withoutComments(readFileSync(file, 'utf8')).split('\n');
+      return lines
+        .map((line, index) => ({ line, at: `${file.slice(ROOT.length + 1)}:${index + 1}` }))
+        .filter(({ line }) => SPLICES_EXCEPTION.test(line) || RETURNS_EXCEPTION.test(line))
+        // A logger's context object is ours to read: a call still open on this line.
+        .filter(({ at }) => !insideALoggerCall(lines, Number(at.split(':').pop()) - 1))
+        .map(({ at, line }) => `${at}  ${line.trim()}`);
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('can still see a spliced or returned exception (anti-vacuous)', () => {
+    const shipped = [
+      "      error: `Delete failed: ${error.message || 'Unknown error'}`,",
+      '      error: `Database connection failed: ${errorMsg}`',
+      "        return { success: false, error: `Vehicle not found (${vehicleError?.message || fallback.error?.message || 'unknown'})` };",
+      '        return { success: false, error: `Database error: ${error.message}` };',
+      '      return { success: false, error: error.message, vehicles: [] };',
+      "    return { success: false, error: error?.message || 'Unknown error' };",
+      '      return { success: false, error: vehicleResult.error.message };',
+      "      error: (error as Error)?.message || 'Validation failed',",
+      '      return Response.json({ success: false, error: vehicleError.message } as ApiResponse, { status: 500 });',
+    ];
+    for (const line of shipped) expect(SPLICES_EXCEPTION.test(line) || RETURNS_EXCEPTION.test(line)).toBe(true);
+    // The filter: a logger's context is exempt; a return after a closed console call is not.
+    const logged = ["logger.warn('VEHICLE:KB_FAILED', 'Failed to create knowledge base', {", '  error: kbError.message,', '});'];
+    expect(insideALoggerCall(logged, 1)).toBe(true);
+    const returned = ["console.error('[Fetch Vehicle] Error:', error);", 'return { success: false, error: error.message };'];
+    expect(insideALoggerCall(returned, 1)).toBe(false);
+    for (const fine of [
+      '      return { success: false, error: COULD_NOT_REMOVE };',
+      '      return { success: false, error: firstReading.message };',
+      '      return { success: false, error: decision.message, reason: decision.reason };',
+      "      error: `Tappet could not read ${what}.`,",
+    ]) {
+      expect(SPLICES_EXCEPTION.test(fine) || RETURNS_EXCEPTION.test(fine)).toBe(false);
+    }
+  });
+
   it('the rejected-file toast speaks in the product’s voice, not the first person (COPY-19)', () => {
     const chat = readFileSync(join(ROOT, 'components', 'ConsultantChat.tsx'), 'utf8');
     expect(chat).not.toMatch(/I've deleted it|I’ve deleted it/);
@@ -351,5 +478,57 @@ describe('the phone’s side of the same rule', () => {
     expect(isDeveloperSpeak('Open the iPhone Settings app.')).toBe(false);
     expect(isDeveloperSpeak('Requires iOS 16 or later.')).toBe(false);
     expect(isDeveloperSpeak('A car is missing its odometer.')).toBe(false);
+  });
+});
+
+describe('the web’s car pages say why they could not open (COPY-29)', () => {
+  // What postgrest-js hands back, as it ships (`dist/index.cjs`, the fetch catch).
+  const DROPPED = { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' };
+  const SAFARI = { message: 'TypeError: Load failed', details: '', hint: '', code: '' };
+  const LAPSED = { message: 'JWT expired', details: null, hint: null, code: 'PGRST301' };
+  const REFUSED = { message: 'permission denied for table vehicles', details: null, hint: null, code: '42501' };
+
+  it('never says the library’s words', () => {
+    for (const error of [DROPPED, SAFARI, LAPSED, REFUSED, new Error('boom'), undefined]) {
+      const said = carPageSentence(error, 'this car');
+      expect(said).not.toMatch(/TypeError|Failed to fetch|Load failed|JWT|permission denied|boom/);
+      expect(isDeveloperSpeak(said)).toBe(false);
+    }
+  });
+
+  it('sends a lapsed session to sign in, and a dropped request to reload', () => {
+    expect(carPageSentence(LAPSED, 'this car')).toBe(NOT_SIGNED_IN);
+    expect(carPageSentence(DROPPED, 'this car')).toBe('Tappet did not answer, so this car did not open. Reload the page to try again.');
+    expect(carPageSentence(SAFARI, 'the advisor')).toMatch(/^Tappet did not answer, so the advisor did not open\./);
+    expect(carPageSentence(REFUSED, 'the specifications')).toBe(
+      'Tappet could not open the specifications just now. Reload the page to try again.'
+    );
+    // Not the connection unless the request never answered (L3).
+    expect(carPageSentence(REFUSED, 'this car')).not.toMatch(/connection/);
+  });
+
+  it('knows its own not-found throw, and nothing else', () => {
+    expect(isCarNotFound(new Error(CAR_NOT_FOUND))).toBe(true);
+    expect(isCarNotFound(new Error('Vehicle not found'))).toBe(false);
+    expect(isCarNotFound(DROPPED)).toBe(false);
+    expect(isDeveloperSpeak(CAR_NOT_ON_FILE)).toBe(false);
+  });
+
+  it.each([
+    ['app/dashboard/[vehicleId]/page.tsx', 'this car'],
+    ['app/vehicle-info/[vehicleId]/page.tsx', 'the specifications'],
+    ['app/consultant/[vehicleId]/page.tsx', 'the advisor'],
+    ['app/tires/[vehicleId]/page.tsx', 'this car'],
+  ])('%s shows the sentence and sends a missing car to the garage', (file, what) => {
+    const page = readFileSync(join(ROOT, ...file.split('/')), 'utf8');
+    expect(page).toContain(`carPageSentence(`);
+    expect(page).toContain(`'${what}')`);
+    expect(page).toContain('throw new Error(CAR_NOT_FOUND)');
+    expect(page).not.toMatch(/Error Loading Vehicle|\{error\.message\}/);
+  });
+
+  it('the dashboard takes the garage redirect too', () => {
+    const page = readFileSync(join(ROOT, 'app', 'dashboard', '[vehicleId]', 'page.tsx'), 'utf8');
+    expect(page).toMatch(/if \(error && isCarNotFound\(error\)\) \{\s*router\.replace\('\/garage'\);/);
   });
 });

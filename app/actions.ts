@@ -33,6 +33,7 @@ import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
 import {
+  CAR_NOT_ON_FILE,
   COULD_NOT_READ_INVOICE,
   COULD_NOT_REMOVE,
   COULD_NOT_SAVE,
@@ -629,7 +630,7 @@ export async function enrichVehicle(vehicleId: string) {
     .maybeSingle();
 
   if (!vehicle) {
-    return { success: false, error: 'Vehicle not found' };
+    return { success: false, error: CAR_NOT_ON_FILE };
   }
 
   /*
@@ -1924,12 +1925,12 @@ export async function fetchAllVehicles() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return { success: false, error: error.message, vehicles: [] };
+      return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
     }
 
     return { success: true, vehicles: data || [] };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Unknown error', vehicles: [] };
+    return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
   }
 }
 
@@ -1946,10 +1947,10 @@ export async function fetchDemoVehicles() {
       .eq('is_demo', true)
       .order('created_at', { ascending: true });
 
-    if (error) return { success: false, error: error.message, vehicles: [] };
+    if (error) return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
     return { success: true, vehicles: data || [] };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Unknown error', vehicles: [] };
+    return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
   }
 }
 
@@ -2251,13 +2252,13 @@ export async function updateVehiclePerformanceStats(vehicleId: string, stats: { 
     if (stats.modified_hp != null) updates.modified_hp = stats.modified_hp;
     if (stats.modified_torque != null) updates.modified_torque = stats.modified_torque;
     if (stats.modified_zero_to_sixty != null) updates.modified_zero_to_sixty = stats.modified_zero_to_sixty;
-    if (Object.keys(updates).length === 0) return { success: false, error: 'No stats provided' };
+    if (Object.keys(updates).length === 0) return { success: false, error: UNREADABLE_PAGE_REQUEST };
     updates.perf_stats_manual_override = true;
     const { error } = await client.from('vehicles').update(updates).eq('id', vehicleId);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: COULD_NOT_SAVE };
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -2317,7 +2318,7 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
     };
   } catch (error: any) {
     console.error('processConsultantInvoiceToMaintenance error:', error);
-    return { success: false, error: error.message, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    return { success: false, error: COULD_NOT_SAVE, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
   }
 }
 
@@ -2439,7 +2440,7 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     const nhtsa = nhtsaResult.data;
 
     if (!vehicle) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     const completedIssues = issueTracking.filter((t: any) => t.status === 'completed').length;
@@ -3308,7 +3309,7 @@ export async function processModDetailQueue(vehicleId: string, batchSize: number
       .maybeSingle();
 
     if (!vehicle) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     let processed = 0;
@@ -3720,7 +3721,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
     console.error('[Delete Action Exception]:', error);
     return {
       success: false,
-      error: `Delete failed: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_REMOVE,
     };
   }
 }
@@ -4744,7 +4745,7 @@ export async function uploadInvoice(formData: FormData): Promise<InvoiceFilingRe
     });
   } catch (error: any) {
     console.error('[Upload Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -4892,7 +4893,7 @@ export async function uploadInvoicePages(
     return { ...result, pageCount: pages.length };
   } catch (error: any) {
     console.error('[Upload Pages Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5112,7 +5113,7 @@ async function fileStoredInvoice({
     return { success: true, documentId: document.id, itemsExtracted };
   } catch (error: any) {
     console.error('[Upload Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -5316,7 +5317,7 @@ async function validateConsultantDocument(
       .maybeSingle();
 
     if (!vehicle) {
-      return { success: false, isValid: false, error: 'Vehicle not found' };
+      return { success: false, isValid: false, error: CAR_NOT_ON_FILE };
     }
 
     const prompt = CONSULTANT_DOCUMENT_VALIDATION_PROMPT(vehicle);
@@ -5369,7 +5370,7 @@ async function validateConsultantDocument(
     return {
       success: false,
       isValid: false,
-      error: (error as Error)?.message || 'Validation failed',
+      error: COULD_NOT_READ_INVOICE,
     };
   }
 }
@@ -5434,7 +5435,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     const validation = await validateConsultantDocument(vehicleId, base64Data, file.type);
 
     if (!validation.success) {
-      return { success: false, error: validation.error || 'Validation failed' };
+      return { success: false, error: validation.error || COULD_NOT_READ_INVOICE };
     }
 
     if (!validation.isValid) {
@@ -5520,18 +5521,18 @@ export async function fetchVehicleById(vehicleId: string) {
 
     if (error) {
       console.error('[Fetch Vehicle] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     console.log(`[Fetch Vehicle] Successfully fetched vehicle ${vehicleId}`);
     return { success: true, vehicle: data };
   } catch (error: any) {
     console.error('[Fetch Vehicle] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5557,11 +5558,11 @@ export async function fetchDashboardData(vehicleId: string) {
 
     if (vehicleResult.error) {
       console.error('[Fetch Dashboard] Vehicle error:', vehicleResult.error);
-      return { success: false, error: vehicleResult.error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!vehicleResult.data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     if (knowledgeResult.error) {
@@ -5592,7 +5593,7 @@ export async function fetchDashboardData(vehicleId: string) {
     };
   } catch (error: any) {
     console.error('[Fetch Dashboard] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5620,11 +5621,11 @@ export async function fetchConsultantPageData(vehicleId: string) {
 
     if (vehicleResult.error) {
       console.error('[Fetch Consultant] Vehicle error:', vehicleResult.error);
-      return { success: false, error: vehicleResult.error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!vehicleResult.data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     if (knowledgeResult.error) {
@@ -5667,7 +5668,7 @@ export async function fetchConsultantPageData(vehicleId: string) {
     };
   } catch (error: any) {
     console.error('[Fetch Consultant] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5711,13 +5712,13 @@ export async function createServiceItem(data: {
 
     if (error) {
       console.error('[Create Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data: serviceItem };
   } catch (error: any) {
     console.error('[Create Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -5754,13 +5755,13 @@ export async function updateServiceItem(itemId: string, updates: unknown) {
 
     if (error) {
       console.error('[Update Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data };
   } catch (error: any) {
     console.error('[Update Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -5780,13 +5781,13 @@ export async function deleteServiceItem(itemId: string) {
 
     if (error) {
       console.error('[Delete Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_REMOVE };
     }
 
     return { success: true };
   } catch (error: any) {
     console.error('[Delete Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 
@@ -5896,7 +5897,7 @@ export async function moveServiceItemToHistory(
     return { success: true, data: maintenanceItem };
   } catch (error: any) {
     console.error('[Move to History] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -6388,7 +6389,7 @@ async function checkDatabaseHealth(): Promise<{ success: boolean; error?: string
 
     return {
       success: false,
-      error: `Database connection failed: ${errorMsg}`
+      error: COULD_NOT_SAVE
     };
   }
 }
@@ -6451,7 +6452,7 @@ export async function savePreferredZipCode(
 
     if (error) {
       console.error('[Save Preferred Zip Code] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
@@ -6484,7 +6485,7 @@ export async function getQuoteRequestHistory(
 
     if (error) {
       console.error('[Get Quote Request History] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: couldNotLoad('your past estimates') };
     }
 
     return { success: true, data: data || [] };
@@ -7678,7 +7679,7 @@ export async function generateQuoteRequestV2(
       vehicle = fallback.data;
       if (fallback.error || !vehicle) {
         console.error('[QUOTE_V2] Vehicle fetch error (both clients):', vehicleError, fallback.error);
-        return { success: false, error: `Vehicle not found (${vehicleError?.message || fallback.error?.message || 'unknown'})` };
+        return { success: false, error: CAR_NOT_ON_FILE };
       }
     }
 

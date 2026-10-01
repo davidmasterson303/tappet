@@ -15,6 +15,7 @@ import HealthSummary from '@/components/HealthSummary';
 import DiagnosticHero from '@/components/DiagnosticHero';
 import CollapsibleSection from '@/components/CollapsibleSection';
 import { getClientSupabase } from '@/lib/supabase';
+import { carPageSentence, CAR_NOT_FOUND, isCarNotFound } from '@/lib/api-error-copy';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardSkeleton } from '@/components/Skeletons';
@@ -131,7 +132,7 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
       ]);
 
       if (vehicleResult.error) throw vehicleResult.error;
-      if (!vehicleResult.data) throw new Error('Vehicle not found');
+      if (!vehicleResult.data) throw new Error(CAR_NOT_FOUND);
 
       return {
         vehicle: vehicleResult.data,
@@ -218,13 +219,23 @@ export default function DashboardPage({ params }: { params: { vehicleId: string 
     );
   }
 
+  /*
+    Audit 360, COPY-29: never the thrown error's text — "TypeError: Failed to
+    fetch" or PostgREST's "JWT expired". A car that is not there goes to the
+    garage, as the specifications and the advisor already did.
+  */
+  if (error && isCarNotFound(error)) {
+    router.replace('/garage');
+    return null;
+  }
+
   if (error) {
     return (
       <div className="min-h-screen bg-black p-4 sm:p-6 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Error Loading Vehicle</h1>
-          <p className="text-gray-400 mb-6">{error.message}</p>
-          <Button onClick={() => router.back()}>Go Back</Button>
+          <h1 className="text-2xl font-bold text-white mb-4">Could not open this car</h1>
+          <p className="text-gray-400 mb-6">{carPageSentence(error, 'this car')}</p>
+          <Button onClick={() => router.back()}>Go back</Button>
         </div>
       </div>
     );

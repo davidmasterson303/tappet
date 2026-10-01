@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import VehicleInsights from '@/components/VehicleInsights';
 import { WishlistSection } from '@/components/WishlistSection';
 import { getClientSupabase } from '@/lib/supabase';
+import { CAR_NOT_FOUND } from '@/lib/api-error-copy';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { showsModifications } from '@tappet/core/mod-progression';
@@ -105,7 +106,7 @@ function PlanPageInner({ params }: { params: { vehicleId: string } }) {
         supabase.from('vehicle_knowledge_base').select('*').eq('vehicle_id', params.vehicleId).maybeSingle(),
       ]);
       if (vehicleResult.error) throw vehicleResult.error;
-      if (!vehicleResult.data) throw new Error('Vehicle not found');
+      if (!vehicleResult.data) throw new Error(CAR_NOT_FOUND);
       return { vehicle: vehicleResult.data, knowledge: knowledgeResult.data };
     },
   });

@@ -207,7 +207,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     const { data: vehicleData, error: vehicleError } = vehicleResult;
 
     if (vehicleError) {
-      return Response.json({ success: false, error: vehicleError.message } as ApiResponse, { status: 500 });
+      logger.error('API:LOAD_VEHICLE', new Error(vehicleError.message), { vehicleId });
+      return Response.json({ success: false, error: couldNotLoad('this car') } as ApiResponse, { status: 500 });
     }
 
     if (!vehicleData) {
