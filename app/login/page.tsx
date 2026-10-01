@@ -8,6 +8,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 import { safeRedirect } from '@/lib/safe-redirect';
 
 function LoginForm() {
@@ -37,19 +38,16 @@ function LoginForm() {
       const { error: signInError } = await client.auth.signInWithPassword({ email, password });
 
       if (signInError) {
-        setError(
-          signInError.message === 'Invalid login credentials'
-            ? 'Incorrect email or password.'
-            : signInError.message
-        );
+        // One sentence for every credential refusal — never which one (COPY-24).
+        setError(authErrorSentence(signInError, 'sign-in'));
         setLoading(false);
         return;
       }
 
       router.push(redirect);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      setError(authErrorSentence(err, 'sign-in'));
       setLoading(false);
     }
   }

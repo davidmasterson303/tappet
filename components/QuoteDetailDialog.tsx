@@ -155,7 +155,7 @@ export function QuoteDetailDialog({
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center gap-2 text-info">
                   <MapPin className="h-4 w-4" />
-                  <span className="text-xs font-medium">Zip Code</span>
+                  <span className="text-xs font-medium">ZIP code</span>
                 </div>
                 <div className="text-lg font-semibold text-slate-200">
                   {quote.zip_code}

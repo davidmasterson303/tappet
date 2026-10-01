@@ -82,7 +82,8 @@ export function describeDeletion(deleted: Partial<DeletionCounts> | null | undef
  * can quietly drop an item.
  */
 export const DELETION_INVENTORY: readonly string[] = [
-  'Every vehicle, with its service history and dossier',
+  // COPY-25 (L7): car, as every screen says it.
+  'Every car, with its service history and dossier',
   'Every invoice and document you have uploaded, including the images',
   // Audit 360, COPY-4: "consultant" is a word the app never uses for it.
   'Every conversation with the advisor',

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -95,15 +96,15 @@ export default function ResetPasswordPage() {
       setLoading(false);
 
       if (updateError) {
-        setError(updateError.message);
+        setError(authErrorSentence(updateError, 'new-password'));
         return;
       }
 
       setSuccess(true);
       setTimeout(() => { window.location.href = '/garage'; }, 2500);
-    } catch {
+    } catch (err) {
       setLoading(false);
-      setError('Something went wrong. Please try again.');
+      setError(authErrorSentence(err, 'new-password'));
     }
   }
 

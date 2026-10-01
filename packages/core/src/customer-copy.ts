@@ -25,9 +25,14 @@
  * Audit 360, COPY-15 (1 Oct): widened with "Not authenticated", "Please
  * select / wait" and "unexpected error", which the web's add-a-car flow
  * showed while the scanner walked only `/api/v1/*`.
+ *
+ * Audit 360, COPY-24/25 (1 Oct): "Please enter …", which the quote flow's
+ * validation returned, and a bare "Something went wrong." — a sentence that
+ * says neither what happened nor whether anything was lost (the auth pages'
+ * fallback). "Something went wrong on our side." says whose, and passes.
  */
 const DEVELOPER_PHRASES =
-  /internal server error|invalid json|^\s*missing\b|^\s*failed to\b|^\s*invalid \w+ type\b|^\s*unknown source\b|^\s*bad request\b|^\s*upload failed\b|^\s*not authenticated\b|^\s*please (select|wait)\b|unexpected error/i;
+  /internal server error|invalid json|^\s*missing\b|^\s*failed to\b|^\s*invalid \w+ type\b|^\s*unknown source\b|^\s*bad request\b|^\s*upload failed\b|^\s*not authenticated\b|^\s*please (select|wait|enter)\b|^\s*something went wrong\.|unexpected error/i;
 
 /**
  * A field name in a sentence: `vehicleId`, `pagePaths`, `itemType`. Case

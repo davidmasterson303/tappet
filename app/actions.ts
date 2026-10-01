@@ -7653,7 +7653,7 @@ export async function generateQuoteRequestV2(
     }
 
     if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-      return { success: false, error: 'Please enter a valid 5-digit zip code' };
+      return { success: false, error: 'Enter a five-digit ZIP code.' };
     }
 
     const client = getServiceRoleClient();

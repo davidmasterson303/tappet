@@ -100,6 +100,12 @@ const RULES: Rule[] = [
     use it" one sentence after "End User License Agreement". The list is the
     British spellings a writer here reaches for, not a dictionary.
   */
+  /*
+    COPY-25: one estimate request wrote the field three ways — "ZIP code" on
+    the consent sheet, "zip code" in the field and its error, "Zip Code" on
+    the saved quote. It is an initialism (Zone Improvement Plan): ZIP code.
+  */
+  { id: 'COPY-25 ZIP code', pattern: /\b(?:zip|Zip) [Cc]odes?\b/, exempt: MODEL_AND_MONITOR },
   {
     id: 'COPY-21 British spelling',
     pattern:
@@ -205,12 +211,16 @@ describe('the copy lens’s house rules', () => {
       // COPY-21: the Terms' line as it shipped (an entity hid it), and a code that must pass
       `            . That agreement governs the app itself — the licence to use it and Apple&rsquo;s`,
       `if (error.code === 'user-cancelled') return 'cancelled';`,
+      // COPY-25: the quote's field and its saved card, as they shipped
+      `return { success: false, error: 'Please enter a valid 5-digit zip code' };`,
+      `                  <span className="text-xs font-medium">Zip Code</span>`,
+      `placeholder="Five-digit ZIP code"`,
     ].join('\n');
     expect(
       violations('fixture.tsx', fixture)
         .map((v) => v.line)
         .sort((a, b) => a - b)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 19, 20]);
   });
 
   it('holds everywhere a customer reads', () => {
@@ -241,5 +251,7 @@ describe('the copy lens’s house rules', () => {
     }
     expect(DELETION_INVENTORY).toContain('Every conversation with the advisor');
     expect(FREE_FEATURE_COPY['service-log'].label).toBe('Service history');
+    // COPY-25 (standard L7): the paywall's and the free tier's copy say car, as every screen does.
+    expect(rendered.filter((t) => /\bvehicles?\b/i.test(t))).toEqual([]);
   });
 });

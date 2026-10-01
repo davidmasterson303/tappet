@@ -220,7 +220,7 @@ describe('the quote request waits for a yes (LEGAL-12)', () => {
       />
     );
     fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
-    fireEvent.change(await screen.findByLabelText(/Zip Code/), { target: { value: '80202' } });
+    fireEvent.change(await screen.findByLabelText(/ZIP code/), { target: { value: '80202' } });
     fireEvent.click(screen.getByRole('button', { name: /Generate/ }));
   }
 

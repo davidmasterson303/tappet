@@ -8,6 +8,7 @@ import { Eye, EyeOff, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function SignupPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        setError(authErrorSentence(signUpError, 'sign-up'));
         setLoading(false);
         return;
       }
@@ -93,8 +94,8 @@ export default function SignupPage() {
 
       setAwaitingVerification(true);
       setLoading(false);
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      setError(authErrorSentence(err, 'sign-up'));
       setLoading(false);
     }
   }
@@ -109,13 +110,13 @@ export default function SignupPage() {
         email,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-      // Supabase rate limits this server-side; surface its message rather
-      // than inventing our own cooldown.
+      // Supabase rate limits this server-side; say so in Tappet's words rather
+      // than inventing our own cooldown (COPY-24).
       setResendState(resendError ? 'error' : 'sent');
-      if (resendError) setError(resendError.message);
-    } catch {
+      if (resendError) setError(authErrorSentence(resendError, 'resend'));
+    } catch (err) {
       setResendState('error');
-      setError('Could not resend the email. Please try again shortly.');
+      setError(authErrorSentence(err, 'resend'));
     }
   }
 

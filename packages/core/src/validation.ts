@@ -101,7 +101,7 @@ export const vehicleSchema = z.object({
     .or(z.literal('')),
   preferred_zip_code: z
     .string()
-    .regex(/^\d{5}$/, 'Zip code must be 5 digits')
+    .regex(/^\d{5}$/, 'Enter a five-digit ZIP code.')
     .optional()
     .or(z.literal('')),
 });
@@ -208,7 +208,7 @@ export const maintenanceLineItemSchema = z.object({
 
 export const zipCodeSchema = z
   .string()
-  .regex(/^\d{5}$/, 'Zip code must be exactly 5 digits');
+  .regex(/^\d{5}$/, 'Enter a five-digit ZIP code.');
 
 export const quoteRequestSchema = z.object({
   vehicle_id: vehicleIdSchema,

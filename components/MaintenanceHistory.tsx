@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence, removedInvoice } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 import MaintenanceItemDetailsDialog from './MaintenanceItemDetailsDialog';
 import DocumentUploadDialog from './DocumentUploadDialog';
@@ -195,7 +195,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
         }
         const result = await deleteMaintenanceLineItem(itemToDelete.sourceDocId, 'document');
         if (result.success) {
-          toast.success(`Deleted ${itemsToDelete.length} items from invoice`);
+          toast.success(removedInvoice(itemsToDelete.filter((item) => idsToDelete.has(item.id)).length));
         } else {
           toast.error(answerSentence(result, COULD_NOT_REMOVE));
           idsToDelete.delete(itemToDelete.sourceDocId);

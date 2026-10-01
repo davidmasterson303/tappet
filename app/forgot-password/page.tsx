@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -28,14 +29,14 @@ export default function ForgotPasswordPage() {
       setLoading(false);
 
       if (resetError) {
-        setError(resetError.message);
+        setError(authErrorSentence(resetError, 'reset-request'));
         return;
       }
 
       setSent(true);
     } catch (err) {
       setLoading(false);
-      setError('Something went wrong. Please try again.');
+      setError(authErrorSentence(err, 'reset-request'));
     }
   }
 

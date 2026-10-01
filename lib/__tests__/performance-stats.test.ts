@@ -179,7 +179,7 @@ describe('an unchanged service history never reaches the model', () => {
     checkFeatureAccess.mockResolvedValueOnce({
       state: 'needs-subscription',
       feature: 'dossier',
-      message: 'The vehicle dossier is part of Tappet Plus.',
+      message: 'The car’s dossier is part of Tappet Plus.',
     } as never);
     const client = fakeClient({
       vehicles: { data: OWNED_VEHICLE, error: null },
@@ -199,7 +199,7 @@ describe('an unchanged service history never reaches the model', () => {
     expect(result).toEqual({
       ok: false,
       status: 402,
-      error: 'The vehicle dossier is part of Tappet Plus.',
+      error: 'The car’s dossier is part of Tappet Plus.',
       code: 'needs-subscription',
       feature: 'dossier',
     });
