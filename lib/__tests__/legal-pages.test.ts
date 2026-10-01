@@ -503,3 +503,42 @@ describe('the front door says where the estimate goes, before the press (LEGAL-4
     expect(shipped).not.toMatch(/Google/);
   });
 });
+
+/**
+ * ── Audit 360, legal round 02 (1 Oct) ─────────────────────────────────────────
+ *
+ * Three paths the Google bullet named without saying what they send: the
+ * performance figures (every service line on the car), the quote request
+ * (the mileage and the owner's note as well as the ZIP), and a modification's
+ * guidance (the owner's goal and what they wrote they want out of the car),
+ * under a sentence saying the research uses only the year, make and model.
+ * Anchored to the prompt text that makes each sentence true.
+ */
+describe('the Google bullet says what the figures, the quote and a mod card send (LEGAL-11, 12, 14)', () => {
+  const start = privacyText.indexOf('<strong className="text-white/90">Google</strong>');
+  const bullet = privacyText.slice(start, privacyText.indexOf('</li>', start)).replace(/\s+/g, ' ');
+  const src = (p: string) => read(p);
+
+  it('found the bullet, and only the bullet', () => {
+    expect(start).toBeGreaterThan(0);
+    expect(bullet.length).toBeGreaterThan(400);
+    expect(bullet).not.toMatch(/Expo/);
+  });
+
+  it.each([
+    ['performance figures', 'lib/performance-stats.ts', /from\('maintenance_line_items'\)[\s\S]*Service history:/, /Performance figures send the line items of your car&rsquo;s service history/],
+    ['quote requests', 'app/actions.ts', /Current Mileage:[\s\S]*Location Zip Code: \$\{zipCode\}[\s\S]*Additional Notes from Owner/, /A quote request sends the work listed, the mileage, the ZIP code you typed and any note you add\./],
+    ['modification guidance', 'app/actions.ts', /Ownership Objective: \$\{vehicle\.ownership_objective/, /guidance on a modification also sends the performance goal you chose for the car and what you wrote you want out of it\./],
+  ])('%s', (_name, file, code, sentence) => {
+    expect(src(file)).toMatch(code);
+    expect(bullet).toMatch(sentence);
+  });
+
+  it('can still detect the round-01 bullet', () => {
+    const shipped =
+      'A quote request sends the work listed and the ZIP code you typed. The research and the pictures use only the year, make and model.';
+    expect(shipped).not.toMatch(/Performance figures send/);
+    expect(shipped).not.toMatch(/any note you add/);
+    expect(shipped).toMatch(/use only the year, make and model\.$/);
+  });
+});

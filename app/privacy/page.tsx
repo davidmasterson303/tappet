@@ -189,6 +189,12 @@ export default function PrivacyPolicyPage() {
           and the website advisor's attachments all reached Google too — and
           the photographs, which the consent sheet disclosed and this did not.
           Each path is a `generateContent` call in `app/actions.ts` or `lib/`.
+          Round 02 (LEGAL-11, 12, 14): the performance figures send every
+          `maintenance_line_items` description (`lib/performance-stats.ts`),
+          the quote request the mileage and the owner's note as well as the
+          ZIP (`estimateCosts`, `generateEmailDraft`), and modification
+          guidance the owner's goal and `ownership_objective`
+          (`generateModificationDetails`) — none of which this said.
         */}
         <li>
           <strong className="text-white/90">Google</strong> — Tappet&rsquo;s AI features use
@@ -199,8 +205,11 @@ export default function PrivacyPolicyPage() {
           question. For invoice reading and the quote check it receives the photograph itself, or
           the text you paste, which can show your name and address as well as the shop&rsquo;s; a
           document you attach to an advisor question on the website goes too. A quote request
-          sends the work listed and the ZIP code you typed. The research and the pictures use only
-          the year, make and model.
+          sends the work listed, the mileage, the ZIP code you typed and any note you add.
+          Performance figures send the line items of your car&rsquo;s service history, to find
+          the modifications among them. The research and the pictures use only the year, make and
+          model; guidance on a modification also sends the performance goal you chose for the car
+          and what you wrote you want out of it.
         </li>
         <li>
           <strong className="text-white/90">Apple</strong> — handles billing if you subscribe, and
