@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * ── A question asked again after a lost answer gets the stored answer ───────
  *
@@ -136,4 +138,69 @@ export function replayedAnswer(
     wishlistActions: Array.isArray(answered.wishlistActions) ? answered.wishlistActions : [],
     ...(answered.estimate ? { estimate: answered.estimate } : {}),
   };
+}
+
+/**
+ * ── ⚠ TL-16 (round 3) · a thread's first question has no thread to name ────
+ *
+ * Everything above reads the thread the request names. A thread's *first*
+ * question names none: the phone learns the `sessionId` from the answer, and
+ * the answer is what was lost. So the resend arrived with no `sessionId`, the
+ * route made a second thread, called the model again, and the owner's first
+ * impression of the advisor was a chat that forked — two threads with one
+ * title, two fees. Every advisor open and every `?ask=` link begins there.
+ *
+ * So, before a new thread is made, the newest threads on this car made
+ * inside `REPLAY_WINDOW_MS` are asked the same question `replayedAnswer`
+ * asks of a named one — the same rule, both strengths, no third. A thread
+ * qualifies only while it holds exactly that one exchange: the phone never
+ * learned its id, so nothing can have been added to it, and a thread someone
+ * is using is never taken over by a stranger's first line.
+ *
+ * The legitimate repeat — a new thread opened with the same words as the
+ * last one — is asked afresh on both builds: build 3 sends a new turn id,
+ * and build 2's answer arrived inside the phone's wait, which is what
+ * `PHONE_GAVE_UP_MS` already decides.
+ */
+
+/** The one part of a Supabase client this reads. */
+type ThreadQuery = Pick<SupabaseClient, 'from'>;
+
+/** How many of the car's newest threads a first question is checked against. */
+const FIRST_QUESTION_CANDIDATES = 5;
+
+export async function resentFirstQuestion(
+  client: ThreadQuery,
+  {
+    vehicleId,
+    message,
+    attachedDocuments,
+    clientTurnId,
+    now = Date.now(),
+  }: {
+    vehicleId: string;
+    message: string;
+    attachedDocuments: unknown;
+    clientTurnId: string | null;
+    now?: number;
+  }
+): Promise<{ sessionId: string; messageHistory: unknown[] } | null> {
+  const since = new Date(now - REPLAY_WINDOW_MS).toISOString();
+  const { data, error } = await client
+    .from('consultant_conversations')
+    .select('id, message_history, created_at')
+    .eq('vehicle_id', vehicleId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(FIRST_QUESTION_CANDIDATES);
+  if (error || !Array.isArray(data)) return null;
+
+  for (const row of data as Array<{ id?: unknown; message_history?: unknown }>) {
+    const history = row.message_history;
+    if (typeof row.id !== 'string' || !Array.isArray(history) || history.length !== 2) continue;
+    if (replayedAnswer(history, message, attachedDocuments, clientTurnId, now)) {
+      return { sessionId: row.id, messageHistory: history };
+    }
+  }
+  return null;
 }

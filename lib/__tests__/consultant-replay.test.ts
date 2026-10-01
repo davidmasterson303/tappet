@@ -18,6 +18,7 @@ jest.mock('@/app/actions', () => ({
   generateSessionTitle: jest.fn(),
 }));
 jest.mock('@/lib/api-auth', () => ({ authorizeVehicleAccess: jest.fn() }));
+jest.mock('@/lib/supabase', () => ({ getServiceRoleClient: jest.fn() }));
 jest.mock('@/lib/rate-limit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
   rateLimitResponse: jest.fn(),
@@ -30,7 +31,8 @@ import { join } from 'node:path';
 import { NextRequest } from 'next/server';
 
 import { POST } from '@/app/api/v1/consultant/route';
-import { getConsultantSession, sendConsultantMessage } from '@/app/actions';
+import { createConsultantSession, getConsultantSession, sendConsultantMessage } from '@/app/actions';
+import { getServiceRoleClient } from '@/lib/supabase';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import {
   PHONE_GAVE_UP_MS,
@@ -44,6 +46,7 @@ import {
 const CAR = '7f4c2a10-1111-4222-8333-944455556666';
 const send = sendConsultantMessage as jest.Mock;
 const session = getConsultantSession as jest.Mock;
+const create = createConsultantSession as jest.Mock;
 const authorize = authorizeVehicleAccess as jest.Mock;
 
 const QUESTION = 'Is $1,400 fair for a timing belt?';
@@ -256,5 +259,123 @@ describe('the rule’s other ends', () => {
     expect(Number(wait![1].replace(/_/g, ''))).toBe(PHONE_WAIT_MS);
     expect(PHONE_GAVE_UP_MS).toBeLessThan(PHONE_WAIT_MS);
     expect(/timeoutMs:\s*([\d_]+)/.exec('no bound here')).toBeNull();
+  });
+});
+
+/*
+  ⚠ TL-16 (round 3) · a thread's first question carries no sessionId — the
+  phone learns it from the answer that was lost — so the resend made a second
+  thread. Executed over an in-memory `consultant_conversations` whose stub
+  honours the filters the code chose.
+*/
+describe('a thread’s first question, resent (TL-16)', () => {
+  type Row = { id: string; vehicle_id: string; created_at: string; message_history: unknown[] };
+  let rows: Row[];
+
+  function threads() {
+    return {
+      from: jest.fn(() => {
+        const filters: Array<(r: Row) => boolean> = [];
+        let n = Infinity;
+        const chain = {
+          select: jest.fn(() => chain),
+          eq: jest.fn((c: keyof Row, v: unknown) => (filters.push((r) => r[c] === v), chain)),
+          gte: jest.fn((c: keyof Row, v: string) => (filters.push((r) => String(r[c]) >= v), chain)),
+          order: jest.fn(() => chain),
+          limit: jest.fn((k: number) => ((n = k), chain)),
+          then: (resolve: (v: unknown) => unknown) =>
+            resolve({
+              data: rows
+                .filter((r) => filters.every((f) => f(r)))
+                .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+                .slice(0, n),
+              error: null,
+            }),
+        };
+        return chain;
+      }),
+    };
+  }
+
+  /** The thread the lost answer was stored in: one exchange, nothing else. */
+  function firstThread(id: string, opts: Parameters<typeof thread>[0] = {}, vehicle = CAR): Row {
+    const pair = thread(opts).slice(2);
+    return { id, vehicle_id: vehicle, created_at: ago(90_000), message_history: pair };
+  }
+
+  beforeEach(() => {
+    rows = [];
+    (getServiceRoleClient as jest.Mock).mockReturnValue(threads());
+    create.mockResolvedValue({ success: true, sessionId: 'new-thread' });
+  });
+
+  describe('build 2 (no turn id, no sessionId)', () => {
+    it('answers the resend from the thread the first request made, and makes no second thread', async () => {
+      rows.push(firstThread('t1', { tookMs: 70_000 }));
+
+      const response = await POST(post({ vehicleId: CAR, message: QUESTION }));
+      const body = await response.json();
+
+      expect(body).toMatchObject({ success: true, sessionId: 't1', response: ANSWER });
+      expect(create).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('asks afresh, in a new thread, when the same first words were answered inside the wait (the legitimate repeat)', async () => {
+      rows.push(firstThread('t1', { question: 'hi', answer: 'Hi. What is the car doing?', tookMs: 4_000 }));
+
+      const body = await (await POST(post({ vehicleId: CAR, message: 'hi' }))).json();
+
+      expect(body).toMatchObject({ sessionId: 'new-thread', response: 'A fresh answer' });
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'new-thread', messageHistory: [] }));
+    });
+  });
+
+  describe('build 3 (turn id, no sessionId)', () => {
+    const ID = 'first-turn-0001';
+
+    it('answers its own resend, even a fast answer lost to the network', async () => {
+      rows.push(firstThread('t1', { tookMs: 3_000, clientTurnId: ID }));
+
+      const body = await (await POST(post({ vehicleId: CAR, message: QUESTION, clientTurnId: ID }))).json();
+
+      expect(body).toMatchObject({ sessionId: 't1', response: ANSWER });
+      expect(create).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('opens a new thread for the same words under a new id, even after a slow answer', async () => {
+      rows.push(firstThread('t1', { tookMs: 70_000, clientTurnId: ID }));
+
+      const body = await (await POST(post({ vehicleId: CAR, message: QUESTION, clientTurnId: 'next-turn-0002' }))).json();
+
+      expect(body.sessionId).toBe('new-thread');
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('never takes over a thread that has gone on, another car’s thread, or one older than the window', async () => {
+    const goneOn = firstThread('used', { tookMs: 70_000 });
+    goneOn.message_history = thread({ tookMs: 70_000 }); // four turns: someone is using it
+    rows.push(goneOn);
+    rows.push(firstThread('other-car', { tookMs: 70_000 }, 'another-car-0000'));
+    rows.push({ ...firstThread('old', { tookMs: 70_000 }), created_at: ago(REPLAY_WINDOW_MS + 60_000) });
+
+    const body = await (await POST(post({ vehicleId: CAR, message: QUESTION }))).json();
+
+    expect(body.sessionId).toBe('new-thread');
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes a thread as before when the lookup cannot read', async () => {
+    (getServiceRoleClient as jest.Mock).mockImplementation(() => {
+      throw new Error('SUPABASE_SECRET_KEY is not set');
+    });
+
+    const body = await (await POST(post({ vehicleId: CAR, message: QUESTION }))).json();
+
+    expect(body.sessionId).toBe('new-thread');
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });

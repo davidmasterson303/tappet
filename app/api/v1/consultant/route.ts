@@ -11,7 +11,8 @@ import {
   getConsultantSession,
   generateSessionTitle,
 } from '@/app/actions';
-import { parseClientTurnId, replayedAnswer } from '@/lib/consultant-replay';
+import { parseClientTurnId, replayedAnswer, resentFirstQuestion } from '@/lib/consultant-replay';
+import { getServiceRoleClient } from '@/lib/supabase';
 import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
@@ -187,11 +188,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       return rateLimitResponse(rateLimit);
     }
 
+    const clientTurnId = parseClientTurnId(body.clientTurnId);
     const thread = await resolveThread({
       vehicleId,
       isDemoVehicle,
       sessionId: typeof body.sessionId === 'string' ? body.sessionId : null,
       message,
+      attachedDocuments: body.attachedDocuments,
+      clientTurnId,
       // Bounded: the demo's history is the caller's, and the prompt is paid for.
       clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory.slice(-MAX_DEMO_HISTORY) : [],
     });
@@ -212,7 +216,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       build 2, by an answer slower than the phone waits.
       `lib/consultant-replay.ts`.
     */
-    const clientTurnId = parseClientTurnId(body.clientTurnId);
     const replay = isDemoVehicle
       ? null
       : replayedAnswer(thread.messageHistory, message, body.attachedDocuments, clientTurnId);
@@ -370,12 +373,16 @@ async function resolveThread({
   isDemoVehicle,
   sessionId,
   message,
+  attachedDocuments,
+  clientTurnId,
   clientHistory,
 }: {
   vehicleId: string;
   isDemoVehicle: boolean;
   sessionId: string | null;
   message: string;
+  attachedDocuments: unknown;
+  clientTurnId: string | null;
   clientHistory: unknown[];
 }): Promise<ThreadResult> {
   if (isDemoVehicle) {
@@ -404,6 +411,29 @@ async function resolveThread({
         ? existing.data.message_history
         : [],
     };
+  }
+
+  /*
+    ⚠ Audit 360, TL-16 (round 3) · the first question, sent again. Its answer
+    carried the thread's id, so a lost answer leaves the phone nothing to
+    name — and this made a second thread. A thread on this car holding only
+    this question, answered in a way the replay rule says was lost, is the
+    one. Asked before a thread is made; a failed read makes one, as before.
+    `lib/consultant-replay.ts`.
+  */
+  try {
+    const resent = await resentFirstQuestion(getServiceRoleClient(), {
+      vehicleId,
+      message,
+      attachedDocuments,
+      clientTurnId,
+    });
+    if (resent) return { ok: true, ...resent };
+  } catch (error) {
+    logger.warn('API:CONSULTANT', 'Could not look for a resent first question', {
+      vehicleId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const created = await createConsultantSession(vehicleId, await generateSessionTitle(message));

@@ -858,4 +858,30 @@ describe('the turn id the advisor is sent (TL-12)', () => {
     // Anti-vacuous: the earlier, answered question had its own.
     expect(idOf(1)).not.toBe(idOf(0));
   });
+  /*
+    TL-16 (round 3): a thread's first question has no sessionId to send —
+    the answer that would have named it was lost. The server finds the
+    thread by this id, so the resend must carry it, and no session.
+  */
+  it('sends a thread’s first question again with its own id and no session', async () => {
+    ask
+      .mockRejectedValueOnce(
+        new ApiRequestError({ status: 0, message: 'Tappet did not answer within 60 seconds.', origin: 'device', kind: 'timeout' })
+      )
+      .mockResolvedValueOnce({ sessionId: 't1', response: 'About $900.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is $1,400 fair?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText(/did not answer within 60 seconds/);
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('About $900.');
+
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask.mock.calls[1][0]).toMatchObject({ message: 'Is $1,400 fair?' });
+    expect((ask.mock.calls[1][0] as { sessionId?: unknown }).sessionId ?? null).toBeNull();
+    expect(idOf(0)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).toBe(idOf(0));
+  });
 });
