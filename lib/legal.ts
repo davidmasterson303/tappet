@@ -157,7 +157,7 @@ export { CONTACT_EMAIL } from '@tappet/core/constants';
  * formation date as well as the ship date — a coincidence, not a rule: the
  * rule is still the day the promote runs.
  */
-export const LAST_UPDATED = '13 September 2026';
+export const LAST_UPDATED = '1 October 2026';
 
 /**
  * Where Apple sends someone to stop a subscription.

@@ -308,6 +308,23 @@ export default function SignupPage() {
             >
               Create Account
             </Button>
+
+            {/*
+              Audit 360, LEGAL-10 (1 Oct): the phone states this at the same
+              moment (`SignInScreen`); the web asked nothing and linked neither
+              page, so its acceptance was browsewrap on a page nobody opened.
+            */}
+            <p className="text-center text-xs leading-relaxed text-white/70">
+              By creating an account you agree to the{' '}
+              <Link href="/terms" className="underline decoration-white/30 underline-offset-4 hover:text-white">
+                Terms of Use
+              </Link>{' '}
+              and the{' '}
+              <Link href="/privacy" className="underline decoration-white/30 underline-offset-4 hover:text-white">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/[0.08] text-center">

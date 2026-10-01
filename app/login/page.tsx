@@ -188,6 +188,17 @@ export default function LoginPage() {
               Or try the demo without an account
             </Link>
           </div>
+
+          {/* Audit 360, LEGAL-10: both documents reachable from the door, as on the phone. */}
+          <p className="mt-4 text-center text-xs text-white/70">
+            <Link href="/terms" className="underline decoration-white/25 underline-offset-4 hover:text-white">
+              Terms of Use
+            </Link>
+            {' · '}
+            <Link href="/privacy" className="underline decoration-white/25 underline-offset-4 hover:text-white">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Camera } from 'lucide-react';
 import { Working } from '@/components/Working';
 import { formatCurrency } from '@tappet/core/formatting-utils';
+import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { FRONT_DOOR_AI_NOTICE } from '@tappet/core/quote-check';
 
 /**
  * The anonymous front door. Phase 2.97b, decision D9.
@@ -206,6 +208,18 @@ export default function CheckPage() {
               Check this quote
             </Button>
 
+            {/*
+              Audit 360, LEGAL-4: said before the press, under the control that
+              sends the estimate. See `FRONT_DOOR_AI_NOTICE` for what each
+              clause rests on.
+            */}
+            <p className="mt-3 text-[color:var(--text-muted)] text-xs leading-relaxed">
+              {FRONT_DOOR_AI_NOTICE}{' '}
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-[color:var(--text-primary)]">
+                Privacy Policy
+              </Link>
+            </p>
+
             {busy && <ParseProgress />}
 
             {error && (
@@ -221,6 +235,11 @@ export default function CheckPage() {
         <p className="mt-8 text-center text-[color:var(--text-muted)] text-xs leading-relaxed">
           Typical prices are estimates for an independent shop in the US, not a quote.
           Your own shop&apos;s price can differ for good reasons.
+        </p>
+        <p className="mt-3 text-center text-[color:var(--text-muted)] text-xs">
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-[color:var(--text-primary)]">Privacy</Link>
+          {' · '}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-[color:var(--text-primary)]">Terms</Link>
         </p>
       </div>
     </main>
@@ -273,6 +292,9 @@ function AnswerCard({ answer, onReset }: { answer: Answer; onReset: () => void }
       {answer.answer && (
         <p className="mt-4 text-[color:var(--text-muted)] text-[15px] leading-relaxed">{answer.answer}</p>
       )}
+
+      {/* Audit 360, LEGAL-4: a model priced this, and the answer says so. */}
+      <p className="mono mt-4 text-xs text-[color:var(--text-muted)]">{adviceDisclosure('estimate')}</p>
 
       <div className="mt-7 pt-6 border-t border-white/10">
         <p className="text-[color:var(--text-primary)] font-medium">Want it to remember your car?</p>

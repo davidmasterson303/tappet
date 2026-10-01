@@ -47,6 +47,7 @@ const MOBILE_SCHEDULE = read('apps', 'mobile', 'src', 'screens', 'ServiceMilesto
 
 const WEB_ESTIMATE = read('components', 'CostBreakdownTable.tsx');
 const WEB_RESEARCH = read('app', 'vehicle-info', '[vehicleId]', 'page.tsx');
+const WEB_FRONT_DOOR = read('app', 'check', 'page.tsx');
 const MOBILE_ESTIMATE = read('apps', 'mobile', 'src', 'components', 'EstimateWell.tsx');
 
 const WEB_RECALL_CARD = read('components', 'RecallAlerts.tsx');
@@ -241,6 +242,12 @@ describe('both clients render it', () => {
       model, not for this car.
     */
     ['web vehicle research', WEB_RESEARCH, /adviceDisclosure\('research'\)/],
+    /*
+      ⚠ Audit 360, LEGAL-4 (1 Oct) — the same finding a third time. The front
+      door's answer card renders a model's price range for a stranger's
+      estimate, and carried no disclosure; the page never mentioned AI at all.
+    */
+    ['web front door', WEB_FRONT_DOOR, /adviceDisclosure\('estimate'\)/],
   ];
 
   it.each(SURFACES)('%s renders its disclosure', (_name, source, pattern) => {

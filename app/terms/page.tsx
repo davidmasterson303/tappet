@@ -78,9 +78,9 @@ export default function TermsPage() {
       <LegalSection>Your account</LegalSection>
 
       <p>
-        Keep your password to yourself; you are responsible for what happens under your account. Tell
-        us if you think someone else has access to it. You can delete your account at any time from
-        inside the app or the website.
+        You must be at least 13 to use Tappet. Keep your password to yourself; you are responsible
+        for what happens under your account. Tell us if you think someone else has access to it. You
+        can delete your account at any time from inside the app or the website.
       </p>
 
       <LegalSection>What you upload</LegalSection>
@@ -88,7 +88,8 @@ export default function TermsPage() {
       <p>
         Your photographs, invoices and notes stay yours. You give us permission to store and process
         them for the sole purpose of operating Tappet for you — including sending the relevant
-        details to the AI provider described in the Privacy Policy in order to answer your questions.
+        details to the AI provider described in the Privacy Policy in order to score your car, read
+        your invoices and answer your questions.
         We do not use your content to train models, and we do not publish it.
       </p>
 

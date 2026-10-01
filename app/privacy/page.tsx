@@ -84,9 +84,9 @@ export default function PrivacyPolicyPage() {
 
       <p>
         <strong className="text-white/90">Your vehicles.</strong> Year, make, model, trim, mileage,
-        and — if you provide them — the VIN and a ZIP code. The ZIP is typed by you and used to fill
-        in a quote request. The app never reads your location from your device; there is no location
-        permission because nothing asks for one.
+        and — if you provide it — the VIN. On the website you can also type a ZIP code, which is
+        used to fill in a quote request; the app has no ZIP field. Neither reads your location from
+        your device; there is no location permission because nothing asks for one.
       </p>
 
       <p>
@@ -115,10 +115,40 @@ export default function PrivacyPolicyPage() {
         service in this product.
       </p>
 
+      {/*
+        Audit 360, LEGAL-5 (1 Oct): the app's crash reports leave the device —
+        to our own server, not a crash-reporting company — and nothing here
+        said so. `app/api/v1/client-errors/route.ts` logs the fields named,
+        attributed to the account when the report carries a sign-in (SEC-7).
+        Netlify's log retention is not stated because nobody has read it.
+      */}
+      <p>
+        <strong className="text-white/90">Crash reports.</strong> If the app fails unexpectedly,
+        it sends our own server a short report — the error message, where in the app it happened,
+        the app version and part of the technical trace — with your account&rsquo;s internal
+        identifier if you are signed in. It is written to our server&rsquo;s log and to no one
+        else.
+      </p>
+
       <p>
         <strong className="text-white/90">Before you have an account.</strong> The public website
         records anonymous visit and scan events against a random browser identifier so we can tell
         whether the site works. There is no account attached, because there is not one yet.
+      </p>
+
+      {/*
+        Audit 360, LEGAL-4 (1 Oct): the quote check sends a stranger's
+        photographed estimate to Gemini, and this paragraph described only the
+        visit events. `FRONT_DOOR_AI_NOTICE` (core/quote-check.ts) says the
+        same on the page, with what each clause rests on.
+      */}
+      <p>
+        <strong className="text-white/90">The quote check.</strong> If you use the &ldquo;Is this
+        repair quote fair?&rdquo; page, the photo or text of your estimate is sent to Google&rsquo;s
+        Gemini model to read it — and an estimate can carry your name, address, plate or VIN. We do
+        not keep the photo. We keep the answer (the job, the car and the prices) against that random
+        browser identifier, so it can be added to an account you create; answers nobody claims are
+        deleted once they are more than 30 days old.
       </p>
 
       <LegalSection>What we do not collect</LegalSection>
@@ -153,14 +183,40 @@ export default function PrivacyPolicyPage() {
           <strong className="text-white/90">Netlify</strong> — hosting for the website and the app&rsquo;s
           backend.
         </li>
+        {/*
+          Audit 360, LEGAL-1/LEGAL-5 (1 Oct): this bullet named "the advisor and
+          the dossier" while the health score, invoice reading, the quote check
+          and the website advisor's attachments all reached Google too — and
+          the photographs, which the consent sheet disclosed and this did not.
+          Each path is a `generateContent` call in `app/actions.ts` or `lib/`.
+        */}
         <li>
-          <strong className="text-white/90">Google</strong> — the advisor and the dossier are generated
-          by Google&rsquo;s Gemini models. The vehicle details relevant to your question are sent to
-          Google to produce an answer.
+          <strong className="text-white/90">Google</strong> — Tappet&rsquo;s AI features use
+          Google&rsquo;s Gemini models: the health score, the advisor, reading invoices, quote
+          requests on the website, the quote check, the research and pictures for your model, and
+          performance figures for a modified car. For the health score and the advisor, Google receives your car&rsquo;s records — its
+          mileage, service history, invoice line items and the shops named on them — and your
+          question. For invoice reading and the quote check it receives the photograph itself, or
+          the text you paste, which can show your name and address as well as the shop&rsquo;s; a
+          document you attach to an advisor question on the website goes too. A quote request
+          sends the work listed and the ZIP code you typed. The research and the pictures use only
+          the year, make and model.
         </li>
         <li>
-          <strong className="text-white/90">Apple</strong> — delivers push notifications, and handles
-          billing if you subscribe.
+          <strong className="text-white/90">Apple</strong> — handles billing if you subscribe, and
+          delivers push notifications to your iPhone.
+        </li>
+        {/*
+          Audit 360, LEGAL-5: the push token is an Expo token
+          (`getExpoPushTokenAsync`) and every send goes to Expo's service
+          (`lib/push-send.ts`, exp.host) carrying the car's name and the recall
+          summary. Expo was named nowhere.
+        */}
+        <li>
+          <strong className="text-white/90">Expo</strong> — the push service the app is built on. If
+          you allow notifications, your device&rsquo;s push token and each notification&rsquo;s text —
+          the car&rsquo;s name and, for a recall, its summary — pass through Expo on their way to
+          Apple.
         </li>
         <li>
           <strong className="text-white/90">NHTSA</strong> — the US National Highway Traffic Safety
@@ -174,7 +230,7 @@ export default function PrivacyPolicyPage() {
       <p>
         We keep your vehicles, invoices, conversations and records for as long as your account
         exists, and delete them when you delete it. Nothing is kept on a timer while the account is
-        open, and nothing is kept after it closes except the operational line described below.
+        open, and nothing is kept after it closes except the two things described below.
       </p>
 
       <p>
@@ -185,9 +241,24 @@ export default function PrivacyPolicyPage() {
       <p>
         Deletion removes your uploaded files first, then your account and every record attached to
         it — vehicles, invoices, conversations, Needs, notifications and usage records. What
-        survives is a single line in our own operational log recording that an account was deleted,
-        how many vehicles it held, and how many files were removed. It contains no personal
-        information, and exists so we can tell that deletion is working.
+        survives is a line in our own operational log recording that an account was deleted, its
+        internal account identifier, how many vehicles it held, and how many files were removed. It
+        carries no name, email, vehicle or file, and exists so we can tell that deletion is working;
+        if a step fails, the error line carries the same identifier.
+      </p>
+
+      {/*
+        Audit 360, LEGAL-6 (1 Oct): this said nothing survives but the log
+        line, while `recordOrphanedSubscription` (lib/account-data.ts) writes
+        Apple's transaction id to `orphaned_apple_subscriptions` before the
+        cascade and never expires it. The row is right; the sentence was wrong.
+        Its columns (checked over PostgREST 1 Oct): transaction id, product,
+        tier, expiry, environment, dates — no user id.
+      */}
+      <p>
+        If you had an App Store subscription, we also keep Apple&rsquo;s transaction identifier for
+        it, with the plan and its expiry date, so that a renewal or refund Apple tells us about after
+        the account is gone can still be matched. It carries no name, email, device or vehicle.
       </p>
 
       <p>
