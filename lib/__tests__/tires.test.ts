@@ -522,8 +522,14 @@ describe('the notification — the one place the obligation is a sentence', () =
       ownerEntered: mayClaimWarrantyTerms(reading.interval),
     })!;
     expect(notice.body).toBe(
-      "11,400 miles since the last rotation. Your interval is 6,000. You are currently outside your warranty's terms."
+      '11,400 miles since the last rotation. That is past the 6,000-mile interval you entered from your warranty card.'
     );
+    // Audit 360, LEGAL-9: the interval the owner entered, never a conclusion
+    // about the warranty itself. The old body is kept here so the ban is not vacuous.
+    const shipped = "11,400 miles since the last rotation. Your interval is 6,000. You are currently outside your warranty's terms.";
+    const conclusion = /outside your warranty|warranty'?s terms|void|voided|not covered/i;
+    expect(shipped).toMatch(conclusion);
+    expect(notice.body).not.toMatch(conclusion);
     expect(notice.title).toBe('Tire rotation due — 2019 Volkswagen Golf R');
     expect(notice.url).toBe(tiresUrl('v1'));
     expect(tiresUrl('a b')).toBe('tappet://vehicle/a%20b/tires');
@@ -541,7 +547,7 @@ describe('the notification — the one place the obligation is a sentence', () =
     })!;
     expect(notice.body).not.toMatch(/last rotation/);
     expect(notice.body).toMatch(/^24,180 miles since these tires were installed/);
-    expect(notice.body).toMatch(/outside your warranty's terms\.$/);
+    expect(notice.body).toMatch(/past the 6,000-mile interval you entered from your warranty card\.$/);
   });
 });
 

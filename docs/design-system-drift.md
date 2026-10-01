@@ -4168,3 +4168,16 @@ built from existing tokens, and each was graded by the critic (rounds 53–56):
    to reduced opacity with no fill. The system's rule is a disabled fill and
    never group opacity. The build keeps the rule.
 
+
+## Tire rotation push — the approved sentence changed (audit 360, LEGAL-9, 1 Oct)
+
+The approved copy (design-loop/tires §0.10) ended "You are currently outside
+your warranty's terms." That is a legal conclusion about a contract Tappet has
+never seen, drawn from one number the owner typed. The push now reads
+`11,400 miles since the last rotation. That is past the 6,000-mile interval you
+entered from your warranty card.` (`tireRotationNotification`,
+`packages/core/src/notifications.ts`). Same facts, same gate
+(`mayClaimWarrantyTerms`), no conclusion.
+
+**What Design needs to decide:** nothing unless the sentence's rhythm matters;
+the on-screen mono column (`YOUR INTERVAL`, `PAST n MI`) is unchanged.

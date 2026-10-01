@@ -384,7 +384,7 @@ export function shouldRaiseService(params: {
  * The same two gates as a service, in the same order, and one more in front:
  *
  *   - **the owner entered the interval.** Only an owner-entered interval
- *     licenses "outside your warranty's terms" (`mayClaimWarrantyTerms`), and
+ *     licenses naming the warranty card (`mayClaimWarrantyTerms`), and
  *     a set with no interval has no obligation to be past — no notification,
  *     no overrun, no sodium. `service-due.ts` deleted a generic interval
  *     table so a sweep could never assert one; this gate is that decision
