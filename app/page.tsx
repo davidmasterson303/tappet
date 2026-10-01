@@ -70,7 +70,7 @@ function PublicNavActions() {
     return (
       <Link href="/garage">
         <Button size="sm" className="font-semibold">
-          My Garage
+          Your garage
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </Link>
@@ -233,9 +233,9 @@ function GarageContents() {
                 {isLoading
                   ? 'Loading…'
                   : queryError
-                  ? 'Unable to load vehicles'
+                  ? 'Could not load the cars'
                   : vehicles.length === 0
-                  ? 'Vehicles unavailable'
+                  ? 'No cars to show'
                   : 'Every invoice read, every interval anchored. Open one for its dossier.'}
               </p>
 
@@ -374,7 +374,7 @@ function GarageContents() {
                 {/* Resting glyph: mark alone, one colour, --text-muted-40. */}
                 <BrandLockup width={40} variant="mono" className="mx-auto mb-5 text-[var(--text-muted-40)]" />
                 <h2 className="text-xl font-semibold text-white mb-2">
-                  Demo vehicles unavailable
+                  The sample cars are not available
                 </h2>
                 <p className="text-white/50 text-sm max-w-md mx-auto mb-7">
                   The demo garage could not be loaded just now. This is usually

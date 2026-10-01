@@ -38,6 +38,8 @@ describe('reading a deployed page', () => {
 
   it('recognises the product host', () => {
     expect(siteFraming(PRODUCT_PAGE)).toBe('product');
+    // COPY-34: the current CTA, and a host still on a deploy from before it.
+    expect(siteFraming(PRODUCT_PAGE.replace('Add your vehicle', 'Add your car'))).toBe('product');
   });
 
   it('counts both demo signals, so a one-signal pass can say so', () => {
@@ -92,7 +94,7 @@ describe('the strings it depends on are the ones that ship', () => {
 
     const hero = readFileSync(join(__dirname, '..', '..', 'components', 'LandingHero.tsx'), 'utf8');
 
-    expect(hero).toContain('Add your vehicle');
+    expect(hero).toContain('Add your car');
     expect(hero).toContain('Enter demo');
   });
 });

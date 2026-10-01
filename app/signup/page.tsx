@@ -200,7 +200,7 @@ export default function SignupPage() {
             <BrandLockup width={200} trademark />
           </Link>
           <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
-          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
+          <p className="text-white/50 text-sm">Add a car and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
@@ -278,7 +278,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-white/70 text-sm font-medium block">
-                Confirm Password
+                Confirm password
               </label>
               <Input
                 id="confirm-password"
@@ -307,7 +307,7 @@ export default function SignupPage() {
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
               busy={loading}
             >
-              Create Account
+              Create account
             </Button>
 
             {/*

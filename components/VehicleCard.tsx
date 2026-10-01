@@ -441,7 +441,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <button
                   className="reveal-on-hover tap-target-44 group/options flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  aria-label="Vehicle options"
+                  aria-label="Car options"
                 >
                   <span
                     aria-hidden="true"
@@ -464,7 +464,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
                   <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
-                  Update Mileage
+                  Update mileage
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -473,7 +473,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Vehicle
+                    Remove car
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
               </DropdownMenuContent>
@@ -481,7 +481,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
 
             <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
+                <AlertDialogTitle className="text-white">Remove car</AlertDialogTitle>
                 <AlertDialogDescription className="text-white/60">
                   Are you sure you want to remove {vehicle.year} {vehicle.make} {vehicle.model} from your garage?
                 </AlertDialogDescription>
@@ -489,7 +489,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
+                  {isDeleting ? 'Deleting...' : 'Remove car'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -776,14 +776,14 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
       <Dialog open={showMileageDialog} onOpenChange={setShowMileageDialog}>
         <DialogContent className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
           <DialogHeader>
-            <DialogTitle className="text-white">Update Mileage</DialogTitle>
+            <DialogTitle className="text-white">Update mileage</DialogTitle>
             <DialogDescription className="text-white/60">
               Enter the current mileage for your {vehicle.year} {vehicle.make} {vehicle.model}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="mileage" className="text-white/80">Current Mileage (miles)</Label>
+              <Label htmlFor="mileage" className="text-white/80">Current mileage (miles)</Label>
               <Input
                 id="mileage"
                 type="number"
@@ -798,7 +798,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                 Cancel
               </Button>
               <Button onClick={handleUpdateMileage} disabled={isUpdatingMileage} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
-                {isUpdatingMileage ? 'Updating...' : 'Update Mileage'}
+                {isUpdatingMileage ? 'Updating...' : 'Update mileage'}
               </Button>
             </div>
           </div>

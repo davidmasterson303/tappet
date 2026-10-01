@@ -327,7 +327,7 @@ export function SettingsView({
               tone="critical"
             >
               <p className="mb-4 max-w-prose text-sm text-muted-foreground">
-                This deletes your vehicles, maintenance history, uploaded invoices and advisor
+                This deletes your cars, service history, invoices and advisor
                 conversations. It cannot be undone, and we cannot recover it for you afterwards.
               </p>
               {/*

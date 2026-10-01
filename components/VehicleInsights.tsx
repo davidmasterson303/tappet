@@ -40,7 +40,7 @@ import { showsModifications } from '@tappet/core/mod-progression';
  * One of the three bodies this component can render on its own.
  *
  * ⚠ **The dossier is gone as a container, and this prop is what dissolved it.**
- * Until 8 Sep these three lived as tabs inside a card called "The Dossier",
+ * Until 8 Sep these three lived as tabs inside a card called "The dossier",
  * inside a collapsible, at the bottom of the dashboard — three clicks from
  * landing, under a name that describes the drawer rather than anything in it.
  * An IA review put the cost plainly: a subscriber counting what they are paying
@@ -482,10 +482,10 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-400" />
-              Research Unavailable
+              Research unavailable
             </CardTitle>
             <CardDescription className="text-slate-400">
-              We encountered an issue researching your vehicle. You can still track maintenance manually.
+              Tappet could not finish researching this car. You can still record its service by hand.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -496,7 +496,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       return (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardHeader>
-            <CardTitle>Limited Data Available</CardTitle>
+            <CardTitle>Limited data available</CardTitle>
             <CardDescription>
               We couldn&apos;t find enough information about your specific vehicle, but you can still use Tappet
               to track maintenance and get general advice.
@@ -623,9 +623,9 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
             <div>
               <CardTitle className="text-white flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-info" />
-                The Dossier
+                The dossier
               </CardTitle>
-              <CardDescription className="text-slate-400">AI-researched insights for your vehicle</CardDescription>
+              <CardDescription className="text-slate-400">AI-researched insights for your car</CardDescription>
             </div>
           </CardHeader>
           <CardContent>

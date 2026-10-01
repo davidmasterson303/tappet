@@ -135,7 +135,7 @@ export default function ResetPasswordPage() {
             </p>
             <Link href="/forgot-password">
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-4 sm:px-6">
-                Request New Link
+                Request a new link
               </Button>
             </Link>
           </div>
@@ -176,7 +176,7 @@ export default function ResetPasswordPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/70 text-sm font-medium">New Password</Label>
+              <Label htmlFor="password" className="text-white/70 text-sm font-medium">New password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -201,7 +201,7 @@ export default function ResetPasswordPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-white/70 text-sm font-medium">Confirm Password</Label>
+              <Label htmlFor="confirm-password" className="text-white/70 text-sm font-medium">Confirm password</Label>
               <Input
                 id="confirm-password"
                 type={showPassword ? 'text' : 'password'}
@@ -227,7 +227,7 @@ export default function ResetPasswordPage() {
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
               busy={loading}
             >
-              Update Password
+              Update password
             </Button>
           </form>
         </div>

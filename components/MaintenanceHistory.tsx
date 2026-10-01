@@ -238,7 +238,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
           <div>
             <CardTitle className="text-white flex items-center gap-2">
               <Wrench className="h-5 w-5 text-info" />
-              Maintenance History
+              Service history
             </CardTitle>
             <p className="text-sm text-white/50 mt-0.5">
               {sortedRecords.length} record{sortedRecords.length !== 1 ? 's' : ''}
@@ -250,7 +250,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
             className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-9 px-4 text-sm gap-2"
           >
             <Upload className="h-4 w-4" />
-            Upload Invoice
+            Upload invoice
           </Button>
         </div>
 
@@ -315,7 +315,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
               className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 gap-2 text-xs"
             >
               <Upload className="h-3.5 w-3.5" />
-              Upload Your First Invoice
+              Upload your first invoice
             </Button>
           </div>
         ) : sortedRecords.length === 0 ? (
@@ -411,7 +411,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-[hsl(var(--card))] border-[color:var(--border)] max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Maintenance Record</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Delete this service record</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <div className="text-white/60 text-sm">You are about to delete: <span className="text-white font-medium">&quot;{itemToDelete?.description}&quot;</span></div>

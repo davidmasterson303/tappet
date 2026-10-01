@@ -69,13 +69,13 @@ describe('the web health score (LEGAL-1)', () => {
 
   it('the button asks first, "Not now" sends nothing, and the yes scores once', async () => {
     render(<HealthSummary vehicleId="v-owner" healthSummary={null as never} />);
-    fireEvent.click(screen.getByRole('button', { name: /Generate Health Report/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Generate health report/ }));
     await screen.findByText(HEALTH_AI_CONSENT.title);
     fireEvent.click(screen.getByRole('button', { name: HEALTH_AI_CONSENT.decline }));
     expect(generate).not.toHaveBeenCalled();
     expect(readWebAiConsent()).toBe('declined');
 
-    fireEvent.click(screen.getByRole('button', { name: /Generate Health Report/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Generate health report/ }));
     await screen.findByText(HEALTH_AI_CONSENT.title);
     fireEvent.click(screen.getByRole('button', { name: HEALTH_AI_CONSENT.accept }));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));

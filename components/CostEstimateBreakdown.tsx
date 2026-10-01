@@ -97,7 +97,7 @@ export function CostEstimateBreakdown({ estimate }: CostEstimateBreakdownProps) 
 
             <div className="pt-2 border-t border-white/6">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-white/50 font-medium">Item Estimate</span>
+                <span className="text-xs text-white/50 font-medium">Item estimate</span>
                 <span className="text-sm font-bold text-info tabular-nums">{fmt(itemLow)} – {fmt(itemHigh)}</span>
               </div>
               <CostRangeBar low={itemLow} high={itemHigh} max={itemHigh * 1.4} />

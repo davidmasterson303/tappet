@@ -353,8 +353,8 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
 
           if (result.error === 'VEHICLE_MISMATCH') {
             setVehicleMismatchData({
-              extractedVehicle: result.extractedVehicle || 'Unknown vehicle',
-              expectedVehicle: result.expectedVehicle || 'Unknown vehicle'
+              extractedVehicle: result.extractedVehicle || 'No car named',
+              expectedVehicle: result.expectedVehicle || 'This car'
             });
             // The prepared copy, not the original — "Continue anyway" re-uploads
             // this, and it should not pay the reduction twice or send the full
@@ -545,7 +545,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
           {uploading ? (
             <>
               <DialogHeader>
-                <DialogTitle className="text-white">Processing Invoice</DialogTitle>
+                <DialogTitle className="text-white">Reading the invoice</DialogTitle>
                 <DialogDescription className="text-white/50">
                   We&apos;re analyzing your document and extracting the details
                 </DialogDescription>
@@ -555,7 +555,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle className="text-white">Upload Invoices or Documents</DialogTitle>
+                <DialogTitle className="text-white">Upload invoices or documents</DialogTitle>
                 <DialogDescription className="text-white/50">
                   Upload service invoices and we&apos;ll automatically extract details including line items
                 </DialogDescription>
@@ -762,10 +762,10 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
               <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-400/25 flex items-center justify-center">
                 <AlertTriangle className="h-4 w-4 text-orange-400" />
               </div>
-              <AlertDialogTitle className="text-white">Vehicle Mismatch Detected</AlertDialogTitle>
+              <AlertDialogTitle className="text-white">This invoice may be for another car</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-white/50 space-y-3 pt-1">
-              <p>The invoice appears to be for a different vehicle:</p>
+              <p>The invoice appears to be for a different car:</p>
               <div className="bg-orange-500/8 border border-orange-400/20 rounded-xl p-4 space-y-3">
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-widest text-white/50">Invoice shows</span>
@@ -795,7 +795,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
               onClick={handleContinueAnyway}
               className="bg-orange-600 hover:bg-orange-500 text-white"
             >
-              Continue Anyway
+              Continue anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

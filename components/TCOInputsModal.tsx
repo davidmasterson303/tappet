@@ -17,10 +17,10 @@ interface TCOInputsModalProps {
 }
 
 const FIELDS = [
-  { key: 'purchase_price', label: 'Purchase Price', placeholder: 'e.g. 28000', prefix: '$', icon: DollarSign, hint: 'What you paid (or market value)' },
+  { key: 'purchase_price', label: 'Purchase price', placeholder: 'e.g. 28000', prefix: '$', icon: DollarSign, hint: 'What you paid (or market value)' },
   { key: 'avg_mpg', label: 'Average MPG', placeholder: 'e.g. 28', prefix: null, icon: Gauge, hint: 'Combined city/highway estimate' },
-  { key: 'fuel_price_per_gallon', label: 'Fuel Price / Gallon', placeholder: 'e.g. 3.89', prefix: '$', icon: Fuel, hint: 'Your local average' },
-  { key: 'insurance_monthly', label: 'Monthly Insurance', placeholder: 'e.g. 120', prefix: '$', icon: ShieldCheck, hint: 'Full coverage monthly premium' },
+  { key: 'fuel_price_per_gallon', label: 'Fuel price per gallon', placeholder: 'e.g. 3.89', prefix: '$', icon: Fuel, hint: 'Your local average' },
+  { key: 'insurance_monthly', label: 'Monthly insurance', placeholder: 'e.g. 120', prefix: '$', icon: ShieldCheck, hint: 'Full coverage monthly premium' },
 ] as const;
 
 type FieldKey = typeof FIELDS[number]['key'];
@@ -107,7 +107,7 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white text-base">
             <DollarSign className="h-5 w-5 text-info" />
-            Cost of Ownership Inputs
+            Cost of ownership inputs
           </DialogTitle>
           <DialogDescription className="text-xs text-white/50 mt-1">
             These figures power your real-world cost-per-mile and TCO breakdown.
@@ -167,7 +167,7 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
             ) : saving ? (
               'Saving...'
             ) : (
-              'Save Changes'
+              'Save changes'
             )}
           </Button>
         </div>

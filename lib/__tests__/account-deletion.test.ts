@@ -618,3 +618,32 @@ describe('deleteAccount — the rate-limit trail', () => {
     expect(deletedRateLimitIdentifiers).toHaveLength(1);
   });
 });
+
+describe('the web’s inventory is the phone’s (COPY-32)', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  const { DELETION_INVENTORY, deletionCarCount } = require('@tappet/core/account-deletion');
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  /* eslint-enable @typescript-eslint/no-var-requires */
+
+  it('counts cars in words that read at 0, 1 and many', () => {
+    expect(deletionCarCount(0)).toBe('This account has no cars.');
+    expect(deletionCarCount(1)).toBe('This account has one car.');
+    expect(deletionCarCount(3)).toBe('This account has 3 cars.');
+    for (const n of [0, 1, 2, 9]) expect(deletionCarCount(n)).not.toMatch(/vehicle|\b1 cars\b/);
+  });
+
+  it('renders DELETION_INVENTORY rather than a list of its own', () => {
+    const dialog = readFileSync(join(__dirname, '..', '..', 'components', 'DeleteAccountDialog.tsx'), 'utf8');
+    expect(dialog).toMatch(/DELETION_INVENTORY\.map\(/);
+    expect(dialog).toMatch(/deletionCarCount\(vehicleCount\)/);
+    // The list as it shipped.
+    expect(dialog).not.toMatch(/and their full history|All maintenance records/);
+    expect(DELETION_INVENTORY[0]).toBe('Every car, with its service history and dossier');
+  });
+
+  it('the settings paragraph names the same things', () => {
+    const settings = readFileSync(join(__dirname, '..', '..', 'app', 'settings', 'SettingsView.tsx'), 'utf8');
+    expect(settings).toMatch(/This deletes your cars, service history, invoices and advisor/);
+  });
+});

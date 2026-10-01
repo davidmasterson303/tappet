@@ -119,7 +119,7 @@ const tabs = [
   reader is standing on.
 */
 const OFF_NAV = [
-  { key: 'vehicle-info', label: 'Vehicle Info' },
+  { key: 'vehicle-info', label: 'Specifications' },
   /* The tire set (20 Sep) — reached from the dashboard's rail, not the bar; see app/tires. */
   { key: 'tires', label: 'Tires' },
 ] as const;
@@ -980,7 +980,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                         : 'bg-white/5 border-white/15 text-white/50'
                     }`}
                   >
-                    {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
+                    {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set status'}
                   </button>
                   {isStatusOpen && (
                     <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 chamfer-sm shadow-xl shadow-black/50 py-1.5 min-w-[160px]">

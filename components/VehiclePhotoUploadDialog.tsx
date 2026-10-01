@@ -247,10 +247,10 @@ export function VehiclePhotoUploadDialog({
         <DialogHeader>
           <DialogTitle className="text-white">
             {step === 'focal'
-              ? 'Frame Your Vehicle'
+              ? 'Frame your car'
               : hasCustomPhoto
-              ? 'Change Vehicle Photo'
-              : 'Upload Vehicle Photo'}
+              ? 'Change the car’s photo'
+              : 'Upload a photo of the car'}
           </DialogTitle>
           <DialogDescription className="text-white/50">
             {step === 'focal'
@@ -305,7 +305,7 @@ export function VehiclePhotoUploadDialog({
                     className="w-full bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/25"
                     busy={isRemoving} busyLabel="Removing"
                   >
-                    <><X className="h-4 w-4 mr-2" />Remove Custom Photo</>
+                    <><X className="h-4 w-4 mr-2" />Remove your photo</>
                   </Button>
                 </div>
               )}
@@ -436,14 +436,14 @@ export function VehiclePhotoUploadDialog({
                   disabled={isUploading}
                   className="flex-1 bg-white/5 border-white/12 text-white/60 hover:bg-white/10 hover:text-white"
                 >
-                  Change Photo
+                  Change photo
                 </Button>
                 <Button
                   onClick={handleUpload}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
                   busy={isUploading} busyLabel="Uploading"
                 >
-                  <><Upload className="h-4 w-4 mr-2" />Save Photo</>
+                  <><Upload className="h-4 w-4 mr-2" />Save photo</>
                 </Button>
               </div>
             </>

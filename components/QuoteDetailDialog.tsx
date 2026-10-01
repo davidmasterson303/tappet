@@ -87,7 +87,7 @@ export function QuoteDetailDialog({
 
   const handleCopyBreakdown = async () => {
     try {
-      const breakdownText = `Quote: ${quote.name || 'Unnamed Quote'}\n\nCost Breakdown:\n$${quote.estimated_total_low.toFixed(2)} - $${quote.estimated_total_high.toFixed(2)}`;
+      const breakdownText = `Quote: ${quote.name || 'Unnamed quote'}\n\nCost breakdown:\n$${quote.estimated_total_low.toFixed(2)} - $${quote.estimated_total_high.toFixed(2)}`;
       await navigator.clipboard.writeText(breakdownText);
       toast({
         title: 'Breakdown copied',
@@ -118,7 +118,7 @@ export function QuoteDetailDialog({
       <DialogContent className="max-w-[95vw] lg:max-w-3xl bg-slate-950 border-info-border">
         <DialogHeader>
           <DialogTitle className="text-info text-2xl">
-            {quote.name || 'Unnamed Quote'}
+            {quote.name || 'Unnamed quote'}
           </DialogTitle>
           <DialogDescription className="text-slate-400 text-base">
             Created on {createdDate} at {createdTime}
@@ -131,7 +131,7 @@ export function QuoteDetailDialog({
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center gap-2 text-info">
                   <DollarSign className="h-4 w-4" />
-                  <span className="text-xs font-medium">Estimated Cost</span>
+                  <span className="text-xs font-medium">Estimated cost</span>
                 </div>
                 <div className="text-lg font-semibold text-slate-200">
                   ${quote.estimated_total_low.toFixed(2)} - ${quote.estimated_total_high.toFixed(2)}
@@ -143,7 +143,7 @@ export function QuoteDetailDialog({
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center gap-2 text-info">
                   <Package className="h-4 w-4" />
-                  <span className="text-xs font-medium">Service Items</span>
+                  <span className="text-xs font-medium">Service items</span>
                 </div>
                 <div className="text-lg font-semibold text-slate-200">
                   {quote.selected_items.length} {quote.selected_items.length === 1 ? 'item' : 'items'}
@@ -169,7 +169,7 @@ export function QuoteDetailDialog({
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium flex items-center gap-2 text-info">
                   <FileText className="h-4 w-4" />
-                  Cost Breakdown
+                  Cost breakdown
                 </h3>
                 <Button
                   variant="outline"
@@ -194,7 +194,7 @@ export function QuoteDetailDialog({
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium flex items-center gap-2 text-info">
                   <Mail className="h-4 w-4" />
-                  Email Draft
+                  Email draft
                 </h3>
                 <Button
                   variant="outline"
@@ -218,7 +218,7 @@ export function QuoteDetailDialog({
 
           {quote.selected_items && quote.selected_items.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-info">Selected Services</h3>
+              <h3 className="text-sm font-medium text-info">Selected services</h3>
               <div className="space-y-2">
                 {quote.selected_items.map((item, idx) => (
                   <Card
@@ -250,7 +250,7 @@ export function QuoteDetailDialog({
 
           {quote.additional_notes && (
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-info">Additional Notes</h3>
+              <h3 className="text-sm font-medium text-info">Additional notes</h3>
               <Card className="border-info-border bg-slate-900/50">
                 <CardContent className="p-4">
                   <p className="text-sm text-slate-300 whitespace-pre-wrap">

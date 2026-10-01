@@ -90,7 +90,7 @@ export function AddVehicleAction() {
     <Link href="/onboard?from=garage">
       <Button variant="outline" size="sm" className="font-semibold text-[color:var(--text-primary)]">
         <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        Add vehicle
+        Add a car
       </Button>
     </Link>
   );

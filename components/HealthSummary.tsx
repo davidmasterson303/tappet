@@ -563,7 +563,7 @@ export default function HealthSummary({
   /*
     The first report runs itself.
 
-    Asking someone to press "Generate Health Report" before the dashboard says
+    Asking someone to press "Generate health report" before the dashboard says
     anything about their car makes the product's headline feature look like a
     chore — and there is nothing for the user to decide, so there was nothing for
     the button to ask.
@@ -610,7 +610,7 @@ export default function HealthSummary({
           {consentDialog}
           <CardTitle className="text-white flex items-center gap-2">
             <Activity className="h-5 w-5 text-info" />
-            Vehicle Health
+            Car health
           </CardTitle>
           {!isRefreshing && (
             <p className="text-sm text-white/50 mt-1">Get started by uploading service invoices</p>
@@ -642,7 +642,7 @@ export default function HealthSummary({
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground glow-cyan-sm"
               >
                 <TrendingUp className="h-4 w-4 mr-2" />
-                Generate Health Report
+                Generate health report
               </Button>
             </>
           )}

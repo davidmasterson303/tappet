@@ -149,7 +149,7 @@ describe('a batch refused mid-way (TL-30)', () => {
     choose(container, [pdf('first.pdf'), pdf('other-car.pdf'), pdf('third.pdf')]);
     await pressUpload();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue Anyway' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue anyway' }));
 
     await waitFor(() => expect(filedNamed('third.pdf')).toBe(1));
     await waitFor(() => expect(toasts.some((t) => /Processed 1 invoice/.test(t.message))).toBe(true));
@@ -167,7 +167,7 @@ describe('a batch refused mid-way (TL-30)', () => {
     await pressUpload();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Continue Anyway' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Continue anyway' })).toBeNull());
 
     expect(screen.queryByText('first.pdf')).toBeNull();
     expect(screen.getByText('other-car.pdf')).toBeTruthy();

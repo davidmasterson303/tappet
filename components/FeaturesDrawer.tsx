@@ -60,7 +60,7 @@ const FEATURES = [
   },
   {
     icon: ClipboardList,
-    label: 'Service History',
+    label: 'Service history',
     badge: 'Records',
     heading: 'Photograph an invoice, get a timeline',
     body:
@@ -76,7 +76,7 @@ const FEATURES = [
   },
   {
     icon: FileText,
-    label: 'Shop Quotes',
+    label: 'Shop quotes',
     badge: 'Savings',
     heading: 'Arrive with the job already written down',
     body:
@@ -84,7 +84,7 @@ const FEATURES = [
   },
   {
     icon: Zap,
-    label: 'Performance Goals',
+    label: 'Performance goals',
     badge: 'Enthusiast',
     heading: 'Advice that knows what you want the car for',
     body:
@@ -92,7 +92,7 @@ const FEATURES = [
   },
   {
     icon: Star,
-    label: 'Model Knowledge',
+    label: 'Model knowledge',
     badge: 'Intelligence',
     heading: 'What owners of your car have already learned',
     body:
@@ -100,7 +100,7 @@ const FEATURES = [
   },
   {
     icon: MessageSquare,
-    label: 'Chat History',
+    label: 'Chat history',
     badge: 'Continuity',
     heading: 'Conversations you can come back to',
     body:
@@ -127,7 +127,7 @@ export default function FeaturesDrawer({ open, onOpenChange }: FeaturesDrawerPro
         <div className="sticky top-0 z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-4 sm:px-6 py-5">
           <SheetHeader>
             <SheetTitle className="text-white text-xl font-bold tracking-tight">
-              What Tappet Does
+              What Tappet does
             </SheetTitle>
             <p className="text-gray-400 text-sm leading-relaxed mt-1">
               Nine things it does, and what each one actually gives you.

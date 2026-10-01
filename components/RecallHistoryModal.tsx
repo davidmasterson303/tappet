@@ -59,7 +59,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
-              Recall History
+              Recall history
             </DialogTitle>
             <DialogDescription>
               {recalls.length > 0
@@ -111,13 +111,13 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                        <h3 className="font-semibold text-foreground">{recall.Component || 'Component Unknown'}</h3>
+                        <h3 className="font-semibold text-foreground">{recall.Component || 'Component not named'}</h3>
                       </div>
                       <p className="text-sm text-slate-700 mb-3">{unshout(recall.Summary || recall.Description, [recall.Manufacturer]) || 'No summary available'}</p>
                       <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground mb-3">
                         {recall.NHTSACampaignNumber && (
                           <div>
-                            <span className="font-semibold">Campaign Number:</span>
+                            <span className="font-semibold">Campaign number:</span>
                             <div className="text-slate-700 mono mt-1">{recall.NHTSACampaignNumber}</div>
                           </div>
                         )}
@@ -129,13 +129,13 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                         )}
                         {recall.ReportReceivedDate && (
                           <div>
-                            <span className="font-semibold">Date Reported:</span>
+                            <span className="font-semibold">Date reported:</span>
                             <div className="text-slate-700 mt-1">{new Date(recall.ReportReceivedDate).toLocaleDateString()}</div>
                           </div>
                         )}
                         {recall.PotentialNumberOfAffectedVehicles && (
                           <div>
-                            <span className="font-semibold">Affected Vehicles:</span>
+                            <span className="font-semibold">Cars affected:</span>
                             <div className="text-slate-700 mt-1">{recall.PotentialNumberOfAffectedVehicles.toLocaleString()}</div>
                           </div>
                         )}
@@ -154,7 +154,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                       )}
                       {recall.CorrectiveActionsSummary && (
                         <div>
-                          <p className="text-xs font-semibold text-slate-700 mb-1">Corrective Action:</p>
+                          <p className="text-xs font-semibold text-slate-700 mb-1">Corrective action:</p>
                           <p className="text-xs text-muted-foreground">{recall.CorrectiveActionsSummary}</p>
                         </div>
                       )}
@@ -168,7 +168,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                 className="w-full"
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
-                View More on NHTSA.gov
+                View more on NHTSA.gov
               </Button>
             </div>
           )}

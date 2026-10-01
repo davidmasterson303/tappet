@@ -276,7 +276,7 @@ describe('the un-analysed mod card is an empty state, not a wait', () => {
     expect(container.querySelector('.working-sweep')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByText(/not analyzed yet/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /analyze mod/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /analyze this mod/i })).toBeEnabled();
   });
 
   it('shows the instrument only once the analysis is running', async () => {
@@ -291,7 +291,7 @@ describe('the un-analysed mod card is an empty state, not a wait', () => {
     );
 
     await act(async () => {
-      screen.getByRole('button', { name: /analyze mod/i }).click();
+      screen.getByRole('button', { name: /analyze this mod/i }).click();
     });
 
     const status = screen.getByRole('status');

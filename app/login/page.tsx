@@ -127,7 +127,7 @@ function LoginForm() {
         className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
         busy={loading}
       >
-        Sign In
+        Sign in
       </Button>
     </form>
   );

@@ -269,7 +269,7 @@ export default function LandingHero({ onEnter }: LandingHeroProps) {
               style={{ background: '#F5F4F2', color: '#100F0D', minWidth: '200px' }}
             >
               <span className="relative z-10 flex items-center gap-2">
-                Add your vehicle
+                Add your car
               </span>
             </Link>
           )}

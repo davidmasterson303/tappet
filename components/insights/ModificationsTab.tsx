@@ -241,7 +241,7 @@ export default function ModificationsTab({
                         disabled={loading}
                       >
                         <Check className="h-3 w-3 mr-1" />
-                        Mark Installed
+                        Mark installed
                       </Button>
                       <Button
                         size="sm"
@@ -251,7 +251,7 @@ export default function ModificationsTab({
                         disabled={loading}
                       >
                         <ThumbsDown className="h-3 w-3 mr-1" />
-                        Not Interested
+                        Not interested
                       </Button>
                     </div>
                   </div>

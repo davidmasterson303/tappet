@@ -76,7 +76,7 @@ export default function IssueFixDialog({
             </Label>
             <Input
               id="shop"
-              placeholder="e.g., Local Garage, DIY"
+              placeholder="e.g., a local garage, DIY"
               value={shopName}
               onChange={(e) => setShopName(e.target.value)}
             />
@@ -150,7 +150,7 @@ export default function IssueFixDialog({
       */
               busy={isLoading} busyLabel="Saving"
             >
-              Mark Fixed
+              Mark fixed
             </Button>
           </div>
         </form>

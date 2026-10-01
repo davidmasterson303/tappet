@@ -25,7 +25,12 @@ const DEMO_MASTHEAD = 'Shared demo garage';
 
 /** The two calls to action, gated on the same value via `SiteRoleProvider`. */
 const DEMO_CTA = 'Enter demo';
-const PRODUCT_CTA = 'Add your vehicle';
+/*
+  Audit 360, COPY-34 (1 Oct): the landing CTA now says "Add your car", as the
+  phone does. A host still on an older deploy says "Add your vehicle"; both are
+  the product's framing, so either one reads as product.
+*/
+const PRODUCT_CTAS = ['Add your car', 'Add your vehicle'];
 
 /**
  * `'demo'`, `'product'`, or `'unknown'` when neither framing is recognisable.
@@ -42,7 +47,7 @@ const PRODUCT_CTA = 'Add your vehicle';
 export function siteFraming(html) {
   if (typeof html !== 'string' || html === '') return 'unknown';
 
-  if (html.includes(PRODUCT_CTA)) return 'product';
+  if (PRODUCT_CTAS.some((cta) => html.includes(cta))) return 'product';
   if (html.includes(DEMO_MASTHEAD) || html.includes(DEMO_CTA)) return 'demo';
 
   return 'unknown';

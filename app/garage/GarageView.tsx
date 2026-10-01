@@ -113,7 +113,7 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
         </PageOpener>
 
         {loading ? (
-          <p className="text-[color:var(--text-muted)]">Loading your vehicles…</p>
+          <p className="text-[color:var(--text-muted)]">Loading your cars…</p>
         ) : error ? (
           /*
             Sodium, not red — B3. This was `border-red-500/30`, `text-red-400`
@@ -125,7 +125,7 @@ export function GarageView({ vehicles, loading, error, owner = null }: GarageVie
           */
           <div className="cut-panel border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] p-6 max-w-xl">
             <h2 className="display-instrument display-instrument-narrow uppercase text-2xl text-[color:var(--critical)] mb-2">
-              Error loading vehicles
+              The garage did not load
             </h2>
             <p className="text-[color:var(--text-primary)] mb-2">{error}</p>
             <p className="text-sm text-[color:var(--text-muted)]">Reload the page to try again.</p>

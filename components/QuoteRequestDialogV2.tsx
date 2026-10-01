@@ -362,7 +362,7 @@ export function QuoteRequestDialogV2({
             <div className="w-8 h-8 rounded-lg bg-info-wash border border-info-border flex items-center justify-center">
               <FileText className="h-4 w-4 text-info" />
             </div>
-            <DialogTitle className="text-lg font-semibold text-white">Request Quote</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-white">Request a quote</DialogTitle>
           </div>
           <div className="flex items-center gap-2 mt-3 ml-11">
             {[1, 2, 3].map((s) => (
@@ -378,7 +378,7 @@ export function QuoteRequestDialogV2({
               </div>
             ))}
             <span className="text-xs text-white/50 ml-1">
-              {state.step === 1 ? 'Select Items' : state.step === 2 ? 'Details' : 'Results'}
+              {state.step === 1 ? 'Select items' : state.step === 2 ? 'Details' : 'Results'}
             </span>
           </div>
         </div>
@@ -404,7 +404,7 @@ export function QuoteRequestDialogV2({
                   )}
                   className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
                 >
-                  {allSelected ? 'Deselect All' : 'Select All'}
+                  {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
 
@@ -487,7 +487,7 @@ export function QuoteRequestDialogV2({
                 </label>
                 <Input
                   id="quoteName"
-                  placeholder="e.g., Summer Maintenance Package"
+                  placeholder="e.g., summer maintenance"
                   value={state.quoteName}
                   onChange={(e) => dispatch({ type: 'SET_QUOTE_NAME', name: e.target.value })}
                 />
@@ -557,7 +557,7 @@ export function QuoteRequestDialogV2({
                   disabled={state.step === 1 && state.selectedItemIds.size === 0}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-5 rounded-xl font-semibold text-sm gap-2 disabled:opacity-40"
                 >
-                  {state.step === 2 ? 'Generate Quote' : 'Next'}
+                  {state.step === 2 ? 'Generate quote' : 'Next'}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               )}

@@ -81,7 +81,7 @@ export default function IssueCard({
           )}
           {isNotInterested && (
             <Badge variant="outline" className="bg-slate-500/20 text-slate-400 border-slate-400/30">
-              Not Applicable
+              Not applicable
             </Badge>
           )}
         </div>
@@ -127,7 +127,7 @@ export default function IssueCard({
             disabled={loading}
           >
             <Check className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />
-            Mark Fixed
+            Mark fixed
           </Button>
           <Button
             size={isSmall ? 'sm' : 'default'}
@@ -137,7 +137,7 @@ export default function IssueCard({
             disabled={loading}
           >
             <X className={`${isSmall ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />
-            Not Applicable
+            Not applicable
           </Button>
         </div>
       )}

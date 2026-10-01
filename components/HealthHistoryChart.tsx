@@ -124,7 +124,7 @@ export default function HealthHistoryChart({ history, currentScore }: HealthHist
         <CardTitle className="flex items-center justify-between text-white text-base">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-info" />
-            Health Trend
+            Health trend
           </div>
           <div className={`flex items-center gap-1.5 text-sm font-medium ${trendColor}`}>
             <TrendIcon className="h-4 w-4" />

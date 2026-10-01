@@ -156,12 +156,12 @@ describe('GarageView renders each of its states', () => {
     // The count lives in the strip now, as a number under its label.
     expect(screen.getByText(/in the garage/i).nextElementSibling).toHaveTextContent('2');
     expect(screen.queryByTestId('ghost-vehicle-slot')).not.toBeInTheDocument();
-    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no cars yet/i)).not.toBeInTheDocument();
   });
 
   it('shows the empty state for no vehicles', () => {
     render(<GarageView vehicles={[]} loading={false} error={null} />);
-    expect(screen.getByText(/no vehicles yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no cars yet/i)).toBeInTheDocument();
     expect(screen.getByTestId('ghost-vehicle-slot')).toBeInTheDocument();
     expect(screen.queryAllByTestId('vehicle-card')).toHaveLength(0);
     // The strip refuses to average or count recalls over nothing — §10.
@@ -171,16 +171,16 @@ describe('GarageView renders each of its states', () => {
 
   it('shows the error, and not the empty state, when the query failed', () => {
     render(<GarageView vehicles={[]} loading={false} error="boom" />);
-    expect(screen.getByText(/error loading vehicles/i)).toBeInTheDocument();
+    expect(screen.getByText(/the garage did not load/i)).toBeInTheDocument();
     expect(screen.getByText('boom')).toBeInTheDocument();
-    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no cars yet/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/in the garage/i)).not.toBeInTheDocument();
   });
 
   it('says it is loading rather than claiming an empty garage while the session lands', () => {
     render(<GarageView vehicles={[]} loading error={null} />);
-    expect(screen.getByText(/loading your vehicles/i)).toBeInTheDocument();
-    expect(screen.queryByText(/no vehicles yet/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/loading your cars/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no cars yet/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/in the garage/i)).not.toBeInTheDocument();
   });
 });

@@ -146,7 +146,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white leading-snug">
-                        {recall.Component || 'Component Unknown'}
+                        {recall.Component || 'Component not named'}
                       </p>
                       {/*
                         ── ⚠ Not clamped. This is NHTSA's own text ───────────

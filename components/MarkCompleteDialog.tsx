@@ -91,13 +91,13 @@ export function MarkCompleteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Mark as Complete: {wishlistItem.item_name}</DialogTitle>
+          <DialogTitle>Mark as done: {wishlistItem.item_name}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="serviceDate">Service Date</Label>
+              <Label htmlFor="serviceDate">Service date</Label>
               <Input
                 id="serviceDate"
                 type="date"
@@ -116,13 +116,13 @@ export function MarkCompleteDialog({
                 onCheckedChange={(checked) => setIsDIY(checked as boolean)}
               />
               <Label htmlFor="isDIY" className="cursor-pointer">
-                This was a DIY (Do It Yourself) job
+                I did this job myself
               </Label>
             </div>
 
             {!isDIY && (
               <div>
-                <Label htmlFor="shopName">Shop Name</Label>
+                <Label htmlFor="shopName">Shop name</Label>
                 <Input
                   id="shopName"
                   value={formData.shopName}
@@ -137,7 +137,7 @@ export function MarkCompleteDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="partsCost">Parts Cost ($)</Label>
+                <Label htmlFor="partsCost">Parts cost ($)</Label>
                 <Input
                   id="partsCost"
                   type="number"
@@ -154,7 +154,7 @@ export function MarkCompleteDialog({
               </div>
 
               <div>
-                <Label htmlFor="laborCost">Labor Cost ($)</Label>
+                <Label htmlFor="laborCost">Labor cost ($)</Label>
                 <Input
                   id="laborCost"
                   type="number"
@@ -173,7 +173,7 @@ export function MarkCompleteDialog({
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Total Cost</Label>
+                <Label>Total cost</Label>
                 <span className="text-lg font-semibold text-foreground">
                   ${(formData.partsCost + formData.laborCost).toFixed(2)}
                 </span>
@@ -181,7 +181,7 @@ export function MarkCompleteDialog({
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
@@ -204,7 +204,7 @@ export function MarkCompleteDialog({
               Cancel
             </Button>
             <Button type="submit" busy={loading} busyLabel="Saving">
-              Mark as Complete
+              Mark as done
             </Button>
           </DialogFooter>
         </form>

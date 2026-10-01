@@ -166,7 +166,7 @@ export default function MaintenanceItemDetailsDialog({
                 <FileText className="h-5 w-5 text-cyan-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors">View Invoice PDF</p>
+                <p className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors">View invoice PDF</p>
                 <p className="text-xs text-white/50">Opens in new tab</p>
               </div>
               <svg className="h-4 w-4 text-white/25 group-hover:text-cyan-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

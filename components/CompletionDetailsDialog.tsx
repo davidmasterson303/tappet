@@ -103,7 +103,7 @@ export default function CompletionDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Mark as Completed</DialogTitle>
+          <DialogTitle>Mark as done</DialogTitle>
           <DialogDescription>
             Provide details about the completed maintenance work
           </DialogDescription>
@@ -111,7 +111,7 @@ export default function CompletionDetailsDialog({
 
         <div className="space-y-4">
           <div className="p-3 bg-slate-800/50 rounded border border-info-border">
-            <p className="text-sm text-slate-400">Service Item</p>
+            <p className="text-sm text-slate-400">Service item</p>
             <p className="font-medium text-white">{serviceItem?.description}</p>
           </div>
 
@@ -130,7 +130,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="shopName">Shop Name / Technician (Optional)</Label>
+            <Label htmlFor="shopName">Shop or technician (optional)</Label>
             <Input
               id="shopName"
               placeholder="e.g., Joe's Auto Repair"
@@ -141,7 +141,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="totalCost">Total Cost (Optional)</Label>
+            <Label htmlFor="totalCost">Total cost (optional)</Label>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-slate-400">$</span>
               <Input
@@ -157,7 +157,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="notes">Work Notes (Optional)</Label>
+            <Label htmlFor="notes">Work notes (optional)</Label>
             <Textarea
               id="notes"
               placeholder="Any additional details about the work performed..."
@@ -169,7 +169,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label>Invoice Attachment (Optional)</Label>
+            <Label>Invoice (optional)</Label>
             <div className="mt-2 space-y-2">
               {formData.invoiceUrl ? (
                 <div className="p-3 bg-green-500/10 border border-green-500/20 rounded flex items-center justify-between">
@@ -220,7 +220,7 @@ export default function CompletionDetailsDialog({
             disabled={submitting || isLoading || !formData.dateCompleted}
             className="bg-green-600 hover:bg-green-700"
           >
-            {submitting || isLoading ? 'Saving...' : 'Mark as Completed'}
+            {submitting || isLoading ? 'Saving...' : 'Mark as done'}
           </Button>
         </DialogFooter>
       </DialogContent>

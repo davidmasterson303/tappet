@@ -91,6 +91,17 @@ export const DELETION_INVENTORY: readonly string[] = [
 ];
 
 /**
+ * The count the web's dialog leads its inventory with. Audit 360, COPY-32:
+ * it said "1 vehicle and their full history" beside its own list, in words
+ * the phone's list does not use; it now renders `DELETION_INVENTORY` as the
+ * phone does, and this line says how many cars that is.
+ */
+export function deletionCarCount(cars: number): string {
+  if (cars <= 0) return 'This account has no cars.';
+  return cars === 1 ? 'This account has one car.' : `This account has ${cars} cars.`;
+}
+
+/**
  * What a subscriber has to be told before deleting, and why it is a warning
  * rather than a block.
  *

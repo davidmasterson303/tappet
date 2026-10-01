@@ -22,6 +22,8 @@ import { DELETION_NOT_FINISHED, DELETION_OUTCOME_UNKNOWN, probeAccount } from '@
 import { toast } from 'sonner';
 import {
   DELETION_CONFIRM_PHRASE,
+  DELETION_INVENTORY,
+  deletionCarCount,
   describeDeletion,
   isDeletionConfirmed,
   subscriptionNotice,
@@ -189,15 +191,12 @@ export function DeleteAccountDialog({
           }}
         >
           <p className="label-uppercase mb-2">What gets deleted</p>
+          {/* COPY-32: the phone's list, word for word, led by the count. */}
+          <p className="mb-2 text-foreground">{deletionCarCount(vehicleCount)}</p>
           <ul className="space-y-1 text-foreground/75">
-            <li>
-              <span className="num font-semibold text-foreground">{vehicleCount}</span>{' '}
-              {vehicleCount === 1 ? 'vehicle' : 'vehicles'} and their full history
-            </li>
-            <li>All maintenance records, Needs and cost data</li>
-            <li>Every uploaded invoice and photo</li>
-            <li>Your conversations with the AI advisor</li>
-            <li>Your profile and sign-in credentials</li>
+            {DELETION_INVENTORY.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </div>
 

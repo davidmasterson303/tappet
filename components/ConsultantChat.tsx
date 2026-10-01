@@ -710,7 +710,7 @@ export default function ConsultantChat({
     let currentSessionId = activeSessionId;
 
     if (!currentSessionId && !demo) {
-      const title = await generateSessionTitle(userMessage || 'Document Review');
+      const title = await generateSessionTitle(userMessage || 'Document review');
       const createResult = await createConsultantSession(vehicleId, title);
 
       if (!createResult.success || !createResult.sessionId) {
@@ -1719,7 +1719,7 @@ export default function ConsultantChat({
                         href={planHref(vehicleId)}
                         className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
-                        Get Quote
+                        Get a quote
                       </a>
                     </div>
                   </div>
