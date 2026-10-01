@@ -47,11 +47,11 @@
 > changes: Coarse Location removed, Crash Data linked).
 >
 > **David's list, in order:**
-> 1. `promote-web --apply` (Claude, on David's OK) → read `/api/version` for the merge commit.
-> 2. SQL editor: `20261001120000` (VIN unique per garage) and `20260917120000`
->    (demo quote meter) — both in `supabase/migrations/`, verify per their headers.
-> 3. Supabase Auth: turn on **Confirm email**.
-> 4. After the promote: Cowork clears `mod_detail_cache` (11 rows) and verifies `[]`.
+> 1. ✅ `promote-web --apply` 1 Oct — `web-live` serves `cebd5955` (the merge commit), old hosts 301, a bare upload POST answers 400.
+> 2. ✅ Both applied 1 Oct (David). Verified: the VIN dry insert now answers `23503` (FK), not
+>    `23505`; `quote_estimate` passes the purpose CHECK, a made-up purpose gets `23514`.
+> 3. ✅ Confirm email on (1 Oct): `/auth/v1/settings` → `mailer_autoconfirm: false`.
+> 4. ⏳ Cowork clearing `mod_detail_cache` (11 rows) → `[]` (in progress 1 Oct).
 > 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
 >    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
 >    upload body limit.
