@@ -396,8 +396,13 @@ export function HealthScreen({
               had a referent a listener could find. Two sentences now, each
               naming what it means.
             */}
+            {/*
+              UX-15 (1 Oct): "asks" was false after a "Not now" — the page
+              asked once and then said nothing. It now carries Score this car
+              for that owner, so both halves happen there.
+            */}
             No score yet. Tappet works one out once the research has looked this car over and you
-            have said yes to Google’s AI writing it — the car’s page shows the research and asks.
+            have said yes to Google’s AI writing it. Both happen on the car’s page.
             It is worked out again as work is recorded.
           </Text>
         )}

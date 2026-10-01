@@ -154,7 +154,9 @@ describe('no score yet, said in sentences a listener can follow (COPY-17)', () =
 
     const line = await view.findByText(/^No score yet\./);
     const text = [line.props.children].flat().filter((c: unknown) => typeof c === 'string').join('');
-    expect(text).toMatch(/the car’s page shows the research and asks\./);
+    // UX-15: the page now has the door this sentence promises (Score this car).
+    expect(text).toMatch(/you have said yes to Google’s AI writing it\. Both happen on the car’s page\./);
+    expect(text).not.toMatch(/shows the research and asks/);
     expect(text).toMatch(/It is worked out again as work is recorded\.$/);
     expect(text).not.toMatch(/its own page shows that running/);
   });

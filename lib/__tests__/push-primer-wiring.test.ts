@@ -103,7 +103,26 @@ describe('the permission prompt is no longer raised uninvited', () => {
     // The vehicle count is why the rule lives with the car at all.
     expect(source).toMatch(/vehicleCount/);
     // And the hub passes it a real count, never zero-while-loading.
-    expect(code(HUB)).toMatch(/usePushPrimer\(state\.status === 'ok' \? [^:]+ : null\)/);
+    // (UX-16: a second argument, the hold, may follow the count.)
+    expect(code(HUB)).toMatch(/usePushPrimer\(\s*state\.status === 'ok' \? [^:]+ : null\s*[,)]/);
+  });
+
+  it('the hub asks one thing at a time (audit 360, UX-16)', () => {
+    /*
+      The primer, iOS's dialog and the health score's sheet stacked on the
+      first open of a researched car. The hub holds the primer while the
+      score's sheet is wanted or this visit's research runs, and the sheet
+      waits for the primer and for the system dialog it raises.
+      `usePushPrimer.test.tsx` and `VehicleDetailScreen.test.tsx` hold the
+      behaviour; this holds the wiring the behaviour depends on.
+    */
+    const hub = code(HUB);
+    const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
+    expect(call).toContain('research.consentNeeded');
+    expect(hub).toMatch(/visible=\{research\.consentNeeded && !primer\.open && !primer\.priming\}/);
+    // Anti-vacuous: the primer is asked after the runner exists, or it could not read it.
+    expect(hub.indexOf('usePushPrimer(')).toBeGreaterThan(hub.indexOf('useResearchRunner('));
+    expect(code(HOOK)).toMatch(/hold = false/);
   });
 
   it('accepting the primer is what raises the system prompt', () => {

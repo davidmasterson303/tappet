@@ -599,7 +599,10 @@ export function VehicleDetailScreen({
     the primer lost its host when the garage left the navigator, and a fresh
     install could never be asked.
   */
-  const primer = usePushPrimer(state.status === 'ok' ? Math.max(1, cars.length) : null);
+  /*
+    ⚠ The primer is asked below the research runner now (UX-16): it holds
+    while this visit's research runs or the health score's sheet is wanted.
+  */
   // Parallax and the slow zoom are exactly what iOS Reduce Motion turns off;
   // the crossfades stay, which the setting permits (23 Sep). Declared here,
   // with the other hooks, above every early return.
@@ -944,6 +947,23 @@ export function VehicleDetailScreen({
     };
   }, []);
   const research = useResearchRunner({ vehicleId, observation, reload: leanReload, consent: aiConsent });
+  /*
+    ── Audit 360, UX-16 / UX-4 (1 Oct) · one ask at a time ─────────────────
+
+    The primer opened the moment the count was known, and `accept` closed it
+    *before* iOS's dialog — so for a car already researched (added on the
+    web, re-added) the health score's sheet slid up the instant the primer
+    closed, under Apple's alert: three asks before the owner had read the
+    page. Now the primer waits while the AI answer is still being read, while
+    this visit's research runs and while the score's sheet is wanted — it
+    asks once a reading is on screen for "alerts about this car" to be about
+    (UX-4's recommended moment, built here as code-only and reversible) — and
+    the sheet waits for the primer and for iOS's dialog (`priming`).
+  */
+  const primer = usePushPrimer(
+    state.status === 'ok' ? Math.max(1, cars.length) : null,
+    aiConsent === null || research.consentNeeded || (research.visible && !research.settled)
+  );
 
   /*
     ── 22 Sep · no photo control on the hub ─────────────────────────────────
@@ -1956,6 +1976,23 @@ export function VehicleDetailScreen({
             car".
           */}
           {research.visible ? <ResearchLog runner={research} style={styles.researchLog} /> : null}
+          {/*
+            Audit 360, UX-15 (1 Oct): the door a "Not now" left. A researched
+            car whose owner declined the score's sheet on an earlier visit
+            showed "No score yet" and nothing else, while HealthScreen and the
+            sheet's own note sent them here. The sheet's accept is the label,
+            so the control and the yes it leads to say the same thing.
+          */}
+          {research.canAskScore ? (
+            <View style={styles.researchLog}>
+              <Button
+                label={HEALTH_AI_CONSENT.accept}
+                variant="outline"
+                accessibilityLabel="Score this car, asks before Google’s AI writes the health score"
+                onPress={research.askScore}
+              />
+            </View>
+          ) : null}
 
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
@@ -2392,7 +2429,7 @@ export function VehicleDetailScreen({
       <PushPrimer visible={primer.open} onAccept={primer.accept} onDecline={primer.decline} />
 
       <AiConsentSheet
-        visible={research.consentNeeded && !primer.open}
+        visible={research.consentNeeded && !primer.open && !primer.priming}
         copy={HEALTH_AI_CONSENT}
         onAccept={() => {
           setAiConsent('granted');

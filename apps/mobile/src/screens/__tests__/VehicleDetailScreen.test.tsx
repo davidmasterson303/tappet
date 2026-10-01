@@ -1509,6 +1509,116 @@ describe('the score asks before the records go to Google (audit 360, LEGAL-1)', 
   });
 });
 
+/*
+  Audit 360, UX-15 and UX-16 (1 Oct). A "Not now" to the score's sheet left a
+  researched car with "No score yet" and no door, while HealthScreen said this
+  page asks; and on a car already researched, the push primer, iOS's dialog
+  and the score's sheet stacked on the first open. One ask at a time now, and
+  the decline has a door.
+*/
+describe('the asks on a car’s page, one at a time, and a door after "Not now"', () => {
+  const SecureStore = jest.requireMock('expo-secure-store') as { getItemAsync: jest.Mock };
+  const Notifications = jest.requireMock('expo-notifications') as { getPermissionsAsync: jest.Mock };
+  const { AI_CONSENT_STORAGE_KEY } = jest.requireActual('@tappet/core/ai-consent-copy');
+  const PRIMER_TITLE = 'Three kinds of alert, and nothing else';
+  const SHEET_TITLE = 'The health score is written by Google’s AI';
+
+  function respondUnscored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  function storedConsent(answer: string | null) {
+    SecureStore.getItemAsync.mockImplementation(async (key: string) =>
+      key === AI_CONSENT_STORAGE_KEY ? answer : null
+    );
+  }
+
+  afterEach(() => {
+    SecureStore.getItemAsync.mockImplementation(async () => null);
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: true, canAskAgain: true }));
+  });
+
+  it('a declined car opened later offers Score this car, which shows the sheet and scores only on yes (UX-15)', async () => {
+    storedConsent('declined');
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    const door = await view.findByLabelText(/^Score this car, asks before/);
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(door);
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(view.getByLabelText('Score this car'));
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+  });
+
+  it('shows no door to a car that is already scored (anti-vacuous)', async () => {
+    storedConsent('declined');
+    respondResearchScored();
+    const { view } = await mount();
+    await view.findByText('61');
+    expect(view.queryByLabelText(/^Score this car, asks before/)).toBeNull();
+  });
+
+  function respondResearchScored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: { health_score: 61, summary: 'Fair.' },
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  it('on a researched car never asked, the score’s sheet comes first and the primer waits for its answer (UX-16)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    await user.press(view.getByLabelText('Not now'));
+    // The run settles on its declined line; only then is the primer asked.
+    await view.findByText(PRIMER_TITLE);
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+  });
+
+  it('the primer still asks on a car with nothing else to ask (anti-vacuous)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view } = await mount();
+
+    await view.findByText(PRIMER_TITLE);
+  });
+});
+
 describe('removing the car (20 Sep; behind the details since 22 Sep)', () => {
   it('does not end on a destructive act — the removal is the details screen\'s foot', async () => {
     /*

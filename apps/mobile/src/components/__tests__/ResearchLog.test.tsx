@@ -28,6 +28,8 @@ function runner(over: Partial<ResearchRunner> = {}): ResearchRunner {
     retry: jest.fn(),
     consentNeeded: false,
     consentDeclined: jest.fn(),
+    canAskScore: false,
+    askScore: jest.fn(),
     ...over,
   };
 }

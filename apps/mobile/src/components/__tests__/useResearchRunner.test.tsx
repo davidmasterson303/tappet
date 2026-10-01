@@ -333,6 +333,46 @@ describe('the score and the AI consent (LEGAL-1)', () => {
     expect(result.current.visible).toBe(false);
   });
 
+  /*
+    Audit 360, UX-15 (1 Oct). The case above is right, and it was the whole
+    story: on a later open a declined car was idle, with no log, no sheet and
+    no door, while HealthScreen said the car's page asks. The runner now says
+    the owner can ask (`canAskScore`) and runs the score step when they do.
+  */
+  it('a declined car, opened later, offers the score — and asking shows the sheet, posting nothing until yes', async () => {
+    const { result, rerender } = await mount(researched(), 'declined');
+    await act(async () => {});
+    expect(result.current.visible).toBe(false);
+    expect(result.current.canAskScore).toBe(true);
+
+    await act(async () => result.current.askScore());
+    await act(async () => {});
+    expect(result.current.consentNeeded).toBe(true);
+    expect(result.current.canAskScore).toBe(false);
+    expect(result.current.visible).toBe(true);
+    // No research trigger: the dossier exists.
+    expect(calls('/research')).toHaveLength(0);
+    expect(calls('/health')).toHaveLength(0);
+
+    await rerender({ observation: researched(), consent: 'granted' });
+    await act(async () => {});
+    expect(calls('/health')).toHaveLength(1);
+  });
+
+  it('offers no score door where there is nothing to ask (anti-vacuous)', async () => {
+    for (const [why, observation, answer] of [
+      ['already scored', { ...researched(), health: { health_score: 70, last_generated: '2026-09-01T00:00:00.000Z' } }, 'declined'],
+      ['still researching', pending(), 'declined'],
+      ['never asked: the sheet itself asks', researched(), 'unknown'],
+      ['answer still being read', researched(), null],
+    ] as const) {
+      request.mockClear();
+      const { result } = await mount(observation as ResearchObservation, answer);
+      await act(async () => {});
+      expect([why, result.current.canAskScore]).toEqual([why, false]);
+    }
+  });
+
   it('never re-scores quietly without a yes', async () => {
     for (const answer of ['unknown', 'declined', null] as const) {
       request.mockClear();

@@ -181,7 +181,7 @@ export const HEALTH_AI_CONSENT: AiConsentCopy = {
   accept: 'Score this car',
   decline: 'Not now',
   declineNote:
-    `The score stays empty until you say yes. ${DECLINE_LEAVES} Ask again from this car’s research.`,
+    `The score stays empty until you say yes. ${DECLINE_LEAVES} Ask again from this car’s page.`,
 };
 
 /**

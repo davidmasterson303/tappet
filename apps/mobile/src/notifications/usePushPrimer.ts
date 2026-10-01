@@ -30,12 +30,32 @@ import {
  * rather than reading zero-while-loading, which would suppress the primer on
  * every launch and the screen would never appear at all.
  */
-export function usePushPrimer(vehicleCount: number | null): {
+export function usePushPrimer(
+  vehicleCount: number | null,
+  /**
+   * Something else is asking, or about to (audit 360, UX-16 / UX-4, 1 Oct).
+   * While held the primer does not open; once it has opened, a hold arriving
+   * later does not pull it from under the owner's thumb. The car's page holds
+   * it while this visit's research runs and while the health score's sheet is
+   * wanted — so the first car's page asks one thing at a time, and the
+   * primer asks once a reading is on screen for its alerts to be about.
+   */
+  hold = false,
+): {
   open: boolean;
+  /**
+   * The owner said yes and iOS's own dialog is up (or about to be). Nothing
+   * else may present until it settles: an RN Modal presents beneath
+   * SpringBoard's alert, so a sheet raised now is answered unseen.
+   */
+  priming: boolean;
   accept: () => Promise<void>;
   decline: () => Promise<void>;
 } {
-  const [open, setOpen] = useState(false);
+  const [eligible, setEligible] = useState(false);
+  const [shown, setShown] = useState(false);
+  const [answered, setAnswered] = useState(false);
+  const [priming, setPriming] = useState(false);
 
   useEffect(() => {
     if (vehicleCount === null) return;
@@ -50,7 +70,7 @@ export function usePushPrimer(vehicleCount: number | null): {
 
       if (cancelled) return;
 
-      setOpen(
+      setEligible(
         shouldShowPushPrimer({
           permission,
           dismissedOn,
@@ -65,23 +85,33 @@ export function usePushPrimer(vehicleCount: number | null): {
     };
   }, [vehicleCount]);
 
+  /* Latched: shown once the hold lifts, and kept until it is answered. */
+  useEffect(() => {
+    if (eligible && !hold && !answered) setShown(true);
+  }, [answered, eligible, hold]);
+
   const accept = useCallback(async () => {
     /*
       Closed first, then the system dialog. Leaving our screen up underneath
       Apple's puts two asks on screen at once, and the person answers the one
       they can see while the other waits — which reads as the app arguing with
-      itself.
+      itself. `priming` covers the dialog itself, for the same reason.
     */
-    setOpen(false);
-    await registerForPush();
+    setAnswered(true);
+    setPriming(true);
+    try {
+      await registerForPush();
+    } finally {
+      setPriming(false);
+    }
   }, []);
 
   const decline = useCallback(async () => {
-    setOpen(false);
+    setAnswered(true);
     // Records a date, not a boolean, so the cooldown can expire and somebody
     // who was busy today can still be asked next month.
     await recordPrimerDismissed(new Date().toISOString().slice(0, 10));
   }, []);
 
-  return { open, accept, decline };
+  return { open: shown && !answered, priming, accept, decline };
 }

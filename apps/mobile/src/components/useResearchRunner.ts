@@ -72,6 +72,17 @@ export interface ResearchRunner {
   consentNeeded: boolean;
   /** The sheet was answered no: stop showing it until the next retry. */
   consentDeclined: () => void;
+  /**
+   * A researched car with no score whose owner said no on an earlier visit
+   * (audit 360, UX-15, 1 Oct). The automatic start leaves it idle — a decline
+   * is the answer, and no log fails on every open — so without this the only
+   * door to a score was the advisor's sheet, which nothing mentioned, while
+   * HealthScreen and the sheet's own note sent the owner to this page. The
+   * screen shows a "Score this car" control; `askScore` is it.
+   */
+  canAskScore: boolean;
+  /** The owner asked: run the score step alone, and show the sheet again. */
+  askScore: () => void;
 }
 
 type Phase = 'idle' | 'running' | 'settled';
@@ -259,6 +270,26 @@ export function useResearchRunner(params: {
 
   const consentDeclined = useCallback(() => setReask(false), []);
 
+  const canAskScore =
+    phase === 'idle' && observation !== null && dossierDone && !hasScore(observation) && consent === 'declined';
+
+  /*
+    The score-only run the automatic start makes for an unscored car, begun
+    by the owner instead: no research trigger (the dossier exists and the
+    route would be a second spend), `reask` so the sheet shows, and the
+    deadline counting from their answer as it always does.
+  */
+  const askScore = useCallback(() => {
+    setReask(true);
+    started.current = true;
+    healthAsked.current = false;
+    setHealthFailure(null);
+    setStalled(false);
+    setQuietRun(false);
+    startedAt.current = now();
+    setPhase('running');
+  }, [now]);
+
   return {
     visible: phase !== 'idle' && !quietRun,
     milestones,
@@ -269,5 +300,7 @@ export function useResearchRunner(params: {
     retry,
     consentNeeded,
     consentDeclined,
+    canAskScore,
+    askScore,
   };
 }
