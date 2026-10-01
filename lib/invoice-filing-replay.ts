@@ -19,8 +19,8 @@
  *   - `completed` → the scan was filed. Answer with that document, exactly as
  *     the first filing would have. Phones already running build 2 get this on
  *     their Try again with no change on the phone.
- *   - `pending`, and recent → the first filing is still reading it (the retry
- *     overtook it). Refused with `FILING_IN_PROGRESS`; a later Try again gets
+ *   - `pending`, and recent (`FILING_IN_FLIGHT_MS`) → the first filing is
+ *     still reading it (the retry overtook it). Refused with `FILING_IN_PROGRESS`; a later Try again gets
  *     the `completed` answer.
  *   - anything else (a stale `pending` from a filing the platform killed, a
  *     `failed` extraction) → filed normally. A refused parse deletes its own
@@ -30,8 +30,27 @@
  * different scans never share a first page path.
  */
 
-/** Long enough for any filing the platform lets finish; a killed one is older. */
-export const FILING_IN_FLIGHT_MS = 10 * 60 * 1000;
+/**
+ * How long a `pending` filing is taken to be still running.
+ *
+ * ⚠ Audit 360, TL-14 (1 Oct, round 2) · was ten minutes. A filing the
+ * platform killed mid-model-call leaves its row `pending`, and every Try
+ * again inside this window was told "still reading… check the service log in
+ * a minute" about a filing that was dead — nine times over ten minutes.
+ *
+ * Two minutes: past the phone's own 90 s wait (`documents.ts`), so a retry
+ * the phone makes while its first request could still be answered is
+ * refused, and past any synchronous function ceiling Netlify sets (its
+ * synchronous functions stop in seconds-to-a-minute, never minutes). The
+ * measured `web-live` ceiling is held for David; if it is ever raised past
+ * this, raise this with it — a filing still running when a retry files
+ * afresh is a double filing. `FILING_IN_FLIGHT_MS > PHONE_FILING_WAIT_MS` is
+ * pinned in the test.
+ */
+export const FILING_IN_FLIGHT_MS = 2 * 60 * 1000;
+
+/** The phone's wait for a filing (`apps/mobile/src/api/documents.ts`). */
+export const PHONE_FILING_WAIT_MS = 90_000;
 
 /** The scan's identity: the first page's `<ms>-<rand>` stamp, or null. */
 export function scanToken(firstPagePath: string): string | null {

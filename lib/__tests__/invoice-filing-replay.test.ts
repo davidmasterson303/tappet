@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { invoicePagePath, storedUrl, vehicleStoragePath } from '@tappet/core/storage-paths';
 import {
   FILING_IN_FLIGHT_MS,
+  PHONE_FILING_WAIT_MS,
   filedInvoiceName,
   priorFiling,
   scanToken,
@@ -120,6 +121,29 @@ describe('priorFiling — audit 360, TL-2', () => {
   it('files again after a pending filing the platform must have killed', async () => {
     const { fake } = client([filedFrom(pages, 'pending', NOW - FILING_IN_FLIGHT_MS - 1)]);
     await expect(priorFiling(fake, CAR, pages, NOW)).resolves.toEqual({ state: 'none' });
+  });
+
+  it('does not call a filing killed three minutes ago "still reading" (TL-14)', async () => {
+    /*
+      Was ten minutes: a filing the platform killed answered every Try again
+      with "still reading… check in a minute" for ten minutes. Three minutes
+      is past the phone's wait and any synchronous function ceiling.
+    */
+    const { fake } = client([filedFrom(pages, 'pending', NOW - 3 * 60_000)]);
+    await expect(priorFiling(fake, CAR, pages, NOW)).resolves.toEqual({ state: 'none' });
+  });
+
+  it('still refuses a retry the phone makes while its own request could be answered', async () => {
+    expect(FILING_IN_FLIGHT_MS).toBeGreaterThan(PHONE_FILING_WAIT_MS);
+    const { fake } = client([filedFrom(pages, 'pending', NOW - PHONE_FILING_WAIT_MS)]);
+    await expect(priorFiling(fake, CAR, pages, NOW)).resolves.toEqual({ state: 'in-flight' });
+  });
+
+  it('pins the phone wait it is measured against', () => {
+    const phone = readFileSync(join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'api', 'documents.ts'), 'utf8');
+    const waits = [...phone.matchAll(/timeoutMs:\s*([\d_]+)/g)].map((m) => Number(m[1].replace(/_/g, '')));
+    expect(waits.length).toBeGreaterThan(0);
+    expect(Math.max(...waits)).toBe(PHONE_FILING_WAIT_MS);
   });
 
   it('does not take another scan’s document for this one (anti-vacuous)', async () => {
