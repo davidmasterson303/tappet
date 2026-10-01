@@ -36,7 +36,12 @@ export default function LegalDocument({
 }) {
   return (
     <div className="min-h-screen service-bay service-bay-dim">
-      <div className="mx-auto w-full max-w-2xl px-5 py-14">
+      {/*
+        Audit 360, UX-14: the document is the page's <main> landmark, as the
+        landing page's is — a screen-reader user arriving from the App Store
+        listing skips the header with one keystroke.
+      */}
+      <main className="mx-auto w-full max-w-2xl px-5 py-14">
         <Link href="/" className="inline-flex mb-10" aria-label="Tappet home">
           {/*
             The full lockup, maker line and all — this is the page Apple reads,
@@ -82,7 +87,7 @@ export default function LegalDocument({
             Back to Tappet
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

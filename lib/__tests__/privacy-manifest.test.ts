@@ -195,6 +195,15 @@ describe('the iOS privacy manifest', () => {
     it('can still tell an anonymous report from a linked one (anti-vacuous)', () => {
       expect(LINKS.test("const reporter = 'anonymous';")).toBe(false);
     });
+
+    it('the sender’s docblock says linked, never "anonymous on purpose" (LEGAL-18)', () => {
+      // The docblock is this repo's documentation; a stale one is how a label
+      // gets declared Not Linked from a reading of the sender.
+      const doc = readFileSync(join(ROOT, 'apps/mobile/src/api/client-errors.ts'), 'utf8');
+      const says = (text: string) => !/Anonymous on purpose/i.test(text) && /Crash\s+\*?\s*Data \*\*Linked\*\*/.test(text.replace(/\n\s*\*\s*/g, ' '));
+      expect(says(doc)).toBe(true);
+      expect(says('posts what it caught. Anonymous on purpose — a crash on the sign-in screen is still a crash')).toBe(false);
+    });
   });
 
   it('declares user content, because conversations and invoices are stored', () => {

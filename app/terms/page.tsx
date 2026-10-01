@@ -143,15 +143,19 @@ export default function TermsPage() {
       {/*
         Audit 360, LEGAL-17 (1 Oct): the listing names Apple's standard EULA as
         the app's licence, and the paywall's "Terms of Use" opens this page.
-        Saying so here means the link reaches both documents.
+        Saying so here means the link reaches both documents. LEGAL-19: the
+        sentence also says which one decides a conflict, and about what — "applies
+        alongside" decided nothing, and an ambiguity is read against the drafter.
       */}
       <p>
         The iPhone app is licensed to you under Apple&rsquo;s{' '}
         <a href={APPLE_STANDARD_EULA_URL} className="underline underline-offset-2 text-white/90">
           standard Licensed Application End User License Agreement
         </a>
-        , which applies alongside these terms. These terms cover the service behind the app: your
-        account, what you upload and your subscription.
+        . That agreement governs the app itself — the licence to use it and Apple&rsquo;s
+        role — and where it and these terms differ about the app, it wins. These terms govern
+        the service behind the app: your account, what you upload and your subscription; where the
+        two differ about those, these terms win.
       </p>
 
       <LegalSection>Availability</LegalSection>

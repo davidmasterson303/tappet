@@ -621,3 +621,42 @@ describe('the calls the legal agent made (round 03)', () => {
     expect(shipped).not.toMatch(/APPLE_STANDARD_EULA_URL/);
   });
 });
+
+/*
+ * Audit 360, round 04 polish (1 Oct).
+ *
+ * LEGAL-19: the Terms said Apple's EULA "applies alongside" them and gave no
+ * rule for a conflict — the one place the two documents meet decided nothing.
+ * UX-14: the legal pages had no <main> landmark while the landing page did.
+ */
+describe('the Terms say which document decides, and the pages carry a landmark', () => {
+  const precedence = (text: string) =>
+    /governs the app itself[^.]*where it and these terms differ about the app, it wins/.test(text) &&
+    /These terms govern the service behind the app[^.]*these terms win/.test(text);
+
+  it('LEGAL-19: the EULA decides about the app, these Terms about the service', () => {
+    expect(precedence(termsText)).toBe(true);
+    expect(termsText).not.toMatch(/applies alongside these terms/);
+  });
+
+  it('LEGAL-19: can still detect the sentence that shipped (anti-vacuous)', () => {
+    const shipped = flat(
+      'End User License Agreement </a> , which applies alongside these terms. These terms cover the service behind the app: your account, what you upload and your subscription.'
+    );
+    expect(precedence(shipped)).toBe(false);
+  });
+
+  it('UX-14: the document sits in a <main>, opened and closed', () => {
+    const shell = read('components/legal/LegalDocument.tsx').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+    expect(shell).toMatch(/<main className="mx-auto w-full max-w-2xl/);
+    expect(shell).toMatch(/<\/main>/);
+    // Both pages use the shell, so both get it.
+    expect(privacy).toMatch(/<LegalDocument/);
+    expect(terms).toMatch(/<LegalDocument/);
+  });
+
+  it('UX-14: can still detect a shell with no landmark (anti-vacuous)', () => {
+    const shipped = '<div className="min-h-screen"><div className="mx-auto w-full max-w-2xl px-5 py-14"><h1>x</h1></div></div>';
+    expect(shipped).not.toMatch(/<main className="mx-auto w-full max-w-2xl/);
+  });
+});
