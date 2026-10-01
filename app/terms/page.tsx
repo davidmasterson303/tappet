@@ -152,7 +152,7 @@ export default function TermsPage() {
         <a href={APPLE_STANDARD_EULA_URL} className="underline underline-offset-2 text-white/90">
           standard Licensed Application End User License Agreement
         </a>
-        . That agreement governs the app itself — the licence to use it and Apple&rsquo;s
+        . That agreement governs the app itself — the license to use it and Apple&rsquo;s
         role — and where it and these terms differ about the app, it wins. These terms govern
         the service behind the app: your account, what you upload and your subscription; where the
         two differ about those, these terms win.

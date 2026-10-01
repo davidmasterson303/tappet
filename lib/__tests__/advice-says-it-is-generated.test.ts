@@ -83,6 +83,13 @@ describe('the disclosure itself', () => {
     }
   });
 
+  it('the Plan’s line says whose schedule, in one noun (COPY-22)', () => {
+    // It read "this vehicle’s typical schedule" beside "your car’s history".
+    const plan = adviceDisclosure('plan');
+    expect(plan).toMatch(/year, make and model/);
+    expect(plan).not.toMatch(/\bvehicle/);
+  });
+
   it('does not claim the advice is not advice', () => {
     /*
       It plainly is advice; the product's whole proposition is that it advises.

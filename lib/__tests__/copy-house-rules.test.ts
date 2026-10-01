@@ -53,6 +53,8 @@ interface Rule {
   pattern: RegExp;
   /** Files whose matches are not customer copy, each with the reason. */
   exempt?: Record<string, string>;
+  /** Only text with a space in it — a sentence, not a code like `'cancelled'`. */
+  sentencesOnly?: boolean;
 }
 
 /*
@@ -93,6 +95,21 @@ const RULES: Rule[] = [
     the AI is never "the model" or "a model" in a sentence an owner reads.
   */
   { id: 'COPY-10 the model', pattern: /\bgo(?:es)? to the model\b|\ba model reads\b/i, exempt: MODEL_AND_MONITOR },
+  /*
+    COPY-21: American spelling (standard L8). The Terms said "the licence to
+    use it" one sentence after "End User License Agreement". The list is the
+    British spellings a writer here reaches for, not a dictionary.
+  */
+  {
+    id: 'COPY-21 British spelling',
+    pattern:
+      /\b(licence|colours?|centres?|labelled|labelling|cancelled|cancelling|tyres?|grey|favourites?|organis(e|ed|ing)|recognis(e|ed|ing)|analys(e|ed|ing)|behaviour|catalogue|whilst|programme)\b/i,
+    sentencesOnly: true,
+    exempt: {
+      'packages/core/src/maintenance-sync.ts':
+        'keywords matched against a shop’s invoice lines, which may be spelled either way',
+    },
+  },
 ];
 
 function withoutComments(source: string): string {
@@ -123,7 +140,8 @@ export function copyIn(source: string): Array<{ line: number; text: string }> {
         "dealer, whatever the age of the vehicle." and a comma-blind scan
         could not see it. Object keys and import aliases still carry `:` or `_`.
       */
-      const bare = line.trim();
+      // COPY-21: an entity (`&rsquo;`) is text, not code — it hid the Terms' "licence" line.
+      const bare = line.trim().replace(/&[a-z]+;/gi, '’');
       if (bare !== '' && /\s/.test(bare) && !/[<>{}=;()`'":_]/.test(bare)) out.push({ line: index + 1, text: bare });
     });
   return out;
@@ -142,6 +160,7 @@ export function violations(rel: string, source: string): Violation[] {
     if (rule.exempt?.[rel]) return [];
     const seen = new Set<number>();
     return copy
+      .filter((c) => !rule.sentencesOnly || /\s/.test(c.text.trim()))
       .filter((c) => rule.pattern.test(c.text) && !seen.has(c.line) && seen.add(c.line))
       .map((c) => ({ rule: rule.id, file: rel, line: c.line, text: c.text.trim() }));
   });
@@ -183,12 +202,15 @@ describe('the copy lens’s house rules', () => {
       `logger.error('Failed to load vehicles', error);`,
       // COPY-10, last so the line numbers above stand
       "detail={`${'${vehicleTitle}'} records go to the model with the question.`}",
+      // COPY-21: the Terms' line as it shipped (an entity hid it), and a code that must pass
+      `            . That agreement governs the app itself — the licence to use it and Apple&rsquo;s`,
+      `if (error.code === 'user-cancelled') return 'cancelled';`,
     ].join('\n');
     expect(
       violations('fixture.tsx', fixture)
         .map((v) => v.line)
         .sort((a, b) => a - b)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17]);
   });
 
   it('holds everywhere a customer reads', () => {
