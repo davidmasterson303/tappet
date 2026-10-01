@@ -170,6 +170,13 @@ const PORTABLE: string[] = [
   */
   'lib/legal.ts',
   /*
+    Added 1 Oct (audit 360, TL-24). No imports at all, so it qualifies — and
+    it stays in lib/ on purpose: the Netlify scheduler relative-imports it,
+    and a function bundle must not depend on the package's path alias. It is
+    one log line's wording, which no other client has any use for.
+  */
+  'lib/sweep-scheduler-verdict.ts',
+  /*
     Added 20 Aug with the demo-banner gate. Pure string parsing, no imports at
     all, so it qualifies mechanically — and this list is the honest home for it.
 
