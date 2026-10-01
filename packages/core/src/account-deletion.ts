@@ -84,7 +84,8 @@ export function describeDeletion(deleted: Partial<DeletionCounts> | null | undef
 export const DELETION_INVENTORY: readonly string[] = [
   'Every vehicle, with its service history and dossier',
   'Every invoice and document you have uploaded, including the images',
-  'Every consultant conversation',
+  // Audit 360, COPY-4: "consultant" is a word the app never uses for it.
+  'Every conversation with the advisor',
   'Your profile and sign-in',
 ];
 

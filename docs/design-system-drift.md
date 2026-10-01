@@ -4181,3 +4181,28 @@ entered from your warranty card.` (`tireRotationNotification`,
 
 **What Design needs to decide:** nothing unless the sentence's rhythm matters;
 the on-screen mono column (`YOUR INTERVAL`, `PAST n MI`) is unchanged.
+
+## Copy lens strings changed (audit 360, COPY round 01, 1 Oct)
+
+Words only; no type, colour, spacing or mono-caps label changed. Each was an
+approved or shipped sentence that claimed more than the data holds, or used a
+second word for one thing:
+
+- **Hub recall banner** `Airbags — free to fix at a franchised dealer.` →
+  `Airbags — a franchised dealer does the repair.` The free remedy has a
+  15-year limit (49 U.S.C. §30120(g)); Tappet has not seen the sale date.
+- **Recalls footnote** `…free at a franchised dealer, whatever the age of the
+  vehicle.` → `A franchised dealer does recall repairs, usually at no charge —
+  ask when you book.` The do-not-drive banner drops `— the repair is free`.
+- **Recalls empty state** `…no open recalls listed for this vehicle` →
+  `NHTSA lists no open recalls for this year, make and model.`
+- **Push primer detail** `…which for most cars is never.` → `…for your car's
+  year, make and model — some models never have one, some have several.`
+- **Paywall free list** label `Service log` → `Service history`; the invoice
+  blurb says invoice, not receipt. The App Store listing's matching lines are
+  David's (held, with the 30-character subtitle).
+- **Hub spoken names** (VoiceOver only): the recall cell says it opens the
+  recall list, not "the account of the score".
+
+**What Design needs to decide:** nothing — every changed string sits in a
+wrapping text block whose style is unchanged; not re-shot.

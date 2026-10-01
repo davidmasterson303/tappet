@@ -159,7 +159,7 @@ export async function removeVehicle(vehicleId: string): Promise<RemoveVehicleOut
     return {
       ok: false,
       reason: 'storage',
-      error: 'Could not remove every receipt photograph, so nothing was removed. Try again.',
+      error: 'Could not remove every invoice photograph, so nothing was removed. Try again.',
       leftBehind: purge.failures.length,
     };
   }

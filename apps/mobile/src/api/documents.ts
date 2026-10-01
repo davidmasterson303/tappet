@@ -442,7 +442,7 @@ export function describeUploadError(error: unknown): string {
     if (error.kind === 'timeout') {
       // ⚠ Never "try again": the server may have finished after the phone
       // stopped waiting (seen 21 Sep), and a second scan files it twice.
-      return 'Tappet is still reading that invoice — a dense one can take a minute. Check the service log before scanning it again.';
+      return 'Tappet is still reading that invoice — a dense one can take a minute. Check this car’s service history before scanning it again.';
     }
 
     if (error.kind === 'offline') {
@@ -544,7 +544,7 @@ export async function invoiceUrl(
     }
 
     if (apiError.kind === 'timeout') {
-      return { error: 'That took too long. Check the service log before trying again — it may have gone through.' };
+      return { error: 'That took too long. Check this car’s service history before trying again — it may have gone through.' };
     }
 
     return { error: 'That invoice could not be opened.' };

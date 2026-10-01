@@ -342,7 +342,7 @@ export default function PaywallScreen({
             <Text style={styles.termsText}>
               Payment is taken by Apple when you confirm. A subscription renews automatically for
               the same period unless you turn renewal off at least 24 hours before it ends. You can
-              cancel any time in your Apple ID settings — deleting your Tappet account does not
+              cancel any time in your Apple Account settings — deleting your Tappet account does not
               stop the billing.
             </Text>
           </View>

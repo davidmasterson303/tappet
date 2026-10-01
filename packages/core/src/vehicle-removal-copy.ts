@@ -64,7 +64,7 @@ export function removalLines(inventory: VehicleRemovalInventoryLike): string[] {
     lines.push(plural(inventory.serviceRecords, 'service record', 'service records'));
   }
   if (inventory.receiptPhotographs !== null && inventory.receiptPhotographs > 0) {
-    lines.push(plural(inventory.receiptPhotographs, 'receipt photograph', 'receipt photographs'));
+    lines.push(plural(inventory.receiptPhotographs, 'invoice photograph', 'invoice photographs'));
   }
 
   const score = inventory.hasHealthScore === true;

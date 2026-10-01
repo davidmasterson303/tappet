@@ -1804,7 +1804,7 @@ export async function sendConsultantMessage(params: {
       return { success: false, error: ADVISOR_UNAVAILABLE_MESSAGE, code: 'advisor-unavailable' as const };
     }
 
-    return { success: false, error: 'Failed to get response from consultant' };
+    return { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' };
   }
 }
 

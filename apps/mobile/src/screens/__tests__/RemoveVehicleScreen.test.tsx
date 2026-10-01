@@ -47,7 +47,7 @@ describe('what it says', () => {
     await waitFor(() => view.getByText('Remove the 2003 Honda Accord?'));
     view.getByText('24 open recalls and what you have marked repaired');
     view.getByText('6 service records');
-    view.getByText('3 receipt photographs');
+    view.getByText('3 invoice photographs');
     view.getByText('its health score and maintenance schedule');
     view.getByText('This cannot be undone.');
     expect(view.queryByText(/advisor thread/)).toBeNull();

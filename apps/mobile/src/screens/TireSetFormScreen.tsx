@@ -136,7 +136,7 @@ export function TireSetFormScreen({
         <Text style={styles.lede}>
           {set
             ? 'Change what you entered about this set. Tappet derives everything else from it.'
-            : 'What is on the sidewall and the receipt. Leave blank what you do not know — Tappet will not fill it in.'}
+            : 'What is on the sidewall and the invoice. Leave blank what you do not know — Tappet will not fill it in.'}
         </Text>
 
         <View style={styles.group}>
@@ -194,7 +194,7 @@ export function TireSetFormScreen({
           />
           <Field
             label="Odometer at install"
-            hint="optional · without it, no axis"
+            hint="optional · needed to count miles between rotations"
             value={draft.installOdometer}
             onChangeText={(installOdometer) => patch({ installOdometer })}
             keyboardType="number-pad"

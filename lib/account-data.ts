@@ -118,7 +118,7 @@ export async function getProfile() {
 
   if (error) {
     logger.error('PROFILE:READ', new Error(error.message), { userId: session.userId });
-    return { success: false, error: 'Failed to load profile', profile: null, vehicleCount: 0 };
+    return { success: false, error: 'Tappet could not load your profile just now. Try again in a moment.', profile: null, vehicleCount: 0 };
   }
 
   // Returned alongside the profile so the delete confirmation can state what

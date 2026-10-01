@@ -116,7 +116,7 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
   },
   'invoice-scanning': {
     label: 'Invoice scanning',
-    blurb: 'Photograph a receipt and have the work read off it into your service log.',
+    blurb: 'Photograph an invoice and have the work read off it into your service history.',
   },
   recalls: {
     label: 'Recall alerts',
@@ -188,7 +188,7 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
 export const FREE_FEATURE_COPY: Record<FreeFeature, FeatureCopy> = {
   garage: { label: 'Your garage', blurb: 'Every vehicle you own, with photos and details.' },
   'service-log': {
-    label: 'Service log',
+    label: 'Service history',
     blurb: 'Everything that has been done, entered by hand or scanned in while you had Plus.',
   },
   mileage: { label: 'Mileage tracking', blurb: 'Odometer readings and what is due by distance.' },

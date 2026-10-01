@@ -124,4 +124,4 @@ export async function priorFiling(
 
 /** What a phone shows for `FILING_IN_PROGRESS` — the route sends it as `error`. */
 export const FILING_IN_PROGRESS_MESSAGE =
-  'Tappet is still reading this invoice. Check the service log in a minute before scanning it again.';
+  'Tappet is still reading this invoice. Check this car’s service history in a minute before scanning it again.';

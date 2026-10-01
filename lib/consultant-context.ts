@@ -195,7 +195,7 @@ export async function loadConsultantContext(
 
   if (vehicleResult.error) {
     logger.error('CONSULTANT_CONTEXT', new Error(vehicleResult.error.message), { vehicleId });
-    return { ok: false, error: 'Failed to load vehicle' };
+    return { ok: false, error: 'Tappet could not load this car just now. Try again in a moment.' };
   }
 
   if (!vehicleResult.data) {

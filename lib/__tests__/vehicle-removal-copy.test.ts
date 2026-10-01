@@ -28,7 +28,7 @@ describe('the lines', () => {
     expect(removalLines(ACCORD)).toEqual([
       '24 open recalls and what you have marked repaired',
       '6 service records',
-      '3 receipt photographs',
+      '3 invoice photographs',
       'its health score and maintenance schedule',
       '2 advisor threads',
       '1 item on its plan',
@@ -65,7 +65,7 @@ describe('the lines', () => {
     expect(removalLines({ ...ACCORD, openRecalls: 1, markedRepaired: 0, serviceRecords: 1, receiptPhotographs: 1, advisorThreads: 1, needs: 2 })).toEqual([
       '1 open recall',
       '1 service record',
-      '1 receipt photograph',
+      '1 invoice photograph',
       'its health score and maintenance schedule',
       '1 advisor thread',
       '2 items on its plan',

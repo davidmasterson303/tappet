@@ -190,6 +190,6 @@ export function refusalCopy(state: AccessState, capability: Capability): string 
   }
 
   return capability === 'recall-alerts'
-    ? 'Recall alerts are part of Tappet Plus. Your garage, service log and mileage stay free.'
+    ? 'Recall alerts are part of Tappet Plus. Your garage, service history and mileage stay free.'
     : 'Subscribe to ask about your car, see its health score, scan invoices and get its dossier.';
 }

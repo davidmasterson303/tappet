@@ -308,7 +308,7 @@ function GarageContents() {
 
           {queryError && (
             <div className="chamfer-sm mb-8 p-4 border border-[color:var(--critical-border)] bg-[color:var(--critical-wash)] flex items-center justify-between gap-4">
-              <p className="text-[color:var(--critical)] text-sm">Failed to load vehicles. Please try refreshing.</p>
+              <p className="text-[color:var(--critical)] text-sm">The demo garage could not be loaded. Refresh to try again.</p>
               <Button
                 onClick={() => window.location.reload()}
                 size="sm"

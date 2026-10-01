@@ -388,7 +388,7 @@ describe('the three failures that shared one sentence', () => {
     });
 
     expect(describeUploadError(timedOut)).toMatch(/still reading/i);
-    expect(describeUploadError(timedOut)).toMatch(/service log/i);
+    expect(describeUploadError(timedOut)).toMatch(/service history/i);
     expect(describeUploadError(timedOut)).not.toMatch(/connection/i);
     expect(describeUploadError(timedOut)).not.toMatch(/try again/i);
   });

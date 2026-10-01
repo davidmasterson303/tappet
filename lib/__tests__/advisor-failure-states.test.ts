@@ -235,7 +235,10 @@ describe('the action — which exits carry a code', () => {
   });
 
   it('leaves the transient failure uncoded', () => {
-    expect(body).toMatch(/return \{ success: false, error: 'Failed to get response from consultant' \};/);
+    // Audit 360, COPY-14: the uncoded failure's words are the phone's sentence,
+    // not "Failed to get response from consultant".
+    expect(body).toMatch(/return \{ success: false, error: 'The advisor could not answer that one\. Your question is still here — try again\.' \};/);
+    expect(body).not.toMatch(/Failed to get response/);
   });
 
   it('can still detect the old shape, so this is not vacuous', () => {
@@ -276,8 +279,11 @@ describe('the web thread — the sentence, not the apology', () => {
           timestamp: new Date().toISOString(),
         },
       ]);`;
-    expect(before).toContain(CLIENT_ERROR_FALLBACK);
+    expect(before).toContain('Sorry, I encountered an error');
     expect(before).not.toMatch(/retryCannotHelp/);
+    // Audit 360, COPY-14: the fallback is the phone's sentence, not the apology.
+    expect(CLIENT_ERROR_FALLBACK).not.toMatch(/sorry|encountered an error/i);
+    expect(CLIENT_ERROR_FALLBACK).toMatch(/question is still here/);
     expect(failureBranch.length).toBeGreaterThan(50);
   });
 });

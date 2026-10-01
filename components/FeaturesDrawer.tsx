@@ -62,7 +62,7 @@ const FEATURES = [
     icon: ClipboardList,
     label: 'Service History',
     badge: 'Records',
-    heading: 'Photograph a receipt, get a timeline',
+    heading: 'Photograph an invoice, get a timeline',
     body:
       'Upload an invoice and the line items are read out of it — parts, labor, cost, date. What you get back is a searchable history instead of a folder of scans.',
   },

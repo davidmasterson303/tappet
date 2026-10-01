@@ -102,7 +102,7 @@ export function TireSetDialog({
           <DialogDescription>
             {set
               ? 'Change what you entered about this set. Tappet derives everything else from it.'
-              : 'What is on the sidewall and the receipt. Leave blank what you do not know — Tappet will not fill it in.'}
+              : 'What is on the sidewall and the invoice. Leave blank what you do not know — Tappet will not fill it in.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={save} className="space-y-4" noValidate>
