@@ -120,12 +120,11 @@ export function AccountScreen({
     say so. `PaywallHost` announces the server's verdict; the navigator turns
     it into a number this effect depends on.
 
-    A failure here resolves to "no subscription" and is deliberately silent.
-    The screen's job is deletion — Apple requires that flow to work — and
-    blocking or erroring it because a secondary read failed would obstruct the
-    guideline this whole screen exists to satisfy. The server already fails the
-    other way, warning when it cannot read, so the quiet case here is a network
-    failure rather than an unknown entitlement.
+    A failure here never blocks or errors the screen — its job is deletion,
+    and Apple requires that flow to work. Since LEGAL-15 (1 Oct) it resolves
+    to "warn anyway" (`SUBSCRIPTION_UNREAD`), the same rule the server keeps
+    when it cannot read: it used to resolve to "no subscription", which hid
+    the billing warning exactly when the phone could not say.
   */
   useEffect(() => {
     if (visible === false) return;

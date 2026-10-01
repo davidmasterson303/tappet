@@ -377,18 +377,25 @@ describe('the subscription warning — Guideline 3.1.2 / E5', () => {
     expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
   });
 
-  it('does not block deletion when the subscription read fails', async () => {
+  it('warns, and does not block deletion, when the subscription read fails', async () => {
     /*
       The screen's job is deletion. A secondary read that fails must not take
-      the required flow down with it — so `getSubscription` resolves to "no
-      subscription" on a network error rather than throwing, and the server
-      already fails the *other* way and warns when it cannot read.
+      the required flow down with it — so `getSubscription` never throws.
+      Audit 360, LEGAL-15 (1 Oct): it resolves to `SUBSCRIPTION_UNREAD`
+      (warn anyway, as the server does when it cannot read), not to "no
+      subscription", which hid the billing warning exactly when the phone
+      could not say. The notice is a sentence; the delete still goes through.
     */
-    mockSubscription.mockResolvedValue({ live: false, certain: false });
+    mockSubscription.mockResolvedValue({ live: true, certain: false });
 
     const user = userEvent.setup();
     const { view } = mount();
     const resolved = await view;
+
+    expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
+    // The row keeps its neutral name: an unread standing is not "active".
+    expect(resolved.queryByText(/^Active/)).toBeNull();
+    expect(resolved.queryByText(/^Not subscribed/)).toBeNull();
 
     await user.type(resolved.getByLabelText(CONFIRM_FIELD), DELETION_CONFIRM_PHRASE);
     await user.press(resolved.getByLabelText('Delete my account'));

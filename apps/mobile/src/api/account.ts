@@ -43,19 +43,29 @@ export interface AccountSubscription {
 /**
  * What the delete screen needs to know before it asks.
  *
- * Deliberately fails to `live: false` on a network error rather than throwing:
- * the account screen's job is deletion, and blocking it because a secondary
- * read failed would obstruct the one flow Apple requires to work. The tradeoff
- * is stated where it is made — see `AccountScreen`.
+ * Never throws: the account screen's job is deletion, and blocking it because
+ * a secondary read failed would obstruct the one flow Apple requires to work.
+ *
+ * ⚠ Audit 360, LEGAL-15 (1 Oct). A failed read used to resolve to
+ * `live: false` — "no subscription" — so the billing warning vanished exactly
+ * when the phone could not say, while the server's own rule on the same
+ * question is the opposite (`app/api/v1/account/route.ts` answers
+ * `live: true, certain: false` when it cannot read). The notice is a
+ * sentence, not a block, so warning costs a non-subscriber one confusing line
+ * and withholding it costs a subscriber a charge they cannot stop. The phone
+ * now fails the way the server does. `certain: false` keeps the Subscription
+ * row on its neutral name (`subscriptionStatusLine` returns null for it).
  */
+export const SUBSCRIPTION_UNREAD: AccountSubscription = { live: true, certain: false };
+
 export async function getSubscription(): Promise<AccountSubscription> {
   try {
     const response = await apiRequest<{ subscription?: AccountSubscription }>('/account', {
       method: 'GET',
     });
-    return response.subscription ?? { live: false, certain: false };
+    return response.subscription ?? SUBSCRIPTION_UNREAD;
   } catch {
-    return { live: false, certain: false };
+    return SUBSCRIPTION_UNREAD;
   }
 }
 

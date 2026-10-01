@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Working } from '@/components/Working';
 import { getProfile, updateProfile, exportAccountData } from '@/app/account-actions';
 import { SettingsView, type SettingsInitial } from './SettingsView';
+import { settingsInitialFrom, type ProfileAnswer } from './initial';
 
 /**
  * `/settings` — load the profile, then hand it to `SettingsView`.
@@ -18,14 +19,10 @@ export default function SettingsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const result = await getProfile();
+      // A thrown read is a failed read: the page still opens, and warns (LEGAL-15).
+      const result = await getProfile().catch(() => null);
       if (cancelled) return;
-      setInitial({
-        displayName: result.success ? result.profile?.display_name ?? '' : '',
-        distanceUnit: result.success && result.profile ? result.profile.distance_unit : 'mi',
-        vehicleCount: result.success ? result.vehicleCount ?? 0 : 0,
-        hasLiveSubscription: result.success ? result.hasLiveSubscription ?? false : false,
-      });
+      setInitial(settingsInitialFrom(result as ProfileAnswer | null));
     })();
     return () => {
       cancelled = true;
