@@ -332,3 +332,59 @@ describe('one purchase at a time', () => {
     await waitFor(() => expect(screen.getByText('Your subscription is active.')).toBeTruthy());
   });
 });
+
+/*
+  Audit 360, UX-7 (1 Oct). A subscriber opening the paywall from Account saw
+  two buy buttons and nothing about the subscription they already pay for.
+*/
+describe('a subscriber sees their standing, not a sale', () => {
+  const { Linking } = require('react-native');
+  const { APPLE_MANAGE_SUBSCRIPTIONS_URL } = require('@tappet/core/account-deletion');
+
+  async function mountWith(subscriber: React.ComponentProps<typeof PaywallScreen>['subscriber']) {
+    return render(
+      withSafeArea(
+        <PaywallScreen
+          visible
+          options={OPTIONS}
+          subscriber={subscriber}
+          onPurchase={jest.fn(async () => ENTITLED)}
+          onRestore={jest.fn(async () => ENTITLED)}
+          onClose={jest.fn()}
+        />
+      )
+    );
+  }
+
+  it('shows the status and Apple’s manage link, and no buy button', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const view = await mountWith({ line: 'Active — renews Oct 20, 2026', billedByApple: true });
+
+    expect(view.getByText('Your subscription')).toBeTruthy();
+    expect(view.getByText('Active — renews Oct 20, 2026')).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+    expect(view.queryByText('£69.99 / year')).toBeNull();
+    // Restore stays: a second device is still a reason to need it.
+    expect(view.getByText('Restore purchases')).toBeTruthy();
+
+    await userEvent.setup().press(view.getByLabelText(/^Manage your subscription/));
+    expect(open).toHaveBeenCalledWith(APPLE_MANAGE_SUBSCRIPTIONS_URL);
+    open.mockRestore();
+  });
+
+  it('offers no Apple link for a grant Apple does not bill', async () => {
+    const view = await mountWith({ line: 'Active', billedByApple: false });
+
+    expect(view.getByText('Active')).toBeTruthy();
+    expect(view.queryByLabelText(/^Manage your subscription/)).toBeNull();
+    expect(view.getByText(/nothing to manage in your Apple Account/)).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+  });
+
+  it('keeps the buy buttons for everyone else (the old shape, still right there)', async () => {
+    const view = await mountWith(null);
+
+    expect(view.getByText('£7.99 / month')).toBeTruthy();
+    expect(view.queryByText('Your subscription')).toBeNull();
+  });
+});

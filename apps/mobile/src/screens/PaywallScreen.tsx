@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Well from '../components/Well';
 import Working from '../components/Working';
 import { API_BASE_URL } from '../config';
+import { APPLE_MANAGE_SUBSCRIPTIONS_URL } from '@tappet/core/account-deletion';
 import { border, radius, space, surface, text, type } from '../theme';
 import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 import {
@@ -99,12 +100,33 @@ export function featuresHeadline(count: number): string {
   return `${word} ${count === 1 ? 'feature' : 'features'}, one subscription`;
 }
 
+/**
+ * What the server says this account already holds, when it holds Plus.
+ *
+ * Audit 360, UX-7 (1 Oct). A subscriber opening this screen from Account was
+ * shown two buy buttons and no word about the subscription they already pay
+ * for — the screen read as a sale, on the one visit that is about managing
+ * it. Given, the buy controls give way to the status and Apple's manage link;
+ * Restore stays, because a second device is still a reason to need it.
+ *
+ * Only a *certain* live answer makes one (`PaywallHost`): an unread
+ * subscription keeps the buy buttons, as before, and StoreKit itself says
+ * "already subscribed" if it comes to that.
+ */
+export interface SubscriberStanding {
+  /** `subscriptionStatusLine` — "Active", "Active — renews …", "Active until …". */
+  line: string;
+  /** False for a comped grant: nothing at Apple to manage, so no link. */
+  billedByApple: boolean;
+}
+
 export default function PaywallScreen({
   visible,
   options,
   loadFailed = false,
   unavailable = false,
   feature = null,
+  subscriber = null,
   onPurchase,
   onRestore,
   onClose,
@@ -124,6 +146,8 @@ export default function PaywallScreen({
    * they are being asked to pay for. `null` when opened from settings.
    */
   feature?: PaidFeature | null;
+  /** The account already subscribes — see `SubscriberStanding`. */
+  subscriber?: SubscriberStanding | null;
   onPurchase: (productId: string) => Promise<PurchaseResolution>;
   onRestore: () => Promise<PurchaseResolution>;
   onClose: () => void;
@@ -253,7 +277,39 @@ export default function PaywallScreen({
             </View>
           )}
 
-          {unavailable ? (
+          {subscriber ? (
+            /*
+              UX-7: what they hold, and where Apple lets them change it. The
+              status line is the server's (`subscriptionStatusLine`), the same
+              words the Account row shows, so the two cannot disagree.
+            */
+            <Well style={styles.notice}>
+              <View style={styles.standing}>
+                <Text style={styles.featureLabel}>Your subscription</Text>
+                <Text style={styles.noticeText}>{subscriber.line}</Text>
+                {subscriber.billedByApple ? (
+                  <Pressable
+                    onPress={() => void Linking.openURL(APPLE_MANAGE_SUBSCRIPTIONS_URL)}
+                    disabled={working}
+                    accessibilityRole="link"
+                    accessibilityLabel="Manage your subscription, opens your Apple Account subscriptions"
+                    style={styles.legalRow}
+                  >
+                    {({ pressed }) => (
+                      <Text style={[styles.legalText, pressed && styles.legalTextPressed]}>
+                        Manage your subscription
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : (
+                  <Text style={styles.featureBlurb}>
+                    Tappet Plus was added to this account, so there is nothing to manage in your
+                    Apple Account.
+                  </Text>
+                )}
+              </View>
+            </Well>
+          ) : unavailable ? (
             /*
               Expo Go, or any build without the native module. The adapter
               reports it as a state rather than an error, and the sentence
@@ -431,6 +487,7 @@ const styles = StyleSheet.create({
   banner: { marginTop: space.xs },
 
   notice: { padding: space.lg },
+  standing: { gap: space.xs },
   noticeText: { ...type.body, color: text.secondary },
 
   options: { gap: space.md },

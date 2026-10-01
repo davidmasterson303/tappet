@@ -33,6 +33,12 @@ jest.mock('../../api/account', () => ({
   getSubscription: jest.fn(),
 }));
 
+// UX-1: the Alerts row reads the permission; nothing here touches the real module.
+jest.mock('../../notifications/register', () => ({
+  currentPushPermission: jest.fn(async () => 'granted'),
+  registerForPush: jest.fn(async () => ({ status: 'registered' })),
+}));
+
 const mockDelete = deleteAccount as jest.MockedFunction<typeof deleteAccount>;
 const mockSubscription = getSubscription as jest.MockedFunction<typeof getSubscription>;
 
@@ -505,5 +511,68 @@ describe('the way to the paywall — E8', () => {
 
     expect(await resolved.findByText(/does not cancel your subscription/i)).toBeTruthy();
     expect(mockSubscription).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+/*
+  Audit 360, UX-1 (1 Oct, the held item's recommended answer). Someone who
+  said Don't Allow was never told alerts were off, and Account had no way
+  back to them. The row says the state and offers the door each state has.
+*/
+describe('the Alerts row', () => {
+  const { Linking } = require('react-native');
+  const register = jest.requireMock('../../notifications/register') as {
+    currentPushPermission: jest.Mock;
+    registerForPush: jest.Mock;
+  };
+  const { ALERTS_ROW_COPY } = require('@tappet/core/push-priming');
+
+  beforeEach(() => {
+    register.currentPushPermission.mockReset();
+    register.registerForPush.mockReset();
+    register.registerForPush.mockResolvedValue({ status: 'registered' });
+  });
+
+  afterAll(() => {
+    // The rest of the file reads a granted permission.
+    register.currentPushPermission.mockResolvedValue('granted');
+  });
+
+  it('never asked: says so, and pressing asks through registration', async () => {
+    register.currentPushPermission.mockResolvedValueOnce('undetermined').mockResolvedValue('granted');
+    const view = await mount().view;
+
+    const row = await view.findByLabelText(ALERTS_ROW_COPY.undetermined.spoken);
+    expect(view.getByText('Not turned on')).toBeTruthy();
+
+    await userEvent.setup().press(row);
+
+    await waitFor(() => expect(register.registerForPush).toHaveBeenCalledTimes(1));
+    expect(await view.findByText('On')).toBeTruthy();
+  });
+
+  it('refused: says off, and pressing opens iOS Settings — never the dead dialog', async () => {
+    register.currentPushPermission.mockResolvedValue('denied');
+    const settings = jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined as never);
+    const view = await mount().view;
+
+    const row = await view.findByLabelText(ALERTS_ROW_COPY.denied.spoken);
+    expect(view.getByText('Off')).toBeTruthy();
+    expect(view.getByText(/Open Settings to turn them on/)).toBeTruthy();
+
+    await userEvent.setup().press(row);
+
+    expect(settings).toHaveBeenCalledTimes(1);
+    expect(register.registerForPush).not.toHaveBeenCalled();
+    settings.mockRestore();
+  });
+
+  it('on: says on', async () => {
+    register.currentPushPermission.mockResolvedValue('granted');
+    const view = await mount().view;
+
+    expect(await view.findByLabelText(ALERTS_ROW_COPY.granted.spoken)).toBeTruthy();
+    expect(view.getByText('On')).toBeTruthy();
   });
 });

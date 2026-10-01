@@ -182,10 +182,43 @@ export const PUSH_PRIMER_COPY = {
    * It said "You can turn these on later from your account", and the
    * Account screen has no notifications row — the only way back after
    * NOT NOW is this screen returning when `PRIMER_COOLDOWN_DAYS` has run.
-   * So the sentence says that, which is the one promise the binary keeps.
-   * If an Alerts row is built on Account (held for David), this can name
-   * it again; `push-priming.test.ts` refuses "account" until that screen
-   * carries one.
+   * So the sentence said that, which was the one promise the binary kept.
+   * The Alerts row now exists (`ALERTS_ROW_COPY`, built the same day as the
+   * held item's recommended answer), so it names Account again — and
+   * `push-priming.test.ts` still refuses "account" if that row is removed.
    */
-  reassurance: 'Not now costs nothing — Tappet will ask again in a month.',
+  reassurance: 'Not now costs nothing — turn them on from Account any time, or Tappet will ask again in a month.',
 } as const;
+
+/**
+ * The Alerts row on Account — what the permission is, and what pressing does.
+ *
+ * Audit 360, UX-1 (1 Oct, built as the recommended answer). An owner who
+ * said Don't Allow at the system dialog was never told alerts were off, and
+ * one who said NOT NOW waited thirty days for the primer to come back. The
+ * row reads `currentPushPermission()` and offers the one door each state has:
+ *
+ *   undetermined → the system dialog (iOS still offers it), via registration
+ *   denied       → iOS Settings, the only place that answer can change
+ *   granted      → iOS Settings too, which is where they are turned off
+ *
+ * `null` (not read yet) keeps the row's neutral name, as the Subscription
+ * row does: a status it does not have is not drawn.
+ */
+export const ALERTS_ROW_COPY: Record<PushPermission, { status: string; detail: string; spoken: string }> = {
+  undetermined: {
+    status: 'Not turned on',
+    detail: 'Service, recall and tire alerts for your cars. Turn them on.',
+    spoken: 'Alerts, not turned on. Turn on alerts',
+  },
+  denied: {
+    status: 'Off',
+    detail: 'Turned off in iOS Settings. Open Settings to turn them on.',
+    spoken: 'Alerts, off. Opens Settings',
+  },
+  granted: {
+    status: 'On',
+    detail: 'Service, recall and tire alerts for your cars. Change this in iOS Settings.',
+    spoken: 'Alerts, on. Opens Settings',
+  },
+};

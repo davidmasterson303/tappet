@@ -131,3 +131,65 @@ describe.each(forms.map((f) => [f.file, f.source] as const))('%s', (file, source
     });
   }
 });
+
+/*
+ * ── Audit 360, UX-13 (1 Oct) · every input chooses a keyboard mechanism ─────
+ *
+ * The rules above ran only over files that already carried a
+ * `KeyboardAvoidingView`, so a form without one was never seen: Account's
+ * Type DELETE field and its button sat at the foot of a plain ScrollView,
+ * and the keyboard covered the one irreversible control in the product.
+ *
+ * So every file that draws an input must choose: a KeyboardAvoidingView (held
+ * by the rules above), a scroll view with `automaticallyAdjustKeyboardInsets`,
+ * or an entry here saying why the keyboard cannot cover what matters.
+ */
+const INPUT = /<(Field|TextInput|SearchField|Suggest)\b/;
+
+/** The primitives themselves, and the dev-only specimen sheet. */
+const PRIMITIVES = new Set(['components/Field.tsx', 'components/SearchField.tsx', 'components/Suggest.tsx']);
+
+const INPUT_ABOVE_THE_KEYBOARD: Record<string, string> = {
+  'screens/ServiceMilestoneScreen.tsx':
+    'the odometer field and its verb are the top of the band, a number pad with Field’s Done bar, nothing beneath to hide',
+  'screens/ServiceHistoryScreen.tsx':
+    'the search field is the first row of the list; typing filters the rows beneath it, which the keyboard may cover without hiding a control',
+};
+
+const keyboardMechanism = (source: string) =>
+  source.includes('<KeyboardAvoidingView') || /automaticallyAdjustKeyboardInsets\b/.test(source);
+
+const inputFiles = sources(SRC)
+  .map((path) => ({ file: relative(SRC, path), source: code(readFileSync(path, 'utf8')) }))
+  .filter(({ file }) => !PRIMITIVES.has(file) && !file.startsWith('dev/'))
+  .filter(({ source }) => INPUT.test(source));
+
+describe('every screen with an input chooses how the keyboard is cleared (UX-13)', () => {
+  it('found the inputs, Account among them', () => {
+    expect(inputFiles.length).toBeGreaterThanOrEqual(12);
+    expect(inputFiles.map((f) => f.file)).toEqual(
+      expect.arrayContaining(['screens/AccountScreen.tsx', 'screens/WishlistAddScreen.tsx'])
+    );
+  });
+
+  it('can still see the shape that shipped: a Field in a plain ScrollView (anti-vacuous)', () => {
+    const shipped = code(`
+      // automaticallyAdjustKeyboardInsets
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Field label="Type DELETE to confirm account deletion" />
+      </ScrollView>`);
+    expect(INPUT.test(shipped)).toBe(true);
+    expect(keyboardMechanism(shipped)).toBe(false);
+  });
+
+  it('lists no exemption for a file that has no input any more', () => {
+    for (const file of Object.keys(INPUT_ABOVE_THE_KEYBOARD)) {
+      expect(inputFiles.map((f) => f.file)).toContain(file);
+    }
+  });
+
+  it.each(inputFiles.map((f) => [f.file, f.source] as const))('%s', (file, source) => {
+    if (file in INPUT_ABOVE_THE_KEYBOARD) return;
+    expect({ file, clearsTheKeyboard: keyboardMechanism(source) }).toEqual({ file, clearsTheKeyboard: true });
+  });
+});

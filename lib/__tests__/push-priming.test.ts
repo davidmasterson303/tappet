@@ -223,6 +223,14 @@ describe('the primer copy', () => {
       }
     });
 
+    it('names Account now that it draws the row, with both doors (UX-1, built)', () => {
+      const shown = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+      expect(PUSH_PRIMER_COPY.reassurance).toMatch(/from Account/);
+      expect(shown).toMatch(/ALERTS_ROW_COPY\[alerts\]\.status/);
+      expect(shown).toMatch(/Linking\.openSettings\(\)/);
+      expect(shown).toMatch(/await registerForPush\(\)/);
+    });
+
     it('states the interval the cooldown actually keeps', () => {
       // "a month" is 30 days; a change to either must move the other.
       if (/a month/.test(PUSH_PRIMER_COPY.reassurance)) {

@@ -119,6 +119,14 @@ export const DELETION_INVENTORY: readonly string[] = [
  */
 export const SUBSCRIPTION_CANCEL_PATH = 'Settings → your name → Subscriptions';
 
+/**
+ * Apple's own page for a person's subscriptions — opened from the paywall when
+ * the account already subscribes (audit 360, UX-7). Apple documents this URL
+ * as the way an app sends someone to manage or cancel; on an iPhone it opens
+ * the App Store's Subscriptions sheet. No StoreKit call, so no build.
+ */
+export const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+
 export interface SubscriptionNotice {
   /** One line stating the problem. */
   headline: string;
