@@ -141,7 +141,7 @@ describe('priorFiling — audit 360, TL-2', () => {
 
   it('pins the phone wait it is measured against', () => {
     const phone = readFileSync(join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'api', 'documents.ts'), 'utf8');
-    const waits = [...phone.matchAll(/timeoutMs:\s*([\d_]+)/g)].map((m) => Number(m[1].replace(/_/g, '')));
+    const waits = (phone.match(/timeoutMs:\s*[\d_]+/g) ?? []).map((m) => Number(m.replace(/\D/g, '')));
     expect(waits.length).toBeGreaterThan(0);
     expect(Math.max(...waits)).toBe(PHONE_FILING_WAIT_MS);
   });
