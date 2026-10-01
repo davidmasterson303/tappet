@@ -45,6 +45,18 @@ function table(rows: Row[]) {
       limit: jest.fn(() => chain),
       maybeSingle: jest.fn(async () => ({ data: rows.find((r) => filters.every((f) => f(r))) ?? null, error: null })),
       insert: jest.fn((values: Row) => {
+        /*
+          The VIN's UNIQUE, as 20261001120000 makes it — within a garage.
+          (Before that migration it is table-wide; either way the caller's
+          own VIN is a 23505, which is the case TL-17 is about.)
+        */
+        if (values.vin && rows.some((r) => r.vin === values.vin && r.user_id === values.user_id)) {
+          const refused: Record<string, unknown> = {
+            select: jest.fn(() => refused),
+            single: jest.fn(async () => ({ data: null, error: { code: '23505', message: 'duplicate key' } })),
+          };
+          return refused;
+        }
         const row: Row = { id: `car-${++n}`, created_at: new Date().toISOString(), ...values };
         rows.push(row);
         const inserted: Record<string, unknown> = {
@@ -108,10 +120,52 @@ describe('POST /api/v1/vehicles — a resent add (TL-13)', () => {
     expect(rows).toHaveLength(3);
   });
 
-  it('leaves a car with a VIN to its own UNIQUE', async () => {
+  it('does not answer a described car with a scanned one', async () => {
     await POST(post({ ...CIVIC, vin: '1HGFA16589L000000' }));
-    // No pre-insert lookup on a VIN'd car: the dedupe is for the car nothing else can catch.
-    expect(rows).toHaveLength(1);
+    await POST(post(CIVIC));
+    expect(rows).toHaveLength(2);
     expect(rows[0].vin).toBe('1HGFA16589L000000');
+  });
+});
+
+/*
+  TL-17 (round 3) · the scanned car. Its VIN's UNIQUE caught the second row,
+  and answered the retry 409 "That car is already in your garage." on a form
+  that still asked for the odometer — the App Review path, since a reviewer
+  scans. A VIN'd add the caller made inside the window is now the answer, as
+  a described car's is; an older one is still the honest 409.
+*/
+describe('POST /api/v1/vehicles — a resent scanned add (TL-17)', () => {
+  const VIN = '1HGFA16589L000000';
+
+  it('answers the second CONTINUE with the car the first one made — build 2 and build 3 alike', async () => {
+    const first = await POST(post({ ...CIVIC, vin: VIN }));
+    const second = await POST(post({ ...CIVIC, vin: VIN.toLowerCase() }));
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect((await second.json()).vehicle.id).toBe((await first.json()).vehicle.id);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('still refuses, with the car to go to, a VIN added long ago (the legitimate 409)', async () => {
+    rows.push({ id: 'old', user_id: 'owner-1', vin: VIN, year: 2009, make: 'Honda', model: 'Civic', trim: 'LX', current_mileage: 120_000, created_at: new Date(Date.now() - 3_600_000).toISOString() });
+
+    const response = await POST(post({ ...CIVIC, vin: VIN }));
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({ success: false, error: 'That car is already in your garage.', vehicleId: 'old' });
+    expect(rows).toHaveLength(1);
+  });
+
+  it('never answers with another owner’s car with the same VIN', async () => {
+    rows.push({ id: 'theirs', user_id: 'owner-2', vin: VIN, year: 2009, make: 'Honda', model: 'Civic', trim: 'LX', current_mileage: 142_000, created_at: new Date().toISOString() });
+
+    const response = await POST(post({ ...CIVIC, vin: VIN }));
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).vehicle.id).not.toBe('theirs');
+    expect(rows).toHaveLength(2);
   });
 });

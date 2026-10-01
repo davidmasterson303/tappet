@@ -19,7 +19,8 @@ import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
  * How long a described car's add may be answered with the car it already
  * made (TL-13): the phone's 45 s wait, a person reading the error, going
  * back and trying again. Generous because the match is narrow — the same
- * year, make, model, trim *and* odometer, with no VIN, from the same owner.
+ * year, make, model, trim *and* odometer, with no VIN, from the same owner;
+ * or, for a scanned car (TL-17), the same owner's same VIN.
  */
 const ADD_RESEND_WINDOW_MS = 10 * 60 * 1000;
 
@@ -618,28 +619,38 @@ export async function POST(request: NextRequest): Promise<Response> {
     not a reason for another row. Server-side, so build-2 phones get it with
     no change. The cost is two genuinely identical described cars at the
     same reading inside ten minutes, which is not an owner.
-  */
-  if (!vin) {
-    const since = new Date(Date.now() - ADD_RESEND_WINDOW_MS).toISOString();
-    const { data: recent } = await client
-      .from('vehicles')
-      .select('id,year,make,model')
-      .eq('user_id', caller.userId)
-      .is('vin', null)
-      .eq('year', year)
-      .eq('make', make)
-      .eq('model', model)
-      .eq('trim', trim)
-      .eq('current_mileage', mileage)
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
 
-    if (recent) {
-      logger.info('API:CREATE_VEHICLE', 'Answered a resent add with the car it made', { vehicleId: recent.id });
-      return Response.json({ success: true, vehicle: recent } as ApiResponse, { status: 200 });
-    }
+    ⚠ TL-17 (round 3) · the scanned car, the same way. Its VIN's UNIQUE did
+    catch the second row — and answered the retry 409 "That car is already
+    in your garage." on a form still asking for the odometer, CONTINUE live,
+    the scan screen already replaced. That is the App Review path: the
+    reviewer scans. So the caller's car with this VIN, made inside the same
+    window, is the answer too. The VIN is the car, so nothing else need
+    match. Older than the window it is still the honest 409 below — a car
+    the owner already had, not a request whose answer was lost.
+  */
+  const since = new Date(Date.now() - ADD_RESEND_WINDOW_MS).toISOString();
+  const resent = vin
+    ? client.from('vehicles').select('id,year,make,model').eq('user_id', caller.userId).eq('vin', vin)
+    : client
+        .from('vehicles')
+        .select('id,year,make,model')
+        .eq('user_id', caller.userId)
+        .is('vin', null)
+        .eq('year', year)
+        .eq('make', make)
+        .eq('model', model)
+        .eq('trim', trim)
+        .eq('current_mileage', mileage);
+  const { data: recent } = await resent
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recent) {
+    logger.info('API:CREATE_VEHICLE', 'Answered a resent add with the car it made', { vehicleId: recent.id });
+    return Response.json({ success: true, vehicle: recent } as ApiResponse, { status: 200 });
   }
 
   const { data: vehicle, error } = await client
