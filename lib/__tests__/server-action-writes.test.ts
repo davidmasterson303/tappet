@@ -85,14 +85,52 @@ export interface ScanResult {
  * scanned, exported or not: a helper that writes whatever it is handed is
  * flagged, because its caller is one refactor from handing it a client object.
  *
+ * ⚠ Audit 360, SEC-21 (round 5). Executed against the round-4 scanner, six
+ * more shapes came back clean, three of them not even counted as writes. Each
+ * now has a detection case below:
+ *
+ *   - an element-access write — `q['update'](x)`, and `q[m](x)` where `m` is a
+ *     module `const` naming a write method; a method chosen by the client
+ *     (`q[method](x)`, `method` tainted) is counted and flagged whatever the
+ *     payload, because the client chose the verb;
+ *   - a write reached through `Reflect.apply`, `.call`, `.apply`, `.bind(q)(…)`
+ *     or a detached alias (`const u = q.update; u(x)`);
+ *   - a `.map`/`.flatMap` over a tainted array whose callback returns its
+ *     parameter or spreads it, and a `.filter`/`.slice`/`.concat`/`.reverse`/
+ *     `.sort`/`.flat` of one (the same client objects, fewer of them) — which
+ *     is also how `Object.fromEntries(Object.entries(u).filter(…))` is caught;
+ *   - a computed key the client chose — `{ [column]: value }` is SEC-12 by
+ *     another door;
+ *   - `.rpc(name, args)`: counted as a write (a function can write anything)
+ *     and flagged when `args` carries a client value whole, by spread, or as a
+ *     property whose name is not an id (`p_vehicle_id: vehicleId` is a scalar
+ *     the action authorized; `patch: updates` is the SEC-12 object again).
+ *
  * Not followed, deliberately: a value passed through a call to a function of
- * our own (`tcoPatch(fields)` is how an allow-list is written), a property
- * value (`{ vehicle_id: vehicleId }`), and `.filter`/`.map` results.
+ * our own (`tcoPatch(fields)` is how an allow-list is written — `ALLOW_LISTS`
+ * below names the ones that exist, and `lib/action-patches.ts` is where they
+ * live), and a plain property value (`{ vehicle_id: vehicleId }`). So
+ * `function build(u) { return { ...u } } … .update(build(updates))` passes:
+ * `build` itself is scanned as a named function, and its spread of a
+ * parameter into a return value is not a write — the residual the reviewer
+ * judged acceptable, recorded here rather than guessed at. Following every own
+ * call with a client argument was executed on 1 Oct and flagged
+ * `...(await dossierFields(client, vehicleId, itemIdentifier))` in the
+ * wishlist — a helper handed two ids that returns columns it read itself. A
+ * guard that cries wolf on that gets made to pass (CLAUDE.md §5), so it stays.
  */
 
 type FnLike = ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration;
 
 const WRITE_METHODS = new Set(['update', 'insert', 'upsert']);
+
+/** SEC-21: the allow-list helpers a client value may pass through — named, so the judgement is visible. */
+export const ALLOW_LISTS = ['tcoPatch', 'serviceItemPatch'];
+
+/** Array methods whose result is the same client objects (SEC-21). */
+const SAME_ELEMENTS = new Set(['filter', 'slice', 'concat', 'reverse', 'sort', 'flat', 'toReversed', 'toSorted']);
+/** Array methods whose result is what their callback returns (SEC-21). */
+const MAPPING = new Set(['map', 'flatMap']);
 
 function bindingNames(name: ts.BindingName, acc: string[] = []): string[] {
   if (ts.isIdentifier(name)) acc.push(name.text);
@@ -126,7 +164,10 @@ function isTainted(expr: ts.Expression, tainted: Set<string>): boolean {
   if (ts.isIdentifier(e)) return tainted.has(e.text);
   if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) return isTainted(e.expression, tainted);
   if (ts.isObjectLiteralExpression(e)) {
-    return e.properties.some((p) => ts.isSpreadAssignment(p) && isTainted(p.expression, tainted));
+    return e.properties.some((p) =>
+      (ts.isSpreadAssignment(p) && isTainted(p.expression, tainted)) ||
+      // SEC-21: a key the client chose — `{ [column]: value }`.
+      (p.name !== undefined && ts.isComputedPropertyName(p.name) && isTainted(p.name.expression, tainted)));
   }
   if (ts.isArrayLiteralExpression(e)) {
     return e.elements.some((el) => (ts.isSpreadElement(el) ? isTainted(el.expression, tainted) : isTainted(el, tainted)));
@@ -143,7 +184,29 @@ function isTainted(expr: ts.Expression, tainted: Set<string>): boolean {
   if (ts.isCallExpression(e) && PASS_THROUGH.has(calleeName(e))) {
     return e.arguments.some((a) => (ts.isSpreadElement(a) ? isTainted(a.expression, tainted) : isTainted(a, tainted)));
   }
+  // SEC-21: `rows.filter(…)` is the same client objects; `rows.map(cb)` is what `cb` returns.
+  if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && isTainted(e.expression.expression, tainted)) {
+    const method = e.expression.name.text;
+    if (SAME_ELEMENTS.has(method)) return true;
+    if (MAPPING.has(method)) {
+      const cb = e.arguments[0] && unwrap(e.arguments[0]);
+      if (cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) return callbackReturnsTainted(cb, tainted);
+    }
+  }
   return false;
+}
+
+/** Whether a callback returns a tainted value — its parameters are already in `tainted` (see `taintOf`). */
+function callbackReturnsTainted(cb: ts.ArrowFunction | ts.FunctionExpression, tainted: Set<string>): boolean {
+  if (!ts.isBlock(cb.body)) return isTainted(cb.body, tainted);
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (found || (node !== cb && isFunctionLike(node))) return;
+    if (ts.isReturnStatement(node) && node.expression && isTainted(node.expression, tainted)) found = true;
+    ts.forEachChild(node, visit);
+  };
+  visit(cb.body);
+  return found;
 }
 
 function isFunctionLike(node: ts.Node): node is FnLike {
@@ -218,10 +281,29 @@ function namedFunctions(sf: ts.SourceFile): Array<{ name: string; fn: FnLike; ex
   return out;
 }
 
+/** Module-level `const m = 'update'` — a write method named by a constant (SEC-21). */
+function stringConsts(sf: ts.SourceFile): Map<string, string> {
+  const out = new Map<string, string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer &&
+        ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) &&
+        ts.isStringLiteralLike(unwrap(node.initializer))) {
+      out.set(node.name.text, (unwrap(node.initializer) as ts.StringLiteral).text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
 /**
- * Every `.update(` / `.insert(` / `.upsert(` in the module, and the ones
- * whose payload carries a function's parameter whole — directly, through an
- * alias, a spread, `Object.assign`, a destructure or a loop.
+ * Every write in the module, and the ones whose payload carries a function's
+ * parameter whole — directly, through an alias, a spread, `Object.assign`, a
+ * destructure, a loop, a mapped or filtered array, or a computed key.
+ *
+ * A write is `.update(` / `.insert(` / `.upsert(` reached by name, by element
+ * access, through `Reflect.apply` / `.call` / `.apply` / `.bind`, or through a
+ * detached alias; and `.rpc(` (SEC-21).
  */
 export function findClientObjectWrites(raw: string): ScanResult {
   const sf = ts.createSourceFile('scan.ts', raw, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -229,20 +311,105 @@ export function findClientObjectWrites(raw: string): ScanResult {
   const result: ScanResult = { exports: fns.filter((f) => f.exported).length, functions: fns.length, writes: 0, findings: [] };
   const taintCache = new Map<FnLike, Set<string>>();
   const owner = new Map<FnLike, string>(fns.map((f) => [f.fn, f.name]));
+  const consts = stringConsts(sf);
+  const taintFor = (scope: FnLike) => {
+    if (!taintCache.has(scope)) taintCache.set(scope, taintOf(scope));
+    return taintCache.get(scope)!;
+  };
+
+  /**
+   * The write method an expression names, if any: `q.update`, `q['update']`,
+   * `q[m]` with `m` a const, and `q[method]` with `method` tainted ('?').
+   */
+  const writeMethodOf = (expr: ts.Expression, tainted: Set<string> | null): string | null => {
+    const e = unwrap(expr);
+    if (ts.isPropertyAccessExpression(e)) return WRITE_METHODS.has(e.name.text) ? e.name.text : null;
+    if (ts.isElementAccessExpression(e)) {
+      const arg = unwrap(e.argumentExpression);
+      const name = ts.isStringLiteralLike(arg) ? arg.text : ts.isIdentifier(arg) ? consts.get(arg.text) : undefined;
+      if (name !== undefined) return WRITE_METHODS.has(name) ? name : null;
+      if (tainted && isTainted(arg, tainted)) return '?';
+    }
+    return null;
+  };
+
+  // Detached aliases: `const u = q.update` / `const u = q.update.bind(q)`.
+  const aliases = new Set<string>();
+  const findAliases = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const init = unwrap(node.initializer);
+      const bound = ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression) && init.expression.name.text === 'bind'
+        ? init.expression.expression : init;
+      if (writeMethodOf(bound, null)) aliases.add(node.name.text);
+    }
+    ts.forEachChild(node, findAliases);
+  };
+  findAliases(sf);
+
+  /** The method and payload of a write call, or null when the call is not a write. */
+  const asWrite = (call: ts.CallExpression, tainted: Set<string> | null): { method: string; payload?: ts.Expression } | null => {
+    const callee = unwrap(call.expression);
+    const [a0, a1, a2] = call.arguments;
+    const first = (arr?: ts.Expression) => {
+      if (!arr) return undefined;
+      const u = unwrap(arr);
+      return ts.isArrayLiteralExpression(u) ? u.elements[0] : arr;
+    };
+    // .rpc(name, args)
+    if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'rpc') return { method: 'rpc', payload: a1 };
+    // q.update(x), q['update'](x), q[m](x)
+    const direct = writeMethodOf(callee, tainted);
+    if (direct) return { method: direct, payload: a0 };
+    // u(x) where `const u = q.update`
+    if (ts.isIdentifier(callee) && aliases.has(callee.text)) return { method: callee.text, payload: a0 };
+    // Reflect.apply(q.update, q, [x])
+    if (calleeName(call) === 'Reflect.apply' && a0) {
+      const m = writeMethodOf(a0, tainted);
+      if (m) return { method: m, payload: first(a2) };
+    }
+    if (ts.isPropertyAccessExpression(callee)) {
+      const m = writeMethodOf(callee.expression, tainted);
+      // q.update.call(q, x) / q.update.apply(q, [x])
+      if (m && callee.name.text === 'call') return { method: m, payload: a1 };
+      if (m && callee.name.text === 'apply') return { method: m, payload: first(a1) };
+    }
+    // q.update.bind(q)(x)
+    if (ts.isCallExpression(callee) && ts.isPropertyAccessExpression(callee.expression) &&
+        callee.expression.name.text === 'bind') {
+      const m = writeMethodOf(callee.expression.expression, tainted);
+      if (m) return { method: m, payload: a0 };
+    }
+    return null;
+  };
+
+  /** Whether an `.rpc` argument object carries a client value somewhere other than an id. */
+  const rpcTainted = (args: ts.Expression, tainted: Set<string>): boolean => {
+    if (isTainted(args, tainted)) return true;
+    const e = unwrap(args);
+    if (!ts.isObjectLiteralExpression(e)) return false;
+    return e.properties.some((p) => {
+      if (ts.isShorthandPropertyAssignment(p)) return !/(^|_)id$/i.test(p.name.text) && tainted.has(p.name.text);
+      if (!ts.isPropertyAssignment(p)) return false;
+      const key = ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name) ? p.name.text : '';
+      return !/(^|_)id$/i.test(key) && isTainted(p.initializer, tainted);
+    });
+  };
 
   const visit = (node: ts.Node, outer: FnLike | null) => {
     const scope = outer ?? (isFunctionLike(node) && owner.has(node) ? node : null);
-    if (
-      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
-      WRITE_METHODS.has(node.expression.name.text) && node.arguments.length > 0
-    ) {
-      result.writes++;
-      if (scope) {
-        if (!taintCache.has(scope)) taintCache.set(scope, taintOf(scope));
-        const payload = node.arguments[0];
-        if (isTainted(payload, taintCache.get(scope)!)) {
-          const text = payload.getText(sf).replace(/\s+/g, ' ');
-          result.findings.push({ fn: owner.get(scope)!, call: `.${node.expression.name.text}(${text.slice(0, 60)})` });
+    if (ts.isCallExpression(node)) {
+      const tainted = scope ? taintFor(scope) : null;
+      const write = asWrite(node, tainted);
+      if (write && (write.payload || write.method === '?')) {
+        result.writes++;
+        if (scope && tainted) {
+          const flagged = write.method === '?' ||
+            (write.payload !== undefined &&
+              (write.method === 'rpc' ? rpcTainted(write.payload, tainted) : isTainted(write.payload, tainted)));
+          if (flagged) {
+            const text = (write.payload ?? node).getText(sf).replace(/\s+/g, ' ');
+            result.findings.push({ fn: owner.get(scope)!, call: `.${write.method}(${text.slice(0, 60)})` });
+          }
         }
       }
     }
@@ -329,6 +496,103 @@ describe('no server action writes a client object without an allow-list', () => 
     const scan = findClientObjectWrites(source);
     expect(scan.writes).toBe(1);
     expect(scan.findings).toHaveLength(1);
+  });
+
+  /*
+    SEC-21 (round 5): each shape the reviewer executed against the round-4
+    scanner. One write and one finding each — the first three were not even
+    counted as writes.
+  */
+  it.each([
+    ['an element-access write', `export async function a(updates: any) {
+      await client.from('t')['update'](updates);
+    }`],
+    ['a write method named by a const', `const m = 'update';
+    export async function a(updates: any) {
+      await client.from('t')[m](updates);
+    }`],
+    ['a write method the client chose', `export async function a(method: string, row: { name: string }) {
+      await client.from('t')[method]({ name: 'fixed' });
+    }`],
+    ['Reflect.apply', `export async function a(updates: any) {
+      const q = client.from('t');
+      await Reflect.apply(q.update, q, [updates]);
+    }`],
+    ['.bind(q)(…)', `export async function a(updates: any) {
+      const q = client.from('t');
+      await q.update.bind(q)(updates);
+    }`],
+    ['.call(q, …)', `export async function a(updates: any) {
+      const q = client.from('t');
+      await q.insert.call(q, updates);
+    }`],
+    ['a detached alias', `export async function a(updates: any) {
+      const q = client.from('t');
+      const write = q.upsert;
+      await write(updates);
+    }`],
+    ['a map that spreads its parameter', `export async function a(vehicleId: string, rows: Row[]) {
+      await client.from('t').insert(rows.map((r) => ({ ...r, vehicle_id: vehicleId })));
+    }`],
+    ['a map that returns its parameter', `export async function a(rows: Row[]) {
+      await client.from('t').insert(rows.map((r) => r));
+    }`],
+    ['a map with a block body', `export async function a(rows: Row[]) {
+      await client.from('t').insert(rows.map((r) => { const copy = { ...r }; return copy; }));
+    }`],
+    ['a filter', `export async function a(rows: Row[]) {
+      await client.from('t').insert(rows.filter(Boolean));
+    }`],
+    ['a computed key the client chose', `export async function a(itemId: string, column: string, value: unknown) {
+      await client.from('t').update({ [column]: value }).eq('id', itemId);
+    }`],
+    ['Object.fromEntries over a filter', `export async function a(updates: Record<string, unknown>) {
+      const row = Object.fromEntries(Object.entries(updates).filter(([k]) => k !== 'id'));
+      await client.from('t').update(row);
+    }`],
+    ['an rpc carrying the object', `export async function a(updates: any) {
+      await client.rpc('apply_patch', { patch: updates });
+    }`],
+    ['an rpc spreading it', `export async function a(updates: any) {
+      await client.rpc('apply_patch', { ...updates });
+    }`],
+  ])('SEC-21 · can still detect %s', (_shape, source) => {
+    const scan = findClientObjectWrites(source);
+    expect(scan.writes).toBe(1);
+    expect(scan.findings).toHaveLength(1);
+  });
+
+  it('SEC-21 · passes the same shapes when they carry named columns', () => {
+    const clean = `const NAMES = ['a', 'b'];
+    export async function a(vehicleId: string, names: string[], rows: Row[]) {
+      await client.from('t')['update']({ name: 'fixed' }).eq('id', vehicleId);
+      await client.from('t').insert(names.map((name) => ({ vehicle_id: vehicleId, mod_name: name })));
+      await client.from('t').insert(rows.map((r) => ({ vehicle_id: vehicleId, description: r.description })));
+      await client.from('t').update({ ['updated_at']: now }).eq('id', vehicleId);
+      for (const key of NAMES) await client.from('t').update({ [key]: null }).eq('id', vehicleId);
+      await client.rpc('touch_vehicle', { p_vehicle_id: vehicleId, p_at: now });
+      const handlers = { go: () => null };
+      handlers['go']();
+    }`;
+    const scan = findClientObjectWrites(clean);
+    expect(scan.writes).toBe(6);
+    expect(scan.findings).toEqual([]);
+  });
+
+  it('SEC-21 · an own helper is not followed — and the allow-lists it trusts are the ones named', () => {
+    const viaHelper = `function build(u: any) { return { ...u }; }
+    export async function a(updates: any) {
+      await client.from('t').update(build(updates));
+    }`;
+    // The documented residual: counted, not flagged.
+    const scan = findClientObjectWrites(viaHelper);
+    expect(scan.writes).toBe(1);
+    expect(scan.findings).toEqual([]);
+    // The helpers that make that judgement safe exist where the docblock says.
+    const patches = readFileSync(join(ROOT, 'lib', 'action-patches.ts'), 'utf8');
+    for (const name of ALLOW_LISTS) {
+      expect(patches).toMatch(new RegExp(`export function \\b${name}\\(`));
+    }
   });
 
   it('SEC-19 · can still detect a non-exported helper, and counts its write', () => {
