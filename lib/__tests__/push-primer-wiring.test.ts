@@ -119,10 +119,36 @@ describe('the permission prompt is no longer raised uninvited', () => {
     const hub = code(HUB);
     const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
     expect(call).toContain('research.consentNeeded');
-    expect(hub).toMatch(/visible=\{research\.consentNeeded && !primer\.open && !primer\.priming\}/);
     // Anti-vacuous: the primer is asked after the runner exists, or it could not read it.
     expect(hub.indexOf('usePushPrimer(')).toBeGreaterThan(hub.indexOf('useResearchRunner('));
     expect(code(HOOK)).toMatch(/hold = false/);
+  });
+
+  it('both asks present through one coordinator, only while the page is focused (audit 360, UX-19 / UX-20)', () => {
+    /*
+      A *Not now* on the score's sheet raised the primer in the next render,
+      and both asks could rise over another tab. Each Modal's \`visible\` is now
+      the coordinator's answer, never its own state: \`useAskTurns\` presents
+      one at a time, after the last has left, and only while focused. The
+      behaviour is held by \`useAskTurns.test.tsx\` and the hub's suite; this
+      holds the wiring — a \`visible={primer.open}\` put back would pass both.
+    */
+    const hub = code(HUB);
+    expect(hub).toMatch(/<PushPrimer[^>]*visible=\{asks\.presenting === 'primer'\}/);
+    expect(hub).toMatch(/<AiConsentSheet[^>]*visible=\{asks\.presenting === 'score'\}/);
+    expect(hub).toMatch(/<PushPrimer[^>]*onDismiss=\{asks\.dismissed\}/);
+    expect(hub).toMatch(/<AiConsentSheet[^>]*onDismiss=\{asks\.dismissed\}/);
+    // The sheet still waits for iOS's own dialog.
+    expect(hub).toMatch(/\['score', research\.consentNeeded && !primer\.priming\]/);
+    // Focus gates the coordinator and the primer's latch.
+    const turns = hub.slice(hub.indexOf('useAskTurns({'), hub.indexOf('useAskTurns({') + 200);
+    expect(turns).toMatch(/focused/);
+    const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
+    expect(call).toContain('!focused');
+    expect(hub.indexOf('useScreenFocused()')).toBeGreaterThan(-1);
+    // Anti-vacuous: the old self-gated shapes are refused.
+    expect(hub).not.toMatch(/visible=\{primer\.open\}/);
+    expect(hub).not.toMatch(/visible=\{research\.consentNeeded/);
   });
 
   it('accepting the primer is what raises the system prompt', () => {

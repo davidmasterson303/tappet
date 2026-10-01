@@ -1,6 +1,8 @@
 import { act, render, userEvent, waitFor, within } from '@testing-library/react-native';
 
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
+import { NavigationContext } from '@react-navigation/native';
+import { ASK_SETTLE_MS } from '../../components/useAskTurns';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
 import {
   HERO_NAV_FADE_SPAN,
@@ -1602,10 +1604,126 @@ describe('the asks on a car’s page, one at a time, and a door after "Not now"'
 
     await view.findByText(SHEET_TITLE);
     expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+  });
 
+  it('a "Not now" on the score’s sheet does not present the primer in the same pass, nor this visit (UX-19)', async () => {
+    /*
+      The old shape, pinned by this suite as the intended one: the decline
+      settled the run, the hold lifted, and the primer was on screen in the
+      next render — sliding up over the sheet sliding down. Now the decline
+      ends this visit's asking; the primer asks on the next open.
+    */
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
     await user.press(view.getByLabelText('Not now'));
-    // The run settles on its declined line; only then is the primer asked.
-    await view.findByText(PRIMER_TITLE);
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    // Past the coordinator's bound: still nothing — a refusal is this visit's answer.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // UX-22: the settled log's one control is the page's name for the act, and it asks again.
+    expect(view.queryByText('Retry the research')).toBeNull();
+    const researchPosts = request.mock.calls.filter(([p]) => p === '/research').length;
+    await user.press(view.getByLabelText(/^Score this car, asks before/));
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(researchPosts);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a yes on the score’s sheet still leads to the primer once the reading lands (anti-vacuous for UX-19)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    let scored = false;
+    request.mockImplementation(async (path: string) => {
+      if (String(path) === '/health') {
+        scored = true;
+        return {} as never;
+      }
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: scored ? { health_score: 61, summary: 'Fair.' } : null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
+    await user.press(view.getByLabelText('Score this car'));
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await view.findByText(PRIMER_TITLE, undefined, { timeout: 4000 });
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+  });
+
+  it('an ask that comes due after the owner has left the page waits until they are back (UX-20)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+
+    jest.spyOn(RN.Dimensions, 'get').mockReturnValue({
+      width: REFERENCE.frame.width, height: REFERENCE.frame.height, scale: 3, fontScale: 1,
+    });
+    const props = {
+      vehicleId: 'v1', onBack: jest.fn(), onSignOut: jest.fn(), onScanInvoice: jest.fn(),
+      onViewRecalls: jest.fn(), onOpenWishlist: jest.fn(), onOpenHistory: jest.fn(),
+      onOpenHealth: jest.fn(), onOpenMilestone: jest.fn(), onOpenProfile: jest.fn(),
+    };
+    // The owner taps away in the same moment the page opens, before the car and the AI answer are read.
+    focused = false;
+    const view = await render(
+      withSafeArea(
+        <NavigationContext.Provider value={navigation as never}>
+          <VehicleDetailScreen {...props} />
+        </NavigationContext.Provider>,
+        REFERENCE
+      )
+    );
+
+    // The car loads and the score's sheet is wanted — but the owner is elsewhere.
+    await view.findAllByText(/Accord/);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // Back on the car's page: the ask is still unanswered, and now it presents.
+    await emit('focus');
+    await view.findByText(SHEET_TITLE);
+
+    // Anti-vacuous for the gate: leaving again takes it down.
+    await emit('blur');
     expect(view.queryByText(SHEET_TITLE)).toBeNull();
   });
 

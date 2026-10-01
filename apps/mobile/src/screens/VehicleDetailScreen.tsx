@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
+import { useScreenFocused } from '../navigation/useScreenFocused';
+import { useAskTurns } from '../components/useAskTurns';
 import {
   Platform,
   Alert,
@@ -960,10 +962,39 @@ export function VehicleDetailScreen({
     (UX-4's recommended moment, built here as code-only and reversible) — and
     the sheet waits for the primer and for iOS's dialog (`priming`).
   */
+  /*
+    ── Audit 360, UX-19 / UX-20 (1 Oct) · the asks have one coordinator ─────
+
+    The hold above ended the instant an answer was recorded: *Not now* on the
+    score's sheet settled the run and the primer rose in the very next render,
+    sliding up as the sheet slid down — and both could rise over the advisor
+    or the Service tab, because this page stays mounted while the owner is
+    elsewhere. Now `useAskTurns` presents one ask at a time, only while this
+    page is focused, and the next only after the last has left the screen.
+
+    And a refusal ends this visit's asking: an owner who has just said *Not
+    now* to one sheet is asked about notifications on their next open of the
+    car, not reflexively refused here — a primer decline costs 30 days
+    (review's recommended answer, code-only and reversible: drop
+    `refusedThisVisit` from the hold).
+  */
+  const focused = useScreenFocused();
+  const [refusedThisVisit, setRefusedThisVisit] = useState(false);
   const primer = usePushPrimer(
     state.status === 'ok' ? Math.max(1, cars.length) : null,
-    aiConsent === null || research.consentNeeded || (research.visible && !research.settled)
+    !focused ||
+      refusedThisVisit ||
+      aiConsent === null ||
+      research.consentNeeded ||
+      (research.visible && !research.settled)
   );
+  const asks = useAskTurns({
+    focused,
+    wanted: [
+      ['primer', primer.open],
+      ['score', research.consentNeeded && !primer.priming],
+    ] as const,
+  });
 
   /*
     ── 22 Sep · no photo control on the hub ─────────────────────────────────
@@ -2426,16 +2457,23 @@ export function VehicleDetailScreen({
         — the mark-done sheet that carried one item's shop to the next).
         Nothing here holds state; the key makes that structural.
       */}
-      <PushPrimer visible={primer.open} onAccept={primer.accept} onDecline={primer.decline} />
+      <PushPrimer
+        visible={asks.presenting === 'primer'}
+        onAccept={primer.accept}
+        onDecline={primer.decline}
+        onDismiss={asks.dismissed}
+      />
 
       <AiConsentSheet
-        visible={research.consentNeeded && !primer.open && !primer.priming}
+        visible={asks.presenting === 'score'}
         copy={HEALTH_AI_CONSENT}
+        onDismiss={asks.dismissed}
         onAccept={() => {
           setAiConsent('granted');
           void recordAiConsent('granted');
         }}
         onDecline={() => {
+          setRefusedThisVisit(true);
           setAiConsent('declined');
           research.consentDeclined();
           void recordAiConsent('declined');
