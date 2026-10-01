@@ -83,6 +83,14 @@ export interface ResearchRunner {
   canAskScore: boolean;
   /** The owner asked: run the score step alone, and show the sheet again. */
   askScore: () => void;
+  /**
+   * The run settled and its one failed line is the owner's own *Not now*
+   * (audit 360, UX-22, 1 Oct). Nothing went wrong and nothing needs
+   * researching again, so the log's control is the score's door — the same
+   * *Score this car* the page shows on a later open — not *Retry the
+   * research*, a button named for finished work and the act just declined.
+   */
+  declinedOnly: boolean;
 }
 
 type Phase = 'idle' | 'running' | 'settled';
@@ -302,5 +310,9 @@ export function useResearchRunner(params: {
     consentDeclined,
     canAskScore,
     askScore,
+    declinedOnly:
+      phase === 'settled' &&
+      scoreDeclined &&
+      milestones.filter((milestone) => milestone.state === 'failed').length === 1,
   };
 }

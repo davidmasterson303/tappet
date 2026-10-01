@@ -30,6 +30,7 @@ function runner(over: Partial<ResearchRunner> = {}): ResearchRunner {
     consentDeclined: jest.fn(),
     canAskScore: false,
     askScore: jest.fn(),
+    declinedOnly: false,
     ...over,
   };
 }
@@ -81,5 +82,19 @@ describe('ResearchLog, not settled', () => {
     expect(view.queryByTestId('research-log-fold')).toBeNull();
     view.getByText(/NHTSA did not answer/);
     view.getByText('Retry the research');
+  });
+
+  it('a run settled only on the owner’s Not now offers Score this car, which asks — not a research retry (UX-22)', async () => {
+    const declined = runner({
+      failed: true,
+      declinedOnly: true,
+      line: 'Research stopped',
+      milestones: [DONE[0], DONE[1], { key: 'score', label: 'Scoring condition', answer: 'Not scored — you said not now.', state: 'failed' }],
+    });
+    const view = await render(<ResearchLog runner={declined} />);
+    expect(view.queryByText('Retry the research')).toBeNull();
+    await userEvent.press(view.getByLabelText(/^Score this car, asks before/));
+    expect(declined.askScore).toHaveBeenCalledTimes(1);
+    expect(declined.retry).not.toHaveBeenCalled();
   });
 });

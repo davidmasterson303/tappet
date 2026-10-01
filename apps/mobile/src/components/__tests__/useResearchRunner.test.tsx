@@ -326,6 +326,49 @@ describe('the score and the AI consent (LEGAL-1)', () => {
     expect(result.current.consentNeeded).toBe(false);
   });
 
+  /*
+    Audit 360, UX-22 (1 Oct). A decline settled the log on its one failed
+    line with *Retry the research* — a button named for finished work, for
+    the act just declined — while the page called the same act *Score this
+    car*. When the decline is the only failure, the runner says so and the
+    log's control is the score's door.
+  */
+  it('a run settled only on the owner’s Not now says so, and the door asks without a research post (UX-22)', async () => {
+    const { result, rerender } = await mount(pending(), 'declined');
+    await act(async () => {});
+    await rerender({ observation: researched(), consent: 'declined' });
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.declinedOnly).toBe(true);
+    const posts = calls('/research').length;
+
+    await act(async () => result.current.askScore());
+    await act(async () => {});
+    expect(result.current.consentNeeded).toBe(true);
+    expect(result.current.declinedOnly).toBe(false);
+    expect(calls('/research')).toHaveLength(posts);
+    expect(calls('/health')).toHaveLength(0);
+
+    // Not now again: settled on the same line, and the same door.
+    await act(async () => result.current.consentDeclined());
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.declinedOnly).toBe(true);
+  });
+
+  it('a decline beside a real failure is not "declined only" — the retry stays (anti-vacuous)', async () => {
+    const { result, rerender } = await mount(pending(), 'declined');
+    await act(async () => {});
+    await rerender({
+      observation: { ...researched(), nhtsa: { recalls: [], lookup_status: 'failed' } },
+      consent: 'declined',
+    });
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.failed).toBe(true);
+    expect(result.current.declinedOnly).toBe(false);
+  });
+
   it('an owner who said no is not shown a failing log on every open of a researched car', async () => {
     const { result } = await mount(researched(), 'declined');
     await act(async () => {});

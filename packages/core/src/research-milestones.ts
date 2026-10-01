@@ -54,10 +54,11 @@ export type MilestoneState = 'done' | 'active' | 'pending' | 'failed';
 
 /**
  * The score line when the owner said no to Google's AI (LEGAL-1). A choice,
- * stated as one — and the retry under it is the way to change it.
+ * stated as one. The control under it names the way to change it — *Score
+ * this car* (UX-22, 1 Oct); the line no longer says "Retry", which named a
+ * button for finished research.
  */
-export const SCORE_DECLINED_ANSWER =
-  'Not scored — the score is written by Google’s AI, and you said not now. Retry to be asked again.';
+export const SCORE_DECLINED_ANSWER = 'Not scored — the score is written by Google’s AI, and you said not now.';
 
 export type MilestoneKey = 'decode' | 'recalls' | 'sort' | 'dossier' | 'schedule' | 'score';
 
