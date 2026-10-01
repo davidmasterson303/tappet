@@ -3,6 +3,8 @@
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
+import { odometerReading, validateMileageUpdate, type MileageRejection } from '@tappet/core/mileage-tracking';
+import { projectNextService } from '@/lib/next-service';
 import { threadTitle } from '@tappet/core/thread-title';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
@@ -308,6 +310,17 @@ export async function createVehicle(vehicleData: {
     const { data: { user } } = await sessionClient.auth.getUser();
     if (!user) {
       return { success: false, error: 'Not authenticated' };
+    }
+
+    /*
+      Audit 360, TL-26: the first-reading rule the phone's add route applies
+      (`current: null` — no baseline, so no backwards and no jump; the range
+      and whole-number checks still run). The wizard came through here and
+      never saw it.
+    */
+    const firstReading = validateMileageUpdate({ current: null, next: vehicleData.current_mileage });
+    if (!firstReading.ok) {
+      return { success: false, error: firstReading.message };
     }
 
     const client = getServiceRoleClient();
@@ -3252,7 +3265,24 @@ export async function processModDetailQueue(vehicleId: string, batchSize: number
 }
 
 
-export async function updateVehicleMileage(vehicleId: string, newMileage: number) {
+/**
+ * The web's odometer edit — the same rule and the same projection as the
+ * phone's `PATCH /api/v1/vehicles` (audit 360, TL-26, 1 Oct).
+ *
+ * This wrote any integer with no range or jump check and no re-projection,
+ * so a web typo (450000 for 45000) was stored and the phone's next reading
+ * was refused as "below the 450,000 miles already recorded", and the
+ * phone's NEXT SERVICE cell kept yesterday's projection until the sweep.
+ * Now one implementation: `validateMileageUpdate` against `odometerReading`
+ * of the stored value (a stored 0 is no reading, TL-5), `isCorrection` as
+ * the answer to the refusal's question, and `projectNextService` after the
+ * write. `reason` rides back so the dialog can offer `correctionAction`.
+ */
+export async function updateVehicleMileage(
+  vehicleId: string,
+  newMileage: number,
+  options: { isCorrection?: boolean } = {}
+): Promise<{ success: boolean; error?: string; reason?: MileageRejection }> {
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
@@ -3261,31 +3291,47 @@ export async function updateVehicleMileage(vehicleId: string, newMileage: number
 
     const client = getServiceRoleClient();
 
-    const { data, error } = await client
+    const { data: stored, error: readError } = await client
+      .from('vehicles')
+      .select('current_mileage')
+      .eq('id', vehicleId)
+      .maybeSingle();
+
+    if (readError || !stored) {
+      logger.error('VEHICLE:MILEAGE_READ', new Error(readError?.message ?? 'Vehicle not found'), { vehicleId });
+      return { success: false, error: 'Tappet could not read this car just now. Try again in a moment.' };
+    }
+
+    const decision = validateMileageUpdate({
+      current: odometerReading(stored.current_mileage),
+      next: newMileage,
+      isCorrection: options.isCorrection === true,
+    });
+    if (!decision.ok) {
+      return { success: false, error: decision.message, reason: decision.reason };
+    }
+
+    const { error } = await client
       .from('vehicles')
       .update({
         current_mileage: newMileage,
         last_mileage_update_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', vehicleId)
-      .select();
+      .eq('id', vehicleId);
 
     if (error) {
-      console.error('[Update Mileage Error]:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
-      return { success: false, error: `Failed to update mileage: ${error.message}` };
+      logger.error('VEHICLE:MILEAGE_WRITE', new Error(error.message), { vehicleId, code: error.code });
+      return { success: false, error: 'Tappet could not save the reading. Try again in a moment.' };
     }
 
-    console.log('[Update Mileage Success]:', data);
+    // A new reading moves what is due — the PATCH route's own call (20 Sep).
+    await projectNextService(vehicleId);
+
     return { success: true };
-  } catch (error: any) {
-    console.error('[Update Mileage Exception]:', error);
-    return { success: false, error: `Failed to update mileage: ${error.message || 'Unknown error'}` };
+  } catch (error) {
+    logger.error('VEHICLE:MILEAGE_EXCEPTION', error as Error, { vehicleId });
+    return { success: false, error: 'Tappet could not save the reading. Try again in a moment.' };
   }
 }
 

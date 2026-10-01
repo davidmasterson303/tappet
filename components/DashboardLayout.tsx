@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
+import { correctionAction } from '@tappet/core/mileage-tracking';
 import { USAGE_PROFILES, usageProfileChip } from '@tappet/core/usage-profile';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { AccountMenu } from '@/components/AccountMenu';
@@ -299,19 +300,32 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
 
   const handleSaveCurrentMileage = async () => {
     const value = parseInt(currentMileage);
-    if (isNaN(value) || value < displayVehicle.current_mileage) {
-      toast.error('Mileage must be greater than or equal to current mileage');
+    if (isNaN(value)) {
+      toast.error('Enter the reading as a whole number.');
       return;
     }
+    await saveCurrentMileage(value, false);
+  };
+
+  /*
+    Audit 360, TL-26: the server decides (`validateMileageUpdate`, the
+    phone's rule), and a refusal that asks "Correcting an earlier mistake?"
+    carries its answer as the toast's action, re-sent with `isCorrection`.
+  */
+  const saveCurrentMileage = async (value: number, isCorrection: boolean) => {
     setIsSaving(true);
     setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: value }));
     setIsEditingCurrentMileage(false);
-    const result = await updateVehicleMileage(vehicle.id, value);
+    const result = await updateVehicleMileage(vehicle.id, value, { isCorrection });
     if (result.success) {
       toast.success('Mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update');
+      const answer = correctionAction(result.reason);
+      toast.error(
+        result.error || 'Tappet could not save the reading. Try again in a moment.',
+        answer ? { action: { label: answer, onClick: () => void saveCurrentMileage(value, true) } } : undefined
+      );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
       setCurrentMileage(vehicle.current_mileage?.toString() || '');
     }

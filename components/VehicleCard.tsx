@@ -47,6 +47,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { deleteVehicle, updateVehicleMileage } from '@/app/actions';
+import { correctionAction } from '@tappet/core/mileage-tracking';
 import { logger } from '@tappet/core/logger';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { useRouter } from 'next/navigation';
@@ -188,21 +189,35 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
       return;
     }
     const newMileage = parseInt(mileageInput);
-    if (isNaN(newMileage) || newMileage < displayVehicle.current_mileage) {
-      toast.error('Mileage must be greater than current mileage');
+    if (isNaN(newMileage)) {
+      toast.error('Enter the reading as a whole number.');
       return;
     }
+    await saveMileage(newMileage, false);
+  };
+
+  /*
+    Audit 360, TL-26: the rule is the server's (`validateMileageUpdate`, the
+    phone's PATCH rule), not a `<` here. A refusal that asks a question —
+    "Correcting an earlier mistake?" — carries its answer as the toast's
+    action, which re-sends with `isCorrection`, as the phone's alert does.
+  */
+  const saveMileage = async (newMileage: number, isCorrection: boolean) => {
     setIsUpdatingMileage(true);
     setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: newMileage }));
     setShowMileageDialog(false);
-    const result = await updateVehicleMileage(vehicle.id, newMileage);
+    const result = await updateVehicleMileage(vehicle.id, newMileage, { isCorrection });
     if (result.success) {
       toast.success('Mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update mileage');
+      const answer = correctionAction(result.reason);
+      toast.error(
+        result.error || 'Tappet could not save the reading. Try again in a moment.',
+        answer ? { action: { label: answer, onClick: () => void saveMileage(newMileage, true) } } : undefined
+      );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
-      setMileageInput(vehicle.current_mileage.toString());
+      setMileageInput(vehicle.current_mileage?.toString() ?? '');
     }
     setIsUpdatingMileage(false);
   };
