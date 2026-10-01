@@ -34,6 +34,7 @@ import {
 import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
 import { explainVinConflict } from '@/lib/vin-conflict';
 import { aiCallerKey, checkRateLimit } from '@/lib/rate-limit';
+import { applyStatusCommand } from '@/lib/advisor-status-commands';
 import {
   isModDetailCacheFresh,
   modDetailCacheKey,
@@ -1687,52 +1688,25 @@ export async function sendConsultantMessage(params: {
         if (updateResult.success) performanceUpdated = true;
       }
 
+      /*
+        ⚠ Audit 360, SEC-3 (1 Oct). The identifier is model output and was a
+        LIKE pattern: `%%` marked every tracked issue completed and cleared
+        the owner's Needs. `applyStatusCommand` matches the names exactly.
+      */
       const issueParse = parseStatusCommands(response, 'UPDATE_ISSUE_STATUS');
       response = issueParse.cleaned;
       for (const cmd of issueParse.commands) {
-        const { error } = await client.from('known_issue_tracking')
-          .update({
-            status: cmd.status,
-            ...(cmd.status === 'completed' ? { completed_date: new Date().toISOString().split('T')[0] } : {}),
-          })
-          .eq('vehicle_id', vehicleId)
-          .ilike('issue_identifier', cmd.identifier);
-        if (!error) {
-          issueUpdates++;
-          if (cmd.status === 'completed') {
-            await client.from('wishlist_items')
-              .delete()
-              .eq('vehicle_id', vehicleId)
-              .eq('item_type', 'issue')
-              .ilike('item_name', cmd.identifier);
-          }
-        } else {
-          console.error('[UPDATE_ISSUE_STATUS] DB error:', error.message);
-        }
+        const result = await applyStatusCommand(client, vehicleId, 'issue', cmd);
+        if (result.error) console.error('[UPDATE_ISSUE_STATUS] DB error:', result.error);
+        else if (result.updated > 0) issueUpdates++;
       }
 
       const modParse = parseStatusCommands(response, 'UPDATE_MOD_STATUS');
       response = modParse.cleaned;
       for (const cmd of modParse.commands) {
-        const { error } = await client.from('modification_tracking')
-          .update({
-            status: cmd.status,
-            ...(cmd.status === 'completed' ? { installed_date: new Date().toISOString().split('T')[0] } : {}),
-          })
-          .eq('vehicle_id', vehicleId)
-          .ilike('mod_name', cmd.identifier);
-        if (!error) {
-          modUpdates++;
-          if (cmd.status === 'completed') {
-            await client.from('wishlist_items')
-              .delete()
-              .eq('vehicle_id', vehicleId)
-              .eq('item_type', 'modification')
-              .ilike('item_name', cmd.identifier);
-          }
-        } else {
-          console.error('[UPDATE_MOD_STATUS] DB error:', error.message);
-        }
+        const result = await applyStatusCommand(client, vehicleId, 'mod', cmd);
+        if (result.error) console.error('[UPDATE_MOD_STATUS] DB error:', result.error);
+        else if (result.updated > 0) modUpdates++;
       }
 
       const invoiceParse = parseInvoiceFlag(response);
