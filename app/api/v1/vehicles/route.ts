@@ -14,6 +14,14 @@ import { getServiceRoleClient } from '@/lib/supabase';
 import { explainVinConflict } from '@/lib/vin-conflict';
 import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 
+/**
+ * How long a described car's add may be answered with the car it already
+ * made (TL-13): the phone's 45 s wait, a person reading the error, going
+ * back and trying again. Generous because the match is narrow — the same
+ * year, make, model, trim *and* odometer, with no VIN, from the same owner.
+ */
+const ADD_RESEND_WINDOW_MS = 10 * 60 * 1000;
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -591,6 +599,47 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const client = getServiceRoleClient();
+  const trim = typeof body.trim === 'string' ? body.trim.trim() : '';
+
+  /*
+    ⚠ Audit 360, TL-13 (1 Oct) · a described car's add, sent again.
+
+    The phone waits 45 s for this route, and the insert below happens
+    *before* the generation-plate model call — so at the model's slow tail
+    the row exists when the phone gives up, keeps the form, and offers the
+    same CONTINUE again. A car with a VIN is caught by its UNIQUE (the 409
+    below); a described car has no VIN, and nothing refused the second row:
+    two Civics, two research jobs, and no telling which the next invoice
+    lands on.
+
+    So a described car the caller added inside `RESEND_WINDOW_MS` with the
+    same year, make, model, trim and odometer is the answer to this request,
+    not a reason for another row. Server-side, so build-2 phones get it with
+    no change. The cost is two genuinely identical described cars at the
+    same reading inside ten minutes, which is not an owner.
+  */
+  if (!vin) {
+    const since = new Date(Date.now() - ADD_RESEND_WINDOW_MS).toISOString();
+    const { data: recent } = await client
+      .from('vehicles')
+      .select('id,year,make,model')
+      .eq('user_id', caller.userId)
+      .is('vin', null)
+      .eq('year', year)
+      .eq('make', make)
+      .eq('model', model)
+      .eq('trim', trim)
+      .eq('current_mileage', mileage)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recent) {
+      logger.info('API:CREATE_VEHICLE', 'Answered a resent add with the car it made', { vehicleId: recent.id });
+      return Response.json({ success: true, vehicle: recent } as ApiResponse, { status: 200 });
+    }
+  }
 
   const { data: vehicle, error } = await client
     .from('vehicles')
@@ -599,7 +648,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       year,
       make,
       model,
-      trim: typeof body.trim === 'string' ? body.trim.trim() : '',
+      trim,
       current_mileage: mileage,
       /*
         The one product branch that has to be set at creation: whether this
