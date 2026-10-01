@@ -1,4 +1,5 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { ServiceMilestoneScreen, groupDigits } from '../ServiceMilestoneScreen';
 import { apiRequest } from '../../api/client';
@@ -411,6 +412,62 @@ describe('the mileage confirm', () => {
     await waitFor(() =>
       expect(request).toHaveBeenCalledWith('/vehicles', expect.objectContaining({ method: 'PATCH', body: { vehicleId: 'v1', currentMileage: 94_800 } }))
     );
+  });
+
+  it('offers to correct a reading below the recorded one, and sends the correction — audit 360, TL-3', async () => {
+    /*
+      "Correcting an earlier mistake?" was asked with OK as the only answer,
+      and nothing on the phone sent `isCorrection` — a mistyped 194,800 could
+      never be brought back to 94,800. The refusal now carries the answer.
+    */
+    respondWith([], {
+      ...(VEHICLE as object),
+      vehicle: { ...(VEHICLE as { vehicle: object }).vehicle, current_mileage: 194_800 },
+    });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    const field = await view.findByLabelText('Odometer');
+    await user.clear(field);
+    await user.type(field, '94800');
+    await user.press(view.getByLabelText('That is right'));
+
+    // Nothing sent on the refusal itself.
+    expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'PATCH')).toBe(false);
+    expect(alert).toHaveBeenCalledTimes(1);
+    const [, message, buttons] = alert.mock.calls[0];
+    expect(message).toMatch(/below the 194,800 miles already recorded/);
+    const correct = (buttons ?? []).find((b) => b.text === 'Yes, correct it');
+    expect(correct).toBeTruthy();
+
+    await act(async () => correct?.onPress?.());
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        '/vehicles',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: { vehicleId: 'v1', currentMileage: 94_800, isCorrection: true },
+        })
+      )
+    );
+    alert.mockRestore();
+  });
+
+  it('offers no correction for a reading that is simply out of range (anti-vacuous)', async () => {
+    respondWith([]);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    const field = await view.findByLabelText('Odometer');
+    await user.clear(field);
+    await user.type(field, '9999999');
+    await user.press(view.getByLabelText('That is right'));
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0][2]).toBeUndefined();
+    alert.mockRestore();
   });
 
   it('drops the banner once the reading is confirmed', async () => {

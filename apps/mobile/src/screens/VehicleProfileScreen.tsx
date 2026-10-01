@@ -22,7 +22,7 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import type { InvoiceFile } from '../api/documents';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { correctionAction, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { agoLabel, isOwnerPhoto } from './VehicleDetailScreen';
 import {
   MINDEDNESS,
@@ -289,7 +289,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     ]);
   }, [vehicleId, load, onSignOut]);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (isCorrection = false) => {
     if (state.kind !== 'loaded' || !answers || saving) return;
 
     /*
@@ -328,8 +328,21 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
       const check = validateMileageUpdate({
         current: state.initial.currentMileage === '' ? null : Number(state.initial.currentMileage),
         next: mileage,
+        isCorrection,
       });
       if (!check.ok) {
+        /*
+          ⚠ 1 Oct · audit 360, TL-3: the rule's question gets its answer —
+          see `correctionAction`. Without it a mistyped odometer was locked.
+        */
+        const answer = correctionAction(check.reason);
+        if (answer) {
+          Alert.alert('Check that reading', check.message ?? 'Check that reading.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: answer, onPress: () => void save(true) },
+          ]);
+          return;
+        }
         setProblem(check.message ?? 'Check that reading.');
         return;
       }
@@ -357,7 +370,10 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
 
     try {
       if (mileage !== null) {
-        await apiRequest('/vehicles', { method: 'PATCH', body: { vehicleId, currentMileage: mileage } });
+        await apiRequest('/vehicles', {
+          method: 'PATCH',
+          body: { vehicleId, currentMileage: mileage, ...(isCorrection ? { isCorrection: true } : {}) },
+        });
       }
       if (Object.keys(fields).length > 0) {
         await apiRequest('/vehicles', { method: 'PATCH', body: changed });

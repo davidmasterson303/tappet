@@ -17,7 +17,7 @@
  *      server that only checks the direction of travel.
  */
 
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { correctionAction, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 
 describe('validateMileageUpdate', () => {
   it('accepts a reading that moved forward', () => {
@@ -146,5 +146,22 @@ describe('validateMileageUpdate', () => {
       expect(decision.message).toEqual(expect.any(String));
       expect(decision.message!.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('correctionAction — the answer a refusal can take (audit 360, TL-3)', () => {
+  it('answers the two relative refusals, which the owner may overrule', () => {
+    const backwards = validateMileageUpdate({ current: 166_000, next: 66_000 });
+    const jump = validateMileageUpdate({ current: 20_000, next: 160_000 });
+    expect(correctionAction(backwards.reason)).toBe('Yes, correct it');
+    expect(correctionAction(jump.reason)).toBe('The reading is right');
+    // And the answer is accepted: the flag is what the phone now sends.
+    expect(validateMileageUpdate({ current: 166_000, next: 66_000, isCorrection: true }).ok).toBe(true);
+  });
+
+  it('offers nothing for a value that is wrong rather than surprising', () => {
+    expect(correctionAction(validateMileageUpdate({ current: 1, next: 3_000_000 }).reason)).toBeNull();
+    expect(correctionAction(validateMileageUpdate({ current: 1, next: 1.5 }).reason)).toBeNull();
+    expect(correctionAction(undefined)).toBeNull();
   });
 });

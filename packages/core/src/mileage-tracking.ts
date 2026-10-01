@@ -105,6 +105,23 @@ export function validateMileageUpdate(params: {
   return { ok: true };
 }
 
+/**
+ * ── The answer a refusal's question can take (audit 360, TL-3, 1 Oct) ──────
+ *
+ * "Correcting an earlier mistake?" is a question, and until 1 Oct the phone
+ * offered no way to answer it: nothing on the phone sent `isCorrection`, so
+ * an odometer typed one digit long was locked there, and every service read
+ * "overdue by 90,000 miles". The two relative refusals are the ones a person
+ * may overrule — the reading really is lower, or really did jump — and the
+ * label is the answer to the sentence each one asks. Range and number
+ * refusals have no answer: the value is wrong, not surprising.
+ */
+export function correctionAction(reason: MileageRejection | undefined): string | null {
+  if (reason === 'went-backwards') return 'Yes, correct it';
+  if (reason === 'implausible-jump') return 'The reading is right';
+  return null;
+}
+
 export interface MileageUpdateStatus {
   isDue: boolean;
   estimatedMilesDriven: number;
