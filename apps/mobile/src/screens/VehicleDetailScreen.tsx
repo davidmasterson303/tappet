@@ -1647,7 +1647,18 @@ export function VehicleDetailScreen({
               {`CAR ${String(Math.max(1, cars.findIndex((car) => car.id === vehicleId) + 1)).padStart(2, '0')} OF ${String(cars.length).padStart(2, '0')}`}
             </Text>
           ) : null}
-          <View style={styles.nameRow}>
+          {/*
+            ⚠ Audit 360, UX-11 (1 Oct): hidden from VoiceOver, because the
+            door below (`detailsDoor`) opens with the name — a screen-reader
+            user heard "2015 BMW M235i" from this row and then again as the
+            start of the door's label. The door's copy is the one that also
+            says where the press lands, so it is the one kept.
+          */}
+          <View
+            style={styles.nameRow}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
             <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
               {name}
             </Text>

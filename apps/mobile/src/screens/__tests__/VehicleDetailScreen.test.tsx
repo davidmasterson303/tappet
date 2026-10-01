@@ -637,11 +637,13 @@ describe('what this screen leads to stays reachable', () => {
     respond();
 
     const tall = await mount(REFERENCE);
-    const tallTitle = (await tall.view.findAllByText(/2018 Honda Accord/))[0];
+    // The plate's title is withheld from VoiceOver since UX-11, so it is found
+    // among hidden elements; [0] is still the plate's, drawn before the nav title.
+    const tallTitle = (await tall.view.findAllByText(/2018 Honda Accord/, { includeHiddenElements: true }))[0];
     expect(readoutSizes([tallTitle])).toEqual([36]);
 
     const short = await mount(SHORTEST);
-    const shortTitle = (await short.view.findAllByText(/2018 Honda Accord/))[0];
+    const shortTitle = (await short.view.findAllByText(/2018 Honda Accord/, { includeHiddenElements: true }))[0];
     expect(readoutSizes([shortTitle])).toEqual([28]);
   });
 });
@@ -1372,6 +1374,23 @@ describe('the photograph, on the hub', () => {
 
     // The walker can still see a blend layer, so the two negatives above mean something.
     expect(hasHouseGrade({ props: { style: [{ mixBlendMode: 'multiply' }] }, children: [] })).toBe(true);
+  });
+
+  it('says the car’s name once to VoiceOver on the plate — audit 360, UX-11', async () => {
+    /*
+      The identity block's name and the invisible door's label both began
+      with the name, so a screen-reader user heard it twice in a row. The
+      block's copy is hidden; the door, which also says where it goes, keeps it.
+    */
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const drawn = view.getAllByText(/^2018 Honda Accord$/, { includeHiddenElements: true });
+    const spoken = view.queryAllByText(/^2018 Honda Accord$/);
+    // Exactly one drawn copy — the plate's — is withheld from assistive tech.
+    expect(drawn.length - spoken.length).toBe(1);
+    view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/);
   });
 
   it('carries no photo control — the plate opens THIS CAR, where the photograph is changed (22 Sep)', async () => {
