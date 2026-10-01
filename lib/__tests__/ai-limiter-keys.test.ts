@@ -10,6 +10,8 @@
  *     owner's advisor answer 429.
  *   - SEC-2 · `health:${vehicleId}` meant an account with N cars had N × 10 a
  *     minute of health refreshes.
+ *   - SEC-15 (round 3) · `dossier:`, `moddetails:` and `invoice:` were still
+ *     keyed on the vehicle id ahead of the gate.
  */
 
 import { readFileSync } from 'node:fs';
@@ -44,16 +46,25 @@ describe('aiCallerKey', () => {
   });
 });
 
+/** A spending bucket keyed on the vehicle id, in a call (not in prose). */
+const VEHICLE_KEYED = /checkRateLimit\(\s*`(consultant|health|dossier|moddetails|invoice):\$\{(params\.)?vehicleId\}`/;
+
 describe('every site limits after authorizing, on the caller', () => {
   const route = fn(read('app', 'api', 'v1', 'consultant', 'route.ts'), 'export async function POST');
   const actions = read('app', 'actions.ts');
   const consultant = fn(actions, 'export async function sendConsultantMessage');
   const health = fn(actions, 'export async function generateVehicleHealthSummary');
+  const dossier = fn(actions, 'export async function generateVehicleDossier');
+  const modDetails = fn(actions, 'export async function generateModificationDetails');
+  const invoice = fn(actions, 'export async function parseInvoiceLineItems');
 
   it.each([
     ['the consultant route', route, "aiCallerKey('consultant-route'"],
     ['the consultant action', consultant, "aiCallerKey('consultant'"],
     ['the health action', health, "aiCallerKey('health'"],
+    ['the dossier action', dossier, "aiCallerKey('dossier'"],
+    ['the mod-details action', modDetails, "aiCallerKey('moddetails'"],
+    ['the invoice parser', invoice, "aiCallerKey('invoice'"],
   ])('%s', (_name, body, key) => {
     const authorized = body.indexOf('authorizeVehicleAccess(');
     const limited = body.indexOf(key);
@@ -62,13 +73,26 @@ describe('every site limits after authorizing, on the caller', () => {
     // The 'ai' bucket is never spent ahead of authorization.
     expect(body.slice(0, authorized)).not.toMatch(/checkRateLimit\([^)]*'ai'\)/);
     // In a call, not in prose: the comments here quote the old key on purpose.
-    expect(body).not.toMatch(/checkRateLimit\(\s*`(consultant|health):\$\{(params\.)?vehicleId\}`/);
+    expect(body).not.toMatch(VEHICLE_KEYED);
+  });
+
+  it('every action in the file that spends the ai tier keys it with aiCallerKey (SEC-15)', () => {
+    const calls = actions.match(/checkRateLimit\([^;]*?'ai'\s*\)/g) ?? [];
+    // Found sources: the five action sites above, the demo quote's address
+    // key, and the post-upload stats refresh keyed on the authorized user.
+    expect(calls.length).toBeGreaterThanOrEqual(7);
+    for (const call of calls) {
+      expect(call).toMatch(/aiCallerKey\(|^checkRateLimit\(access\.userId \?\?|`demoquote:\$\{ip\}`/);
+    }
   });
 
   it('can still detect the shape that shipped, so this is not vacuous', () => {
     const shipped = "  const rateLimit = await checkRateLimit(`consultant:${vehicleId}`, 'ai');";
-    expect(shipped).toMatch(/checkRateLimit\(\s*`(consultant|health):\$\{(params\.)?vehicleId\}`/);
+    expect(shipped).toMatch(VEHICLE_KEYED);
     expect(shipped).toMatch(/checkRateLimit\([^)]*'ai'\)/);
+    for (const feature of ['dossier', 'moddetails', 'invoice']) {
+      expect(`    const rl = await checkRateLimit(\`${feature}:\${vehicleId}\`, 'ai');`).toMatch(VEHICLE_KEYED);
+    }
   });
 });
 

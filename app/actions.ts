@@ -42,7 +42,8 @@ import {
   couldNotLoad,
   couldNotMake,
 } from '@/lib/api-error-copy';
-import { clipForPrompt, clipVehicleTrim, SERVICE_DESCRIPTION_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
+import { clipForPrompt, clipVehicleTrim, markDoneFieldProblem, SERVICE_DESCRIPTION_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
+import { serviceItemPatch, tcoPatch } from '@/lib/action-patches';
 import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
@@ -737,18 +738,20 @@ export async function generateVehicleDossier(
   vehicleId: string,
   vehicleData: VehicleResearchFacts
 ) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`dossier:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
-    }
-  }
-
   const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
   if (!access.ok) {
     return { success: false, error: access.error };
+  }
+
+  // Cost control: every Gemini-backed path is rate limited. ⚠ Audit 360,
+  // SEC-15 (round 3): keyed on the caller, after authorization — it was
+  // `dossier:${vehicleId}` before the gate, so anyone holding a car's id
+  // could spend its owner's bucket with rejected calls.
+  {
+    const rl = await checkRateLimit(aiCallerKey('dossier', { userId: access.userId, vehicleId }), 'ai');
+    if (!rl.allowed) {
+      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+    }
   }
 
   /*
@@ -2816,18 +2819,19 @@ function normaliseGoal(value: unknown): GoalKey {
 }
 
 export async function generateModificationDetails(vehicleId: string, modName: string, vehicle: any, performanceMindset: string) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`moddetails:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
-    }
-  }
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Cost control, keyed on the caller after authorization (audit 360,
+    // SEC-15 — it was `moddetails:${vehicleId}` before the gate).
+    {
+      const rl = await checkRateLimit(aiCallerKey('moddetails', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -3189,7 +3193,16 @@ export async function getModificationDetailsBatch(vehicleId: string, modNames: s
 
     const missing = modNames.filter(name => !foundNames.has(name));
 
-    if (missing.length > 0) {
+    /*
+      ⚠ Audit 360, round 3 sweep. This is a `read` action, so a demo visitor
+      reaches it with no session — and the enqueue below wrote whatever
+      `modNames` the caller sent, unbounded, into the demo cars' queue with
+      the service role (production, 1 Oct: 7 of the queue's 11 rows are the
+      demo's, all pending). The queue's only consumer, `processModDetailQueue`,
+      asks for `write` and refuses a demo car, so for the demo the write was
+      never going to be answered. A demo read now writes nothing.
+    */
+    if (missing.length > 0 && !access.isDemo) {
       /*
         This enqueue disagreed with its own table in three ways, and none of
         them could surface because the result was never inspected:
@@ -3548,11 +3561,23 @@ export async function updateVehicleTCOFields(vehicleId: string, fields: {
       return { success: false, error: access.error };
     }
 
+    /*
+      ⚠ Audit 360, SEC-14 (round 3). This was `.update({ ...fields, … })`: the
+      parameter's type is erased at the action boundary, so `is_demo`,
+      `user_id` and `vin` were all the caller's to write — `{ is_demo: true }`
+      put an owner's car in the public demo garage. Four named columns,
+      finite non-negative numbers or null, and anything else is refused.
+    */
+    const checked = tcoPatch(fields);
+    if (!checked.ok) {
+      return { success: false, error: checked.error ?? COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
     const { error } = await client
       .from('vehicles')
       .update({
-        ...fields,
+        ...checked.patch,
         updated_at: new Date().toISOString(),
       })
       .eq('id', vehicleId);
@@ -4068,14 +4093,6 @@ function combineLineItems(items: any[]): any[] {
   cap is what bounds a single paid call.
 */
 export async function parseInvoiceLineItems(documentId: string, vehicleId: string, fileBase64?: string, mimeType?: string, bypassVehicleCheck: boolean = false, morePages: { data: string; mimeType: string }[] = []) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`invoice:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
-    }
-  }
   try {
     /*
       ── ⚠ SEC-01 · **two** ids arrive here and only one was authorized ───────
@@ -4125,6 +4142,15 @@ export async function parseInvoiceLineItems(documentId: string, vehicleId: strin
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Cost control, keyed on the caller after both authorizations (audit
+    // 360, SEC-15 — it was `invoice:${vehicleId}` before either).
+    {
+      const rl = await checkRateLimit(aiCallerKey('invoice', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -5662,18 +5688,34 @@ export async function createServiceItem(data: {
   }
 }
 
-export async function updateServiceItem(itemId: string, updates: any) {
+export async function updateServiceItem(itemId: string, updates: unknown) {
   try {
     const access = await authorizeVehicleScopedRow('service_items', itemId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
     }
 
+    /*
+      ⚠ Audit 360, SEC-12 (round 3). This was `.update(updates)` with
+      `updates: any`: the check above proved the row was the caller's, and
+      the write then set any column of it — `vehicle_id` included. The demo
+      cars' ids are public, so a free account could move its own line onto
+      the demo's Accord, where every visitor reads it, and the demo's
+      read-only refusal never saw the target. Named columns only
+      (`lib/action-patches.ts`), and the write is scoped to the vehicle that
+      was authorized, not merely to the row id.
+    */
+    const checked = serviceItemPatch(updates);
+    if (!checked.ok) {
+      return { success: false, error: checked.error ?? COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
     const { data, error } = await client
       .from('service_items')
-      .update(updates)
+      .update(checked.patch)
       .eq('id', itemId)
+      .eq('vehicle_id', access.vehicleId)
       .select()
       .single();
 
@@ -5732,12 +5774,41 @@ export async function moveServiceItemToHistory(
       return { success: false, error: access.error };
     }
 
+    // SEC-10's limits, which mark-done on the phone already applies.
+    const fieldProblem = markDoneFieldProblem({
+      shopName: completionDetails?.shopName,
+      notes: completionDetails?.notes,
+    });
+    if (fieldProblem) {
+      return { success: false, error: fieldProblem };
+    }
+
+    /*
+      An invoice path, when one is given, must be this car's: the upload that
+      produces it (`uploadInvoiceForCompletion`) files under the vehicle.
+    */
+    const invoicePath = storagePathFromStoredUrl(completionDetails?.invoiceUrl);
+    if (invoicePath && vehicleIdFromStoragePath(invoicePath) !== vehicleId) {
+      return { success: false, error: COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
 
+    /*
+      ⚠ Audit 360, SEC-13 (round 3). The authorization above covers
+      `vehicleId`; this read and the delete below took `serviceItemId` alone
+      with the service role. The demo's service-item ids are anon-readable,
+      so any account could pass its own car and each demo id, copy the line
+      into its history and delete it from the demo every visitor sees — or,
+      knowing a stranger's id, read and delete theirs. Both now carry
+      `.eq('vehicle_id', vehicleId)`: a row of another car gets the same
+      answer as a missing one.
+    */
     const { data: serviceItem, error: fetchError } = await client
       .from('service_items')
       .select('*')
       .eq('id', serviceItemId)
+      .eq('vehicle_id', vehicleId)
       .maybeSingle();
 
     if (fetchError) {
@@ -5781,7 +5852,8 @@ export async function moveServiceItemToHistory(
     const { error: deleteError } = await client
       .from('service_items')
       .delete()
-      .eq('id', serviceItemId);
+      .eq('id', serviceItemId)
+      .eq('vehicle_id', vehicleId);
 
     if (deleteError) {
       console.error('[Move to History] Delete error:', deleteError);
@@ -7571,9 +7643,17 @@ export async function generateQuoteRequestV2(
       }
     } else {
       console.log('[QUOTE_V2] Fetching service items from database');
+      /*
+        ⚠ Audit 360, round 3 sweep (SEC-13's shape). `.in('id', …)` alone, with
+        the service role: the ids are the caller's, the vehicle is the one
+        authorized above, and nothing tied them — another car's service items
+        (descriptions and costs) could be read into this quote and its email
+        draft, from the demo with no session at all. Scoped to the vehicle.
+      */
       const { data: fetchedItems, error: itemsError } = await client
         .from('service_items')
         .select('*')
+        .eq('vehicle_id', vehicleId)
         .in('id', selectedItemIds);
 
       if (itemsError || !fetchedItems || fetchedItems.length === 0) {

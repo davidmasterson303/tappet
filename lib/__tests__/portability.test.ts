@@ -183,6 +183,12 @@ const PORTABLE: string[] = [
   */
   'lib/account-gone.ts',
   /*
+    Audit 360, SEC-12/14 (round 3). Imports only `@tappet/core/input-bounds`:
+    the writable columns of two web server actions. Stays in lib/ because the
+    phone writes through the API routes, which build their own payloads.
+  */
+  'lib/action-patches.ts',
+  /*
     Added 20 Aug with the demo-banner gate. Pure string parsing, no imports at
     all, so it qualifies mechanically — and this list is the honest home for it.
 
