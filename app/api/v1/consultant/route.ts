@@ -11,7 +11,13 @@ import {
   getConsultantSession,
   generateSessionTitle,
 } from '@/app/actions';
-import { parseClientTurnId, replayedAnswer, resentFirstQuestion } from '@/lib/consultant-replay';
+import {
+  FIRST_QUESTION_CANDIDATES,
+  REPLAY_WINDOW_MS,
+  parseClientTurnId,
+  replayedAnswer,
+  resentFirstQuestion,
+} from '@/lib/consultant-replay';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
@@ -431,12 +437,15 @@ async function resolveThread({
     `lib/consultant-replay.ts`.
   */
   try {
-    const resent = await resentFirstQuestion(getServiceRoleClient(), {
-      vehicleId,
-      message,
-      attachedDocuments,
-      clientTurnId,
-    });
+    const { data: recent, error } = await getServiceRoleClient()
+      .from('consultant_conversations')
+      .select('id, message_history, created_at')
+      .eq('vehicle_id', vehicleId)
+      .gte('created_at', new Date(Date.now() - REPLAY_WINDOW_MS).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(FIRST_QUESTION_CANDIDATES);
+    if (error) throw new Error(error.message);
+    const resent = resentFirstQuestion(recent ?? [], { message, attachedDocuments, clientTurnId });
     if (resent) return { ok: true, ...resent };
   } catch (error) {
     logger.warn('API:CONSULTANT', 'Could not look for a resent first question', {

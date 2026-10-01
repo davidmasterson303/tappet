@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-
 /**
  * ── A question asked again after a lost answer gets the stored answer ───────
  *
@@ -163,41 +161,31 @@ export function replayedAnswer(
  * `PHONE_GAVE_UP_MS` already decides.
  */
 
-/** The one part of a Supabase client this reads. */
-type ThreadQuery = Pick<SupabaseClient, 'from'>;
-
 /** How many of the car's newest threads a first question is checked against. */
-const FIRST_QUESTION_CANDIDATES = 5;
+export const FIRST_QUESTION_CANDIDATES = 5;
 
-export async function resentFirstQuestion(
-  client: ThreadQuery,
+/**
+ * Of the car's threads made inside `REPLAY_WINDOW_MS` (newest first, as the
+ * route reads them), the one this first question is a resend into — or null.
+ * Pure, so this module stays portable; the route does the read.
+ */
+export function resentFirstQuestion(
+  threads: unknown[],
   {
-    vehicleId,
     message,
     attachedDocuments,
     clientTurnId,
     now = Date.now(),
   }: {
-    vehicleId: string;
     message: string;
     attachedDocuments: unknown;
     clientTurnId: string | null;
     now?: number;
   }
-): Promise<{ sessionId: string; messageHistory: unknown[] } | null> {
-  const since = new Date(now - REPLAY_WINDOW_MS).toISOString();
-  const { data, error } = await client
-    .from('consultant_conversations')
-    .select('id, message_history, created_at')
-    .eq('vehicle_id', vehicleId)
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(FIRST_QUESTION_CANDIDATES);
-  if (error || !Array.isArray(data)) return null;
-
-  for (const row of data as Array<{ id?: unknown; message_history?: unknown }>) {
-    const history = row.message_history;
-    if (typeof row.id !== 'string' || !Array.isArray(history) || history.length !== 2) continue;
+): { sessionId: string; messageHistory: unknown[] } | null {
+  for (const row of threads as Array<{ id?: unknown; message_history?: unknown } | null>) {
+    const history = row?.message_history;
+    if (!row || typeof row.id !== 'string' || !Array.isArray(history) || history.length !== 2) continue;
     if (replayedAnswer(history, message, attachedDocuments, clientTurnId, now)) {
       return { sessionId: row.id, messageHistory: history };
     }

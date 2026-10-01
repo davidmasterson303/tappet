@@ -305,6 +305,7 @@ const NOT_PORTABLE: Record<string, string> = {
     service-role client the save paths already hold.
   */
   'lib/vin-conflict.ts': 'Supabase client types, and asks the vehicles table with the service role',
+  'lib/consultant-thread.ts': 'Supabase client types; reads and appends to a stored advisor thread (TL-18)',
   /*
     1 Oct, audit 360 SEC-3. Applies the advisor's status tags by exact name.
     Only the server applies model output to an owner's records.
