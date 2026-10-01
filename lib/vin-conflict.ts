@@ -30,7 +30,7 @@ import { CONTACT_EMAIL } from '@/lib/legal';
  *     is "already in your garage" with the id to go to. The other branch is
  *     unreachable.
  *   - **before** — a `23505` may be a stranger's. Nothing can save the row,
- *     so the honest answer is the transfer sentence the web has always given,
+ *     so the honest answer is a sentence that promises a reply (COPY-16),
  *     and a warning in the log that names the pending migration — a line
  *     that keeps appearing after the apply would mean it did not take.
  *
@@ -40,7 +40,12 @@ import { CONTACT_EMAIL } from '@/lib/legal';
  */
 export const VIN_ALREADY_YOURS = 'That car is already in your garage.';
 
-export const VIN_HELD_ELSEWHERE = `This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`;
+/*
+  Audit 360, COPY-16 (1 Oct): it said "vehicle" beside every other line's
+  "car", and promised "we will transfer it" — a process that exists nowhere
+  in the product or the Terms. It now promises only what is true: a reply.
+*/
+export const VIN_HELD_ELSEWHERE = `That VIN is already in another Tappet garage. If you have just bought the car, email ${CONTACT_EMAIL} and we will get back to you.`;
 
 export interface VinConflict {
   error: string;

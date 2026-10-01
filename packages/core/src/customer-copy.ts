@@ -19,9 +19,15 @@
  * phone cannot disagree about what developer-speak is.
  */
 
-/** Phrases a developer writes and an owner should never read. Case-blind. */
+/**
+ * Phrases a developer writes and an owner should never read. Case-blind.
+ *
+ * Audit 360, COPY-15 (1 Oct): widened with "Not authenticated", "Please
+ * select / wait" and "unexpected error", which the web's add-a-car flow
+ * showed while the scanner walked only `/api/v1/*`.
+ */
 const DEVELOPER_PHRASES =
-  /internal server error|invalid json|^\s*missing\b|^\s*failed to\b|^\s*invalid \w+ type\b|^\s*unknown source\b|^\s*bad request\b|^\s*upload failed\b/i;
+  /internal server error|invalid json|^\s*missing\b|^\s*failed to\b|^\s*invalid \w+ type\b|^\s*unknown source\b|^\s*bad request\b|^\s*upload failed\b|^\s*not authenticated\b|^\s*please (select|wait)\b|unexpected error/i;
 
 /**
  * A field name in a sentence: `vehicleId`, `pagePaths`, `itemType`. Case

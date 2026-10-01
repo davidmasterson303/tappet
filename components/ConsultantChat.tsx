@@ -31,7 +31,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { ADVISOR_NAME } from '@tappet/core/prompts';
 import { refusalCopy } from '@tappet/core/access';
 import { demoQuestionsFor } from '@tappet/core/demo-answers';
-import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
+import { showsServerSentence } from '@tappet/core/ai/advisor-failure';
 import { CLIENT_ERROR_FALLBACK } from '@tappet/core/consultant-health';
 import { isDemoMode } from '@/lib/demo-mode';
 import { planHref } from '@/lib/plan-entry';
@@ -835,7 +835,8 @@ export default function ConsultantChat({
         carrying it is classed `broken`. Spelling it here by hand is how the
         two would drift.
       */
-      const refused = retryCannotHelp(result.code) && typeof result.error === 'string';
+      // COPY-18: the limiter's sentence names the wait, so it is shown too.
+      const refused = showsServerSentence(result.code) && typeof result.error === 'string';
       setMessages([
         ...optimisticMessages,
         {

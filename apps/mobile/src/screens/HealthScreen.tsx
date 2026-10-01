@@ -390,9 +390,15 @@ export function HealthScreen({
             says "we cannot say" rather than guessing a default.
           */
           <Text style={styles.summary}>
-            No score yet. We work one out once the research has looked this car over and you
-            have said yes to Google’s AI writing it — its own page shows that running and asks —
-            and again as work is recorded.
+            {/*
+              Audit 360, COPY-17: one sentence carried two asides ("its own
+              page shows that running and asks"), and neither "its" nor "that"
+              had a referent a listener could find. Two sentences now, each
+              naming what it means.
+            */}
+            No score yet. Tappet works one out once the research has looked this car over and you
+            have said yes to Google’s AI writing it — the car’s page shows the research and asks.
+            It is worked out again as work is recorded.
           </Text>
         )}
       </Card>

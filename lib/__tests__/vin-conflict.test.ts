@@ -111,3 +111,18 @@ describe('the migration', () => {
     expect(read('supabase', 'migrations', '20260101215332_create_crewchief_schema.sql')).toMatch(/vin text UNIQUE NOT NULL/);
   });
 });
+
+describe('the held-elsewhere sentence promises only a reply (COPY-16)', () => {
+  const promisesWhatExists = (text: string) => !/\bvehicle\b/i.test(text) && !/transfer/i.test(text) && /get back to you/.test(text);
+
+  it('says car, names the address, and promises no transfer', () => {
+    expect(promisesWhatExists(VIN_HELD_ELSEWHERE)).toBe(true);
+    expect(VIN_HELD_ELSEWHERE).toMatch(/@/);
+  });
+
+  it('can still detect the sentence that shipped (anti-vacuous)', () => {
+    const shipped =
+      'This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact support@southmoordigital.com and we will transfer it.';
+    expect(promisesWhatExists(shipped)).toBe(false);
+  });
+});

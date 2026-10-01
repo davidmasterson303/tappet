@@ -43,6 +43,7 @@ import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
 import EstimateWell from '../components/EstimateWell';
 import { parseAnswer } from '@tappet/core/answer-markup';
 import { interFace } from '../theme/fonts';
+import { ADVISOR_RATE_LIMITED_MESSAGE } from '@tappet/core/ai/advisor-failure';
 
 /**
  * Phase 3.4 — ask the advisor about one car.
@@ -394,7 +395,7 @@ export function AdvisorScreen({
       } else if (apiError.status === 401) {
         setError('Tappet could not confirm who you are just now. Try again in a moment.');
       } else if (apiError.status === 429) {
-        setError('You have asked a lot of questions in a short time. Try again in a minute.');
+        setError(ADVISOR_RATE_LIMITED_MESSAGE);
       } else if (apiError.status === 502) {
         setError('The advisor could not answer that one. Your question is still here — try again.');
       } else {

@@ -16,6 +16,7 @@ import { createVehicle, updateVehiclePowertrain, fetchPowertrainOptions, uploadV
 import { detectUncertainPowertrainFields } from '@tappet/core/vehicle-utils';
 import PowertrainSelector from '@/components/PowertrainSelector';
 import type { PowertrainUncertainty } from '@tappet/core/types';
+import { COULD_NOT_SAVE, UNREADABLE_PAGE_REQUEST } from '@/lib/api-error-copy';
 
 interface OnboardingWizardProps {
   vehicleData: {
@@ -150,11 +151,11 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
 
   const processPhotoFile = (file: File) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Please select a JPEG, PNG, or WebP image');
+      setError('That file is not a photo Tappet can use. Choose a JPEG, PNG or WebP image.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be under 5MB');
+      setError('That photo is over 5 MB. Choose a smaller one.');
       return;
     }
     setPhotoFile(file);
@@ -264,11 +265,11 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
   const handleNext = () => {
     if (step === 1) {
       if (!formData.color) {
-        setError('Please enter the vehicle color');
+        setError('Enter the car’s color to continue.');
         return;
       }
       if (!powertrainReady) {
-        setError('Please wait while we check available configurations...');
+        setError('Still checking which engines and transmissions this car came with. One moment.');
         return;
       }
       setError('');
@@ -280,18 +281,18 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
       const needsTransmission = !formData.transmission_type;
       const needsDrivetrain = !formData.drivetrain;
       if (needsEngine || needsTransmission || needsDrivetrain) {
-        setError('Please select all powertrain options');
+        setError('Choose the engine, the transmission and the drivetrain to continue.');
         return;
       }
     }
     const mileageStep = powertrainSkipped ? 2 : 3;
     if (step === mileageStep && (!formData.current_mileage || !formData.avg_miles_per_month)) {
-      setError('Both mileage fields are required');
+      setError('Enter the odometer reading and the average miles per month to continue.');
       return;
     }
     const ownershipStep = powertrainSkipped ? 3 : 4;
     if (step === ownershipStep && !formData.ownership_objective) {
-      setError('Please select an ownership objective');
+      setError('Choose your plans for this car to continue.');
       return;
     }
     setError('');
@@ -338,7 +339,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     });
 
     if (!result.success) {
-      setError(result.error || 'Failed to save vehicle');
+      setError(result.error || COULD_NOT_SAVE);
       setLoading(false);
       return;
     }
@@ -390,7 +391,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
 
   const handleClarificationSubmit = async () => {
     if (!vehicleId || !uncertaintyData) {
-      setError('Missing required data');
+      setError(UNREADABLE_PAGE_REQUEST);
       return;
     }
 
@@ -412,7 +413,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     }
 
     if (Object.keys(updates).length === 0) {
-      setError('Please select at least one specification');
+      setError('Choose at least one of the options above to continue.');
       setLoading(false);
       return;
     }
@@ -420,7 +421,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     const updateResult = await updateVehiclePowertrain(vehicleId, updates as { engine_type?: string; transmission_type?: string; drivetrain?: string });
 
     if (!updateResult.success) {
-      setError(updateResult.error || 'Failed to update specifications');
+      setError(updateResult.error || COULD_NOT_SAVE);
       setLoading(false);
       return;
     }

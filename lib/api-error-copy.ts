@@ -35,3 +35,35 @@ export const COULD_NOT_SAVE = 'Tappet could not save that just now. Try again in
 export function couldNotLoad(what: string): string {
   return `Tappet could not load ${what} just now. Try again in a moment.`;
 }
+
+/*
+ * ── Audit 360, COPY-15 (1 Oct) · the web's server actions ───────────────────
+ *
+ * `app/actions.ts` answered the website with the same developer-speak the
+ * routes once did — "Not authenticated", "Failed to save vehicle", "An
+ * unexpected error occurred", and in places the database's own message after
+ * a colon. The add-a-car wizard shows `result.error` as it comes. These are
+ * the web's sentences; the scanner now walks that file and the wizard too.
+ */
+
+/** The session has gone; the remedy is signing in, not retrying. */
+export const NOT_SIGNED_IN = 'You are signed out. Sign in again to continue.';
+
+/** A delete that did not happen. */
+export const COULD_NOT_REMOVE = 'Tappet could not remove that just now. Try again in a moment.';
+
+/** A file or photo that did not upload. */
+export const COULD_NOT_UPLOAD = 'Tappet could not upload that file just now. Try again in a moment.';
+
+/** A page sent something the action could not read; the page, not the app, is the remedy. */
+export const UNREADABLE_PAGE_REQUEST =
+  'Tappet could not read that request, so nothing was changed. Reload the page and try again.';
+
+/** An invoice the model could not read into line items. */
+export const COULD_NOT_READ_INVOICE =
+  'Tappet could not read that invoice. Try again with a clearer photo or PDF.';
+
+/** Something Tappet writes or works out — a summary, an estimate, a draft. */
+export function couldNotMake(what: string): string {
+  return `Tappet could not put together ${what} just now. Try again in a moment.`;
+}

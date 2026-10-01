@@ -18,7 +18,13 @@ import {
 } from '@/lib/gemini';
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
 import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
-import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
+import {
+  ADVISOR_RATE_LIMITED_MESSAGE,
+  ADVISOR_UNAVAILABLE_MESSAGE,
+  AI_RATE_LIMITED_MESSAGE,
+  RATE_LIMITED_CODE,
+} from '@tappet/core/ai/advisor-failure';
+import { CLIENT_ERROR_FALLBACK } from '@tappet/core/consultant-health';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
@@ -26,6 +32,16 @@ import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONS
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
+import {
+  COULD_NOT_READ_INVOICE,
+  COULD_NOT_REMOVE,
+  COULD_NOT_SAVE,
+  COULD_NOT_UPLOAD,
+  NOT_SIGNED_IN,
+  UNREADABLE_PAGE_REQUEST,
+  couldNotLoad,
+  couldNotMake,
+} from '@/lib/api-error-copy';
 import { clipForPrompt, clipVehicleTrim, SERVICE_DESCRIPTION_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
 import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
@@ -202,7 +218,7 @@ export async function decodeVIN(vin: string) {
       });
       return {
         success: false,
-        error: 'This vehicle is already in your garage',
+        error: 'That car is already in your garage.',
         vehicleId: ownedVehicle.id,
       };
     }
@@ -229,7 +245,8 @@ export async function decodeVIN(vin: string) {
 
     if (!response.ok) {
       logger.warn('VIN:NHTSA_FAILED', 'NHTSA API request failed', { status: response.status });
-      return { success: false, error: 'That VIN could not be read. Check the 17 characters and try again.' };
+      // COPY-15: NHTSA failing is not the VIN being wrong.
+      return { success: false, error: 'NHTSA did not answer for that VIN. Try again in a moment.' };
     }
 
     const data = await response.json();
@@ -237,7 +254,14 @@ export async function decodeVIN(vin: string) {
 
     if (!result || result.ErrorCode !== '0') {
       logger.warn('VIN:INVALID_VIN', 'Invalid VIN or not found in NHTSA', { errorCode: result?.ErrorCode });
-      return { success: false, error: 'Invalid VIN or vehicle not found in NHTSA database' };
+      /*
+        COPY-15: "Invalid VIN" was a verdict the data does not support — NHTSA
+        has no record for many very new or imported cars (CLAUDE.md §10).
+      */
+      return {
+        success: false,
+        error: 'NHTSA has no record for that VIN. Check the 17 characters — a very new or imported car may not be listed yet.',
+      };
     }
 
     logger.info('VIN:DECODE_SUCCESS', 'VIN decoded successfully', {
@@ -311,7 +335,7 @@ export async function createVehicle(vehicleData: {
     const sessionClient = createServerActionClient();
     const { data: { user } } = await sessionClient.auth.getUser();
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: NOT_SIGNED_IN };
     }
 
     /*
@@ -372,7 +396,7 @@ export async function createVehicle(vehicleData: {
 
     if (vehicleError || !vehicle) {
       logger.error('VEHICLE:INSERT_FAILED', new Error(vehicleError?.message || 'Unknown error'));
-      return { success: false, error: 'Failed to save vehicle' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     logger.info('VEHICLE:CREATED', 'Vehicle record created', {
@@ -470,7 +494,7 @@ export async function createVehicle(vehicleData: {
     return { success: true, vehicleId: vehicle.id };
   } catch (error) {
     logger.error('VEHICLE:CREATE_ERROR', error as Error);
-    return { success: false, error: 'Failed to create vehicle' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -675,10 +699,10 @@ export async function enrichVehicle(vehicleId: string) {
   logger.info('ENRICH:COMPLETE', 'Vehicle enrichment complete', {
     vehicleId,
     msTotal: Date.now() - startedAt,
-    unsupported: !!dossier.unsupported,
+    unsupported: 'unsupported' in dossier && !!dossier.unsupported,
   });
 
-  return { success: true, unsupported: !!dossier.unsupported };
+  return { success: true, unsupported: 'unsupported' in dossier && !!dossier.unsupported };
 }
 
 /**
@@ -711,7 +735,7 @@ export async function generateVehicleDossier(
   {
     const rl = await checkRateLimit(`dossier:${vehicleId}`, 'ai');
     if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
     }
   }
 
@@ -808,13 +832,13 @@ export async function updateVehiclePowertrain(
 
     if (error) {
       console.error('Failed to update powertrain:', error);
-      return { success: false, error: 'Failed to update powertrain specifications' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update powertrain error:', error);
-    return { success: false, error: 'An unexpected error occurred' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -937,7 +961,7 @@ export async function fetchPowertrainOptions(
     return { success: true, data: result };
   } catch (error) {
     console.error('Fetch powertrain options error:', error);
-    return { success: false, error: 'Failed to fetch powertrain options' };
+    return { success: false, error: couldNotLoad('the engine and transmission options') };
   }
 }
 
@@ -1014,13 +1038,13 @@ export async function createConsultantSession(vehicleId: string, title: string) 
 
     if (error || !data) {
       console.error('Create session error:', error);
-      return { success: false, error: 'Failed to create session' };
+      return { success: false, error: couldNotMake('a new conversation') };
     }
 
     return { success: true, sessionId: data.id };
   } catch (error) {
     console.error('Create session error:', error);
-    return { success: false, error: 'Failed to create session' };
+    return { success: false, error: couldNotMake('a new conversation') };
   }
 }
 
@@ -1282,7 +1306,7 @@ export async function sendConsultantMessage(params: {
         'ai'
       );
       if (!rl.allowed) {
-        return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+        return { success: false, error: ADVISOR_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
       }
     }
 
@@ -1723,7 +1747,7 @@ export async function sendConsultantMessage(params: {
         finishReason: finishReason ?? 'none',
         blockReason: result.promptFeedback?.blockReason ?? 'none',
       });
-      return { success: false, error: 'The advisor could not answer that one. Try again.' };
+      return { success: false, error: CLIENT_ERROR_FALLBACK };
     }
     let response = rawText;
 
@@ -1845,7 +1869,7 @@ export async function sendConsultantMessage(params: {
     // Our own deadline, not Google's. Transient by definition; the sentence
     // says what happened rather than "failed to get response".
     if (error instanceof TimeoutError) {
-      return { success: false, error: 'The advisor took too long to answer. Try again.' };
+      return { success: false, error: 'The advisor took too long to answer. Your question is still here — try again.' };
     }
 
     /*
@@ -1965,7 +1989,7 @@ export async function deleteVehicle(vehicleId: string): Promise<DeleteVehicleRes
     return {
       success: false,
       vehicleId,
-      error: `Failed to delete vehicle: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_REMOVE,
     };
   }
 }
@@ -2003,13 +2027,13 @@ export async function updateIssueStatus(
 
     if (error) {
       console.error('Update issue status error:', error);
-      return { success: false, error: 'Failed to update issue status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update issue status error:', error);
-    return { success: false, error: 'Failed to update issue status' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -2046,13 +2070,13 @@ export async function updateModificationStatus(
 
     if (error) {
       console.error('Update modification status error:', error);
-      return { success: false, error: 'Failed to update modification status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update modification status error:', error);
-    return { success: false, error: 'Failed to update modification status' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -2239,7 +2263,7 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
     // fileUrl is a caller-supplied parameter of this exported action, and the
     // authorization above covers vehicleId only. The two are tied together here.
     const buffer = await downloadStoredFile(fileUrl, vehicleId);
-    if (!buffer) return { success: false, error: 'Failed to fetch document', itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    if (!buffer) return { success: false, error: couldNotLoad('that document'), itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
     const base64Data = buffer.toString('base64');
 
     const { data: docRecord } = await client
@@ -2253,7 +2277,7 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
       .select()
       .single();
 
-    if (!docRecord) return { success: false, error: 'Failed to create document record', itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    if (!docRecord) return { success: false, error: COULD_NOT_SAVE, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
 
     const parseResult = await parseInvoiceLineItems(docRecord.id, vehicleId, base64Data, mimeType, true);
 
@@ -2302,7 +2326,7 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     {
       const rl = await checkRateLimit(aiCallerKey('health', { userId: access.userId, vehicleId }), 'ai');
       if (!rl.allowed) {
-        return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
       }
     }
 
@@ -2702,7 +2726,7 @@ Format as valid JSON only, no markdown.`;
 
     if (upsertError) {
       console.error('Failed to save health summary:', upsertError);
-      return { success: false, error: 'Failed to save health summary' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     await client
@@ -2719,7 +2743,7 @@ Format as valid JSON only, no markdown.`;
     return { success: true, data: healthData };
   } catch (error) {
     console.error('Generate health summary error:', error);
-    return { success: false, error: 'Failed to generate health summary' };
+    return { success: false, error: couldNotMake('the health summary') };
   }
 }
 
@@ -2790,7 +2814,7 @@ export async function generateModificationDetails(vehicleId: string, modName: st
   {
     const rl = await checkRateLimit(`moddetails:${vehicleId}`, 'ai');
     if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
     }
   }
   try {
@@ -3077,13 +3101,13 @@ Format as valid JSON only, no markdown or explanations.`;
 
     if (upsertError) {
       console.error('Failed to save modification details:', upsertError);
-      return { success: false, error: 'Failed to save details' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data: { ...details, performance_goal: performanceGoal } };
   } catch (error) {
     console.error('Generate modification details error:', error);
-    return { success: false, error: 'Failed to generate modification details' };
+    return { success: false, error: couldNotMake('the details for that modification') };
   }
 }
 
@@ -3285,7 +3309,7 @@ export async function processModDetailQueue(vehicleId: string, batchSize: number
     return { success: true, processed };
   } catch (error) {
     console.error('Process mod detail queue error:', error);
-    return { success: false, error: 'Failed to process queue' };
+    return { success: false, error: couldNotMake('that research') };
   }
 }
 
@@ -3386,14 +3410,14 @@ export async function updateVehicleAvgMileage(vehicleId: string, avgMilesPerMont
         hint: error.hint,
         code: error.code,
       });
-      return { success: false, error: `Failed to update average mileage: ${error.message}` };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     console.log('[Update Avg Mileage Success]:', data);
     return { success: true };
   } catch (error: any) {
     console.error('[Update Avg Mileage Exception]:', error);
-    return { success: false, error: `Failed to update average mileage: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3439,14 +3463,14 @@ export async function setModificationsVisible(vehicleId: string, visible: boolea
       .eq('id', vehicleId);
 
     if (error) {
-      return { success: false, error: 'Failed to update modification preference' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
     return {
       success: false,
-      error: `Failed to update modification preference: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_SAVE,
     };
   }
 }
@@ -3468,12 +3492,12 @@ export async function updateVehicleStatus(vehicleId: string, status: 'daily_driv
       .eq('id', vehicleId);
 
     if (error) {
-      return { success: false, error: 'Failed to update vehicle status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: `Failed to update vehicle status: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3495,13 +3519,13 @@ export async function updatePerformanceGoal(vehicleId: string, performanceGoal: 
 
     if (error) {
       console.error('Update performance goal error:', error);
-      return { success: false, error: 'Failed to update performance goal' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update performance goal error:', error);
-    return { success: false, error: 'Failed to update performance goal' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3528,12 +3552,12 @@ export async function updateVehicleTCOFields(vehicleId: string, fields: {
 
     if (error) {
       console.error('Update TCO fields error:', error);
-      return { success: false, error: 'Failed to update TCO fields' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: `Failed to update TCO fields: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3550,7 +3574,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
 
     const scopedTable = DELETABLE_ITEM_TABLES[itemType];
     if (!scopedTable) {
-      return { success: false, error: 'Invalid item type' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     // Resolves the row's parent vehicle and proves ownership before deleting.
@@ -3578,7 +3602,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
         break;
       default:
         console.error('[Delete Error] Invalid item type:', itemType);
-        return { success: false, error: 'Invalid item type' };
+        return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     console.log(`[Delete Action] Attempting to delete from ${tableName} where id = ${itemId}`);
@@ -3611,7 +3635,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
       });
       return {
         success: false,
-        error: `Failed to delete from ${tableName}: ${error.message}`,
+        error: COULD_NOT_REMOVE,
       };
     }
 
@@ -3669,13 +3693,13 @@ export async function addMaintenanceHistory(
 
     if (error) {
       console.error('Add maintenance history error:', error);
-      return { success: false, error: 'Failed to add maintenance history' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Add maintenance history error:', error);
-    return { success: false, error: 'Failed to add maintenance history' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3743,13 +3767,13 @@ export async function getSignedStorageUrl(fileUrl: string) {
 
     if (error || !data) {
       logger.warn('SIGNED_URL:CREATION_FAILED', 'Failed to create signed URL', { filePath, error });
-      return { success: false, error: 'Failed to generate signed URL' };
+      return { success: false, error: couldNotLoad('that file') };
     }
 
     return { success: true, url: data.signedUrl };
   } catch (error) {
     logger.error('SIGNED_URL:EXCEPTION', error as Error, { hasFileUrl: !!fileUrl });
-    return { success: false, error: 'Failed to generate signed URL' };
+    return { success: false, error: couldNotLoad('that file') };
   }
 }
 
@@ -4042,7 +4066,7 @@ export async function parseInvoiceLineItems(documentId: string, vehicleId: strin
   {
     const rl = await checkRateLimit(`invoice:${vehicleId}`, 'ai');
     if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
+      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
     }
   }
   try {
@@ -4573,7 +4597,7 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
     };
   } catch (error) {
     console.error('Parse invoice error:', error);
-    return { success: false, error: 'Failed to parse invoice line items' };
+    return { success: false, error: COULD_NOT_READ_INVOICE };
   }
 }
 
@@ -4908,13 +4932,13 @@ async function fileStoredInvoice({
       if (parseResult.code === 'needs-subscription') {
         return {
           success: false,
-          error: parseResult.error || 'Failed to parse invoice',
+          error: parseResult.error || COULD_NOT_READ_INVOICE,
           code: parseResult.code,
           feature: parseResult.feature,
         };
       }
 
-      return { success: false, error: parseResult.error || 'Failed to parse invoice' };
+      return { success: false, error: parseResult.error || COULD_NOT_READ_INVOICE };
     }
 
     const itemsExtracted = parseResult.maintenanceItems?.length || 0;
@@ -5010,7 +5034,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
     const focalY = focalYRaw !== null ? parseFloat(focalYRaw as string) : 50;
 
     if (!file || !vehicleId) {
-      return { success: false, error: 'Missing file or vehicle ID' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
@@ -5079,7 +5103,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (vehicleError) {
       console.error('Vehicle fetch error:', vehicleError);
-      return { success: false, error: 'Failed to fetch vehicle' };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (vehicle?.custom_image_storage_path) {
@@ -5102,7 +5126,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
-      return { success: false, error: 'Failed to upload photo' };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     /*
@@ -5126,7 +5150,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (updateError) {
       console.error('Vehicle update error:', updateError);
-      return { success: false, error: 'Failed to update vehicle' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     /*
@@ -5143,7 +5167,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
     return { success: true, photoUrl: signed?.signedUrl ?? null, focalX, focalY };
   } catch (error: any) {
     console.error('Upload vehicle photo error:', error);
-    return { success: false, error: error.message || 'Failed to upload photo' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5161,7 +5185,7 @@ export async function removeVehiclePhoto(vehicleId: string) {
     return await clearVehiclePhoto(access.client, vehicleId);
   } catch (error: any) {
     console.error('Remove vehicle photo error:', error);
-    return { success: false, error: error.message || 'Failed to remove photo' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 /**
@@ -5265,7 +5289,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     const sessionId = formData.get('sessionId') as string;
 
     if (!file || !vehicleId || !sessionId) {
-      return { success: false, error: 'Missing required fields' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
@@ -5342,7 +5366,7 @@ export async function uploadConsultantDocument(formData: FormData) {
 
     if (uploadError) {
       console.error('[Storage Upload Error]', uploadError);
-      return { success: false, error: `Failed to upload file: ${uploadError.message}` };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     const { data: document, error: dbError } = await client
@@ -5367,7 +5391,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     if (dbError) {
       console.error('[Database Insert Error]', dbError);
       await client.storage.from('vehicle-documents').remove([fileName]);
-      return { success: false, error: 'Failed to save document record' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return {
@@ -5376,7 +5400,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     };
   } catch (error: any) {
     console.error('Upload consultant document error:', error);
-    return { success: false, error: error.message || 'Upload failed' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5685,7 +5709,7 @@ export async function moveServiceItemToHistory(
 
     if (fetchError) {
       console.error('[Move to History] Fetch error:', fetchError);
-      return { success: false, error: 'Failed to retrieve service item' };
+      return { success: false, error: couldNotLoad('that service') };
     }
 
     if (!serviceItem) {
@@ -5718,7 +5742,7 @@ export async function moveServiceItemToHistory(
 
     if (insertError) {
       console.error('[Move to History] Insert error:', insertError);
-      return { success: false, error: 'Failed to create maintenance record' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     const { error: deleteError } = await client
@@ -5782,7 +5806,7 @@ export async function uploadInvoiceForCompletion(
 
     if (error) {
       logger.error('INVOICE_UPLOAD:STORAGE', new Error(error.message), { vehicleId });
-      return { success: false, error: 'Failed to upload invoice' };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     // The storage path, not a URL. The bucket is private, so a URL is minted
@@ -5791,7 +5815,7 @@ export async function uploadInvoiceForCompletion(
     return { success: true, data: { url: storedUrl(fileName) } };
   } catch (error: any) {
     console.error('[Invoice Upload] Exception:', error);
-    return { success: false, error: error.message || 'Failed to upload invoice' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -6019,7 +6043,7 @@ Return ONLY valid JSON with no additional text.`;
     }
     return {
       success: false,
-      error: error.message || 'Failed to generate cost estimates'
+      error: couldNotMake('the cost estimates')
     };
   }
 }
@@ -6161,7 +6185,7 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
     }
     return {
       success: false,
-      error: error.message || 'Failed to generate email draft'
+      error: couldNotMake('the email draft')
     };
   }
 }
@@ -6294,7 +6318,7 @@ export async function savePreferredZipCode(
     console.error('[Save Preferred Zip Code] Exception:', error);
     return {
       success: false,
-      error: error.message || 'Failed to save zip code'
+      error: COULD_NOT_SAVE
     };
   }
 }
@@ -6327,7 +6351,7 @@ export async function getQuoteRequestHistory(
     console.error('[Get Quote Request History] Exception:', error);
     return {
       success: false,
-      error: error.message || 'Failed to fetch quote request history'
+      error: couldNotLoad('your earlier quote requests')
     };
   }
 }
@@ -7469,7 +7493,7 @@ export async function generateQuoteRequestV2(
     }
 
     if (!selectedItemIds || selectedItemIds.length === 0) {
-      return { success: false, error: 'Please select at least one item for the quote' };
+      return { success: false, error: 'Choose at least one item for the quote.' };
     }
 
     if (!zipCode || !/^\d{5}$/.test(zipCode)) {
@@ -7546,7 +7570,7 @@ export async function generateQuoteRequestV2(
       console.error('[QUOTE_V2] Cost estimation failed:', costResult.error);
       return {
         success: false,
-        error: costResult.error || 'Failed to estimate costs. Please try again.'
+        error: costResult.error || couldNotMake('the cost estimates')
       };
     }
 
@@ -7556,7 +7580,7 @@ export async function generateQuoteRequestV2(
       console.error('[QUOTE_V2] Email generation failed:', emailResult.error);
       return {
         success: false,
-        error: emailResult.error || 'Failed to generate email draft. Please try again.'
+        error: emailResult.error || couldNotMake('the email draft')
       };
     }
 
@@ -7632,7 +7656,7 @@ export async function generateQuoteRequestV2(
     console.error('[QUOTE_V2] Unexpected error:', error);
     return {
       success: false,
-      error: error.message || 'An unexpected error occurred. Please try again.'
+      error: COULD_NOT_SAVE
     };
   }
 }

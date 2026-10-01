@@ -250,7 +250,7 @@ describe('the action — which exits carry a code', () => {
 
 describe('the web thread — the sentence, not the apology', () => {
   const chat = rendered(read('components', 'ConsultantChat.tsx'));
-  const failureBranch = chat.slice(chat.indexOf('const refused = retryCannotHelp(result.code)'), chat.indexOf('isFailure: true,'));
+  const failureBranch = chat.slice(chat.indexOf('const refused = showsServerSentence(result.code)'), chat.indexOf('isFailure: true,'));
 
   it('shows the server’s words for a coded failure and the fallback only otherwise', () => {
     expect(failureBranch).toMatch(/content: refused \? result\.error : CLIENT_ERROR_FALLBACK/);
@@ -280,7 +280,7 @@ describe('the web thread — the sentence, not the apology', () => {
         },
       ]);`;
     expect(before).toContain('Sorry, I encountered an error');
-    expect(before).not.toMatch(/retryCannotHelp/);
+    expect(before).not.toMatch(/retryCannotHelp|showsServerSentence/);
     // Audit 360, COPY-14: the fallback is the phone's sentence, not the apology.
     expect(CLIENT_ERROR_FALLBACK).not.toMatch(/sorry|encountered an error/i);
     expect(CLIENT_ERROR_FALLBACK).toMatch(/question is still here/);
@@ -413,5 +413,66 @@ describe('DEMO_BUDGET — the docblock’s arithmetic is the constants’', () =
     const match = /\*\s+daily\s+([\d,]+)\s+≈\s+([\d,]+) calls of ~(\d+)\s+≈\s+\$([\d.]+)\/(day|month)/.exec(stale);
     expect(match?.[1]).toBe('150,000');
     expect(Number(match![1].replace(/,/g, ''))).not.toBe(DEMO_BUDGET.dailyOutputTokens);
+  });
+});
+
+/*
+ * Audit 360, COPY-18 (1 Oct). The web's AI actions answered the limiter with
+ * "Too many AI requests. Try again in 30s." and no code, and the web thread
+ * replaced it with "…try again" — so somebody tried again at once and got
+ * the same line. The limiter now carries a code and a sentence naming the
+ * wait; the thread shows it; the phone and the web share the advisor's words.
+ */
+describe('the limiter says to wait, on the web as on the phone (COPY-18)', () => {
+  const {
+    ADVISOR_RATE_LIMITED_MESSAGE,
+    AI_RATE_LIMITED_MESSAGE,
+    RATE_LIMITED_CODE,
+    retryCannotHelp: cannot,
+    showsServerSentence,
+  } = require('@tappet/core/ai/advisor-failure');
+  const root = join(__dirname, '..', '..');
+  const actions = readFileSync(join(root, 'app', 'actions.ts'), 'utf8');
+  const limiterReturns = (source: string) =>
+    source.split('\n').filter((line) => /if \(!rl\.allowed\)/.test(line) || /error: .*(RATE_LIMITED_MESSAGE|Too many AI requests)/.test(line));
+
+  it('found the five limiter answers in the actions', () => {
+    const answers = actions.split('\n').filter((l) => /error: (ADVISOR|AI)_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE/.test(l));
+    expect(answers).toHaveLength(5);
+    expect(limiterReturns(actions).length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('no action answers the shipped line', () => {
+    expect(actions).not.toMatch(/Too many AI requests/);
+  });
+
+  it('the advisor’s answer is the phone’s sentence, from one constant', () => {
+    const send = actions.slice(actions.indexOf('export async function sendConsultantMessage('));
+    expect(send.slice(0, send.indexOf('\nexport async function '))).toMatch(
+      /error: ADVISOR_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE/
+    );
+    const phone = readFileSync(join(root, 'apps', 'mobile', 'src', 'screens', 'AdvisorScreen.tsx'), 'utf8');
+    expect(phone).toMatch(/setError\(ADVISOR_RATE_LIMITED_MESSAGE\)/);
+    expect(ADVISOR_RATE_LIMITED_MESSAGE).toMatch(/Try again in a minute\.$/);
+    expect(AI_RATE_LIMITED_MESSAGE).toMatch(/Try again in a minute\.$/);
+  });
+
+  it('the web thread shows it, and it is still not a failure a retry cannot fix', () => {
+    expect(showsServerSentence(RATE_LIMITED_CODE)).toBe(true);
+    expect(cannot(RATE_LIMITED_CODE)).toBe(false);
+    expect(showsServerSentence(undefined)).toBe(false);
+    const chat = readFileSync(join(root, 'components', 'ConsultantChat.tsx'), 'utf8');
+    expect(chat).toMatch(/const refused = showsServerSentence\(result\.code\)/);
+  });
+
+  it('can still see the shipped shape (anti-vacuous)', () => {
+    const shipped = "      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };";
+    expect(shipped).toMatch(/Too many AI requests/);
+    expect(/error: (ADVISOR|AI)_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE/.test(shipped)).toBe(false);
+  });
+
+  it('every advisor failure on the web says the question is still there', () => {
+    expect(actions).not.toMatch(/'The advisor could not answer that one\. Try again\.'/);
+    expect(actions).not.toMatch(/'The advisor took too long to answer\. Try again\.'/);
   });
 });

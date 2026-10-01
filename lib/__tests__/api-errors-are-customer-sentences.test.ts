@@ -46,6 +46,13 @@ const FILES = [
   ...routes(join(ROOT, 'app', 'api', 'v1')),
   join(ROOT, 'lib', 'vehicle-photo.ts'),
   join(ROOT, 'lib', 'invoice-filing-replay.ts'),
+  /*
+    Audit 360, COPY-15: the web's add-a-car flow — the server actions it calls
+    and the wizard that shows their `error` and its own.
+  */
+  join(ROOT, 'app', 'actions.ts'),
+  join(ROOT, 'components', 'OnboardingWizard.tsx'),
+  join(ROOT, 'app', 'onboard', 'OnboardVinForm.tsx'),
 ];
 
 function withoutComments(source: string): string {
@@ -68,7 +75,8 @@ export function scan(rel: string, source: string): Hit[] {
     .split('\n')
     .forEach((line, index) => {
       if (/\blogger\.|\bconsole\./.test(line)) return;
-      if (!/\berror\s*:|\berrorMessage\s*=/.test(line)) return;
+      // COPY-15: `setError(` too — the web wizard shows what it is handed.
+      if (!/\berror\s*:|\berrorMessage\s*=|\bsetError\(/.test(line)) return;
       STRING_LITERAL.lastIndex = 0;
       for (let m = STRING_LITERAL.exec(line); m; m = STRING_LITERAL.exec(line)) {
         const text = (m[1] ?? m[2] ?? m[3] ?? '').replace(/\$\{[^}]*\}/g, '');
@@ -79,6 +87,19 @@ export function scan(rel: string, source: string): Hit[] {
 }
 
 describe('route errors are customer sentences', () => {
+  it('walked the web’s add-a-car flow too (COPY-15)', () => {
+    for (const file of ['app/actions.ts', 'components/OnboardingWizard.tsx', 'app/onboard/OnboardVinForm.tsx']) {
+      expect(FILES).toContain(join(ROOT, ...file.split('/')));
+      expect(readFileSync(join(ROOT, ...file.split('/')), 'utf8').length).toBeGreaterThan(1000);
+    }
+  });
+
+  it('the VIN step does not call a VIN invalid for NHTSA having no record (COPY-15, §10)', () => {
+    const actions = readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8');
+    expect(actions).not.toMatch(/Invalid VIN or vehicle not found/);
+    expect(actions).toMatch(/NHTSA has no record for that VIN/);
+  });
+
   it('walked the routes the phone calls', () => {
     expect(FILES.length).toBeGreaterThan(30);
     for (const route of ['wishlist', 'wishlist/complete', 'tires', 'tires/rotations', 'invoice-pages', 'vehicles']) {
@@ -94,13 +115,18 @@ describe('route errors are customer sentences', () => {
       `return Response.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, { status: 400 });`,
       "{ error: `Unknown source — one of ${WISHLIST_SOURCES.join(', ')}` },",
       `errorMessage = 'Failed to upload file to storage. Please try again.';`,
+      // COPY-15: the web's add-a-car flow, as it shipped.
+      `return { success: false, error: 'Not authenticated' };`,
+      `setError('Please select all powertrain options');`,
+      `setError('Please wait while we check available configurations...');`,
+      `return { success: false, error: 'An unexpected error occurred' };`,
       // and what must pass
       `return NextResponse.json({ error: 'That rotation is not on record.' }, { status: 404 });`,
       `return NextResponse.json({ error: COULD_NOT_SAVE }, { status: 500 });`,
       `logger.error('TIRES_API:GET_EXCEPTION', { error: 'Internal server error' });`,
       `// { error: 'Internal server error' } was the old answer`,
     ].join('\n');
-    expect(scan('fixture.ts', fixture).map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(scan('fixture.ts', fixture).map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it('holds for every route', () => {
