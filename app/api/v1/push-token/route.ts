@@ -115,6 +115,34 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
+    /*
+      ⚠ 1 Oct · audit 360, TL-8 · one handset, one owner.
+
+      The sign-out DELETE is the only thing that removed a device's row, and
+      it is skipped when a session ends without a tap and swallowed when it
+      fails. The next account on the phone then registered the **same**
+      install id and the same Expo token under its own user, and the sweep —
+      which selects by `user_id` — sent the previous owner's recalls to this
+      phone. So registering claims the handset: any row naming this install
+      or this token under another account is removed. Both are per-install
+      (a random id in the Keychain; Expo's token for this app on this phone),
+      so another account holding either is this phone's previous owner.
+      Best-effort: a failure is logged and the registration still stands.
+    */
+    for (const [column, value] of [
+      ['device_id', deviceId],
+      ['expo_push_token', expoPushToken],
+    ] as const) {
+      const { error: claimError } = await client
+        .from('device_push_tokens')
+        .delete()
+        .neq('user_id', caller.userId)
+        .eq(column, value);
+      if (claimError) {
+        logger.error('API:PUSH_TOKEN', new Error(claimError.message), { userId: caller.userId, step: 'claim' });
+      }
+    }
+
     logger.info('API:PUSH_TOKEN', 'Device registered', { userId: caller.userId, platform });
     return Response.json({ success: true } as ApiResponse);
   } catch (error) {
@@ -172,3 +200,4 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     );
   }
 }
+
