@@ -138,3 +138,74 @@ describe('counted at the fuse', () => {
     expect(monthly).not.toMatch(/inputTokens: 0/);
   });
 });
+
+/*
+ * Audit 360, SEC-10 (1 Oct). The web's createVehicle and fetchPowertrainOptions,
+ * mark-done and the web's createServiceItem stored or sent owner strings with
+ * no bound, and the health prompt carried them unclipped — the one path where
+ * the door layer was absent.
+ */
+describe('SEC-10: the web paths and the health prompt', () => {
+  const { markDoneFieldProblem, SHOP_NAME_MAX } = require('@tappet/core/input-bounds');
+  const actions = read('app', 'actions.ts');
+  const fn = (name: string) => {
+    const at = actions.indexOf(`export async function ${name}(`);
+    expect(at).toBeGreaterThan(-1);
+    const next = actions.indexOf('\nexport async function ', at + 10);
+    return actions.slice(at, next === -1 ? undefined : next);
+  };
+
+  it('mark-done refuses a shop name or notes past their limits', () => {
+    expect(markDoneFieldProblem({ shopName: 'Main Street Auto', notes: 'Synthetic, 5W-30' })).toBeNull();
+    expect(markDoneFieldProblem({ shopName: 'S'.repeat(SHOP_NAME_MAX) })).toBeNull();
+    expect(markDoneFieldProblem({ shopName: HUGE })).toMatch(/^The shop name must be 200/);
+    expect(markDoneFieldProblem({ notes: HUGE })).toMatch(/^The notes must be 4,000/);
+    expect(markDoneFieldProblem({ shopName: undefined, notes: null })).toBeNull();
+  });
+
+  it('the mark-done route asks before any read or write', () => {
+    const route = read('app', 'api', 'v1', 'wishlist', 'complete', 'route.ts');
+    const check = route.indexOf('markDoneFieldProblem({ shopName, notes })');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(route.indexOf('authorizeVehicleScopedRow('));
+  });
+
+  it('the web createVehicle refuses make/model and clips trim before the insert', () => {
+    const body = fn('createVehicle');
+    const check = body.indexOf('vehicleNameProblem({ make: vehicleData.make, model: vehicleData.model })');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.indexOf(".from('vehicles')"));
+    expect(body.indexOf('clipVehicleTrim(vehicleData.trim)')).toBeLessThan(body.indexOf(".from('vehicles')"));
+    expect(body).not.toMatch(/trim: vehicleData\.trim/);
+  });
+
+  it('fetchPowertrainOptions refuses names before the prompt', () => {
+    const body = fn('fetchPowertrainOptions');
+    const check = body.indexOf('vehicleNameProblem({ make, model, trim })');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.indexOf('POWERTRAIN_OPTIONS_PROMPT('));
+  });
+
+  it('createServiceItem refuses a description past the limit before the insert', () => {
+    const body = fn('createServiceItem');
+    const check = body.indexOf('SERVICE_DESCRIPTION_MAX');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(body.indexOf('.insert('));
+  });
+
+  it('the health prompt clips make, model, descriptions and shop names', () => {
+    const at = actions.indexOf("analyzing a vehicle's health");
+    const prompt = actions.slice(at, actions.indexOf('KNOWN ISSUES FOR THIS MODEL', at));
+    expect(prompt).toMatch(/clipForPrompt\(String\(vehicle\.make/);
+    expect(prompt).toMatch(/clipForPrompt\(String\(vehicle\.model/);
+    expect(prompt).toMatch(/clipForPrompt\(String\(s\.description/);
+    expect(prompt).toMatch(/clipForPrompt\(String\(l\.item_description/);
+    expect(prompt).toMatch(/clipForPrompt\(String\(l\.shop_name\)\)/);
+  });
+
+  it('can still see the shipped prompt line (anti-vacuous)', () => {
+    const shipped = '- ${vehicle.year} ${vehicle.make} ${vehicle.model}\n${l.shop_name ? ` at ${l.shop_name}` : ""}';
+    expect(shipped).not.toMatch(/clipForPrompt\(String\(vehicle\.make/);
+    expect(shipped).not.toMatch(/clipForPrompt\(String\(l\.shop_name\)\)/);
+  });
+});

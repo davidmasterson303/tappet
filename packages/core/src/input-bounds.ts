@@ -37,6 +37,14 @@ export const WISHLIST_LIMITS = {
   sourceData: 4_000,
 } as const;
 
+/**
+ * Mark-done's shop name and the web's service-item description (audit 360,
+ * SEC-10). Both reach the health prompt; the phone's shop field and the web
+ * form never come near either number.
+ */
+export const SHOP_NAME_MAX = 200;
+export const SERVICE_DESCRIPTION_MAX = WISHLIST_LIMITS.description;
+
 /** Per string, or per list item, as a prompt carries it. */
 export const PROMPT_FIELD_MAX_CHARS = 1_000;
 
@@ -50,6 +58,7 @@ const LABELS: Record<string, string> = {
   description: 'The description',
   notes: 'The notes',
   sourceData: 'The attached detail',
+  shopName: 'The shop name',
 };
 
 function tooLong(field: string, max: number): string {
@@ -106,6 +115,21 @@ export function wishlistFieldProblem(fields: {
       return 'The attached detail could not be read.';
     }
     if (size > WISHLIST_LIMITS.sourceData) return tooLong('sourceData', WISHLIST_LIMITS.sourceData);
+  }
+  return null;
+}
+
+/**
+ * Null when mark-done's free text fits; otherwise the sentence to show.
+ * SEC-10: the route stored `shopName` and `notes` whole, and the health
+ * prompt carries every shop name it reads.
+ */
+export function markDoneFieldProblem(fields: { shopName?: unknown; notes?: unknown }): string | null {
+  if (typeof fields.shopName === 'string' && fields.shopName.length > SHOP_NAME_MAX) {
+    return tooLong('shopName', SHOP_NAME_MAX);
+  }
+  if (typeof fields.notes === 'string' && fields.notes.length > WISHLIST_LIMITS.notes) {
+    return tooLong('notes', WISHLIST_LIMITS.notes);
   }
   return null;
 }

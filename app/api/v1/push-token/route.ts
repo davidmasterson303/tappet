@@ -129,18 +129,37 @@ export async function POST(request: NextRequest): Promise<Response> {
       (a random id in the Keychain; Expo's token for this app on this phone),
       so another account holding either is this phone's previous owner.
       Best-effort: a failure is logged and the registration still stands.
+
+      ⚠ Audit 360, SEC-11 · a claim is logged at warn with both ids. The same
+      rule lets an account that has learned another phone's token or install
+      id unbind that phone's owner — both are 22+ random characters only the
+      phone holds, and an Expo token is already a send capability on its own,
+      so the claim stays on both columns (dropping the token half would let a
+      phone that kept its token across a new install id receive two
+      accounts' alerts again). What changes is that it is no longer silent:
+      every displaced row is named, so "my alerts stopped" can be traced to
+      the registration that took them.
     */
     for (const [column, value] of [
       ['device_id', deviceId],
       ['expo_push_token', expoPushToken],
     ] as const) {
-      const { error: claimError } = await client
+      const { data: displaced, error: claimError } = await client
         .from('device_push_tokens')
         .delete()
         .neq('user_id', caller.userId)
-        .eq(column, value);
+        .eq(column, value)
+        .select('user_id');
       if (claimError) {
         logger.error('API:PUSH_TOKEN', new Error(claimError.message), { userId: caller.userId, step: 'claim' });
+        continue;
+      }
+      for (const row of (displaced ?? []) as Array<{ user_id: string }>) {
+        logger.warn('PUSH_TOKEN:CLAIMED', 'A registration removed another account’s row for this handset', {
+          userId: caller.userId,
+          displacedUserId: row.user_id,
+          matchedOn: column,
+        });
       }
     }
 

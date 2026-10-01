@@ -26,6 +26,7 @@ import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONS
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
+import { clipForPrompt, clipVehicleTrim, SERVICE_DESCRIPTION_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
 import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
@@ -314,6 +315,18 @@ export async function createVehicle(vehicleData: {
     }
 
     /*
+      Audit 360, SEC-10: the names the phone's add route already bounds
+      (SEC-2). The web came through here with none, and the health prompt
+      carries make and model on every refresh.
+    */
+    const nameProblem = vehicleNameProblem({ make: vehicleData.make, model: vehicleData.model });
+    if (nameProblem) {
+      return { success: false, error: nameProblem };
+    }
+    // TL-20's rule: a decoded trim the owner never typed is clipped, not refused.
+    const trim = typeof vehicleData.trim === 'string' ? clipVehicleTrim(vehicleData.trim) : vehicleData.trim;
+
+    /*
       Audit 360, TL-26: the first-reading rule the phone's add route applies
       (`current: null` — no baseline, so no backwards and no jump; the range
       and whole-number checks still run). The wizard came through here and
@@ -334,7 +347,7 @@ export async function createVehicle(vehicleData: {
         year: vehicleData.year,
         make: vehicleData.make,
         model: vehicleData.model,
-        trim: vehicleData.trim,
+        trim,
         color: vehicleData.color,
         current_mileage: vehicleData.current_mileage,
         ownership_objective: vehicleData.ownership_objective,
@@ -382,7 +395,7 @@ export async function createVehicle(vehicleData: {
             year: vehicleData.year,
             make: vehicleData.make,
             model: vehicleData.model,
-            trim: vehicleData.trim,
+            trim,
           })
         ).key;
       if (key) await attachPlateToVehicle(vehicle.id, key);
@@ -826,6 +839,12 @@ export async function fetchPowertrainOptions(
     const session = await requireSession();
     if (!session.ok) {
       return { success: false, error: session.error };
+    }
+
+    // Audit 360, SEC-10: these go straight into POWERTRAIN_OPTIONS_PROMPT.
+    const nameProblem = vehicleNameProblem({ make, model, trim });
+    if (nameProblem) {
+      return { success: false, error: nameProblem };
     }
 
     /*
@@ -2438,10 +2457,15 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     */
     const historyOnFile = completedService + pendingService + documentedWork > 0;
 
+    /*
+      Audit 360, SEC-10: every owner string below is clipped as the advisor's
+      are (`boundPromptContext`) — rows written before the door was bounded,
+      or by a path that never was, cannot make one refresh a 100k-token call.
+    */
     const prompt = `You are an expert automotive consultant analyzing a vehicle's health based on the owner's provided service history and uploads.
 
 VEHICLE INFORMATION:
-- ${vehicle.year} ${vehicle.make} ${vehicle.model}
+- ${vehicle.year} ${clipForPrompt(String(vehicle.make ?? ''))} ${clipForPrompt(String(vehicle.model ?? ''))}
 - Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
 - Average Monthly Miles: ${monthlyMilesForPrompt(vehicle.avg_miles_per_month)}
 - Performance Mindset: ${vehicle.performance_mindedness}
@@ -2449,11 +2473,11 @@ VEHICLE INFORMATION:
 OWNER-PROVIDED SERVICE HISTORY:
 - Completed Service Records: ${completedService}
 - Pending/Planned Service: ${pendingService}
-- Recent Service Items: ${serviceItems.slice(0, 5).map((s: any) => `${s.description} (${s.status})`).join(', ') || 'None provided yet'}
+- Recent Service Items: ${serviceItems.slice(0, 5).map((s: any) => `${clipForPrompt(String(s.description ?? ''))} (${s.status})`).join(', ') || 'None provided yet'}
 
 DOCUMENTED WORK FROM UPLOADED INVOICES:
 - Line Items on File: ${documentedWork}
-${lineItems.slice(0, 12).map((l: any) => `  - ${l.service_date || 'undated'}: ${l.item_description}${l.shop_name ? ` at ${l.shop_name}` : ''}${l.total_cost ? ` ($${l.total_cost})` : ''}`).join('\n') || '  - None on file'}
+${lineItems.slice(0, 12).map((l: any) => `  - ${l.service_date || 'undated'}: ${clipForPrompt(String(l.item_description ?? ''))}${l.shop_name ? ` at ${clipForPrompt(String(l.shop_name))}` : ''}${l.total_cost ? ` ($${l.total_cost})` : ''}`).join('\n') || '  - None on file'}
 
 KNOWN ISSUES FOR THIS MODEL (Reference Only):
 ${knowledge?.known_issues?.slice(0, 5).map((i: any) => `- ${i.part}: ${i.description} (Severity: ${i.severity}, Typical mileage: ${i.mileage_range})`).join('\n') || 'None identified'}
@@ -5544,6 +5568,14 @@ export async function createServiceItem(data: {
     const access = await authorizeVehicleAccess(data.vehicle_id, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Audit 360, SEC-10: the health prompt reads service descriptions.
+    if (typeof data.description === 'string' && data.description.length > SERVICE_DESCRIPTION_MAX) {
+      return {
+        success: false,
+        error: `The description must be ${SERVICE_DESCRIPTION_MAX.toLocaleString('en-US')} characters or fewer.`,
+      };
     }
 
     const client = getServiceRoleClient();

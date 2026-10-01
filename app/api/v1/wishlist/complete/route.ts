@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { projectNextService } from '@/lib/next-service';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { markDoneFieldProblem } from '@tappet/core/input-bounds';
 import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,12 @@ export async function POST(request: NextRequest) {
       notes,
       invoiceFile,
     } = body;
+
+    // Audit 360, SEC-10: bounded at the door — the health prompt reads shop names.
+    const tooLong = markDoneFieldProblem({ shopName, notes });
+    if (tooLong) {
+      return NextResponse.json({ error: tooLong }, { status: 400 });
+    }
 
     // Resolves the item's parent vehicle and proves the caller owns it before
     // any privileged client is handed back. Demo items are rejected outright —
