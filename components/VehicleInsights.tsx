@@ -22,6 +22,7 @@ import {
   generateVehicleDossier,
   generateVehicleHealthSummary,
 } from '@/app/actions';
+import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { useWishlistData } from '@/hooks/useWishlistData';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -273,10 +274,13 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       if (result.success) {
         toast.success('Issue status updated');
         await loadTracking();
-        generateVehicleHealthSummary(vehicle.id, true).then(() => {
-          invalidateDashboardCache(vehicle.id);
-          router.refresh();
-        });
+        // LEGAL-1: the score's records go to Google only on this browser's yes.
+        if (readWebAiConsent() === 'granted') {
+          generateVehicleHealthSummary(vehicle.id, true).then(() => {
+            invalidateDashboardCache(vehicle.id);
+            router.refresh();
+          });
+        }
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
@@ -415,10 +419,13 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         setSelectedMaintenanceItem('');
         await loadTracking();
         await loadPerformanceMods();
-        generateVehicleHealthSummary(vehicle.id, true).then(() => {
-          invalidateDashboardCache(vehicle.id);
-          router.refresh();
-        });
+        // LEGAL-1: the score's records go to Google only on this browser's yes.
+        if (readWebAiConsent() === 'granted') {
+          generateVehicleHealthSummary(vehicle.id, true).then(() => {
+            invalidateDashboardCache(vehicle.id);
+            router.refresh();
+          });
+        }
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {

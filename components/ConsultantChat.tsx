@@ -56,7 +56,8 @@ import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-c
 import { AnswerRuns } from '@/components/AnswerLine';
 import { parseAnswer } from '@tappet/core/answer-markup';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
-import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { WEB_ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 
 /*
  * These are the four collections this component *renders*, and no longer the
@@ -680,20 +681,11 @@ export default function ConsultantChat({
   const [consentOpen, setConsentOpen] = useState(false);
   const [consentPending, setConsentPending] = useState<string | undefined>(undefined);
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem('tappet.aiConsent');
-      setAiConsent(stored === 'granted' || stored === 'declined' ? stored : 'unknown');
-    } catch {
-      setAiConsent('unknown');
-    }
+    setAiConsent(readWebAiConsent());
   }, []);
   const recordAiConsent = (answer: 'granted' | 'declined') => {
     setAiConsent(answer);
-    try {
-      window.localStorage.setItem('tappet.aiConsent', answer);
-    } catch {
-      // Asked again next time, which is the safe direction.
-    }
+    recordWebAiConsent(answer);
   };
 
   const handleSend = async (overrideInput?: string, consentJustGranted = false) => {
@@ -1976,17 +1968,17 @@ export default function ConsultantChat({
       <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{ADVISOR_AI_CONSENT.title}</AlertDialogTitle>
-            <AlertDialogDescription>{ADVISOR_AI_CONSENT.body}</AlertDialogDescription>
+            <AlertDialogTitle>{WEB_ADVISOR_AI_CONSENT.title}</AlertDialogTitle>
+            <AlertDialogDescription>{WEB_ADVISOR_AI_CONSENT.body}</AlertDialogDescription>
           </AlertDialogHeader>
 
           <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
-            {ADVISOR_AI_CONSENT.points.map((point) => (
+            {WEB_ADVISOR_AI_CONSENT.points.map((point) => (
               <li key={point}>{point}</li>
             ))}
           </ul>
 
-          <p className="text-xs text-white/50">{ADVISOR_AI_CONSENT.declineNote}</p>
+          <p className="text-xs text-white/50">{WEB_ADVISOR_AI_CONSENT.declineNote}</p>
 
           <AlertDialogFooter>
             <AlertDialogCancel
@@ -1995,7 +1987,7 @@ export default function ConsultantChat({
                 setConsentOpen(false);
               }}
             >
-              {ADVISOR_AI_CONSENT.decline}
+              {WEB_ADVISOR_AI_CONSENT.decline}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -2006,7 +1998,7 @@ export default function ConsultantChat({
                 void handleSend(consentPending, true);
               }}
             >
-              {ADVISOR_AI_CONSENT.accept}
+              {WEB_ADVISOR_AI_CONSENT.accept}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -26,6 +26,8 @@ function runner(over: Partial<ResearchRunner> = {}): ResearchRunner {
     settled: true,
     failed: false,
     retry: jest.fn(),
+    consentNeeded: false,
+    consentDeclined: jest.fn(),
     ...over,
   };
 }

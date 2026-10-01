@@ -1458,6 +1458,55 @@ describe('the research log (20 Sep)', () => {
   });
 });
 
+describe('the score asks before the records go to Google (audit 360, LEGAL-1)', () => {
+  /*
+    The runner posted `/health` the moment the research had landed: mileage,
+    service log and invoice lines to Gemini at add-a-car, before anything had
+    asked. A researched car with no score, on a phone that has never answered,
+    now shows the health sheet first, and only "Score this car" sends.
+  */
+  function respondUnscored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  it('shows the sheet, sends nothing until yes, then scores once', async () => {
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('The health score is written by Google’s AI');
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(view.getByText('Score this car'));
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+    expect(request.mock.calls.find(([p]) => p === '/health')?.[1]).toMatchObject({ method: 'POST', body: { vehicleId: 'v1', refresh: true } });
+  });
+
+  it('"Not now" sends nothing and says the car was not scored', async () => {
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('The health score is written by Google’s AI');
+    await user.press(view.getByLabelText('Not now'));
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+});
+
 describe('removing the car (20 Sep; behind the details since 22 Sep)', () => {
   it('does not end on a destructive act — the removal is the details screen\'s foot', async () => {
     /*

@@ -3,13 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 
-/**
- * Where this browser's answer lives — LEG-02.
- *
- * Namespaced like the phone's `tappet.aiConsent`, so the two are obviously
- * the same fact stored per client rather than two unrelated flags.
- */
-const AI_CONSENT_KEY = 'tappet.aiConsent';
+/*
+  Where this browser's answer lives — LEG-02, and since audit 360 (1 Oct) one
+  module for every web surface and sign-out: `lib/ai-consent-web.ts`.
+*/
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -90,23 +88,13 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
   const [consentOpen, setConsentOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(AI_CONSENT_KEY);
-      setConsent(stored === 'granted' || stored === 'declined' ? stored : 'unknown');
-    } catch {
-      // Blocked storage reads as unanswered, which asks. See the phone's note:
-      // proceeding on a consent we cannot demonstrate is the thing to avoid.
-      setConsent('unknown');
-    }
+    // Blocked storage reads as unanswered, which asks — see `ai-consent-web.ts`.
+    setConsent(readWebAiConsent());
   }, []);
 
   const recordConsent = (answer: 'granted' | 'declined') => {
     setConsent(answer);
-    try {
-      window.localStorage.setItem(AI_CONSENT_KEY, answer);
-    } catch {
-      /* A write that fails means the sheet appears again. The safe direction. */
-    }
+    recordWebAiConsent(answer);
   };
   const dragCounterRef = useRef(0);
 

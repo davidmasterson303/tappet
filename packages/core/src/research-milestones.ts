@@ -52,6 +52,13 @@ import { normaliseRecalls } from './recalls';
 
 export type MilestoneState = 'done' | 'active' | 'pending' | 'failed';
 
+/**
+ * The score line when the owner said no to Google's AI (LEGAL-1). A choice,
+ * stated as one — and the retry under it is the way to change it.
+ */
+export const SCORE_DECLINED_ANSWER =
+  'Not scored — the score is written by Google’s AI, and you said not now. Retry to be asked again.';
+
 export type MilestoneKey = 'decode' | 'recalls' | 'sort' | 'dossier' | 'schedule' | 'score';
 
 export interface ResearchMilestone {
@@ -101,6 +108,12 @@ export interface ResearchObservation {
    * this from `last_generated` against the records.
    */
   scoreStale?: boolean;
+  /**
+   * The owner said no to Google's AI, so the score was not asked for
+   * (audit 360, LEGAL-1). The client knows this; the server cannot. An
+   * answer, not a stall: the line says so and the retry asks again.
+   */
+  scoreDeclined?: boolean;
   /**
    * The client's own deadline has passed with something still active. The
    * server cannot know this; the client can, and must say so rather than
@@ -288,6 +301,9 @@ export function researchMilestones(observed: ResearchObservation): ResearchMiles
     score.state = 'done';
   } else if (observed.healthFailure) {
     score.answer = observed.healthFailure;
+    score.state = 'failed';
+  } else if (observed.scoreDeclined && (status === 'completed' || status === 'unsupported')) {
+    score.answer = SCORE_DECLINED_ANSWER;
     score.state = 'failed';
   } else if (status === 'failed') {
     score.answer = 'Waits on the research.';

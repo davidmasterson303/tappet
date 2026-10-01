@@ -633,15 +633,14 @@ export async function enrichVehicle(vehicleId: string) {
     return { success: false, error: dossier.error };
   }
 
-  const health = await generateVehicleHealthSummary(vehicleId);
-  if (!health.success) {
-    // The dossier is the valuable half and it landed. A missing health score
-    // is a worse dashboard, not a broken vehicle.
-    logger.warn('ENRICH:HEALTH_FAILED', 'Health summary failed', {
-      vehicleId,
-      error: health.error,
-    });
-  }
+  /*
+    ⚠ Audit 360, LEGAL-1 (1 Oct): no health score here any more. This line
+    sent the owner's mileage, service log and invoice lines to Gemini the
+    moment research finished, and a server action cannot know whether this
+    browser's owner has said yes to that — the answer lives in the client
+    (`lib/ai-consent-web.ts`). The dashboard's `HealthSummary` scores the car
+    on its first view once the answer is yes, and asks when it is not.
+  */
 
   preloadAllPerformanceModifications(vehicleId).catch(() => {});
 

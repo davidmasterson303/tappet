@@ -78,6 +78,9 @@ import type { ResearchObservation } from '@tappet/core/research-milestones';
 import ResearchLog from '../components/ResearchLog';
 import Seat from '../components/Seat';
 import { useResearchRunner } from '../components/useResearchRunner';
+import AiConsentSheet from '../components/AiConsentSheet';
+import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
 import { monoFace } from '../theme/fonts';
 
 /*
@@ -921,7 +924,26 @@ export function VehicleDetailScreen({
         }
       : null;
   const leanReload = useCallback(() => load(false, true, true), [load]);
-  const research = useResearchRunner({ vehicleId, observation, reload: leanReload });
+  /*
+    ── Audit 360, LEGAL-1 (1 Oct) · the score waits for a yes ──────────────
+
+    The runner posted `/health` the moment the dossier landed, and the owner's
+    mileage, service log and invoice lines went to Google before anything had
+    asked them. The answer is read here, handed to the runner, and the sheet
+    is shown when the runner reaches the score with nobody having said yes —
+    after the push primer, never over it (two Modals cannot both present).
+  */
+  const [aiConsent, setAiConsent] = useState<AiConsent | null>(null);
+  useEffect(() => {
+    let live = true;
+    void readAiConsent().then((answer) => {
+      if (live) setAiConsent(answer);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const research = useResearchRunner({ vehicleId, observation, reload: leanReload, consent: aiConsent });
 
   /*
     ── 22 Sep · no photo control on the hub ─────────────────────────────────
@@ -2350,6 +2372,20 @@ export function VehicleDetailScreen({
         Nothing here holds state; the key makes that structural.
       */}
       <PushPrimer visible={primer.open} onAccept={primer.accept} onDecline={primer.decline} />
+
+      <AiConsentSheet
+        visible={research.consentNeeded && !primer.open}
+        copy={HEALTH_AI_CONSENT}
+        onAccept={() => {
+          setAiConsent('granted');
+          void recordAiConsent('granted');
+        }}
+        onDecline={() => {
+          setAiConsent('declined');
+          research.consentDeclined();
+          void recordAiConsent('declined');
+        }}
+      />
 
       {manyCars ? (
         <CarSheet

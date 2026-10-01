@@ -18,6 +18,18 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { generateVehicleHealthSummary } from '@/app/actions';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readWebAiConsent, recordWebAiConsent, type WebAiConsent } from '@/lib/ai-consent-web';
 import { Working, WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -470,7 +482,71 @@ export default function HealthSummary({
   /** One auto-generation per mounted instance. See the effect below. */
   const autoRunAttempted = useRef(false);
 
+  /*
+    ── Audit 360, LEGAL-1 (1 Oct) · the score waits for a yes ──────────────
+
+    The score's prompt carries the owner's mileage, service log and up to
+    twelve invoice lines with their shops — and it ran on this card's first
+    view, and on every refresh, with no sheet in front of it. It now runs only
+    on this browser's granted answer (`lib/ai-consent-web.ts`, the same answer
+    the advisor and the upload dialog read). Without one, the refresh opens
+    `HEALTH_AI_CONSENT`; "Not now" leaves the score empty.
+  */
+  const [consent, setConsent] = useState<WebAiConsent | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
+  useEffect(() => {
+    setConsent(readWebAiConsent());
+  }, []);
+
   const handleRefresh = async () => {
+    if (readWebAiConsent() !== 'granted') {
+      setConsentOpen(true);
+      return;
+    }
+    await generate();
+  };
+
+  const consentDialog = (
+    <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{HEALTH_AI_CONSENT.title}</AlertDialogTitle>
+          <AlertDialogDescription>{HEALTH_AI_CONSENT.body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
+          {HEALTH_AI_CONSENT.points.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="text-xs text-white/70">{HEALTH_AI_CONSENT.declineNote}</p>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              recordWebAiConsent('declined');
+              setConsent('declined');
+              setConsentOpen(false);
+            }}
+          >
+            {HEALTH_AI_CONSENT.decline}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              recordWebAiConsent('granted');
+              // The press is the generation; the first-view effect must not fire a second.
+              autoRunAttempted.current = true;
+              setConsent('granted');
+              setConsentOpen(false);
+              void generate();
+            }}
+          >
+            {HEALTH_AI_CONSENT.accept}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  async function generate() {
     setIsRefreshing(true);
     const result = await generateVehicleHealthSummary(vehicleId, true);
     if (result.success) {
@@ -481,7 +557,7 @@ export default function HealthSummary({
       toast.error('Failed to update health summary');
     }
     setIsRefreshing(false);
-  };
+  }
 
   /*
     The first report runs itself.
@@ -508,6 +584,8 @@ export default function HealthSummary({
   useEffect(() => {
     if (healthSummary || autoRunAttempted.current) return;
     if (isDemoVehicleId(vehicleId)) return;
+    // LEGAL-1: never before a yes. Unanswered, the card's button asks.
+    if (consent !== 'granted') return;
 
     autoRunAttempted.current = true;
     setIsRefreshing(true);
@@ -522,12 +600,13 @@ export default function HealthSummary({
         // page load for something the user did not ask for is noise.
       })
       .finally(() => setIsRefreshing(false));
-  }, [healthSummary, vehicleId, router]);
+  }, [consent, healthSummary, vehicleId, router]);
 
   if (!healthSummary) {
     return (
       <Card className="cut-panel bg-[hsl(var(--card))] border-[color:var(--border)]">
         <CardHeader>
+          {consentDialog}
           <CardTitle className="text-white flex items-center gap-2">
             <Activity className="h-5 w-5 text-info" />
             Vehicle Health
@@ -598,6 +677,7 @@ export default function HealthSummary({
         : 'bg-orange-500/8 border-orange-400/20'
       }`}>
         <CardContent className="pt-5 pb-4">
+          {consentDialog}
           <div className="flex items-center gap-4 mb-3">
             <ScoreRing score={healthSummary.health_score} />
             <div className="flex-1 min-w-0">
@@ -695,6 +775,7 @@ export default function HealthSummary({
         the one thing here that reads as an answer rather than a reading.
       */}
       <CardHeader>
+        {consentDialog}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-5">
             <div>

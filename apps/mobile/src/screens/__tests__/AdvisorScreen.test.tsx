@@ -667,8 +667,14 @@ describe('asking before a question goes to Google', () => {
     await user.press(view.getByLabelText('Send question to the advisor'));
 
     await view.findByText(/this car’s records go to Google/);
-    // ⚠ And says what does *not* — narrower than the invoice sheet on purpose.
-    await view.findByText(/No photographs and no documents/);
+    /*
+      ⚠ Audit 360 (1 Oct): it said "No photographs and no documents are sent
+      from here" — and a yes here then opened the invoice scan with no sheet,
+      because both read one answer. It now names what one yes covers,
+      photographs included, and promises no narrower consent than it takes.
+    */
+    await view.findByText(/One answer covers all of Tappet’s AI/);
+    expect(view.queryByText(/No photographs and no documents/)).toBeNull();
   });
 });
 

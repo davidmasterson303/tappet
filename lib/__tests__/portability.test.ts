@@ -388,6 +388,13 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/quote-check.ts': 'calls Gemini through lib/gemini — a build-time server key',
   'lib/sign-out.ts': 'Supabase types',
   /*
+    1 Oct, audit 360 LEGAL-7. The web's AI-consent answer lives in
+    localStorage; the phone keeps its own in the Keychain
+    (`apps/mobile/src/onboarding/ai-consent.ts`). The words and the key are
+    shared through `@tappet/core/ai-consent-copy`.
+  */
+  'lib/ai-consent-web.ts': 'reads and writes window.localStorage — the web half of the AI consent',
+  /*
     The precedence rule — owner photo over stock, the unphotographed-demo
     carve-out — is portable and duplicated in hooks/useSignedUrl.ts. What is
     not portable is the half that mints the signed URL, which needs a Supabase

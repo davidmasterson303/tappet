@@ -1,3 +1,4 @@
+import { AI_CONSENT_LEGACY_KEY, AI_CONSENT_STORAGE_KEY } from '@tappet/core/ai-consent-copy';
 import { secureStorage } from '../auth/secure-storage';
 
 /**
@@ -40,7 +41,15 @@ import { secureStorage } from '../auth/secure-storage';
 
 export type AiConsent = 'granted' | 'declined' | 'unknown';
 
-const KEY = 'tappet.aiConsent';
+/*
+  ⚠ Versioned (audit 360, 1 Oct). Every AI path on the phone reads this one
+  answer — the advisor, the scan, and now the health score — and the sheets
+  that wrote the old key did not say so (the advisor's promised "no
+  photographs", then opened the scan). An answer given under those words is
+  not this answer, so the key moved and everyone is asked once more.
+  `AI_CONSENT_STORAGE_KEY` carries the argument.
+*/
+const KEY = AI_CONSENT_STORAGE_KEY;
 
 export async function readAiConsent(): Promise<AiConsent> {
   try {
@@ -69,7 +78,7 @@ export async function recordAiConsent(answer: 'granted' | 'declined'): Promise<v
 /** Sign-out. Consent was this person's; the next account on the phone gives its own. */
 export async function clearAiConsent(): Promise<void> {
   try {
-    await secureStorage.removeItem(KEY);
+    await Promise.all([secureStorage.removeItem(KEY), secureStorage.removeItem(AI_CONSENT_LEGACY_KEY)]);
   } catch {
     // A failure here costs one repeated sheet, not a lost answer.
   }
