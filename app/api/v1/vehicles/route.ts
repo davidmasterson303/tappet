@@ -13,7 +13,7 @@ import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baselin
 import { getServiceRoleClient } from '@/lib/supabase';
 import { explainVinConflict } from '@/lib/vin-conflict';
 import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
-import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE, UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 /**
  * How long a described car's add may be answered with the car it already
@@ -383,7 +383,7 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       readError ? new Error(readError.message) : new Error('Vehicle not found after authorization'),
       { vehicleId }
     );
-    return Response.json({ success: false, error: 'Vehicle not found' } as ApiResponse, {
+    return Response.json({ success: false, error: NOT_FOUND_MESSAGE } as ApiResponse, {
       status: 404,
     });
   }

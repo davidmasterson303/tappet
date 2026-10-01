@@ -30,6 +30,7 @@ import { recordAiUsageInBackground } from '@/lib/ai-usage';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { logger } from '@tappet/core/logger';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE } from '@/lib/api-error-copy';
 
 export interface PerformanceStats {
   stock_hp: number | null;
@@ -124,7 +125,7 @@ export async function recomputePerformanceStats({
     .maybeSingle();
 
   if (vErr || !vehicle) {
-    return { ok: false, status: 404, error: 'Vehicle not found' };
+    return { ok: false, status: 404, error: NOT_FOUND_MESSAGE };
   }
 
   if (isDemo) {

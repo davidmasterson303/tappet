@@ -21,6 +21,7 @@ import {
   computeModHash,
   extractJSON,
 } from '@/lib/performance-stats';
+import { NOT_ON_THIS_ACCOUNT } from '@/lib/api-error-copy';
 
 const generateContent = jest.fn();
 
@@ -315,7 +316,7 @@ describe('a missing vehicle is a 404, not a crash', () => {
     });
 
     expect(generateContent).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: false, status: 404, error: 'Vehicle not found' });
+    expect(result).toEqual({ ok: false, status: 404, error: NOT_ON_THIS_ACCOUNT });
   });
 });
 

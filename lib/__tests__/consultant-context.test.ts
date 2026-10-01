@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConsultantContext } from '../consultant-context';
+import { NOT_ON_THIS_ACCOUNT } from '@/lib/api-error-copy';
 
 const VEHICLE_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -108,7 +109,7 @@ describe('loadConsultantContext', () => {
   it('refuses when the vehicle is not there', async () => {
     const result = await loadConsultantContext(VEHICLE_ID, clientWith({}));
 
-    expect(result).toEqual({ ok: false, error: 'Vehicle not found' });
+    expect(result).toEqual({ ok: false, error: NOT_ON_THIS_ACCOUNT });
   });
 
   it('gives a missing vehicle the same answer the auth layer gives', async () => {
@@ -120,7 +121,9 @@ describe('loadConsultantContext', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(apiAuth).toContain(`'${result.error}'`);
+    // COPY-39: both read the one constant, so they cannot drift apart.
+    expect(result.error).toBe(NOT_ON_THIS_ACCOUNT);
+    expect(apiAuth).toMatch(/export const NOT_FOUND_MESSAGE = NOT_ON_THIS_ACCOUNT;/);
   });
 
   /*

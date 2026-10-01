@@ -102,7 +102,7 @@ export default function IssueFixDialog({
             </Label>
             <Textarea
               id="notes"
-              placeholder="Add any additional details..."
+              placeholder="Add any additional details…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="resize-none"

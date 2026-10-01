@@ -6,7 +6,7 @@ import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { projectNextService } from '@/lib/next-service';
 import { platePresence, resolveVehiclePhoto, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 import { driversForVehicle } from '@tappet/core/health-drivers';
-import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE, UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     if (!vehicleData) {
-      return Response.json({ success: false, error: 'Vehicle not found' } as ApiResponse, { status: 404 });
+      return Response.json({ success: false, error: NOT_FOUND_MESSAGE } as ApiResponse, { status: 404 });
     }
 
     const knowledgeData = knowledgeResult.data;

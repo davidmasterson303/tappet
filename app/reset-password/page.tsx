@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
             <CheckCircle2 className="h-14 w-14 text-emerald-400 mx-auto mb-5" />
             <h2 className="display-serif text-3xl text-white mb-3">Password updated</h2>
-            <p className="text-white/55 text-sm">Redirecting you to your garage...</p>
+            <p className="text-white/55 text-sm">Redirecting you to your garage…</p>
           </div>
         </div>
       </div>

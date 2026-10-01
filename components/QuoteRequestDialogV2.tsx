@@ -501,7 +501,7 @@ export function QuoteRequestDialogV2({
                 </label>
                 <Textarea
                   id="notes"
-                  placeholder="Add specific concerns, timeline preferences, or additional context for shops..."
+                  placeholder="Add specific concerns, timeline preferences, or additional context for shops…"
                   value={state.additionalNotes}
                   onChange={(e) => dispatch({ type: 'SET_ADDITIONAL_NOTES', notes: e.target.value })}
                   rows={5}

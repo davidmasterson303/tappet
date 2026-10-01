@@ -159,7 +159,7 @@ export function AddWishlistItemDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="Additional details about this item..."
+                placeholder="Additional details about this item…"
                 rows={3}
               />
             </div>
@@ -237,7 +237,7 @@ export function AddWishlistItemDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Any additional notes..."
+                placeholder="Any additional notes…"
                 rows={2}
               />
             </div>

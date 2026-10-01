@@ -25,7 +25,7 @@ jest.mock('@/lib/supabase', () => ({
   supabase: {},
 }));
 jest.mock('@/lib/api-auth', () => ({
-  NOT_FOUND_MESSAGE: 'Vehicle not found',
+  NOT_FOUND_MESSAGE: 'Tappet could not find that on this account. It may have been removed.',
   requireSession: jest.fn(),
   requireCaller: jest.fn(),
   authorizeVehicleAccess: jest.fn(),

@@ -165,7 +165,7 @@ export default function TCOInputsModal({ open, onOpenChange, vehicleId, vehicle,
             {saved ? (
               <><Check className="h-4 w-4 mr-1.5" />Saved</>
             ) : saving ? (
-              'Saving...'
+              'Saving…'
             ) : (
               'Save changes'
             )}

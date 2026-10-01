@@ -22,7 +22,7 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
 
   const handleResearch = async () => {
     setIsResearching(true);
-    toast.loading('Researching vehicle information...', { id: 'research' });
+    toast.loading('Researching the model…', { id: 'research' });
 
     try {
       const vehicleData = { id: vehicleId, year, make, model };

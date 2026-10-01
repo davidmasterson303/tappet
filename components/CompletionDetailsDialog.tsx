@@ -160,7 +160,7 @@ export default function CompletionDetailsDialog({
             <Label htmlFor="notes">Work notes (optional)</Label>
             <Textarea
               id="notes"
-              placeholder="Any additional details about the work performed..."
+              placeholder="Any additional details about the work performed…"
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
@@ -201,7 +201,7 @@ export default function CompletionDetailsDialog({
                 </label>
               )}
               {uploadingFile && (
-                <p className="text-xs text-slate-400">Uploading invoice...</p>
+                <p className="text-xs text-slate-400">Uploading invoice…</p>
               )}
             </div>
           </div>
@@ -220,7 +220,7 @@ export default function CompletionDetailsDialog({
             disabled={submitting || isLoading || !formData.dateCompleted}
             className="bg-green-600 hover:bg-green-700"
           >
-            {submitting || isLoading ? 'Saving...' : 'Mark as done'}
+            {submitting || isLoading ? 'Saving…' : 'Mark as done'}
           </Button>
         </DialogFooter>
       </DialogContent>

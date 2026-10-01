@@ -120,6 +120,19 @@ export function isCarNotFound(error: unknown): boolean {
   return !!error && typeof error === 'object' && (error as { message?: unknown }).message === CAR_NOT_FOUND;
 }
 
+/**
+ * The one answer for "not there" and "not yours" — a car, a document or a
+ * row of one — audit 360, COPY-39 (1 Oct). It was "Vehicle not found".
+ *
+ * ⚠ One sentence for every branch that can say it, and the sentence says
+ * neither which: `lib/api-auth.ts` (`NOT_FOUND_MESSAGE`) answers a car that
+ * is not this account's and a row id that does not exist with it, and
+ * `parseInvoiceLineItems` answers a document filed under another car with it.
+ * A distinct sentence on any one of them is an oracle for which ids exist.
+ * Not "that car": a row removed on another device reaches this too.
+ */
+export const NOT_ON_THIS_ACCOUNT = 'Tappet could not find that on this account. It may have been removed.';
+
 /** An action that looked for a car this account cannot see. Not found and not yours read the same. */
 export const CAR_NOT_ON_FILE = 'Tappet could not find that car on this account. Reload the page to see your cars.';
 

@@ -145,6 +145,6 @@ export function siteOrigin(demo: boolean): string {
  */
 export function shareDescription(demo: boolean): string {
   return demo
-    ? 'An AI advisor that knows your car. Live demo with sample vehicles — no signup required.'
-    : 'Track your vehicles, log service history, and get answers from an AI advisor that knows your car — its issues, schedule, and history.';
+    ? 'An AI advisor that knows your car. Live demo with sample cars — no signup required.'
+    : 'Track your cars, log service history, and get answers from an AI advisor that knows your car — its issues, schedule, and history.';
 }

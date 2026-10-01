@@ -699,7 +699,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                   className="space-y-2"
                 >
                   {[
-                    { value: 'Keep forever', label: 'Keep forever', desc: 'This is my long-term vehicle' },
+                    { value: 'Keep forever', label: 'Keep forever', desc: 'This is my long-term car' },
                     { value: 'Sell in 1-2 years', label: 'Sell in 1-2 years', desc: 'Planning to upgrade soon' },
                     { value: 'Sell in 3-5 years', label: 'Sell in 3-5 years', desc: 'Medium-term ownership' },
                     { value: 'Undecided', label: 'Undecided', desc: "I'll see how it goes" },

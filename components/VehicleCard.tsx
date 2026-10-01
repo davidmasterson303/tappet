@@ -489,7 +489,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  {isDeleting ? 'Deleting...' : 'Remove car'}
+                  {isDeleting ? 'Removing…' : 'Remove car'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -798,7 +798,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                 Cancel
               </Button>
               <Button onClick={handleUpdateMileage} disabled={isUpdatingMileage} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
-                {isUpdatingMileage ? 'Updating...' : 'Update mileage'}
+                {isUpdatingMileage ? 'Updating…' : 'Update mileage'}
               </Button>
             </div>
           </div>

@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { CAR_NOT_FOUND, NO_ANSWER, carPageSentence } from '@/lib/api-error-copy';
+import { CAR_NOT_FOUND, NO_ANSWER, carPageSentence, isCarNotFound } from '@/lib/api-error-copy';
 import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { formatDateMono, formatMiles } from '@tappet/core/tires';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -35,6 +36,7 @@ import { getClientSupabase } from '@/lib/supabase';
  */
 export default function TiresPage({ params }: { params: { vehicleId: string } }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [setDialog, setSetDialog] = useState<{ open: boolean; set: TireSet | null }>({ open: false, set: null });
   const [intervalDialog, setIntervalDialog] = useState<{ open: boolean; set: TireSet | null }>({ open: false, set: null });
   const [rotationDialog, setRotationDialog] = useState<{ open: boolean; set: TireSet | null; rotations: TireRotation[] }>({
@@ -81,6 +83,16 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
         <Working line="Opening the tire record" />
       </div>
     );
+  }
+
+  /*
+    Audit 360, COPY-36: a car that is not there goes to the garage, as the
+    dashboard, the specifications and the advisor do. It read "Reload the
+    page to try again", which reloads into the same sentence.
+  */
+  if (vehicleQuery.error && isCarNotFound(vehicleQuery.error)) {
+    router.replace('/garage');
+    return null;
   }
 
   if (vehicleQuery.error || !vehicleQuery.data) {

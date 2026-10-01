@@ -188,7 +188,7 @@ export function MarkCompleteDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Any additional notes about this service..."
+                placeholder="Any additional notes about this service…"
                 rows={3}
               />
             </div>

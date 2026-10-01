@@ -97,6 +97,16 @@ const JSX_TEXT = />([^<>{}]*[A-Za-z][^<>{}]*)</g;
 const ATTRIBUTE = /\b(?:title|aria-label|placeholder|alt)="([^"]+)"/g;
 const PHRASE_LITERAL = /'([A-Z][A-Za-z]*(?: [A-Za-z]+)+)'/g;
 const PLURAL_CHOICE = /===\s*1\s*\?\s*'([a-z]+)'\s*:\s*'([a-z]+)'/g;
+/*
+  COPY-37: the shapes the four readers above could not see — a toast's
+  literal, a sentence in a `desc:` / `summary:` / `body:` field, a fallback
+  after `||` / `??` / a ternary's arms, and any literal of three words or more
+  (a full stop or an ellipsis took a sentence out of PHRASE_LITERAL).
+*/
+const TOAST_LITERAL = /\btoast(?:\.\w+)?\(\s*(['"`])((?:(?!\1).)*[A-Za-z](?:(?!\1).)*)\1/g;
+const FIELD_LITERAL = /\b(?:desc|summary|body)\s*:\s*(['"`])((?:(?!\1).)+)\1/g;
+const FALLBACK_LITERAL = /(?:\|\||\?\?|\?|:)\s*'([A-Z][a-z]+(?: [a-z]+)+)'/g;
+const SENTENCE_LITERAL = /(['"])([A-Za-z][^'"\n]*?\s[^'"\n]*?\s[^'"\n]*?)\1/g;
 
 interface Piece {
   line: number;
@@ -106,7 +116,17 @@ interface Piece {
 
 /** Every piece of on-screen text in a `.tsx` source, with the line it sits on. */
 export function chromeText(source: string): Piece[] {
+  return readPieces(source).chrome;
+}
+
+/** A literal of three words or more — read for "vehicle" only (COPY-37), not for case. */
+export function sentenceLiterals(source: string): Piece[] {
+  return readPieces(source).sentences;
+}
+
+function readPieces(source: string): { chrome: Piece[]; sentences: Piece[] } {
   const out: Piece[] = [];
+  const sentences: Piece[] = [];
   const lines = withoutComments(source).split('\n');
   let inImport = false;
   lines.forEach((line, index) => {
@@ -133,6 +153,16 @@ export function chromeText(source: string): Piece[] {
     // COPY-32: a plural chosen by a ternary — `{n === 1 ? 'vehicle' : 'vehicles'}`.
     PLURAL_CHOICE.lastIndex = 0;
     for (let m = PLURAL_CHOICE.exec(line); m; m = PLURAL_CHOICE.exec(line)) push(`${m[1]} ${m[2]}`.toLowerCase());
+    // COPY-37: toasts, fields and fallbacks, and any literal of three words.
+    for (const re of [TOAST_LITERAL, FIELD_LITERAL]) {
+      re.lastIndex = 0;
+      // A template's `${…}` is a value, not a word: `${vehicle.make}` is not "vehicle".
+      for (let m = re.exec(line); m; m = re.exec(line)) push(m[2].replace(/\$\{[^}]*\}/g, 'X'));
+    }
+    FALLBACK_LITERAL.lastIndex = 0;
+    for (let m = FALLBACK_LITERAL.exec(line); m; m = FALLBACK_LITERAL.exec(line)) push(m[1]);
+    SENTENCE_LITERAL.lastIndex = 0;
+    for (let m = SENTENCE_LITERAL.exec(line); m; m = SENTENCE_LITERAL.exec(line)) sentences.push({ line: index + 1, text: m[2].trim(), source: line });
     // A text node alone on its line, set by the tag on the lines above.
     const bare = line.trim();
     /*
@@ -156,7 +186,7 @@ export function chromeText(source: string): Piece[] {
       out.push({ line: index + 1, text: bare, source: `${opener} ${line}` });
     }
   });
-  return out;
+  return { chrome: out, sentences };
 }
 
 /** Caps set by the design system: the element's class transforms the case. */
@@ -170,7 +200,12 @@ export function titleCaseIn(source: string): Piece[] {
 const VEHICLE = /\bvehicles?\b/i;
 
 export function vehicleIn(source: string): Piece[] {
-  return chromeText(source).filter((p) => VEHICLE.test(p.text));
+  const { chrome, sentences } = readPieces(source);
+  const seen = new Set<string>();
+  return [...chrome, ...sentences]
+    .filter((p) => VEHICLE.test(p.text))
+    .filter((p) => !seen.has(`${p.line}:${p.text}`) && !!seen.add(`${p.line}:${p.text}`))
+    .sort((a, b) => a.line - b.line);
 }
 
 const at = (file: string, p: Piece) => `${file.slice(ROOT.length + 1)}:${p.line}  ${JSON.stringify(p.text)}`;
@@ -224,6 +259,65 @@ describe('the web’s chrome is sentence case (COPY-34)', () => {
   it('says car where the phone says car', () => {
     const offenders = FILES.flatMap((file) => vehicleIn(readFileSync(file, 'utf8')).map((p) => at(file, p)));
     expect(offenders).toEqual([]);
+  });
+
+  /*
+    COPY-37: a server module's sentences that a page renders — the health
+    card's parse-failure summary, the mismatch fallbacks. The prompts in the
+    same file say vehicle to a model and are not read: only `desc:` /
+    `summary:` / `body:` fields and `||` / `??` / ternary fallbacks.
+  */
+  it('says car in the sentences the actions hand a page', () => {
+    // A log line is not said to anyone.
+    const actions = withoutComments(readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8'))
+      .split('\n')
+      .filter((line) => !/\b(console|logger)\./.test(line))
+      .join('\n');
+    const said: string[] = [];
+    for (const re of [FIELD_LITERAL, FALLBACK_LITERAL]) {
+      re.lastIndex = 0;
+      for (let m = re.exec(actions); m; m = re.exec(actions)) said.push(m[2] ?? m[1]);
+    }
+    expect(said.length).toBeGreaterThan(5);
+    expect(said.filter((t) => VEHICLE.test(t))).toEqual([]);
+  });
+
+  it('can still see the six lines COPY-37 found (anti-vacuous)', () => {
+    const shipped = [
+      `    toast.loading('Researching vehicle information...', { id: 'research' });`,
+      `      'Invoices, inspections and service records stored against the vehicle. The advisor reads them too.',`,
+      `                    { value: 'Keep forever', label: 'Keep forever', desc: 'This is my long-term vehicle' },`,
+      `      summary: 'We could not generate an assessment for this vehicle.',`,
+      `        ].filter(v => v != null && v !== '').join(' ') || 'Unknown vehicle';`,
+      `              ? 'Live demo with sample vehicles — no signup required'`,
+    ].join('\n');
+    expect(vehicleIn(shipped).map((p) => p.line)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  /*
+    COPY-40: a working state or a placeholder ends in the ellipsis the phone
+    and the web's newer lines write ("Saving…"), never three full stops.
+  */
+  const THREE_DOTS = /\.\.\.(?=['"<`])/;
+  const threeDotsIn = (source: string) =>
+    withoutComments(source).split('\n').flatMap((line, i) => (THREE_DOTS.test(line) ? [i + 1] : []));
+
+  it('writes an ellipsis, not three full stops (COPY-40)', () => {
+    const offenders = FILES.flatMap((file) =>
+      threeDotsIn(readFileSync(file, 'utf8')).map((line) => `${file.slice(ROOT.length + 1)}:${line}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('can still see three full stops (anti-vacuous)', () => {
+    const shipped = [
+      `                  {isDeleting ? 'Deleting...' : 'Remove car'}`,
+      `              placeholder="Search chats..."`,
+      `            <p className="text-white/55 text-sm">Redirecting you to your garage...</p>`,
+      `          // "Researching Vehicle..." was the label here`,
+      `            <Button>Saving…</Button>`,
+    ].join('\n');
+    expect(threeDotsIn(shipped)).toEqual([1, 2, 3]);
   });
 
   it('holds on the shared copy the web renders, not only its source text', () => {

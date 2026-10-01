@@ -230,7 +230,7 @@ describe('rename', () => {
       name finds the row; searching for the old name finds nothing — which is
       the assertion that there is one list, not a rail and a stale copy.
     */
-    const search = screen.getByPlaceholderText('Search chats...');
+    const search = screen.getByPlaceholderText('Search chats…');
     fireEvent.change(search, { target: { value: 'PS4S' } });
     expect(railTitles()).toEqual(['Tyres — settled on PS4S']);
     fireEvent.change(search, { target: { value: 'track days' } });

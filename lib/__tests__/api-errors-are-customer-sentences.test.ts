@@ -29,6 +29,7 @@ import {
   CAR_NOT_FOUND,
   CAR_NOT_ON_FILE,
   COULD_NOT_SAVE,
+  NOT_ON_THIS_ACCOUNT,
   NOT_SIGNED_IN,
   UNREADABLE_REQUEST,
   carPageSentence,
@@ -56,6 +57,11 @@ const FILES = [
   ...routes(join(ROOT, 'app', 'api', 'v1')),
   join(ROOT, 'lib', 'vehicle-photo.ts'),
   join(ROOT, 'lib', 'invoice-filing-replay.ts'),
+  /*
+    Audit 360, COPY-38: the authorizer's denials, which every route sends as
+    they are (`access.response`). Read at `deny(` — see TRIGGER.
+  */
+  join(ROOT, 'lib', 'api-auth.ts'),
   /*
     Audit 360, COPY-15: the web's add-a-car flow — the server actions it calls
     and the wizard that shows their `error` and its own.
@@ -108,7 +114,7 @@ function withoutComments(source: string): string {
   pull the next statements' strings in under the wrong line.
 */
 const OPENS_A_CALL = /\b(setError|toast\.error)\(\s*$/;
-const TRIGGER = /\berror\s*:|\berrorMessage\s*=|\bsetError\(|\btoast\.error\(|type: 'SET_ERROR'/;
+const TRIGGER = /\berror\s*:|\berrorMessage\s*=|\bsetError\(|\btoast\.error\(|type: 'SET_ERROR'|\bdeny\(/;
 
 export function logicalLines(source: string): string[] {
   const lines = withoutComments(source).split('\n');
@@ -507,6 +513,51 @@ describe('the web’s car pages say why they could not open (COPY-29)', () => {
     expect(carPageSentence(REFUSED, 'this car')).not.toMatch(/connection/);
   });
 
+  it('reads the authorizer’s denials (COPY-38) — and can still see the ones that shipped', () => {
+    const auth = readFileSync(join(ROOT, 'lib', 'api-auth.ts'), 'utf8');
+    expect((auth.match(/\bdeny\(/g) ?? []).length).toBeGreaterThan(8);
+    expect(scan('lib/api-auth.ts', auth)).toEqual([]);
+    const shipped = [
+      `    return deny('Missing vehicleId', 400);`,
+      `    return deny('Invalid vehicleId format', 400);`,
+      `    return deny('Failed to verify vehicle access', 500);`,
+      `    return deny('Missing id', 400);`,
+      `    return deny('Failed to verify access', 500);`,
+    ].join('\n');
+    expect(scan('fixture', shipped).map((h) => h.line)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  /*
+    COPY-39: one customer sentence for "not there" and "not yours", for a car
+    and for a row id — the same constant at every site, so no branch can
+    drift into an oracle.
+  */
+  it('answers not-there and not-yours in one sentence, at every site (COPY-39)', () => {
+    const auth = readFileSync(join(ROOT, 'lib', 'api-auth.ts'), 'utf8');
+    expect(auth).toMatch(/export const NOT_FOUND_MESSAGE = NOT_ON_THIS_ACCOUNT;/);
+    expect(isDeveloperSpeak(NOT_ON_THIS_ACCOUNT)).toBe(false);
+    expect(NOT_ON_THIS_ACCOUNT).not.toMatch(/vehicle/i);
+    // Both branches of each authorizer: the vehicle that is not owned, and the row that is not there.
+    expect((auth.match(/deny\(NOT_FOUND_MESSAGE, 404\)/g) ?? []).length).toBe(2);
+    const sites = [
+      'lib/consultant-context.ts',
+      'lib/performance-stats.ts',
+      'app/api/v1/vehicle-removal/route.ts',
+      'app/api/v1/vehicles/route.ts',
+      'app/api/v1/load-vehicle/route.ts',
+      'app/actions.ts',
+    ];
+    for (const site of sites) {
+      const source = readFileSync(join(ROOT, ...site.split('/')), 'utf8');
+      expect(source).toMatch(/error: NOT_FOUND_MESSAGE/);
+      // The old literal, said to someone (a log line's is not).
+      expect(source.split('\n').filter((l) => /'Vehicle not found'/.test(l) && !/logger\.|console\./.test(l))).toEqual([]);
+    }
+    // anti-vacuous: the literal as it shipped is seen.
+    const shipped = `    return { ok: false, error: 'Vehicle not found' };`;
+    expect(shipped.split('\n').filter((l) => /'Vehicle not found'/.test(l) && !/logger\.|console\./.test(l))).toHaveLength(1);
+  });
+
   it('knows its own not-found throw, and nothing else', () => {
     expect(isCarNotFound(new Error(CAR_NOT_FOUND))).toBe(true);
     expect(isCarNotFound(new Error('Vehicle not found'))).toBe(false);
@@ -519,12 +570,29 @@ describe('the web’s car pages say why they could not open (COPY-29)', () => {
     ['app/vehicle-info/[vehicleId]/page.tsx', 'the specifications'],
     ['app/consultant/[vehicleId]/page.tsx', 'the advisor'],
     ['app/tires/[vehicleId]/page.tsx', 'this car'],
+    ['app/plan/[vehicleId]/page.tsx', 'this car’s plan'],
   ])('%s shows the sentence and sends a missing car to the garage', (file, what) => {
     const page = readFileSync(join(ROOT, ...file.split('/')), 'utf8');
     expect(page).toContain(`carPageSentence(`);
     expect(page).toContain(`'${what}')`);
     expect(page).toContain('throw new Error(CAR_NOT_FOUND)');
     expect(page).not.toMatch(/Error Loading Vehicle|\{error\.message\}/);
+    // COPY-36: the title's second half, asserted on every page it names.
+    expect(page).toMatch(GARAGE_REDIRECT);
+  });
+
+  /* The redirect, read as the pages write it: the not-found test, then the replace. */
+  const GARAGE_REDIRECT = /isCarNotFound\([\w.]+\)[\s\S]{0,120}?router\.replace\('\/garage'\)/;
+
+  it('anti-vacuous: the tire and plan pages as they shipped had no redirect', () => {
+    const tiresShipped = `if (!data) throw new Error(CAR_NOT_FOUND);
+      if (vehicleQuery.error || !vehicleQuery.data) {
+        return <p>{carPageSentence(vehicleQuery.error, 'this car')}</p>;
+      }`;
+    const planShipped = `{error ? <p>Could not load this car&apos;s plan.</p> : null}`;
+    expect(tiresShipped).not.toMatch(GARAGE_REDIRECT);
+    expect(planShipped).not.toMatch(GARAGE_REDIRECT);
+    expect(`if (error && isCarNotFound(error)) {\n    router.replace('/garage');`).toMatch(GARAGE_REDIRECT);
   });
 
   it('the dashboard takes the garage redirect too', () => {

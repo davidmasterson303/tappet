@@ -40,6 +40,7 @@ import {
   COULD_NOT_UPLOAD,
   NOT_SIGNED_IN,
   UNREADABLE_PAGE_REQUEST,
+  UNREADABLE_REQUEST,
   couldNotLoad,
   couldNotMake,
 } from '@/lib/api-error-copy';
@@ -763,7 +764,7 @@ export async function generateVehicleDossier(
   */
   const vehicle = vehicleData || null;
   if (!vehicle) {
-    return { success: false, error: 'Vehicle data is required' };
+    return { success: false, error: UNREADABLE_REQUEST };
   }
 
   /*
@@ -2607,7 +2608,7 @@ Format as valid JSON only, no markdown.`;
       recommendations: string[];
     } = {
       health_score: 70,
-      summary: 'We could not generate an assessment for this vehicle.',
+      summary: 'Tappet could not write an assessment for this car.',
       red_flags: [],
       maintenance_status: '',
       recall_status: healthClaim(
@@ -3062,7 +3063,7 @@ Format as valid JSON only, no markdown or explanations.`;
     let parsedCleanly = false;
     let details = {
       performance_impact: 'Performance gains will vary',
-      reliability_impact: 'Check compatibility with your vehicle',
+      reliability_impact: 'Check compatibility with your car',
       cost_benefit_analysis: 'Consult with a professional for accurate costs',
       alignment_with_goals: 'Consider your ownership objectives',
       installation_notes: 'Professional installation recommended',
@@ -4390,21 +4391,26 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
           expected: vehicle,
         });
 
+        /*
+          Audit 360, COPY-37: empty, never 'Unknown vehicle' — each client
+          names the gap in its own words (the web's "No car named" / "This
+          car"; every phone build reads an empty label as unknown).
+        */
         const extractedStr = [
           extractedVehicle.year,
           extractedVehicle.make,
           extractedVehicle.model,
           extractedVehicle.color
-        ].filter(v => v != null && v !== '').join(' ') || 'Unknown vehicle';
+        ].filter(v => v != null && v !== '').join(' ');
 
         const expectedStr = vehicle
           ? [vehicle.year, vehicle.make, vehicle.model, vehicle.color].filter(v => v != null && v !== '').join(' ')
-          : 'Unknown vehicle';
+          : '';
 
         return {
           success: false,
           error: 'VEHICLE_MISMATCH',
-          message: parsed.mismatch_message || 'Vehicle information does not match',
+          message: parsed.mismatch_message || 'This invoice looks like it is for a different car.',
           extractedVehicle: extractedStr,
           expectedVehicle: expectedStr,
         };

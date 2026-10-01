@@ -1,14 +1,14 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { readPlanEntry, type PlanSegment } from '@/lib/plan-entry';
 import DashboardLayout from '@/components/DashboardLayout';
 import VehicleInsights from '@/components/VehicleInsights';
 import { WishlistSection } from '@/components/WishlistSection';
 import { getClientSupabase } from '@/lib/supabase';
-import { CAR_NOT_FOUND } from '@/lib/api-error-copy';
+import { CAR_NOT_FOUND, carPageSentence, isCarNotFound } from '@/lib/api-error-copy';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { showsModifications } from '@tappet/core/mod-progression';
@@ -72,6 +72,7 @@ export default function PlanPage(props: { params: { vehicleId: string } }) {
 
 function PlanPageInner({ params }: { params: { vehicleId: string } }) {
   const entry = readPlanEntry(useSearchParams());
+  const router = useRouter();
   const [segment, setSegment] = useState<PlanSegment>(entry.segment);
   const queryClient = useQueryClient();
   /*
@@ -129,11 +130,21 @@ function PlanPageInner({ params }: { params: { vehicleId: string } }) {
     if (!next && segment === 'mods') setSegment('needs');
   }
 
+  /*
+    Audit 360, COPY-36: a car that is not there goes to the garage, as the
+    dashboard, the specifications and the advisor do — "Could not load this
+    car's plan" had nothing to do next, for every error.
+  */
+  if (error && isCarNotFound(error)) {
+    router.replace('/garage');
+    return null;
+  }
+
   if (isLoading || error || !data) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
         {error ? (
-          <p className="text-sm text-white/50">Could not load this car&apos;s plan.</p>
+          <p className="text-sm text-white/50">{carPageSentence(error, 'this car’s plan')}</p>
         ) : (
           /*
             `delay`: a plan served from the query cache resolves in well under

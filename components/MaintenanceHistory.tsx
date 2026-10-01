@@ -267,7 +267,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
             <Search className="h-4 w-4" />
             <Input
               fieldSize="sm"
-              placeholder="Search description, shop, part number..."
+              placeholder="Search description, shop, part number…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

@@ -112,7 +112,7 @@ const FEATURES = [
     badge: 'Storage',
     heading: 'Paperwork attached to the car it belongs to',
     body:
-      'Invoices, inspections and service records stored against the vehicle. The advisor reads them too, so an answer can cite what a shop actually did.',
+      'Invoices, inspections and service records stored against the car. The advisor reads them too, so an answer can cite what a shop actually did.',
   },
 ];
 
