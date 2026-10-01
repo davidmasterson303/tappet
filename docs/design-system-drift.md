@@ -4232,3 +4232,22 @@ board has drawn.
 **What Design needs to decide:** whether the hub's outline button wants the
 plate's act treatment instead, and whether the comped well should sit below
 the prices. Neither blocks build 3.
+
+## Two more states, from existing parts (audit 360, UX-21 / UX-22, 1 Oct, for Design)
+
+No new token, type style or treatment.
+
+- **Phone · research log settled on a *Not now*** (UX-22). When the log's one
+  failed line is the owner's own decline, its control is the outline
+  `Button` *Score this car* (the sheet's accept, as on the hub's door) in the
+  slot *Retry the research* holds for a real failure. The declined line
+  drops its "Retry to be asked again." tail.
+- **Web · Cost of Ownership Inputs, refused** (UX-21). The dialog shows the
+  red error well `DocumentUploadDialog` already uses (warning triangle,
+  `bg-red-500/10`, `text-red-300`, `role="alert"`) above its buttons when the
+  save is refused, and stays open. Its lead line is now the dialog's
+  `DialogDescription` (same classes).
+
+**What Design needs to decide:** nothing that blocks; whether the phone's
+asks (primer, score's sheet) want a visible beat between them is now a
+timing the code owns (`useAskTurns`, onDismiss then the next).
