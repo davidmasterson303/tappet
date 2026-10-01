@@ -51,7 +51,7 @@ describe('every site limits after authorizing, on the caller', () => {
   const health = fn(actions, 'export async function generateVehicleHealthSummary');
 
   it.each([
-    ['the consultant route', route, "aiCallerKey('consultant'"],
+    ['the consultant route', route, "aiCallerKey('consultant-route'"],
     ['the consultant action', consultant, "aiCallerKey('consultant'"],
     ['the health action', health, "aiCallerKey('health'"],
   ])('%s', (_name, body, key) => {
@@ -69,5 +69,47 @@ describe('every site limits after authorizing, on the caller', () => {
     const shipped = "  const rateLimit = await checkRateLimit(`consultant:${vehicleId}`, 'ai');";
     expect(shipped).toMatch(/checkRateLimit\(\s*`(consultant|health):\$\{(params\.)?vehicleId\}`/);
     expect(shipped).toMatch(/checkRateLimit\([^)]*'ai'\)/);
+  });
+});
+
+/*
+  TL-19 (round 3) · the route and the action spent one bucket, so a message
+  cost two of the ten. Each now has its own key; the simulation below runs
+  the real `aiCallerKey` against a per-identifier counter shaped like
+  `consume_rate_limit` (one row per identifier and tier).
+*/
+describe('one advisor message costs one of the ten (TL-19)', () => {
+  const featureOf = (body: string) => /aiCallerKey\('([\w-]+)'/.exec(body)?.[1] ?? null;
+  const route = fn(read('app', 'api', 'v1', 'consultant', 'route.ts'), 'export async function POST');
+  const action = fn(read('app', 'actions.ts'), 'export async function sendConsultantMessage');
+
+  function allowedMessages(routeFeature: string, actionFeature: string): number {
+    const counts = new Map<string, number>();
+    const consume = (key: string) => {
+      const n = (counts.get(`${key}|ai`) ?? 0) + 1;
+      counts.set(`${key}|ai`, n);
+      return n <= 10;
+    };
+    const caller = { userId: 'u1', vehicleId: 'car-a' };
+    let answered = 0;
+    for (let i = 0; i < 20; i++) {
+      if (!consume(aiCallerKey(routeFeature, caller))) continue;
+      if (!consume(aiCallerKey(actionFeature, caller))) continue;
+      answered++;
+    }
+    return answered;
+  }
+
+  it('the route and the action count in different buckets, so ten messages a minute are answered', () => {
+    const routeFeature = featureOf(route);
+    const actionFeature = featureOf(action);
+    expect(routeFeature).not.toBeNull();
+    expect(actionFeature).toBe('consultant');
+    expect(routeFeature).not.toBe(actionFeature);
+    expect(allowedMessages(routeFeature!, actionFeature!)).toBe(10);
+  });
+
+  it('can still detect the shared bucket that shipped (five a minute)', () => {
+    expect(allowedMessages('consultant', 'consultant')).toBe(5);
   });
 });

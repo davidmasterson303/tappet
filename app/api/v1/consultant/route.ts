@@ -174,9 +174,18 @@ export async function POST(request: NextRequest): Promise<Response> {
       POSTs a minute with anybody's vehicle id locked that owner's advisor.
       The action uses the same key, so alternating between the two still
       cannot double an allowance. 'ai' tier: this call spends Gemini tokens.
+
+      ⚠ TL-19 (round 3) · its own key, not the action's. With one key both
+      calls spent the same bucket, so every message cost two of the ten and
+      the real allowance was five a minute. Now the route's bucket counts
+      requests (replays and thread starts included) and the action's counts
+      model calls: ten messages a minute each way, and the route — which
+      counts at least as many — is the one that answers the phone's 429.
+      Alternating with the action still cannot double the model's
+      allowance: every model call is counted in the action's bucket.
     */
     const rateLimit = await checkRateLimit(
-      aiCallerKey('consultant', {
+      aiCallerKey('consultant-route', {
         userId: access.userId,
         visitor: access.userId ? null : getClientIdentifier(request, 'ai'),
         vehicleId,
