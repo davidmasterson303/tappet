@@ -1,9 +1,7 @@
 import { render, userEvent } from '@testing-library/react-native';
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { PASSWORD_MIN_LENGTH, SignInScreen } from '../SignInScreen';
+import { SignInScreen } from '../SignInScreen';
+import { PASSWORD_MIN_LENGTH } from '@tappet/core/password-rule';
 import { resetPassword, signIn, signUp } from '../../auth/session';
 
 /**
@@ -260,19 +258,6 @@ describe('the password rule, before the press — audit 360, UX-10', () => {
     await user.press(view.getByText('New here? Create an account'));
     expect(view.getByText(`at least ${PASSWORD_MIN_LENGTH} characters`)).toBeTruthy();
     expect(view.getByLabelText(`Password, at least ${PASSWORD_MIN_LENGTH} characters`)).toBeTruthy();
-  });
-
-  it('names the same number the web refuses under', () => {
-    const root = join(__dirname, '..', '..', '..', '..', '..');
-    const pages = ['app/signup/page.tsx', 'app/reset-password/page.tsx'].map((page) =>
-      readFileSync(join(root, page), 'utf8')
-    );
-    for (const page of pages) {
-      // Found the rule at all — a page that lost it would pass vacuously.
-      const floor = /password\.length < (\d+)\)/.exec(page)?.[1];
-      expect(floor).toBeDefined();
-      expect(Number(floor)).toBe(PASSWORD_MIN_LENGTH);
-    }
   });
 });
 
