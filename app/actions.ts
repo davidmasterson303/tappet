@@ -82,7 +82,14 @@ import {
   isInvoicePagePath,
 } from '@tappet/core/storage-paths';
 import { stitchInvoicePdf, isStitchable } from '@/lib/invoice-pdf';
-import { filedInvoiceName, priorFiling, type ReplayClient } from '@/lib/invoice-filing-replay';
+import {
+  filedInvoiceName,
+  filedUploadName,
+  filingKeyToken,
+  priorFiling,
+  priorFilingOf,
+  type ReplayClient,
+} from '@/lib/invoice-filing-replay';
 import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@tappet/core/consultant-commands';
 import { parseEstimate } from '@tappet/core/consultant-estimate';
 import { ALLOWED_IMAGE_TYPES, INVOICE_PAGE_LIMIT, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
@@ -4622,9 +4629,35 @@ export async function uploadInvoice(formData: FormData): Promise<InvoiceFilingRe
 
     const client = access.client;
 
+    /*
+      ⚠ 1 Oct · audit 360, TL-31 · the website's retry of a filing whose
+      answer was lost. With a filing key (minted once per chosen file by
+      `DocumentUploadDialog`), an earlier filing of this same choice is
+      answered, not filed again — the pages form's replay, on the same rows
+      (`lib/invoice-filing-replay.ts`). Before any byte is stored.
+    */
+    const filingKey = filingKeyToken(formData.get('filingKey'));
+    if (filingKey) {
+      const prior = await priorFilingOf(client as unknown as ReplayClient, vehicleId, filingKey);
+      if (prior.state === 'filed') {
+        logger.info('UPLOAD_INVOICE:REPLAY', 'Answered a repeat filing with the filed document', {
+          vehicleId,
+          documentId: prior.documentId,
+        });
+        return { success: true, documentId: prior.documentId, itemsExtracted: prior.itemsExtracted };
+      }
+      if (prior.state === 'in-flight') {
+        return { success: false, error: 'FILING_IN_PROGRESS' };
+      }
+    }
+
     console.log(`[Upload] Starting upload for ${file.name} (${file.size} bytes)${bypassVehicleCheck ? ' [BYPASS VEHICLE CHECK]' : ''}`);
 
-    const fileName = vehicleStoragePath(vehicleId, 'invoices', file.name);
+    const fileName = vehicleStoragePath(
+      vehicleId,
+      'invoices',
+      filingKey ? filedUploadName(filingKey, file.name) : file.name
+    );
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
 

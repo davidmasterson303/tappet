@@ -95,7 +95,61 @@ export async function priorFiling(
 ): Promise<PriorFiling> {
   const token = pagePaths[0] ? scanToken(pagePaths[0]) : null;
   if (!token) return { state: 'none' };
+  return priorFilingOf(client, vehicleId, token, now);
+}
 
+/**
+ * ── The web's single-file filing, given the same replay (TL-31, 1 Oct) ─────
+ *
+ * The multipart form (`uploadInvoice`) stored every call under a fresh
+ * unique path, so it had nothing to replay on: a filing whose answer was
+ * lost (a dropped connection, a gateway's 502/504 after the document and
+ * its line items were written) was reported by the website as "could not be
+ * uploaded… try again", and the retry filed the invoice a second time.
+ *
+ * The website now mints a **filing key** once per file the owner chose —
+ * the same `<ms>-<rand>` shape a page path carries — and sends it with every
+ * attempt at that file. The stored name carries it (`filedUploadName`), so
+ * `priorFilingOf` finds the earlier filing exactly as it does for a scan.
+ *
+ * ⚠ The key is per *choice*, not per *content*. A retry of the file still in
+ * the dialog sends the same key and is answered with what it filed; the same
+ * invoice chosen again later (a new `File`, a new key) is a deliberate second
+ * filing and is filed. Two different invoices never share a key. Hashing the
+ * bytes instead would refuse the owner who means to file a copy twice, and
+ * would answer the retry of a *reduced* copy differently from its original.
+ *
+ * No key (a caller older than this) files exactly as it always did.
+ */
+export function filingKeyToken(key: unknown): string | null {
+  if (typeof key !== 'string') return null;
+  return /^\d{10,}-[a-z0-9]{1,8}$/.test(key) ? key : null;
+}
+
+/** A filing key, minted once per chosen file — the shape `filingKeyToken` accepts. */
+export function mintFilingKey(now: number = Date.now(), random: () => number = Math.random): string {
+  const rand = random().toString(36).slice(2, 8) || '0';
+  return `${now}-${rand}`;
+}
+
+/**
+ * The name a keyed single-file filing is stored under: it carries the key.
+ *
+ * ⚠ The owner's file name is clipped first: `vehicleStoragePath` keeps the
+ * last 120 characters, and a long name would otherwise push the key out of
+ * the stored name — the replay would silently find nothing.
+ */
+export function filedUploadName(key: string, fileName: string): string {
+  return `${key}-${fileName.slice(-90)}`;
+}
+
+/** What became of an earlier filing that carried `token`, if there was one. */
+export async function priorFilingOf(
+  client: ReplayClient,
+  vehicleId: string,
+  token: string,
+  now: number = Date.now()
+): Promise<PriorFiling> {
   const { data, error } = await client
     .from('vehicle_documents')
     .select('id, extraction_status, upload_date')
@@ -125,3 +179,25 @@ export async function priorFiling(
 /** What a phone shows for `FILING_IN_PROGRESS` — the route sends it as `error`. */
 export const FILING_IN_PROGRESS_MESSAGE =
   'Tappet is still reading this invoice. Check this car’s service history in a minute before scanning it again.';
+
+/**
+ * What the website shows for `FILING_IN_PROGRESS` — the phone's sentence says
+ * "scanning", and the website uploads.
+ */
+export const FILING_IN_PROGRESS_WEB_MESSAGE =
+  'Tappet is still reading this invoice. Check this car’s service history in a minute before uploading it again.';
+
+/**
+ * What the website says when a filing's answer never arrived — TL-31.
+ *
+ * ⚠ Never "could not be uploaded… try again": the document and its line
+ * items may already be written. The dialog reloads the history before it
+ * shows this, and keeps the file selected with its filing key, so the retry
+ * this offers is answered with the filed copy rather than filed again.
+ */
+export function lostWebFilingAnswer(fileName: string): string {
+  return `Tappet did not hear back about ${fileName}, so it may already be filed. Check this car’s service history, or upload it again from here: Tappet will not file it twice.`;
+}
+
+/** The website's wait for one filing — the phone's (`PHONE_FILING_WAIT_MS`). */
+export const WEB_FILING_WAIT_MS = PHONE_FILING_WAIT_MS;

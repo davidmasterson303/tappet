@@ -71,12 +71,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         a `code` a later build can read; the next Try again gets the filed
         document (`lib/invoice-filing-replay.ts`).
       */
-      if (!result.success && result.error === 'FILING_IN_PROGRESS') {
-        return NextResponse.json(
-          { success: false, error: FILING_IN_PROGRESS_MESSAGE, code: 'filing-in-progress' },
-          { status: 409 }
-        );
-      }
+      // `FILING_IN_PROGRESS` → 409 lives in `respond`: since TL-31 both forms reach it.
 
       if (!result.success && (result.error === 'INVALID_PAGES' || result.error === 'PAGE_MISSING')) {
         return NextResponse.json(
@@ -189,6 +184,15 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (bypassFlag) {
       uploadFormData.append('bypassVehicleCheck', 'true');
     }
+    /*
+      Audit 360, TL-31: the website's filing key, passed through as it came —
+      `uploadInvoice` validates it and replays an earlier filing that carried
+      it. A caller that sends none files exactly as before.
+    */
+    const filingKey = formData.get('filingKey');
+    if (typeof filingKey === 'string' && filingKey) {
+      uploadFormData.append('filingKey', filingKey);
+    }
 
     const result = await uploadInvoice(uploadFormData);
     return respond(result, vehicleId);
@@ -203,6 +207,19 @@ export async function POST(request: NextRequest): Promise<Response> {
 
 /** One mapping from a filing to HTTP, for both forms. */
 function respond(result: InvoiceFilingResult, vehicleId: string): Response {
+  /*
+    Audit 360, TL-2 / TL-31: a retry that overtook the filing it repeats.
+    409 with a sentence a build-2 phone shows as it stands (it reads `error`),
+    and a `code` the website and a later build read; the next Try again gets
+    the filed document (`lib/invoice-filing-replay.ts`).
+  */
+  if (!result.success && result.error === 'FILING_IN_PROGRESS') {
+    return NextResponse.json(
+      { success: false, error: FILING_IN_PROGRESS_MESSAGE, code: 'filing-in-progress' },
+      { status: 409 }
+    );
+  }
+
   if (!result.success) {
     logger.warn('API:UPLOAD_INVOICE', 'Upload failed', {
       error: result.error,
