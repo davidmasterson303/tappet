@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, ApiRequestError } from './client';
 import type { DeletionCounts } from '@tappet/core/account-deletion';
 
 /**
@@ -71,13 +71,49 @@ export async function getSubscription(): Promise<AccountSubscription> {
  * routes write to be shown.
  */
 export async function deleteAccount(): Promise<DeleteAccountResult> {
-  const response = await apiRequest<{ success: boolean; deleted?: DeletionCounts }>('/account', {
-    method: 'DELETE',
-  });
+  let response: { success: boolean; deleted?: DeletionCounts };
+  try {
+    response = await apiRequest<{ success: boolean; deleted?: DeletionCounts }>('/account', {
+      method: 'DELETE',
+      timeoutMs: DELETE_TIMEOUT_MS,
+    });
+  } catch (error) {
+    /*
+      ⚠ 1 Oct · audit 360, TL-7 · a deletion whose answer was lost.
+
+      The purge is inline — every object under every car, then the auth user
+      — and an account with a few cars and receipts can outlive any bound.
+      At the default 20 s the phone said "did not answer", kept the session,
+      and left the owner signed in to an account that no longer existed,
+      every screen answering "could not confirm who you are". So a lost
+      answer asks: a 401 for the account means it is gone, and the caller
+      signs out as it would on success. Anything else is the original error.
+    */
+    if (error instanceof ApiRequestError && (error.kind === 'timeout' || error.kind === 'offline')) {
+      if (await accountIsGone()) return { deleted: { vehicles: 0, storageObjects: 0 } };
+    }
+    throw error;
+  }
 
   return {
     // A successful delete with no counts is possible — an account with nothing
     // in it — and is not an error. `describeDeletion` handles the zero case.
     deleted: response.deleted ?? { vehicles: 0, storageObjects: 0 },
   };
+}
+
+/**
+ * Longer than any purge measured, and well inside the phone's patience for
+ * the one irreversible act it performs (audit 360, TL-7).
+ */
+export const DELETE_TIMEOUT_MS = 90_000;
+
+/** Whether the server no longer knows this account — a 401 to the read. */
+async function accountIsGone(): Promise<boolean> {
+  try {
+    await apiRequest('/account', { method: 'GET' });
+    return false;
+  } catch (probe) {
+    return probe instanceof ApiRequestError && probe.status === 401;
+  }
 }
