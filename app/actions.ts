@@ -35,6 +35,7 @@ import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
 import { explainVinConflict } from '@/lib/vin-conflict';
 import { aiCallerKey, checkRateLimit } from '@/lib/rate-limit';
 import { applyStatusCommand } from '@/lib/advisor-status-commands';
+import { removeDocumentFile } from '@/lib/document-file';
 import {
   isModDetailCacheFresh,
   modDetailCacheKey,
@@ -3451,6 +3452,17 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
 
     console.log(`[Delete Action] Attempting to delete from ${tableName} where id = ${itemId}`);
 
+    // Audit 360, SEC-5: the file a document's row names goes with it.
+    let documentFileUrl: unknown = null;
+    if (tableName === 'vehicle_documents') {
+      const { data: documentRow } = await client
+        .from('vehicle_documents')
+        .select('file_url')
+        .eq('id', itemId)
+        .maybeSingle();
+      documentFileUrl = documentRow?.file_url ?? null;
+    }
+
     const { error, data, count } = await client
       .from(tableName)
       .delete()
@@ -3477,6 +3489,10 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
     if (!data || data.length === 0) {
       console.warn(`[Delete Action Warning] No rows deleted - item may not exist`);
       return { success: true, warning: 'Item not found or already deleted' };
+    }
+
+    if (tableName === 'vehicle_documents' && access.vehicleId) {
+      await removeDocumentFile(getServiceRoleClient(), access.vehicleId, documentFileUrl);
     }
 
     return { success: true };

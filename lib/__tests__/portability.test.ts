@@ -304,6 +304,11 @@ const NOT_PORTABLE: Record<string, string> = {
     Only the server applies model output to an owner's records.
   */
   'lib/advisor-status-commands.ts': 'Supabase client types — writes tracked issues and Needs on the server',
+  /*
+    1 Oct, audit 360 SEC-5. Removes a deleted document's file from the
+    private bucket with the service role.
+  */
+  'lib/document-file.ts': 'removes storage objects through lib/storage-objects with the service role',
   'lib/account-data.ts': 'reaches Supabase through lib/supabase',
   'lib/performance-stats.ts': 'Supabase types, and calls Gemini',
   'lib/rate-limit.ts': 'reaches Supabase through lib/supabase',
