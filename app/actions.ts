@@ -42,7 +42,7 @@ import {
   couldNotLoad,
   couldNotMake,
 } from '@/lib/api-error-copy';
-import { clipForPrompt, clipVehicleTrim, markDoneFieldProblem, SERVICE_DESCRIPTION_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
+import { clipForPrompt, clipQuoteItem, clipVehicleTrim, markDoneFieldProblem, QUOTE_LIMITS, quoteInputProblem, SERVICE_DESCRIPTION_MAX, vehicleNameProblem, wishlistFieldProblem } from '@tappet/core/input-bounds';
 import { serviceItemPatch, tcoPatch } from '@/lib/action-patches';
 import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
@@ -2818,8 +2818,31 @@ function normaliseGoal(value: unknown): GoalKey {
   return typeof value === 'string' && value in GOAL_CONTEXT ? (value as GoalKey) : 'moderate';
 }
 
-export async function generateModificationDetails(vehicleId: string, modName: string, vehicle: any, performanceMindset: string) {
+export async function generateModificationDetails(
+  vehicleId: string,
+  modName: string,
+  /*
+    ⚠ Ignored since audit 360, SEC-18 (1 Oct), kept so the card's call and the
+    action's arity do not change. This was the client's whole vehicle object,
+    and its year, make and model built the prompt, the shared cache key and
+    the shared cache row — the car's identity was the caller's to choose. The
+    facts are read below from the authorized row, as `generateBackfillMod`
+    always did.
+  */
+  _clientVehicle: unknown,
+  performanceMindset: string
+) {
   try {
+    // SEC-18: the name reaches the prompt and two tables; bounded like a
+    // wishlist name (`modificationNameSchema` says 200 too).
+    if (typeof modName !== 'string' || modName.trim().length === 0) {
+      return { success: false, error: 'Choose a modification first.' };
+    }
+    const modNameTrouble = wishlistFieldProblem({ itemName: modName });
+    if (modNameTrouble) {
+      return { success: false, error: modNameTrouble };
+    }
+
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
@@ -2857,6 +2880,16 @@ export async function generateModificationDetails(vehicleId: string, modName: st
     }
 
     const client = getServiceRoleClient();
+
+    // SEC-18: the car this describes is the one authorized above, read here.
+    const { data: vehicle } = await client
+      .from('vehicles')
+      .select('year, make, model, performance_mindedness')
+      .eq('id', vehicleId)
+      .maybeSingle();
+    if (!vehicle) {
+      return { success: false, error: NOT_FOUND_MESSAGE };
+    }
 
     /*
       ── Two columns model this, and only one of them is real ──────────────────
@@ -5993,7 +6026,7 @@ async function estimateCosts(
 ): Promise<{ success: boolean; data?: CostEstimate; error?: string }> {
   try {
     const itemsList = serviceItems.map((item, idx) =>
-      `${idx + 1}. ${item.description} (Category: ${item.category})`
+      `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (Category: ${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
 
     console.log('[Estimate Costs] Preparing prompt for cost estimation');
@@ -6191,10 +6224,13 @@ async function generateEmailDraft(
 
     console.log('[Generate Email Draft] Starting email generation');
     const itemsList = serviceItems.map((item, idx) =>
-      `${idx + 1}. ${item.description} (${item.category})`
+      `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
 
-    const notesSection = additionalNotes ? `\n\nAdditional Notes from Owner:\n${additionalNotes}` : '';
+    // SEC-17: bounded at the door too; clipped here so this step stands alone.
+    const notesSection = additionalNotes
+      ? `\n\nAdditional Notes from Owner:\n${clipForPrompt(String(additionalNotes), QUOTE_LIMITS.notes)}`
+      : '';
 
     const prompt = `Write a professional email to an auto repair shop requesting a quote. Use a friendly but business-like tone.
 
@@ -7601,6 +7637,21 @@ export async function generateQuoteRequestV2(
       return { success: false, error: 'Choose at least one item for the quote.' };
     }
 
+    /*
+      ⚠ Audit 360, SEC-17 (1 Oct). This is the public demo's one model path,
+      open with no session, and the wishlist branch below takes the caller's
+      own items into both prompts — description, category, notes, no bound,
+      in a body that may be a megabyte. `quoteRequestSchema`'s limits were
+      imported here and never applied. Now: notes, name and the item count
+      are refused with a sentence, and every caller-sent item is reduced to
+      its three fields, each clipped (`clipQuoteItem`). The prompts clip again
+      at `PROMPT_FIELD_MAX_CHARS` for the database branch's rows.
+    */
+    const quoteTrouble = quoteInputProblem({ selectedItemIds, items, additionalNotes, quoteName });
+    if (quoteTrouble) {
+      return { success: false, error: quoteTrouble };
+    }
+
     if (!zipCode || !/^\d{5}$/.test(zipCode)) {
       return { success: false, error: 'Please enter a valid 5-digit zip code' };
     }
@@ -7635,7 +7686,7 @@ export async function generateQuoteRequestV2(
 
     if (items && items.length > 0) {
       console.log('[QUOTE_V2] Using provided items (from wishlist), skipping database lookup');
-      serviceItems = items.filter(item => selectedItemIds.includes(item.id));
+      serviceItems = items.map(clipQuoteItem).filter(item => item.id && selectedItemIds.includes(item.id));
 
       if (serviceItems.length === 0) {
         console.error('[QUOTE_V2] No matching items found in provided items array');

@@ -6,6 +6,7 @@ import {
   decideDemoBudget,
   decideFrontDoor,
   monthStart,
+  outputEquivalentTokens,
   FRONT_DOOR_DISABLED_ENV,
   type BudgetDecision,
   type DemoBudgetDecision,
@@ -139,7 +140,7 @@ export async function checkDemoBudget(): Promise<DemoBudgetDecision> {
 
     const { data, error } = await client
       .from('ai_usage_events')
-      .select('output_tokens, thoughts_tokens, created_at')
+      .select('prompt_tokens, output_tokens, thoughts_tokens, created_at')
       .is('user_id', null)
       .eq('surface', 'demo')
       .gte('created_at', since);
@@ -156,9 +157,21 @@ export async function checkDemoBudget(): Promise<DemoBudgetDecision> {
     let usedThisMonth = 0;
 
     for (const row of data ?? []) {
-      // Thinking counted with output — it bills at the output rate, and on the
-      // consultant it is the larger half.
-      const cost = (row.output_tokens ?? 0) + (row.thoughts_tokens ?? 0);
+      /*
+        Thinking counted with output — it bills at the output rate, and on the
+        consultant it is the larger half.
+
+        ⚠ Input counts too (audit 360, SEC-17, 1 Oct), on the owner's scale.
+        This summed output alone after SEC-2 taught `decideBudget` to count
+        input, so the one anonymous model path left — the demo quote, which
+        takes the caller's text into two prompts — could send a megabyte a
+        call and spend a few hundred tokens of the day. Same formula as the
+        owner's fuse, so the two cannot drift apart.
+      */
+      const cost = outputEquivalentTokens({
+        inputTokens: row.prompt_tokens ?? 0,
+        outputTokens: (row.output_tokens ?? 0) + (row.thoughts_tokens ?? 0),
+      });
       usedThisMonth += cost;
       if (new Date(row.created_at as string).getTime() >= dayBoundary) usedToday += cost;
     }

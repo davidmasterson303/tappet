@@ -59,6 +59,7 @@ const LABELS: Record<string, string> = {
   notes: 'The notes',
   sourceData: 'The attached detail',
   shopName: 'The shop name',
+  quoteName: 'The quote name',
 };
 
 function tooLong(field: string, max: number): string {
@@ -132,6 +133,70 @@ export function markDoneFieldProblem(fields: { shopName?: unknown; notes?: unkno
     return tooLong('notes', WISHLIST_LIMITS.notes);
   }
   return null;
+}
+
+/**
+ * What one quote may carry. `quoteRequestSchema`'s numbers (`validation.ts`),
+ * which nothing applied until audit 360, SEC-17.
+ */
+export const QUOTE_LIMITS = {
+  items: 50,
+  notes: 2_000,
+  quoteName: 100,
+  /** Per item, as the quote's two prompts and its stored row carry it. */
+  category: WISHLIST_LIMITS.category,
+  description: WISHLIST_LIMITS.description,
+} as const;
+
+/**
+ * Null when a quote's caller-sent parts fit; otherwise the sentence to show.
+ *
+ * ⚠ Audit 360, SEC-17 (1 Oct). `generateQuoteRequestV2` runs on the public
+ * demo with no session, and on the wishlist path it takes the caller's own
+ * `items` — description and category — and the notes straight into two
+ * model prompts. The action body may be a megabyte. Notes, name and the item
+ * count are what the dialog lets an owner type or pick, so they are refused
+ * with a sentence; an item's description and category are the owner's stored
+ * text sent back, so they are clipped (`clipQuoteItem`) rather than refused —
+ * an old row longer than today's limit must not make a quote impossible.
+ */
+export function quoteInputProblem(input: {
+  selectedItemIds?: unknown;
+  items?: unknown;
+  additionalNotes?: unknown;
+  quoteName?: unknown;
+}): string | null {
+  const ids = input.selectedItemIds;
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+    return 'Choose at least one item for the quote.';
+  }
+  const tooMany = `Choose ${QUOTE_LIMITS.items} items or fewer for one quote.`;
+  if (ids.length > QUOTE_LIMITS.items) return tooMany;
+  if (input.items !== undefined && input.items !== null) {
+    if (!Array.isArray(input.items)) return 'Choose at least one item for the quote.';
+    if (input.items.length > QUOTE_LIMITS.items) return tooMany;
+  }
+  const notes = input.additionalNotes;
+  if (notes !== undefined && notes !== null && typeof notes !== 'string') return tooLong('notes', QUOTE_LIMITS.notes);
+  if (typeof notes === 'string' && notes.length > QUOTE_LIMITS.notes) return tooLong('notes', QUOTE_LIMITS.notes);
+  const name = input.quoteName;
+  if (name !== undefined && name !== null && typeof name !== 'string') return tooLong('quoteName', QUOTE_LIMITS.quoteName);
+  if (typeof name === 'string' && name.length > QUOTE_LIMITS.quoteName) return tooLong('quoteName', QUOTE_LIMITS.quoteName);
+  return null;
+}
+
+/**
+ * One caller-sent quote item reduced to the three fields the quote reads,
+ * each a string and each bounded. Anything else on the object is dropped.
+ */
+export function clipQuoteItem(item: unknown): { id: string; description: string; category: string } {
+  const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+  const text = (value: unknown, max: number) => (typeof value === 'string' ? clipForPrompt(value, max) : '');
+  return {
+    id: typeof row.id === 'string' ? row.id : '',
+    description: text(row.description, QUOTE_LIMITS.description),
+    category: text(row.category, QUOTE_LIMITS.category),
+  };
 }
 
 /** A string cut to `max` characters, marked when it was cut. */

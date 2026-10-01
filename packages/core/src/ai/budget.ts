@@ -36,6 +36,18 @@
  */
 export const INPUT_TOKENS_PER_OUTPUT_EQUIVALENT = 10;
 
+/**
+ * Output and input on one scale: output (with thinking) plus input at
+ * `INPUT_TOKENS_PER_OUTPUT_EQUIVALENT`. The one formula both fuses read —
+ * the owner's (`decideBudget`) and the demo's (`checkDemoBudget`, audit 360
+ * SEC-17, which summed output alone until 1 Oct). A non-finite or negative
+ * part counts as nothing rather than poisoning the sum.
+ */
+export function outputEquivalentTokens(usage: MonthlyUsage): number {
+  const part = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
+  return part(usage.outputTokens) + part(usage.inputTokens) / INPUT_TOKENS_PER_OUTPUT_EQUIVALENT;
+}
+
 export interface MonthlyUsage {
   /** Input tokens billed at the full rate, this calendar month. */
   inputTokens: number;
@@ -185,6 +197,13 @@ export const TIERS: Record<TierName, Tier> = {
  * of it thinking — inside the "3–6k" this paragraph guessed before, and now
  * a number rather than a guess. A quote with more items costs more — the
  * estimate writes a block per item — and that slope has not been measured.
+ *
+ * ⚠ Since 1 Oct (audit 360, SEC-17) `checkDemoBudget` counts input as well,
+ * at `INPUT_TOKENS_PER_OUTPUT_EQUIVALENT`, the owner's weighting. Not
+ * measured, estimated from the source: the two templates are ~2,700
+ * characters together, ~700 input tokens with three short needs, so an
+ * ordinary quote moves by ~70 — inside the rounding of the ~2,200 below. What it changes is the
+ * abusive quote, whose input the pool could not see.
  *
  *   daily       60,000 ≈    27 quotes of ~2,200 ≈  $0.45/day
  *   monthly    300,000 ≈   136 quotes of ~2,200 ≈  $2.25/month
@@ -428,9 +447,7 @@ export function decideBudget(usage: MonthlyUsage, tier: Tier): BudgetDecision {
     turn's few thousand input tokens add a few hundred); the abuse becomes
     one the fuse stops.
   */
-  const outputEquivalent =
-    (usage.outputTokens || 0) + (usage.inputTokens || 0) / INPUT_TOKENS_PER_OUTPUT_EQUIVALENT;
-  const used = Math.max(0, Math.round(Number.isFinite(outputEquivalent) ? outputEquivalent : 0));
+  const used = Math.round(outputEquivalentTokens(usage));
   const limit = tier.monthlyOutputTokens;
 
   /*
