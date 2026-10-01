@@ -40,15 +40,24 @@ jest.mock('@/lib/image-downscale', () => ({ downscaleImage: async (file: File) =
 jest.mock('@/lib/ai-consent-web', () => ({ readWebAiConsent: () => 'granted', recordWebAiConsent: jest.fn() }));
 
 import DocumentUploadDialog from '@/components/DocumentUploadDialog';
-import { filingKeyToken, lostWebFilingAnswer, WEB_FILING_WAIT_MS } from '@/lib/invoice-filing-replay';
+import {
+  classifyFilingResponse,
+  filingKeyToken,
+  lostWebFilingAnswer,
+  refusedWebFilingAnswer,
+  WEB_FILING_WAIT_MS,
+} from '@/lib/invoice-filing-replay';
 
 /* ── the recorded server ─────────────────────────────────────────────────── */
 
 type Sent = { name: string; key: string | null; bypass: boolean };
 let sent: Sent[];
 let documents: Array<{ name: string; key: string | null }>;
-/** Per-call override: 'lose' files and then drops the answer; 'html' is a gateway page; 'hang' never answers. */
-let script: Array<'lose' | 'html' | 'hang' | undefined>;
+/**
+ * Per-call override: 'lose' files and then drops the answer; 'html' is a gateway page; 'hang' never answers;
+ * '413' and '404' are the platform refusing before the route runs (TL-33) — nothing is filed.
+ */
+let script: Array<'lose' | 'html' | 'hang' | '413' | '404' | undefined>;
 
 const NOT_INVOICES = new Set(['photo-of-the-car.jpg']);
 const OTHER_CAR = new Set(['other-car.pdf']);
@@ -81,6 +90,8 @@ const fetchMock = jest.fn(async (url: string, init?: RequestInit) => {
       init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
     });
   }
+  if (mode === '413') return { status: 413, json: async () => { throw new SyntaxError('Unexpected token <'); } };
+  if (mode === '404') return { status: 404, json: async () => { throw new SyntaxError('Unexpected token <'); } };
   const body = serverFiles(init!.body as FormData);
   if (mode === 'lose') throw new TypeError('Failed to fetch');
   if (mode === 'html') return { status: 502, json: async () => { throw new SyntaxError('Unexpected token <'); } };
@@ -227,6 +238,42 @@ describe('a filing whose answer was lost (TL-31)', () => {
     });
     await screen.findByText(lostWebFilingAnswer('never-answers.pdf'));
     expect(WEB_FILING_WAIT_MS).toBe(90_000);
+  });
+});
+
+/* ── TL-33 ────────────────────────────────────────────────────────────────── */
+
+describe('a request the platform refused before the route ran (TL-33)', () => {
+  it('a 413 names the size and never says it may already be filed', async () => {
+    script = ['413'];
+    const { container } = open();
+    choose(container, [pdf('seven-megabyte-dealer.pdf')]);
+    await pressUpload();
+
+    await screen.findByText(refusedWebFilingAnswer('seven-megabyte-dealer.pdf', 413));
+    expect(screen.queryByText(lostWebFilingAnswer('seven-megabyte-dealer.pdf'))).toBeNull();
+    expect(refusedWebFilingAnswer('x.pdf', 413)).toMatch(/too large/);
+    expect(documents).toHaveLength(0);
+    // Nothing landed, so there is no history to reload.
+    expect(onUploadComplete).not.toHaveBeenCalled();
+  });
+
+  it('any other gateway 4xx is a refusal too, and a 5xx is still lost', async () => {
+    script = ['404'];
+    const { container } = open();
+    choose(container, [pdf('stale-deploy.pdf')]);
+    await pressUpload();
+    await screen.findByText(refusedWebFilingAnswer('stale-deploy.pdf', 404));
+    expect(screen.queryByText(lostWebFilingAnswer('stale-deploy.pdf'))).toBeNull();
+  });
+
+  it('classifies by status before body', () => {
+    expect(classifyFilingResponse(413, null)).toEqual({ kind: 'refused', status: 413 });
+    expect(classifyFilingResponse(431, null)).toEqual({ kind: 'refused', status: 431 });
+    expect(classifyFilingResponse(502, null)).toEqual({ kind: 'lost' });
+    expect(classifyFilingResponse(504, 'not an object')).toEqual({ kind: 'lost' });
+    // A JSON answer is the route's, whatever its status — the route's own 4xx are sentences.
+    expect(classifyFilingResponse(400, { success: false, error: 'x' }).kind).toBe('answer');
   });
 });
 

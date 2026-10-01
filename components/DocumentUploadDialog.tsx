@@ -26,8 +26,11 @@ import { DOC_MAX_EDGE, DOC_TARGET_BYTES, isDownscalableImage } from '@tappet/cor
 import {
   FILING_IN_PROGRESS_WEB_MESSAGE,
   WEB_FILING_WAIT_MS,
+  classifyFilingResponse,
   lostWebFilingAnswer,
   mintFilingKey,
+  refusedWebFilingAnswer,
+  type FilingAnswer,
 } from '@/lib/invoice-filing-replay';
 
 interface DocumentUploadDialogProps {
@@ -37,9 +40,6 @@ interface DocumentUploadDialogProps {
   onUploadComplete?: () => void;
 }
 
-/** What one filing attempt came back with — an answer, or none (TL-31). */
-type FilingAnswer = { kind: 'answer'; status: number; result: any } | { kind: 'lost' };
-
 /**
  * One filing of one file, bounded at the phone's wait — TL-31.
  *
@@ -47,6 +47,9 @@ type FilingAnswer = { kind: 'answer'; status: number; result: any } | { kind: 'l
  * connection, the bound, and a gateway's HTML 502/504 after the platform's
  * ceiling all arrive after the server may have written the document and its
  * line items. The filing key makes the retry of a lost answer safe.
+ *
+ * ⚠ TL-33: a non-JSON 4xx is `refused`, not `lost` — the platform answered
+ * before the route ran (`classifyFilingResponse`).
  */
 async function postFiling(file: File, vehicleId: string, filingKey: string, bypassVehicleCheck: boolean): Promise<FilingAnswer> {
   const controller = new AbortController();
@@ -65,8 +68,7 @@ async function postFiling(file: File, vehicleId: string, filingKey: string, bypa
       signal: controller.signal,
     });
     const result = await response.json().catch(() => null);
-    if (!result || typeof result !== 'object') return { kind: 'lost' };
-    return { kind: 'answer', status: response.status, result };
+    return classifyFilingResponse(response.status, result);
   } catch {
     return { kind: 'lost' };
   } finally {
@@ -342,6 +344,14 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
           return;
         }
 
+        if (answer.kind === 'refused') {
+          const refusal = refusedWebFilingAnswer(original.name, answer.status);
+          setError(refusal);
+          toast.error(`${original.name} was not filed.`);
+          stopAfterRefusal();
+          return;
+        }
+
         const result = answer.result;
         if (!result.success) {
           if (result.error === 'NOT_AUTOMOTIVE_INVOICE') {
@@ -484,6 +494,13 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
 
       if (answer.kind === 'lost') {
         answerLost(original.name);
+        setUploading(false);
+        return;
+      }
+
+      if (answer.kind === 'refused') {
+        setError(refusedWebFilingAnswer(original.name, answer.status));
+        toast.error(`${original.name} was not filed.`);
         setUploading(false);
         return;
       }

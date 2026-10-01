@@ -5031,6 +5031,14 @@ async function fileStoredInvoice({
         };
       }
 
+      /*
+        Audit 360, TL-35: the limiter's refusal keeps its `code` too, so the
+        route answers 429 rather than 500 under the right sentence.
+      */
+      if (parseResult.code === RATE_LIMITED_CODE) {
+        return { success: false, error: parseResult.error || AI_RATE_LIMITED_MESSAGE, code: parseResult.code };
+      }
+
       return { success: false, error: parseResult.error || COULD_NOT_READ_INVOICE };
     }
 

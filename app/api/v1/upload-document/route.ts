@@ -7,6 +7,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
+import { RATE_LIMITED_CODE } from '@tappet/core/ai/advisor-failure';
 
 export const dynamic = 'force-dynamic';
 
@@ -254,6 +255,19 @@ function respond(result: InvoiceFilingResult, vehicleId: string): Response {
       return NextResponse.json(
         { success: false, error: result.error, code: result.code, feature: result.feature },
         { status: 402 }
+      );
+    }
+
+    /*
+      Audit 360, TL-35: the AI tier's limiter, as 429 with its `code` — the
+      consultant route's shape. It was a 500 under the limiter's sentence. A
+      phone reads 429 as "Too many uploads just now" (`documents.ts`), on
+      build 2 as on build 3.
+    */
+    if (result.code === RATE_LIMITED_CODE) {
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code },
+        { status: 429 }
       );
     }
 

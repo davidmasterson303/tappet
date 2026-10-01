@@ -201,3 +201,43 @@ export function lostWebFilingAnswer(fileName: string): string {
 
 /** The website's wait for one filing — the phone's (`PHONE_FILING_WAIT_MS`). */
 export const WEB_FILING_WAIT_MS = PHONE_FILING_WAIT_MS;
+
+/**
+ * What one filing attempt came back with — an answer, a refusal the route
+ * never saw, or none (TL-31, TL-33).
+ */
+export type FilingAnswer =
+  | { kind: 'answer'; status: number; result: any }
+  | { kind: 'refused'; status: number }
+  | { kind: 'lost' };
+
+/**
+ * Classify a response by its status before its body — audit 360, TL-33.
+ *
+ * ⚠ A non-JSON answer with a status under 500 is the platform refusing the
+ * request (413 body too large, 414, 431, a stale deploy's 404) before the
+ * route ran. Nothing was written, so it is never "it may already be filed":
+ * read as `lost`, the dialog told the owner to upload the same file again,
+ * and the same refusal answered with the same sentence forever. Only a 5xx
+ * (a gateway's 502/504 after the function may have finished) is `lost`; a
+ * dropped connection and the bound are `lost` at the fetch.
+ */
+export function classifyFilingResponse(status: number, body: unknown): FilingAnswer {
+  if (body && typeof body === 'object') return { kind: 'answer', status, result: body };
+  if (status >= 400 && status < 500) return { kind: 'refused', status };
+  return { kind: 'lost' };
+}
+
+/**
+ * What the website says when the platform refused a filing before the route
+ * ran — TL-33. A 413 names the size, because the size is the only thing the
+ * owner can change; no figure is stated, because the platform's limit is not
+ * one this code sets (it is below the dialog's 10 MB for a PDF, which passes
+ * through without reduction).
+ */
+export function refusedWebFilingAnswer(fileName: string, status: number): string {
+  if (status === 413) {
+    return `${fileName} is too large for Tappet to take in one upload. Nothing was filed. Try a smaller PDF, or a photo of each page.`;
+  }
+  return `Tappet could not take ${fileName}. Nothing was filed. Reload the page and upload it again.`;
+}
