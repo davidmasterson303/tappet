@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, FileText, MapPin, Wrench, Hash, Package } from 'lucide-react';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
+import { formatRecordedCost, recordedCost, sumRecordedCosts } from '@tappet/core/formatting-utils';
 
 interface MaintenanceItemDetailsDialogProps {
   open: boolean;
@@ -33,7 +34,12 @@ export default function MaintenanceItemDetailsDialog({
   item,
   invoiceUrl,
 }: MaintenanceItemDetailsDialogProps) {
-  const totalCost = item.total_cost || (item.cost_labor || 0) + (item.cost_parts || 0);
+  /*
+    Audit 360, TL-27: a cost nobody recorded is "—", never `$0.00` (§6). A
+    stored 0 total falls back to the parts, as it did; two missing parts are
+    no total at all.
+  */
+  const totalCost = (recordedCost(item.total_cost) || null) ?? sumRecordedCosts(item.cost_labor, item.cost_parts);
 
   /*
     On failure this used to fall back to `invoiceUrl` itself — the stored
@@ -117,19 +123,19 @@ export default function MaintenanceItemDetailsDialog({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="text-center p-3 bg-white/3 rounded-lg">
                   <p className="text-xs text-white/50 mb-1">Labor</p>
-                  <p className="text-base font-bold text-white tabular-nums">${(item.cost_labor || 0).toFixed(2)}</p>
+                  <p className="text-base font-bold text-white tabular-nums">{formatRecordedCost(item.cost_labor)}</p>
                 </div>
                 <div className="text-center p-3 bg-white/3 rounded-lg">
                   <p className="text-xs text-white/50 mb-1">Parts</p>
-                  <p className="text-base font-bold text-white tabular-nums">${(item.cost_parts || 0).toFixed(2)}</p>
+                  <p className="text-base font-bold text-white tabular-nums">{formatRecordedCost(item.cost_parts)}</p>
                 </div>
                 <div className="text-center p-3 bg-info-wash border border-info-border rounded-lg">
                   <p className="text-xs text-info/70 mb-1">Total</p>
-                  <p className="text-base font-bold text-white tabular-nums">${totalCost.toFixed(2)}</p>
+                  <p className="text-base font-bold text-white tabular-nums">{formatRecordedCost(totalCost)}</p>
                 </div>
               </div>
             </div>
-          ) : totalCost > 0 ? (
+          ) : totalCost !== null && totalCost > 0 ? (
             <div className="bg-white/4 border border-white/8 rounded-xl p-4">
               <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <DollarSign className="h-3.5 w-3.5" />

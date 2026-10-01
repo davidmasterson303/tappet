@@ -3,6 +3,7 @@
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
+import { recordedCost, sumRecordedCosts } from '@tappet/core/formatting-utils';
 import { odometerReading, validateMileageUpdate, type MileageRejection } from '@tappet/core/mileage-tracking';
 import { projectNextService } from '@/lib/next-service';
 import { threadTitle } from '@tappet/core/thread-title';
@@ -3634,7 +3635,10 @@ export async function addMaintenanceHistory(
         category: 'maintenance',
         status: 'completed',
         date_completed: dateCompleted,
-        cost_labor: cost || 0,
+        // Audit 360, TL-27: no cost given is null, never 0 — both columns
+        // default to 0, so the parts half is written explicitly too.
+        cost_labor: recordedCost(cost),
+        cost_parts: null,
         shop_name: shopName || null,
         notes: notes || null,
       });
@@ -5662,7 +5666,7 @@ export async function moveServiceItemToHistory(
       shop_name: completionDetails.shopName || null,
       item_description: serviceItem.description,
       category: serviceItem.category || 'maintenance',
-      total_cost: completionDetails.totalCost || (serviceItem.cost_parts + serviceItem.cost_labor) || 0,
+      total_cost: recordedCost(completionDetails.totalCost) ?? sumRecordedCosts(serviceItem.cost_parts, serviceItem.cost_labor),
       notes: completionDetails.notes || null,
       invoice_url: completionDetails.invoiceUrl || null,
       /*
