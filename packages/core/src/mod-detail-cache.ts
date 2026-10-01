@@ -9,11 +9,19 @@
  * time anyone opened a mod, the same analysis was generated from scratch.
  *
  * It is the most cacheable call in the product and was the only uncached one.
- * Its prompt reads exactly six values, and **not one of them identifies a
- * person or a specific car**: year, make, model, the modification's name, the
- * owner's performance goal, and their ownership objective. No VIN, no mileage,
- * no service history, no user id. "Cold air intake on a 2018 Accord, moderate
- * goal, keep forever" has one answer, and it is the same answer for everybody.
+ * Its prompt reads exactly five values, and **not one of them identifies a
+ * person or a specific car**: year, make, model, the modification's name and
+ * the owner's performance goal (a three-value choice). No VIN, no mileage, no
+ * service history, no user id, no free text the owner wrote. "Cold air intake
+ * on a 2018 Accord, moderate goal" has one answer, and it is the same answer
+ * for everybody.
+ *
+ * ⚠ Audit 360, LEGAL-14 (1 Oct): the owner's free-text ownership objective
+ * was the sixth value until today. It went to Google from a path with no
+ * consent sheet, and it sat verbatim in this shared key — a column no
+ * account deletion reaches. It also made the key nearly unique per owner:
+ * production's 11 rows all carried one, with `hit_count` 0 on every one, so
+ * the cache had never served a single hit. Dropping it fixes both.
  *
  * ⚠ **The existing `performance_mod_cache` does not solve this.** It caches the
  * mod *list*, and it is keyed on `vehicle_id` — so two people with identical
@@ -43,8 +51,6 @@ export interface ModDetailFacts {
   modName: string;
   /** 'mild' | 'moderate' | 'aggressive' — changes the whole framing. */
   performanceGoal: string;
-  /** Free text, and quoted verbatim into the prompt. */
-  ownershipObjective?: string | null;
 }
 
 /**
@@ -57,7 +63,6 @@ export const MOD_DETAIL_KEY_FIELDS = [
   'model',
   'modName',
   'performanceGoal',
-  'ownershipObjective',
 ] as const;
 
 /**
@@ -102,7 +107,6 @@ export function modDetailCacheKey(facts: ModDetailFacts): string {
     norm(facts.model),
     norm(facts.modName),
     norm(facts.performanceGoal),
-    norm(facts.ownershipObjective),
   ].join(SEP);
 }
 

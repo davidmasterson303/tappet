@@ -195,6 +195,10 @@ export default function PrivacyPolicyPage() {
           ZIP (`estimateCosts`, `generateEmailDraft`), and modification
           guidance the owner's goal and `ownership_objective`
           (`generateModificationDetails`) — none of which this said.
+          LEGAL-14 (1 Oct, the legal agent's call): the mod card no longer
+          sends `ownership_objective`, so the clause naming it is gone; the
+          advisor does send it (`- Ownership Goal:` in core/prompts.ts),
+          behind the one answer, and now says so.
         */}
         <li>
           <strong className="text-white/90">Google</strong> — Tappet&rsquo;s AI features use
@@ -202,14 +206,15 @@ export default function PrivacyPolicyPage() {
           requests on the website, the quote check, the research and pictures for your model, and
           performance figures for a modified car. For the health score and the advisor, Google receives your car&rsquo;s records — its
           mileage, service history, invoice line items and the shops named on them — and your
-          question. For invoice reading and the quote check it receives the photograph itself, or
+          question; the advisor also receives what you wrote about how you use the car and what
+          you want out of it. For invoice reading and the quote check it receives the photograph itself, or
           the text you paste, which can show your name and address as well as the shop&rsquo;s; a
           document you attach to an advisor question on the website goes too. A quote request
           sends the work listed, the mileage, the ZIP code you typed and any note you add.
           Performance figures send the line items of your car&rsquo;s service history, to find
           the modifications among them. The research and the pictures use only the year, make and
-          model; guidance on a modification also sends the performance goal you chose for the car
-          and what you wrote you want out of it.
+          model; guidance on a modification also sends the performance goal you chose for the
+          car.
         </li>
         <li>
           <strong className="text-white/90">Apple</strong> — handles billing if you subscribe, and

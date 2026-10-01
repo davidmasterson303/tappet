@@ -62,7 +62,8 @@ export default function LegalDocument({
           it. Quiet was the wrong instinct for a date whose whole job is to be
           verifiable.
         */}
-        <p className="text-white/55 text-xs mb-10">Last updated {LAST_UPDATED}</p>
+        {/* L10 asks for an effective date; this is it — the day the content reached readers (lib/legal.ts). */}
+        <p className="text-white/55 text-xs mb-10">Effective {LAST_UPDATED}</p>
 
         {/*
           Spacing lives here rather than on every heading and paragraph in the

@@ -528,7 +528,8 @@ describe('the Google bullet says what the figures, the quote and a mod card send
   it.each([
     ['performance figures', 'lib/performance-stats.ts', /from\('maintenance_line_items'\)[\s\S]*Service history:/, /Performance figures send the line items of your car&rsquo;s service history/],
     ['quote requests', 'app/actions.ts', /Current Mileage:[\s\S]*Location Zip Code: \$\{zipCode\}[\s\S]*Additional Notes from Owner/, /A quote request sends the work listed, the mileage, the ZIP code you typed and any note you add\./],
-    ['modification guidance', 'app/actions.ts', /Ownership Objective: \$\{vehicle\.ownership_objective/, /guidance on a modification also sends the performance goal you chose for the car and what you wrote you want out of it\./],
+    ['modification guidance', 'app/actions.ts', /Owner's Performance Goal: \$\{performanceGoal\.toUpperCase\(\)\}/, /guidance on a modification also sends the performance goal you chose for the car\./],
+    ['the advisor', 'packages/core/src/prompts.ts', /- Ownership Goal: \$\{context\.objective\}/, /the advisor also receives what you wrote about how you use the car and what you want out of it\./],
   ])('%s', (_name, file, code, sentence) => {
     expect(src(file)).toMatch(code);
     expect(bullet).toMatch(sentence);
@@ -540,5 +541,83 @@ describe('the Google bullet says what the figures, the quote and a mod card send
     expect(shipped).not.toMatch(/Performance figures send/);
     expect(shipped).not.toMatch(/any note you add/);
     expect(shipped).toMatch(/use only the year, make and model\.$/);
+  });
+});
+
+/**
+ * ── Audit 360, legal round 03 (1 Oct) — the calls the legal agent made ───────
+ *
+ * David: "let legal agent make those calls". Each sentence below is tied to
+ * the constant or the code that makes it true; the reasons are in
+ * `design-loop/audit-360/held-for-david.md` → "legal — decided".
+ */
+describe('the calls the legal agent made (round 03)', () => {
+  const { GOVERNING_STATE, APPLE_STANDARD_EULA_URL } = require('@/lib/legal');
+  const { RECALL_ALERTS_AFTER_LAPSE } = require('@tappet/core/access');
+
+  it('LEGAL-14: the policy no longer says a mod card sends what the owner wrote', () => {
+    expect(privacyText).not.toMatch(/guidance on a modification also sends[^.]*what you wrote/);
+    const actions = read('app/actions.ts');
+    const fn = actions.slice(actions.indexOf('export async function generateModificationDetails'));
+    const prompt = fn.slice(fn.indexOf('You are an expert automotive consultant'), fn.indexOf('Format as valid JSON only'));
+    expect(prompt.length).toBeGreaterThan(400);
+    expect(prompt).not.toMatch(/ownership_objective/);
+  });
+
+  it('governing law and courts: Colorado, from the constant, with a small-claims carve-out', () => {
+    expect(GOVERNING_STATE).toBe('Colorado');
+    expect(termsText).toMatch(/governed by the laws of the State of \{GOVERNING_STATE\}/);
+    expect(termsText).toMatch(/United States District Court for the District of\{' '\} \{GOVERNING_STATE\}/);
+    expect(termsText).toMatch(/you and \{OPERATOR\} agree to their jurisdiction/);
+    expect(termsText).toMatch(/small-claims court where you live/);
+    expect(termsText).toMatch(/does not allow to be waived/);
+  });
+
+  it('no arbitration and no class waiver — a decision, so a change to it is deliberate', () => {
+    // What renders, not what the comments discuss (CLAUDE.md §5).
+    const shown = termsText.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(shown).toMatch(/LegalSection>Disputes</);
+    expect(shown).not.toMatch(/arbitrat/i);
+    expect(shown).not.toMatch(/class action/i);
+    // And no county was invented (lib/legal.ts: none has been given).
+    expect(shown).not.toMatch(/County/);
+  });
+
+  it('age: 13 to use it, and a parent or guardian for anyone under 18', () => {
+    expect(termsText).toMatch(/You must be at least 13 to use Tappet/);
+    expect(termsText).toMatch(/If you are under 18, use it with a parent&rsquo;s or guardian&rsquo;s permission/);
+    expect(termsText).toMatch(/including any subscription bought on your Apple Account/);
+  });
+
+  it('recall notifications may stop at lapse — tied to the constant that stops them', () => {
+    /*
+      If RECALL_ALERTS_AFTER_LAPSE flips to true, a lapsed account keeps its
+      recall pushes and this sentence overstates what it loses: rewrite it.
+    */
+    expect(RECALL_ALERTS_AFTER_LAPSE).toBe(false);
+    expect(termsText).toMatch(/Recall notifications are part of Tappet Plus and may stop when a subscription ends/);
+    expect(read('packages/core/src/access.ts')).toMatch(/export const RECALL_ALERTS_AFTER_LAPSE = false;/);
+  });
+
+  it('LEGAL-17: the Terms the paywall opens name and link Apple’s standard EULA', () => {
+    expect(APPLE_STANDARD_EULA_URL).toBe('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+    expect(termsText).toMatch(/href=\{APPLE_STANDARD_EULA_URL\}/);
+    expect(termsText).toMatch(/standard Licensed Application End User License Agreement/);
+    // The paywall's Terms link is the page that now carries it.
+    const paywall = read('apps/mobile/src/screens/PaywallScreen.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(paywall).toMatch(/label="Terms of Use" path="\/terms"/);
+  });
+
+  it('both pages show an effective date', () => {
+    expect(read('components/legal/LegalDocument.tsx')).toMatch(/>Effective \{LAST_UPDATED\}</);
+  });
+
+  it('can still detect Terms with none of it (anti-vacuous)', () => {
+    const shipped = flat(
+      '<LegalSection>Changes</LegalSection><p>You must be at least 13 to use Tappet. Keep your password to yourself.</p>'
+    );
+    expect(shipped).not.toMatch(/governed by the laws of the State of/);
+    expect(shipped).not.toMatch(/under 18/);
+    expect(shipped).not.toMatch(/APPLE_STANDARD_EULA_URL/);
   });
 });

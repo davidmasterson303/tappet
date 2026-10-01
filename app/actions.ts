@@ -2838,7 +2838,6 @@ export async function generateModificationDetails(vehicleId: string, modName: st
       model: vehicle.model,
       modName,
       performanceGoal,
-      ownershipObjective: vehicle.ownership_objective,
     });
 
     try {
@@ -2888,13 +2887,23 @@ export async function generateModificationDetails(vehicleId: string, modName: st
       });
     }
 
+    /*
+      ⚠ Audit 360, LEGAL-14 (1 Oct). The owner's free-text objective ("what you
+      want out of it") is no longer sent. This card is a dossier-family path
+      that asks nothing before it calls Google, so free text written for the
+      owner's own garage went to a model under no consent sheet — and, as a
+      cache key, into a table every owner of the same car reads from, where
+      account deletion could not reach it. The goal tier stays: it is a
+      three-value choice, and the card's whole framing. Keep this prompt to
+      model-level facts plus that choice, or put the card behind the one
+      answer (`AI_CONSENT_SCOPE`) first.
+    */
     const prompt = `You are an expert automotive consultant analyzing a modification for a specific vehicle owner.
 
 VEHICLE:
 - ${vehicle.year} ${vehicle.make} ${vehicle.model}
 - Owner's Performance Goal: ${performanceGoal.toUpperCase()}
 - Performance Goal Context: The owner wants ${GOAL_CONTEXT[performanceGoal]}
-- Ownership Objective: ${vehicle.ownership_objective || 'Not specified'}
 
 MODIFICATION: ${modName}
 
@@ -2904,7 +2913,7 @@ Provide a detailed analysis in JSON format with exactly these fields:
 - performanceImpact: Specific performance gains for this ${vehicle.year} ${vehicle.make} ${vehicle.model} (1-2 sentences, quantify if possible, frame relative to ${performanceGoal} goal)
 - reliabilityImpact: How this affects reliability and longevity (consider the owner's ${performanceGoal} performance goal when assessing acceptable tradeoffs)
 - costBenefitAnalysis: Dollar amount estimation and value proposition (parts cost, labor, time to ROI - adjust recommendations based on ${performanceGoal} approach)
-- alignmentWithGoals: How this aligns with their ${performanceGoal} performance goal and "${vehicle.ownership_objective || 'their ownership objectives'}"
+- alignmentWithGoals: How this aligns with their ${performanceGoal} performance goal
 - installationNotes: Any ${vehicle.year} ${vehicle.make} ${vehicle.model}-specific installation considerations
 - compatibilityNotes: Compatibility with stock components or other common mods for this model (suggest complementary mods appropriate for ${performanceGoal} level)
 

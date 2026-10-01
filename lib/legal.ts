@@ -169,3 +169,27 @@ export const LAST_UPDATED = '1 October 2026';
  * asserting two copies match only tells you afterwards.
  */
 export { SUBSCRIPTION_CANCEL_PATH } from '@tappet/core/account-deletion';
+
+/**
+ * Apple's standard Licensed Application End User License Agreement.
+ *
+ * ⚠ Audit 360, LEGAL-17 (1 Oct). The App Store listing names Apple's standard
+ * EULA as the app's licence, and the paywall's "Terms of Use" link opens
+ * `/terms` — two documents called the Terms at the two places a reviewer
+ * reads. The legal agent's call: the listing's choice stands (the iPhone app
+ * is licensed under Apple's EULA), and `/terms` says so and links it, so the
+ * paywall link reaches both. `/terms` governs the service behind the app.
+ */
+export const APPLE_STANDARD_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
+/**
+ * The state whose law governs the Terms, and whose courts hear a dispute.
+ *
+ * The legal agent's call, 1 Oct (David: "let legal agent make those calls"):
+ * Colorado, because the operator is a Colorado LLC (SOS `20268142644`). The
+ * courts are named at the state level — Colorado's state courts and the one
+ * federal district — because no principal-office county has been given and
+ * this file does not guess at one (see the address note above). No
+ * arbitration clause: see `held-for-david.md` → "legal — decided".
+ */
+export const GOVERNING_STATE = 'Colorado';
