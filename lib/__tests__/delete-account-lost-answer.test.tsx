@@ -103,6 +103,20 @@ describe('DeleteAccountDialog — a lost answer (TL-25)', () => {
     expect(signOutAndClearCache).not.toHaveBeenCalled();
   });
 
+  it('never reads a revoked session as a deleted account (SEC-16)', async () => {
+    deleteAccount.mockRejectedValue(new TypeError('Failed to fetch'));
+    getUser.mockResolvedValue({
+      data: { user: null },
+      error: { status: 400, code: 'refresh_token_not_found', name: 'AuthApiError' },
+    });
+
+    await confirmAndDelete();
+
+    await waitFor(() => expect(toasts).toEqual([{ kind: 'error', message: DELETION_OUTCOME_UNKNOWN }]));
+    expect(signOutAndClearCache).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('anti-vacuous: a returned failure still shows its own sentence and never probes', async () => {
     deleteAccount.mockResolvedValue({ success: false, error: 'Could not read account contents. Nothing was deleted.' });
 
@@ -134,9 +148,15 @@ describe('DeleteAccountDialog — a lost answer (TL-25)', () => {
 describe('classifyAccountProbe', () => {
   it.each([
     [{ status: 403, code: 'user_not_found' }, 'gone'],
-    [{ status: 403, code: 'session_not_found' }, 'gone'],
-    [{ status: 400, code: 'refresh_token_not_found' }, 'gone'],
-    [{ status: 401 }, 'gone'],
+    // SEC-16 (round 3): each of these is about the session, and a living
+    // account produces it — production answered 403 `bad_jwt` and 400
+    // `refresh_token_not_found` with no account involved at all (1 Oct).
+    [{ status: 403, code: 'session_not_found' }, 'unknown'],
+    [{ status: 400, code: 'refresh_token_not_found' }, 'unknown'],
+    [{ status: 403, code: 'bad_jwt' }, 'unknown'],
+    [{ status: 401 }, 'unknown'],
+    [{ status: 403 }, 'unknown'],
+    [{ status: 404 }, 'unknown'],
     [{ status: 400, name: 'AuthSessionMissingError' }, 'unknown'],
     [{ status: 500 }, 'unknown'],
     [{ status: 0, name: 'AuthRetryableFetchError' }, 'unknown'],
@@ -147,5 +167,9 @@ describe('classifyAccountProbe', () => {
 
   it('a user with no error is present', () => {
     expect(classifyAccountProbe({ id: 'u' }, null)).toBe('present');
+  });
+
+  it('no user and no error is not a reading of gone (SEC-16)', () => {
+    expect(classifyAccountProbe(null, null)).toBe('unknown');
   });
 });
