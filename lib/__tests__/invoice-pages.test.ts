@@ -129,9 +129,22 @@ describe('uploadInvoicePages — read from source', () => {
   });
 
   it('removes the pending pages only once the invoice is filed', () => {
-    const remove = body.indexOf('.remove(paths)');
-    expect(remove).toBeGreaterThan(-1);
-    expect(body.slice(body.lastIndexOf('if (result.success)', remove), remove)).toMatch(/if \(result\.success\)/);
+    /*
+      Every removal, not the first: since audit 360 TL-2 there are two — the
+      filing's own, and a repeat filing answered from the filed document
+      (`prior.state === 'filed'`). Each must sit inside its own filed branch.
+    */
+    const removals = Array.from(body.matchAll(/\.remove\(paths\)/g), (m) => m.index ?? -1);
+    expect(removals.length).toBeGreaterThanOrEqual(1);
+    for (const remove of removals) {
+      const guard = Math.max(
+        body.lastIndexOf('if (result.success)', remove),
+        body.lastIndexOf("if (prior.state === 'filed')", remove)
+      );
+      expect(guard).toBeGreaterThan(-1);
+      // No other branch opened between the guard and the removal.
+      expect(body.slice(guard, remove).match(/\n    \}/g)).toBeNull();
+    }
   });
 
   it('hands the model every page, in one call', () => {

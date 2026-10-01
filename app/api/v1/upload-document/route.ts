@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadInvoice, uploadInvoicePages, type InvoiceFilingResult } from '@/app/actions';
+import { FILING_IN_PROGRESS_MESSAGE } from '@/lib/invoice-filing-replay';
 import { logger } from '@tappet/core/logger';
 import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
 import type { ApiResponse } from '@tappet/core/types';
@@ -63,6 +64,19 @@ export async function POST(request: NextRequest): Promise<Response> {
         name: a path list that is not this car's pages, and a page that is no
         longer there — which the phone answers by sending that page again.
       */
+      /*
+        Audit 360, TL-2: a retry that overtook the filing it repeats. 409 with
+        a sentence a build-2 phone shows as it stands (it reads `error`), and
+        a `code` a later build can read; the next Try again gets the filed
+        document (`lib/invoice-filing-replay.ts`).
+      */
+      if (!result.success && result.error === 'FILING_IN_PROGRESS') {
+        return NextResponse.json(
+          { success: false, error: FILING_IN_PROGRESS_MESSAGE, code: 'filing-in-progress' },
+          { status: 409 }
+        );
+      }
+
       if (!result.success && (result.error === 'INVALID_PAGES' || result.error === 'PAGE_MISSING')) {
         return NextResponse.json(
           {

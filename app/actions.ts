@@ -59,6 +59,7 @@ import {
   isInvoicePagePath,
 } from '@tappet/core/storage-paths';
 import { stitchInvoicePdf, isStitchable } from '@/lib/invoice-pdf';
+import { filedInvoiceName, priorFiling, type ReplayClient } from '@/lib/invoice-filing-replay';
 import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@tappet/core/consultant-commands';
 import { parseEstimate } from '@tappet/core/consultant-estimate';
 import { ALLOWED_IMAGE_TYPES, INVOICE_PAGE_LIMIT, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
@@ -4570,6 +4571,31 @@ export async function uploadInvoicePages(
     const paths = pagePaths as string[];
 
     /*
+      ⚠ 1 Oct · audit 360, TL-2 · a retry of a filing whose answer was lost.
+      Before a page is read: the pages of a filed scan are gone, and reading
+      first answered `PAGE_MISSING`, which the phone meets by re-sending every
+      page — and the invoice was filed twice. `lib/invoice-filing-replay.ts`.
+    */
+    const prior = await priorFiling(client as unknown as ReplayClient, vehicleId, paths);
+    if (prior.state === 'filed') {
+      logger.info('UPLOAD_INVOICE_PAGES:REPLAY', 'Answered a repeat filing with the filed document', {
+        vehicleId,
+        documentId: prior.documentId,
+      });
+      // The first filing's cleanup, if it never ran. Best-effort, as there.
+      await client.storage.from('vehicle-documents').remove(paths);
+      return {
+        success: true,
+        documentId: prior.documentId,
+        itemsExtracted: prior.itemsExtracted,
+        pageCount: paths.length,
+      };
+    }
+    if (prior.state === 'in-flight') {
+      return { success: false, error: 'FILING_IN_PROGRESS' };
+    }
+
+    /*
       Every page read before anything is written. A page that is gone — a
       discard that raced the Done, a sweep — fails the scan here, before a
       document row or a model call exists, with the one word the phone
@@ -4594,7 +4620,7 @@ export async function uploadInvoicePages(
     const single = pages.length === 1;
     const storagePath = single
       ? vehicleStoragePath(vehicleId, 'invoices', paths[0].split('/').pop() ?? 'invoice.jpg')
-      : vehicleStoragePath(vehicleId, 'invoices', `invoice-${pages.length}-pages.pdf`);
+      : vehicleStoragePath(vehicleId, 'invoices', filedInvoiceName(paths[0], pages.length));
     const body = single ? pages[0].bytes : Buffer.from(await stitchInvoicePdf(pages));
     const contentType = single ? pages[0].type : 'application/pdf';
 
