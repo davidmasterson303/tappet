@@ -63,6 +63,7 @@ import {
   tokenExpiry,
   OUTCOME,
 } from './lib/run-outcome.mjs';
+import { MOBILE_ROUTES, routeIsDeployed } from './lib/mobile-routes.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -482,6 +483,25 @@ async function checkGarageNeedsCredential() {
   else fail(`expected 401 from /api/v1/vehicles without a credential, got HTTP ${res.status}`);
 }
 
+async function checkEveryPhoneRouteIsDeployed() {
+  console.log('\n8. Every route the phone calls is deployed here (audit 360, TL-11)');
+
+  /*
+    Anonymous GETs only: each route refuses (401), validates (400) or does not
+    take a GET (405) before it touches data, so this writes nothing. What it
+    catches is a 404 — a build calling a route this deployment lacks.
+  */
+  const missing = [];
+  for (const route of MOBILE_ROUTES) {
+    const res = await fetch(`${base}/api/v1/${route}`);
+    if (!routeIsDeployed(res.status, res.headers.get('content-type'))) {
+      missing.push(`${route} (HTTP ${res.status})`);
+    }
+  }
+  if (missing.length === 0) pass(`all ${MOBILE_ROUTES.length} routes the phone calls answer here`);
+  else fail(`the phone calls routes this deployment does not serve: ${missing.join(', ')}`);
+}
+
 console.log(`\nMobile client contract at ${base}`);
 await checkPreflight();
 await checkAnonymousDemo();
@@ -491,6 +511,7 @@ await checkStaleCredential();
 await checkResponseShapes();
 await checkGarageNeedsCredential();
 await checkConsultant();
+await checkEveryPhoneRouteIsDeployed();
 
 console.log('\n' + '─'.repeat(60));
 const outcome = classifyRun({ failures, notRun });
