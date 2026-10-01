@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { requireSession } from '@/lib/api-auth';
 import { getAppleRootCertificates, APPLE_BUNDLE_ID } from '@/lib/apple-root-ca';
 import { parseAppleTransaction } from '@/lib/apple-notification';
+import { markSubscriptionReclaimed } from '@/lib/orphaned-subscriptions';
 import {
   applyVerifiedAppleEvent,
   findUserByOriginalTransactionId,
@@ -156,6 +157,16 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: false, error: 'Could not record that purchase yet' } as ApiResponse<never>,
       { status }
     );
+  }
+
+  /*
+    Audit 360, TL-29: a transaction no account owned, now written to this one,
+    may be a deleted subscriber's — re-signed up with the same Apple Account
+    and restored. The orphan record says so (best-effort; only an unclaimed
+    row is touched, and it carries no user id).
+  */
+  if (owner.userId === null && result.applied) {
+    await markSubscriptionReclaimed(parsed.event.originalTransactionId);
   }
 
   logger.info('API:IAP_VERIFY', 'Purchase verified', {

@@ -299,6 +299,7 @@ const NOT_PORTABLE: Record<string, string> = {
     could write this table could grant itself the paid tier.
   */
   'lib/entitlement-store.ts': 'writes with the service role — reaches Supabase through lib/supabase',
+  'lib/orphaned-subscriptions.ts': 'reads and stamps a service-role-only table through lib/supabase (TL-29)',
   'lib/supabase.ts': 'constructs Supabase clients',
   'lib/plates.ts': 'builds a service-role Supabase client for the plate library',
   /*

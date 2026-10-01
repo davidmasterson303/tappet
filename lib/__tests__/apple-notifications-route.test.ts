@@ -27,6 +27,11 @@ const ROGUE_KEY = read('rogueleaf.key');
 const applyVerifiedAppleEvent = jest.fn();
 const findUserByOriginalTransactionId = jest.fn();
 
+const isOrphanedSubscription = jest.fn();
+jest.mock('@/lib/orphaned-subscriptions', () => ({
+  isOrphanedSubscription: (...a: unknown[]) => isOrphanedSubscription(...a),
+}));
+
 jest.mock('@/lib/entitlement-store', () => ({
   applyVerifiedAppleEvent: (...a: unknown[]) => applyVerifiedAppleEvent(...a),
   findUserByOriginalTransactionId: (...a: unknown[]) => findUserByOriginalTransactionId(...a),
@@ -102,6 +107,8 @@ beforeEach(() => {
   findUserByOriginalTransactionId.mockReset();
   findUserByOriginalTransactionId.mockResolvedValue({ ok: true, userId: 'user-1' });
   applyVerifiedAppleEvent.mockResolvedValue({ ok: true, applied: true, tier: 'paid' });
+  isOrphanedSubscription.mockReset();
+  isOrphanedSubscription.mockResolvedValue(false);
 });
 
 describe('codes that tell Apple to stop', () => {
@@ -126,6 +133,32 @@ describe('codes that tell Apple to stop', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ reason: 'unknown-transaction' });
     expect(applyVerifiedAppleEvent).not.toHaveBeenCalled();
+  });
+
+  it('warns, still 200, when the unknown transaction is a deleted account’s subscription (TL-29)', async () => {
+    findUserByOriginalTransactionId.mockResolvedValue({ ok: true, userId: null });
+    isOrphanedSubscription.mockResolvedValue(true);
+    const { logger } = require('@tappet/core/logger');
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const info = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    try {
+      const response = await post({ signedPayload: notification() });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ reason: 'unknown-transaction' });
+      expect(isOrphanedSubscription).toHaveBeenCalledWith(expect.any(String));
+      expect(warn.mock.calls.some(([, message]) => /deleted account/.test(String(message)))).toBe(true);
+      expect(info.mock.calls.some(([, message]) => /unknown transaction/.test(String(message)))).toBe(false);
+
+      // Anti-vacuous: a transaction nobody ever held stays at info.
+      warn.mockClear();
+      isOrphanedSubscription.mockResolvedValue(false);
+      await post({ signedPayload: notification() });
+      expect(warn.mock.calls.some(([, message]) => /deleted account/.test(String(message)))).toBe(false);
+      expect(info.mock.calls.some(([, message]) => /unknown transaction/.test(String(message)))).toBe(true);
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
   });
 
   it('401 for a payload Apple did not sign, because a retry cannot fix a signature', async () => {

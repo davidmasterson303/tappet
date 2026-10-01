@@ -22,6 +22,7 @@ jest.mock('@/lib/rate-limit', () => ({
 }));
 jest.mock('@/lib/apple-root-ca', () => ({ getAppleRootCertificates: jest.fn(() => []), APPLE_BUNDLE_ID: 'b' }));
 jest.mock('@/lib/apple-notification', () => ({ parseAppleTransaction: jest.fn() }));
+jest.mock('@/lib/orphaned-subscriptions', () => ({ markSubscriptionReclaimed: jest.fn(async () => {}) }));
 
 import { NextRequest } from 'next/server';
 
@@ -31,6 +32,7 @@ import { POST } from '@/app/api/v1/iap/verify/route';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { requireSession } from '@/lib/api-auth';
 import { parseAppleTransaction } from '@/lib/apple-notification';
+import { markSubscriptionReclaimed } from '@/lib/orphaned-subscriptions';
 
 type Row = Record<string, unknown>;
 
@@ -198,5 +200,21 @@ describe('a re-signed device transaction newer than the notification', () => {
     await restore(rows, deviceEvent({ signedDate: NOW, expiresDate: NOW - DAY, fromDevice: undefined }));
     expect(rows[0].expires_at).toBe(iso(NOW - DAY));
     expect(rows[0].auto_renew_status).toBeNull();
+  });
+});
+
+describe('a re-signup restoring a deleted account’s subscription (TL-29)', () => {
+  it('binds to the new account and marks the orphan record reclaimed', async () => {
+    const rows: Row[] = [];
+    const { status, body } = await restore(rows, deviceEvent(), OTHER);
+    expect(status).toBe(200);
+    expect(body.entitlement.tier).toBe('paid');
+    expect(rows[0]).toMatchObject({ user_id: OTHER, original_transaction_id: OTI });
+    expect(markSubscriptionReclaimed).toHaveBeenCalledWith(OTI);
+  });
+
+  it('anti-vacuous: the owner’s own Restore reclaims nothing', async () => {
+    await restore([notifiedRow()], deviceEvent());
+    expect(markSubscriptionReclaimed).not.toHaveBeenCalled();
   });
 });
