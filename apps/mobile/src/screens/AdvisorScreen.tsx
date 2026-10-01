@@ -35,7 +35,9 @@ import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { refusalCopy } from '@tappet/core/access';
 import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
-import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { declineAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
+import { useScreenFocused } from '../navigation/useScreenFocused';
 import Working from '../components/Working';
 import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
 import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
@@ -218,21 +220,23 @@ export function AdvisorScreen({
     deep-link path consumed the one-shot ref before consent had resolved,
     leaving the question unasked forever.
   */
-  const [consent, setConsent] = useState<AiConsent | null>(null);
+  /*
+    ⚠ Audit 360, UX-23 (1 Oct) — **re-read on every return.** This is the
+    Advisor tab's root: it mounts once and stays mounted, and it read the
+    answer once — so a *Not now* given on the car's page while it waited was
+    followed here by a send gated on the old answer, or a yes there by this
+    sheet asking again. `useAiConsent` reads on mount and on each focus, and
+    every gate below reads `consent`, which is `null` ("still reading") until
+    a read taken since the tab came back has landed — the same `null` the
+    held press and the deep link already wait for. What the screen *draws*
+    reads `aiAnswer`, so the declined line does not blink on return.
+  */
+  const screenFocused = useScreenFocused();
+  const { answer: aiAnswer, fresh: aiAnswerFresh, set: setConsent } = useAiConsent(screenFocused);
+  const consent: AiConsent | null = aiAnswerFresh ? aiAnswer : null;
   const [consentOpen, setConsentOpen] = useState(false);
   const pendingQuestion = useRef<string | null>(null);
   const heldForConsentRead = useRef(false);
-
-  useEffect(() => {
-    let live = true;
-    void readAiConsent().then((answer) => {
-      if (live) setConsent(answer);
-    });
-
-    return () => {
-      live = false;
-    };
-  }, []);
 
   /*
     The opening questions, drawn from the car's rows (QE 2.1). `null` is
@@ -627,7 +631,8 @@ export function AdvisorScreen({
           pendingQuestion.current = null;
           setConsentOpen(false);
           setConsent('declined');
-          void recordAiConsent('declined');
+          // UX-23: read before write — a yes given on another screen since this one's read stands.
+          void declineAiConsent();
         }}
       />
 
@@ -840,7 +845,7 @@ export function AdvisorScreen({
               />
             </CutSurface>
 
-            {consent === 'declined' ? (
+            {aiAnswer === 'declined' ? (
               <Text style={styles.declineNote}>
                 {ADVISOR_AI_CONSENT.declineNote}{' '}
                 <Text style={styles.declineAction} onPress={() => setConsentOpen(true)}>

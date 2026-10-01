@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AppState, Linking } from 'react-native';
 import { shouldShowPushPrimer } from '@tappet/core/push-priming';
 import {
   currentPushPermission,
@@ -41,6 +42,17 @@ export function usePushPrimer(
    * primer asks once a reading is on screen for its alerts to be about.
    */
   hold = false,
+  /**
+   * Whether the host page is the one on screen (audit 360, UX-24, 1 Oct).
+   * Eligibility is read again every time it comes back into view — and when
+   * the app returns to the foreground — and the primer opens only off a read
+   * taken since. The car's page waits for the owner's return before it asks
+   * (UX-20); an answer read at mount is stale by then, because the owner may
+   * have turned alerts on, or refused them, from Account's Alerts row in the
+   * meantime. A primer for a permission already settled reads as a bug, and
+   * for one already refused it promises a choice iOS will not offer.
+   */
+  focused = true,
 ): {
   open: boolean;
   /**
@@ -56,8 +68,23 @@ export function usePushPrimer(
   const [shown, setShown] = useState(false);
   const [answered, setAnswered] = useState(false);
   const [priming, setPriming] = useState(false);
+  /* Eligibility read since the page last came into view (UX-24). */
+  const [fresh, setFresh] = useState(false);
+  /* Bumped when the app returns to the foreground — iOS Settings may have changed the answer. */
+  const [foregrounded, setForegrounded] = useState(0);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setForegrounded((n) => n + 1);
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!focused) {
+      setFresh(false);
+      return;
+    }
     if (vehicleCount === null) return;
 
     let cancelled = false;
@@ -78,17 +105,22 @@ export function usePushPrimer(
           today: new Date().toISOString().slice(0, 10),
         }),
       );
+      setFresh(true);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [vehicleCount]);
+  }, [vehicleCount, focused, foregrounded]);
 
-  /* Latched: shown once the hold lifts, and kept until it is answered. */
+  /*
+    Latched: shown once the hold lifts, and kept until it is answered. A hold
+    arriving later does not pull it — but a fresh read that says the rule no
+    longer holds does (`open` below): granted or refused elsewhere, it goes.
+  */
   useEffect(() => {
-    if (eligible && !hold && !answered) setShown(true);
-  }, [answered, eligible, hold]);
+    if (eligible && fresh && !hold && !answered) setShown(true);
+  }, [answered, eligible, fresh, hold]);
 
   const accept = useCallback(async () => {
     /*
@@ -100,6 +132,17 @@ export function usePushPrimer(
     setAnswered(true);
     setPriming(true);
     try {
+      /*
+        UX-24: read at the tap, not trusted from the eligibility read. A
+        permission refused since then has no dialog left to show, and
+        `registerForPush` would return `unavailable` with nothing on screen —
+        the owner tapped the one button and alerts stayed off. Settings is
+        the only place that answer changes (as Account's Alerts row does).
+      */
+      if ((await currentPushPermission()) === 'denied') {
+        void Linking.openSettings();
+        return;
+      }
       await registerForPush();
     } finally {
       setPriming(false);
@@ -113,5 +156,5 @@ export function usePushPrimer(
     await recordPrimerDismissed(new Date().toISOString().slice(0, 10));
   }, []);
 
-  return { open: shown && !answered, priming, accept, decline };
+  return { open: shown && fresh && eligible && !answered, priming, accept, decline };
 }

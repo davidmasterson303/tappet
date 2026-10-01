@@ -1727,6 +1727,147 @@ describe('the asks on a car’s page, one at a time, and a door after "Not now"'
     expect(view.queryByText(SHEET_TITLE)).toBeNull();
   });
 
+  /*
+    Audit 360, UX-23 / UX-24 (1 Oct). The page is the Car tab's root and never
+    remounts; its asks wait for the owner's return (UX-20). It read the AI
+    answer and the primer's eligibility once, at mount — so an answer given
+    elsewhere while it waited was asked for again on return, and a *Not now*
+    to that sheet overwrote the yes.
+  */
+  function fakeNavigation(initiallyFocused: boolean) {
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = initiallyFocused;
+    const navigation = {
+      isFocused: () => focused,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+    return { navigation, emit };
+  }
+
+  async function mountInNavigation(initiallyFocused: boolean) {
+    const { navigation, emit } = fakeNavigation(initiallyFocused);
+    jest.spyOn(RN.Dimensions, 'get').mockReturnValue({
+      width: REFERENCE.frame.width, height: REFERENCE.frame.height, scale: 3, fontScale: 1,
+    });
+    const props = {
+      vehicleId: 'v1', onBack: jest.fn(), onSignOut: jest.fn(), onScanInvoice: jest.fn(),
+      onViewRecalls: jest.fn(), onOpenWishlist: jest.fn(), onOpenHistory: jest.fn(),
+      onOpenHealth: jest.fn(), onOpenMilestone: jest.fn(), onOpenProfile: jest.fn(),
+    };
+    const view = await render(
+      withSafeArea(
+        <NavigationContext.Provider value={navigation as never}>
+          <VehicleDetailScreen {...props} />
+        </NavigationContext.Provider>,
+        REFERENCE
+      )
+    );
+    return { view, emit };
+  }
+
+  const pastTheBound = () =>
+    act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+
+  it('a yes given on the advisor while the page waited: no sheet on return, and the car is scored (UX-23)', async () => {
+    storedConsent(null);
+    respondUnscored();
+    const { view, emit } = await mountInNavigation(true);
+    await view.findByText(SHEET_TITLE);
+
+    // The owner taps away to the advisor and says yes there.
+    await emit('blur');
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    storedConsent('granted');
+
+    await emit('focus');
+    await pastTheBound();
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+  });
+
+  it('nothing answered elsewhere: the sheet is back on return (anti-vacuous for UX-23)', async () => {
+    storedConsent(null);
+    respondUnscored();
+    const { view, emit } = await mountInNavigation(true);
+    await view.findByText(SHEET_TITLE);
+    await emit('blur');
+    await emit('focus');
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a "Not now" here after a yes elsewhere does not overwrite the yes (UX-23, read before write)', async () => {
+    const SecureWrite = jest.requireMock('expo-secure-store') as { setItemAsync: jest.Mock };
+    storedConsent(null);
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText(SHEET_TITLE);
+
+    // The yes lands in the store after this page read it.
+    storedConsent('granted');
+    SecureWrite.setItemAsync.mockClear();
+    await user.press(view.getByLabelText('Not now'));
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    await act(async () => {});
+    expect(SecureWrite.setItemAsync).not.toHaveBeenCalledWith(AI_CONSENT_STORAGE_KEY, 'declined');
+    // This visit honours the Not now: nothing went to Google.
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a "Not now" with no yes anywhere is stored (anti-vacuous for the read)', async () => {
+    const SecureWrite = jest.requireMock('expo-secure-store') as { setItemAsync: jest.Mock };
+    storedConsent(null);
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText(SHEET_TITLE);
+    SecureWrite.setItemAsync.mockClear();
+    await user.press(view.getByLabelText('Not now'));
+    await waitFor(() => expect(SecureWrite.setItemAsync).toHaveBeenCalledWith(AI_CONSENT_STORAGE_KEY, 'declined'));
+  });
+
+  it('alerts turned on from Account while the page waited: no primer on return (UX-24)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view, emit } = await mountInNavigation(false);
+    await view.findAllByText(/Accord/);
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // Account → Alerts → Allow.
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: true, canAskAgain: true }));
+    await emit('focus');
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+  });
+
+  it('nothing settled on Account: the primer asks on return (anti-vacuous for UX-24)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view, emit } = await mountInNavigation(false);
+    await view.findAllByText(/Accord/);
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await emit('focus');
+    await view.findByText(PRIMER_TITLE);
+  });
+
   it('the primer still asks on a car with nothing else to ask (anti-vacuous)', async () => {
     Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
     storedConsent('granted');

@@ -138,13 +138,21 @@ describe('the permission prompt is no longer raised uninvited', () => {
     expect(hub).toMatch(/<AiConsentSheet[^>]*visible=\{asks\.presenting === 'score'\}/);
     expect(hub).toMatch(/<PushPrimer[^>]*onDismiss=\{asks\.dismissed\}/);
     expect(hub).toMatch(/<AiConsentSheet[^>]*onDismiss=\{asks\.dismissed\}/);
-    // The sheet still waits for iOS's own dialog.
-    expect(hub).toMatch(/\['score', research\.consentNeeded && !primer\.priming\]/);
+    // The sheet still waits for iOS's own dialog — and (UX-23) for an AI answer read since the page came back.
+    expect(hub).toMatch(/\['score', research\.consentNeeded && aiConsentFresh && !primer\.priming\]/);
     // Focus gates the coordinator and the primer's latch.
     const turns = hub.slice(hub.indexOf('useAskTurns({'), hub.indexOf('useAskTurns({') + 200);
     expect(turns).toMatch(/focused/);
     const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
     expect(call).toContain('!focused');
+    /*
+      UX-24: the primer's eligibility is read again on return, so the hook is
+      told whether the page is in view — not only held while it is not. The
+      call ends at the first \`);\` after it.
+    */
+    const fullCall = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf(');', hub.indexOf('usePushPrimer(')));
+    expect(fullCall).toMatch(/,\s*focused\s*$/);
+    expect(fullCall).toContain('!aiConsentFresh');
     expect(hub.indexOf('useScreenFocused()')).toBeGreaterThan(-1);
     // Anti-vacuous: the old self-gated shapes are refused.
     expect(hub).not.toMatch(/visible=\{primer\.open\}/);

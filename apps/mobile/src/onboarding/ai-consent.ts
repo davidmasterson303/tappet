@@ -75,6 +75,28 @@ export async function recordAiConsent(answer: 'granted' | 'declined'): Promise<v
   }
 }
 
+/**
+ * A *Not now* to one of the AI sheets — read before write (audit 360, UX-23).
+ *
+ * ⚠ A screen that lives for the app's lifetime holds a copy of the answer it
+ * read, and a sheet raised off a stale copy asks a question already answered
+ * elsewhere. One answer covers all of Tappet's AI, so a *Not now* written
+ * blindly there would silently undo a yes the owner gave a minute earlier on
+ * another tab — the yes they gave is gone and nothing said it would be.
+ *
+ * So the stored answer is read first: a standing yes is kept (this *Not now*
+ * answered this sheet, and the screen honours it for the visit), anything
+ * else becomes `declined`. Resolves to what is stored afterwards. The app has
+ * no path that turns a yes into a no from these sheets — every sheet is raised
+ * only when the answer it read is not `granted` — so this refuses nothing an
+ * owner could mean.
+ */
+export async function declineAiConsent(): Promise<'granted' | 'declined'> {
+  if ((await readAiConsent()) === 'granted') return 'granted';
+  await recordAiConsent('declined');
+  return 'declined';
+}
+
 /** Sign-out. Consent was this person's; the next account on the phone gives its own. */
 export async function clearAiConsent(): Promise<void> {
   try {

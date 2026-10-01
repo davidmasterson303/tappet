@@ -82,7 +82,8 @@ import Seat from '../components/Seat';
 import { useResearchRunner } from '../components/useResearchRunner';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
-import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { declineAiConsent, recordAiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
 import { monoFace } from '../theme/fonts';
 
 /*
@@ -938,16 +939,19 @@ export function VehicleDetailScreen({
     is shown when the runner reaches the score with nobody having said yes —
     after the push primer, never over it (two Modals cannot both present).
   */
-  const [aiConsent, setAiConsent] = useState<AiConsent | null>(null);
-  useEffect(() => {
-    let live = true;
-    void readAiConsent().then((answer) => {
-      if (live) setAiConsent(answer);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
+  /*
+    ── Audit 360, UX-23 (1 Oct) · the answer is re-read on return ──────────
+
+    This page is the Car tab's root and never remounts while the app runs,
+    and since UX-20 its asks wait for the owner to come back — which is
+    exactly when an answer read at mount is stale: a yes given on the advisor
+    meanwhile was asked for again, and *Not now* to that sheet overwrote it.
+    `useAiConsent` re-reads on every focus, and the score's sheet presents
+    only off a fresh read (`aiConsentFresh` in its want below); the decline
+    reads before it writes (`declineAiConsent`).
+  */
+  const focused = useScreenFocused();
+  const { answer: aiConsent, fresh: aiConsentFresh, set: setAiConsent } = useAiConsent(focused);
   const research = useResearchRunner({ vehicleId, observation, reload: leanReload, consent: aiConsent });
   /*
     ── Audit 360, UX-16 / UX-4 (1 Oct) · one ask at a time ─────────────────
@@ -978,21 +982,22 @@ export function VehicleDetailScreen({
     (review's recommended answer, code-only and reversible: drop
     `refusedThisVisit` from the hold).
   */
-  const focused = useScreenFocused();
   const [refusedThisVisit, setRefusedThisVisit] = useState(false);
   const primer = usePushPrimer(
     state.status === 'ok' ? Math.max(1, cars.length) : null,
     !focused ||
       refusedThisVisit ||
       aiConsent === null ||
+      !aiConsentFresh ||
       research.consentNeeded ||
-      (research.visible && !research.settled)
+      (research.visible && !research.settled),
+    focused
   );
   const asks = useAskTurns({
     focused,
     wanted: [
       ['primer', primer.open],
-      ['score', research.consentNeeded && !primer.priming],
+      ['score', research.consentNeeded && aiConsentFresh && !primer.priming],
     ] as const,
   });
 
@@ -2476,7 +2481,12 @@ export function VehicleDetailScreen({
           setRefusedThisVisit(true);
           setAiConsent('declined');
           research.consentDeclined();
-          void recordAiConsent('declined');
+          /*
+            UX-23: read before write. A yes stored elsewhere since this
+            page's read stands; this *Not now* answers this sheet, for this
+            visit, and the next focus reads the yes back.
+          */
+          void declineAiConsent();
         }}
       />
 

@@ -7,7 +7,8 @@ import { askAdvisor, listAdvisorThreads, loadAdvisorThread, loadStarterSource } 
 import { auditText, belowFloor } from '../../test-support/contrast';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
-import { readAiConsent } from '../../onboarding/ai-consent';
+import { declineAiConsent, readAiConsent, recordAiConsent } from '../../onboarding/ai-consent';
+import { NavigationContext } from '@react-navigation/native';
 
 /**
  * The advisor's answer, rendered.
@@ -41,6 +42,7 @@ let mockConsent: 'granted' | 'declined' | 'unknown' = 'granted';
 jest.mock('../../onboarding/ai-consent', () => ({
   readAiConsent: jest.fn(async () => mockConsent),
   recordAiConsent: jest.fn(async () => {}),
+  declineAiConsent: jest.fn(async () => 'declined'),
 }));
 
 jest.mock('../../api/consultant', () => {
@@ -654,6 +656,64 @@ describe('asking before a question goes to Google', () => {
 
     await act(async () => answerRead('unknown'));
     await view.findByText('The advisor is Google’s AI');
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  /*
+    Audit 360, UX-23 (1 Oct). The Advisor tab's root mounts once and stays
+    mounted; it read the answer once. A yes given on the car's page while it
+    waited was asked for again here, and a Not now here wrote over it.
+  */
+  it('re-reads the answer when the tab comes back: a yes given elsewhere sends, no sheet (UX-23)', async () => {
+    mockConsent = 'unknown';
+    ask.mockResolvedValue({ sessionId: 's1', response: 'It is.', contextKinds: [] });
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      canGoBack: () => false,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+    const user = userEvent.setup();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await act(async () => {});
+
+    // Away on the car's page, where the owner says yes to the score's sheet.
+    await emit('blur');
+    mockConsent = 'granted';
+    await emit('focus');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    expect(view.queryByText('The advisor is Google’s AI')).toBeNull();
+  });
+
+  it('a Not now here reads before it writes (UX-23)', async () => {
+    mockConsent = 'unknown';
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'anything');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('The advisor is Google’s AI');
+    await user.press(view.getByLabelText('Not now'));
+    expect(declineAiConsent).toHaveBeenCalledTimes(1);
+    expect(recordAiConsent).not.toHaveBeenCalledWith('declined');
     expect(ask).not.toHaveBeenCalled();
   });
 
