@@ -7,6 +7,7 @@ import { askAdvisor, listAdvisorThreads, loadAdvisorThread, loadStarterSource } 
 import { auditText, belowFloor } from '../../test-support/contrast';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
+import { readAiConsent } from '../../onboarding/ai-consent';
 
 /**
  * The advisor's answer, rendered.
@@ -595,6 +596,65 @@ describe('asking before a question goes to Google', () => {
     await view.findByText(/Everything else in Tappet works the same/);
     view.getByLabelText('Ask about this car');
     view.getByText('Change that');
+  });
+
+  it('sends nothing after a decline — ASK opens the sheet again (audit 360, UX-9)', async () => {
+    /*
+      The composer's send tested `consent === 'unknown'` and let every other
+      value through, so an owner who had said no and then pressed ASK sent
+      this car's records to Google anyway.
+    */
+    mockConsent = 'declined';
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await view.findByText(/Everything else in Tappet works the same/);
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    await view.findByText('The advisor is Google’s AI');
+    expect(ask).not.toHaveBeenCalled();
+    expect(view.getByLabelText('Ask about this car').props.value).toBe('Is the timing belt due?');
+  });
+
+  it('holds a press made while the stored answer is still being read (UX-9)', async () => {
+    /*
+      `null` is "still reading". A starter filled and ASK pressed inside that
+      window went straight to the model before consent was known.
+    */
+    let answerRead: (answer: 'granted' | 'declined' | 'unknown') => void = () => {};
+    (readAiConsent as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (answerRead = resolve))
+    );
+    ask.mockResolvedValue({ sessionId: 's1', response: 'It is.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    expect(ask).not.toHaveBeenCalled();
+
+    await act(async () => answerRead('granted'));
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    expect(ask.mock.calls[0][0]).toMatchObject({ message: 'Is the timing belt due?' });
+  });
+
+  it('and asks, rather than sends, when that held answer is unknown (UX-9)', async () => {
+    let answerRead: (answer: 'granted' | 'declined' | 'unknown') => void = () => {};
+    (readAiConsent as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (answerRead = resolve))
+    );
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    await act(async () => answerRead('unknown'));
+    await view.findByText('The advisor is Google’s AI');
+    expect(ask).not.toHaveBeenCalled();
   });
 
   it('names Google, and says what leaves', async () => {

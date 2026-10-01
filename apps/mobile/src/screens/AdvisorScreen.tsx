@@ -219,6 +219,7 @@ export function AdvisorScreen({
   const [consent, setConsent] = useState<AiConsent | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
   const pendingQuestion = useRef<string | null>(null);
+  const heldForConsentRead = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -401,7 +402,22 @@ export function AdvisorScreen({
       The question is held so accepting sends it rather than making them type it
       again — a consent sheet that loses your work reads as an obstacle.
     */
-    if (consent === 'unknown') {
+    /*
+      ⚠ Audit 360, UX-9 (1 Oct) — **only `'granted'` sends.** This tested
+      `=== 'unknown'` and let everything else through to `ask`: `null` (the
+      Keychain read still in flight) sent this car's records before anyone
+      was asked, and `'declined'` sent them after the owner had said no. A
+      declined owner who presses ASK is shown the sheet again — the same
+      door as "Change that" — and a press inside the read is held until the
+      answer lands, then sent or asked about as that answer says.
+    */
+    if (consent === null) {
+      pendingQuestion.current = trimmed;
+      heldForConsentRead.current = true;
+      return;
+    }
+
+    if (consent !== 'granted') {
       pendingQuestion.current = trimmed;
       setConsentOpen(true);
       return;
@@ -409,6 +425,22 @@ export function AdvisorScreen({
 
     void ask(trimmed);
   }, [canSend, trimmed, ask, consent]);
+
+  /* A press held while the stored answer was read — UX-9, above. */
+  useEffect(() => {
+    if (consent === null || !heldForConsentRead.current) return;
+    heldForConsentRead.current = false;
+
+    const question = pendingQuestion.current;
+    if (!question) return;
+
+    if (consent === 'granted') {
+      pendingQuestion.current = null;
+      void ask(question);
+    } else {
+      setConsentOpen(true);
+    }
+  }, [consent, ask]);
 
   /*
     Asked once per mount, guarded by a ref rather than state: React mounts
