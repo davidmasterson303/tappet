@@ -13,6 +13,58 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ✅ 1 Oct — the 360 audit: all five lenses at 9/10, 99 commits on `main`, nothing promoted
+>
+> Five Fable reviewers (legal, copy, tech lead, security, UI/UX) graded against
+> standards they froze in round 1; Opus implementers verified every finding before
+> fixing it, each fix with a test that fails on the old shape. Goal raised to 9
+> mid-day (David). Harness and every round's file: `design-loop/audit-360/`
+> (gitignored — `log.md` is the summary). Charters: `.claude/agents/audit-*.md`.
+>
+> | Lens | Rounds | Scores |
+> |---|---|---|
+> | Tech lead | 7 | 5 → 6 → 7 → 7 → 8 → 8 → 9 |
+> | Legal | 6 | 6 → 7 → 8 → 8 → 8 → 9 (held calls made by the legal agent on David's word) |
+> | Security | 5 | 6 → 8 → 7 → 8 → 9 |
+> | UX | 6 | 7 → 8 → 8 → 8 → 8 → 9 |
+> | Copy | 6 | 7 → 8 → 8 → 8 → 8 → 9 |
+>
+> The ones that mattered: the phone sent records to Gemini after consent was
+> **declined**; one consent yes silently covered invoice scanning; the advisor had
+> no stop-driving rule; a model reply containing `%%` could wipe an owner's Plan;
+> **Restore said "get in touch" for a live subscription** (App Review tests it);
+> web server actions accepted any column (incl. `vehicle_id`) and read/deleted
+> service items by id alone, reachable from the demo; the review account could not
+> buy after the subscriber-paywall change; a cold-start push opened the wrong car.
+> Two regressions introduced by fixes were caught by the next round (advisor replay
+> of "yes"; review account's buy buttons).
+>
+> Suites at `0e51344`: root 278 suites / 4,849, mobile 64 / 1,104 (alone),
+> both `tsc` clean; `promote-web` dry run green except "unpushed" (since pushed).
+>
+> **⛔ Build 2 must not be submitted** — it scores a car without consent and its
+> consent covers invoice scanning. **Build 3** is required (JS + two manifest
+> changes: Coarse Location removed, Crash Data linked).
+>
+> **David's list, in order:**
+> 1. `promote-web --apply` (Claude, on David's OK) → read `/api/version` for the merge commit.
+> 2. SQL editor: `20261001120000` (VIN unique per garage) and `20260917120000`
+>    (demo quote meter) — both in `supabase/migrations/`, verify per their headers.
+> 3. Supabase Auth: turn on **Confirm email**.
+> 4. After the promote: Cowork clears `mod_detail_cache` (11 rows) and verifies `[]`.
+> 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
+>    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
+>    upload body limit.
+> 6. Build 3 → TestFlight → the phone walks: Restore says "active"; primer → iOS
+>    alert → consent sheet one at a time; Alerts row → Settings and back; DELETE
+>    field above the keyboard; 3- and 6-page scan timing.
+> 7. Then roadmap steps 4–9 (screenshots, submit).
+>
+> ASC (Cowork, 1 Oct): privacy label published (8 types, Crash Data linked, no
+> location, no name); subscriptions read "Tappet Plus"; review notes 3,996/4,000
+> with the safety rule; subtitle + keywords entered; Family Sharing off; standard
+> EULA; support mail lands in iCloud. Notes: `COWORK_NOTE_audit360_legal_asc_2026-10-01.md`.
+
 > ### ▶ 1 Oct — the road to release (supersedes "Tuesday, in order" below)
 >
 > Verified 1 Oct: nothing moved 29–30 Sep — no commits, and the only
@@ -22,7 +74,7 @@
 >
 > | # | Step | Who |
 > |---|---|---|
-> | **1** | **360 audit** — five Fable reviewers (legal, copy, tech lead, security, UI/UX), Opus implements, loop until each lens stops. Harness: `design-loop/audit-360/` (gitignored), charters `.claude/agents/audit-*.md`. | Claude, 1–2 days |
+> | ~~1~~ | ✅ **360 audit — done 1 Oct, all five lenses at 9/10** (see the block below) | Claude |
 > | 2 | Build 3 if the audit changed the phone (any mobile JS fix needs a new binary); `promote-web` for server fixes | Claude + David |
 > | 3 | TestFlight install + walk; time 3- and 6-page scans | David (phone) |
 > | 4 | Store screenshots 1320×2868 + IAP review screenshot | David / web harness |
