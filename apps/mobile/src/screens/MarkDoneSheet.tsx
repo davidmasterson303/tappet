@@ -165,6 +165,15 @@ export function MarkDoneSheet({
               placeholder="YYYY-MM-DD"
               placeholderTextColor={text.muted}
               accessibilityLabel="Service date"
+              /*
+                ⚠ Audit 360, UX-12 (1 Oct): digits and the hyphen on one
+                plane, not QWERTY, and the format spoken — the placeholder
+                is gone the moment the chips fill the field. Still no date
+                picker: that is a native module (see the docblock).
+              */
+              accessibilityHint="Year, month and day, as in 2026-09-27."
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
               autoCapitalize="none"
               autoCorrect={false}
             />
