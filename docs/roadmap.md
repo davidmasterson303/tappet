@@ -13,6 +13,25 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ 1 Oct — the road to release (supersedes "Tuesday, in order" below)
+>
+> Verified 1 Oct: nothing moved 29–30 Sep — no commits, and the only
+> `ai_usage_events` rows since 28 Sep are `canary`. `web-live` `5f8c973b`,
+> `demo-live` `81f98881`. Build 2 (1.0.0 (2), from `2b34085`) is uploaded;
+> TestFlight processing not confirmed here (no Apple email for it).
+>
+> | # | Step | Who |
+> |---|---|---|
+> | **1** | **360 audit** — five Fable reviewers (legal, copy, tech lead, security, UI/UX), Opus implements, loop until each lens stops. Harness: `design-loop/audit-360/` (gitignored), charters `.claude/agents/audit-*.md`. | Claude, 1–2 days |
+> | 2 | Build 3 if the audit changed the phone (any mobile JS fix needs a new binary); `promote-web` for server fixes | Claude + David |
+> | 3 | TestFlight install + walk; time 3- and 6-page scans | David (phone) |
+> | 4 | Store screenshots 1320×2868 + IAP review screenshot | David / web harness |
+> | 5 | Four answers: reviewer login, Crash Data, Name, advisor safety rule (LEG-05) | David |
+> | 6 | Cowork fills ASC (metadata, privacy, age, US-only, review notes, IAP display names → "Tappet Plus") | Cowork; David signs Chrome in |
+> | 7 | Gemini auto-reload on; `PAID_FEATURES_ENFORCED=true` on `tappet-web`; `promote-web` | David clicks, Claude verifies |
+> | 8 | Attach the build + both IAPs, Submit for Review | David |
+> | 9 | Apple review (1–2 days); then Release, `promote-demo`, verify both hosts | Apple, then David + Claude |
+
 > ### ▶ 27–28 Sep — multi-page invoices: live on `web-live` (`07bffe03`), not yet walked on a phone
 >
 > **28 Sep:** promoted. The host serves `2ba72ff6`, and the new routes answer
