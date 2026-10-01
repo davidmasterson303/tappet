@@ -936,6 +936,8 @@ describe('an invoice of several pages', () => {
     await user.press(await view.findByRole('button', { name: 'Done · 2 pages' }));
 
     await view.findByText('Page 02 did not send');
+    // The request never left the phone: this is the one case that may name the connection.
+    expect(view.getByText(/Check your connection/)).toBeTruthy();
     // Sent once as it was added, once more at DONE — then it stops.
     expect(sendPage.mock.calls.filter(([, f]) => f.name === 'p2.jpg')).toHaveLength(2);
     expect(upload).not.toHaveBeenCalled();
@@ -990,5 +992,13 @@ describe('an invoice of several pages', () => {
 
     await view.findByText(/did not send/);
     expect(view.queryByText('That car is no longer here')).toBeNull();
+    /*
+      ⚠ Audit 360, COPY-6 (1 Oct). Our storage answered 500, and the screen
+      told an owner on full Wi-Fi to check their connection. It reached us; it
+      failed here, and the sentence says so — and still says nothing was lost.
+    */
+    expect(view.queryByText(/Check your connection/)).toBeNull();
+    expect(view.getByText(/on our side, not your connection/)).toBeTruthy();
+    expect(view.getByText(/Your pages are still here and nothing has been filed yet/)).toBeTruthy();
   });
 });

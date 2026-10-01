@@ -9,6 +9,7 @@ import {
   describeUploadError,
   diagnoseUploadError,
   PageMissingError,
+  InvoiceFileError,
   type ExtractedVehicle,
   type InvoiceFile,
   type InvoiceUploadResult,
@@ -169,6 +170,33 @@ interface Page {
    * TL-9 dropped its twin of this branch.
    */
   carGone?: boolean;
+  /**
+   * Why a failed page failed, as far as the phone can tell — so the sentence
+   * blames the connection only when the request never reached Tappet.
+   *
+   * ⚠ Audit 360, COPY-6 (1 Oct). Every failure said "Check your connection",
+   * including a 500 from our own storage: an owner on full Wi-Fi toggled
+   * airplane mode and concluded the phone was the problem. `offline` is a
+   * request that never arrived (`kind: 'offline'`); `timeout` could be either
+   * end and says only that no answer came; `file` is the phone's own refusal
+   * of the photograph, whose message says why; anything else reached us and
+   * failed there.
+   */
+  failure?: { cause: 'offline' | 'timeout' | 'file' | 'server'; message?: string };
+}
+
+/** What a page's failed send says, by cause. */
+function pageFailureMessage(failures: ReadonlyArray<Page['failure']>): string {
+  const kept = 'Your pages are still here and nothing has been filed yet.';
+  const file = failures.find((f) => f?.cause === 'file' && f.message);
+  if (file?.message) return `${file.message} ${kept}`;
+  if (failures.length > 0 && failures.every((f) => f?.cause === 'offline')) {
+    return 'Your pages are still here. Check your connection and try again — nothing has been filed yet.';
+  }
+  if (failures.some((f) => f?.cause === 'timeout') && !failures.some((f) => f?.cause === 'server')) {
+    return `Tappet did not answer in time. ${kept} Try again.`;
+  }
+  return `Tappet could not store ${failures.length === 1 ? 'that page' : 'those pages'} — the fault is on our side, not your connection. ${kept} Try again in a moment.`;
 }
 
 const two = (n: number) => String(n).padStart(2, '0');
@@ -316,7 +344,15 @@ export function InvoiceScanScreen({
         },
         (caught) => {
           const carGone = caught instanceof ApiRequestError && caught.status === 404;
-          setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'failed', carGone } : p)));
+          const failure: Page['failure'] =
+            caught instanceof InvoiceFileError
+              ? { cause: 'file', message: caught.message }
+              : caught instanceof ApiRequestError && caught.kind === 'offline'
+                ? { cause: 'offline' }
+                : caught instanceof ApiRequestError && caught.kind === 'timeout'
+                  ? { cause: 'timeout' }
+                  : { cause: 'server' };
+          setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'failed', carGone, failure } : p)));
         }
       );
       uploads.current.set(key, upload);
@@ -517,8 +553,7 @@ export function InvoiceScanScreen({
           setState({
             status: 'error',
             heading: failed.length === 1 ? `Page ${two(current.indexOf(failed[0]) + 1)} did not send` : 'Some pages did not send',
-            message:
-              'Your pages are still here. Check your connection and try again — nothing has been filed yet.',
+            message: pageFailureMessage(failed.map((p) => p.failure)),
             retryable: true,
           });
           return;
