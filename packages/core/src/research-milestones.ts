@@ -280,7 +280,11 @@ export function researchMilestones(observed: ResearchObservation): ResearchMiles
       : 0;
     // The schedule is on file but nothing has been projected against the
     // odometer yet — say that, rather than "nothing due", which is a claim.
-    schedule.answer = items > 0 ? `${items} services on the schedule; nothing projected yet.` : 'No schedule on record for this model.';
+    // COPY-26 (1 Oct): counted, so a one-item schedule is not "1 services".
+    schedule.answer =
+      items > 0
+        ? `${items} ${items === 1 ? 'service' : 'services'} on the schedule; nothing projected yet.`
+        : 'No schedule on record for this model.';
     schedule.state = 'done';
   } else if (status === 'failed') {
     schedule.answer = 'Waits on the research.';

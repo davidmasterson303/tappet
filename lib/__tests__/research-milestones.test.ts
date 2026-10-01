@@ -112,6 +112,16 @@ describe('an answer exists only once its data is in hand', () => {
     expect(m.schedule).toMatchObject({ state: 'done', answer: '4 services on the schedule; nothing projected yet.' });
     expect(m.schedule.answer).not.toMatch(/nothing due/i);
   });
+
+  it('counts a one-item schedule as one service, not "1 services" (COPY-26)', () => {
+    const m = byKey({
+      vehicle: ACCORD,
+      plate: PLATE,
+      knowledge: { research_status: 'completed', maintenance_schedule: [1] },
+      nhtsa: { recalls: [], lookup_status: 'matched' },
+    });
+    expect(m.schedule.answer).toBe('1 service on the schedule; nothing projected yet.');
+  });
 });
 
 describe('failure is a line, not a spinner', () => {
