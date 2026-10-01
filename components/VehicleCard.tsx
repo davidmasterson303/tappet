@@ -53,6 +53,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { questionToast } from '@/components/question-toast';
 import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { queryClient } from '@tappet/core/query-client';
@@ -215,7 +216,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
       const answer = correctionAction(result.reason);
       toast.error(
         result.error || 'Tappet could not save the reading. Try again in a moment.',
-        answer ? { action: { label: answer, onClick: () => void saveMileage(newMileage, true) } } : undefined
+        answer ? questionToast(answer, () => void saveMileage(newMileage, true)) : undefined
       );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
       setMileageInput(vehicle.current_mileage?.toString() ?? '');

@@ -11,6 +11,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { questionToast } from '@/components/question-toast';
 import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
 import { correctionAction } from '@tappet/core/mileage-tracking';
@@ -325,7 +326,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
       const answer = correctionAction(result.reason);
       toast.error(
         result.error || 'Tappet could not save the reading. Try again in a moment.',
-        answer ? { action: { label: answer, onClick: () => void saveCurrentMileage(value, true) } } : undefined
+        answer ? questionToast(answer, () => void saveCurrentMileage(value, true)) : undefined
       );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
       setCurrentMileage(vehicle.current_mileage?.toString() || '');
