@@ -288,6 +288,11 @@ describe('the linking config seeds a stack', () => {
       config, and that config is the one that must name its root. Since 21 Sep
       that tab is the Car tab, whose root is the car's own page: a recall link
       opened cold lands on the recalls with the car beneath it to go back to.
+
+      ⚠ 1 Oct · audit 360, TL-1: this pins the text only. The seeded root has
+      no params, and `FirstCar` used to pop the linked screen away; what the
+      tap actually lands on is rendered in
+      `apps/mobile/src/navigation/__tests__/cold-start-link.test.tsx`.
     */
     const car = configRegistering(region, 'vehicle/:vehicleId');
     const recalls = configRegistering(region, 'vehicle/:vehicleId/recalls');
