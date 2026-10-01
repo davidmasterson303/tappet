@@ -11,6 +11,7 @@ import {
   getConsultantSession,
   generateSessionTitle,
 } from '@/app/actions';
+import { replayedAnswer } from '@/lib/consultant-replay';
 
 export const dynamic = 'force-dynamic';
 
@@ -182,6 +183,27 @@ export async function POST(request: NextRequest): Promise<Response> {
         { success: false, error: thread.error } as ApiResponse,
         { status: thread.status }
       );
+    }
+
+    /*
+      ⚠ 1 Oct · audit 360, TL-6 · the same question, sent again because the
+      phone stopped waiting for an answer this thread already stored. Answered
+      from the thread: no second model call, no second pair of turns.
+      `lib/consultant-replay.ts`.
+    */
+    const replay = isDemoVehicle
+      ? null
+      : replayedAnswer(thread.messageHistory, message, body.attachedDocuments);
+    if (replay) {
+      logger.info('API:CONSULTANT', 'Answered a repeated question from the thread', { vehicleId });
+      return Response.json({
+        success: true,
+        sessionId: thread.sessionId,
+        response: replay.response,
+        contextKinds: [],
+        wishlistActions: replay.wishlistActions,
+        ...(replay.estimate ? { estimate: replay.estimate } : {}),
+      } as ApiResponse);
     }
 
     const result = await sendConsultantMessage({
