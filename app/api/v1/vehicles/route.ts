@@ -4,7 +4,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
 import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
@@ -377,7 +377,9 @@ export async function PATCH(request: NextRequest): Promise<Response> {
   }
 
   const decision = validateMileageUpdate({
-    current: vehicle.current_mileage ?? 0,
+    // Audit 360, TL-5: a stored 0 is no reading, so the first real one is a
+    // first reading — not a 100,000-mile jump from zero.
+    current: odometerReading(vehicle.current_mileage),
     next: body.currentMileage,
     isCorrection: body.isCorrection === true,
   });

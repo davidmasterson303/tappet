@@ -27,6 +27,7 @@ import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-his
 import {
   correctionAction,
   mileageCheckIn,
+  odometerReading,
   validateMileageUpdate,
   type MileageCheckIn,
 } from '@tappet/core/mileage-tracking';
@@ -324,7 +325,9 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
 
       const vehicle = body.vehicle;
       // Null, never 0: a car with no odometer on file was told "Still around 0 miles?" (23 Sep).
-      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : null;
+      // ⚠ 1 Oct · audit 360, TL-5: and `0` is no odometer too — the column's
+      // default, and what the sweep has always read as none.
+      const mileage = odometerReading(vehicle?.current_mileage);
       const rawSchedule = body.knowledge?.maintenance_schedule;
       /*
         ── 13 Sep · monthly, with a number worked out ──────────────────────

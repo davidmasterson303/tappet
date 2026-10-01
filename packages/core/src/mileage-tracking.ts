@@ -64,6 +64,21 @@ const MAX_SINGLE_JUMP = 100_000;
  * number, within range. The relative checks — backwards, jump — need a
  * reading to be relative to.
  */
+/**
+ * ── A stored odometer, as a reading or as "we cannot say" (audit 360, TL-5) ──
+ *
+ * `vehicles.current_mileage` defaults to `0`, and a phone-added car stores
+ * `Number(body.currentMileage ?? 0)`. The sweep has always read `<= 0` as no
+ * reading; the Service screen, the profile and the PATCH route read `0` as a
+ * reading — "Still around 0 miles?", every mileage service due from zero,
+ * and the real 123,000 refused as a 100,000-mile jump. One rule now: a
+ * positive whole number is a reading; anything else is `null`. CLAUDE.md §6:
+ * `null` is never `0`.
+ */
+export function odometerReading(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
 export function validateMileageUpdate(params: {
   current: number | null;
   next: unknown;

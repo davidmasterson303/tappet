@@ -713,6 +713,18 @@ describe('a car with no odometer reading', () => {
     expect(view.getByText('Timed by date, not mileage')).toBeTruthy();
   });
 
+  it('reads a stored 0 as no reading, as the sweep does — audit 360, TL-5', async () => {
+    // The column's default and what a phone-added car stores for "0".
+    respondWith([], { ...VEHICLE, vehicle: { ...VEHICLE.vehicle, current_mileage: 0 } });
+
+    const view = await render(<ServiceMilestoneScreen vehicleId="v1" onSignOut={jest.fn()} />);
+
+    expect(await view.findByText('What does the odometer say?')).toBeTruthy();
+    expect(view.queryByText(/Still around 0 miles\?/)).toBeNull();
+    expect(view.getByText('Waiting on the odometer')).toBeTruthy();
+    expect(view.queryAllByLabelText(/due in [\d,]+ miles/)).toHaveLength(0);
+  });
+
   it('can still detect the reading when there is one', async () => {
     // Anti-vacuous: the same car with a reading has no odometer group.
     const user = userEvent.setup();

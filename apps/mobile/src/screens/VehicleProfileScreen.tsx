@@ -22,7 +22,7 @@ import { apiRequest, ApiRequestError } from '../api/client';
 import type { InvoiceFile } from '../api/documents';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
-import { correctionAction, validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { correctionAction, odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { agoLabel, isOwnerPhoto } from './VehicleDetailScreen';
 import {
   MINDEDNESS,
@@ -163,7 +163,8 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
 
       const vehicle = body.vehicle ?? {};
       const initial: Answers = {
-        currentMileage: typeof vehicle.current_mileage === 'number' ? String(vehicle.current_mileage) : '',
+        // Audit 360, TL-5: a stored 0 is no reading — an empty field, not "0".
+        currentMileage: odometerReading(vehicle.current_mileage) === null ? '' : String(vehicle.current_mileage),
         avgMilesPerMonth:
           typeof vehicle.avg_miles_per_month === 'number' ? String(vehicle.avg_miles_per_month) : '',
         vehicleStatus:
