@@ -171,6 +171,15 @@ export const PUSH_PRIMER_COPY = {
    * Shown under the decline button. The reassurance is load-bearing: a primer
    * that feels like a trap gets declined, and the decline is the outcome that
    * costs nothing *only* if the person believes they can change their mind.
+   *
+   * ⚠ **1 Oct · it named a door the app does not have** (audit 360, UX-1).
+   * It said "You can turn these on later from your account", and the
+   * Account screen has no notifications row — the only way back after
+   * NOT NOW is this screen returning when `PRIMER_COOLDOWN_DAYS` has run.
+   * So the sentence says that, which is the one promise the binary keeps.
+   * If an Alerts row is built on Account (held for David), this can name
+   * it again; `push-priming.test.ts` refuses "account" until that screen
+   * carries one.
    */
-  reassurance: 'You can turn these on later from your account.',
+  reassurance: 'Not now costs nothing — Tappet will ask again in a month.',
 } as const;

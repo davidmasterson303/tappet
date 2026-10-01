@@ -23,6 +23,8 @@ import {
   type PrimingInput,
 } from '@tappet/core/push-priming';
 import { SERVICE_COOLDOWN_DAYS } from '@tappet/core/notification-sweep';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const TODAY = '2026-08-12';
 
@@ -167,7 +169,51 @@ describe('the primer copy', () => {
 
   it('offers a refusal that costs nothing, and says so', () => {
     expect(PUSH_PRIMER_COPY.decline).toBeTruthy();
-    expect(PUSH_PRIMER_COPY.reassurance.toLowerCase()).toMatch(/later|account|settings/);
+    expect(PUSH_PRIMER_COPY.reassurance.toLowerCase()).toMatch(/later|again|account|settings/);
+  });
+
+  /*
+    ⚠ Audit 360, UX-1 (1 Oct). The reassurance said "You can turn these on
+    later from your account" and the Account screen had no such row — a
+    promise made on the screen that decides the one irreversible iOS ask.
+    So the reassurance may only name a door that exists.
+  */
+  describe('the reassurance names only a way back the app has', () => {
+    const account = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens', 'AccountScreen.tsx'),
+      'utf8'
+    );
+    /** Whether the Account screen draws anything about notifications. */
+    const accountHasAlertsRow = (source: string) =>
+      /currentPushPermission|openSettings|Notifications|Alerts/.test(
+        source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+      );
+
+    it('read the Account screen', () => {
+      expect(account.length).toBeGreaterThan(1000);
+      expect(account).toMatch(/export (default )?function AccountScreen/);
+    });
+
+    it('can still tell a promise of an account door from one without it', () => {
+      // Anti-vacuous: the shape that shipped is caught.
+      const shipped = 'You can turn these on later from your account.';
+      expect(/account/i.test(shipped) && !accountHasAlertsRow('function AccountScreen() {}')).toBe(true);
+      expect(accountHasAlertsRow('const p = await currentPushPermission();')).toBe(true);
+    });
+
+    it('does not promise an account row the account screen does not draw', () => {
+      if (/account/i.test(PUSH_PRIMER_COPY.reassurance)) {
+        expect(accountHasAlertsRow(account)).toBe(true);
+      }
+    });
+
+    it('states the interval the cooldown actually keeps', () => {
+      // "a month" is 30 days; a change to either must move the other.
+      if (/a month/.test(PUSH_PRIMER_COPY.reassurance)) {
+        expect(PRIMER_COOLDOWN_DAYS).toBe(30);
+      }
+      expect(PUSH_PRIMER_COPY.reassurance).toMatch(/again/);
+    });
   });
 
   it('does not promise anything the product cannot do', () => {
