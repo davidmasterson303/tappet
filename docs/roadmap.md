@@ -13,6 +13,77 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ✅ 1 Oct — the 360 audit: all five lenses at 9/10, 99 commits on `main`, nothing promoted
+>
+> Five Fable reviewers (legal, copy, tech lead, security, UI/UX) graded against
+> standards they froze in round 1; Opus implementers verified every finding before
+> fixing it, each fix with a test that fails on the old shape. Goal raised to 9
+> mid-day (David). Harness and every round's file: `design-loop/audit-360/`
+> (gitignored — `log.md` is the summary). Charters: `.claude/agents/audit-*.md`.
+>
+> | Lens | Rounds | Scores |
+> |---|---|---|
+> | Tech lead | 7 | 5 → 6 → 7 → 7 → 8 → 8 → 9 |
+> | Legal | 6 | 6 → 7 → 8 → 8 → 8 → 9 (held calls made by the legal agent on David's word) |
+> | Security | 5 | 6 → 8 → 7 → 8 → 9 |
+> | UX | 6 | 7 → 8 → 8 → 8 → 8 → 9 |
+> | Copy | 6 | 7 → 8 → 8 → 8 → 8 → 9 |
+>
+> The ones that mattered: the phone sent records to Gemini after consent was
+> **declined**; one consent yes silently covered invoice scanning; the advisor had
+> no stop-driving rule; a model reply containing `%%` could wipe an owner's Plan;
+> **Restore said "get in touch" for a live subscription** (App Review tests it);
+> web server actions accepted any column (incl. `vehicle_id`) and read/deleted
+> service items by id alone, reachable from the demo; the review account could not
+> buy after the subscriber-paywall change; a cold-start push opened the wrong car.
+> Two regressions introduced by fixes were caught by the next round (advisor replay
+> of "yes"; review account's buy buttons).
+>
+> Suites at `0e51344`: root 278 suites / 4,849, mobile 64 / 1,104 (alone),
+> both `tsc` clean; `promote-web` dry run green except "unpushed" (since pushed).
+>
+> **⛔ Build 2 must not be submitted** — it scores a car without consent and its
+> consent covers invoice scanning. **Build 3** is required (JS + two manifest
+> changes: Coarse Location removed, Crash Data linked).
+>
+> **David's list, in order:**
+> 1. `promote-web --apply` (Claude, on David's OK) → read `/api/version` for the merge commit.
+> 2. SQL editor: `20261001120000` (VIN unique per garage) and `20260917120000`
+>    (demo quote meter) — both in `supabase/migrations/`, verify per their headers.
+> 3. Supabase Auth: turn on **Confirm email**.
+> 4. After the promote: Cowork clears `mod_detail_cache` (11 rows) and verifies `[]`.
+> 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
+>    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
+>    upload body limit.
+> 6. Build 3 → TestFlight → the phone walks: Restore says "active"; primer → iOS
+>    alert → consent sheet one at a time; Alerts row → Settings and back; DELETE
+>    field above the keyboard; 3- and 6-page scan timing.
+> 7. Then roadmap steps 4–9 (screenshots, submit).
+>
+> ASC (Cowork, 1 Oct): privacy label published (8 types, Crash Data linked, no
+> location, no name); subscriptions read "Tappet Plus"; review notes 3,996/4,000
+> with the safety rule; subtitle + keywords entered; Family Sharing off; standard
+> EULA; support mail lands in iCloud. Notes: `COWORK_NOTE_audit360_legal_asc_2026-10-01.md`.
+
+> ### ▶ 1 Oct — the road to release (supersedes "Tuesday, in order" below)
+>
+> Verified 1 Oct: nothing moved 29–30 Sep — no commits, and the only
+> `ai_usage_events` rows since 28 Sep are `canary`. `web-live` `5f8c973b`,
+> `demo-live` `81f98881`. Build 2 (1.0.0 (2), from `2b34085`) is uploaded;
+> TestFlight processing not confirmed here (no Apple email for it).
+>
+> | # | Step | Who |
+> |---|---|---|
+> | ~~1~~ | ✅ **360 audit — done 1 Oct, all five lenses at 9/10** (see the block below) | Claude |
+> | 2 | Build 3 if the audit changed the phone (any mobile JS fix needs a new binary); `promote-web` for server fixes | Claude + David |
+> | 3 | TestFlight install + walk; time 3- and 6-page scans | David (phone) |
+> | 4 | Store screenshots 1320×2868 + IAP review screenshot | David / web harness |
+> | 5 | Four answers: reviewer login, Crash Data, Name, advisor safety rule (LEG-05) | David |
+> | 6 | Cowork fills ASC (metadata, privacy, age, US-only, review notes, IAP display names → "Tappet Plus") | Cowork; David signs Chrome in |
+> | 7 | Gemini auto-reload on; `PAID_FEATURES_ENFORCED=true` on `tappet-web`; `promote-web` | David clicks, Claude verifies |
+> | 8 | Attach the build + both IAPs, Submit for Review | David |
+> | 9 | Apple review (1–2 days); then Release, `promote-demo`, verify both hosts | Apple, then David + Claude |
+
 > ### ▶ 27–28 Sep — multi-page invoices: live on `web-live` (`07bffe03`), not yet walked on a phone
 >
 > **28 Sep:** promoted. The host serves `2ba72ff6`, and the new routes answer
@@ -56,6 +127,56 @@
 >   until the account sweep. A daily sweep of pages older than a day is cheap.
 > - The critic asked twice for FILED to list the lines it read (B6). That needs
 >   the filing to return its items. It is worth doing, but it is not this change.
+
+> ### ▶ 28 Sep, evening — build 2 is in App Store Connect; submission is Tuesday
+>
+> - **Build 2 uploaded** (`eas submit`, 19:3x MDT): EAS build `de37b4c7`, 1.0.0 (2),
+>   from `2b34085`. An App Store Connect API key now lives on EAS servers —
+>   `NQDYMJCP23`, role **APP_MANAGER** (least privilege; ADMIN was refused on
+>   purpose) — so later submits need no Apple sign-in. `eas.json` names
+>   `ascAppId 6815909097` and team `P4873P8FQ9` (`66318ff`).
+> - **Name decided (David, 28 Sep):** `Tappet: Car Maintenance Log`, subtitle
+>   `Service log with an AI advisor`, the 17 Sep keywords with `vin` and
+>   `mechanic`. "AI" in the subtitle, not the name: the name spends its words on
+>   the search phrase, the AI features are paid, and "mechanic" never appears
+>   where a customer reads it. Site title matches (`cbd1a12`, live on the next
+>   promote). Cowork has `COWORK_NOTE_asc_name_2026-09-28.md`.
+>
+> **Tuesday, in order:** TestFlight install → store screenshots (6.9", no
+> dev-client gear) + the IAP review screenshot + the 3- and 6-page scan timing →
+> Cowork fills ASC (Chrome must be signed in; David answers Name and Crash
+> Data) → Gemini auto-reload on → "enforce" (`PAID_FEATURES_ENFORCED=true` on
+> `tappet-web`) + `promote-web` → reviewer password, attach build 2, Submit.
+
+> ### ▶ 28 Sep — purchases proven on the device; the production build is running
+>
+> Steps 1–3 of the block below are **done**, each read in the database:
+>
+> - **Review grant restored** 20:36 UTC to its 20 Sep shape (`paid`, every
+>   Apple column null) — after `5d360b8` was live, so it holds.
+> - **Protection proven live.** A sandbox purchase *as the review account*
+>   (21:26) left its row untouched (`updated_at` still 20:36) and the app still
+>   said the purchase succeeded.
+> - **Quiet reattach proven live.** David then signed out and into his own
+>   account (`75834ade-…`) and tapped nothing; at 21:28:40 his row appeared —
+>   `paid / Sandbox / 2000001243132371`. The only writer that joins a
+>   transaction to a session is `/api/v1/iap/verify`, so this is `843ff4d`'s
+>   sign-in check: the Streamlined-Purchasing case, end to end. (Sandbox reused
+>   last night's original transaction id for the re-subscribe.)
+> - Both hosts promoted: `web-live` `5f8c973b`, `demo-live` `81f98881` (merge).
+> - **Production build 2** queued 15:24 MDT from `2b34085`. Next: `eas submit
+>   --platform ios --latest` → TestFlight → store screenshots from it (no
+>   simulator on this Mac any more).
+> - ASC: Cowork has `COWORK_PROMPT_asc_submission_prep_2026-09-28.md` and the
+>   recovered pack `TAPPET_ASC_SUBMISSION_PACK_2026-09-28.md` (decisions
+>   folder). **Name conflict found by Cowork:** the record is *Tappet: Car
+>   Maintenance Log* (17 Sep ASO decision); `app/layout.tsx:50` still calls
+>   *Tappet: Know Your Car* "the App Store name". Recommended: keep the 17 Sep
+>   set and retitle the site to match — awaiting David.
+> - Gemini prepay **$11.02, auto-reload off** (Cowork, 28 Sep) — ~2 weeks at
+>   the August–September burn, before review traffic. David's to switch on.
+> - Push registration: the 20 s timeout seen 27 Sep was one slow attempt; the
+>   phone's row shows `last_registered_at` 00:05:46 that night. Not a defect.
 
 > ### ▶ Pick up here — 27 Sep, evening
 >

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import { getAppleRootCertificates, APPLE_BUNDLE_ID } from '@/lib/apple-root-ca';
 import { parseAppleNotification } from '@/lib/apple-notification';
+import { isOrphanedSubscription } from '@/lib/orphaned-subscriptions';
 import {
   applyVerifiedAppleEvent,
   findUserByOriginalTransactionId,
@@ -103,12 +104,24 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   if (owner.userId === null) {
-    // Acknowledged, not retried — see the docblock.
-    logger.info('API:APPLE_NOTIFY', 'Notification for an unknown transaction', {
+    /*
+      Acknowledged, not retried — see the docblock. Audit 360, TL-29: a
+      transaction in `orphaned_apple_subscriptions` is a deleted subscriber
+      Apple may still be billing, which is the line support needs to find, so
+      it is a warning; a transaction nobody ever held stays at info. The
+      answer to Apple is the same either way.
+    */
+    const orphaned = await isOrphanedSubscription(event.originalTransactionId);
+    const context = {
       notificationType: event.notificationType,
       environment: event.environment,
       notificationUUID,
-    });
+    };
+    if (orphaned) {
+      logger.warn('API:APPLE_NOTIFY', 'Notification for a deleted account’s subscription', context);
+    } else {
+      logger.info('API:APPLE_NOTIFY', 'Notification for an unknown transaction', context);
+    }
     return Response.json({ received: true, applied: false, reason: 'unknown-transaction' });
   }
 

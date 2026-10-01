@@ -31,7 +31,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { ADVISOR_NAME } from '@tappet/core/prompts';
 import { refusalCopy } from '@tappet/core/access';
 import { demoQuestionsFor } from '@tappet/core/demo-answers';
-import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
+import { showsServerSentence } from '@tappet/core/ai/advisor-failure';
 import { CLIENT_ERROR_FALLBACK } from '@tappet/core/consultant-health';
 import { isDemoMode } from '@/lib/demo-mode';
 import { planHref } from '@/lib/plan-entry';
@@ -49,6 +49,7 @@ import {
 } from '@/app/actions';
 import { QuoteRequestDialogV2 } from './QuoteRequestDialogV2';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, COULD_NOT_SAVE, NO_ANSWER, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { queryClient } from '@tappet/core/query-client';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
@@ -56,7 +57,8 @@ import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-c
 import { AnswerRuns } from '@/components/AnswerLine';
 import { parseAnswer } from '@tappet/core/answer-markup';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
-import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { WEB_ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 
 /*
  * These are the four collections this component *renders*, and no longer the
@@ -417,10 +419,10 @@ export default function ConsultantChat({
         });
         toast.success(`Added "${action.name}" to Needs`);
       } else {
-        toast.error(result.error || 'Could not add that to Needs');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
     } catch {
-      toast.error('Could not add that to Needs');
+      toast.error(NO_ANSWER);
     } finally {
       setAddingWishlistItem(null);
     }
@@ -550,7 +552,7 @@ export default function ConsultantChat({
     const result = await renameConsultantSession(edit.id, normalized.title);
     if (!result.success) {
       setSessions((prev) => prev.map((s) => (s.id === edit.id ? { ...s, title: previous } : s)));
-      toast.error(result.error || 'Could not rename this conversation');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
     }
   };
 
@@ -591,7 +593,7 @@ export default function ConsultantChat({
         )
       );
       if (wasActive) handleSessionClick(session.id);
-      toast.error(result.error || 'Could not delete this conversation');
+      toast.error(answerSentence(result, COULD_NOT_REMOVE));
     }
   };
 
@@ -599,14 +601,14 @@ export default function ConsultantChat({
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter((file) => {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Maximum size is 10MB.`);
+        toast.error(`${file.name} is over 10 MB. Choose a smaller file.`);
         return false;
       }
       return true;
     });
 
     if (selectedFiles.length + validFiles.length > 3) {
-      toast.error('Maximum 3 files can be attached per message');
+      toast.error('A message can carry up to three files.');
       return;
     }
 
@@ -643,12 +645,12 @@ export default function ConsultantChat({
         const result = await response.json();
 
         if (result.rejected) {
-          toast.error(`That file didn't appear to relate to your car. I've deleted it.`);
+          toast.error(`${file.name} does not look like it is about your car, so it was not kept.`);
           continue;
         }
 
         if (!result.success) {
-          toast.error(`Failed to upload ${file.name}`);
+          toast.error(answerSentence(result, `Tappet could not upload ${file.name} just now. Try again in a moment.`));
           continue;
         }
 
@@ -659,7 +661,7 @@ export default function ConsultantChat({
       return uploadedDocs;
     } catch (error) {
       logger.error('CONSULTANT_CHAT:UPLOAD', error as Error);
-      toast.error('Failed to upload files');
+      toast.error(NO_ANSWER);
       return [];
     } finally {
       setUploading(null);
@@ -680,20 +682,11 @@ export default function ConsultantChat({
   const [consentOpen, setConsentOpen] = useState(false);
   const [consentPending, setConsentPending] = useState<string | undefined>(undefined);
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem('tappet.aiConsent');
-      setAiConsent(stored === 'granted' || stored === 'declined' ? stored : 'unknown');
-    } catch {
-      setAiConsent('unknown');
-    }
+    setAiConsent(readWebAiConsent());
   }, []);
   const recordAiConsent = (answer: 'granted' | 'declined') => {
     setAiConsent(answer);
-    try {
-      window.localStorage.setItem('tappet.aiConsent', answer);
-    } catch {
-      // Asked again next time, which is the safe direction.
-    }
+    recordWebAiConsent(answer);
   };
 
   const handleSend = async (overrideInput?: string, consentJustGranted = false) => {
@@ -717,11 +710,11 @@ export default function ConsultantChat({
     let currentSessionId = activeSessionId;
 
     if (!currentSessionId && !demo) {
-      const title = await generateSessionTitle(userMessage || 'Document Review');
+      const title = await generateSessionTitle(userMessage || 'Document review');
       const createResult = await createConsultantSession(vehicleId, title);
 
       if (!createResult.success || !createResult.sessionId) {
-        toast.error('Failed to create session');
+        toast.error(answerSentence(createResult, couldNotMake('a new conversation')));
         setLoading(false);
         return;
       }
@@ -736,7 +729,7 @@ export default function ConsultantChat({
     }
 
     if (!currentSessionId && !demo) {
-      toast.error('Failed to create session');
+      toast.error(couldNotMake('a new conversation'));
       setLoading(false);
       return;
     }
@@ -843,7 +836,8 @@ export default function ConsultantChat({
         carrying it is classed `broken`. Spelling it here by hand is how the
         two would drift.
       */
-      const refused = retryCannotHelp(result.code) && typeof result.error === 'string';
+      // COPY-18: the limiter's sentence names the wait, so it is shown too.
+      const refused = showsServerSentence(result.code) && typeof result.error === 'string';
       setMessages([
         ...optimisticMessages,
         {
@@ -954,7 +948,7 @@ export default function ConsultantChat({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
             <Input fieldSize="sm"
-              placeholder="Search chats..."
+              placeholder="Search chats…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-xs"
@@ -1725,7 +1719,7 @@ export default function ConsultantChat({
                         href={planHref(vehicleId)}
                         className="flex-shrink-0 px-2.5 py-1 bg-[color:var(--attention)]/15 hover:bg-[color:var(--attention)]/25 border border-[color:var(--attention-border)]/30 chamfer-sm text-xs font-semibold text-[color:var(--attention)] transition-colors"
                       >
-                        Get Quote
+                        Get a quote
                       </a>
                     </div>
                   </div>
@@ -1976,17 +1970,17 @@ export default function ConsultantChat({
       <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{ADVISOR_AI_CONSENT.title}</AlertDialogTitle>
-            <AlertDialogDescription>{ADVISOR_AI_CONSENT.body}</AlertDialogDescription>
+            <AlertDialogTitle>{WEB_ADVISOR_AI_CONSENT.title}</AlertDialogTitle>
+            <AlertDialogDescription>{WEB_ADVISOR_AI_CONSENT.body}</AlertDialogDescription>
           </AlertDialogHeader>
 
           <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
-            {ADVISOR_AI_CONSENT.points.map((point) => (
+            {WEB_ADVISOR_AI_CONSENT.points.map((point) => (
               <li key={point}>{point}</li>
             ))}
           </ul>
 
-          <p className="text-xs text-white/50">{ADVISOR_AI_CONSENT.declineNote}</p>
+          <p className="text-xs text-white/50">{WEB_ADVISOR_AI_CONSENT.declineNote}</p>
 
           <AlertDialogFooter>
             <AlertDialogCancel
@@ -1995,7 +1989,7 @@ export default function ConsultantChat({
                 setConsentOpen(false);
               }}
             >
-              {ADVISOR_AI_CONSENT.decline}
+              {WEB_ADVISOR_AI_CONSENT.decline}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -2006,7 +2000,7 @@ export default function ConsultantChat({
                 void handleSend(consentPending, true);
               }}
             >
-              {ADVISOR_AI_CONSENT.accept}
+              {WEB_ADVISOR_AI_CONSENT.accept}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

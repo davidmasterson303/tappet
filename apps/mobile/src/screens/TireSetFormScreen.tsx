@@ -19,6 +19,8 @@ import AlertBanner from '../components/AlertBanner';
 import Button from '../components/Button';
 import Field from '../components/Field';
 import IntervalHelp, { useVehicleRotationInterval } from '../components/IntervalHelp';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { PAGE_BODY, space, surface, text, type } from '../theme';
 
 /**
@@ -68,7 +70,15 @@ export function TireSetFormScreen({
   onSaved: () => void;
   onSignOut: () => void;
 }) {
-  const [draft, setDraft] = useState<TireSetDraft>(() => (set ? draftFromTireSet(set) : emptyTireSetDraft()));
+  const [opening] = useState<TireSetDraft>(() => (set ? draftFromTireSet(set) : emptyTireSetDraft()));
+  const [draft, setDraft] = useState<TireSetDraft>(opening);
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops what
+    was entered here, and the form's foot clears the keyboard under the
+    header. See `useConfirmDiscard` and `keyboard-offset`.
+  */
+  const releaseDiscard = useConfirmDiscard(JSON.stringify(draft) !== JSON.stringify(opening));
+  const keyboardOffset = usePushedFormKeyboardOffset();
   const vehicleInterval = useVehicleRotationInterval(vehicleId);
   const [showProblems, setShowProblems] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,6 +107,7 @@ export function TireSetFormScreen({
       }
       if (set) await updateTireSet(set.id, payload);
       else await createTireSet(vehicleId, payload);
+      releaseDiscard();
       onSaved();
     } catch (error) {
       if (error instanceof ApiRequestError && error.isLocallySignedOut) {
@@ -116,12 +127,16 @@ export function TireSetFormScreen({
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
+    >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.lede}>
           {set
             ? 'Change what you entered about this set. Tappet derives everything else from it.'
-            : 'What is on the sidewall and the receipt. Leave blank what you do not know — Tappet will not fill it in.'}
+            : 'What is on the sidewall and the invoice. Leave blank what you do not know — Tappet will not fill it in.'}
         </Text>
 
         <View style={styles.group}>
@@ -179,7 +194,7 @@ export function TireSetFormScreen({
           />
           <Field
             label="Odometer at install"
-            hint="optional · without it, no axis"
+            hint="optional · needed to count miles between rotations"
             value={draft.installOdometer}
             onChangeText={(installOdometer) => patch({ installOdometer })}
             keyboardType="number-pad"

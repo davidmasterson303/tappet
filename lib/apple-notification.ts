@@ -235,7 +235,11 @@ export function parseAppleTransaction(
 
   if (!event) return { ok: false, reason: 'missing-required-fields' };
 
-  return { ok: true, event, notificationUUID: null };
+  /*
+    Marked as the device's (TL-21): its missing renewal fields mean "cannot
+    say", and the decision layer must not store them as "none".
+  */
+  return { ok: true, event: { ...event, fromDevice: true }, notificationUUID: null };
 }
 
 function buildEvent({

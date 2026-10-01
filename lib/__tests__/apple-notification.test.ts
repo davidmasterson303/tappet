@@ -282,6 +282,20 @@ describe('a bare StoreKit transaction, as the purchase path sends it', () => {
     expect(result.event.productId).toBe(MONTHLY);
   });
 
+  it('marks the event as the device’s, which a notification never is — TL-21', () => {
+    /*
+      The decision layer reads `fromDevice` as "missing renewal fields mean
+      cannot say". A notification's renewal info is Apple's word, so it must
+      never carry the mark.
+    */
+    const bare = parseAppleTransaction(jws(transaction()), { rootCertificates: ROOTS, now: NOW, bundleId: BUNDLE_ID });
+    expect(bare.ok && bare.event.fromDevice).toBe(true);
+
+    const notified = parseAppleNotification(notification({}), { rootCertificates: ROOTS, now: NOW, bundleId: BUNDLE_ID });
+    expect(notified.ok).toBe(true);
+    expect(notified.ok && notified.event.fromDevice).toBeUndefined();
+  });
+
   it('reads a revoked transaction as a revocation, not a purchase', () => {
     const revokedAt = Date.parse('2026-08-18T11:00:00Z');
     const result = parseAppleTransaction(

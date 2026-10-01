@@ -56,7 +56,7 @@ export default function MaintenanceHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add to Maintenance History</DialogTitle>
+          <DialogTitle>Add to service history</DialogTitle>
           <DialogDescription>
             Record a maintenance service without uploading an invoice
           </DialogDescription>
@@ -96,7 +96,7 @@ export default function MaintenanceHistoryDialog({
             </Label>
             <Input
               id="shop"
-              placeholder="e.g., Local Garage, DIY"
+              placeholder="e.g., a local garage, DIY"
               value={shopName}
               onChange={(e) => setShopName(e.target.value)}
             />
@@ -122,7 +122,7 @@ export default function MaintenanceHistoryDialog({
             </Label>
             <Textarea
               id="notes"
-              placeholder="Add any additional details..."
+              placeholder="Add any additional details…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="resize-none"
@@ -170,7 +170,7 @@ export default function MaintenanceHistoryDialog({
       */
               busy={isLoading} busyLabel="Adding"
             >
-              Add to History
+              Add to history
             </Button>
           </div>
         </form>

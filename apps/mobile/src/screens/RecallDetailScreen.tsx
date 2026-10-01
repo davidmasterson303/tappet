@@ -160,7 +160,7 @@ function first<T>(value: T | T[] | null | undefined): T | undefined {
 const SEVERITY_BANNER: Record<Exclude<RecallSeverity, 'standard'>, { title: string; body: string }> = {
   'do-not-drive': {
     title: 'Do not drive this vehicle',
-    body: 'NHTSA has flagged this recall as do-not-drive. Contact your dealer before driving it again — the repair is free.',
+    body: 'NHTSA has flagged this recall as do-not-drive. Contact a franchised dealer before driving it again.',
   },
   'park-outside': {
     title: 'Park outside, away from buildings',
@@ -426,7 +426,7 @@ export function RecallDetailScreen({
    *
    * A failure is silent on purpose. The one thing that can go wrong is that no
    * app claims the URL, and an error box saying so is noise on a screen whose
-   * next line already tells you the repair is free at a franchised dealer.
+   * next line already tells you a franchised dealer does recall work.
    */
   const findDealer = useCallback((make: string | null) => {
     const query = encodeURIComponent(make ? `${make} dealer` : 'car dealer');
@@ -622,8 +622,8 @@ export function RecallDetailScreen({
               empty list is a statement about that list rather than about the car.
             */
             <Text style={styles.body14}>
-              NHTSA has no open recalls listed for this vehicle. That is their record, not a
-              guarantee — a dealer can check against the VIN.
+              NHTSA lists no open recalls for this year, make and model. That is their record,
+              not a guarantee — a dealer can check your VIN.
             </Text>
           ) : (
             /*
@@ -670,8 +670,8 @@ export function RecallDetailScreen({
 
       {state.recalls.length > 0 && (
         <Text style={styles.footnote}>
-          Recall data from NHTSA. Repairs under an open recall are free at a franchised
-          dealer, whatever the age of the vehicle.
+          Recall data from NHTSA. A franchised dealer does recall repairs, usually at no
+          charge — ask when you book.
         </Text>
       )}
     </Container>

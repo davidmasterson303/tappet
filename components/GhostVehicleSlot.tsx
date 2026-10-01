@@ -54,7 +54,7 @@ export function GhostVehicleSlot({ href }: { href: string }) {
           style={{ inset: 12 }}
         />
         <div className="absolute inset-0 flex items-center justify-center px-4">
-          <p className="mono text-xs uppercase tracking-[0.2em] text-white/55">No vehicles yet</p>
+          <p className="mono text-xs uppercase tracking-[0.2em] text-white/55">No cars yet</p>
         </div>
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none machined" />
       </div>

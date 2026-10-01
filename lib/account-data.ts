@@ -118,7 +118,7 @@ export async function getProfile() {
 
   if (error) {
     logger.error('PROFILE:READ', new Error(error.message), { userId: session.userId });
-    return { success: false, error: 'Failed to load profile', profile: null, vehicleCount: 0 };
+    return { success: false, error: 'Tappet could not load your profile just now. Try again in a moment.', profile: null, vehicleCount: 0 };
   }
 
   // Returned alongside the profile so the delete confirmation can state what
@@ -185,6 +185,12 @@ export async function getProfile() {
     profile: (data as Profile) ?? null,
     vehicleCount: count ?? 0,
     hasLiveSubscription,
+    /*
+      COPY-20: whether `hasLiveSubscription` was read or assumed. The
+      assumed `true` above still warns; this lets the dialog say it could
+      not check rather than state a subscription as the owner's fact.
+    */
+    subscriptionCertain: !(entitlementError && !tableAbsent),
   };
 }
 

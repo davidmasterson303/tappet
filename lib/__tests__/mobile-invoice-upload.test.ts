@@ -350,8 +350,10 @@ describe('describeUploadError', () => {
 
   it("passes through the server's own wording when it wrote one", () => {
     expect(
-      describeUploadError(new ApiRequestError({ status: 500, message: 'Failed to save document' }))
-    ).toBe('Failed to save document');
+      describeUploadError(
+        new ApiRequestError({ status: 500, message: 'Tappet could not save that invoice just now. Try again in a moment.' })
+      )
+    ).toBe('Tappet could not save that invoice just now. Try again in a moment.');
   });
 
   it('does not leak a raw object at someone who photographed a bill', () => {
@@ -386,7 +388,7 @@ describe('the three failures that shared one sentence', () => {
     });
 
     expect(describeUploadError(timedOut)).toMatch(/still reading/i);
-    expect(describeUploadError(timedOut)).toMatch(/service log/i);
+    expect(describeUploadError(timedOut)).toMatch(/service history/i);
     expect(describeUploadError(timedOut)).not.toMatch(/connection/i);
     expect(describeUploadError(timedOut)).not.toMatch(/try again/i);
   });

@@ -1,3 +1,4 @@
+import { AI_CONSENT_LEGACY_KEY, AI_CONSENT_STORAGE_KEY } from '@tappet/core/ai-consent-copy';
 import { secureStorage } from '../auth/secure-storage';
 
 /**
@@ -40,7 +41,15 @@ import { secureStorage } from '../auth/secure-storage';
 
 export type AiConsent = 'granted' | 'declined' | 'unknown';
 
-const KEY = 'tappet.aiConsent';
+/*
+  ⚠ Versioned (audit 360, 1 Oct). Every AI path on the phone reads this one
+  answer — the advisor, the scan, and now the health score — and the sheets
+  that wrote the old key did not say so (the advisor's promised "no
+  photographs", then opened the scan). An answer given under those words is
+  not this answer, so the key moved and everyone is asked once more.
+  `AI_CONSENT_STORAGE_KEY` carries the argument.
+*/
+const KEY = AI_CONSENT_STORAGE_KEY;
 
 export async function readAiConsent(): Promise<AiConsent> {
   try {
@@ -66,10 +75,32 @@ export async function recordAiConsent(answer: 'granted' | 'declined'): Promise<v
   }
 }
 
+/**
+ * A *Not now* to one of the AI sheets — read before write (audit 360, UX-23).
+ *
+ * ⚠ A screen that lives for the app's lifetime holds a copy of the answer it
+ * read, and a sheet raised off a stale copy asks a question already answered
+ * elsewhere. One answer covers all of Tappet's AI, so a *Not now* written
+ * blindly there would silently undo a yes the owner gave a minute earlier on
+ * another tab — the yes they gave is gone and nothing said it would be.
+ *
+ * So the stored answer is read first: a standing yes is kept (this *Not now*
+ * answered this sheet, and the screen honours it for the visit), anything
+ * else becomes `declined`. Resolves to what is stored afterwards. The app has
+ * no path that turns a yes into a no from these sheets — every sheet is raised
+ * only when the answer it read is not `granted` — so this refuses nothing an
+ * owner could mean.
+ */
+export async function declineAiConsent(): Promise<'granted' | 'declined'> {
+  if ((await readAiConsent()) === 'granted') return 'granted';
+  await recordAiConsent('declined');
+  return 'declined';
+}
+
 /** Sign-out. Consent was this person's; the next account on the phone gives its own. */
 export async function clearAiConsent(): Promise<void> {
   try {
-    await secureStorage.removeItem(KEY);
+    await Promise.all([secureStorage.removeItem(KEY), secureStorage.removeItem(AI_CONSENT_LEGACY_KEY)]);
   } catch {
     // A failure here costs one repeated sheet, not a lost answer.
   }

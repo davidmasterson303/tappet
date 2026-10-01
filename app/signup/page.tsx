@@ -8,6 +8,7 @@ import { Eye, EyeOff, CircleCheck as CheckCircle2, Mail } from 'lucide-react';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function SignupPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        setError(authErrorSentence(signUpError, 'sign-up'));
         setLoading(false);
         return;
       }
@@ -93,8 +94,8 @@ export default function SignupPage() {
 
       setAwaitingVerification(true);
       setLoading(false);
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      setError(authErrorSentence(err, 'sign-up'));
       setLoading(false);
     }
   }
@@ -109,13 +110,13 @@ export default function SignupPage() {
         email,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-      // Supabase rate limits this server-side; surface its message rather
-      // than inventing our own cooldown.
+      // Supabase rate limits this server-side; say so in Tappet's words rather
+      // than inventing our own cooldown (COPY-24).
       setResendState(resendError ? 'error' : 'sent');
-      if (resendError) setError(resendError.message);
-    } catch {
+      if (resendError) setError(authErrorSentence(resendError, 'resend'));
+    } catch (err) {
       setResendState('error');
-      setError('Could not resend the email. Please try again shortly.');
+      setError(authErrorSentence(err, 'resend'));
     }
   }
 
@@ -199,7 +200,7 @@ export default function SignupPage() {
             <BrandLockup width={200} trademark />
           </Link>
           <h1 className="display-serif text-3xl text-white mb-2">Create your account</h1>
-          <p className="text-white/50 text-sm">Add a vehicle and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
+          <p className="text-white/50 text-sm">Add a car and get its full dossier &mdash; plus an AI advisor that knows your car.</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
@@ -277,7 +278,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-white/70 text-sm font-medium block">
-                Confirm Password
+                Confirm password
               </label>
               <Input
                 id="confirm-password"
@@ -306,8 +307,25 @@ export default function SignupPage() {
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
               busy={loading}
             >
-              Create Account
+              Create account
             </Button>
+
+            {/*
+              Audit 360, LEGAL-10 (1 Oct): the phone states this at the same
+              moment (`SignInScreen`); the web asked nothing and linked neither
+              page, so its acceptance was browsewrap on a page nobody opened.
+            */}
+            <p className="text-center text-xs leading-relaxed text-white/70">
+              By creating an account you agree to the{' '}
+              <Link href="/terms" className="underline decoration-white/30 underline-offset-4 hover:text-white">
+                Terms of Use
+              </Link>{' '}
+              and the{' '}
+              <Link href="/privacy" className="underline decoration-white/30 underline-offset-4 hover:text-white">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/[0.08] text-center">

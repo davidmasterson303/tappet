@@ -64,6 +64,39 @@ const MAX_SINGLE_JUMP = 100_000;
  * number, within range. The relative checks — backwards, jump — need a
  * reading to be relative to.
  */
+/**
+ * ── A stored odometer, as a reading or as "we cannot say" (audit 360, TL-5) ──
+ *
+ * `vehicles.current_mileage` defaults to `0`, and a phone-added car stores
+ * `Number(body.currentMileage ?? 0)`. The sweep has always read `<= 0` as no
+ * reading; the Service screen, the profile and the PATCH route read `0` as a
+ * reading — "Still around 0 miles?", every mileage service due from zero,
+ * and the real 123,000 refused as a 100,000-mile jump. One rule now: a
+ * positive whole number is a reading; anything else is `null`. CLAUDE.md §6:
+ * `null` is never `0`.
+ */
+export function odometerReading(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+/**
+ * The odometer as a prompt states it (audit 360, TL-28). The health prompt
+ * read `current_mileage.toLocaleString()` raw: a stored 0 told the model "0
+ * miles" — scored as a new car, nothing mileage-based due — and a null threw.
+ * No reading is said as unknown, the way `odometerReading` reads it.
+ */
+export function odometerForPrompt(value: unknown): string {
+  const reading = odometerReading(value);
+  return reading === null ? 'Unknown (no reading recorded)' : `${reading.toLocaleString('en-US')} miles`;
+}
+
+/** Average monthly miles for a prompt: a positive figure, or unknown — never "null" or "0". */
+export function monthlyMilesForPrompt(value: unknown): string {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? `${Math.round(value).toLocaleString('en-US')} miles a month`
+    : 'Unknown';
+}
+
 export function validateMileageUpdate(params: {
   current: number | null;
   next: unknown;
@@ -103,6 +136,23 @@ export function validateMileageUpdate(params: {
   }
 
   return { ok: true };
+}
+
+/**
+ * ── The answer a refusal's question can take (audit 360, TL-3, 1 Oct) ──────
+ *
+ * "Correcting an earlier mistake?" is a question, and until 1 Oct the phone
+ * offered no way to answer it: nothing on the phone sent `isCorrection`, so
+ * an odometer typed one digit long was locked there, and every service read
+ * "overdue by 90,000 miles". The two relative refusals are the ones a person
+ * may overrule — the reading really is lower, or really did jump — and the
+ * label is the answer to the sentence each one asks. Range and number
+ * refusals have no answer: the value is wrong, not surprising.
+ */
+export function correctionAction(reason: MileageRejection | undefined): string | null {
+  if (reason === 'went-backwards') return 'Yes, correct it';
+  if (reason === 'implausible-jump') return 'The reading is right';
+  return null;
 }
 
 export interface MileageUpdateStatus {

@@ -181,6 +181,18 @@ describe('reading the route’s answer', () => {
     });
   });
 
+  it('reads a kept paid tier as entitlement, though nothing was recorded — TL-21', () => {
+    /*
+      Restore of a subscription Apple's notification already moved on: the
+      route writes nothing and answers the row's tier. A build-2 phone reads
+      it through this same function, so no build is needed for the fix.
+    */
+    expect(verifyOutcomeFromStatus(200, { entitlement: { tier: 'paid', recorded: false } })).toEqual({
+      kind: 'entitled',
+      tier: 'paid',
+    });
+  });
+
   it.each([
     [409, 'belongs-to-another-account'],
     [503, 'retry-later'],

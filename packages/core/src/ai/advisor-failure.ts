@@ -71,6 +71,30 @@ export function retryCannotHelp(code: string | null | undefined): code is Adviso
 }
 
 /**
+ * Our per-minute limiter, on the web's AI actions (audit 360, COPY-18).
+ *
+ * Not one of the codes above: waiting *does* help, so it is not a failure a
+ * retry cannot fix. But the fix is waiting, not asking again at once, and the
+ * web thread replaced the limiter's words with "try again" — so somebody told
+ * to try again did, at once, and got the same line. It carries its own code
+ * and its sentence names the wait.
+ */
+export const RATE_LIMITED_CODE = 'rate-limited';
+
+/** The advisor's limiter sentence — the phone's words, now shared. */
+export const ADVISOR_RATE_LIMITED_MESSAGE =
+  'You have asked a lot of questions in a short time. Try again in a minute.';
+
+/** The other AI actions' limiter sentence — a dossier, a health summary, a mod card, an invoice read. */
+export const AI_RATE_LIMITED_MESSAGE =
+  'Tappet has had a lot of requests from you in a short time. Try again in a minute.';
+
+/** Whether a client shows the server's sentence as it came: every coded failure, and the limiter. */
+export function showsServerSentence(code: string | null | undefined): boolean {
+  return retryCannotHelp(code) || code === RATE_LIMITED_CODE;
+}
+
+/**
  * What the product says when the model cannot be reached for a reason that
  * is ours, not the visitor's.
  *

@@ -71,7 +71,7 @@ export function CostBreakdownTable({ costBreakdown }: CostBreakdownTableProps) {
     <Card className="bg-slate-900/50 border-info-border">
       <CardHeader>
         <CardTitle className="text-foreground flex items-center gap-2">
-          Cost Breakdown
+          Cost breakdown
         </CardTitle>
         <div className="flex items-start gap-2 text-sm text-muted-foreground">
           <Info className="h-4 w-4 text-info mt-0.5 flex-shrink-0" />
@@ -128,7 +128,7 @@ export function CostBreakdownTable({ costBreakdown }: CostBreakdownTableProps) {
           ))}
 
           <div className="flex items-center justify-between gap-3 border border-info-border rounded-lg bg-info-wash px-3.5 py-3">
-            <span className="font-bold text-info">Estimated Total</span>
+            <span className="font-bold text-info">Estimated total</span>
             <span className="num font-bold text-info-strong text-right">{estimatedTotal}</span>
           </div>
         </div>
@@ -177,7 +177,7 @@ export function CostBreakdownTable({ costBreakdown }: CostBreakdownTableProps) {
               })}
               <TableRow className="border-t-2 border-info-border bg-info-wash hover:bg-info-wash">
                 <TableCell colSpan={4} className="font-bold text-info text-right">
-                  Estimated Total
+                  Estimated total
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex flex-col">
@@ -193,7 +193,7 @@ export function CostBreakdownTable({ costBreakdown }: CostBreakdownTableProps) {
 
         <div className="mt-4 text-xs text-muted-foreground space-y-1">
           <p>• These are estimated ranges based on typical market pricing and regional labor rates.</p>
-          <p>• Actual prices may vary by shop, parts availability, and vehicle condition.</p>
+          <p>• Actual prices may vary by shop, parts availability, and the car’s condition.</p>
           <p>• Use this breakdown to compare quotes from different shops.</p>
         </div>
 

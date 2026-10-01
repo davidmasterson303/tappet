@@ -75,7 +75,7 @@ export default function DocumentLibrary({ vehicleId }: DocumentLibraryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Document Library</CardTitle>
+          <CardTitle>Document library</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-10">
@@ -89,7 +89,7 @@ export default function DocumentLibrary({ vehicleId }: DocumentLibraryProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Document Library</CardTitle>
+        <CardTitle>Document library</CardTitle>
       </CardHeader>
       <CardContent>
         {documents.length === 0 ? (
@@ -139,7 +139,7 @@ export default function DocumentLibrary({ vehicleId }: DocumentLibraryProps) {
 
                   {isExpanded && docLineItems.length > 0 && (
                     <div className="border-t border-info-border bg-white/5 p-4 space-y-2">
-                      <h4 className="font-semibold text-sm text-white mb-3">Line Items</h4>
+                      <h4 className="font-semibold text-sm text-white mb-3">Line items</h4>
                       <div className="space-y-2">
                         {docLineItems.map((item) => (
                           <div key={item.id} className="bg-white/5 rounded p-3 border border-info-border">

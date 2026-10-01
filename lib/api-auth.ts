@@ -28,6 +28,7 @@ import {
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { vehicleIdSchema } from '@tappet/core/validation';
 import { logger } from '@tappet/core/logger';
+import { NOT_ON_THIS_ACCOUNT, UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 export type AccessIntent = 'read' | 'write';
 
@@ -67,7 +68,7 @@ export type VehicleAccessResult = VehicleAccessGranted | VehicleAccessDenied;
  * vehicle it authorized (SEC-01), and a distinct message there would turn the
  * endpoint into an oracle for which document ids exist.
  */
-export const NOT_FOUND_MESSAGE = 'Vehicle not found';
+export const NOT_FOUND_MESSAGE = NOT_ON_THIS_ACCOUNT;
 
 function deny(error: string, status: number): VehicleAccessDenied {
   return {
@@ -188,11 +189,12 @@ export async function authorizeVehicleAccess(
   { intent }: { intent: AccessIntent }
 ): Promise<VehicleAccessResult> {
   if (!vehicleId) {
-    return deny('Missing vehicleId', 400);
+    // Audit 360, COPY-38: the routes send `error` as it is, so it is a sentence.
+    return deny(UNREADABLE_REQUEST, 400);
   }
 
   if (!vehicleIdSchema.safeParse(vehicleId).success) {
-    return deny('Invalid vehicleId format', 400);
+    return deny(UNREADABLE_REQUEST, 400);
   }
 
   if (isDemoVehicleId(vehicleId)) {
@@ -223,7 +225,7 @@ export async function authorizeVehicleAccess(
     logger.error('API_AUTH:OWNERSHIP_LOOKUP', new Error(ownershipError.message), {
       vehicleId,
     });
-    return deny('Failed to verify vehicle access', 500);
+    return deny(couldNotLoad('this car'), 500);
   }
 
   if (!owned) {
@@ -318,11 +320,11 @@ export async function authorizeVehicleScopedRow(
   { intent }: { intent: AccessIntent }
 ): Promise<VehicleAccessResult & { vehicleId?: string }> {
   if (!rowId) {
-    return deny('Missing id', 400);
+    return deny(UNREADABLE_REQUEST, 400);
   }
 
   if (!vehicleIdSchema.safeParse(rowId).success) {
-    return deny('Invalid id format', 400);
+    return deny(UNREADABLE_REQUEST, 400);
   }
 
   const { data: row, error } = await getServiceRoleClient()
@@ -333,7 +335,7 @@ export async function authorizeVehicleScopedRow(
 
   if (error) {
     logger.error('API_AUTH:ROW_LOOKUP', new Error(error.message), { table, rowId });
-    return deny('Failed to verify access', 500);
+    return deny(couldNotLoad('this car'), 500);
   }
 
   if (!row) {

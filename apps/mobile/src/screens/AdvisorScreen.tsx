@@ -16,6 +16,7 @@ import {
   loadAdvisorThread,
   loadStarterSource,
   MAX_MESSAGE_LENGTH,
+  newTurnId,
   type AdvisorThread,
 } from '../api/consultant';
 import { advisorStarters, GENERIC_STARTERS } from '@tappet/core/advisor-starters';
@@ -34,7 +35,9 @@ import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { refusalCopy } from '@tappet/core/access';
 import { ADVISOR_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import AiConsentSheet from '../components/AiConsentSheet';
-import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { declineAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
+import { useScreenFocused } from '../navigation/useScreenFocused';
 import Working from '../components/Working';
 import { border, brand, cut, radius, space, status, surface, TARGET_MIN, text, type } from '../theme';
 import { CONTEXT_KIND_LABELS, type ContextKind } from '@tappet/core/consultant-context-kinds';
@@ -42,6 +45,7 @@ import type { ConsultantEstimate } from '@tappet/core/consultant-estimate';
 import EstimateWell from '../components/EstimateWell';
 import { parseAnswer } from '@tappet/core/answer-markup';
 import { interFace } from '../theme/fonts';
+import { ADVISOR_RATE_LIMITED_MESSAGE } from '@tappet/core/ai/advisor-failure';
 
 /**
  * Phase 3.4 — ask the advisor about one car.
@@ -216,20 +220,23 @@ export function AdvisorScreen({
     deep-link path consumed the one-shot ref before consent had resolved,
     leaving the question unasked forever.
   */
-  const [consent, setConsent] = useState<AiConsent | null>(null);
+  /*
+    ⚠ Audit 360, UX-23 (1 Oct) — **re-read on every return.** This is the
+    Advisor tab's root: it mounts once and stays mounted, and it read the
+    answer once — so a *Not now* given on the car's page while it waited was
+    followed here by a send gated on the old answer, or a yes there by this
+    sheet asking again. `useAiConsent` reads on mount and on each focus, and
+    every gate below reads `consent`, which is `null` ("still reading") until
+    a read taken since the tab came back has landed — the same `null` the
+    held press and the deep link already wait for. What the screen *draws*
+    reads `aiAnswer`, so the declined line does not blink on return.
+  */
+  const screenFocused = useScreenFocused();
+  const { answer: aiAnswer, fresh: aiAnswerFresh, set: setConsent } = useAiConsent(screenFocused);
+  const consent: AiConsent | null = aiAnswerFresh ? aiAnswer : null;
   const [consentOpen, setConsentOpen] = useState(false);
   const pendingQuestion = useRef<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void readAiConsent().then((answer) => {
-      if (live) setConsent(answer);
-    });
-
-    return () => {
-      live = false;
-    };
-  }, []);
+  const heldForConsentRead = useRef(false);
 
   /*
     The opening questions, drawn from the car's rows (QE 2.1). `null` is
@@ -263,6 +270,15 @@ export function AdvisorScreen({
 
   const sessionId = useRef<string | null>(null);
   const listRef = useRef<FlatList<Turn>>(null);
+  /*
+    ⚠ Audit 360, TL-12 · the question whose answer never arrived, with the id
+    it was sent under. Sending the same text again in the same thread reuses
+    the id — that is a resend, and the server answers it from the thread if
+    the first answer was stored after all. Anything else, including the same
+    word typed afresh once an answer *did* arrive, gets a new id and a new
+    answer. Cleared on every answer.
+  */
+  const unanswered = useRef<{ text: string; id: string; sessionId: string | null } | null>(null);
   /** The arrival (`questionKey`) already asked, or `null` before the first. */
   const askedOnOpen = useRef<number | null>(null);
 
@@ -298,12 +314,19 @@ export function AdvisorScreen({
     setError(null);
     setTurns((current) => [...current, { id: nextId(), role: 'you', text: question }]);
 
+    const prior = unanswered.current;
+    const clientTurnId =
+      prior && prior.text === question && prior.sessionId === sessionId.current ? prior.id : newTurnId();
+    unanswered.current = { text: question, id: clientTurnId, sessionId: sessionId.current };
+
     try {
       const answer = await askAdvisor({
         vehicleId,
         message: question,
         sessionId: sessionId.current,
+        clientTurnId,
       });
+      unanswered.current = null;
 
       sessionId.current = answer.sessionId || sessionId.current;
       setCurrentId(sessionId.current);
@@ -376,7 +399,7 @@ export function AdvisorScreen({
       } else if (apiError.status === 401) {
         setError('Tappet could not confirm who you are just now. Try again in a moment.');
       } else if (apiError.status === 429) {
-        setError('This car has asked a lot of questions recently. Try again in a minute.');
+        setError(ADVISOR_RATE_LIMITED_MESSAGE);
       } else if (apiError.status === 502) {
         setError('The advisor could not answer that one. Your question is still here — try again.');
       } else {
@@ -401,7 +424,22 @@ export function AdvisorScreen({
       The question is held so accepting sends it rather than making them type it
       again — a consent sheet that loses your work reads as an obstacle.
     */
-    if (consent === 'unknown') {
+    /*
+      ⚠ Audit 360, UX-9 (1 Oct) — **only `'granted'` sends.** This tested
+      `=== 'unknown'` and let everything else through to `ask`: `null` (the
+      Keychain read still in flight) sent this car's records before anyone
+      was asked, and `'declined'` sent them after the owner had said no. A
+      declined owner who presses ASK is shown the sheet again — the same
+      door as "Change that" — and a press inside the read is held until the
+      answer lands, then sent or asked about as that answer says.
+    */
+    if (consent === null) {
+      pendingQuestion.current = trimmed;
+      heldForConsentRead.current = true;
+      return;
+    }
+
+    if (consent !== 'granted') {
       pendingQuestion.current = trimmed;
       setConsentOpen(true);
       return;
@@ -409,6 +447,22 @@ export function AdvisorScreen({
 
     void ask(trimmed);
   }, [canSend, trimmed, ask, consent]);
+
+  /* A press held while the stored answer was read — UX-9, above. */
+  useEffect(() => {
+    if (consent === null || !heldForConsentRead.current) return;
+    heldForConsentRead.current = false;
+
+    const question = pendingQuestion.current;
+    if (!question) return;
+
+    if (consent === 'granted') {
+      pendingQuestion.current = null;
+      void ask(question);
+    } else {
+      setConsentOpen(true);
+    }
+  }, [consent, ask]);
 
   /*
     Asked once per mount, guarded by a ref rather than state: React mounts
@@ -577,7 +631,8 @@ export function AdvisorScreen({
           pendingQuestion.current = null;
           setConsentOpen(false);
           setConsent('declined');
-          void recordAiConsent('declined');
+          // UX-23: read before write — a yes given on another screen since this one's read stands.
+          void declineAiConsent();
         }}
       />
 
@@ -681,7 +736,7 @@ export function AdvisorScreen({
                 <Working
                   variant="compact"
                   line="Answering"
-                  detail={`${vehicleTitle ? `Your ${vehicleTitle}’s` : 'The car’s'} records go to the model with the question.`}
+                  detail={`${vehicleTitle ? `Your ${vehicleTitle}’s` : 'The car’s'} records go to Google’s AI with the question.`}
                 />
               </View>
             ) : null}
@@ -790,13 +845,25 @@ export function AdvisorScreen({
               />
             </CutSurface>
 
-            {consent === 'declined' ? (
-              <Text style={styles.declineNote}>
-                {ADVISOR_AI_CONSENT.declineNote}{' '}
-                <Text style={styles.declineAction} onPress={() => setConsentOpen(true)}>
-                  Change that
-                </Text>
-              </Text>
+            {aiAnswer === 'declined' ? (
+              /*
+                ⚠ Audit 360, UX-26 (1 Oct). *Change that* was a nested `Text`
+                span with an `onPress` and no role: on iOS a nested span is not
+                its own accessibility element, so VoiceOver read one static
+                sentence and the screen's only way back to the AI was not
+                reachable. A real control now, and the same one the scan
+                screen draws for the same act (L10).
+              */
+              <View>
+                <Text style={styles.declineNote}>{ADVISOR_AI_CONSENT.declineNote}</Text>
+                <Button
+                  label="Change that"
+                  variant="outline"
+                  size="small"
+                  onPress={() => setConsentOpen(true)}
+                  style={styles.declineAction}
+                />
+              </View>
             ) : null}
 
             {overLength ? (
@@ -1108,8 +1175,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: space.sm,
   },
-  /* The way back. Underlined, because a coloured word is not a control. */
-  declineAction: { color: brand.accent, textDecorationLine: 'underline' },
+  /* The way back — a control, under the note's own inset (UX-26). */
+  declineAction: { alignSelf: 'flex-start', marginLeft: space.lg, marginBottom: space.sm },
 
   /* ── R52 · the context row ────────────────────────────────────────────── */
   context: {

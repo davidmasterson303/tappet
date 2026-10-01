@@ -232,7 +232,7 @@ export function TiresScreen({
   const remove = (rotation: TireRotation) => {
     Alert.alert(
       'Remove this rotation?',
-      `${formatDateMono(rotation.rotatedOn)} at ${formatMiles(rotation.odometer)}. It comes off the record and the axis; there is no undo.`,
+      `${formatDateMono(rotation.rotatedOn)} at ${formatMiles(rotation.odometer)}. It comes off the record and the mileage line; there is no undo.`,
       [
         { text: 'Keep it', style: 'cancel' },
         {
@@ -312,7 +312,7 @@ export function TiresScreen({
             {state.unavailable ? 'Tire records are not switched on yet' : 'Could not load the tire record'}
           </Text>
           <Text style={styles.errorBody}>
-            {state.unavailable ? 'Nothing is wrong with this car. The record opens once it is.' : state.message}
+            {state.unavailable ? 'Nothing is wrong with this car. The record opens once they are.' : state.message}
           </Text>
           {state.unavailable ? null : <Button label="Try again" variant="outline" onPress={() => void load()} />}
         </View>

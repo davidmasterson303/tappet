@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useRefetchOnFocus } from '../navigation/useRefetchOnFocus';
+import { useScreenFocused } from '../navigation/useScreenFocused';
+import { useAskTurns } from '../components/useAskTurns';
 import {
   Platform,
   Alert,
@@ -78,6 +80,10 @@ import type { ResearchObservation } from '@tappet/core/research-milestones';
 import ResearchLog from '../components/ResearchLog';
 import Seat from '../components/Seat';
 import { useResearchRunner } from '../components/useResearchRunner';
+import AiConsentSheet from '../components/AiConsentSheet';
+import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { declineAiConsent, recordAiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
 import { monoFace } from '../theme/fonts';
 
 /*
@@ -596,7 +602,10 @@ export function VehicleDetailScreen({
     the primer lost its host when the garage left the navigator, and a fresh
     install could never be asked.
   */
-  const primer = usePushPrimer(state.status === 'ok' ? Math.max(1, cars.length) : null);
+  /*
+    ⚠ The primer is asked below the research runner now (UX-16): it holds
+    while this visit's research runs or the health score's sheet is wanted.
+  */
   // Parallax and the slow zoom are exactly what iOS Reduce Motion turns off;
   // the crossfades stay, which the setting permits (23 Sep). Declared here,
   // with the other hooks, above every early return.
@@ -921,7 +930,76 @@ export function VehicleDetailScreen({
         }
       : null;
   const leanReload = useCallback(() => load(false, true, true), [load]);
-  const research = useResearchRunner({ vehicleId, observation, reload: leanReload });
+  /*
+    ── Audit 360, LEGAL-1 (1 Oct) · the score waits for a yes ──────────────
+
+    The runner posted `/health` the moment the dossier landed, and the owner's
+    mileage, service log and invoice lines went to Google before anything had
+    asked them. The answer is read here, handed to the runner, and the sheet
+    is shown when the runner reaches the score with nobody having said yes —
+    after the push primer, never over it (two Modals cannot both present).
+  */
+  /*
+    ── Audit 360, UX-23 (1 Oct) · the answer is re-read on return ──────────
+
+    This page is the Car tab's root and never remounts while the app runs,
+    and since UX-20 its asks wait for the owner to come back — which is
+    exactly when an answer read at mount is stale: a yes given on the advisor
+    meanwhile was asked for again, and *Not now* to that sheet overwrote it.
+    `useAiConsent` re-reads on every focus, and the score's sheet presents
+    only off a fresh read (`aiConsentFresh` in its want below); the decline
+    reads before it writes (`declineAiConsent`).
+  */
+  const focused = useScreenFocused();
+  const { answer: aiConsent, fresh: aiConsentFresh, set: setAiConsent } = useAiConsent(focused);
+  const research = useResearchRunner({ vehicleId, observation, reload: leanReload, consent: aiConsent });
+  /*
+    ── Audit 360, UX-16 / UX-4 (1 Oct) · one ask at a time ─────────────────
+
+    The primer opened the moment the count was known, and `accept` closed it
+    *before* iOS's dialog — so for a car already researched (added on the
+    web, re-added) the health score's sheet slid up the instant the primer
+    closed, under Apple's alert: three asks before the owner had read the
+    page. Now the primer waits while the AI answer is still being read, while
+    this visit's research runs and while the score's sheet is wanted — it
+    asks once a reading is on screen for "alerts about this car" to be about
+    (UX-4's recommended moment, built here as code-only and reversible) — and
+    the sheet waits for the primer and for iOS's dialog (`priming`).
+  */
+  /*
+    ── Audit 360, UX-19 / UX-20 (1 Oct) · the asks have one coordinator ─────
+
+    The hold above ended the instant an answer was recorded: *Not now* on the
+    score's sheet settled the run and the primer rose in the very next render,
+    sliding up as the sheet slid down — and both could rise over the advisor
+    or the Service tab, because this page stays mounted while the owner is
+    elsewhere. Now `useAskTurns` presents one ask at a time, only while this
+    page is focused, and the next only after the last has left the screen.
+
+    And a refusal ends this visit's asking: an owner who has just said *Not
+    now* to one sheet is asked about notifications on their next open of the
+    car, not reflexively refused here — a primer decline costs 30 days
+    (review's recommended answer, code-only and reversible: drop
+    `refusedThisVisit` from the hold).
+  */
+  const [refusedThisVisit, setRefusedThisVisit] = useState(false);
+  const primer = usePushPrimer(
+    state.status === 'ok' ? Math.max(1, cars.length) : null,
+    !focused ||
+      refusedThisVisit ||
+      aiConsent === null ||
+      !aiConsentFresh ||
+      research.consentNeeded ||
+      (research.visible && !research.settled),
+    focused
+  );
+  const asks = useAskTurns({
+    focused,
+    wanted: [
+      ['primer', primer.open],
+      ['score', research.consentNeeded && aiConsentFresh && !primer.priming],
+    ] as const,
+  });
 
   /*
     ── 22 Sep · no photo control on the hub ─────────────────────────────────
@@ -1156,11 +1234,17 @@ export function VehicleDetailScreen({
 
     "Worst:" is gone with it. The banner already sits under a count, so the
     superlative was doing nothing a reader could act on — it now reads as one
-    sentence: *"Airbags — free to fix at a franchised dealer."*
+    sentence: *"Airbags — a franchised dealer does the repair."*
+
+    ⚠ Audit 360, COPY-1 (1 Oct): it said "free to fix". The remedy is free
+    by law only for a car first sold within 15 years of the notice (49 U.S.C.
+    §30120(g)), and Tappet has never seen this car's sale date — so the line
+    names who does the work, and the recalls screen says "usually at no
+    charge — ask when you book".
   */
   const worstComponent = componentPlainName(open[0]?.component ?? null, { short: true });
   const worstRecall = worstComponent
-    ? `${worstComponent} — free to fix at a franchised dealer.`
+    ? `${worstComponent} — a franchised dealer does the repair.`
     : null;
 
   /*
@@ -1237,11 +1321,17 @@ export function VehicleDetailScreen({
     : openRecallCount === 0
       ? { text: 'None open', muted: true }
       : { text: `${openRecallCount} open`, muted: false };
+  /*
+    ⚠ Audit 360, COPY-9 (1 Oct). The spoken names said "Opens the account of
+    the score" — and this cell opens the recall list, not the score, while
+    "account" is a screen two taps away. A cleared car heard "View 0 open
+    recalls", a verb on nothing.
+  */
   const recallsSpoken = !recallsChecked
-    ? 'Recalls, not checked yet. Opens the account of the score.'
+    ? 'Recalls, not checked yet. Opens the recall list.'
     : openRecallCount === 0
-      ? 'View 0 open recalls'
-      : `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}, matched to this model, not this car. Opens the account of the score.`;
+      ? 'Recalls, none open for this model. Opens the recall list.'
+      : `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}, matched to this model, not this car.`;
 
   /*
     ── The page's one act — in the sheet since 22 Sep, not on the plate ──────
@@ -1647,7 +1737,18 @@ export function VehicleDetailScreen({
               {`CAR ${String(Math.max(1, cars.findIndex((car) => car.id === vehicleId) + 1)).padStart(2, '0')} OF ${String(cars.length).padStart(2, '0')}`}
             </Text>
           ) : null}
-          <View style={styles.nameRow}>
+          {/*
+            ⚠ Audit 360, UX-11 (1 Oct): hidden from VoiceOver, because the
+            door below (`detailsDoor`) opens with the name — a screen-reader
+            user heard "2015 BMW M235i" from this row and then again as the
+            start of the door's label. The door's copy is the one that also
+            says where the press lands, so it is the one kept.
+          */}
+          <View
+            style={styles.nameRow}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
             <Text style={[styles.name, { fontSize: bands.titleSize, lineHeight: bands.titleSize * 1.05 }]} numberOfLines={2}>
               {name}
             </Text>
@@ -1911,6 +2012,23 @@ export function VehicleDetailScreen({
             car".
           */}
           {research.visible ? <ResearchLog runner={research} style={styles.researchLog} /> : null}
+          {/*
+            Audit 360, UX-15 (1 Oct): the door a "Not now" left. A researched
+            car whose owner declined the score's sheet on an earlier visit
+            showed "No score yet" and nothing else, while HealthScreen and the
+            sheet's own note sent them here. The sheet's accept is the label,
+            so the control and the yes it leads to say the same thing.
+          */}
+          {research.canAskScore ? (
+            <View style={styles.researchLog}>
+              <Button
+                label={HEALTH_AI_CONSENT.accept}
+                variant="outline"
+                accessibilityLabel="Score this car, asks before Google’s AI writes the health score"
+                onPress={research.askScore}
+              />
+            </View>
+          ) : null}
 
           <Binnacle accessibilityLabel="Readings">
             <BinnacleRow first>
@@ -2057,7 +2175,13 @@ export function VehicleDetailScreen({
                 legend="History"
                 rule
                 onPress={onOpenHistory}
-                accessibilityLabel={historyCount ? `History, ${historyCount} recorded services.` : 'History.'}
+                accessibilityLabel={
+                  historyCount === null
+                    ? 'History.'
+                    : historyCount === '0'
+                      ? 'History, no records yet.'
+                      : `History, ${historyCount} recorded ${historyCount === '1' ? 'service' : 'services'}.`
+                }
               >
                 {historyCount ? (
                   historyCount === '0' ? (
@@ -2338,7 +2462,33 @@ export function VehicleDetailScreen({
         — the mark-done sheet that carried one item's shop to the next).
         Nothing here holds state; the key makes that structural.
       */}
-      <PushPrimer visible={primer.open} onAccept={primer.accept} onDecline={primer.decline} />
+      <PushPrimer
+        visible={asks.presenting === 'primer'}
+        onAccept={primer.accept}
+        onDecline={primer.decline}
+        onDismiss={asks.dismissed}
+      />
+
+      <AiConsentSheet
+        visible={asks.presenting === 'score'}
+        copy={HEALTH_AI_CONSENT}
+        onDismiss={asks.dismissed}
+        onAccept={() => {
+          setAiConsent('granted');
+          void recordAiConsent('granted');
+        }}
+        onDecline={() => {
+          setRefusedThisVisit(true);
+          setAiConsent('declined');
+          research.consentDeclined();
+          /*
+            UX-23: read before write. A yes stored elsewhere since this
+            page's read stands; this *Not now* answers this sheet, for this
+            visit, and the next focus reads the yes back.
+          */
+          void declineAiConsent();
+        }}
+      />
 
       {manyCars ? (
         <CarSheet

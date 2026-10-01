@@ -210,7 +210,7 @@ export function VehicleResearchStatus({
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              We could not finish researching this vehicle
+              Tappet could not finish researching this car
             </p>
             <p className="text-xs text-muted-foreground">
               Everything else works. The dossier will be empty until this succeeds.

@@ -1,3 +1,5 @@
+import { clipVehicleTrim } from './input-bounds';
+
 /**
  * What a car can be called, and how to check that somebody typed one.
  *
@@ -457,6 +459,9 @@ export function describeDecodedVin(car: DecodedVin): string {
   return car.engine ? `${name}, ${car.engine}.` : `${name}.`;
 }
 
+/** A decoded trim, bounded (TL-20). */
+const trimOf = (value: string | null): string | null => (value ? clipVehicleTrim(value) : null);
+
 /**
  * A decode response, or `null` when it identified nothing.
  *
@@ -497,7 +502,9 @@ export function parseVpicDecode(body: unknown): DecodedVin | null {
     */
     make: make ? canonicalName(make, COMMON_MAKES) : null,
     model,
-    trim: clean(first.Trim),
+    // TL-20: clipped, not passed through — the answers screen has no trim
+    // field, so a refusal of a decoded trim had nothing to edit.
+    trim: trimOf(clean(first.Trim)),
     confidence: clean(first.ErrorCode) === '0' ? 'clean' : 'suspect',
     engine: engineFromVpic(first),
   };

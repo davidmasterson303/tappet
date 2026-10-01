@@ -6,6 +6,7 @@ import Icon from './Icon';
 import Working from './Working';
 import { researchStages } from './working-stages';
 import type { ResearchRunner } from './useResearchRunner';
+import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import { TARGET_MIN, border, space, text, type } from '../theme';
 
 /**
@@ -121,7 +122,21 @@ export default function ResearchLog({ runner, style }: { runner: ResearchRunner;
       >
         {runner.marginalia ?? undefined}
       </Working>
-      {runner.settled && runner.failed ? (
+      {/*
+        Audit 360, UX-22 (1 Oct): when the one failed line is the owner's own
+        *Not now*, the control is the score's door, named as the hub's door
+        and the sheet's accept are — one act, one name on the page.
+      */}
+      {runner.settled && runner.declinedOnly ? (
+        <Button
+          label={HEALTH_AI_CONSENT.accept}
+          variant="outline"
+          size="small"
+          accessibilityLabel="Score this car, asks before Google’s AI writes the health score"
+          onPress={runner.askScore}
+          style={styles.retry}
+        />
+      ) : runner.settled && runner.failed ? (
         <Button label="Retry the research" variant="outline" size="small" onPress={runner.retry} style={styles.retry} />
       ) : null}
     </View>

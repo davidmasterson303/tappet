@@ -4,6 +4,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { getConsultantSessions } from '@/app/actions';
+import { couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         vehicleId,
       });
       return Response.json(
-        { success: false, error: 'Failed to load conversations', conversations: [] } as ApiResponse,
+        { success: false, error: couldNotLoad('your conversations'), conversations: [] } as ApiResponse,
         { status: 500 }
       );
     }
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:CONSULTANT_CONVERSATIONS', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to load conversations', conversations: [] } as ApiResponse,
+      { success: false, error: couldNotLoad('your conversations'), conversations: [] } as ApiResponse,
       { status: 500 }
     );
   }

@@ -7,6 +7,8 @@ import { askAdvisor, listAdvisorThreads, loadAdvisorThread, loadStarterSource } 
 import { auditText, belowFloor } from '../../test-support/contrast';
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
+import { declineAiConsent, readAiConsent, recordAiConsent } from '../../onboarding/ai-consent';
+import { NavigationContext } from '@react-navigation/native';
 
 /**
  * The advisor's answer, rendered.
@@ -40,6 +42,7 @@ let mockConsent: 'granted' | 'declined' | 'unknown' = 'granted';
 jest.mock('../../onboarding/ai-consent', () => ({
   readAiConsent: jest.fn(async () => mockConsent),
   recordAiConsent: jest.fn(async () => {}),
+  declineAiConsent: jest.fn(async () => 'declined'),
 }));
 
 jest.mock('../../api/consultant', () => {
@@ -592,9 +595,141 @@ describe('asking before a question goes to Google', () => {
 
     const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
 
-    await view.findByText(/Everything else in Tappet works the same/);
+    await view.findByText(/Everything in Tappet that is not AI works the same/);
     view.getByLabelText('Ask about this car');
     view.getByText('Change that');
+  });
+
+  it('draws the way back as a button VoiceOver can reach, and it opens the sheet (UX-26)', async () => {
+    /*
+      A nested Text span with onPress and no role is not its own
+      accessibility element on iOS — the one way back to the AI on this
+      screen was unreachable. The role is the assertion; the press is the
+      anti-vacuous half (a role on something inert would pass for nothing).
+    */
+    mockConsent = 'declined';
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    const control = await view.findByRole('button', { name: 'Change that' });
+    await user.press(control);
+    await view.findByText('The advisor is Google’s AI');
+  });
+
+  it('sends nothing after a decline — ASK opens the sheet again (audit 360, UX-9)', async () => {
+    /*
+      The composer's send tested `consent === 'unknown'` and let every other
+      value through, so an owner who had said no and then pressed ASK sent
+      this car's records to Google anyway.
+    */
+    mockConsent = 'declined';
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await view.findByText(/Everything in Tappet that is not AI works the same/);
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    await view.findByText('The advisor is Google’s AI');
+    expect(ask).not.toHaveBeenCalled();
+    expect(view.getByLabelText('Ask about this car').props.value).toBe('Is the timing belt due?');
+  });
+
+  it('holds a press made while the stored answer is still being read (UX-9)', async () => {
+    /*
+      `null` is "still reading". A starter filled and ASK pressed inside that
+      window went straight to the model before consent was known.
+    */
+    let answerRead: (answer: 'granted' | 'declined' | 'unknown') => void = () => {};
+    (readAiConsent as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (answerRead = resolve))
+    );
+    ask.mockResolvedValue({ sessionId: 's1', response: 'It is.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    expect(ask).not.toHaveBeenCalled();
+
+    await act(async () => answerRead('granted'));
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    expect(ask.mock.calls[0][0]).toMatchObject({ message: 'Is the timing belt due?' });
+  });
+
+  it('and asks, rather than sends, when that held answer is unknown (UX-9)', async () => {
+    let answerRead: (answer: 'granted' | 'declined' | 'unknown') => void = () => {};
+    (readAiConsent as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => (answerRead = resolve))
+    );
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+
+    await act(async () => answerRead('unknown'));
+    await view.findByText('The advisor is Google’s AI');
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  /*
+    Audit 360, UX-23 (1 Oct). The Advisor tab's root mounts once and stays
+    mounted; it read the answer once. A yes given on the car's page while it
+    waited was asked for again here, and a Not now here wrote over it.
+  */
+  it('re-reads the answer when the tab comes back: a yes given elsewhere sends, no sheet (UX-23)', async () => {
+    mockConsent = 'unknown';
+    ask.mockResolvedValue({ sessionId: 's1', response: 'It is.', contextKinds: [] });
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      canGoBack: () => false,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+    const user = userEvent.setup();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await act(async () => {});
+
+    // Away on the car's page, where the owner says yes to the score's sheet.
+    await emit('blur');
+    mockConsent = 'granted';
+    await emit('focus');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    expect(view.queryByText('The advisor is Google’s AI')).toBeNull();
+  });
+
+  it('a Not now here reads before it writes (UX-23)', async () => {
+    mockConsent = 'unknown';
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'anything');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('The advisor is Google’s AI');
+    await user.press(view.getByLabelText('Not now'));
+    expect(declineAiConsent).toHaveBeenCalledTimes(1);
+    expect(recordAiConsent).not.toHaveBeenCalledWith('declined');
+    expect(ask).not.toHaveBeenCalled();
   });
 
   it('names Google, and says what leaves', async () => {
@@ -607,8 +742,14 @@ describe('asking before a question goes to Google', () => {
     await user.press(view.getByLabelText('Send question to the advisor'));
 
     await view.findByText(/this car’s records go to Google/);
-    // ⚠ And says what does *not* — narrower than the invoice sheet on purpose.
-    await view.findByText(/No photographs and no documents/);
+    /*
+      ⚠ Audit 360 (1 Oct): it said "No photographs and no documents are sent
+      from here" — and a yes here then opened the invoice scan with no sheet,
+      because both read one answer. It now names what one yes covers,
+      photographs included, and promises no narrower consent than it takes.
+    */
+    await view.findByText(/One answer covers all of Tappet’s AI/);
+    expect(view.queryByText(/No photographs and no documents/)).toBeNull();
   });
 });
 
@@ -727,5 +868,95 @@ describe('when asking again cannot help — the other three codes, 17 Sep', () =
     const view = await renderAdvisor();
 
     expect(await view.findByText(/try again in a minute/i)).toBeTruthy();
+    // Audit 360, COPY-11: the limiter counts the person asking, not the car.
+    expect(view.getByText(/^You have asked a lot of questions/)).toBeTruthy();
+    expect(view.queryByText(/This car has asked/)).toBeNull();
+  });
+});
+
+/*
+  ── Audit 360, TL-12 · a resend carries its question's id; a new message does not ──
+
+  The server answers a resend from the thread when the stored turn carries
+  the same id (`lib/consultant-replay.ts`). So the screen must reuse the id
+  only for the question whose answer never arrived, and must give the same
+  words a new id once an answer has arrived — "yes", then "yes".
+*/
+describe('the turn id the advisor is sent (TL-12)', () => {
+  const idOf = (call: number) => (ask.mock.calls[call][0] as { clientTurnId?: string }).clientTurnId;
+
+  it('gives "yes" a new id each time it is answered', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'Added. Anything else?', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'Go on.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'yes');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Added. Anything else?');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'yes');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Go on.');
+
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(idOf(0)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).not.toBe(idOf(0));
+  });
+
+  it('sends the same id again with the resend of a question whose answer was lost', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First.', contextKinds: [] })
+      .mockRejectedValueOnce(
+        new ApiRequestError({ status: 0, message: 'Tappet did not answer within 60 seconds.', origin: 'device', kind: 'timeout' })
+      )
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'About $900.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'hello');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('First.');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is $1,400 fair?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText(/did not answer within 60 seconds/);
+    // The question is still in the composer; the owner presses send again.
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('About $900.');
+
+    expect(ask).toHaveBeenCalledTimes(3);
+    expect(ask.mock.calls[2][0]).toMatchObject({ message: 'Is $1,400 fair?', sessionId: 's1' });
+    expect(idOf(2)).toBe(idOf(1));
+    // Anti-vacuous: the earlier, answered question had its own.
+    expect(idOf(1)).not.toBe(idOf(0));
+  });
+  /*
+    TL-16 (round 3): a thread's first question has no sessionId to send —
+    the answer that would have named it was lost. The server finds the
+    thread by this id, so the resend must carry it, and no session.
+  */
+  it('sends a thread’s first question again with its own id and no session', async () => {
+    ask
+      .mockRejectedValueOnce(
+        new ApiRequestError({ status: 0, message: 'Tappet did not answer within 60 seconds.', origin: 'device', kind: 'timeout' })
+      )
+      .mockResolvedValueOnce({ sessionId: 't1', response: 'About $900.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'Is $1,400 fair?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText(/did not answer within 60 seconds/);
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('About $900.');
+
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask.mock.calls[1][0]).toMatchObject({ message: 'Is $1,400 fair?' });
+    expect((ask.mock.calls[1][0] as { sessionId?: unknown }).sessionId ?? null).toBeNull();
+    expect(idOf(0)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).toBe(idOf(0));
   });
 });

@@ -30,6 +30,7 @@ import { recordAiUsageInBackground } from '@/lib/ai-usage';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { logger } from '@tappet/core/logger';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE } from '@/lib/api-error-copy';
 
 export interface PerformanceStats {
   stock_hp: number | null;
@@ -42,7 +43,12 @@ export interface PerformanceStats {
 }
 
 export type PerformanceStatsResult =
-  | { ok: true; cached: boolean; stats: PerformanceStats }
+  /*
+    `consentNeeded` — the figures are stale and only a model call would
+    refresh it, but nobody has said yes to sending this car's service history
+    (LEGAL-11). The row's figures are served as they are; nothing is sent.
+  */
+  | { ok: true; cached: boolean; stats: PerformanceStats; consentNeeded?: true }
   /*
     `code` and `feature` ride with a refusal from the gate — E6's wire, so the
     route forwards them and a client can open the paywall on the code rather
@@ -82,6 +88,7 @@ export async function recomputePerformanceStats({
   client,
   userId,
   isDemo,
+  consented,
   forceRefresh = false,
 }: {
   vehicleId: string;
@@ -95,6 +102,20 @@ export async function recomputePerformanceStats({
    */
   userId: string | null;
   isDemo: boolean;
+  /**
+   * Whether the owner has said yes to sending this car's records to Google.
+   * Required, so every caller has to say where its answer came from.
+   *
+   * ⚠ Audit 360, LEGAL-11 (1 Oct). The prompt below lists every service line
+   * ever recorded on the car (`maintenance_line_items`), and this ran with no
+   * answer read at all: on every first view of the web's car page, and on the
+   * server after a mod was marked done — from the phone's Plan tab too. The
+   * answer lives on the client (`lib/ai-consent-web.ts`, the phone's
+   * Keychain), so the client says it: the route reads `aiConsent` off the
+   * body, the post-upload refresh passes `true` because an upload is only
+   * reached through a consent sheet, and mark-done no longer calls this.
+   */
+  consented: boolean;
   forceRefresh?: boolean;
 }): Promise<PerformanceStatsResult> {
   const { data: vehicle, error: vErr } = await client
@@ -104,7 +125,7 @@ export async function recomputePerformanceStats({
     .maybeSingle();
 
   if (vErr || !vehicle) {
-    return { ok: false, status: 404, error: 'Vehicle not found' };
+    return { ok: false, status: 404, error: NOT_FOUND_MESSAGE };
   }
 
   if (isDemo) {
@@ -149,6 +170,23 @@ export async function recomputePerformanceStats({
     return {
       ok: true,
       cached: true,
+      stats: {
+        stock_hp: vehicle.stock_hp,
+        stock_torque: vehicle.stock_torque,
+        stock_zero_to_sixty: vehicle.stock_zero_to_sixty,
+        modified_hp: vehicle.modified_hp,
+        modified_torque: vehicle.modified_torque,
+        modified_zero_to_sixty: vehicle.modified_zero_to_sixty,
+        completed_mods: [],
+      },
+    };
+  }
+
+  if (!consented) {
+    return {
+      ok: true,
+      cached: true,
+      consentNeeded: true,
       stats: {
         stock_hp: vehicle.stock_hp,
         stock_torque: vehicle.stock_torque,

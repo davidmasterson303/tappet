@@ -39,12 +39,15 @@ export function PushPrimer({
   visible,
   onAccept,
   onDecline,
+  onDismiss,
 }: {
   visible: boolean;
   /** Called when the user opts in. The caller raises the *system* prompt. */
   onAccept: () => void;
   /** Called on "not now" — records the dismissal, spends nothing. */
   onDecline: () => void;
+  /** The slide-down has finished (iOS) — the next ask may present (UX-19, `useAskTurns`). */
+  onDismiss?: () => void;
 }) {
   return (
     <Modal
@@ -57,6 +60,7 @@ export function PushPrimer({
         recorded, and the primer would return on the very next launch.
       */
       onRequestClose={onDecline}
+      onDismiss={onDismiss}
     >
       <View style={styles.root}>
         <View style={styles.body}>

@@ -11,7 +11,10 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { questionToast } from '@/components/question-toast';
+import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
+import { correctionAction } from '@tappet/core/mileage-tracking';
 import { USAGE_PROFILES, usageProfileChip } from '@tappet/core/usage-profile';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { AccountMenu } from '@/components/AccountMenu';
@@ -116,7 +119,7 @@ const tabs = [
   reader is standing on.
 */
 const OFF_NAV = [
-  { key: 'vehicle-info', label: 'Vehicle Info' },
+  { key: 'vehicle-info', label: 'Specifications' },
   /* The tire set (20 Sep) — reached from the dashboard's rail, not the bar; see app/tires. */
   { key: 'tires', label: 'Tires' },
 ] as const;
@@ -221,7 +224,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
       toast.success(`Status updated to ${usageProfileChip(status).label}`);
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error('Failed to update status');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
       setDisplayVehicle((d: any) => ({ ...d, vehicle_status: prev }));
     }
   };
@@ -279,7 +282,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
   const handleSaveAvgMileage = async () => {
     const value = parseInt(avgMileage);
     if (isNaN(value) || value < 0) {
-      toast.error('Please enter a valid number');
+      toast.error('Enter the miles a month as a whole number.');
       return;
     }
     setIsSaving(true);
@@ -290,7 +293,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
       toast.success('Average mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
       setDisplayVehicle((prev: any) => ({ ...prev, avg_miles_per_month: vehicle.avg_miles_per_month }));
       setAvgMileage(vehicle.avg_miles_per_month?.toString() || '');
     }
@@ -299,19 +302,32 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
 
   const handleSaveCurrentMileage = async () => {
     const value = parseInt(currentMileage);
-    if (isNaN(value) || value < displayVehicle.current_mileage) {
-      toast.error('Mileage must be greater than or equal to current mileage');
+    if (isNaN(value)) {
+      toast.error('Enter the reading as a whole number.');
       return;
     }
+    await saveCurrentMileage(value, false);
+  };
+
+  /*
+    Audit 360, TL-26: the server decides (`validateMileageUpdate`, the
+    phone's rule), and a refusal that asks "Correcting an earlier mistake?"
+    carries its answer as the toast's action, re-sent with `isCorrection`.
+  */
+  const saveCurrentMileage = async (value: number, isCorrection: boolean) => {
     setIsSaving(true);
     setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: value }));
     setIsEditingCurrentMileage(false);
-    const result = await updateVehicleMileage(vehicle.id, value);
+    const result = await updateVehicleMileage(vehicle.id, value, { isCorrection });
     if (result.success) {
       toast.success('Mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update');
+      const answer = correctionAction(result.reason);
+      toast.error(
+        result.error || 'Tappet could not save the reading. Try again in a moment.',
+        answer ? questionToast(answer, () => void saveCurrentMileage(value, true)) : undefined
+      );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
       setCurrentMileage(vehicle.current_mileage?.toString() || '');
     }
@@ -964,7 +980,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
                         : 'bg-white/5 border-white/15 text-white/50'
                     }`}
                   >
-                    {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set Status'}
+                    {displayVehicle.vehicle_status ? usageProfileChip(displayVehicle.vehicle_status).label : 'Set status'}
                   </button>
                   {isStatusOpen && (
                     <div className="absolute top-full mt-1.5 right-0 z-50 bg-[#111] border border-white/12 chamfer-sm shadow-xl shadow-black/50 py-1.5 min-w-[160px]">

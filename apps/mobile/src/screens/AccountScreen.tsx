@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { CONTACT_EMAIL } from '@tappet/core/constants';
 import Text from '../components/Text';
 
@@ -20,6 +20,8 @@ import {
   isDeletionConfirmed,
 } from '@tappet/core/account-deletion';
 import { TRADEMARK_NOTICE } from '@tappet/core/brand';
+import { ALERTS_ROW_COPY, type PushPermission } from '@tappet/core/push-priming';
+import { currentPushPermission, registerForPush } from '../notifications/register';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -101,9 +103,55 @@ export function AccountScreen({
   */
   const [subscription, setSubscription] = useState<AccountSubscription | null>(null);
 
+  /*
+    UX-1 (audit 360): the Alerts row's reading. `null` until read; re-read
+    when the app comes back to the front, because the one door for a denied
+    permission is iOS Settings and the owner returns from there.
+  */
+  const [alerts, setAlerts] = useState<PushPermission | null>(null);
+  const [askingAlerts, setAskingAlerts] = useState(false);
+
+  useEffect(() => {
+    if (visible === false) return;
+    let cancelled = false;
+    const read = () =>
+      void currentPushPermission().then((permission) => {
+        if (!cancelled) setAlerts(permission);
+      });
+    read();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') read();
+    });
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, [visible]);
+
+  async function handleAlerts() {
+    if (askingAlerts) return;
+    if (alerts === 'undetermined') {
+      // The system dialog is still available; registration asks and files the token.
+      setAskingAlerts(true);
+      try {
+        await registerForPush();
+        setAlerts(await currentPushPermission());
+      } finally {
+        setAskingAlerts(false);
+      }
+      return;
+    }
+    // Denied or granted: iOS Settings is the only place either answer changes.
+    void Linking.openSettings();
+  }
+
   const confirmed = isDeletionConfirmed(confirmText);
   // Live and billed by Apple — a comped grant has nothing to cancel (21 Sep).
-  const notice = subscriptionNotice(subscribed && (subscription?.billedByApple ?? true));
+  // COPY-20: an unread standing still warns (LEGAL-15), in words that say so.
+  const notice = subscriptionNotice(
+    subscribed && (subscription?.billedByApple ?? true),
+    subscription?.certain === true
+  );
   const standing = subscription ? subscriptionStatusLine(subscription) : null;
 
   /*
@@ -120,12 +168,11 @@ export function AccountScreen({
     say so. `PaywallHost` announces the server's verdict; the navigator turns
     it into a number this effect depends on.
 
-    A failure here resolves to "no subscription" and is deliberately silent.
-    The screen's job is deletion — Apple requires that flow to work — and
-    blocking or erroring it because a secondary read failed would obstruct the
-    guideline this whole screen exists to satisfy. The server already fails the
-    other way, warning when it cannot read, so the quiet case here is a network
-    failure rather than an unknown entitlement.
+    A failure here never blocks or errors the screen — its job is deletion,
+    and Apple requires that flow to work. Since LEGAL-15 (1 Oct) it resolves
+    to "warn anyway" (`SUBSCRIPTION_UNREAD`), the same rule the server keeps
+    when it cannot read: it used to resolve to "no subscription", which hid
+    the billing warning exactly when the phone could not say.
   */
   useEffect(() => {
     if (visible === false) return;
@@ -246,7 +293,17 @@ export function AccountScreen({
       */}
       <ScreenTitle>Account</ScreenTitle>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      {/*
+        Audit 360, UX-13: the Type DELETE field and its button sit at the foot
+        of this scroll, and the keyboard covered the button. The scroll view
+        insets itself by the keyboard's height, as WishlistAdd's list does —
+        the one irreversible control is not reached by dismissing a keyboard.
+      */}
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         {email && (
           <View style={styles.section}>
             <Text style={styles.label}>Signed in as</Text>
@@ -295,6 +352,30 @@ export function AccountScreen({
             </Pressable>
           </View>
         ) : null}
+
+        {/*
+          ── Audit 360, UX-1 · the Alerts row ───────────────────────────────
+
+          Whether alerts are on, and the one door each answer has: the system
+          dialog while iOS still offers it, Settings once it does not. Same
+          shape as the Subscription row above — a head, then a 44pt row whose
+          first line is the status. Until the read lands the row keeps its
+          neutral name; a status it does not have is not drawn.
+        */}
+        <View style={styles.legal}>
+          <Text style={styles.label}>Alerts</Text>
+          <Pressable
+            onPress={() => void handleAlerts()}
+            disabled={deleting || askingAlerts || alerts === null}
+            accessibilityRole="button"
+            accessibilityLabel={alerts ? ALERTS_ROW_COPY[alerts].spoken : 'Alerts'}
+            accessibilityState={{ disabled: deleting || askingAlerts || alerts === null, busy: askingAlerts }}
+            style={styles.legalRow}
+          >
+            <Text style={styles.legalText}>{alerts ? ALERTS_ROW_COPY[alerts].status : 'Alerts'}</Text>
+            {alerts ? <Text style={styles.rowDetail}>{ALERTS_ROW_COPY[alerts].detail}</Text> : null}
+          </Pressable>
+        </View>
 
         {/*
           An exact variant match, not an approximation: this was transparent

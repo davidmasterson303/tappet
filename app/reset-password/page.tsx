@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -95,15 +96,15 @@ export default function ResetPasswordPage() {
       setLoading(false);
 
       if (updateError) {
-        setError(updateError.message);
+        setError(authErrorSentence(updateError, 'new-password'));
         return;
       }
 
       setSuccess(true);
       setTimeout(() => { window.location.href = '/garage'; }, 2500);
-    } catch {
+    } catch (err) {
       setLoading(false);
-      setError('Something went wrong. Please try again.');
+      setError(authErrorSentence(err, 'new-password'));
     }
   }
 
@@ -114,7 +115,7 @@ export default function ResetPasswordPage() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10 backdrop-blur-xl">
             <CheckCircle2 className="h-14 w-14 text-emerald-400 mx-auto mb-5" />
             <h2 className="display-serif text-3xl text-white mb-3">Password updated</h2>
-            <p className="text-white/55 text-sm">Redirecting you to your garage...</p>
+            <p className="text-white/55 text-sm">Redirecting you to your garage…</p>
           </div>
         </div>
       </div>
@@ -134,7 +135,7 @@ export default function ResetPasswordPage() {
             </p>
             <Link href="/forgot-password">
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-4 sm:px-6">
-                Request New Link
+                Request a new link
               </Button>
             </Link>
           </div>
@@ -175,7 +176,7 @@ export default function ResetPasswordPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/70 text-sm font-medium">New Password</Label>
+              <Label htmlFor="password" className="text-white/70 text-sm font-medium">New password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -200,7 +201,7 @@ export default function ResetPasswordPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-white/70 text-sm font-medium">Confirm Password</Label>
+              <Label htmlFor="confirm-password" className="text-white/70 text-sm font-medium">Confirm password</Label>
               <Input
                 id="confirm-password"
                 type={showPassword ? 'text' : 'password'}
@@ -226,7 +227,7 @@ export default function ResetPasswordPage() {
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
               busy={loading}
             >
-              Update Password
+              Update password
             </Button>
           </form>
         </div>

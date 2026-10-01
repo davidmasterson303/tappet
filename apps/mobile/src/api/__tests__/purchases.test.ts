@@ -56,6 +56,11 @@ describe('what the server said', () => {
     await expect(verifyPurchase('j')).resolves.toEqual({ kind: 'entitled', tier: 'paid' });
   });
 
+  it('reads a tier the server kept as entitlement — Restore over a notified row, TL-21', async () => {
+    mockApiRequest.mockResolvedValue({ entitlement: { tier: 'paid', recorded: false } });
+    await expect(verifyPurchase('j')).resolves.toEqual({ kind: 'entitled', tier: 'paid' });
+  });
+
   it('does not read a 200 with nothing recorded as entitlement', async () => {
     mockApiRequest.mockResolvedValue({ entitlement: { tier: null, recorded: false } });
     await expect(verifyPurchase('j')).resolves.toEqual({ kind: 'recorded-not-entitled' });

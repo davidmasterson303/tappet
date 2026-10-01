@@ -214,7 +214,7 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-white text-base">
             <DollarSign className="h-5 w-5 text-info" />
-            Total Cost of Ownership
+            Total cost of ownership
           </CardTitle>
           <div className="flex items-center gap-2">
             {onEditInputs && (
@@ -223,7 +223,7 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
                 className="tap-target-44 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/20 bg-white/10 hover:bg-white/16 hover:border-white/30 text-white/70 hover:text-white transition-all duration-200"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Edit Inputs
+                Edit inputs
               </button>
             )}
             {hasEnoughData && (
@@ -237,7 +237,7 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
                 }}
               >
                 {whatIfMode === 'keep2' ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
-                {whatIfMode === 'keep2' ? 'Keep 2 More Years' : 'Sell Now'}
+                {whatIfMode === 'keep2' ? 'Keep 2 more years' : 'Sell now'}
               </button>
             )}
           </div>
@@ -245,7 +245,7 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
         {whatIfMode === 'keep2' && (
           <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-400/8 border border-amber-400/20 rounded-lg">
             <Info className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-            <p className="text-xs text-amber-300/80">Projecting costs if you keep this vehicle for 2 more years</p>
+            <p className="text-xs text-amber-300/80">Projecting costs if you keep this car for 2 more years</p>
           </div>
         )}
       </CardHeader>
@@ -269,7 +269,7 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
                 className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
-                Enter Cost Inputs
+                Enter cost inputs
               </Button>
             ) : (
               <a href={`/vehicle-info/${vehicleId}`}>
@@ -345,9 +345,9 @@ export default function TCOCard({ vehicle, vehicleId, onEditInputs }: TCOCardPro
                 <p className="text-xs text-white/50">
                   Add avg MPG and fuel price{' '}
                   {onEditInputs ? (
-                    <button onClick={onEditInputs} className="text-cyan-400 hover:underline">in Cost Inputs</button>
+                    <button onClick={onEditInputs} className="text-cyan-400 hover:underline">in cost inputs</button>
                   ) : (
-                    <a href={`/vehicle-info/${vehicleId}`} className="text-cyan-400 hover:underline">in Vehicle Info</a>
+                    <a href={`/vehicle-info/${vehicleId}`} className="text-cyan-400 hover:underline">on the specifications page</a>
                   )}{' '}
                   for full fuel cost analysis.
                 </p>

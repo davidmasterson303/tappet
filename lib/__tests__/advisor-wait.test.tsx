@@ -28,6 +28,7 @@
  * The server actions are mocked, as in `consultant-rail-rename-delete`.
  */
 
+import { AI_CONSENT_STORAGE_KEY } from '@tappet/core/ai-consent-copy';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 jest.mock('next/navigation', () => ({
@@ -101,7 +102,7 @@ beforeEach(() => {
   // The advisor asks for AI consent before the first question (23 Sep); the
   // cases below are about the wait, so it is already given. The last
   // describe block removes it to test the ask itself.
-  window.localStorage.setItem('tappet.aiConsent', 'granted');
+  window.localStorage.setItem(AI_CONSENT_STORAGE_KEY, 'granted');
   getConsultantSession.mockReset();
   sendConsultantMessage.mockReset();
   getConsultantSession.mockResolvedValue({ success: true, data: { message_history: [] } });
@@ -122,7 +123,7 @@ describe('the turn being written', () => {
     expect(status).toHaveAttribute('data-motion', 'live');
     expect(status.textContent).toContain('Answering');
     // The fact that is true for the whole call, naming the car it was handed.
-    expect(status.textContent).toContain('Your 2015 BMW M235i’s records go to the model with the question.');
+    expect(status.textContent).toContain('Your 2015 BMW M235i’s records go to Google’s AI with the question.');
     expect(container.querySelector('.animate-spin')).toBeNull();
     expect(container.querySelector('.working-sweep.is-live')).not.toBeNull();
     // Jay's byline sits above the instrument, where the answer will land.
@@ -278,7 +279,7 @@ describe('opening a conversation is a wait; an empty thread is not', () => {
 describe('the turn on its own', () => {
   it('prints the model sentence for a real car and not for the demo, which calls no model', () => {
     const live = render(<AdvisorWait vehicle={{ year: 2018, make: 'Honda', model: 'Accord' }} demo={false} />);
-    expect(live.container.textContent).toContain('Your 2018 Honda Accord’s records go to the model with the question.');
+    expect(live.container.textContent).toContain('Your 2018 Honda Accord’s records go to Google’s AI with the question.');
     live.unmount();
 
     const demo = render(<AdvisorWait vehicle={{ year: 2018, make: 'Honda', model: 'Accord' }} demo />);
@@ -312,7 +313,7 @@ describe('consent before the first question — LEG-02 on the web', () => {
     the same mount sends without asking once the answer is on record.
   */
   it('asks, sends nothing until the answer is yes, and then sends the question that was typed', async () => {
-    window.localStorage.removeItem('tappet.aiConsent');
+    window.localStorage.removeItem(AI_CONSENT_STORAGE_KEY);
     sendConsultantMessage.mockResolvedValue({ success: true, response: 'Fair, for that job.' });
     mount();
     ask('Is $1,400 fair for rear control arms?');
@@ -326,6 +327,6 @@ describe('consent before the first question — LEG-02 on the web', () => {
 
     await waitFor(() => expect(sendConsultantMessage).toHaveBeenCalledTimes(1));
     expect(sendConsultantMessage.mock.calls[0][0]).toMatchObject({ message: 'Is $1,400 fair for rear control arms?' });
-    expect(window.localStorage.getItem('tappet.aiConsent')).toBe('granted');
+    expect(window.localStorage.getItem(AI_CONSENT_STORAGE_KEY)).toBe('granted');
   });
 });

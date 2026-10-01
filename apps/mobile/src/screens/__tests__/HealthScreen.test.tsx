@@ -141,3 +141,23 @@ describe('the screen carries no act of its own (22 Sep, David)', () => {
     expect(inkedPage({ props: { style: { color: surface.page } } })).toBe(true);
   });
 });
+
+/*
+  Audit 360, COPY-17 (1 Oct). The empty state was one sentence with two
+  asides — "its own page shows that running and asks" — whose "its" and
+  "that" a listener could not place.
+*/
+describe('no score yet, said in sentences a listener can follow (COPY-17)', () => {
+  it('names the car’s page and says the score is worked out again', async () => {
+    respond({ vehicle_health_summary: null });
+    const { view } = await mount();
+
+    const line = await view.findByText(/^No score yet\./);
+    const text = [line.props.children].flat().filter((c: unknown) => typeof c === 'string').join('');
+    // UX-15: the page now has the door this sentence promises (Score this car).
+    expect(text).toMatch(/you have said yes to Google’s AI writing it\. Both happen on the car’s page\./);
+    expect(text).not.toMatch(/shows the research and asks/);
+    expect(text).toMatch(/It is worked out again as work is recorded\.$/);
+    expect(text).not.toMatch(/its own page shows that running/);
+  });
+});

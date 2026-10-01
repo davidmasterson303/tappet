@@ -7,6 +7,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (!file || !vehicleId) {
       return NextResponse.json(
-        { success: false, error: 'Missing file or vehicleId' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (!result.success) {
       logger.error('API:UPLOAD_PHOTO', new Error(result.error ?? 'Upload failed'));
       return NextResponse.json(
-        { success: false, error: result.error ?? 'Failed to upload photo' } as ApiResponse,
+        { success: false, error: result.error ?? 'Tappet could not save that photo just now. Try again in a moment.' } as ApiResponse,
         { status: 500 }
       );
     }
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:UPLOAD_PHOTO', error as Error);
     return NextResponse.json(
-      { success: false, error: 'Failed to upload photo' } as ApiResponse,
+      { success: false, error: 'Tappet could not save that photo just now. Try again in a moment.' } as ApiResponse,
       { status: 500 }
     );
   }
@@ -165,10 +166,10 @@ export async function DELETE(request: NextRequest): Promise<Response> {
   try {
     vehicleId = String(((await request.json()) as { vehicleId?: unknown }).vehicleId ?? '');
   } catch {
-    return NextResponse.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, { status: 400 });
+    return NextResponse.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, { status: 400 });
   }
   if (!vehicleId) {
-    return NextResponse.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, { status: 400 });
+    return NextResponse.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, { status: 400 });
   }
   const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
   if (!access.ok) {

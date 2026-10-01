@@ -35,6 +35,7 @@
  */
 
 import { TIERS, type TierName } from './ai/budget';
+import { resolveEntitledTier } from './entitlement';
 
 /**
  * Which App Store environment a payload came from.
@@ -76,6 +77,17 @@ export interface AppleSubscriptionEvent {
   /** Set on refund or family-sharing revocation. Ends access immediately. */
   revocationDate?: number | null;
   environment: AppleEnvironment;
+  /**
+   * Set when the event was synthesised from a bare StoreKit transaction the
+   * phone sent to `/api/v1/iap/verify`, never on a notification Apple sent.
+   *
+   * ⚠ Audit 360, TL-21. A device transaction carries no renewal info: no
+   * `gracePeriodExpiresDate`, no `autoRenewStatus`. Their absence on this path
+   * means "the phone cannot say", not "there is none" — so a device event
+   * never shortens a stored expiry nor nulls stored renewal fields for the
+   * same subscription. See the foot of `applyAppleNotification`.
+   */
+  fromDevice?: boolean;
 }
 
 /** The row as stored. Mirrors `account_entitlements`, in camelCase. */
@@ -129,8 +141,11 @@ export type EntitlementDecision =
       /**
        * The tier that stays in force because nothing was written. Set only
        * when the refusal *protects* access — a caller answering "what may this
-       * account use" reads it; every other ignore leaves it unset, so a stale
-       * event is never read as an entitlement.
+       * account use" reads it. Two refusals set it: a sandbox event against a
+       * hand grant, and a stale event for the **same** subscription the row
+       * already holds (TL-21), where it is the row's current tier against the
+       * clock. Every other ignore leaves it unset, so a stale event from a
+       * different transaction is never read as an entitlement.
        */
       keeps?: string;
     }
@@ -224,7 +239,9 @@ const STATE_BEARING_TYPES = new Set([
  */
 export function applyAppleNotification(
   current: StoredEntitlement | null | undefined,
-  event: AppleSubscriptionEvent
+  event: AppleSubscriptionEvent,
+  /** Only read to say which tier a stale same-subscription event keeps. */
+  now: Date = new Date()
 ): EntitlementDecision {
   if (!STATE_BEARING_TYPES.has(event.notificationType)) {
     return {
@@ -287,10 +304,35 @@ export function applyAppleNotification(
   */
   const previousSignedDate = parseStoredDate(current?.lastSignedDate);
   if (previousSignedDate !== null && event.signedDate <= previousSignedDate) {
+    /*
+      ── ⚠ Audit 360, TL-21 · Restore told a subscriber to get in touch ──────
+
+      A stale event about the subscription the row **already holds** is not a
+      claim to be weighed: that subscription has been decided, by something
+      newer. The common source is Restore and the phone's quiet check — the
+      device's transaction was signed at purchase, Apple's `SUBSCRIBED`
+      notification was signed seconds later and moved `lastSignedDate` past
+      it, so every Restore after that was stale. With nothing in `keeps` the
+      verify route answered `tier: null` and the sheet said "we could not
+      match it to a subscription. Get in touch" over a live subscription.
+
+      So it keeps the row's *current* tier, read against the clock exactly as
+      every gated route reads it — a lapsed or revoked row keeps nothing, and
+      nothing is written either way. The verify route has already refused a
+      transaction that belongs to another account (409) before this runs.
+
+      A stale event from a **different** original transaction still keeps
+      nothing: it says nothing about the row it was compared against.
+    */
+    const sameSubscription =
+      current?.originalTransactionId != null &&
+      current.originalTransactionId === event.originalTransactionId;
+    const inForce = sameSubscription ? resolveEntitledTier(current, now).name : 'free';
     return {
       action: 'ignore',
       reason: 'stale-event',
       detail: `${event.notificationType} signed ${new Date(event.signedDate).toISOString()} is not newer than ${current?.lastSignedDate}`,
+      ...(inForce !== 'free' ? { keeps: inForce } : {}),
     };
   }
 
@@ -363,14 +405,42 @@ export function applyAppleNotification(
     };
   }
 
+  /*
+    ── ⚠ Audit 360, TL-21 · a bare transaction collapsed a grace period ──────
+
+    A device event knows the transaction and nothing about renewal. When it is
+    newer than the row — a fresh install's `currentEntitlements` re-signed at
+    fetch — it used to write `expiresDate` over a grace-period expiry that
+    `DID_FAIL_TO_RENEW` stored, and `null` over a stored `autoRenewStatus`:
+    a customer in billing retry lost access on their next foreground.
+
+    For the same live subscription, then, the device event takes the later
+    expiry and carries the renewal field it cannot see. Notifications are
+    untouched — they carry renewal info, and an absent grace date there means
+    grace has ended. A revoked row carries nothing: its expiry is the
+    revocation instant and its renewal flag was the refund's.
+  */
+  const carriesStored =
+    event.fromDevice === true &&
+    !!current &&
+    current.originalTransactionId === event.originalTransactionId &&
+    current.environment === event.environment &&
+    current.revokedAt === null;
+  const writtenExpiresMs = carriesStored
+    ? laterOf(expiresMs, parseStoredDate(current.expiresAt))
+    : expiresMs;
+  const autoRenewStatus = carriesStored
+    ? (event.autoRenewStatus ?? current.autoRenewStatus ?? null)
+    : (event.autoRenewStatus ?? null);
+
   return {
     action: 'write',
     warning,
     record: {
       ...base,
       tier: tier ?? 'free',
-      expiresAt: expiresMs === null ? null : new Date(expiresMs).toISOString(),
-      autoRenewStatus: event.autoRenewStatus ?? null,
+      expiresAt: writtenExpiresMs === null ? null : new Date(writtenExpiresMs).toISOString(),
+      autoRenewStatus,
       /*
         A new purchase clears a previous revocation. Re-subscribing after a
         refund is an ordinary thing to do, and leaving `revokedAt` set would

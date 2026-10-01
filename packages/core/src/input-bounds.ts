@@ -1,0 +1,224 @@
+/**
+ * How long an owner's string may be before it is refused, and how much of
+ * any stored string a prompt will carry.
+ *
+ * ── Audit 360, SEC-2 (1 Oct) · the strings that feed every prompt ───────────
+ *
+ * `POST /api/v1/vehicles` took `make`/`model`/`trim` with `.trim()` and no
+ * length; `POST /api/v1/wishlist` stored `item_name`, `description`, `notes`
+ * and `source_data` whole. All of them land in the advisor's system prompt
+ * on every turn. A free account could save a 500 KB `make`, then spend
+ * ~125k input tokens a call — and the monthly fuse counted output only, so
+ * it would not notice. Against Google's prepay (CLAUDE.md §9) that ends with
+ * every model call for every customer answering 503.
+ *
+ * Three layers, each of which bounds the attack on its own:
+ *
+ *   1. **Refused at the door** — the limits below, on the routes that store
+ *      them. Generous: they exist to stop an abuse, not to edit an owner.
+ *      Wishlist text is often the model's own catalogue sentence sent back
+ *      by the phone, so its limits sit far above anything that produces.
+ *   2. **Clipped at the prompt** — `boundPromptContext`, for rows written
+ *      before (1) or by a path (1) does not cover.
+ *   3. **Counted at the fuse** — input tokens now count toward the monthly
+ *      ceiling (`decideBudget`, `INPUT_TOKENS_PER_OUTPUT_EQUIVALENT`).
+ */
+
+/** `vehicleSchema`'s numbers (`validation.ts`), which the web form already applies. */
+export const VEHICLE_NAME_MAX = 50;
+
+export const WISHLIST_LIMITS = {
+  itemName: 200,
+  itemIdentifier: 300,
+  category: 100,
+  description: 4_000,
+  notes: 4_000,
+  /** Characters of `JSON.stringify(sourceData)`. */
+  sourceData: 4_000,
+} as const;
+
+/**
+ * Mark-done's shop name and the web's service-item description (audit 360,
+ * SEC-10). Both reach the health prompt; the phone's shop field and the web
+ * form never come near either number.
+ */
+export const SHOP_NAME_MAX = 200;
+export const SERVICE_DESCRIPTION_MAX = WISHLIST_LIMITS.description;
+
+/** Per string, or per list item, as a prompt carries it. */
+export const PROMPT_FIELD_MAX_CHARS = 1_000;
+
+const LABELS: Record<string, string> = {
+  make: 'Make',
+  model: 'Model',
+  trim: 'Trim',
+  itemName: 'The name',
+  itemIdentifier: 'The identifier',
+  category: 'The category',
+  description: 'The description',
+  notes: 'The notes',
+  sourceData: 'The attached detail',
+  shopName: 'The shop name',
+  quoteName: 'The quote name',
+};
+
+function tooLong(field: string, max: number): string {
+  return `${LABELS[field] ?? field} must be ${max.toLocaleString('en-US')} characters or fewer.`;
+}
+
+/** Null when every given name fits; otherwise the sentence to show. */
+export function vehicleNameProblem(names: { make?: unknown; model?: unknown; trim?: unknown }): string | null {
+  for (const field of ['make', 'model', 'trim'] as const) {
+    const value = names[field];
+    if (typeof value === 'string' && value.trim().length > VEHICLE_NAME_MAX) {
+      return tooLong(field, VEHICLE_NAME_MAX);
+    }
+  }
+  return null;
+}
+
+/**
+ * A trim cut to `VEHICLE_NAME_MAX` rather than refused.
+ *
+ * ⚠ Audit 360, TL-20 (round 3). A trim is the one name a scan supplies that
+ * the owner never typed: vPIC's `Trim` arrives unbounded, the answers screen
+ * has no trim field, and the scan screen is already replaced. Refusing it
+ * told the owner "Trim must be 50 characters or fewer" with nothing to edit.
+ * Make and model are still refused (the describe screen has both fields);
+ * a trim is clipped at the decode and at the route, which bounds the prompt
+ * just the same.
+ */
+export function clipVehicleTrim(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length <= VEHICLE_NAME_MAX ? trimmed : trimmed.slice(0, VEHICLE_NAME_MAX).trimEnd();
+}
+
+/** Null when every given wishlist field fits; otherwise the sentence to show. */
+export function wishlistFieldProblem(fields: {
+  itemName?: unknown;
+  itemIdentifier?: unknown;
+  category?: unknown;
+  description?: unknown;
+  notes?: unknown;
+  sourceData?: unknown;
+}): string | null {
+  for (const field of ['itemName', 'itemIdentifier', 'category', 'description', 'notes'] as const) {
+    const value = fields[field];
+    if (typeof value === 'string' && value.length > WISHLIST_LIMITS[field]) {
+      return tooLong(field, WISHLIST_LIMITS[field]);
+    }
+  }
+  if (fields.sourceData !== undefined && fields.sourceData !== null) {
+    let size: number;
+    try {
+      size = JSON.stringify(fields.sourceData)?.length ?? 0;
+    } catch {
+      return 'The attached detail could not be read.';
+    }
+    if (size > WISHLIST_LIMITS.sourceData) return tooLong('sourceData', WISHLIST_LIMITS.sourceData);
+  }
+  return null;
+}
+
+/**
+ * Null when mark-done's free text fits; otherwise the sentence to show.
+ * SEC-10: the route stored `shopName` and `notes` whole, and the health
+ * prompt carries every shop name it reads.
+ */
+export function markDoneFieldProblem(fields: { shopName?: unknown; notes?: unknown }): string | null {
+  if (typeof fields.shopName === 'string' && fields.shopName.length > SHOP_NAME_MAX) {
+    return tooLong('shopName', SHOP_NAME_MAX);
+  }
+  if (typeof fields.notes === 'string' && fields.notes.length > WISHLIST_LIMITS.notes) {
+    return tooLong('notes', WISHLIST_LIMITS.notes);
+  }
+  return null;
+}
+
+/**
+ * What one quote may carry. `quoteRequestSchema`'s numbers (`validation.ts`),
+ * which nothing applied until audit 360, SEC-17.
+ */
+export const QUOTE_LIMITS = {
+  items: 50,
+  notes: 2_000,
+  quoteName: 100,
+  /** Per item, as the quote's two prompts and its stored row carry it. */
+  category: WISHLIST_LIMITS.category,
+  description: WISHLIST_LIMITS.description,
+} as const;
+
+/**
+ * Null when a quote's caller-sent parts fit; otherwise the sentence to show.
+ *
+ * ⚠ Audit 360, SEC-17 (1 Oct). `generateQuoteRequestV2` runs on the public
+ * demo with no session, and on the wishlist path it takes the caller's own
+ * `items` — description and category — and the notes straight into two
+ * model prompts. The action body may be a megabyte. Notes, name and the item
+ * count are what the dialog lets an owner type or pick, so they are refused
+ * with a sentence; an item's description and category are the owner's stored
+ * text sent back, so they are clipped (`clipQuoteItem`) rather than refused —
+ * an old row longer than today's limit must not make a quote impossible.
+ */
+export function quoteInputProblem(input: {
+  selectedItemIds?: unknown;
+  items?: unknown;
+  additionalNotes?: unknown;
+  quoteName?: unknown;
+}): string | null {
+  const ids = input.selectedItemIds;
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+    return 'Choose at least one item for the quote.';
+  }
+  const tooMany = `Choose ${QUOTE_LIMITS.items} items or fewer for one quote.`;
+  if (ids.length > QUOTE_LIMITS.items) return tooMany;
+  if (input.items !== undefined && input.items !== null) {
+    if (!Array.isArray(input.items)) return 'Choose at least one item for the quote.';
+    if (input.items.length > QUOTE_LIMITS.items) return tooMany;
+  }
+  const notes = input.additionalNotes;
+  if (notes !== undefined && notes !== null && typeof notes !== 'string') return tooLong('notes', QUOTE_LIMITS.notes);
+  if (typeof notes === 'string' && notes.length > QUOTE_LIMITS.notes) return tooLong('notes', QUOTE_LIMITS.notes);
+  const name = input.quoteName;
+  if (name !== undefined && name !== null && typeof name !== 'string') return tooLong('quoteName', QUOTE_LIMITS.quoteName);
+  if (typeof name === 'string' && name.length > QUOTE_LIMITS.quoteName) return tooLong('quoteName', QUOTE_LIMITS.quoteName);
+  return null;
+}
+
+/**
+ * One caller-sent quote item reduced to the three fields the quote reads,
+ * each a string and each bounded. Anything else on the object is dropped.
+ */
+export function clipQuoteItem(item: unknown): { id: string; description: string; category: string } {
+  const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+  const text = (value: unknown, max: number) => (typeof value === 'string' ? clipForPrompt(value, max) : '');
+  return {
+    id: typeof row.id === 'string' ? row.id : '',
+    description: text(row.description, QUOTE_LIMITS.description),
+    category: text(row.category, QUOTE_LIMITS.category),
+  };
+}
+
+/** A string cut to `max` characters, marked when it was cut. */
+export function clipForPrompt(value: string, max: number = PROMPT_FIELD_MAX_CHARS): string {
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
+/**
+ * Every string, and every string in a list, cut to `PROMPT_FIELD_MAX_CHARS`.
+ * Numbers, booleans and nulls pass through. Lists keep every item — a long
+ * service history is real; a 500 KB line in it is not.
+ */
+export function boundPromptContext<T extends Record<string, unknown>>(context: T): T {
+  const bounded: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(context)) {
+    if (typeof value === 'string') {
+      bounded[key] = clipForPrompt(value);
+    } else if (Array.isArray(value)) {
+      bounded[key] = value.map((item) => (typeof item === 'string' ? clipForPrompt(item) : item));
+    } else {
+      bounded[key] = value;
+    }
+  }
+  return bounded as T;
+}

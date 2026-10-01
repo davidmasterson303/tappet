@@ -8,11 +8,19 @@ import { Eye, EyeOff } from 'lucide-react';
 import BrandLockup from '@/components/brand/BrandLockup';
 import { Button } from '@/components/ui/button';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
+import { safeRedirect } from '@/lib/safe-redirect';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/garage';
+  /*
+    ⚠ Through the guard, never raw (audit 360, SEC-4). `router.push` hands an
+    absolute URL to `location.href`, so `?redirect=https://evil.example` took
+    a genuine sign-in on our address bar and delivered the owner elsewhere.
+    `lib/safe-redirect.ts`.
+  */
+  const redirect = safeRedirect(searchParams.get('redirect'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,19 +38,16 @@ function LoginForm() {
       const { error: signInError } = await client.auth.signInWithPassword({ email, password });
 
       if (signInError) {
-        setError(
-          signInError.message === 'Invalid login credentials'
-            ? 'Incorrect email or password.'
-            : signInError.message
-        );
+        // One sentence for every credential refusal — never which one (COPY-24).
+        setError(authErrorSentence(signInError, 'sign-in'));
         setLoading(false);
         return;
       }
 
       router.push(redirect);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      setError(authErrorSentence(err, 'sign-in'));
       setLoading(false);
     }
   }
@@ -122,7 +127,7 @@ function LoginForm() {
         className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
         busy={loading}
       >
-        Sign In
+        Sign in
       </Button>
     </form>
   );
@@ -181,6 +186,17 @@ export default function LoginPage() {
               Or try the demo without an account
             </Link>
           </div>
+
+          {/* Audit 360, LEGAL-10: both documents reachable from the door, as on the phone. */}
+          <p className="mt-4 text-center text-xs text-white/70">
+            <Link href="/terms" className="underline decoration-white/25 underline-offset-4 hover:text-white">
+              Terms of Use
+            </Link>
+            {' · '}
+            <Link href="/privacy" className="underline decoration-white/25 underline-offset-4 hover:text-white">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
     </div>

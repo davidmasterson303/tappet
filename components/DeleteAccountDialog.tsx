@@ -18,9 +18,12 @@ import { deleteAccount } from '@/app/account-actions';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
 import { queryClient } from '@tappet/core/query-client';
 import { signOutAndClearCache } from '@/lib/sign-out';
+import { DELETION_NOT_FINISHED, DELETION_OUTCOME_UNKNOWN, probeAccount } from '@/lib/account-gone';
 import { toast } from 'sonner';
 import {
   DELETION_CONFIRM_PHRASE,
+  DELETION_INVENTORY,
+  deletionCarCount,
   describeDeletion,
   isDeletionConfirmed,
   subscriptionNotice,
@@ -48,6 +51,12 @@ interface DeleteAccountDialogProps {
    * one is the one a subscriber is most likely to use.
    */
   hasLiveSubscription?: boolean;
+  /**
+   * The subscription was read rather than assumed (COPY-20). Defaults to
+   * false: an unread standing still warns, in words that do not state it as
+   * the owner's fact.
+   */
+  subscriptionCertain?: boolean;
 }
 
 /**
@@ -67,19 +76,42 @@ export function DeleteAccountDialog({
   onOpenChange,
   vehicleCount,
   hasLiveSubscription = false,
+  subscriptionCertain = false,
 }: DeleteAccountDialogProps) {
   const router = useRouter();
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const confirmed = isDeletionConfirmed(confirmText);
-  const notice = subscriptionNotice(hasLiveSubscription);
+  const notice = subscriptionNotice(hasLiveSubscription, subscriptionCertain);
 
   async function handleDelete() {
     if (!confirmed || deleting) return;
     setDeleting(true);
 
-    const result = await deleteAccount();
+    /*
+      ⚠ 1 Oct · audit 360, TL-25 · the phone's TL-7, on the web.
+
+      `deleteAccount` returns its own failures; it *throws* only when the
+      answer was lost — the connection, or the platform's ceiling on a purge
+      that ran long. Unwrapped, that rejection left the dialog on "Deleting",
+      Cancel disabled, uncloseable, while the account was already gone. So a
+      lost answer asks the auth server: gone is the success path (sign out,
+      say so, leave); still here re-enables the buttons; no answer says so.
+    */
+    let result: Awaited<ReturnType<typeof deleteAccount>>;
+    try {
+      result = await deleteAccount();
+    } catch {
+      const probe = await probeAccount(createBrowserSupabaseClient());
+      if (probe === 'gone') {
+        result = { success: true, deleted: { vehicles: 0, storageObjects: 0 } };
+      } else {
+        toast.error(probe === 'present' ? DELETION_NOT_FINISHED : DELETION_OUTCOME_UNKNOWN);
+        setDeleting(false);
+        return;
+      }
+    }
 
     if (!result.success) {
       toast.error(result.error ?? 'Could not delete the account.');
@@ -159,15 +191,12 @@ export function DeleteAccountDialog({
           }}
         >
           <p className="label-uppercase mb-2">What gets deleted</p>
+          {/* COPY-32: the phone's list, word for word, led by the count. */}
+          <p className="mb-2 text-foreground">{deletionCarCount(vehicleCount)}</p>
           <ul className="space-y-1 text-foreground/75">
-            <li>
-              <span className="num font-semibold text-foreground">{vehicleCount}</span>{' '}
-              {vehicleCount === 1 ? 'vehicle' : 'vehicles'} and their full history
-            </li>
-            <li>All maintenance records, Needs and cost data</li>
-            <li>Every uploaded invoice and photo</li>
-            <li>Your conversations with the AI advisor</li>
-            <li>Your profile and sign-in credentials</li>
+            {DELETION_INVENTORY.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </div>
 

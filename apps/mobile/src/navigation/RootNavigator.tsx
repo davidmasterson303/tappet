@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import {
   NavigationContainer,
   getFocusedRouteNameFromRoute,
+  getStateFromPath as parseLinkPath,
   useNavigation,
   useNavigationContainerRef,
   type LinkingOptions,
@@ -19,6 +20,7 @@ import {
   type NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
 
+import { safeLinkPath } from './safe-link-path';
 import {
   configureNotificationHandler,
   initialNotificationUrl,
@@ -498,7 +500,7 @@ const advisorLinks: PathConfig<DossierScreens> = {
   screens: { Advisor: 'vehicle/:vehicleId/advisor' },
 };
 
-const linking: LinkingOptions<RootStackParamList> = {
+export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['tappet://'],
   config: {
     initialRouteName: 'Tabs',
@@ -533,6 +535,15 @@ const linking: LinkingOptions<RootStackParamList> = {
   */
   async getInitialURL() {
     return (await Linking.getInitialURL()) ?? (await initialNotificationUrl());
+  },
+
+  /*
+    ⚠ Audit 360, SEC-9 (1 Oct). A malformed or oversized query is dropped
+    before the library parses it — its decoder is super-linear on malformed
+    percent-encoding, and a crafted link hung the app. `safe-link-path.ts`.
+  */
+  getStateFromPath(path, options) {
+    return parseLinkPath(safeLinkPath(path), options);
   },
 
   subscribe(listener) {
@@ -1351,13 +1362,31 @@ function AdvisorStack({ onSignOut }: Session) {
  * the key the mounted screen would keep its state — a thread, a record, an
  * odometer confirmation — under the new car's name.
  */
-function withCar(
-  route: { params?: { vehicleId?: string } | undefined },
+export function withCar(
+  route: { key?: string; params?: { vehicleId?: string } | undefined },
   navigation: StackNavigation,
   title: string,
   render: (vehicleId: string) => ReactElement
 ) {
   const vehicleId = route.params?.vehicleId;
+
+  /*
+    ⚠ 1 Oct · audit 360, TL-1 · a cold-start link names the car one route up.
+
+    `carLinks` has an `initialRouteName`, so `tappet://vehicle/<id>/recalls`
+    from a cold start seeds the Car tab as `[VehicleDetail, RecallDetail { id }]`
+    — and React Navigation seeds that root **without params**
+    (`getStateFromPath` → `routes: [{ name: initialRoute }, route]`). The root
+    then drew `FirstCar`, which opened `cars[0]` with `pop: true` about a second
+    later: the recall the owner tapped for was popped away, and on a two-car
+    garage replaced by the *other* car's page. The root adopts the car the
+    route above it names, in place (`setParams`, no navigation), so the top
+    route stays where the tap put it and Back lands on that car.
+  */
+  const linked = vehicleId ? undefined : carNamedAbove(navigation, route.key);
+  if (linked) {
+    return <AdoptCar onAdopt={() => navigation.setParams({ vehicleId: linked } as never)} />;
+  }
 
   if (!vehicleId) {
     /*
@@ -1386,6 +1415,31 @@ function withCar(
   }
 
   return <Fragment key={vehicleId}>{render(vehicleId)}</Fragment>;
+}
+
+/** The car a route above this one in the same stack names, nearest first. */
+export function carNamedAbove(
+  navigation: { getState?: () => { routes: ReadonlyArray<{ key: string; params?: object }> } | undefined },
+  routeKey: string | undefined
+): string | undefined {
+  const routes = navigation.getState?.()?.routes ?? [];
+  const at = routes.findIndex((r) => r.key === routeKey);
+  if (at === -1) return undefined;
+  for (let i = routes.length - 1; i > at; i--) {
+    const id = (routes[i].params as { vehicleId?: unknown } | undefined)?.vehicleId;
+    if (typeof id === 'string' && id.length > 0) return id;
+  }
+  return undefined;
+}
+
+/** Hands the root its car once, after mount — a render must not navigate. */
+function AdoptCar({ onAdopt }: { onAdopt: () => void }) {
+  useEffect(() => {
+    onAdopt();
+    // Once per mount: the params change re-renders `withCar` with the car.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
 }
 
 function serviceScreen(onSignOut: () => void) {

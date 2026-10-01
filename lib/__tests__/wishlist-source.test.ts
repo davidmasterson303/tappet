@@ -93,7 +93,10 @@ describe('the route', () => {
 
     const res = await POST(post({ ...ITEM, source: 'suggestions' }));
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { error: string }).error).toMatch(/dossier, consultant, manual/);
+    const body = (await res.json()) as { error: string; accepted: string[] };
+    // The choices are named for the client; the sentence is for the owner (audit 360, COPY-5).
+    expect(body.accepted).toEqual(['dossier', 'consultant', 'manual']);
+    expect(body.error).not.toMatch(/dossier|consultant/);
     expect(fake.inserts).toEqual([]);
   });
 

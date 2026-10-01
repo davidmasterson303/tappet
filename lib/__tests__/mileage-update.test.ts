@@ -17,7 +17,9 @@
  *      server that only checks the direction of travel.
  */
 
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { correctionAction, odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 
 describe('validateMileageUpdate', () => {
   it('accepts a reading that moved forward', () => {
@@ -146,5 +148,46 @@ describe('validateMileageUpdate', () => {
       expect(decision.message).toEqual(expect.any(String));
       expect(decision.message!.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('correctionAction — the answer a refusal can take (audit 360, TL-3)', () => {
+  it('answers the two relative refusals, which the owner may overrule', () => {
+    const backwards = validateMileageUpdate({ current: 166_000, next: 66_000 });
+    const jump = validateMileageUpdate({ current: 20_000, next: 160_000 });
+    expect(correctionAction(backwards.reason)).toBe('Yes, correct it');
+    expect(correctionAction(jump.reason)).toBe('The reading is right');
+    // And the answer is accepted: the flag is what the phone now sends.
+    expect(validateMileageUpdate({ current: 166_000, next: 66_000, isCorrection: true }).ok).toBe(true);
+  });
+
+  it('offers nothing for a value that is wrong rather than surprising', () => {
+    expect(correctionAction(validateMileageUpdate({ current: 1, next: 3_000_000 }).reason)).toBeNull();
+    expect(correctionAction(validateMileageUpdate({ current: 1, next: 1.5 }).reason)).toBeNull();
+    expect(correctionAction(undefined)).toBeNull();
+  });
+});
+
+describe('odometerReading — 0 is no reading (audit 360, TL-5)', () => {
+  it('is a positive whole number or null', () => {
+    expect(odometerReading(123_000)).toBe(123_000);
+    expect(odometerReading(0)).toBeNull();
+    expect(odometerReading(null)).toBeNull();
+    expect(odometerReading(undefined)).toBeNull();
+    expect(odometerReading(-5)).toBeNull();
+    expect(odometerReading('66000')).toBeNull();
+  });
+
+  it('lets the first real reading after a stored 0 through', () => {
+    // The shape the PATCH route now passes: no 100,000-mile "jump" from zero.
+    expect(validateMileageUpdate({ current: odometerReading(0), next: 123_000 }).ok).toBe(true);
+    // Anti-vacuous: from 0 taken as a reading, the same value is refused.
+    expect(validateMileageUpdate({ current: 0, next: 123_000 }).reason).toBe('implausible-jump');
+  });
+
+  it('is what the PATCH route measures from', () => {
+    const route = readFileSync(join(__dirname, '..', '..', 'app', 'api', 'v1', 'vehicles', 'route.ts'), 'utf8');
+    expect(route).toMatch(/current: odometerReading\(vehicle\.current_mileage\)/);
+    expect(route).not.toMatch(/current: vehicle\.current_mileage \?\? 0/);
   });
 });

@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, ApiRequestError } from './client';
 import type { DeletionCounts } from '@tappet/core/account-deletion';
 
 /**
@@ -43,19 +43,29 @@ export interface AccountSubscription {
 /**
  * What the delete screen needs to know before it asks.
  *
- * Deliberately fails to `live: false` on a network error rather than throwing:
- * the account screen's job is deletion, and blocking it because a secondary
- * read failed would obstruct the one flow Apple requires to work. The tradeoff
- * is stated where it is made — see `AccountScreen`.
+ * Never throws: the account screen's job is deletion, and blocking it because
+ * a secondary read failed would obstruct the one flow Apple requires to work.
+ *
+ * ⚠ Audit 360, LEGAL-15 (1 Oct). A failed read used to resolve to
+ * `live: false` — "no subscription" — so the billing warning vanished exactly
+ * when the phone could not say, while the server's own rule on the same
+ * question is the opposite (`app/api/v1/account/route.ts` answers
+ * `live: true, certain: false` when it cannot read). The notice is a
+ * sentence, not a block, so warning costs a non-subscriber one confusing line
+ * and withholding it costs a subscriber a charge they cannot stop. The phone
+ * now fails the way the server does. `certain: false` keeps the Subscription
+ * row on its neutral name (`subscriptionStatusLine` returns null for it).
  */
+export const SUBSCRIPTION_UNREAD: AccountSubscription = { live: true, certain: false };
+
 export async function getSubscription(): Promise<AccountSubscription> {
   try {
     const response = await apiRequest<{ subscription?: AccountSubscription }>('/account', {
       method: 'GET',
     });
-    return response.subscription ?? { live: false, certain: false };
+    return response.subscription ?? SUBSCRIPTION_UNREAD;
   } catch {
-    return { live: false, certain: false };
+    return SUBSCRIPTION_UNREAD;
   }
 }
 
@@ -71,13 +81,49 @@ export async function getSubscription(): Promise<AccountSubscription> {
  * routes write to be shown.
  */
 export async function deleteAccount(): Promise<DeleteAccountResult> {
-  const response = await apiRequest<{ success: boolean; deleted?: DeletionCounts }>('/account', {
-    method: 'DELETE',
-  });
+  let response: { success: boolean; deleted?: DeletionCounts };
+  try {
+    response = await apiRequest<{ success: boolean; deleted?: DeletionCounts }>('/account', {
+      method: 'DELETE',
+      timeoutMs: DELETE_TIMEOUT_MS,
+    });
+  } catch (error) {
+    /*
+      ⚠ 1 Oct · audit 360, TL-7 · a deletion whose answer was lost.
+
+      The purge is inline — every object under every car, then the auth user
+      — and an account with a few cars and receipts can outlive any bound.
+      At the default 20 s the phone said "did not answer", kept the session,
+      and left the owner signed in to an account that no longer existed,
+      every screen answering "could not confirm who you are". So a lost
+      answer asks: a 401 for the account means it is gone, and the caller
+      signs out as it would on success. Anything else is the original error.
+    */
+    if (error instanceof ApiRequestError && (error.kind === 'timeout' || error.kind === 'offline')) {
+      if (await accountIsGone()) return { deleted: { vehicles: 0, storageObjects: 0 } };
+    }
+    throw error;
+  }
 
   return {
     // A successful delete with no counts is possible — an account with nothing
     // in it — and is not an error. `describeDeletion` handles the zero case.
     deleted: response.deleted ?? { vehicles: 0, storageObjects: 0 },
   };
+}
+
+/**
+ * Longer than any purge measured, and well inside the phone's patience for
+ * the one irreversible act it performs (audit 360, TL-7).
+ */
+export const DELETE_TIMEOUT_MS = 90_000;
+
+/** Whether the server no longer knows this account — a 401 to the read. */
+async function accountIsGone(): Promise<boolean> {
+  try {
+    await apiRequest('/account', { method: 'GET' });
+    return false;
+  } catch (probe) {
+    return probe instanceof ApiRequestError && probe.status === 401;
+  }
 }

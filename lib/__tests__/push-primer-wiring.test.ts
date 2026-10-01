@@ -103,7 +103,60 @@ describe('the permission prompt is no longer raised uninvited', () => {
     // The vehicle count is why the rule lives with the car at all.
     expect(source).toMatch(/vehicleCount/);
     // And the hub passes it a real count, never zero-while-loading.
-    expect(code(HUB)).toMatch(/usePushPrimer\(state\.status === 'ok' \? [^:]+ : null\)/);
+    // (UX-16: a second argument, the hold, may follow the count.)
+    expect(code(HUB)).toMatch(/usePushPrimer\(\s*state\.status === 'ok' \? [^:]+ : null\s*[,)]/);
+  });
+
+  it('the hub asks one thing at a time (audit 360, UX-16)', () => {
+    /*
+      The primer, iOS's dialog and the health score's sheet stacked on the
+      first open of a researched car. The hub holds the primer while the
+      score's sheet is wanted or this visit's research runs, and the sheet
+      waits for the primer and for the system dialog it raises.
+      `usePushPrimer.test.tsx` and `VehicleDetailScreen.test.tsx` hold the
+      behaviour; this holds the wiring the behaviour depends on.
+    */
+    const hub = code(HUB);
+    const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
+    expect(call).toContain('research.consentNeeded');
+    // Anti-vacuous: the primer is asked after the runner exists, or it could not read it.
+    expect(hub.indexOf('usePushPrimer(')).toBeGreaterThan(hub.indexOf('useResearchRunner('));
+    expect(code(HOOK)).toMatch(/hold = false/);
+  });
+
+  it('both asks present through one coordinator, only while the page is focused (audit 360, UX-19 / UX-20)', () => {
+    /*
+      A *Not now* on the score's sheet raised the primer in the next render,
+      and both asks could rise over another tab. Each Modal's \`visible\` is now
+      the coordinator's answer, never its own state: \`useAskTurns\` presents
+      one at a time, after the last has left, and only while focused. The
+      behaviour is held by \`useAskTurns.test.tsx\` and the hub's suite; this
+      holds the wiring — a \`visible={primer.open}\` put back would pass both.
+    */
+    const hub = code(HUB);
+    expect(hub).toMatch(/<PushPrimer[^>]*visible=\{asks\.presenting === 'primer'\}/);
+    expect(hub).toMatch(/<AiConsentSheet[^>]*visible=\{asks\.presenting === 'score'\}/);
+    expect(hub).toMatch(/<PushPrimer[^>]*onDismiss=\{asks\.dismissed\}/);
+    expect(hub).toMatch(/<AiConsentSheet[^>]*onDismiss=\{asks\.dismissed\}/);
+    // The sheet still waits for iOS's own dialog — and (UX-23) for an AI answer read since the page came back.
+    expect(hub).toMatch(/\['score', research\.consentNeeded && aiConsentFresh && !primer\.priming\]/);
+    // Focus gates the coordinator and the primer's latch.
+    const turns = hub.slice(hub.indexOf('useAskTurns({'), hub.indexOf('useAskTurns({') + 200);
+    expect(turns).toMatch(/focused/);
+    const call = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf('usePushPrimer(') + 300);
+    expect(call).toContain('!focused');
+    /*
+      UX-24: the primer's eligibility is read again on return, so the hook is
+      told whether the page is in view — not only held while it is not. The
+      call ends at the first \`);\` after it.
+    */
+    const fullCall = hub.slice(hub.indexOf('usePushPrimer('), hub.indexOf(');', hub.indexOf('usePushPrimer(')));
+    expect(fullCall).toMatch(/,\s*focused\s*$/);
+    expect(fullCall).toContain('!aiConsentFresh');
+    expect(hub.indexOf('useScreenFocused()')).toBeGreaterThan(-1);
+    // Anti-vacuous: the old self-gated shapes are refused.
+    expect(hub).not.toMatch(/visible=\{primer\.open\}/);
+    expect(hub).not.toMatch(/visible=\{research\.consentNeeded/);
   });
 
   it('accepting the primer is what raises the system prompt', () => {

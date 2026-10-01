@@ -1,6 +1,7 @@
 import { API_BASE_URL, API_PREFIX } from '../config';
 import { getAccessToken } from '../auth/session';
 import { retryCannotHelp } from '@tappet/core/ai/advisor-failure';
+import { customerSentence } from '@tappet/core/customer-copy';
 
 /**
  * The only way this app talks to Tappet.
@@ -187,6 +188,9 @@ interface RequestOptions {
 
 /** Reads are quick or something is wrong. */
 const DEFAULT_TIMEOUT_MS = 20_000;
+
+/** What an HTTP failure says when the server sent no customer sentence. */
+const SERVER_FALLBACK = 'Tappet could not complete that. Try again in a moment.';
 
 import { fixtureFor, fixtureHolds } from '../dev/fixtures';
 
@@ -459,8 +463,10 @@ async function performRequest<T>(path: string, options: RequestOptions = {}): Pr
       */
       cause: raw ? raw.slice(0, 300) : undefined,
       // The server's own message when it sent one — those are written to be
-      // shown and are careful not to leak whether a resource exists.
-      message: typeof payload?.error === 'string' ? payload.error : 'Tappet could not complete that. Try again in a moment.',
+      // shown and are careful not to leak whether a resource exists. Unless it
+      // reads as developer-speak ("Internal server error", "Missing
+      // vehicleId"), which no screen may show (audit 360, COPY-5).
+      message: customerSentence(payload?.error, SERVER_FALLBACK),
       // And its reason, when it sent one. See `ApiRequestError.code`.
       code: typeof payload?.code === 'string' ? payload.code : undefined,
     });
@@ -536,10 +542,7 @@ function sendMultipart<T>({
             kind: 'http',
             elapsedMs,
             cause: raw ? raw.slice(0, 300) : undefined,
-            message:
-              typeof parsed?.error === 'string'
-                ? parsed.error
-                : 'Tappet could not complete that. Try again in a moment.',
+            message: customerSentence(parsed?.error, SERVER_FALLBACK),
             // The multipart path is the invoice upload, which is gated too.
             code: typeof parsed?.code === 'string' ? parsed.code : undefined,
           })

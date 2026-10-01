@@ -160,12 +160,12 @@ describe('the model paths that went behind the gate', () => {
   });
 
   it('every caller of the performance recompute hands it the account that is spending', () => {
-    // Three callers, one parameter — the reason the gate lives inside. The
+    // Two callers, one parameter — the reason the gate lives inside. The
     // invoice's is `fileStoredInvoice` since 27 Sep, the filing both the
-    // single-file and the multi-page upload go through.
+    // single-file and the multi-page upload go through. Mark-done was a
+    // third until LEGAL-11 (1 Oct): it could not read the owner's AI answer.
     const callers = [
       read('app', 'api', 'v1', 'performance-stats', 'route.ts'),
-      read('app', 'api', 'v1', 'wishlist', 'complete', 'route.ts'),
       bodyOf(ACTIONS, 'fileStoredInvoice'),
     ];
     for (const source of callers) {

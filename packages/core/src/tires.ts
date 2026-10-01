@@ -28,9 +28,10 @@
  * which is what `TAPPET WILL NOT GUESS THIS` says on screen.
  *
  * `IntervalSource` records *who* said it. Only an owner-entered interval —
- * read off their own warranty card — licenses the sentence *"you are currently
- * outside your warranty's terms"*, because only the card can source a claim
- * about the warranty. `'vehicle'` exists for the day Tappet holds a
+ * read off their own warranty card — licenses the push to say the set is *"past
+ * the interval you entered from your warranty card"*. Never that the owner is
+ * outside the warranty's terms: that is a conclusion about a contract the app
+ * has not seen (audit 360, LEGAL-9). `'vehicle'` exists for the day Tappet holds a
  * manufacturer's own figure; nothing writes it yet, and a `'vehicle'` interval
  * would draw the overrun but never the warranty sentence.
  *
@@ -75,7 +76,7 @@ export type TireProvenance = 'invoice' | 'typed';
  * Who stated the rotation interval.
  *
  * `'owner'` — typed from the warranty card. The only source that licenses
- * "outside your warranty's terms".
+ * naming the warranty card in a push.
  * `'vehicle'` — a figure Tappet holds for the vehicle itself. ⚠ Nothing
  * writes this yet; the CHECK constraint carries it so a third meaning cannot
  * arrive unannounced.

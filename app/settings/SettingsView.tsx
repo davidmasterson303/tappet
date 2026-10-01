@@ -112,6 +112,8 @@ export interface SettingsInitial {
   distanceUnit: DistanceUnit;
   vehicleCount: number;
   hasLiveSubscription: boolean;
+  /** The subscription was read, not assumed — see `settingsInitialFrom` (COPY-20). */
+  subscriptionCertain?: boolean;
 }
 
 /**
@@ -325,7 +327,7 @@ export function SettingsView({
               tone="critical"
             >
               <p className="mb-4 max-w-prose text-sm text-muted-foreground">
-                This deletes your vehicles, maintenance history, uploaded invoices and advisor
+                This deletes your cars, service history, invoices and advisor
                 conversations. It cannot be undone, and we cannot recover it for you afterwards.
               </p>
               {/*
@@ -356,6 +358,7 @@ export function SettingsView({
         onOpenChange={setDeleteOpen}
         vehicleCount={vehicleCount}
         hasLiveSubscription={hasLiveSubscription}
+        subscriptionCertain={initial.subscriptionCertain === true}
       />
     </SignedInShell>
   );

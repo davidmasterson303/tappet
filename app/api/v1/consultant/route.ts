@@ -1,7 +1,7 @@
 import { logger } from '@tappet/core/logger';
 import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { aiCallerKey, checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { retryCannotHelp, type AdvisorFailureCode } from '@tappet/core/ai/advisor-failure';
@@ -11,6 +11,15 @@ import {
   getConsultantSession,
   generateSessionTitle,
 } from '@/app/actions';
+import {
+  FIRST_QUESTION_CANDIDATES,
+  REPLAY_WINDOW_MS,
+  parseClientTurnId,
+  replayedAnswer,
+  resentFirstQuestion,
+} from '@/lib/consultant-replay';
+import { getServiceRoleClient } from '@/lib/supabase';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +60,8 @@ interface ConsultantRequestBody {
   sessionId?: unknown;
   messageHistory?: unknown;
   attachedDocuments?: unknown;
+  /** The phone's id for this question (build 3) — `lib/consultant-replay.ts`. */
+  clientTurnId?: unknown;
 }
 
 /** Keeps a single message from becoming an unbounded prompt. */
@@ -103,12 +114,20 @@ const FAILURE_STATUS: Record<AdvisorFailureCode, number> = {
 export async function POST(request: NextRequest): Promise<Response> {
   logger.info('API:CONSULTANT', 'Consultant message received');
 
+  /*
+    The address limiter every route has, ahead of authentication — the
+    model's own 'ai' bucket waits until the caller is known (SEC-6, below),
+    so this is what bounds unauthenticated traffic.
+  */
+  const addressLimit = await checkRateLimit(getClientIdentifier(request), 'default');
+  if (!addressLimit.allowed) return rateLimitResponse(addressLimit);
+
   let body: ConsultantRequestBody;
   try {
     body = (await request.json()) as ConsultantRequestBody;
   } catch {
     return Response.json(
-      { success: false, error: 'Invalid JSON body' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
@@ -118,14 +137,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   if (!vehicleId) {
     return Response.json(
-      { success: false, error: 'Missing vehicleId' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
 
   if (!message) {
     return Response.json(
-      { success: false, error: 'Missing message' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
@@ -135,19 +154,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: false, error: `Message must be under ${MAX_MESSAGE_LENGTH} characters` } as ApiResponse,
       { status: 400 }
     );
-  }
-
-  /*
-    Keyed by vehicle rather than by client address, matching the action's own
-    limiter so the two cannot be used to double an allowance by alternating
-    between them. The 'ai' tier, because this call spends Gemini tokens — the
-    unbounded-cost bug recorded against `performance-stats`, where demo
-    vehicles reached a model call on every anonymous page view.
-  */
-  const rateLimit = await checkRateLimit(`consultant:${vehicleId}`, 'ai');
-  if (!rateLimit.allowed) {
-    logger.warn('API:CONSULTANT', 'Rate limit exceeded', { vehicleId });
-    return rateLimitResponse(rateLimit);
   }
 
   try {
@@ -168,11 +174,43 @@ export async function POST(request: NextRequest): Promise<Response> {
       return access.response;
     }
 
+    /*
+      ⚠ Audit 360, SEC-6 (1 Oct) · after authorization, keyed on the caller.
+      This was `consultant:${vehicleId}` and ran first, so ten unauthenticated
+      POSTs a minute with anybody's vehicle id locked that owner's advisor.
+      The action uses the same key, so alternating between the two still
+      cannot double an allowance. 'ai' tier: this call spends Gemini tokens.
+
+      ⚠ TL-19 (round 3) · its own key, not the action's. With one key both
+      calls spent the same bucket, so every message cost two of the ten and
+      the real allowance was five a minute. Now the route's bucket counts
+      requests (replays and thread starts included) and the action's counts
+      model calls: ten messages a minute each way, and the route — which
+      counts at least as many — is the one that answers the phone's 429.
+      Alternating with the action still cannot double the model's
+      allowance: every model call is counted in the action's bucket.
+    */
+    const rateLimit = await checkRateLimit(
+      aiCallerKey('consultant-route', {
+        userId: access.userId,
+        visitor: access.userId ? null : getClientIdentifier(request, 'ai'),
+        vehicleId,
+      }),
+      'ai'
+    );
+    if (!rateLimit.allowed) {
+      logger.warn('API:CONSULTANT', 'Rate limit exceeded', { vehicleId });
+      return rateLimitResponse(rateLimit);
+    }
+
+    const clientTurnId = parseClientTurnId(body.clientTurnId);
     const thread = await resolveThread({
       vehicleId,
       isDemoVehicle,
       sessionId: typeof body.sessionId === 'string' ? body.sessionId : null,
       message,
+      attachedDocuments: body.attachedDocuments,
+      clientTurnId,
       // Bounded: the demo's history is the caller's, and the prompt is paid for.
       clientHistory: Array.isArray(body.messageHistory) ? body.messageHistory.slice(-MAX_DEMO_HISTORY) : [],
     });
@@ -184,11 +222,36 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
+    /*
+      ⚠ 1 Oct · audit 360, TL-6 · the same question, sent again because the
+      phone stopped waiting for an answer this thread already stored. Answered
+      from the thread: no second model call, no second pair of turns.
+      ⚠ TL-12: the same *words* are not the same question — "yes" twice is
+      two answers. A resend is named by the phone's turn id (build 3) or, for
+      build 2, by an answer slower than the phone waits.
+      `lib/consultant-replay.ts`.
+    */
+    const replay = isDemoVehicle
+      ? null
+      : replayedAnswer(thread.messageHistory, message, body.attachedDocuments, clientTurnId);
+    if (replay) {
+      logger.info('API:CONSULTANT', 'Answered a repeated question from the thread', { vehicleId });
+      return Response.json({
+        success: true,
+        sessionId: thread.sessionId,
+        response: replay.response,
+        contextKinds: [],
+        wishlistActions: replay.wishlistActions,
+        ...(replay.estimate ? { estimate: replay.estimate } : {}),
+      } as ApiResponse);
+    }
+
     const result = await sendConsultantMessage({
       vehicleId,
       sessionId: thread.sessionId,
       message,
       messageHistory: thread.messageHistory,
+      clientTurnId,
       // Each attachment is an inline image part in the prompt; the count is ours to cap, not the caller's.
       attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments.slice(0, MAX_ATTACHMENTS) : undefined,
     });
@@ -292,7 +355,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:CONSULTANT', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to answer' } as ApiResponse,
+      { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' } as ApiResponse,
       { status: 500 }
     );
   }
@@ -325,12 +388,16 @@ async function resolveThread({
   isDemoVehicle,
   sessionId,
   message,
+  attachedDocuments,
+  clientTurnId,
   clientHistory,
 }: {
   vehicleId: string;
   isDemoVehicle: boolean;
   sessionId: string | null;
   message: string;
+  attachedDocuments: unknown;
+  clientTurnId: string | null;
   clientHistory: unknown[];
 }): Promise<ThreadResult> {
   if (isDemoVehicle) {
@@ -361,10 +428,36 @@ async function resolveThread({
     };
   }
 
+  /*
+    ⚠ Audit 360, TL-16 (round 3) · the first question, sent again. Its answer
+    carried the thread's id, so a lost answer leaves the phone nothing to
+    name — and this made a second thread. A thread on this car holding only
+    this question, answered in a way the replay rule says was lost, is the
+    one. Asked before a thread is made; a failed read makes one, as before.
+    `lib/consultant-replay.ts`.
+  */
+  try {
+    const { data: recent, error } = await getServiceRoleClient()
+      .from('consultant_conversations')
+      .select('id, message_history, created_at')
+      .eq('vehicle_id', vehicleId)
+      .gte('created_at', new Date(Date.now() - REPLAY_WINDOW_MS).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(FIRST_QUESTION_CANDIDATES);
+    if (error) throw new Error(error.message);
+    const resent = resentFirstQuestion(recent ?? [], { message, attachedDocuments, clientTurnId });
+    if (resent) return { ok: true, ...resent };
+  } catch (error) {
+    logger.warn('API:CONSULTANT', 'Could not look for a resent first question', {
+      vehicleId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const created = await createConsultantSession(vehicleId, await generateSessionTitle(message));
 
   if (!created.success || !created.sessionId) {
-    return { ok: false, error: 'Failed to start a conversation', status: 500 };
+    return { ok: false, error: 'The advisor could not start that conversation. Your question is still here — try again.', status: 500 };
   }
 
   return { ok: true, sessionId: created.sessionId, messageHistory: [] };

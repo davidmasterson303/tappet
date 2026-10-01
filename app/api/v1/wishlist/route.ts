@@ -4,6 +4,8 @@ import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { isWishlistSource, WISHLIST_SOURCES } from '@tappet/core/wishlist-source';
+import { wishlistFieldProblem } from '@tappet/core/input-bounds';
+import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     const vehicleId = searchParams.get('vehicleId');
 
     if (!vehicleId) {
-      return NextResponse.json({ error: 'vehicleId is required' }, { status: 400 });
+      return NextResponse.json({ error: UNREADABLE_REQUEST }, { status: 400 });
     }
 
     /*
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ wishlistItems });
   } catch (error) {
     logger.error('WISHLIST_API:GET_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: couldNotLoad('Needs') }, { status: 500 });
   }
 }
 
@@ -101,11 +103,29 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!vehicleId || !itemType || !itemName || !itemIdentifier) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: UNREADABLE_REQUEST }, { status: 400 });
     }
 
     if (!['issue', 'maintenance', 'modification'].includes(itemType)) {
-      return NextResponse.json({ error: 'Invalid item type' }, { status: 400 });
+      return NextResponse.json({ error: UNREADABLE_REQUEST }, { status: 400 });
+    }
+
+    /*
+      ⚠ Audit 360, SEC-2 (1 Oct). Stored whole until now, and each of these
+      reaches the advisor's system prompt on every turn. The limits sit far
+      above anything the phone sends (often the dossier's own sentence sent
+      back); they stop an abuse, not an owner. `@tappet/core/input-bounds`.
+    */
+    const fieldTrouble = wishlistFieldProblem({
+      itemName,
+      itemIdentifier,
+      category,
+      description,
+      notes,
+      sourceData,
+    });
+    if (fieldTrouble) {
+      return NextResponse.json({ error: fieldTrouble }, { status: 422 });
     }
 
     /*
@@ -117,10 +137,14 @@ export async function POST(request: NextRequest) {
       and Build ladder produced on every add, for weeks, with nothing in the
       message to say why. `@tappet/core/wishlist-source` carries the words;
       the client sends one of them or is told which it may send.
+
+      1 Oct, audit 360 COPY-5: told in `accepted`, not in the sentence — the
+      phone shows `error` in an alert, and "one of dossier, consultant,
+      manual" there is our vocabulary, not the owner's.
     */
     if (source !== undefined && !isWishlistSource(source)) {
       return NextResponse.json(
-        { error: `Unknown source — one of ${WISHLIST_SOURCES.join(', ')}` },
+        { error: UNREADABLE_REQUEST, accepted: WISHLIST_SOURCES },
         { status: 400 }
       );
     }
@@ -178,7 +202,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ wishlistItem }, { status: 201 });
   } catch (error) {
     logger.error('WISHLIST_API:POST_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Tappet could not add that to Needs just now. Try again in a moment.' }, { status: 500 });
   }
 }
 
@@ -213,6 +237,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('WISHLIST_API:DELETE_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Tappet could not remove that just now. It is still on the list — try again in a moment.' }, { status: 500 });
   }
 }

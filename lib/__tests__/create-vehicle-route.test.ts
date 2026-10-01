@@ -36,6 +36,18 @@ function code(source: string): string {
 const route = code(readFileSync(join(ROOT, 'app', 'api', 'v1', 'vehicles', 'route.ts'), 'utf8'));
 const post = route.slice(route.indexOf('export async function POST'));
 
+/**
+ * The vehicles insert itself — from the `insert` statement to its select.
+ * Anchored on the statement rather than the first `.from('vehicles')`: since
+ * TL-13 (1 Oct) a described car's resend is looked up in `vehicles` first,
+ * with the same select, and slicing from that read gave an empty insert.
+ */
+function vehiclesInsert(src: string): string {
+  const start = src.indexOf('const { data: vehicle, error } = await client');
+  if (start < 0) return '';
+  return src.slice(start, src.indexOf(".select('id,year,make,model')", start));
+}
+
 describe('POST /api/v1/vehicles', () => {
   it('exists at all — the gap that blocked mobile-first', () => {
     expect(route).toMatch(/export async function POST/);
@@ -125,7 +137,7 @@ describe('POST /api/v1/vehicles', () => {
       23502) said otherwise. Every case here reads source, as the rest of
       this file does; the applied state of the migration is the probe.
     */
-    const insert = post.slice(post.indexOf(".from('vehicles')"), post.indexOf(".select('id,year,make,model')"));
+    const insert = vehiclesInsert(post);
 
     it('names the column in the insert at all', () => {
       expect(insert).toMatch(/\bvin:/);
@@ -148,8 +160,9 @@ describe('POST /api/v1/vehicles', () => {
     });
 
     it('answers a taken VIN with 409 and a reason, not a 500', () => {
-      expect(post).toMatch(/error\?\.code === '23505'[\s\S]{0,400}status:\s*409/);
-      expect(post).toMatch(/already in a garage/);
+      // The reason is `explainVinConflict`'s (audit 360, SEC-1) — whose car
+      // it is decides the sentence; `vin-conflict.test.ts` carries both.
+      expect(post).toMatch(/error\?\.code === '23505'[\s\S]{0,900}explainVinConflict[\s\S]{0,200}status:\s*409/);
     });
 
     it('the migration that lets the row exist is on disk, and the first schema shows why it is needed', () => {
@@ -164,7 +177,8 @@ describe('POST /api/v1/vehicles', () => {
       // Anti-vacuous: the constraint this undoes is really in the first file.
       expect(schema).toMatch(/vin text UNIQUE NOT NULL/);
       expect(migration).toMatch(/ALTER TABLE vehicles ALTER COLUMN vin DROP NOT NULL;/);
-      // And UNIQUE is left alone — one real VIN is still one car.
+      // UNIQUE is left alone *here* — the key's scope moves to (user_id, vin)
+      // in its own file, 20261001120000 (audit 360, SEC-1).
       expect(migration).not.toMatch(/DROP CONSTRAINT/i);
     });
 
@@ -195,7 +209,7 @@ describe('POST /api/v1/vehicles', () => {
       gave. Both inserts name the column as null now; the migration drops
       the default so the next insert that forgets cannot acquire one.
     */
-    const insert = post.slice(post.indexOf(".from('vehicles')"), post.indexOf(".select('id,year,make,model')"));
+    const insert = vehiclesInsert(post);
 
     it('the phone route inserts null, never a use nobody stated', () => {
       expect(insert).toMatch(/vehicle_status:\s*null,/);

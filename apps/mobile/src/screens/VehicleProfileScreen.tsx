@@ -16,11 +16,13 @@ import Field from '../components/Field';
 import Icon from '../components/Icon';
 import ListGroup from '../components/ListGroup';
 import Working from '../components/Working';
+import { usePushedFormKeyboardOffset } from '../components/keyboard-offset';
+import { useConfirmDiscard } from '../navigation/useConfirmDiscard';
 import { apiRequest, ApiRequestError } from '../api/client';
 import type { InvoiceFile } from '../api/documents';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/photos';
 import { USAGE_PROFILES, type UsageProfile } from '@tappet/core/usage-profile';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { correctionAction, odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { agoLabel, isOwnerPhoto } from './VehicleDetailScreen';
 import {
   MINDEDNESS,
@@ -124,6 +126,24 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
   const [photoBusy, setPhotoBusy] = useState<'uploading' | 'removing' | null>(null);
   const [photoProblem, setPhotoProblem] = useState<{ headline: string; body: string } | null>(null);
 
+  /*
+    UX-3 / UX-2 (audit 360, 1 Oct): a back gesture asks before it drops an
+    unsaved answer, and the form's foot clears the keyboard under the header.
+    "Changed" is the save's own test, field by field, so the question is
+    asked exactly when SAVE would have sent something.
+  */
+  const dirty =
+    state.kind === 'loaded' &&
+    answers !== null &&
+    ((answers.currentMileage.replace(/[^0-9]/g, '') !== '' &&
+      answers.currentMileage.replace(/[^0-9]/g, '') !== state.initial.currentMileage) ||
+      answers.avgMilesPerMonth !== state.initial.avgMilesPerMonth ||
+      answers.vehicleStatus !== state.initial.vehicleStatus ||
+      answers.performanceMindedness !== state.initial.performanceMindedness ||
+      answers.ownershipObjective.trim() !== state.initial.ownershipObjective.trim());
+  const releaseDiscard = useConfirmDiscard(dirty);
+  const keyboardOffset = usePushedFormKeyboardOffset();
+
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
 
@@ -143,7 +163,8 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
 
       const vehicle = body.vehicle ?? {};
       const initial: Answers = {
-        currentMileage: typeof vehicle.current_mileage === 'number' ? String(vehicle.current_mileage) : '',
+        // Audit 360, TL-5: a stored 0 is no reading — an empty field, not "0".
+        currentMileage: odometerReading(vehicle.current_mileage) === null ? '' : String(vehicle.current_mileage),
         avgMilesPerMonth:
           typeof vehicle.avg_miles_per_month === 'number' ? String(vehicle.avg_miles_per_month) : '',
         vehicleStatus:
@@ -269,7 +290,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     ]);
   }, [vehicleId, load, onSignOut]);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (isCorrection = false) => {
     if (state.kind !== 'loaded' || !answers || saving) return;
 
     /*
@@ -308,8 +329,21 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
       const check = validateMileageUpdate({
         current: state.initial.currentMileage === '' ? null : Number(state.initial.currentMileage),
         next: mileage,
+        isCorrection,
       });
       if (!check.ok) {
+        /*
+          ⚠ 1 Oct · audit 360, TL-3: the rule's question gets its answer —
+          see `correctionAction`. Without it a mistyped odometer was locked.
+        */
+        const answer = correctionAction(check.reason);
+        if (answer) {
+          Alert.alert('Check that reading', check.message ?? 'Check that reading.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: answer, onPress: () => void save(true) },
+          ]);
+          return;
+        }
         setProblem(check.message ?? 'Check that reading.');
         return;
       }
@@ -322,6 +356,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
       // "Nothing to change" is not an error worth showing — it is a no-op.
       if (Object.keys(fields).length === 0) {
         if (mileage === null) {
+          releaseDiscard();
           onSaved();
           return;
         }
@@ -336,11 +371,15 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
 
     try {
       if (mileage !== null) {
-        await apiRequest('/vehicles', { method: 'PATCH', body: { vehicleId, currentMileage: mileage } });
+        await apiRequest('/vehicles', {
+          method: 'PATCH',
+          body: { vehicleId, currentMileage: mileage, ...(isCorrection ? { isCorrection: true } : {}) },
+        });
       }
       if (Object.keys(fields).length > 0) {
         await apiRequest('/vehicles', { method: 'PATCH', body: changed });
       }
+      releaseDiscard();
       onSaved();
     } catch (error) {
         /*
@@ -371,7 +410,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     } finally {
       setSaving(false);
     }
-  }, [state, answers, saving, vehicleId, onSaved, onSignOut]);
+  }, [state, answers, saving, vehicleId, onSaved, onSignOut, releaseDiscard]);
 
   if (state.kind === 'loading') {
     /* 12 Sep: the delayed full instrument — see `Working` for the rule. */
@@ -401,6 +440,7 @@ export function VehicleProfileScreen({ vehicleId, onSignOut, onSaved, onRemove, 
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={keyboardOffset}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {problem && <AlertBanner tone="critical" headline="Not saved" body={problem} />}

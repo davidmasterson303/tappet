@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_UPLOAD, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { uploadInvoiceForCompletion } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
 
@@ -50,7 +51,7 @@ export default function CompletionDetailsDialog({
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
+      toast.error('That file is over 10 MB. Choose a smaller one.');
       return;
     }
 
@@ -63,11 +64,11 @@ export default function CompletionDetailsDialog({
         setFormData({ ...formData, invoiceUrl: result.data.url });
         toast.success('Invoice uploaded successfully');
       } else {
-        toast.error(result.error || 'Failed to upload invoice');
+        toast.error(answerSentence(result, COULD_NOT_UPLOAD));
       }
     } catch (error) {
       logger.error('COMPLETION_DIALOG:UPLOAD', error as Error);
-      toast.error('Failed to upload invoice');
+      toast.error(NO_ANSWER);
     } finally {
       setUploadingFile(false);
       if (e.target) e.target.value = '';
@@ -76,7 +77,7 @@ export default function CompletionDetailsDialog({
 
   const handleSubmit = async () => {
     if (!formData.dateCompleted) {
-      toast.error('Date completed is required');
+      toast.error('Add the date the work was done.');
       return;
     }
 
@@ -102,7 +103,7 @@ export default function CompletionDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Mark as Completed</DialogTitle>
+          <DialogTitle>Mark as done</DialogTitle>
           <DialogDescription>
             Provide details about the completed maintenance work
           </DialogDescription>
@@ -110,7 +111,7 @@ export default function CompletionDetailsDialog({
 
         <div className="space-y-4">
           <div className="p-3 bg-slate-800/50 rounded border border-info-border">
-            <p className="text-sm text-slate-400">Service Item</p>
+            <p className="text-sm text-slate-400">Service item</p>
             <p className="font-medium text-white">{serviceItem?.description}</p>
           </div>
 
@@ -129,7 +130,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="shopName">Shop Name / Technician (Optional)</Label>
+            <Label htmlFor="shopName">Shop or technician (optional)</Label>
             <Input
               id="shopName"
               placeholder="e.g., Joe's Auto Repair"
@@ -140,7 +141,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="totalCost">Total Cost (Optional)</Label>
+            <Label htmlFor="totalCost">Total cost (optional)</Label>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-slate-400">$</span>
               <Input
@@ -156,10 +157,10 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label htmlFor="notes">Work Notes (Optional)</Label>
+            <Label htmlFor="notes">Work notes (optional)</Label>
             <Textarea
               id="notes"
-              placeholder="Any additional details about the work performed..."
+              placeholder="Any additional details about the work performed…"
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
@@ -168,7 +169,7 @@ export default function CompletionDetailsDialog({
           </div>
 
           <div>
-            <Label>Invoice Attachment (Optional)</Label>
+            <Label>Invoice (optional)</Label>
             <div className="mt-2 space-y-2">
               {formData.invoiceUrl ? (
                 <div className="p-3 bg-green-500/10 border border-green-500/20 rounded flex items-center justify-between">
@@ -200,7 +201,7 @@ export default function CompletionDetailsDialog({
                 </label>
               )}
               {uploadingFile && (
-                <p className="text-xs text-slate-400">Uploading invoice...</p>
+                <p className="text-xs text-slate-400">Uploading invoice…</p>
               )}
             </div>
           </div>
@@ -219,7 +220,7 @@ export default function CompletionDetailsDialog({
             disabled={submitting || isLoading || !formData.dateCompleted}
             className="bg-green-600 hover:bg-green-700"
           >
-            {submitting || isLoading ? 'Saving...' : 'Mark as Completed'}
+            {submitting || isLoading ? 'Saving…' : 'Mark as done'}
           </Button>
         </DialogFooter>
       </DialogContent>

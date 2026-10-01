@@ -90,7 +90,7 @@ export function AdvisorWait({ vehicle, demo, uploading = null, frozen = false }:
         variant="compact"
         frozen={frozen}
         line="Answering"
-        detail={demo ? undefined : `${car ? `Your ${car}’s` : 'The car’s'} records go to the model with the question.`}
+        detail={demo ? undefined : `${car ? `Your ${car}’s` : 'The car’s'} records go to Google’s AI with the question.`}
       />
     </div>
   );

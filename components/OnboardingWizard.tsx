@@ -16,6 +16,7 @@ import { createVehicle, updateVehiclePowertrain, fetchPowertrainOptions, uploadV
 import { detectUncertainPowertrainFields } from '@tappet/core/vehicle-utils';
 import PowertrainSelector from '@/components/PowertrainSelector';
 import type { PowertrainUncertainty } from '@tappet/core/types';
+import { COULD_NOT_SAVE, UNREADABLE_PAGE_REQUEST } from '@/lib/api-error-copy';
 
 interface OnboardingWizardProps {
   vehicleData: {
@@ -150,11 +151,11 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
 
   const processPhotoFile = (file: File) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Please select a JPEG, PNG, or WebP image');
+      setError('That file is not a photo Tappet can use. Choose a JPEG, PNG or WebP image.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be under 5MB');
+      setError('That photo is over 5 MB. Choose a smaller one.');
       return;
     }
     setPhotoFile(file);
@@ -264,11 +265,11 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
   const handleNext = () => {
     if (step === 1) {
       if (!formData.color) {
-        setError('Please enter the vehicle color');
+        setError('Enter the car’s color to continue.');
         return;
       }
       if (!powertrainReady) {
-        setError('Please wait while we check available configurations...');
+        setError('Still checking which engines and transmissions this car came with. One moment.');
         return;
       }
       setError('');
@@ -280,18 +281,18 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
       const needsTransmission = !formData.transmission_type;
       const needsDrivetrain = !formData.drivetrain;
       if (needsEngine || needsTransmission || needsDrivetrain) {
-        setError('Please select all powertrain options');
+        setError('Choose the engine, the transmission and the drivetrain to continue.');
         return;
       }
     }
     const mileageStep = powertrainSkipped ? 2 : 3;
     if (step === mileageStep && (!formData.current_mileage || !formData.avg_miles_per_month)) {
-      setError('Both mileage fields are required');
+      setError('Enter the odometer reading and the average miles per month to continue.');
       return;
     }
     const ownershipStep = powertrainSkipped ? 3 : 4;
     if (step === ownershipStep && !formData.ownership_objective) {
-      setError('Please select an ownership objective');
+      setError('Choose your plans for this car to continue.');
       return;
     }
     setError('');
@@ -338,7 +339,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     });
 
     if (!result.success) {
-      setError(result.error || 'Failed to save vehicle');
+      setError(result.error || COULD_NOT_SAVE);
       setLoading(false);
       return;
     }
@@ -390,7 +391,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
 
   const handleClarificationSubmit = async () => {
     if (!vehicleId || !uncertaintyData) {
-      setError('Missing required data');
+      setError(UNREADABLE_PAGE_REQUEST);
       return;
     }
 
@@ -412,7 +413,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     }
 
     if (Object.keys(updates).length === 0) {
-      setError('Please select at least one specification');
+      setError('Choose at least one of the options above to continue.');
       setLoading(false);
       return;
     }
@@ -420,7 +421,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
     const updateResult = await updateVehiclePowertrain(vehicleId, updates as { engine_type?: string; transmission_type?: string; drivetrain?: string });
 
     if (!updateResult.success) {
-      setError(updateResult.error || 'Failed to update specifications');
+      setError(updateResult.error || COULD_NOT_SAVE);
       setLoading(false);
       return;
     }
@@ -431,22 +432,22 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
   };
 
   const getStepTitle = () => {
-    if (step === 1) return 'Confirm Vehicle Details';
-    if (!powertrainSkipped && step === 2) return 'Powertrain Selection';
-    if (step === mileageStep) return 'Driving Habits';
-    if (step === ownershipStep) return 'Ownership Objectives';
-    if (step === performanceStep) return 'Performance Mindset';
-    if (step === clarificationStep) return 'Clarify Specifications';
+    if (step === 1) return 'Confirm the car’s details';
+    if (!powertrainSkipped && step === 2) return 'Powertrain';
+    if (step === mileageStep) return 'Driving habits';
+    if (step === ownershipStep) return 'Ownership goals';
+    if (step === performanceStep) return 'Performance mindset';
+    if (step === clarificationStep) return 'Clarify specifications';
     return '';
   };
 
   const getStepDescription = () => {
     if (step === 1) return 'Verify the information we decoded from your VIN';
-    if (!powertrainSkipped && step === 2) return 'Select the factory configuration that matches your vehicle';
+    if (!powertrainSkipped && step === 2) return 'Select the factory configuration that matches your car';
     if (step === mileageStep) return 'Tell us about your typical driving patterns';
-    if (step === ownershipStep) return 'What are your plans for this vehicle?';
+    if (step === ownershipStep) return 'What are your plans for this car?';
     if (step === performanceStep) return 'How do you approach modifications and upgrades?';
-    if (step === clarificationStep) return 'Select the correct configuration for your vehicle';
+    if (step === clarificationStep) return 'Select the correct configuration for your car';
     return '';
   };
 
@@ -484,7 +485,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
           <div className="flex items-center justify-center mb-2">
             <BrandWordmark size={28} />
           </div>
-          <p className="text-white/50 text-sm">Vehicle Setup</p>
+          <p className="text-white/50 text-sm">Car setup</p>
         </div>
 
         <div className="glass-panel rounded-2xl p-5 sm:p-8">
@@ -542,10 +543,10 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                 <Input
                   value={formData.color}
                   onChange={(e) => updateFormData('color', e.target.value)}
-                  placeholder="e.g., Black, Silver, Red"
+                  placeholder="e.g., black, silver, red"
                   required
                 />
-                <p className="text-xs text-white/50 mt-1.5">This helps us find the right vehicle image</p>
+                <p className="text-xs text-white/50 mt-1.5">This helps us find the right image of the car</p>
               </div>
 
               {!powertrainReady && (
@@ -580,7 +581,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                   <div className="relative rounded-xl overflow-hidden border border-white/12 bg-black/30">
                     <img
                       src={photoPreview}
-                      alt="Vehicle preview"
+                      alt="Car preview"
                       className="w-full h-48 object-contain"
                     />
                     <button
@@ -614,7 +615,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                         <>
                           <Upload className="h-7 w-7" />
                           <span className="text-sm font-medium">Click to upload or drag and drop</span>
-                          <span className="text-xs text-white/50">JPEG, PNG, or WebP up to 5MB</span>
+                          <span className="text-xs text-white/50">JPEG, PNG or WebP, up to 5 MB</span>
                         </>
                       )}
                     </div>
@@ -658,7 +659,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                   onChange={(e) => updateFormData('current_mileage', e.target.value)}
                   required
                 />
-                <p className="text-xs text-white/50 mt-1.5">Enter total miles on your vehicle</p>
+                <p className="text-xs text-white/50 mt-1.5">Enter total miles on your car</p>
               </div>
               <div>
                 <Label className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Average Miles Per Month <span className="text-red-400">*</span></Label>
@@ -691,14 +692,14 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
           {step === ownershipStep && (
             <div className="space-y-5">
               <div>
-                <Label className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-3 block">What are your plans for this vehicle?</Label>
+                <Label className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-3 block">What are your plans for this car?</Label>
                 <RadioGroup
                   value={formData.ownership_objective}
                   onValueChange={(value) => updateFormData('ownership_objective', value)}
                   className="space-y-2"
                 >
                   {[
-                    { value: 'Keep forever', label: 'Keep forever', desc: 'This is my long-term vehicle' },
+                    { value: 'Keep forever', label: 'Keep forever', desc: 'This is my long-term car' },
                     { value: 'Sell in 1-2 years', label: 'Sell in 1-2 years', desc: 'Planning to upgrade soon' },
                     { value: 'Sell in 3-5 years', label: 'Sell in 3-5 years', desc: 'Medium-term ownership' },
                     { value: 'Undecided', label: 'Undecided', desc: "I'll see how it goes" },
@@ -724,7 +725,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
               <div>
                 <Label className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Additional context <span className="text-white/50 normal-case font-normal">(optional)</span></Label>
                 <Textarea
-                  placeholder="e.g., Planning to pass it down to my kid, Need reliability for long commute..."
+                  placeholder="e.g., planning to pass it down to my kid, need reliability for a long commute…"
                   value={formData.ownership_details}
                   onChange={(e) => updateFormData('ownership_details', e.target.value)}
                   rows={3}
@@ -789,7 +790,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
               <div>
                 <Label className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Driving Style <span className="text-white/50 normal-case font-normal">(optional)</span></Label>
                 <Textarea
-                  placeholder="e.g., Mostly highway cruising, Spirited weekend drives, Daily commuter..."
+                  placeholder="e.g., mostly highway cruising, spirited weekend drives, daily commuting…"
                   value={formData.driving_style}
                   onChange={(e) => updateFormData('driving_style', e.target.value)}
                   rows={3}
@@ -806,7 +807,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                   <span className="text-info text-xs font-bold">i</span>
                 </div>
                 <p className="text-sm text-info/80 leading-relaxed">
-                  We found multiple possible configurations for your vehicle. Please select the correct options.
+                  Tappet found more than one configuration for your car. Choose the one that matches.
                 </p>
               </div>
 
@@ -935,7 +936,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                 */
                 busyLabel="Saving your car"
               >
-                Complete Setup
+                Complete setup
               </Button>
             ) : (
               <Button
@@ -944,7 +945,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
                 busy={loading} busyLabel="Saving the specifications"
               >
-                Confirm & Continue
+                Confirm & continue
               </Button>
             )}
           </div>

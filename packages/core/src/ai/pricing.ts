@@ -55,8 +55,11 @@
  *
  * ── What this does NOT protect against ──────────────────────────────────────
  *
- * Input tokens. `decideBudget` measures output only, and `budget.ts` argues
- * that case: output bills at ~12× input on Flash, so input is single-digit
+ * Input tokens, priced. Since audit 360 (SEC-2, 1 Oct) `decideBudget` counts
+ * input at 1/`INPUT_TOKENS_PER_OUTPUT_EQUIVALENT` of an output token — a fuse
+ * against prompts inflated by an unbounded string, which this paragraph's
+ * argument assumed away. The argument still holds for what the ceiling
+ * *costs*: output bills at ~12× input on Flash, so input is single-digit
  * percent of a call's cost. Measured on the dossier — 1,054 in against 3,847
  * output-equivalent — input was under 2% of the bill. It is inside the margin
  * the Pro-rate rounding above already buys, and it is stated here rather than

@@ -3,6 +3,9 @@
 import { supabase, getServiceRoleClient, createServerActionClient, getServerClient } from '@/lib/supabase';
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
+import { recordedCost, sumRecordedCosts } from '@tappet/core/formatting-utils';
+import { monthlyMilesForPrompt, odometerForPrompt, odometerReading, validateMileageUpdate, type MileageRejection } from '@tappet/core/mileage-tracking';
+import { projectNextService } from '@/lib/next-service';
 import { threadTitle } from '@tappet/core/thread-title';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
 import {
@@ -15,14 +18,35 @@ import {
 } from '@/lib/gemini';
 import { checkDemoBudget, checkMonthlyBudget } from '@/lib/ai-budget';
 import { DEMO_UNANSWERED, demoAnswerFor } from '@tappet/core/demo-answers';
-import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
+import {
+  ADVISOR_RATE_LIMITED_MESSAGE,
+  ADVISOR_UNAVAILABLE_MESSAGE,
+  AI_RATE_LIMITED_MESSAGE,
+  RATE_LIMITED_CODE,
+} from '@tappet/core/ai/advisor-failure';
+import { CLIENT_ERROR_FALLBACK } from '@tappet/core/consultant-health';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
-import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@tappet/core/prompts';
+import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT, STOP_DRIVING_RULE } from '@tappet/core/prompts';
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
+import {
+  CAR_NOT_ON_FILE,
+  COULD_NOT_READ_INVOICE,
+  COULD_NOT_REMOVE,
+  COULD_NOT_SAVE,
+  COULD_NOT_UPLOAD,
+  NOT_SIGNED_IN,
+  UNREADABLE_PAGE_REQUEST,
+  UNREADABLE_REQUEST,
+  couldNotLoad,
+  couldNotMake,
+} from '@/lib/api-error-copy';
+import { clipForPrompt, clipQuoteItem, clipVehicleTrim, markDoneFieldProblem, QUOTE_LIMITS, quoteInputProblem, SERVICE_DESCRIPTION_MAX, vehicleNameProblem, wishlistFieldProblem } from '@tappet/core/input-bounds';
+import { serviceItemPatch, tcoPatch } from '@/lib/action-patches';
+import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
 import {
@@ -32,8 +56,10 @@ import {
   scoreInRange,
 } from '@tappet/core/model-json';
 import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
-import { CONTACT_EMAIL } from '@/lib/legal';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { explainVinConflict } from '@/lib/vin-conflict';
+import { aiCallerKey, checkRateLimit } from '@/lib/rate-limit';
+import { applyStatusCommand } from '@/lib/advisor-status-commands';
+import { removeDocumentFile } from '@/lib/document-file';
 import {
   isModDetailCacheFresh,
   modDetailCacheKey,
@@ -59,6 +85,14 @@ import {
   isInvoicePagePath,
 } from '@tappet/core/storage-paths';
 import { stitchInvoicePdf, isStitchable } from '@/lib/invoice-pdf';
+import {
+  filedInvoiceName,
+  filedUploadName,
+  filingKeyToken,
+  priorFiling,
+  priorFilingOf,
+  type ReplayClient,
+} from '@/lib/invoice-filing-replay';
 import { parseWishlistCommands, parsePerformanceCommands, parseStatusCommands, parseInvoiceFlag } from '@tappet/core/consultant-commands';
 import { parseEstimate } from '@tappet/core/consultant-estimate';
 import { ALLOWED_IMAGE_TYPES, INVOICE_PAGE_LIMIT, validateData, vehicleIdSchema, serviceItemSchema, maintenanceLineItemSchema, quoteRequestSchema } from '@tappet/core/validation';
@@ -194,51 +228,26 @@ export async function decodeVIN(vin: string) {
       });
       return {
         success: false,
-        error: 'This vehicle is already in your garage',
+        error: 'That car is already in your garage.',
         vehicleId: ownedVehicle.id,
       };
     }
 
     /*
-      Not the caller's, but somebody's. The insert would fail on the UNIQUE
-      constraint anyway, and it would fail as "Failed to save vehicle" six
-      screens later — after the whole wizard had been filled in.
+      ⚠ Audit 360, SEC-1 (1 Oct) · there is no "registered elsewhere" step.
 
-      ⚠ **No `vehicleId` here, deliberately.** That field is what the form
-      redirects on, and there is nowhere to send this person: the vehicle is
-      not theirs to open. Returning it produced the silent bounce.
-
-      ⚠ The message says a VIN is registered and nothing else. No owner, no id,
-      no "belongs to <someone>". It is a real if small disclosure — you can
-      learn a given VIN is in Tappet — and the alternative is a dead end
-      with no explanation, which is worse for the one person who has a genuine
-      reason to be here: somebody who has just bought the car.
-
-      ⚠ Which is a product limitation this does not fix. A `UNIQUE` VIN means a
-      sold car can never be added by its new owner, and the honest answer for
-      them is a support conversation rather than a self-service path. Changing
-      that is a migration and a decision about what transferring a vehicle
-      means; naming it here so the next reader knows the constraint is the
-      cause and not this branch.
+      This used to ask the whole table whether *anybody* held the VIN and,
+      if so, refuse with "This VIN is already registered to another Tappet
+      account" — before a single thing had been saved. That made the decode
+      step a free oracle for whether a given car is in Tappet, and it
+      refused a used car's buyer because its previous owner had not deleted
+      it. A VIN is now unique per owner
+      (`20261001120000_a_vin_is_unique_within_a_garage.sql`), so asking
+      about other accounts here would refuse a car the database accepts.
+      Until that migration is applied the save itself can still meet a
+      stranger's VIN; `createVehicle` answers it with the same sentence,
+      through `lib/vin-conflict.ts`.
     */
-    const { data: registeredElsewhere } = await client
-      .from('vehicles')
-      .select('id')
-      .eq('vin', vinUpper)
-      .maybeSingle();
-
-    if (registeredElsewhere) {
-      logger.warn('VIN:REGISTERED_ELSEWHERE', 'VIN belongs to another account', {
-        // Not the vehicle id: this log line is about a caller who does not own
-        // it, and an id here is one copy-paste from a support reply.
-        vinLength: vinUpper.length,
-      });
-      return {
-        success: false,
-        error: `This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
-      };
-    }
-
     logger.debug('VIN:FETCHING_NHTSA', 'Fetching NHTSA data');
     const response = await fetch(
       `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vinUpper}?format=json`
@@ -246,7 +255,8 @@ export async function decodeVIN(vin: string) {
 
     if (!response.ok) {
       logger.warn('VIN:NHTSA_FAILED', 'NHTSA API request failed', { status: response.status });
-      return { success: false, error: 'That VIN could not be read. Check the 17 characters and try again.' };
+      // COPY-15: NHTSA failing is not the VIN being wrong.
+      return { success: false, error: 'NHTSA did not answer for that VIN. Try again in a moment.' };
     }
 
     const data = await response.json();
@@ -254,7 +264,14 @@ export async function decodeVIN(vin: string) {
 
     if (!result || result.ErrorCode !== '0') {
       logger.warn('VIN:INVALID_VIN', 'Invalid VIN or not found in NHTSA', { errorCode: result?.ErrorCode });
-      return { success: false, error: 'Invalid VIN or vehicle not found in NHTSA database' };
+      /*
+        COPY-15: "Invalid VIN" was a verdict the data does not support — NHTSA
+        has no record for many very new or imported cars (CLAUDE.md §10).
+      */
+      return {
+        success: false,
+        error: 'NHTSA has no record for that VIN. Check the 17 characters — a very new or imported car may not be listed yet.',
+      };
     }
 
     logger.info('VIN:DECODE_SUCCESS', 'VIN decoded successfully', {
@@ -328,7 +345,30 @@ export async function createVehicle(vehicleData: {
     const sessionClient = createServerActionClient();
     const { data: { user } } = await sessionClient.auth.getUser();
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+      return { success: false, error: NOT_SIGNED_IN };
+    }
+
+    /*
+      Audit 360, SEC-10: the names the phone's add route already bounds
+      (SEC-2). The web came through here with none, and the health prompt
+      carries make and model on every refresh.
+    */
+    const nameProblem = vehicleNameProblem({ make: vehicleData.make, model: vehicleData.model });
+    if (nameProblem) {
+      return { success: false, error: nameProblem };
+    }
+    // TL-20's rule: a decoded trim the owner never typed is clipped, not refused.
+    const trim = typeof vehicleData.trim === 'string' ? clipVehicleTrim(vehicleData.trim) : vehicleData.trim;
+
+    /*
+      Audit 360, TL-26: the first-reading rule the phone's add route applies
+      (`current: null` — no baseline, so no backwards and no jump; the range
+      and whole-number checks still run). The wizard came through here and
+      never saw it.
+    */
+    const firstReading = validateMileageUpdate({ current: null, next: vehicleData.current_mileage });
+    if (!firstReading.ok) {
+      return { success: false, error: firstReading.message };
     }
 
     const client = getServiceRoleClient();
@@ -341,7 +381,7 @@ export async function createVehicle(vehicleData: {
         year: vehicleData.year,
         make: vehicleData.make,
         model: vehicleData.model,
-        trim: vehicleData.trim,
+        trim,
         color: vehicleData.color,
         current_mileage: vehicleData.current_mileage,
         ownership_objective: vehicleData.ownership_objective,
@@ -357,9 +397,16 @@ export async function createVehicle(vehicleData: {
       .select()
       .single();
 
+    if (vehicleError?.code === '23505') {
+      // The VIN's key — the caller's own car, or (until 20261001120000 is
+      // applied) a stranger's. `lib/vin-conflict.ts`; audit 360, SEC-1.
+      const conflict = await explainVinConflict(client, user.id, vehicleData.vin);
+      return { success: false, error: conflict.error };
+    }
+
     if (vehicleError || !vehicle) {
       logger.error('VEHICLE:INSERT_FAILED', new Error(vehicleError?.message || 'Unknown error'));
-      return { success: false, error: 'Failed to save vehicle' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     logger.info('VEHICLE:CREATED', 'Vehicle record created', {
@@ -382,7 +429,7 @@ export async function createVehicle(vehicleData: {
             year: vehicleData.year,
             make: vehicleData.make,
             model: vehicleData.model,
-            trim: vehicleData.trim,
+            trim,
           })
         ).key;
       if (key) await attachPlateToVehicle(vehicle.id, key);
@@ -457,7 +504,7 @@ export async function createVehicle(vehicleData: {
     return { success: true, vehicleId: vehicle.id };
   } catch (error) {
     logger.error('VEHICLE:CREATE_ERROR', error as Error);
-    return { success: false, error: 'Failed to create vehicle' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -584,7 +631,7 @@ export async function enrichVehicle(vehicleId: string) {
     .maybeSingle();
 
   if (!vehicle) {
-    return { success: false, error: 'Vehicle not found' };
+    return { success: false, error: CAR_NOT_ON_FILE };
   }
 
   /*
@@ -648,25 +695,24 @@ export async function enrichVehicle(vehicleId: string) {
     return { success: false, error: dossier.error };
   }
 
-  const health = await generateVehicleHealthSummary(vehicleId);
-  if (!health.success) {
-    // The dossier is the valuable half and it landed. A missing health score
-    // is a worse dashboard, not a broken vehicle.
-    logger.warn('ENRICH:HEALTH_FAILED', 'Health summary failed', {
-      vehicleId,
-      error: health.error,
-    });
-  }
+  /*
+    ⚠ Audit 360, LEGAL-1 (1 Oct): no health score here any more. This line
+    sent the owner's mileage, service log and invoice lines to Gemini the
+    moment research finished, and a server action cannot know whether this
+    browser's owner has said yes to that — the answer lives in the client
+    (`lib/ai-consent-web.ts`). The dashboard's `HealthSummary` scores the car
+    on its first view once the answer is yes, and asks when it is not.
+  */
 
   preloadAllPerformanceModifications(vehicleId).catch(() => {});
 
   logger.info('ENRICH:COMPLETE', 'Vehicle enrichment complete', {
     vehicleId,
     msTotal: Date.now() - startedAt,
-    unsupported: !!dossier.unsupported,
+    unsupported: 'unsupported' in dossier && !!dossier.unsupported,
   });
 
-  return { success: true, unsupported: !!dossier.unsupported };
+  return { success: true, unsupported: 'unsupported' in dossier && !!dossier.unsupported };
 }
 
 /**
@@ -694,18 +740,20 @@ export async function generateVehicleDossier(
   vehicleId: string,
   vehicleData: VehicleResearchFacts
 ) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`dossier:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
-
   const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
   if (!access.ok) {
     return { success: false, error: access.error };
+  }
+
+  // Cost control: every Gemini-backed path is rate limited. ⚠ Audit 360,
+  // SEC-15 (round 3): keyed on the caller, after authorization — it was
+  // `dossier:${vehicleId}` before the gate, so anyone holding a car's id
+  // could spend its owner's bucket with rejected calls.
+  {
+    const rl = await checkRateLimit(aiCallerKey('dossier', { userId: access.userId, vehicleId }), 'ai');
+    if (!rl.allowed) {
+      return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+    }
   }
 
   /*
@@ -716,7 +764,7 @@ export async function generateVehicleDossier(
   */
   const vehicle = vehicleData || null;
   if (!vehicle) {
-    return { success: false, error: 'Vehicle data is required' };
+    return { success: false, error: UNREADABLE_REQUEST };
   }
 
   /*
@@ -796,13 +844,13 @@ export async function updateVehiclePowertrain(
 
     if (error) {
       console.error('Failed to update powertrain:', error);
-      return { success: false, error: 'Failed to update powertrain specifications' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update powertrain error:', error);
-    return { success: false, error: 'An unexpected error occurred' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -827,6 +875,12 @@ export async function fetchPowertrainOptions(
     const session = await requireSession();
     if (!session.ok) {
       return { success: false, error: session.error };
+    }
+
+    // Audit 360, SEC-10: these go straight into POWERTRAIN_OPTIONS_PROMPT.
+    const nameProblem = vehicleNameProblem({ make, model, trim });
+    if (nameProblem) {
+      return { success: false, error: nameProblem };
     }
 
     /*
@@ -919,7 +973,7 @@ export async function fetchPowertrainOptions(
     return { success: true, data: result };
   } catch (error) {
     console.error('Fetch powertrain options error:', error);
-    return { success: false, error: 'Failed to fetch powertrain options' };
+    return { success: false, error: couldNotLoad('the engine and transmission options') };
   }
 }
 
@@ -996,13 +1050,13 @@ export async function createConsultantSession(vehicleId: string, title: string) 
 
     if (error || !data) {
       console.error('Create session error:', error);
-      return { success: false, error: 'Failed to create session' };
+      return { success: false, error: couldNotMake('a new conversation') };
     }
 
     return { success: true, sessionId: data.id };
   } catch (error) {
     console.error('Create session error:', error);
-    return { success: false, error: 'Failed to create session' };
+    return { success: false, error: couldNotMake('a new conversation') };
   }
 }
 
@@ -1162,6 +1216,10 @@ export async function sendConsultantMessage(params: {
    * a demo session is never persisted, so there is no server-side record to
    * read it from. It is the user's own conversation — the worst a caller can
    * do by editing it is mislead their own advisor.
+   *
+   * ⚠ Read for the demo only (TL-18). A stored thread's history is the row's,
+   * read here and appended to at the write — the web's copy is the browser's
+   * from when the thread opened, and storing it dropped the phone's turns.
    */
   messageHistory: any[];
   /**
@@ -1171,6 +1229,12 @@ export async function sendConsultantMessage(params: {
    * with the service role.
    */
   attachedDocuments?: any[];
+  /**
+   * The phone's id for this question (build 3), stored on the user turn so a
+   * resend of the same question can be told from the same words asked anew —
+   * `lib/consultant-replay.ts` (audit 360, TL-12). The route validates it.
+   */
+  clientTurnId?: string | null;
   /*
    * There is deliberately no vehicle, knowledge, wishlist, service history,
    * document, issue, mod, recall or health parameter here, and no `isDemo`.
@@ -1188,14 +1252,13 @@ export async function sendConsultantMessage(params: {
    * caller, like one that works.
    */
 }) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`consultant:${params.vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
+  /*
+    ⚠ Audit 360, TL-12 · when the question was taken up, first thing, stored
+    beside the answer's own timestamp. Without a turn id (build 2) the only
+    sign that the phone gave up on an answer is that the answer took longer
+    than the phone waits — `lib/consultant-replay.ts`.
+  */
+  const askedAt = new Date().toISOString();
   try {
     /*
      * The intent has to match what this function actually does, and what it
@@ -1236,6 +1299,27 @@ export async function sendConsultantMessage(params: {
     });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    /*
+      Cost control: server actions are publicly invokable POST endpoints and
+      demo mode has no auth, so every Gemini-backed path is rate limited.
+      ⚠ Audit 360, SEC-6 (1 Oct): after authorization and keyed on the caller
+      — it was `consultant:${vehicleId}` ahead of it, which let anybody holding
+      a vehicle id lock its owner's advisor. Same key as the route's.
+    */
+    {
+      const rl = await checkRateLimit(
+        aiCallerKey('consultant', {
+          userId: access.userId,
+          visitor: access.userId ? null : await demoClientIp(),
+          vehicleId: params.vehicleId,
+        }),
+        'ai'
+      );
+      if (!rl.allowed) {
+        return { success: false, error: ADVISOR_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -1331,7 +1415,36 @@ export async function sendConsultantMessage(params: {
       }
     }
 
-    const { vehicleId, sessionId, message, messageHistory, attachedDocuments } = params;
+    const { vehicleId, sessionId, message, attachedDocuments } = params;
+
+    /*
+      ⚠ Audit 360, TL-18 (round 3) · a stored thread's history is the row's,
+      not the caller's copy. The web passed the browser's copy, loaded when
+      the thread was opened, and the write below stored that copy plus the
+      new pair — so turns the phone had added to the same thread were
+      dropped. The demo keeps the caller's copy: nothing is stored for it.
+      `lib/consultant-thread.ts`.
+    */
+    let messageHistory: any[] = params.messageHistory;
+    if (!isDemoVehicle) {
+      let stored: unknown[] | null;
+      try {
+        stored = await storedThreadHistory(getServiceRoleClient(), sessionId, vehicleId);
+      } catch (error) {
+        if (!(error instanceof ThreadReadError)) throw error;
+        /*
+          TL-22: a read that failed is not a thread that is gone. No code, so
+          the route answers 502 and both clients say "try again" — which a
+          dropped connection deserves, and "start a new one" would fork.
+        */
+        logger.warn('CONSULTANT', 'Could not read the thread before answering', { vehicleId, code: error.code });
+        return { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' };
+      }
+      if (!stored) {
+        return { success: false, error: 'That conversation is no longer here. Start a new one.' };
+      }
+      messageHistory = stored;
+    }
 
     /*
       Context is derived from vehicleId, never taken from the caller.
@@ -1646,7 +1759,7 @@ export async function sendConsultantMessage(params: {
         finishReason: finishReason ?? 'none',
         blockReason: result.promptFeedback?.blockReason ?? 'none',
       });
-      return { success: false, error: 'The advisor could not answer that one. Try again.' };
+      return { success: false, error: CLIENT_ERROR_FALLBACK };
     }
     let response = rawText;
 
@@ -1691,52 +1804,25 @@ export async function sendConsultantMessage(params: {
         if (updateResult.success) performanceUpdated = true;
       }
 
+      /*
+        ⚠ Audit 360, SEC-3 (1 Oct). The identifier is model output and was a
+        LIKE pattern: `%%` marked every tracked issue completed and cleared
+        the owner's Needs. `applyStatusCommand` matches the names exactly.
+      */
       const issueParse = parseStatusCommands(response, 'UPDATE_ISSUE_STATUS');
       response = issueParse.cleaned;
       for (const cmd of issueParse.commands) {
-        const { error } = await client.from('known_issue_tracking')
-          .update({
-            status: cmd.status,
-            ...(cmd.status === 'completed' ? { completed_date: new Date().toISOString().split('T')[0] } : {}),
-          })
-          .eq('vehicle_id', vehicleId)
-          .ilike('issue_identifier', cmd.identifier);
-        if (!error) {
-          issueUpdates++;
-          if (cmd.status === 'completed') {
-            await client.from('wishlist_items')
-              .delete()
-              .eq('vehicle_id', vehicleId)
-              .eq('item_type', 'issue')
-              .ilike('item_name', cmd.identifier);
-          }
-        } else {
-          console.error('[UPDATE_ISSUE_STATUS] DB error:', error.message);
-        }
+        const result = await applyStatusCommand(client, vehicleId, 'issue', cmd);
+        if (result.error) console.error('[UPDATE_ISSUE_STATUS] DB error:', result.error);
+        else if (result.updated > 0) issueUpdates++;
       }
 
       const modParse = parseStatusCommands(response, 'UPDATE_MOD_STATUS');
       response = modParse.cleaned;
       for (const cmd of modParse.commands) {
-        const { error } = await client.from('modification_tracking')
-          .update({
-            status: cmd.status,
-            ...(cmd.status === 'completed' ? { installed_date: new Date().toISOString().split('T')[0] } : {}),
-          })
-          .eq('vehicle_id', vehicleId)
-          .ilike('mod_name', cmd.identifier);
-        if (!error) {
-          modUpdates++;
-          if (cmd.status === 'completed') {
-            await client.from('wishlist_items')
-              .delete()
-              .eq('vehicle_id', vehicleId)
-              .eq('item_type', 'modification')
-              .ilike('item_name', cmd.identifier);
-          }
-        } else {
-          console.error('[UPDATE_MOD_STATUS] DB error:', error.message);
-        }
+        const result = await applyStatusCommand(client, vehicleId, 'mod', cmd);
+        if (result.error) console.error('[UPDATE_MOD_STATUS] DB error:', result.error);
+        else if (result.updated > 0) modUpdates++;
       }
 
       const invoiceParse = parseInvoiceFlag(response);
@@ -1761,22 +1847,24 @@ export async function sendConsultantMessage(params: {
         role: 'user',
         content: message,
         timestamp: new Date().toISOString(),
+        askedAt,
+        ...(params.clientTurnId ? { clientTurnId: params.clientTurnId } : {}),
         ...(attachedDocuments && attachedDocuments.length > 0 && { documents: attachedDocuments }),
       };
 
-      const updatedHistory = [
-        ...messageHistory,
-        userMessage,
-        { role: 'assistant', content: response, timestamp: new Date().toISOString(), wishlistActions: wishlistActions.length > 0 ? wishlistActions : undefined, ...(estimate ? { estimate } : {}) },
-      ];
-
-      await client
-        .from('consultant_conversations')
-        .update({
-          message_history: updatedHistory,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', sessionId);
+      // TL-18: appended to the thread as stored now, re-read after the model
+      // answered, so a turn another device added meanwhile is kept.
+      const stored = await appendToStoredThread(client, {
+        sessionId,
+        vehicleId,
+        turns: [
+          userMessage,
+          { role: 'assistant', content: response, timestamp: new Date().toISOString(), wishlistActions: wishlistActions.length > 0 ? wishlistActions : undefined, ...(estimate ? { estimate } : {}) },
+        ],
+      });
+      if (!stored) {
+        logger.warn('CONSULTANT', 'The answer could not be stored in its thread', { vehicleId });
+      }
     }
 
     /*
@@ -1793,7 +1881,7 @@ export async function sendConsultantMessage(params: {
     // Our own deadline, not Google's. Transient by definition; the sentence
     // says what happened rather than "failed to get response".
     if (error instanceof TimeoutError) {
-      return { success: false, error: 'The advisor took too long to answer. Try again.' };
+      return { success: false, error: 'The advisor took too long to answer. Your question is still here — try again.' };
     }
 
     /*
@@ -1819,7 +1907,7 @@ export async function sendConsultantMessage(params: {
       return { success: false, error: ADVISOR_UNAVAILABLE_MESSAGE, code: 'advisor-unavailable' as const };
     }
 
-    return { success: false, error: 'Failed to get response from consultant' };
+    return { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' };
   }
 }
 
@@ -1838,12 +1926,12 @@ export async function fetchAllVehicles() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return { success: false, error: error.message, vehicles: [] };
+      return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
     }
 
     return { success: true, vehicles: data || [] };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Unknown error', vehicles: [] };
+    return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
   }
 }
 
@@ -1860,10 +1948,10 @@ export async function fetchDemoVehicles() {
       .eq('is_demo', true)
       .order('created_at', { ascending: true });
 
-    if (error) return { success: false, error: error.message, vehicles: [] };
+    if (error) return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
     return { success: true, vehicles: data || [] };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Unknown error', vehicles: [] };
+    return { success: false, error: couldNotLoad('these cars'), vehicles: [] };
   }
 }
 
@@ -1913,7 +2001,7 @@ export async function deleteVehicle(vehicleId: string): Promise<DeleteVehicleRes
     return {
       success: false,
       vehicleId,
-      error: `Failed to delete vehicle: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_REMOVE,
     };
   }
 }
@@ -1951,13 +2039,13 @@ export async function updateIssueStatus(
 
     if (error) {
       console.error('Update issue status error:', error);
-      return { success: false, error: 'Failed to update issue status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update issue status error:', error);
-    return { success: false, error: 'Failed to update issue status' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -1994,13 +2082,13 @@ export async function updateModificationStatus(
 
     if (error) {
       console.error('Update modification status error:', error);
-      return { success: false, error: 'Failed to update modification status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update modification status error:', error);
-    return { success: false, error: 'Failed to update modification status' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -2165,13 +2253,13 @@ export async function updateVehiclePerformanceStats(vehicleId: string, stats: { 
     if (stats.modified_hp != null) updates.modified_hp = stats.modified_hp;
     if (stats.modified_torque != null) updates.modified_torque = stats.modified_torque;
     if (stats.modified_zero_to_sixty != null) updates.modified_zero_to_sixty = stats.modified_zero_to_sixty;
-    if (Object.keys(updates).length === 0) return { success: false, error: 'No stats provided' };
+    if (Object.keys(updates).length === 0) return { success: false, error: UNREADABLE_PAGE_REQUEST };
     updates.perf_stats_manual_override = true;
     const { error } = await client.from('vehicles').update(updates).eq('id', vehicleId);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: COULD_NOT_SAVE };
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -2187,7 +2275,7 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
     // fileUrl is a caller-supplied parameter of this exported action, and the
     // authorization above covers vehicleId only. The two are tied together here.
     const buffer = await downloadStoredFile(fileUrl, vehicleId);
-    if (!buffer) return { success: false, error: 'Failed to fetch document', itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    if (!buffer) return { success: false, error: couldNotLoad('that document'), itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
     const base64Data = buffer.toString('base64');
 
     const { data: docRecord } = await client
@@ -2201,7 +2289,7 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
       .select()
       .single();
 
-    if (!docRecord) return { success: false, error: 'Failed to create document record', itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    if (!docRecord) return { success: false, error: COULD_NOT_SAVE, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
 
     const parseResult = await parseInvoiceLineItems(docRecord.id, vehicleId, base64Data, mimeType, true);
 
@@ -2231,23 +2319,27 @@ export async function processConsultantInvoiceToMaintenance(vehicleId: string, f
     };
   } catch (error: any) {
     console.error('processConsultantInvoiceToMaintenance error:', error);
-    return { success: false, error: error.message, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
+    return { success: false, error: COULD_NOT_SAVE, itemsProcessed: 0, issueUpdates: 0, modUpdates: 0 };
   }
 }
 
 export async function generateVehicleHealthSummary(vehicleId: string, forceRefresh: boolean = false) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`health:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    /*
+      Cost control: every Gemini-backed path is rate limited. ⚠ Audit 360,
+      SEC-2 (1 Oct): keyed on the account, after authorization — it was
+      `health:${vehicleId}`, so an account with N cars had N × 10 a minute.
+    */
+    {
+      const rl = await checkRateLimit(aiCallerKey('health', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -2349,7 +2441,7 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     const nhtsa = nhtsaResult.data;
 
     if (!vehicle) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     const completedIssues = issueTracking.filter((t: any) => t.status === 'completed').length;
@@ -2401,22 +2493,27 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
     */
     const historyOnFile = completedService + pendingService + documentedWork > 0;
 
+    /*
+      Audit 360, SEC-10: every owner string below is clipped as the advisor's
+      are (`boundPromptContext`) — rows written before the door was bounded,
+      or by a path that never was, cannot make one refresh a 100k-token call.
+    */
     const prompt = `You are an expert automotive consultant analyzing a vehicle's health based on the owner's provided service history and uploads.
 
 VEHICLE INFORMATION:
-- ${vehicle.year} ${vehicle.make} ${vehicle.model}
-- Current Mileage: ${vehicle.current_mileage.toLocaleString()} miles
-- Average Monthly Miles: ${vehicle.avg_miles_per_month}
+- ${vehicle.year} ${clipForPrompt(String(vehicle.make ?? ''))} ${clipForPrompt(String(vehicle.model ?? ''))}
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
+- Average Monthly Miles: ${monthlyMilesForPrompt(vehicle.avg_miles_per_month)}
 - Performance Mindset: ${vehicle.performance_mindedness}
 
 OWNER-PROVIDED SERVICE HISTORY:
 - Completed Service Records: ${completedService}
 - Pending/Planned Service: ${pendingService}
-- Recent Service Items: ${serviceItems.slice(0, 5).map((s: any) => `${s.description} (${s.status})`).join(', ') || 'None provided yet'}
+- Recent Service Items: ${serviceItems.slice(0, 5).map((s: any) => `${clipForPrompt(String(s.description ?? ''))} (${s.status})`).join(', ') || 'None provided yet'}
 
 DOCUMENTED WORK FROM UPLOADED INVOICES:
 - Line Items on File: ${documentedWork}
-${lineItems.slice(0, 12).map((l: any) => `  - ${l.service_date || 'undated'}: ${l.item_description}${l.shop_name ? ` at ${l.shop_name}` : ''}${l.total_cost ? ` ($${l.total_cost})` : ''}`).join('\n') || '  - None on file'}
+${lineItems.slice(0, 12).map((l: any) => `  - ${l.service_date || 'undated'}: ${clipForPrompt(String(l.item_description ?? ''))}${l.shop_name ? ` at ${clipForPrompt(String(l.shop_name))}` : ''}${l.total_cost ? ` ($${l.total_cost})` : ''}`).join('\n') || '  - None on file'}
 
 KNOWN ISSUES FOR THIS MODEL (Reference Only):
 ${knowledge?.known_issues?.slice(0, 5).map((i: any) => `- ${i.part}: ${i.description} (Severity: ${i.severity}, Typical mileage: ${i.mileage_range})`).join('\n') || 'None identified'}
@@ -2449,6 +2546,9 @@ all is a fact about our lookup, not about the car, and we write that sentence
 ourselves — see \`recall_status\` below. A model-authored "no recalls to date"
 would be rendered verbatim beside a vehicle NHTSA was never asked about.
 - recommendations (array of 2-3 actions, each a direct imperative)
+
+${STOP_DRIVING_RULE}
+Here that means: when this car's own records (not the known issues for the model) show such a problem that is not recorded as repaired, it is the first red flag and the first recommendation, written as an imperative to have it inspected before the car is driven again. No summary, red flag or recommendation may say or imply that the car is safe to drive.
 
 Ground every recommendation in the records listed above or in the known issues for this model. Do not recommend anything that presumes a fault nobody has documented. Write each recommendation as a direct imperative. Do not begin recommendations with a shared preamble, and do not restate the basis of the assessment in each one — it is stated once in the summary. Leave fields empty/null if no data is available. Do not make assumptions about hidden problems.
 ${
@@ -2508,7 +2608,7 @@ Format as valid JSON only, no markdown.`;
       recommendations: string[];
     } = {
       health_score: 70,
-      summary: 'We could not generate an assessment for this vehicle.',
+      summary: 'Tappet could not write an assessment for this car.',
       red_flags: [],
       maintenance_status: '',
       recall_status: healthClaim(
@@ -2638,7 +2738,7 @@ Format as valid JSON only, no markdown.`;
 
     if (upsertError) {
       console.error('Failed to save health summary:', upsertError);
-      return { success: false, error: 'Failed to save health summary' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     await client
@@ -2655,7 +2755,7 @@ Format as valid JSON only, no markdown.`;
     return { success: true, data: healthData };
   } catch (error) {
     console.error('Generate health summary error:', error);
-    return { success: false, error: 'Failed to generate health summary' };
+    return { success: false, error: couldNotMake('the health summary') };
   }
 }
 
@@ -2720,19 +2820,43 @@ function normaliseGoal(value: unknown): GoalKey {
   return typeof value === 'string' && value in GOAL_CONTEXT ? (value as GoalKey) : 'moderate';
 }
 
-export async function generateModificationDetails(vehicleId: string, modName: string, vehicle: any, performanceMindset: string) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`moddetails:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
+export async function generateModificationDetails(
+  vehicleId: string,
+  modName: string,
+  /*
+    ⚠ Ignored since audit 360, SEC-18 (1 Oct), kept so the card's call and the
+    action's arity do not change. This was the client's whole vehicle object,
+    and its year, make and model built the prompt, the shared cache key and
+    the shared cache row — the car's identity was the caller's to choose. The
+    facts are read below from the authorized row, as `generateBackfillMod`
+    always did.
+  */
+  _clientVehicle: unknown,
+  performanceMindset: string
+) {
   try {
+    // SEC-18: the name reaches the prompt and two tables; bounded like a
+    // wishlist name (`modificationNameSchema` says 200 too).
+    if (typeof modName !== 'string' || modName.trim().length === 0) {
+      return { success: false, error: 'Choose a modification first.' };
+    }
+    const modNameTrouble = wishlistFieldProblem({ itemName: modName });
+    if (modNameTrouble) {
+      return { success: false, error: modNameTrouble };
+    }
+
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Cost control, keyed on the caller after authorization (audit 360,
+    // SEC-15 — it was `moddetails:${vehicleId}` before the gate).
+    {
+      const rl = await checkRateLimit(aiCallerKey('moddetails', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -2758,6 +2882,16 @@ export async function generateModificationDetails(vehicleId: string, modName: st
     }
 
     const client = getServiceRoleClient();
+
+    // SEC-18: the car this describes is the one authorized above, read here.
+    const { data: vehicle } = await client
+      .from('vehicles')
+      .select('year, make, model, performance_mindedness')
+      .eq('id', vehicleId)
+      .maybeSingle();
+    if (!vehicle) {
+      return { success: false, error: NOT_FOUND_MESSAGE };
+    }
 
     /*
       ── Two columns model this, and only one of them is real ──────────────────
@@ -2812,7 +2946,6 @@ export async function generateModificationDetails(vehicleId: string, modName: st
       model: vehicle.model,
       modName,
       performanceGoal,
-      ownershipObjective: vehicle.ownership_objective,
     });
 
     try {
@@ -2862,13 +2995,23 @@ export async function generateModificationDetails(vehicleId: string, modName: st
       });
     }
 
+    /*
+      ⚠ Audit 360, LEGAL-14 (1 Oct). The owner's free-text objective ("what you
+      want out of it") is no longer sent. This card is a dossier-family path
+      that asks nothing before it calls Google, so free text written for the
+      owner's own garage went to a model under no consent sheet — and, as a
+      cache key, into a table every owner of the same car reads from, where
+      account deletion could not reach it. The goal tier stays: it is a
+      three-value choice, and the card's whole framing. Keep this prompt to
+      model-level facts plus that choice, or put the card behind the one
+      answer (`AI_CONSENT_SCOPE`) first.
+    */
     const prompt = `You are an expert automotive consultant analyzing a modification for a specific vehicle owner.
 
 VEHICLE:
 - ${vehicle.year} ${vehicle.make} ${vehicle.model}
 - Owner's Performance Goal: ${performanceGoal.toUpperCase()}
 - Performance Goal Context: The owner wants ${GOAL_CONTEXT[performanceGoal]}
-- Ownership Objective: ${vehicle.ownership_objective || 'Not specified'}
 
 MODIFICATION: ${modName}
 
@@ -2878,7 +3021,7 @@ Provide a detailed analysis in JSON format with exactly these fields:
 - performanceImpact: Specific performance gains for this ${vehicle.year} ${vehicle.make} ${vehicle.model} (1-2 sentences, quantify if possible, frame relative to ${performanceGoal} goal)
 - reliabilityImpact: How this affects reliability and longevity (consider the owner's ${performanceGoal} performance goal when assessing acceptable tradeoffs)
 - costBenefitAnalysis: Dollar amount estimation and value proposition (parts cost, labor, time to ROI - adjust recommendations based on ${performanceGoal} approach)
-- alignmentWithGoals: How this aligns with their ${performanceGoal} performance goal and "${vehicle.ownership_objective || 'their ownership objectives'}"
+- alignmentWithGoals: How this aligns with their ${performanceGoal} performance goal
 - installationNotes: Any ${vehicle.year} ${vehicle.make} ${vehicle.model}-specific installation considerations
 - compatibilityNotes: Compatibility with stock components or other common mods for this model (suggest complementary mods appropriate for ${performanceGoal} level)
 
@@ -2920,7 +3063,7 @@ Format as valid JSON only, no markdown or explanations.`;
     let parsedCleanly = false;
     let details = {
       performance_impact: 'Performance gains will vary',
-      reliability_impact: 'Check compatibility with your vehicle',
+      reliability_impact: 'Check compatibility with your car',
       cost_benefit_analysis: 'Consult with a professional for accurate costs',
       alignment_with_goals: 'Consider your ownership objectives',
       installation_notes: 'Professional installation recommended',
@@ -3004,13 +3147,13 @@ Format as valid JSON only, no markdown or explanations.`;
 
     if (upsertError) {
       console.error('Failed to save modification details:', upsertError);
-      return { success: false, error: 'Failed to save details' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data: { ...details, performance_goal: performanceGoal } };
   } catch (error) {
     console.error('Generate modification details error:', error);
-    return { success: false, error: 'Failed to generate modification details' };
+    return { success: false, error: couldNotMake('the details for that modification') };
   }
 }
 
@@ -3085,7 +3228,16 @@ export async function getModificationDetailsBatch(vehicleId: string, modNames: s
 
     const missing = modNames.filter(name => !foundNames.has(name));
 
-    if (missing.length > 0) {
+    /*
+      ⚠ Audit 360, round 3 sweep. This is a `read` action, so a demo visitor
+      reaches it with no session — and the enqueue below wrote whatever
+      `modNames` the caller sent, unbounded, into the demo cars' queue with
+      the service role (production, 1 Oct: 7 of the queue's 11 rows are the
+      demo's, all pending). The queue's only consumer, `processModDetailQueue`,
+      asks for `write` and refuses a demo car, so for the demo the write was
+      never going to be answered. A demo read now writes nothing.
+    */
+    if (missing.length > 0 && !access.isDemo) {
       /*
         This enqueue disagreed with its own table in three ways, and none of
         them could surface because the result was never inspected:
@@ -3158,7 +3310,7 @@ export async function processModDetailQueue(vehicleId: string, batchSize: number
       .maybeSingle();
 
     if (!vehicle) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     let processed = 0;
@@ -3212,12 +3364,29 @@ export async function processModDetailQueue(vehicleId: string, batchSize: number
     return { success: true, processed };
   } catch (error) {
     console.error('Process mod detail queue error:', error);
-    return { success: false, error: 'Failed to process queue' };
+    return { success: false, error: couldNotMake('that research') };
   }
 }
 
 
-export async function updateVehicleMileage(vehicleId: string, newMileage: number) {
+/**
+ * The web's odometer edit — the same rule and the same projection as the
+ * phone's `PATCH /api/v1/vehicles` (audit 360, TL-26, 1 Oct).
+ *
+ * This wrote any integer with no range or jump check and no re-projection,
+ * so a web typo (450000 for 45000) was stored and the phone's next reading
+ * was refused as "below the 450,000 miles already recorded", and the
+ * phone's NEXT SERVICE cell kept yesterday's projection until the sweep.
+ * Now one implementation: `validateMileageUpdate` against `odometerReading`
+ * of the stored value (a stored 0 is no reading, TL-5), `isCorrection` as
+ * the answer to the refusal's question, and `projectNextService` after the
+ * write. `reason` rides back so the dialog can offer `correctionAction`.
+ */
+export async function updateVehicleMileage(
+  vehicleId: string,
+  newMileage: number,
+  options: { isCorrection?: boolean } = {}
+): Promise<{ success: boolean; error?: string; reason?: MileageRejection }> {
   try {
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
@@ -3226,31 +3395,47 @@ export async function updateVehicleMileage(vehicleId: string, newMileage: number
 
     const client = getServiceRoleClient();
 
-    const { data, error } = await client
+    const { data: stored, error: readError } = await client
+      .from('vehicles')
+      .select('current_mileage')
+      .eq('id', vehicleId)
+      .maybeSingle();
+
+    if (readError || !stored) {
+      logger.error('VEHICLE:MILEAGE_READ', new Error(readError?.message ?? 'Vehicle not found'), { vehicleId });
+      return { success: false, error: 'Tappet could not read this car just now. Try again in a moment.' };
+    }
+
+    const decision = validateMileageUpdate({
+      current: odometerReading(stored.current_mileage),
+      next: newMileage,
+      isCorrection: options.isCorrection === true,
+    });
+    if (!decision.ok) {
+      return { success: false, error: decision.message, reason: decision.reason };
+    }
+
+    const { error } = await client
       .from('vehicles')
       .update({
         current_mileage: newMileage,
         last_mileage_update_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', vehicleId)
-      .select();
+      .eq('id', vehicleId);
 
     if (error) {
-      console.error('[Update Mileage Error]:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
-      return { success: false, error: `Failed to update mileage: ${error.message}` };
+      logger.error('VEHICLE:MILEAGE_WRITE', new Error(error.message), { vehicleId, code: error.code });
+      return { success: false, error: 'Tappet could not save the reading. Try again in a moment.' };
     }
 
-    console.log('[Update Mileage Success]:', data);
+    // A new reading moves what is due — the PATCH route's own call (20 Sep).
+    await projectNextService(vehicleId);
+
     return { success: true };
-  } catch (error: any) {
-    console.error('[Update Mileage Exception]:', error);
-    return { success: false, error: `Failed to update mileage: ${error.message || 'Unknown error'}` };
+  } catch (error) {
+    logger.error('VEHICLE:MILEAGE_EXCEPTION', error as Error, { vehicleId });
+    return { success: false, error: 'Tappet could not save the reading. Try again in a moment.' };
   }
 }
 
@@ -3280,14 +3465,14 @@ export async function updateVehicleAvgMileage(vehicleId: string, avgMilesPerMont
         hint: error.hint,
         code: error.code,
       });
-      return { success: false, error: `Failed to update average mileage: ${error.message}` };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     console.log('[Update Avg Mileage Success]:', data);
     return { success: true };
   } catch (error: any) {
     console.error('[Update Avg Mileage Exception]:', error);
-    return { success: false, error: `Failed to update average mileage: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3333,14 +3518,14 @@ export async function setModificationsVisible(vehicleId: string, visible: boolea
       .eq('id', vehicleId);
 
     if (error) {
-      return { success: false, error: 'Failed to update modification preference' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
     return {
       success: false,
-      error: `Failed to update modification preference: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_SAVE,
     };
   }
 }
@@ -3362,12 +3547,12 @@ export async function updateVehicleStatus(vehicleId: string, status: 'daily_driv
       .eq('id', vehicleId);
 
     if (error) {
-      return { success: false, error: 'Failed to update vehicle status' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: `Failed to update vehicle status: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3389,13 +3574,13 @@ export async function updatePerformanceGoal(vehicleId: string, performanceGoal: 
 
     if (error) {
       console.error('Update performance goal error:', error);
-      return { success: false, error: 'Failed to update performance goal' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Update performance goal error:', error);
-    return { success: false, error: 'Failed to update performance goal' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3411,23 +3596,35 @@ export async function updateVehicleTCOFields(vehicleId: string, fields: {
       return { success: false, error: access.error };
     }
 
+    /*
+      ⚠ Audit 360, SEC-14 (round 3). This was `.update({ ...fields, … })`: the
+      parameter's type is erased at the action boundary, so `is_demo`,
+      `user_id` and `vin` were all the caller's to write — `{ is_demo: true }`
+      put an owner's car in the public demo garage. Four named columns,
+      finite non-negative numbers or null, and anything else is refused.
+    */
+    const checked = tcoPatch(fields);
+    if (!checked.ok) {
+      return { success: false, error: checked.error ?? COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
     const { error } = await client
       .from('vehicles')
       .update({
-        ...fields,
+        ...checked.patch,
         updated_at: new Date().toISOString(),
       })
       .eq('id', vehicleId);
 
     if (error) {
       console.error('Update TCO fields error:', error);
-      return { success: false, error: 'Failed to update TCO fields' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: `Failed to update TCO fields: ${error.message || 'Unknown error'}` };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3444,7 +3641,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
 
     const scopedTable = DELETABLE_ITEM_TABLES[itemType];
     if (!scopedTable) {
-      return { success: false, error: 'Invalid item type' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     // Resolves the row's parent vehicle and proves ownership before deleting.
@@ -3472,10 +3669,21 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
         break;
       default:
         console.error('[Delete Error] Invalid item type:', itemType);
-        return { success: false, error: 'Invalid item type' };
+        return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     console.log(`[Delete Action] Attempting to delete from ${tableName} where id = ${itemId}`);
+
+    // Audit 360, SEC-5: the file a document's row names goes with it.
+    let documentFileUrl: unknown = null;
+    if (tableName === 'vehicle_documents') {
+      const { data: documentRow } = await client
+        .from('vehicle_documents')
+        .select('file_url')
+        .eq('id', itemId)
+        .maybeSingle();
+      documentFileUrl = documentRow?.file_url ?? null;
+    }
 
     const { error, data, count } = await client
       .from(tableName)
@@ -3494,7 +3702,7 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
       });
       return {
         success: false,
-        error: `Failed to delete from ${tableName}: ${error.message}`,
+        error: COULD_NOT_REMOVE,
       };
     }
 
@@ -3505,12 +3713,16 @@ export async function deleteMaintenanceLineItem(itemId: string, itemType: 'invoi
       return { success: true, warning: 'Item not found or already deleted' };
     }
 
+    if (tableName === 'vehicle_documents' && access.vehicleId) {
+      await removeDocumentFile(getServiceRoleClient(), access.vehicleId, documentFileUrl);
+    }
+
     return { success: true };
   } catch (error: any) {
     console.error('[Delete Action Exception]:', error);
     return {
       success: false,
-      error: `Delete failed: ${error.message || 'Unknown error'}`,
+      error: COULD_NOT_REMOVE,
     };
   }
 }
@@ -3538,20 +3750,23 @@ export async function addMaintenanceHistory(
         category: 'maintenance',
         status: 'completed',
         date_completed: dateCompleted,
-        cost_labor: cost || 0,
+        // Audit 360, TL-27: no cost given is null, never 0 — both columns
+        // default to 0, so the parts half is written explicitly too.
+        cost_labor: recordedCost(cost),
+        cost_parts: null,
         shop_name: shopName || null,
         notes: notes || null,
       });
 
     if (error) {
       console.error('Add maintenance history error:', error);
-      return { success: false, error: 'Failed to add maintenance history' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
   } catch (error) {
     console.error('Add maintenance history error:', error);
-    return { success: false, error: 'Failed to add maintenance history' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -3619,13 +3834,13 @@ export async function getSignedStorageUrl(fileUrl: string) {
 
     if (error || !data) {
       logger.warn('SIGNED_URL:CREATION_FAILED', 'Failed to create signed URL', { filePath, error });
-      return { success: false, error: 'Failed to generate signed URL' };
+      return { success: false, error: couldNotLoad('that file') };
     }
 
     return { success: true, url: data.signedUrl };
   } catch (error) {
     logger.error('SIGNED_URL:EXCEPTION', error as Error, { hasFileUrl: !!fileUrl });
-    return { success: false, error: 'Failed to generate signed URL' };
+    return { success: false, error: couldNotLoad('that file') };
   }
 }
 
@@ -3913,14 +4128,6 @@ function combineLineItems(items: any[]): any[] {
   cap is what bounds a single paid call.
 */
 export async function parseInvoiceLineItems(documentId: string, vehicleId: string, fileBase64?: string, mimeType?: string, bypassVehicleCheck: boolean = false, morePages: { data: string; mimeType: string }[] = []) {
-  // Cost control: server actions are publicly invokable POST endpoints
-  // and demo mode has no auth, so every Gemini-backed path is rate limited.
-  {
-    const rl = await checkRateLimit(`invoice:${vehicleId}`, 'ai');
-    if (!rl.allowed) {
-      return { success: false, error: `Too many AI requests. Try again in ${rl.retryAfterSeconds}s.` };
-    }
-  }
   try {
     /*
       ── ⚠ SEC-01 · **two** ids arrive here and only one was authorized ───────
@@ -3970,6 +4177,15 @@ export async function parseInvoiceLineItems(documentId: string, vehicleId: strin
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Cost control, keyed on the caller after both authorizations (audit
+    // 360, SEC-15 — it was `invoice:${vehicleId}` before either).
+    {
+      const rl = await checkRateLimit(aiCallerKey('invoice', { userId: access.userId, vehicleId }), 'ai');
+      if (!rl.allowed) {
+        return { success: false, error: AI_RATE_LIMITED_MESSAGE, code: RATE_LIMITED_CODE };
+      }
     }
 
     /*
@@ -4175,21 +4391,26 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
           expected: vehicle,
         });
 
+        /*
+          Audit 360, COPY-37: empty, never 'Unknown vehicle' — each client
+          names the gap in its own words (the web's "No car named" / "This
+          car"; every phone build reads an empty label as unknown).
+        */
         const extractedStr = [
           extractedVehicle.year,
           extractedVehicle.make,
           extractedVehicle.model,
           extractedVehicle.color
-        ].filter(v => v != null && v !== '').join(' ') || 'Unknown vehicle';
+        ].filter(v => v != null && v !== '').join(' ');
 
         const expectedStr = vehicle
           ? [vehicle.year, vehicle.make, vehicle.model, vehicle.color].filter(v => v != null && v !== '').join(' ')
-          : 'Unknown vehicle';
+          : '';
 
         return {
           success: false,
           error: 'VEHICLE_MISMATCH',
-          message: parsed.mismatch_message || 'Vehicle information does not match',
+          message: parsed.mismatch_message || 'This invoice looks like it is for a different car.',
           extractedVehicle: extractedStr,
           expectedVehicle: expectedStr,
         };
@@ -4449,7 +4670,7 @@ Return ONLY valid JSON, no markdown code blocks, no explanations.`;
     };
   } catch (error) {
     console.error('Parse invoice error:', error);
-    return { success: false, error: 'Failed to parse invoice line items' };
+    return { success: false, error: COULD_NOT_READ_INVOICE };
   }
 }
 
@@ -4474,9 +4695,35 @@ export async function uploadInvoice(formData: FormData): Promise<InvoiceFilingRe
 
     const client = access.client;
 
+    /*
+      ⚠ 1 Oct · audit 360, TL-31 · the website's retry of a filing whose
+      answer was lost. With a filing key (minted once per chosen file by
+      `DocumentUploadDialog`), an earlier filing of this same choice is
+      answered, not filed again — the pages form's replay, on the same rows
+      (`lib/invoice-filing-replay.ts`). Before any byte is stored.
+    */
+    const filingKey = filingKeyToken(formData.get('filingKey'));
+    if (filingKey) {
+      const prior = await priorFilingOf(client as unknown as ReplayClient, vehicleId, filingKey);
+      if (prior.state === 'filed') {
+        logger.info('UPLOAD_INVOICE:REPLAY', 'Answered a repeat filing with the filed document', {
+          vehicleId,
+          documentId: prior.documentId,
+        });
+        return { success: true, documentId: prior.documentId, itemsExtracted: prior.itemsExtracted };
+      }
+      if (prior.state === 'in-flight') {
+        return { success: false, error: 'FILING_IN_PROGRESS' };
+      }
+    }
+
     console.log(`[Upload] Starting upload for ${file.name} (${file.size} bytes)${bypassVehicleCheck ? ' [BYPASS VEHICLE CHECK]' : ''}`);
 
-    const fileName = vehicleStoragePath(vehicleId, 'invoices', file.name);
+    const fileName = vehicleStoragePath(
+      vehicleId,
+      'invoices',
+      filingKey ? filedUploadName(filingKey, file.name) : file.name
+    );
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
 
@@ -4504,7 +4751,7 @@ export async function uploadInvoice(formData: FormData): Promise<InvoiceFilingRe
     });
   } catch (error: any) {
     console.error('[Upload Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -4570,6 +4817,31 @@ export async function uploadInvoicePages(
     const paths = pagePaths as string[];
 
     /*
+      ⚠ 1 Oct · audit 360, TL-2 · a retry of a filing whose answer was lost.
+      Before a page is read: the pages of a filed scan are gone, and reading
+      first answered `PAGE_MISSING`, which the phone meets by re-sending every
+      page — and the invoice was filed twice. `lib/invoice-filing-replay.ts`.
+    */
+    const prior = await priorFiling(client as unknown as ReplayClient, vehicleId, paths);
+    if (prior.state === 'filed') {
+      logger.info('UPLOAD_INVOICE_PAGES:REPLAY', 'Answered a repeat filing with the filed document', {
+        vehicleId,
+        documentId: prior.documentId,
+      });
+      // The first filing's cleanup, if it never ran. Best-effort, as there.
+      await client.storage.from('vehicle-documents').remove(paths);
+      return {
+        success: true,
+        documentId: prior.documentId,
+        itemsExtracted: prior.itemsExtracted,
+        pageCount: paths.length,
+      };
+    }
+    if (prior.state === 'in-flight') {
+      return { success: false, error: 'FILING_IN_PROGRESS' };
+    }
+
+    /*
       Every page read before anything is written. A page that is gone — a
       discard that raced the Done, a sweep — fails the scan here, before a
       document row or a model call exists, with the one word the phone
@@ -4594,7 +4866,7 @@ export async function uploadInvoicePages(
     const single = pages.length === 1;
     const storagePath = single
       ? vehicleStoragePath(vehicleId, 'invoices', paths[0].split('/').pop() ?? 'invoice.jpg')
-      : vehicleStoragePath(vehicleId, 'invoices', `invoice-${pages.length}-pages.pdf`);
+      : vehicleStoragePath(vehicleId, 'invoices', filedInvoiceName(paths[0], pages.length));
     const body = single ? pages[0].bytes : Buffer.from(await stitchInvoicePdf(pages));
     const contentType = single ? pages[0].type : 'application/pdf';
 
@@ -4627,7 +4899,7 @@ export async function uploadInvoicePages(
     return { ...result, pageCount: pages.length };
   } catch (error: any) {
     console.error('[Upload Pages Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -4759,13 +5031,21 @@ async function fileStoredInvoice({
       if (parseResult.code === 'needs-subscription') {
         return {
           success: false,
-          error: parseResult.error || 'Failed to parse invoice',
+          error: parseResult.error || COULD_NOT_READ_INVOICE,
           code: parseResult.code,
           feature: parseResult.feature,
         };
       }
 
-      return { success: false, error: parseResult.error || 'Failed to parse invoice' };
+      /*
+        Audit 360, TL-35: the limiter's refusal keeps its `code` too, so the
+        route answers 429 rather than 500 under the right sentence.
+      */
+      if (parseResult.code === RATE_LIMITED_CODE) {
+        return { success: false, error: parseResult.error || AI_RATE_LIMITED_MESSAGE, code: parseResult.code };
+      }
+
+      return { success: false, error: parseResult.error || COULD_NOT_READ_INVOICE };
     }
 
     const itemsExtracted = parseResult.maintenanceItems?.length || 0;
@@ -4832,6 +5112,9 @@ async function fileStoredInvoice({
           client,
           userId: access.userId,
           isDemo: false,
+          // An invoice reaches here only through a consent sheet — the scan,
+          // the web upload, an advisor attachment — so the yes was given.
+          consented: true,
           forceRefresh: true,
         }).catch((statsError: unknown) => {
           console.warn('[Upload] Performance stats refresh failed:', statsError);
@@ -4844,7 +5127,7 @@ async function fileStoredInvoice({
     return { success: true, documentId: document.id, itemsExtracted };
   } catch (error: any) {
     console.error('[Upload Failed]:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -4858,7 +5141,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
     const focalY = focalYRaw !== null ? parseFloat(focalYRaw as string) : 50;
 
     if (!file || !vehicleId) {
-      return { success: false, error: 'Missing file or vehicle ID' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
@@ -4927,7 +5210,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (vehicleError) {
       console.error('Vehicle fetch error:', vehicleError);
-      return { success: false, error: 'Failed to fetch vehicle' };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (vehicle?.custom_image_storage_path) {
@@ -4950,7 +5233,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
-      return { success: false, error: 'Failed to upload photo' };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     /*
@@ -4974,7 +5257,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
 
     if (updateError) {
       console.error('Vehicle update error:', updateError);
-      return { success: false, error: 'Failed to update vehicle' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     /*
@@ -4991,7 +5274,7 @@ export async function uploadVehiclePhoto(formData: FormData) {
     return { success: true, photoUrl: signed?.signedUrl ?? null, focalX, focalY };
   } catch (error: any) {
     console.error('Upload vehicle photo error:', error);
-    return { success: false, error: error.message || 'Failed to upload photo' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5009,7 +5292,7 @@ export async function removeVehiclePhoto(vehicleId: string) {
     return await clearVehiclePhoto(access.client, vehicleId);
   } catch (error: any) {
     console.error('Remove vehicle photo error:', error);
-    return { success: false, error: error.message || 'Failed to remove photo' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 /**
@@ -5048,7 +5331,7 @@ async function validateConsultantDocument(
       .maybeSingle();
 
     if (!vehicle) {
-      return { success: false, isValid: false, error: 'Vehicle not found' };
+      return { success: false, isValid: false, error: CAR_NOT_ON_FILE };
     }
 
     const prompt = CONSULTANT_DOCUMENT_VALIDATION_PROMPT(vehicle);
@@ -5101,7 +5384,7 @@ async function validateConsultantDocument(
     return {
       success: false,
       isValid: false,
-      error: (error as Error)?.message || 'Validation failed',
+      error: COULD_NOT_READ_INVOICE,
     };
   }
 }
@@ -5113,7 +5396,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     const sessionId = formData.get('sessionId') as string;
 
     if (!file || !vehicleId || !sessionId) {
-      return { success: false, error: 'Missing required fields' };
+      return { success: false, error: UNREADABLE_PAGE_REQUEST };
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
@@ -5166,7 +5449,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     const validation = await validateConsultantDocument(vehicleId, base64Data, file.type);
 
     if (!validation.success) {
-      return { success: false, error: validation.error || 'Validation failed' };
+      return { success: false, error: validation.error || COULD_NOT_READ_INVOICE };
     }
 
     if (!validation.isValid) {
@@ -5190,7 +5473,7 @@ export async function uploadConsultantDocument(formData: FormData) {
 
     if (uploadError) {
       console.error('[Storage Upload Error]', uploadError);
-      return { success: false, error: `Failed to upload file: ${uploadError.message}` };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     const { data: document, error: dbError } = await client
@@ -5215,7 +5498,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     if (dbError) {
       console.error('[Database Insert Error]', dbError);
       await client.storage.from('vehicle-documents').remove([fileName]);
-      return { success: false, error: 'Failed to save document record' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return {
@@ -5224,7 +5507,7 @@ export async function uploadConsultantDocument(formData: FormData) {
     };
   } catch (error: any) {
     console.error('Upload consultant document error:', error);
-    return { success: false, error: error.message || 'Upload failed' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5252,18 +5535,18 @@ export async function fetchVehicleById(vehicleId: string) {
 
     if (error) {
       console.error('[Fetch Vehicle] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     console.log(`[Fetch Vehicle] Successfully fetched vehicle ${vehicleId}`);
     return { success: true, vehicle: data };
   } catch (error: any) {
     console.error('[Fetch Vehicle] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5289,11 +5572,11 @@ export async function fetchDashboardData(vehicleId: string) {
 
     if (vehicleResult.error) {
       console.error('[Fetch Dashboard] Vehicle error:', vehicleResult.error);
-      return { success: false, error: vehicleResult.error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!vehicleResult.data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     if (knowledgeResult.error) {
@@ -5324,7 +5607,7 @@ export async function fetchDashboardData(vehicleId: string) {
     };
   } catch (error: any) {
     console.error('[Fetch Dashboard] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5352,11 +5635,11 @@ export async function fetchConsultantPageData(vehicleId: string) {
 
     if (vehicleResult.error) {
       console.error('[Fetch Consultant] Vehicle error:', vehicleResult.error);
-      return { success: false, error: vehicleResult.error.message };
+      return { success: false, error: couldNotLoad('this car') };
     }
 
     if (!vehicleResult.data) {
-      return { success: false, error: 'Vehicle not found' };
+      return { success: false, error: CAR_NOT_ON_FILE };
     }
 
     if (knowledgeResult.error) {
@@ -5399,7 +5682,7 @@ export async function fetchConsultantPageData(vehicleId: string) {
     };
   } catch (error: any) {
     console.error('[Fetch Consultant] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: couldNotLoad('this car') };
   }
 }
 
@@ -5416,6 +5699,14 @@ export async function createServiceItem(data: {
     const access = await authorizeVehicleAccess(data.vehicle_id, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
+    }
+
+    // Audit 360, SEC-10: the health prompt reads service descriptions.
+    if (typeof data.description === 'string' && data.description.length > SERVICE_DESCRIPTION_MAX) {
+      return {
+        success: false,
+        error: `The description must be ${SERVICE_DESCRIPTION_MAX.toLocaleString('en-US')} characters or fewer.`,
+      };
     }
 
     const client = getServiceRoleClient();
@@ -5435,40 +5726,56 @@ export async function createServiceItem(data: {
 
     if (error) {
       console.error('[Create Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data: serviceItem };
   } catch (error: any) {
     console.error('[Create Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
-export async function updateServiceItem(itemId: string, updates: any) {
+export async function updateServiceItem(itemId: string, updates: unknown) {
   try {
     const access = await authorizeVehicleScopedRow('service_items', itemId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
     }
 
+    /*
+      ⚠ Audit 360, SEC-12 (round 3). This was `.update(updates)` with
+      `updates: any`: the check above proved the row was the caller's, and
+      the write then set any column of it — `vehicle_id` included. The demo
+      cars' ids are public, so a free account could move its own line onto
+      the demo's Accord, where every visitor reads it, and the demo's
+      read-only refusal never saw the target. Named columns only
+      (`lib/action-patches.ts`), and the write is scoped to the vehicle that
+      was authorized, not merely to the row id.
+    */
+    const checked = serviceItemPatch(updates);
+    if (!checked.ok) {
+      return { success: false, error: checked.error ?? COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
     const { data, error } = await client
       .from('service_items')
-      .update(updates)
+      .update(checked.patch)
       .eq('id', itemId)
+      .eq('vehicle_id', access.vehicleId)
       .select()
       .single();
 
     if (error) {
       console.error('[Update Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true, data };
   } catch (error: any) {
     console.error('[Update Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -5488,13 +5795,13 @@ export async function deleteServiceItem(itemId: string) {
 
     if (error) {
       console.error('[Delete Service Item] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_REMOVE };
     }
 
     return { success: true };
   } catch (error: any) {
     console.error('[Delete Service Item] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 
@@ -5515,17 +5822,46 @@ export async function moveServiceItemToHistory(
       return { success: false, error: access.error };
     }
 
+    // SEC-10's limits, which mark-done on the phone already applies.
+    const fieldProblem = markDoneFieldProblem({
+      shopName: completionDetails?.shopName,
+      notes: completionDetails?.notes,
+    });
+    if (fieldProblem) {
+      return { success: false, error: fieldProblem };
+    }
+
+    /*
+      An invoice path, when one is given, must be this car's: the upload that
+      produces it (`uploadInvoiceForCompletion`) files under the vehicle.
+    */
+    const invoicePath = storagePathFromStoredUrl(completionDetails?.invoiceUrl);
+    if (invoicePath && vehicleIdFromStoragePath(invoicePath) !== vehicleId) {
+      return { success: false, error: COULD_NOT_SAVE };
+    }
+
     const client = getServiceRoleClient();
 
+    /*
+      ⚠ Audit 360, SEC-13 (round 3). The authorization above covers
+      `vehicleId`; this read and the delete below took `serviceItemId` alone
+      with the service role. The demo's service-item ids are anon-readable,
+      so any account could pass its own car and each demo id, copy the line
+      into its history and delete it from the demo every visitor sees — or,
+      knowing a stranger's id, read and delete theirs. Both now carry
+      `.eq('vehicle_id', vehicleId)`: a row of another car gets the same
+      answer as a missing one.
+    */
     const { data: serviceItem, error: fetchError } = await client
       .from('service_items')
       .select('*')
       .eq('id', serviceItemId)
+      .eq('vehicle_id', vehicleId)
       .maybeSingle();
 
     if (fetchError) {
       console.error('[Move to History] Fetch error:', fetchError);
-      return { success: false, error: 'Failed to retrieve service item' };
+      return { success: false, error: couldNotLoad('that service') };
     }
 
     if (!serviceItem) {
@@ -5538,7 +5874,7 @@ export async function moveServiceItemToHistory(
       shop_name: completionDetails.shopName || null,
       item_description: serviceItem.description,
       category: serviceItem.category || 'maintenance',
-      total_cost: completionDetails.totalCost || (serviceItem.cost_parts + serviceItem.cost_labor) || 0,
+      total_cost: recordedCost(completionDetails.totalCost) ?? sumRecordedCosts(serviceItem.cost_parts, serviceItem.cost_labor),
       notes: completionDetails.notes || null,
       invoice_url: completionDetails.invoiceUrl || null,
       /*
@@ -5558,13 +5894,14 @@ export async function moveServiceItemToHistory(
 
     if (insertError) {
       console.error('[Move to History] Insert error:', insertError);
-      return { success: false, error: 'Failed to create maintenance record' };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     const { error: deleteError } = await client
       .from('service_items')
       .delete()
-      .eq('id', serviceItemId);
+      .eq('id', serviceItemId)
+      .eq('vehicle_id', vehicleId);
 
     if (deleteError) {
       console.error('[Move to History] Delete error:', deleteError);
@@ -5574,7 +5911,7 @@ export async function moveServiceItemToHistory(
     return { success: true, data: maintenanceItem };
   } catch (error: any) {
     console.error('[Move to History] Exception:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: COULD_NOT_SAVE };
   }
 }
 
@@ -5622,7 +5959,7 @@ export async function uploadInvoiceForCompletion(
 
     if (error) {
       logger.error('INVOICE_UPLOAD:STORAGE', new Error(error.message), { vehicleId });
-      return { success: false, error: 'Failed to upload invoice' };
+      return { success: false, error: COULD_NOT_UPLOAD };
     }
 
     // The storage path, not a URL. The bucket is private, so a URL is minted
@@ -5631,7 +5968,7 @@ export async function uploadInvoiceForCompletion(
     return { success: true, data: { url: storedUrl(fileName) } };
   } catch (error: any) {
     console.error('[Invoice Upload] Exception:', error);
-    return { success: false, error: error.message || 'Failed to upload invoice' };
+    return { success: false, error: COULD_NOT_UPLOAD };
   }
 }
 
@@ -5704,10 +6041,10 @@ async function estimateCosts(
 ): Promise<{ success: boolean; data?: CostEstimate; error?: string }> {
   try {
     const itemsList = serviceItems.map((item, idx) =>
-      `${idx + 1}. ${item.description} (Category: ${item.category})`
+      `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (Category: ${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
 
-    console.log('[Estimate Costs] Preparing prompt for cost estimation');
+    logger.debug('ESTIMATE:PROMPT', 'Preparing prompt for cost estimation', { itemCount: serviceItems.length });
     const prompt = `You are an automotive cost estimation expert. Estimate repair/maintenance costs for the following vehicle and service items.
 
 Vehicle Information:
@@ -5715,7 +6052,7 @@ Vehicle Information:
 - Make: ${vehicle.make}
 - Model: ${vehicle.model}
 - Trim: ${vehicle.trim || 'Standard'}
-- Current Mileage: ${vehicle.current_mileage?.toLocaleString() || 'Unknown'} miles
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
 - Location Zip Code: ${zipCode}
 
 Service Items Requested:
@@ -5789,19 +6126,13 @@ Return ONLY valid JSON with no additional text.`;
           }
         }
       );
-      console.log('[Estimate Costs] Received response object:', typeof result);
     } catch (apiError: any) {
-      console.error('[Estimate Costs] API call failed:', apiError);
-      console.error('[Estimate Costs] Error details:', {
-        message: apiError.message,
-        name: apiError.name,
-        stack: apiError.stack
-      });
+      logger.error('ESTIMATE:API_FAILED', apiError instanceof Error ? apiError : new Error('Non-Error thrown by the model call'));
       throw new Error(`Gemini API call failed: ${apiError.message}`);
     }
 
     if (!result || typeof result !== 'object') {
-      console.error('[Estimate Costs] Invalid response object:', result);
+      logger.error('ESTIMATE:INVALID_RESPONSE', new Error('Invalid response object from API'), { responseType: typeof result });
       throw new Error('Invalid response object from API');
     }
 
@@ -5810,16 +6141,14 @@ Return ONLY valid JSON with no additional text.`;
       result.usageMetadata
     );
 
-    console.log('[Estimate Costs] Response object keys:', Object.keys(result));
 
     const text = result.text;
     if (!text || typeof text !== 'string') {
-      console.error('[Estimate Costs] No text in response. Result structure:', JSON.stringify(result, null, 2));
+      logger.error('ESTIMATE:NO_TEXT', new Error('No response text from API'));
       throw new Error('No response text from API');
     }
 
-    console.log('[Estimate Costs] Response text length:', text.length);
-    console.log('[Estimate Costs] Response text preview:', text.substring(0, 300));
+    logger.debug('ESTIMATE:RESPONSE', 'Response text received', { textLength: text.length });
 
     logger.debug('ESTIMATE:PARSE', 'Parsing JSON response');
     const estimateData = extractJSON(text) as unknown as Record<string, unknown>;
@@ -5830,12 +6159,12 @@ Return ONLY valid JSON with no additional text.`;
     }
 
     if (!estimateData.items || !Array.isArray(estimateData.items) || estimateData.items.length === 0) {
-      logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('Invalid estimate structure'), { estimateData });
+      logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('Invalid estimate structure'), { textLength: text.length });
       throw new Error('Invalid cost estimate structure from AI');
     }
 
     if (!estimateData.total_low || !estimateData.total_high) {
-      logger.error('ESTIMATE:MISSING_TOTALS', new Error('Missing total fields'), { estimateData });
+      logger.error('ESTIMATE:MISSING_TOTALS', new Error('Missing total fields'), { itemCount: (estimateData.items as unknown[]).length });
       throw new Error('Missing total cost fields in estimate');
     }
 
@@ -5844,22 +6173,19 @@ Return ONLY valid JSON with no additional text.`;
     for (let i = 0; i < estimate.items.length; i++) {
       const item = estimate.items[i];
       if (!item.description || typeof item.parts_cost_low !== 'number' || typeof item.labor_cost_low !== 'number') {
-        console.error('[Estimate Costs] Invalid item structure at index', i, item);
+        logger.error('ESTIMATE:INVALID_ITEM', new Error('Invalid item structure'), { index: i });
         throw new Error(`Invalid item structure at index ${i}`);
       }
     }
 
-    console.log('[Estimate Costs] Successfully validated and parsed cost estimate with', estimate.items.length, 'items');
+    logger.info('ESTIMATE:COMPLETE', 'Cost estimate parsed', { itemCount: estimate.items.length });
     return { success: true, data: estimate };
   } catch (error: any) {
-    console.error('[Estimate Costs] Error:', error.message || error);
-    console.error('[Estimate Costs] Full error object:', error);
-    if (error.stack) {
-      console.error('[Estimate Costs] Stack trace:', error.stack);
-    }
+    // LEGAL-22: the error's own message only — never the raw object, which can carry the model's reply.
+    logger.error('ESTIMATE:FAILED', error instanceof Error ? error : new Error('Non-Error thrown while estimating'));
     return {
       success: false,
-      error: error.message || 'Failed to generate cost estimates'
+      error: couldNotMake('the cost estimates')
     };
   }
 }
@@ -5900,12 +6226,15 @@ async function generateEmailDraft(
       return { success: false, error: access.error };
     }
 
-    console.log('[Generate Email Draft] Starting email generation');
+    logger.debug('EMAIL_DRAFT:START', 'Starting email generation', { itemCount: serviceItems.length, notesLength: additionalNotes ? String(additionalNotes).length : 0 });
     const itemsList = serviceItems.map((item, idx) =>
-      `${idx + 1}. ${item.description} (${item.category})`
+      `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
 
-    const notesSection = additionalNotes ? `\n\nAdditional Notes from Owner:\n${additionalNotes}` : '';
+    // SEC-17: bounded at the door too; clipped here so this step stands alone.
+    const notesSection = additionalNotes
+      ? `\n\nAdditional Notes from Owner:\n${clipForPrompt(String(additionalNotes), QUOTE_LIMITS.notes)}`
+      : '';
 
     const prompt = `Write a professional email to an auto repair shop requesting a quote. Use a friendly but business-like tone.
 
@@ -5914,7 +6243,7 @@ Vehicle Details:
 - Make: ${vehicle.make}
 - Model: ${vehicle.model}
 - Trim: ${vehicle.trim || 'Standard'}
-- Current Mileage: ${vehicle.current_mileage?.toLocaleString() || 'Unknown'} miles
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
 
 Requested Services:
 ${itemsList}${notesSection}
@@ -5965,10 +6294,9 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
       }
     );
 
-    console.log('[Generate Email Draft] Received response object');
 
     if (!result || typeof result !== 'object') {
-      console.error('[Generate Email Draft] Invalid response object:', result);
+      logger.error('EMAIL_DRAFT:INVALID_RESPONSE', new Error('Invalid response object from API'), { responseType: typeof result });
       throw new Error('Invalid response object from API');
     }
 
@@ -5979,29 +6307,27 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
 
     const emailText = result.text;
     if (!emailText || typeof emailText !== 'string') {
-      console.error('[Generate Email Draft] No text in response:', result);
+      logger.error('EMAIL_DRAFT:NO_TEXT', new Error('No response text from API'));
       throw new Error('No response text from API');
     }
 
-    console.log('[Generate Email Draft] Response text length:', emailText.length);
+    logger.debug('EMAIL_DRAFT:RESPONSE', 'Response text received', { textLength: emailText.length });
     const emailDraft = emailText.trim();
 
     if (!emailDraft || emailDraft.length < 50) {
-      console.error('[Generate Email Draft] Email draft too short or empty:', emailDraft);
+      // LEGAL-22: the length, never the draft — it is written from the owner's note.
+      logger.error('EMAIL_DRAFT:TOO_SHORT', new Error('Generated email is too short or empty'), { draftLength: emailDraft.length });
       throw new Error('Generated email is too short or empty');
     }
 
-    console.log('[Generate Email Draft] Successfully generated email with', emailDraft.length, 'characters');
+    logger.info('EMAIL_DRAFT:COMPLETE', 'Email draft generated', { draftLength: emailDraft.length });
     return { success: true, data: emailDraft };
   } catch (error: any) {
-    console.error('[Generate Email Draft] Error:', error.message || error);
-    console.error('[Generate Email Draft] Full error object:', error);
-    if (error.stack) {
-      console.error('[Generate Email Draft] Stack trace:', error.stack);
-    }
+    // LEGAL-22: the error's own message only — never the raw object.
+    logger.error('EMAIL_DRAFT:FAILED', error instanceof Error ? error : new Error('Non-Error thrown while drafting'));
     return {
       success: false,
-      error: error.message || 'Failed to generate email draft'
+      error: couldNotMake('the email draft')
     };
   }
 }
@@ -6063,7 +6389,7 @@ async function checkDatabaseHealth(): Promise<{ success: boolean; error?: string
 
     return {
       success: false,
-      error: `Database connection failed: ${errorMsg}`
+      error: COULD_NOT_SAVE
     };
   }
 }
@@ -6126,7 +6452,7 @@ export async function savePreferredZipCode(
 
     if (error) {
       console.error('[Save Preferred Zip Code] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: COULD_NOT_SAVE };
     }
 
     return { success: true };
@@ -6134,7 +6460,7 @@ export async function savePreferredZipCode(
     console.error('[Save Preferred Zip Code] Exception:', error);
     return {
       success: false,
-      error: error.message || 'Failed to save zip code'
+      error: COULD_NOT_SAVE
     };
   }
 }
@@ -6159,7 +6485,7 @@ export async function getQuoteRequestHistory(
 
     if (error) {
       console.error('[Get Quote Request History] Error:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: couldNotLoad('your past estimates') };
     }
 
     return { success: true, data: data || [] };
@@ -6167,7 +6493,7 @@ export async function getQuoteRequestHistory(
     console.error('[Get Quote Request History] Exception:', error);
     return {
       success: false,
-      error: error.message || 'Failed to fetch quote request history'
+      error: couldNotLoad('your earlier quote requests')
     };
   }
 }
@@ -7309,11 +7635,26 @@ export async function generateQuoteRequestV2(
     }
 
     if (!selectedItemIds || selectedItemIds.length === 0) {
-      return { success: false, error: 'Please select at least one item for the quote' };
+      return { success: false, error: 'Choose at least one item for the quote.' };
+    }
+
+    /*
+      ⚠ Audit 360, SEC-17 (1 Oct). This is the public demo's one model path,
+      open with no session, and the wishlist branch below takes the caller's
+      own items into both prompts — description, category, notes, no bound,
+      in a body that may be a megabyte. `quoteRequestSchema`'s limits were
+      imported here and never applied. Now: notes, name and the item count
+      are refused with a sentence, and every caller-sent item is reduced to
+      its three fields, each clipped (`clipQuoteItem`). The prompts clip again
+      at `PROMPT_FIELD_MAX_CHARS` for the database branch's rows.
+    */
+    const quoteTrouble = quoteInputProblem({ selectedItemIds, items, additionalNotes, quoteName });
+    if (quoteTrouble) {
+      return { success: false, error: quoteTrouble };
     }
 
     if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-      return { success: false, error: 'Please enter a valid 5-digit zip code' };
+      return { success: false, error: 'Enter a five-digit ZIP code.' };
     }
 
     const client = getServiceRoleClient();
@@ -7338,7 +7679,7 @@ export async function generateQuoteRequestV2(
       vehicle = fallback.data;
       if (fallback.error || !vehicle) {
         console.error('[QUOTE_V2] Vehicle fetch error (both clients):', vehicleError, fallback.error);
-        return { success: false, error: `Vehicle not found (${vehicleError?.message || fallback.error?.message || 'unknown'})` };
+        return { success: false, error: CAR_NOT_ON_FILE };
       }
     }
 
@@ -7346,7 +7687,7 @@ export async function generateQuoteRequestV2(
 
     if (items && items.length > 0) {
       console.log('[QUOTE_V2] Using provided items (from wishlist), skipping database lookup');
-      serviceItems = items.filter(item => selectedItemIds.includes(item.id));
+      serviceItems = items.map(clipQuoteItem).filter(item => item.id && selectedItemIds.includes(item.id));
 
       if (serviceItems.length === 0) {
         console.error('[QUOTE_V2] No matching items found in provided items array');
@@ -7354,9 +7695,17 @@ export async function generateQuoteRequestV2(
       }
     } else {
       console.log('[QUOTE_V2] Fetching service items from database');
+      /*
+        ⚠ Audit 360, round 3 sweep (SEC-13's shape). `.in('id', …)` alone, with
+        the service role: the ids are the caller's, the vehicle is the one
+        authorized above, and nothing tied them — another car's service items
+        (descriptions and costs) could be read into this quote and its email
+        draft, from the demo with no session at all. Scoped to the vehicle.
+      */
       const { data: fetchedItems, error: itemsError } = await client
         .from('service_items')
         .select('*')
+        .eq('vehicle_id', vehicleId)
         .in('id', selectedItemIds);
 
       if (itemsError || !fetchedItems || fetchedItems.length === 0) {
@@ -7386,7 +7735,7 @@ export async function generateQuoteRequestV2(
       console.error('[QUOTE_V2] Cost estimation failed:', costResult.error);
       return {
         success: false,
-        error: costResult.error || 'Failed to estimate costs. Please try again.'
+        error: costResult.error || couldNotMake('the cost estimates')
       };
     }
 
@@ -7396,7 +7745,7 @@ export async function generateQuoteRequestV2(
       console.error('[QUOTE_V2] Email generation failed:', emailResult.error);
       return {
         success: false,
-        error: emailResult.error || 'Failed to generate email draft. Please try again.'
+        error: emailResult.error || couldNotMake('the email draft')
       };
     }
 
@@ -7472,7 +7821,7 @@ export async function generateQuoteRequestV2(
     console.error('[QUOTE_V2] Unexpected error:', error);
     return {
       success: false,
-      error: error.message || 'An unexpected error occurred. Please try again.'
+      error: COULD_NOT_SAVE
     };
   }
 }

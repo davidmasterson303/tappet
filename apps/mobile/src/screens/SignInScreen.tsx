@@ -19,6 +19,7 @@ import { hasDevCredentials, signInWithDevCredentials } from '../auth/dev-session
 import { checkSharedCore } from '../core-check';
 import { border, build, radius, status, surface, text } from '../theme';
 import { interFace } from '../theme/fonts';
+import { PASSWORD_MIN_LENGTH } from '@tappet/core/password-rule';
 
 /**
  * Sign in.
@@ -119,6 +120,11 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      /*
+        0, and stated: the signed-out gate has no header above it, so the
+        view's frame and the window agree (`keyboard-offset.ts`, UX-2).
+      */
+      keyboardVerticalOffset={0}
     >
       {/*
         23 Sep: with the keyboard up on a 667pt device the top of the form was
@@ -179,6 +185,14 @@ export function SignInScreen({ initialNotice = null }: { initialNotice?: string 
             saved, which is why this was here before sign-up existed.
           */
           textContentType={isNew ? 'newPassword' : 'password'}
+          /*
+            ⚠ Audit 360, UX-10 (1 Oct): the rule, before the press. Sign-up
+            stated none, so the first an owner heard of it was Supabase's
+            sentence after CREATE ACCOUNT. The number is the project's —
+            the web sign-up and reset forms refuse under the same
+            (`@tappet/core/password-rule`, pinned against them).
+          */
+          hint={isNew ? `at least ${PASSWORD_MIN_LENGTH} characters` : undefined}
           editable={!busy}
           onSubmitEditing={handleSubmit}
         />

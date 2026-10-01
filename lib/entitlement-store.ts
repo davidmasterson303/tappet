@@ -124,7 +124,7 @@ export async function applyVerifiedAppleEvent(
     return { ok: false, reason: 'read-failed', detail: readError.message };
   }
 
-  const decision = applyAppleNotification(toStored(data), event);
+  const decision = applyAppleNotification(toStored(data), event, new Date());
 
   if (decision.action === 'ignore') {
     /*

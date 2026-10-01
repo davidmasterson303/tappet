@@ -49,6 +49,20 @@ export const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
  */
 const MAX_MESSAGES_PER_REQUEST = 100;
 
+/**
+ * How long one batch may wait for Expo before it is counted as failed.
+ *
+ * Audit 360, TL-23. The send had no bound: an Expo endpoint that accepted the
+ * connection and never answered held the first recall send until the platform
+ * killed the function — no service or tire notification went out and no
+ * `sweep_runs` row was written, a night that read as a dead sweep. Expo
+ * answers a 100-message batch in well under a second; ten is generous and
+ * still leaves the sweep its time. A timed-out batch is counted like a 5xx —
+ * it may have been delivered, in which case the dedupe row is not written and
+ * it is sent once more tomorrow, which is the same posture as today's 5xx.
+ */
+export const EXPO_SEND_TIMEOUT_MS = 10_000;
+
 /** One message, in the shape Expo's API takes. */
 export interface ExpoPushMessage {
   to: string;
@@ -150,13 +164,18 @@ export function interpretTickets(
  * notification for every device in a later batch. Each batch's failure is
  * counted and the loop continues.
  */
-export async function deliver(messages: ExpoPushMessage[]): Promise<SendOutcome> {
+export async function deliver(
+  messages: ExpoPushMessage[],
+  { timeoutMs = EXPO_SEND_TIMEOUT_MS }: { timeoutMs?: number } = {}
+): Promise<SendOutcome> {
   const total: SendOutcome = { delivered: 0, failed: 0, retire: [] };
 
   for (const batch of chunk(messages, MAX_MESSAGES_PER_REQUEST)) {
     try {
       const response = await fetch(EXPO_PUSH_ENDPOINT, {
         method: 'POST',
+        // TL-23: one hung connection must not hold the whole sweep.
+        signal: AbortSignal.timeout(timeoutMs),
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',

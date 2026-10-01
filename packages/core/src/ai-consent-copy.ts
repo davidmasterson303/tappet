@@ -39,6 +39,56 @@ export interface AiConsentCopy {
 }
 
 /**
+ * The storage key both clients keep the answer under.
+ *
+ * ── ⚠ Audit 360 (1 Oct) — one answer, so every sheet has to say so ─────────
+ *
+ * Both clients keep a single answer (`granted` / `declined`) and every AI
+ * path reads it: on the phone the advisor and the invoice scan, on the web
+ * the advisor and the upload dialog. So a "yes" to the advisor sheet —
+ * which said "No photographs and no documents are sent from here" — opened
+ * the invoice scan with no sheet at all, and the photograph went to Google
+ * on a consent that had promised no photographs. And the health score,
+ * which sends the same records at add-a-car, read no answer at all
+ * (LEGAL-1).
+ *
+ * The fix is to make the one answer an honest one: every sheet now carries
+ * `AI_CONSENT_SCOPE`, which names everything a yes covers, and the score
+ * waits for the answer like the rest. Because the old sheets did not say
+ * that, an answer given under them is not this answer — the key is
+ * versioned, and everyone is asked once more under the new words. Asking
+ * twice is a mild annoyance; proceeding on a consent somebody never saw is
+ * the thing the amendment is about.
+ */
+export const AI_CONSENT_STORAGE_KEY = 'tappet.aiConsent.v2';
+/** The key the 13 Sep–1 Oct sheets wrote. Read by nothing; removed on sign-out. */
+export const AI_CONSENT_LEGACY_KEY = 'tappet.aiConsent';
+
+/**
+ * The point every sheet carries: what one "yes" covers.
+ *
+ * Named, not summarised — the photograph is the part somebody would not
+ * expect a "yes" to the health score to reach.
+ *
+ * ⚠ Audit 360, LEGAL-11/12 (1 Oct, round 02). This said "the health score and
+ * the advisor" while two more paths sent a car's records with no answer read
+ * at all: the performance figures (every service line on the car) and the
+ * website's quote request (the work, the mileage, the ZIP and a note). Both
+ * now wait for this answer, so both are named. Widened under the same key
+ * (`v2`) because no `v2` answer had reached a customer: `web-live` was on
+ * `5f8c973` (28 Sep) and build 3 had not shipped when this changed.
+ */
+export const AI_CONSENT_SCOPE =
+  'One answer covers all of Tappet’s AI: the health score, the advisor, the performance figures and quote requests send this car’s records, and an invoice you scan or a file you attach is sent as it is, photograph and all.';
+
+/**
+ * What declining leaves working. One sentence for every sheet, because one
+ * answer covers every AI path: "everything else works the same" was true of
+ * the sheet's own feature and false of the other AI the same "Not now" stops.
+ */
+const DECLINE_LEAVES = 'Everything in Tappet that is not AI works the same without it.';
+
+/**
  * The sheet shown before the first invoice scan.
  *
  * ⚠ This screen photographs a document carrying **a third party's name and
@@ -52,21 +102,24 @@ export const INVOICE_AI_CONSENT: AiConsentCopy = {
   points: [
     'The photograph goes to Google, not just the text we read from it.',
     'An invoice usually carries the shop’s name and address as well as your car’s.',
+    AI_CONSENT_SCOPE,
     'We do not publish it, and we do not sell it.',
   ],
   accept: 'Scan invoices',
   decline: 'Not now',
   declineNote:
-    'You can still add services by hand, and everything else in Tappet works the same. Ask again any time from a scan.',
+    `You can still add services by hand. ${DECLINE_LEAVES} Ask again any time from a scan.`,
 };
 
 /**
- * The sheet shown before the first advisor question.
+ * The sheet shown before the first advisor question on the phone.
  *
- * ⚠ Narrower than the invoice one, deliberately: what goes to Google here is
- * this car's own records and the question typed — no images, no third party's
- * details. Saying so is more useful than one generic warning covering both, and
- * a person who agreed to the invoice sheet has already agreed to more.
+ * ⚠ What goes to Google from here is this car's own records and the question
+ * typed — the phone's advisor attaches nothing. It used to say so ("No
+ * photographs and no documents are sent from here"), and the same sentence
+ * was rendered by the web's advisor, which **does** attach documents
+ * (LEGAL-2). The web has its own sheet below; this one now carries the scope
+ * point instead, because a yes here is a yes to the scan too.
  */
 export const ADVISOR_AI_CONSENT: AiConsentCopy = {
   title: 'The advisor is Google’s AI',
@@ -74,11 +127,83 @@ export const ADVISOR_AI_CONSENT: AiConsentCopy = {
     'Tappet sends your question and this car’s records — its service history, its open recalls, the mileage you have recorded — to Google’s Gemini service to answer.',
   points: [
     'Your question and this car’s records go to Google.',
-    'No photographs and no documents are sent from here.',
+    AI_CONSENT_SCOPE,
     'We do not publish it, and we do not sell it.',
   ],
   accept: 'Ask the advisor',
   decline: 'Not now',
   declineNote:
-    'Everything else in Tappet works the same without it. Ask again any time from this screen.',
+    `${DECLINE_LEAVES} Ask again any time from this screen.`,
+};
+
+/**
+ * The web advisor's sheet. ⚠ Audit 360, LEGAL-2 (1 Oct).
+ *
+ * The web composer has an attach control (up to three files) and
+ * `sendConsultantMessage` sends each one inline to Gemini. It rendered the
+ * phone's sheet, which said no documents are sent — so a person who accepted
+ * on that sentence and then attached a shop's diagnostic printout gave a
+ * narrower consent than what happened.
+ */
+export const WEB_ADVISOR_AI_CONSENT: AiConsentCopy = {
+  ...ADVISOR_AI_CONSENT,
+  body:
+    'Tappet sends your question, anything you attach to it, and this car’s records — its service history, its open recalls, the mileage you have recorded — to Google’s Gemini service to answer.',
+  points: [
+    'Your question and this car’s records go to Google.',
+    'A document or photo you attach goes too, as it is — with whatever names and addresses are on it.',
+    AI_CONSENT_SCOPE,
+    'We do not publish it, and we do not sell it.',
+  ],
+};
+
+/**
+ * The sheet shown before a car's first health score. ⚠ Audit 360, LEGAL-1.
+ *
+ * The score was the one path that sent an owner's records to Google with no
+ * sheet in front of it: the phone posted `/health` the moment the research
+ * landed after add-a-car, and the web generated it on the dashboard's first
+ * view. Mileage, the service log and up to twelve invoice lines with their
+ * shops' names and totals went into that prompt. It now waits for this.
+ *
+ * Declining leaves the score empty — "no score yet", never a zero — and the
+ * car, its log and its recalls work the same.
+ */
+export const HEALTH_AI_CONSENT: AiConsentCopy = {
+  title: 'The health score is written by Google’s AI',
+  body:
+    'To score this car, Tappet sends its records — the mileage you recorded, its service history, and the line items and shops on its invoices — to Google’s Gemini service.',
+  points: [
+    'This car’s records go to Google; no photographs are sent for the score.',
+    AI_CONSENT_SCOPE,
+    'We do not publish it, and we do not sell it.',
+  ],
+  accept: 'Score this car',
+  decline: 'Not now',
+  declineNote:
+    `The score stays empty until you say yes. ${DECLINE_LEAVES} Ask again from this car’s page.`,
+};
+
+/**
+ * The website's quote request. ⚠ Audit 360, LEGAL-12 (1 Oct, round 02).
+ *
+ * `generateQuoteRequestV2` sends the jobs picked, the car's year, make,
+ * model, trim and mileage, the ZIP code typed and the owner's note to Gemini
+ * (`estimateCosts`, `generateEmailDraft`). It is reachable from Needs without
+ * ever opening the advisor, so no sheet stood in front of it. A five-digit
+ * ZIP is a coarse location, and the note is free text somebody may not
+ * expect a model to read — so both are named.
+ */
+export const QUOTE_AI_CONSENT: AiConsentCopy = {
+  title: 'A quote request uses Google’s AI',
+  body:
+    'To estimate the work and draft your email to a shop, Tappet sends the jobs you picked, this car’s year, make, model and mileage, the ZIP code you type and any note you add to Google’s Gemini service.',
+  points: [
+    'Your ZIP code and your note go to Google with the work you picked.',
+    AI_CONSENT_SCOPE,
+    'We do not publish it, and we do not sell it.',
+  ],
+  accept: 'Estimate the work',
+  decline: 'Not now',
+  declineNote: `${DECLINE_LEAVES} Ask again from this request.`,
 };

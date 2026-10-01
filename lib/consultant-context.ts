@@ -91,6 +91,7 @@ export type ConsultantContextResult =
 */
 export type { ContextKind } from '@tappet/core/consultant-context-kinds';
 import type { ContextKind } from '@tappet/core/consultant-context-kinds';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE } from '@/lib/api-error-copy';
 
 function nonEmpty(v: any): boolean {
   if (!v) return false;
@@ -195,13 +196,13 @@ export async function loadConsultantContext(
 
   if (vehicleResult.error) {
     logger.error('CONSULTANT_CONTEXT', new Error(vehicleResult.error.message), { vehicleId });
-    return { ok: false, error: 'Failed to load vehicle' };
+    return { ok: false, error: 'Tappet could not load this car just now. Try again in a moment.' };
   }
 
   if (!vehicleResult.data) {
     // Same message the authorization layer uses — "not found" and "not yours"
     // stay indistinguishable. See NOT_FOUND_MESSAGE in lib/api-auth.
-    return { ok: false, error: 'Vehicle not found' };
+    return { ok: false, error: NOT_FOUND_MESSAGE };
   }
 
   const optional = {

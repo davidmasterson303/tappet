@@ -4,13 +4,25 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
-import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
+import { odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
+import { clipVehicleTrim, vehicleNameProblem } from '@tappet/core/input-bounds';
 import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
+import { explainVinConflict } from '@/lib/vin-conflict';
 import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE, UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
+
+/**
+ * How long a described car's add may be answered with the car it already
+ * made (TL-13): the phone's 45 s wait, a person reading the error, going
+ * back and trying again. Generous because the match is narrow — the same
+ * year, make, model, trim *and* odometer, with no VIN, from the same owner;
+ * or, for a scanned car (TL-17), the same owner's same VIN.
+ */
+const ADD_RESEND_WINDOW_MS = 10 * 60 * 1000;
 
 export const dynamic = 'force-dynamic';
 
@@ -147,7 +159,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (error) {
       logger.error('API:GET_VEHICLES', new Error(error.message));
       return Response.json(
-        { success: false, error: error.message, vehicles: [] } as ApiResponse,
+        { success: false, error: couldNotLoad('your garage'), vehicles: [] } as ApiResponse,
         { status: 500 }
       );
     }
@@ -241,7 +253,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:GET_VEHICLES', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to load vehicles', vehicles: [] } as ApiResponse,
+      { success: false, error: couldNotLoad('your garage'), vehicles: [] } as ApiResponse,
       { status: 500 }
     );
   }
@@ -284,14 +296,14 @@ export async function PATCH(request: NextRequest): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
 
   const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId : '';
   if (!vehicleId) {
-    return Response.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
@@ -371,13 +383,15 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       readError ? new Error(readError.message) : new Error('Vehicle not found after authorization'),
       { vehicleId }
     );
-    return Response.json({ success: false, error: 'Vehicle not found' } as ApiResponse, {
+    return Response.json({ success: false, error: NOT_FOUND_MESSAGE } as ApiResponse, {
       status: 404,
     });
   }
 
   const decision = validateMileageUpdate({
-    current: vehicle.current_mileage ?? 0,
+    // Audit 360, TL-5: a stored 0 is no reading, so the first real one is a
+    // first reading — not a 100,000-mile jump from zero.
+    current: odometerReading(vehicle.current_mileage),
     next: body.currentMileage,
     isCorrection: body.isCorrection === true,
   });
@@ -520,7 +534,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
@@ -541,6 +555,22 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: false, error: 'Make and model are required' } as ApiResponse,
       { status: 400 }
     );
+  }
+
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct). These three were unbounded, and every one of
+    them is in the advisor's system prompt on every turn — a 500 KB `make`
+    was ~125k input tokens a message. `vehicleSchema`'s 50, which the web's
+    form already applies. `@tappet/core/input-bounds`.
+  */
+  /*
+    ⚠ TL-20 (round 3): make and model are refused; a trim is clipped below
+    (`clipVehicleTrim`). A build-2 phone sends vPIC's decoded trim unbounded
+    from a screen with no trim field, and a refusal there had nothing to edit.
+  */
+  const nameTrouble = vehicleNameProblem({ make, model });
+  if (nameTrouble) {
+    return Response.json({ success: false, error: nameTrouble } as ApiResponse, { status: 422 });
   }
 
   /*
@@ -576,6 +606,57 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const client = getServiceRoleClient();
+  const trim = typeof body.trim === 'string' ? clipVehicleTrim(body.trim) : '';
+
+  /*
+    ⚠ Audit 360, TL-13 (1 Oct) · a described car's add, sent again.
+
+    The phone waits 45 s for this route, and the insert below happens
+    *before* the generation-plate model call — so at the model's slow tail
+    the row exists when the phone gives up, keeps the form, and offers the
+    same CONTINUE again. A car with a VIN is caught by its UNIQUE (the 409
+    below); a described car has no VIN, and nothing refused the second row:
+    two Civics, two research jobs, and no telling which the next invoice
+    lands on.
+
+    So a described car the caller added inside `RESEND_WINDOW_MS` with the
+    same year, make, model, trim and odometer is the answer to this request,
+    not a reason for another row. Server-side, so build-2 phones get it with
+    no change. The cost is two genuinely identical described cars at the
+    same reading inside ten minutes, which is not an owner.
+
+    ⚠ TL-17 (round 3) · the scanned car, the same way. Its VIN's UNIQUE did
+    catch the second row — and answered the retry 409 "That car is already
+    in your garage." on a form still asking for the odometer, CONTINUE live,
+    the scan screen already replaced. That is the App Review path: the
+    reviewer scans. So the caller's car with this VIN, made inside the same
+    window, is the answer too. The VIN is the car, so nothing else need
+    match. Older than the window it is still the honest 409 below — a car
+    the owner already had, not a request whose answer was lost.
+  */
+  const since = new Date(Date.now() - ADD_RESEND_WINDOW_MS).toISOString();
+  const resent = vin
+    ? client.from('vehicles').select('id,year,make,model').eq('user_id', caller.userId).eq('vin', vin)
+    : client
+        .from('vehicles')
+        .select('id,year,make,model')
+        .eq('user_id', caller.userId)
+        .is('vin', null)
+        .eq('year', year)
+        .eq('make', make)
+        .eq('model', model)
+        .eq('trim', trim)
+        .eq('current_mileage', mileage);
+  const { data: recent } = await resent
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recent) {
+    logger.info('API:CREATE_VEHICLE', 'Answered a resent add with the car it made', { vehicleId: recent.id });
+    return Response.json({ success: true, vehicle: recent } as ApiResponse, { status: 200 });
+  }
 
   const { data: vehicle, error } = await client
     .from('vehicles')
@@ -584,7 +665,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       year,
       make,
       model,
-      trim: typeof body.trim === 'string' ? body.trim.trim() : '',
+      trim,
       current_mileage: mileage,
       /*
         The one product branch that has to be set at creation: whether this
@@ -611,13 +692,17 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   if (error?.code === '23505') {
     /*
-      `vin` is the only UNIQUE column besides the key, so this is a VIN that
-      is already somebody's car — possibly this owner's, added twice. Said
-      plainly rather than as a 500: the number is on the windscreen, and the
-      fix is theirs to make.
+      ⚠ Audit 360, SEC-1 (1 Oct). `vin` is the only UNIQUE column besides the
+      key. Until 1 Oct this answered "A car with that VIN is already in a
+      garage." for every 23505 — an oracle for whether a car is in Tappet,
+      and a dead end for a used car's buyer. `explainVinConflict` asks
+      whether it is the *caller's* car; once
+      `20261001120000_a_vin_is_unique_within_a_garage.sql` is applied that is
+      the only way to reach here.
     */
+    const conflict = await explainVinConflict(client, caller.userId, vin);
     return Response.json(
-      { success: false, error: 'A car with that VIN is already in a garage.' } as ApiResponse,
+      { success: false, error: conflict.error, ...(conflict.vehicleId ? { vehicleId: conflict.vehicleId } : {}) },
       { status: 409 }
     );
   }

@@ -39,11 +39,14 @@ export default function AiConsentSheet({
   copy,
   onAccept,
   onDecline,
+  onDismiss,
 }: {
   visible: boolean;
   copy: AiConsentCopy;
   onAccept: () => void;
   onDecline: () => void;
+  /** The slide-down has finished (iOS) — the next ask may present (UX-19, `useAskTurns`). */
+  onDismiss?: () => void;
 }) {
   // A full-screen Modal draws under the status bar and the home indicator;
   // 64pt and 16pt literals put the decline's lower half in the indicator's
@@ -59,6 +62,7 @@ export default function AiConsentSheet({
       transparent={false}
       /* The back gesture is a refusal, not a dismissal. See the docblock. */
       onRequestClose={onDecline}
+      onDismiss={onDismiss}
     >
       <View style={styles.root}>
         <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top + space.xl }]}>

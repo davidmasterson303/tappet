@@ -42,6 +42,8 @@
  * they turn notifications off. The safest hour is the one nobody notices.
  */
 
+import { schedulerVerdict } from '../../lib/sweep-scheduler-verdict';
+
 export default async () => {
   const secret = process.env.CRON_SECRET;
   const site = process.env.URL;
@@ -68,7 +70,13 @@ export default async () => {
   const body = await response.text();
 
   if (!response.ok) {
-    console.error('[CRON:SWEEP] Sweep failed: %s %s', response.status, body);
+    /*
+      TL-24: a 502/504 is the gateway that stopped waiting, while the route
+      runs on and writes `sweep_runs` — so it is not "failed" in the log a
+      person opens first. `lib/sweep-scheduler-verdict.ts`.
+    */
+    const verdict = schedulerVerdict(response.status);
+    (verdict.level === 'warn' ? console.warn : console.error)(verdict.line, response.status, body);
     return new Response(body, { status: response.status });
   }
 

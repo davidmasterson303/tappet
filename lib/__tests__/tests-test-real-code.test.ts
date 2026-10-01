@@ -419,6 +419,13 @@ const STATIC_ANALYSIS_SUITES = [
   // The failure it pins is silent in the ordinary way — a pushed advisor
   // renders perfectly and simply cannot be found again from the tab.
   'mobile-one-advisor.test.ts',
+  // Reads every mobile source that renders a KeyboardAvoidingView and proves
+  // each declares its keyboard offset and, when pushed, asks before a back
+  // gesture discards it (audit 360, UX-2/UX-3). Nothing to import: the screens
+  // are React Native, and the behaviour is pinned in the mobile suite
+  // (`form-guards.test.tsx`). Silent in the ordinary way — a form with SAVE
+  // under the keyboard renders perfectly.
+  'mobile-keyboard-forms.test.ts',
 ];
 
 /**

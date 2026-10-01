@@ -8,6 +8,7 @@ import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check } from 'lucide
 import { WorkingMark } from '@/components/Working';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE } from '@/lib/api-error-copy';
 
 interface RecallAlertsProps {
   recalls: any[];
@@ -53,7 +54,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         onRecallAddressed(campaignNumber);
       }
     } catch (err) {
-      toast.error('Failed to mark recall as addressed');
+      toast.error(COULD_NOT_SAVE);
     } finally {
       setAddressingId(null);
     }
@@ -145,7 +146,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white leading-snug">
-                        {recall.Component || 'Component Unknown'}
+                        {recall.Component || 'Component not named'}
                       </p>
                       {/*
                         ── ⚠ Not clamped. This is NHTSA's own text ───────────

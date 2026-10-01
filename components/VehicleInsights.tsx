@@ -22,8 +22,10 @@ import {
   generateVehicleDossier,
   generateVehicleHealthSummary,
 } from '@/app/actions';
+import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { useWishlistData } from '@/hooks/useWishlistData';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 import { useRouter } from 'next/navigation';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import IssueFixDialog from './IssueFixDialog';
@@ -38,7 +40,7 @@ import { showsModifications } from '@tappet/core/mod-progression';
  * One of the three bodies this component can render on its own.
  *
  * ⚠ **The dossier is gone as a container, and this prop is what dissolved it.**
- * Until 8 Sep these three lived as tabs inside a card called "The Dossier",
+ * Until 8 Sep these three lived as tabs inside a card called "The dossier",
  * inside a collapsible, at the bottom of the dashboard — three clicks from
  * landing, under a name that describes the drawer rather than anything in it.
  * An IA review put the cost plainly: a subscriber counting what they are paying
@@ -273,14 +275,17 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       if (result.success) {
         toast.success('Issue status updated');
         await loadTracking();
-        generateVehicleHealthSummary(vehicle.id, true).then(() => {
-          invalidateDashboardCache(vehicle.id);
-          router.refresh();
-        });
+        // LEGAL-1: the score's records go to Google only on this browser's yes.
+        if (readWebAiConsent() === 'granted') {
+          generateVehicleHealthSummary(vehicle.id, true).then(() => {
+            invalidateDashboardCache(vehicle.id);
+            router.refresh();
+          });
+        }
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to update issue status');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -289,11 +294,13 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       await loadTracking();
     };
 
+    // LEGAL-11: the figures send the service history, so only on this browser's yes.
     const triggerPerfStatsRecalc = () => {
+      if (readWebAiConsent() !== 'granted') return;
       fetch('/api/v1/performance-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehicleId: vehicle.id }),
+        body: JSON.stringify({ vehicleId: vehicle.id, aiConsent: 'granted' }),
       }).catch(() => {});
     };
 
@@ -321,7 +328,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         triggerPerfStatsRecalc();
         router.refresh();
       } else {
-        toast.error('Failed to update modification status');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -368,7 +375,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to mark issue as fixed');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -390,7 +397,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
           data.dateCompleted
         );
         if (!modResult.success) {
-          toast.error('Failed to update modification status');
+          toast.error(answerSentence(modResult, COULD_NOT_SAVE));
           setLoading(false);
           return;
         }
@@ -415,14 +422,17 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         setSelectedMaintenanceItem('');
         await loadTracking();
         await loadPerformanceMods();
-        generateVehicleHealthSummary(vehicle.id, true).then(() => {
-          invalidateDashboardCache(vehicle.id);
-          router.refresh();
-        });
+        // LEGAL-1: the score's records go to Google only on this browser's yes.
+        if (readWebAiConsent() === 'granted') {
+          generateVehicleHealthSummary(vehicle.id, true).then(() => {
+            invalidateDashboardCache(vehicle.id);
+            router.refresh();
+          });
+        }
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to add maintenance history');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -472,10 +482,10 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-400" />
-              Research Unavailable
+              Research unavailable
             </CardTitle>
             <CardDescription className="text-slate-400">
-              We encountered an issue researching your vehicle. You can still track maintenance manually.
+              Tappet could not finish researching this car. You can still record its service by hand.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -486,7 +496,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       return (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardHeader>
-            <CardTitle>Limited Data Available</CardTitle>
+            <CardTitle>Limited data available</CardTitle>
             <CardDescription>
               We couldn&apos;t find enough information about your specific vehicle, but you can still use Tappet
               to track maintenance and get general advice.
@@ -613,9 +623,9 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
             <div>
               <CardTitle className="text-white flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-info" />
-                The Dossier
+                The dossier
               </CardTitle>
-              <CardDescription className="text-slate-400">AI-researched insights for your vehicle</CardDescription>
+              <CardDescription className="text-slate-400">AI-researched insights for your car</CardDescription>
             </div>
           </CardHeader>
           <CardContent>

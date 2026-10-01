@@ -198,7 +198,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:ACCOUNT_DELETE', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to delete account' } as ApiResponse,
+      { success: false, error: 'Tappet could not delete your account just now. Try again in a moment.' } as ApiResponse,
       { status: 500 }
     );
   }

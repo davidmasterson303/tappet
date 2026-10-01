@@ -222,7 +222,7 @@ export default async function OpengraphImage() {
           */}
           <div style={{ marginTop: 26, fontSize: 30, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
             {isDemoSite(process.env.TAPPET_DEMO_SITE ?? process.env.WELLKEPT_DEMO_SITE ?? process.env.CREWCHIEF_DEMO_SITE)
-              ? 'Live demo with sample vehicles — no signup required'
+              ? 'Live demo with sample cars — no signup required'
               : 'Every invoice read, every interval anchored.'}
           </div>
         </div>

@@ -179,7 +179,7 @@ export default function MaintenanceItemCard({
           disabled={loading}
         >
           <Clock className="h-3 w-3 mr-1" />
-          Add to History
+          Add to history
         </Button>
         <Button
           size="sm"

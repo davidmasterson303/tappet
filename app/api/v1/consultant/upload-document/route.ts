@@ -4,6 +4,7 @@ import { logger } from '@tappet/core/logger';
 import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,13 +32,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
 
     if (!file || !vehicleId || !sessionId) {
-      logger.warn('API:UPLOAD_CONSULTANT_DOC', 'Missing required fields', {
+      logger.warn('API:UPLOAD_CONSULTANT_DOC', UNREADABLE_REQUEST, {
         hasFile: !!file,
         hasVehicleId: !!vehicleId,
         hasSessionId: !!sessionId
       });
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         allowedTypes: ALLOWED_DOCUMENT_TYPES
       });
       return NextResponse.json(
-        { success: false, error: 'Invalid file type' } as ApiResponse,
+        { success: false, error: 'That file type cannot be read. Choose a photo or a PDF.' } as ApiResponse,
         { status: 400 }
       );
     }
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       return NextResponse.json(
-        { success: false, error: result.error || 'Upload failed' } as ApiResponse,
+        { success: false, error: result.error || 'Tappet could not attach that file just now. Try again in a moment.' } as ApiResponse,
         { status: 500 }
       );
     }
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:UPLOAD_CONSULTANT_DOC', error as Error);
     return NextResponse.json(
-      { success: false, error: (error as Error).message || 'Upload failed' } as ApiResponse,
+      { success: false, error: 'Tappet could not attach that file just now. Try again in a moment.' } as ApiResponse,
       { status: 500 }
     );
   }

@@ -26,6 +26,28 @@
  */
 
 /** The billable quantity a budget is measured in. See `billableTokens`. */
+/**
+ * How many input tokens bill like one output token, for the fuse.
+ *
+ * `pricing.ts`: output bills at ~12× input on Flash, which runs the advisor
+ * and invoice reading. 10 rounds toward counting input *more* than it costs —
+ * the conservative direction for a fuse — and is not a price; `PRICING`
+ * still owns those. Audit 360, SEC-2.
+ */
+export const INPUT_TOKENS_PER_OUTPUT_EQUIVALENT = 10;
+
+/**
+ * Output and input on one scale: output (with thinking) plus input at
+ * `INPUT_TOKENS_PER_OUTPUT_EQUIVALENT`. The one formula both fuses read —
+ * the owner's (`decideBudget`) and the demo's (`checkDemoBudget`, audit 360
+ * SEC-17, which summed output alone until 1 Oct). A non-finite or negative
+ * part counts as nothing rather than poisoning the sum.
+ */
+export function outputEquivalentTokens(usage: MonthlyUsage): number {
+  const part = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
+  return part(usage.outputTokens) + part(usage.inputTokens) / INPUT_TOKENS_PER_OUTPUT_EQUIVALENT;
+}
+
 export interface MonthlyUsage {
   /** Input tokens billed at the full rate, this calendar month. */
   inputTokens: number;
@@ -175,6 +197,13 @@ export const TIERS: Record<TierName, Tier> = {
  * of it thinking — inside the "3–6k" this paragraph guessed before, and now
  * a number rather than a guess. A quote with more items costs more — the
  * estimate writes a block per item — and that slope has not been measured.
+ *
+ * ⚠ Since 1 Oct (audit 360, SEC-17) `checkDemoBudget` counts input as well,
+ * at `INPUT_TOKENS_PER_OUTPUT_EQUIVALENT`, the owner's weighting. Not
+ * measured, estimated from the source: the two templates are ~2,700
+ * characters together, ~700 input tokens with three short needs, so an
+ * ordinary quote moves by ~70 — inside the rounding of the ~2,200 below. What it changes is the
+ * abusive quote, whose input the pool could not see.
  *
  *   daily       60,000 ≈    27 quotes of ~2,200 ≈  $0.45/day
  *   monthly    300,000 ≈   136 quotes of ~2,200 ≈  $2.25/month
@@ -408,7 +437,17 @@ export interface BudgetDecision {
  * remainder, a NaN from a missing row — and none of those throw.
  */
 export function decideBudget(usage: MonthlyUsage, tier: Tier): BudgetDecision {
-  const used = Math.max(0, Math.round(usage.outputTokens || 0));
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct) · input counts. This read `outputTokens` alone,
+    on `pricing.ts`'s argument that input is single-digit percent of a call —
+    true while prompts are bounded, and they were not: a 500 KB string in a
+    car's record was ~125k input tokens a turn and counted as nothing, so the
+    fuse could not see the one way to spend without limit. Input now counts
+    at its output-equivalent weight. Ordinary use moves a little (an advisor
+    turn's few thousand input tokens add a few hundred); the abuse becomes
+    one the fuse stops.
+  */
+  const used = Math.round(outputEquivalentTokens(usage));
   const limit = tier.monthlyOutputTokens;
 
   /*

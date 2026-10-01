@@ -284,3 +284,29 @@ export function rateLimitResponse(result: RateLimitResult): Response {
     }
   );
 }
+
+/**
+ * The bucket a model call is counted in: the **caller**, never the thing
+ * being asked about.
+ *
+ * ── Audit 360, SEC-6 and SEC-2 (1 Oct) ──────────────────────────────────────
+ *
+ * The advisor's limiter was `consultant:${vehicleId}` and ran **before**
+ * authentication, so anyone holding a vehicle id (every web URL carries one;
+ * the demo ids are public) could spend the owner's ten-a-minute with
+ * unauthenticated POSTs and the owner's advisor answered 429. The health
+ * summary had the opposite fault from the same key: `health:${vehicleId}`
+ * meant an account with N cars had N × 10 a minute.
+ *
+ * So a key is built after the caller is known: their user id when signed
+ * in, the visitor's platform address on the demo, and the vehicle only when
+ * neither exists (the old key — no worse than before).
+ */
+export function aiCallerKey(
+  feature: string,
+  caller: { userId: string | null; visitor?: string | null; vehicleId: string }
+): string {
+  if (caller.userId) return `${feature}:user:${caller.userId}`;
+  if (caller.visitor) return `${feature}:visitor:${caller.visitor}`;
+  return `${feature}:${caller.vehicleId}`;
+}

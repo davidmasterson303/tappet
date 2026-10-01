@@ -123,6 +123,17 @@ describe('the date', () => {
     expect(props.onConfirm.mock.calls[0][0].serviceDate).toBe('2026-08-16');
   });
 
+  it('raises digits and the hyphen, and says the format — audit 360, UX-12', async () => {
+    // A job done last Saturday is typed as an ISO date; on the default
+    // keyboard that was a hunt through QWERTY for each digit and the dash.
+    const { view } = await mount();
+    const date = view.getByLabelText('Service date');
+
+    expect(date.props.keyboardType).toBe('numbers-and-punctuation');
+    expect(date.props.maxLength).toBe(10);
+    expect(date.props.accessibilityHint).toMatch(/year, month and day/i);
+  });
+
   it('refuses a future date rather than clamping it', async () => {
     /*
       The screen's job here is to *stop*, and the reason is in

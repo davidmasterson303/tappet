@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { TIRES_UNAVAILABLE, readTireRecords, tireTablesMissing } from '@/lib/tires-store';
+import { COULD_NOT_SAVE, couldNotLoad } from '@/lib/api-error-copy';
 
 /**
  * The tire set on a car — read it, put one on, change what was entered.
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ set: records.set, rotations: records.rotations });
   } catch (error) {
     logger.error('TIRES_API:GET_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: couldNotLoad("this car’s tires") }, { status: 500 });
   }
 }
 
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ set }, { status: 201 });
   } catch (error) {
     logger.error('TIRES_API:POST_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: COULD_NOT_SAVE }, { status: 500 });
   }
 }
 
@@ -317,6 +318,6 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ set });
   } catch (error) {
     logger.error('TIRES_API:PATCH_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: COULD_NOT_SAVE }, { status: 500 });
   }
 }

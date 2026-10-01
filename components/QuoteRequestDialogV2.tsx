@@ -1,6 +1,7 @@
 'use client';
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
+import { NO_ANSWER, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,18 @@ import { generateQuoteRequestV2 } from '@/app/actions';
 import { CostBreakdownTable } from './CostBreakdownTable';
 import { EmailDraftDisplay } from './EmailDraftDisplay';
 import { QuoteGenerationProgress } from './QuoteGenerationProgress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { QUOTE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 
 interface ServiceItem {
   id: string;
@@ -159,6 +172,7 @@ export function QuoteRequestDialogV2({
     ...initialState,
     zipCode: preferredZipCode || '',
   });
+  const [consentOpen, setConsentOpen] = useState(false);
 
   /*
     `preselectedItemIds` is joined rather than passed by reference: a caller
@@ -183,17 +197,17 @@ export function QuoteRequestDialogV2({
 
   const validateStep1 = () => {
     if (state.selectedItemIds.size === 0) {
-      return 'Please select at least one item for the quote';
+      return 'Pick at least one job to estimate.';
     }
     return null;
   };
 
   const validateStep2 = () => {
     if (!state.zipCode) {
-      return 'Please enter a zip code';
+      return 'Enter your ZIP code.';
     }
     if (!/^\d{5}$/.test(state.zipCode)) {
-      return 'Please enter a valid 5-digit zip code';
+      return 'Enter a five-digit ZIP code.';
     }
     return null;
   };
@@ -209,6 +223,19 @@ export function QuoteRequestDialogV2({
       const error = validateStep2();
       if (error) {
         dispatch({ type: 'SET_ERROR', error });
+        return;
+      }
+      /*
+        ── Audit 360, LEGAL-12 (1 Oct, round 02) · the ZIP waits for a yes ──
+
+        The request sends the work, the mileage, the ZIP code and the note to
+        Google, and nothing asked: this dialog opens from Needs without the
+        advisor's sheet ever having been in front of it. It now reads the
+        same browser answer every other AI path reads, and asks with
+        `QUOTE_AI_CONSENT` when it is not a yes. "Not now" sends nothing.
+      */
+      if (readWebAiConsent() !== 'granted') {
+        setConsentOpen(true);
         return;
       }
       handleGenerate();
@@ -253,10 +280,10 @@ export function QuoteRequestDialogV2({
           onQuoteSaved(result.data.quoteRequestId);
         }
       } else {
-        dispatch({ type: 'SET_ERROR', error: result.error || 'Failed to generate quote' });
+        dispatch({ type: 'SET_ERROR', error: answerSentence(result, couldNotMake('the estimate')) });
       }
     } catch (error: any) {
-      dispatch({ type: 'SET_ERROR', error: error.message || 'An unexpected error occurred' });
+      dispatch({ type: 'SET_ERROR', error: NO_ANSWER });
     }
   };
 
@@ -289,7 +316,45 @@ export function QuoteRequestDialogV2({
 
   const allSelected = wishlistItems.length > 0 && state.selectedItemIds.size === wishlistItems.length;
 
+  const consentDialog = (
+    <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{QUOTE_AI_CONSENT.title}</AlertDialogTitle>
+          <AlertDialogDescription>{QUOTE_AI_CONSENT.body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
+          {QUOTE_AI_CONSENT.points.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="text-xs text-white/70">{QUOTE_AI_CONSENT.declineNote}</p>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              recordWebAiConsent('declined');
+              setConsentOpen(false);
+            }}
+          >
+            {QUOTE_AI_CONSENT.decline}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              recordWebAiConsent('granted');
+              setConsentOpen(false);
+              void handleGenerate();
+            }}
+          >
+            {QUOTE_AI_CONSENT.accept}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   return (
+    <>
+    {consentDialog}
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-[#0d1117] border-white/12 p-0">
         <div className="px-4 sm:px-6 pt-6 pb-5 border-b border-white/8">
@@ -297,7 +362,7 @@ export function QuoteRequestDialogV2({
             <div className="w-8 h-8 rounded-lg bg-info-wash border border-info-border flex items-center justify-center">
               <FileText className="h-4 w-4 text-info" />
             </div>
-            <DialogTitle className="text-lg font-semibold text-white">Request Quote</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-white">Request a quote</DialogTitle>
           </div>
           <div className="flex items-center gap-2 mt-3 ml-11">
             {[1, 2, 3].map((s) => (
@@ -313,7 +378,7 @@ export function QuoteRequestDialogV2({
               </div>
             ))}
             <span className="text-xs text-white/50 ml-1">
-              {state.step === 1 ? 'Select Items' : state.step === 2 ? 'Details' : 'Results'}
+              {state.step === 1 ? 'Select items' : state.step === 2 ? 'Details' : 'Results'}
             </span>
           </div>
         </div>
@@ -339,7 +404,7 @@ export function QuoteRequestDialogV2({
                   )}
                   className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
                 >
-                  {allSelected ? 'Deselect All' : 'Select All'}
+                  {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
 
@@ -392,7 +457,7 @@ export function QuoteRequestDialogV2({
               <div className="space-y-1.5">
                 <label htmlFor="zipCode" className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
-                  Zip Code
+                  ZIP code
                   {/*
                     11 Sep, David: "if zip code is required, then UI should
                     indicate its required." The two fields below it say
@@ -404,7 +469,7 @@ export function QuoteRequestDialogV2({
                 </label>
                 <Input
                   id="zipCode"
-                  placeholder="Enter 5-digit zip code"
+                  placeholder="Five-digit ZIP code"
                   value={state.zipCode}
                   onChange={(e) => dispatch({ type: 'SET_ZIP_CODE', zipCode: e.target.value })}
                   maxLength={5}
@@ -422,7 +487,7 @@ export function QuoteRequestDialogV2({
                 </label>
                 <Input
                   id="quoteName"
-                  placeholder="e.g., Summer Maintenance Package"
+                  placeholder="e.g., summer maintenance"
                   value={state.quoteName}
                   onChange={(e) => dispatch({ type: 'SET_QUOTE_NAME', name: e.target.value })}
                 />
@@ -436,7 +501,7 @@ export function QuoteRequestDialogV2({
                 </label>
                 <Textarea
                   id="notes"
-                  placeholder="Add specific concerns, timeline preferences, or additional context for shops..."
+                  placeholder="Add specific concerns, timeline preferences, or additional context for shops…"
                   value={state.additionalNotes}
                   onChange={(e) => dispatch({ type: 'SET_ADDITIONAL_NOTES', notes: e.target.value })}
                   rows={5}
@@ -492,7 +557,7 @@ export function QuoteRequestDialogV2({
                   disabled={state.step === 1 && state.selectedItemIds.size === 0}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-5 rounded-xl font-semibold text-sm gap-2 disabled:opacity-40"
                 >
-                  {state.step === 2 ? 'Generate Quote' : 'Next'}
+                  {state.step === 2 ? 'Generate quote' : 'Next'}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               )}
@@ -511,5 +576,6 @@ export function QuoteRequestDialogV2({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { projectNextService } from '@/lib/next-service';
 import { platePresence, resolveVehiclePhoto, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 import { driversForVehicle } from '@tappet/core/health-drivers';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE, UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     if (!vehicleId) {
       logger.warn('API:LOAD_VEHICLE', 'Missing vehicleId parameter');
-      return Response.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, { status: 400 });
+      return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, { status: 400 });
     }
 
     // Validates the id, resolves demo vs owned, and returns the right client:
@@ -206,11 +207,12 @@ export async function GET(request: NextRequest): Promise<Response> {
     const { data: vehicleData, error: vehicleError } = vehicleResult;
 
     if (vehicleError) {
-      return Response.json({ success: false, error: vehicleError.message } as ApiResponse, { status: 500 });
+      logger.error('API:LOAD_VEHICLE', new Error(vehicleError.message), { vehicleId });
+      return Response.json({ success: false, error: couldNotLoad('this car') } as ApiResponse, { status: 500 });
     }
 
     if (!vehicleData) {
-      return Response.json({ success: false, error: 'Vehicle not found' } as ApiResponse, { status: 404 });
+      return Response.json({ success: false, error: NOT_FOUND_MESSAGE } as ApiResponse, { status: 404 });
     }
 
     const knowledgeData = knowledgeResult.data;
@@ -389,7 +391,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:LOAD_VEHICLE', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to load vehicle' } as ApiResponse,
+      { success: false, error: couldNotLoad('this car') } as ApiResponse,
       { status: 500 }
     );
   }

@@ -4168,3 +4168,100 @@ built from existing tokens, and each was graded by the critic (rounds 53–56):
    to reduced opacity with no fill. The system's rule is a disabled fill and
    never group opacity. The build keeps the rule.
 
+
+## Tire rotation push — the approved sentence changed (audit 360, LEGAL-9, 1 Oct)
+
+The approved copy (design-loop/tires §0.10) ended "You are currently outside
+your warranty's terms." That is a legal conclusion about a contract Tappet has
+never seen, drawn from one number the owner typed. The push now reads
+`11,400 miles since the last rotation. That is past the 6,000-mile interval you
+entered from your warranty card.` (`tireRotationNotification`,
+`packages/core/src/notifications.ts`). Same facts, same gate
+(`mayClaimWarrantyTerms`), no conclusion.
+
+**What Design needs to decide:** nothing unless the sentence's rhythm matters;
+the on-screen mono column (`YOUR INTERVAL`, `PAST n MI`) is unchanged.
+
+## Copy lens strings changed (audit 360, COPY round 01, 1 Oct)
+
+Words only; no type, colour, spacing or mono-caps label changed. Each was an
+approved or shipped sentence that claimed more than the data holds, or used a
+second word for one thing:
+
+- **Hub recall banner** `Airbags — free to fix at a franchised dealer.` →
+  `Airbags — a franchised dealer does the repair.` The free remedy has a
+  15-year limit (49 U.S.C. §30120(g)); Tappet has not seen the sale date.
+- **Recalls footnote** `…free at a franchised dealer, whatever the age of the
+  vehicle.` → `A franchised dealer does recall repairs, usually at no charge —
+  ask when you book.` The do-not-drive banner drops `— the repair is free`.
+- **Recalls empty state** `…no open recalls listed for this vehicle` →
+  `NHTSA lists no open recalls for this year, make and model.`
+- **Push primer detail** `…which for most cars is never.` → `…for your car's
+  year, make and model — some models never have one, some have several.`
+- **Paywall free list** label `Service log` → `Service history`; the invoice
+  blurb says invoice, not receipt. The App Store listing's matching lines are
+  David's (held, with the 30-character subtitle).
+- **Hub spoken names** (VoiceOver only): the recall cell says it opens the
+  recall list, not "the account of the score".
+
+**What Design needs to decide:** nothing — every changed string sits in a
+wrapping text block whose style is unchanged; not re-shot.
+
+## Two new states on the phone, from existing parts (audit 360, LEGAL-20 / UX-15 / UX-17, 1 Oct, for Design)
+
+No new token, type style or treatment; recorded because each is a state no
+board has drawn.
+
+- **Hub · Score this car** (UX-15). A researched car whose owner said *Not
+  now* to the health score's sheet on an earlier visit now shows one outline
+  `Button` labelled `Score this car` (the sheet's own accept) in the research
+  log's slot, above the readings binnacle, padded as the log is
+  (`styles.researchLog`). It replaces nothing: before, that slot was empty
+  and the HEALTH cell said "No score yet" with no way on. Pressing it runs the
+  score step with the log and shows the sheet.
+- **Paywall · comped account** (LEGAL-20). The "Your subscription" well and
+  both price buttons now stand together for a hand-granted account (the App
+  Review account), the well first. The well's second line reads "…nothing to
+  manage in your Apple Account. You can still subscribe below, and Apple then
+  bills it." An Apple-billed subscriber still sees the well alone.
+- **Paywall · checking** (UX-17). While this opening's account read is out,
+  the price slot shows the compact `Working` well — "Checking your
+  subscription / From your Tappet account." — the same instrument as
+  "Loading prices".
+
+**What Design needs to decide:** whether the hub's outline button wants the
+plate's act treatment instead, and whether the comped well should sit below
+the prices. Neither blocks build 3.
+
+## Two more states, from existing parts (audit 360, UX-21 / UX-22, 1 Oct, for Design)
+
+No new token, type style or treatment.
+
+- **Phone · research log settled on a *Not now*** (UX-22). When the log's one
+  failed line is the owner's own decline, its control is the outline
+  `Button` *Score this car* (the sheet's accept, as on the hub's door) in the
+  slot *Retry the research* holds for a real failure. The declined line
+  drops its "Retry to be asked again." tail.
+- **Web · Cost of Ownership Inputs, refused** (UX-21). The dialog shows the
+  red error well `DocumentUploadDialog` already uses (warning triangle,
+  `bg-red-500/10`, `text-red-300`, `role="alert"`) above its buttons when the
+  save is refused, and stays open. Its lead line is now the dialog's
+  `DialogDescription` (same classes).
+
+**What Design needs to decide:** nothing that blocks; whether the phone's
+asks (primer, score's sheet) want a visible beat between them is now a
+timing the code owns (`useAskTurns`, onDismiss then the next).
+
+## The advisor's way back is a button (audit 360, UX-26, final sweep, 1 Oct, for Design)
+
+No new token, type style or treatment.
+
+- **Phone · Advisor, declined** (UX-26). *Change that* was an underlined
+  accent span inside the decline note — a nested `Text` that VoiceOver could
+  not reach. It is now the small outline `Button` the scan screen already
+  draws for the same act, on its own line under the note, at the note's
+  inset (`space.lg`). The note keeps `text.muted`.
+
+**What Design needs to decide:** nothing that blocks; whether both screens'
+*Change that* want the inline-link treatment back would need a role-bearing
+link component, which the system does not have.

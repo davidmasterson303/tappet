@@ -4,6 +4,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { requireCaller } from '@/lib/api-auth';
 import { ensurePlate } from '@/lib/plates';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 /**
  * `POST /api/v1/plates/ensure` — start a car's generation plate at VIN decode.
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, { status: 400 });
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, { status: 400 });
   }
   const year = Number(body.year);
   const make = typeof body.make === 'string' ? body.make.trim() : '';

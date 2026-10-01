@@ -3,13 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 
-/**
- * Where this browser's answer lives — LEG-02.
- *
- * Namespaced like the phone's `tappet.aiConsent`, so the two are obviously
- * the same fact stored per client rather than two unrelated flags.
- */
-const AI_CONSENT_KEY = 'tappet.aiConsent';
+/*
+  Where this browser's answer lives — LEG-02, and since audit 360 (1 Oct) one
+  module for every web surface and sign-out: `lib/ai-consent-web.ts`.
+*/
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -18,18 +16,64 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, FileText, Camera, X, TriangleAlert as AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_READ_INVOICE, answerSentence } from '@/lib/api-error-copy';
 import InvoiceProcessingLoader from './InvoiceProcessingLoader';
 import type { ScanProgress } from '@tappet/core/scan-progress';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { generateVehicleHealthSummary } from '@/app/actions';
 import { downscaleImage } from '@/lib/image-downscale';
 import { DOC_MAX_EDGE, DOC_TARGET_BYTES, isDownscalableImage } from '@tappet/core/image-resize';
+import {
+  FILING_IN_PROGRESS_WEB_MESSAGE,
+  WEB_FILING_WAIT_MS,
+  classifyFilingResponse,
+  lostWebFilingAnswer,
+  mintFilingKey,
+  refusedWebFilingAnswer,
+  type FilingAnswer,
+} from '@/lib/invoice-filing-replay';
 
 interface DocumentUploadDialogProps {
   vehicleId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUploadComplete?: () => void;
+}
+
+/**
+ * One filing of one file, bounded at the phone's wait — TL-31.
+ *
+ * ⚠ `lost` is "it may have happened", never "it failed": a dropped
+ * connection, the bound, and a gateway's HTML 502/504 after the platform's
+ * ceiling all arrive after the server may have written the document and its
+ * line items. The filing key makes the retry of a lost answer safe.
+ *
+ * ⚠ TL-33: a non-JSON 4xx is `refused`, not `lost` — the platform answered
+ * before the route ran (`classifyFilingResponse`).
+ */
+async function postFiling(file: File, vehicleId: string, filingKey: string, bypassVehicleCheck: boolean): Promise<FilingAnswer> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEB_FILING_WAIT_MS);
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('vehicleId', vehicleId);
+    formData.append('filingKey', filingKey);
+    if (bypassVehicleCheck) {
+      formData.append('bypassVehicleCheck', 'true');
+    }
+    const response = await fetch('/api/v1/upload-document', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => null);
+    return classifyFilingResponse(response.status, result);
+  } catch {
+    return { kind: 'lost' };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, onUploadComplete }: DocumentUploadDialogProps) {
@@ -39,7 +83,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showVehicleMismatchDialog, setShowVehicleMismatchDialog] = useState(false);
   const [vehicleMismatchData, setVehicleMismatchData] = useState<{extractedVehicle: string, expectedVehicle: string} | null>(null);
-  const [currentFileForMismatch, setCurrentFileForMismatch] = useState<File | null>(null);
+  const [currentFileForMismatch, setCurrentFileForMismatch] = useState<{ original: File; prepared: File } | null>(null);
   const [remainingFiles, setRemainingFiles] = useState<File[]>([]);
   /*
     ⚠ `currentProcessingFile` used to live here as a second copy of the file
@@ -90,23 +134,13 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
   const [consentOpen, setConsentOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(AI_CONSENT_KEY);
-      setConsent(stored === 'granted' || stored === 'declined' ? stored : 'unknown');
-    } catch {
-      // Blocked storage reads as unanswered, which asks. See the phone's note:
-      // proceeding on a consent we cannot demonstrate is the thing to avoid.
-      setConsent('unknown');
-    }
+    // Blocked storage reads as unanswered, which asks — see `ai-consent-web.ts`.
+    setConsent(readWebAiConsent());
   }, []);
 
   const recordConsent = (answer: 'granted' | 'declined') => {
     setConsent(answer);
-    try {
-      window.localStorage.setItem(AI_CONSENT_KEY, answer);
-    } catch {
-      /* A write that fails means the sheet appears again. The safe direction. */
-    }
+    recordWebAiConsent(answer);
   };
   const dragCounterRef = useRef(0);
 
@@ -140,7 +174,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
   const validateAndAddFiles = (files: File[]) => {
     const validFiles = files.filter(file => {
       if (file.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB');
+        setError(`${file.name} is over 10 MB. Choose a smaller file.`);
         return false;
       }
       return true;
@@ -212,81 +246,152 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
     await runUpload(bypassVehicleCheck);
   };
 
-  const runUpload = async (bypassVehicleCheck: boolean = false) => {
-    if (selectedFiles.length === 0) return;
+  /*
+    ── ⚠ Audit 360, TL-30 / TL-31 (1 Oct) · a retry files only what did not land ──
+
+    TL-30. The batch loop never took a filed file out of `selectedFiles`: the
+    list was cleared only after the whole loop. So a batch of a receipt and a
+    photo that is not an invoice filed the receipt, refused the photo, and
+    showed both still selected — and the "Upload 1 File" the owner pressed
+    after removing the photo filed the receipt a second time. A mismatch's
+    Cancel did the same, and "Continue anyway" re-ran the loop over the list
+    its closure still held, filed files included. Each file now leaves the
+    list the moment its filing lands (`markFiled`), and the continuation is
+    handed the files it has left, never the closure's list.
+
+    TL-31. Every attempt was a fresh filing on the server, and a lost answer
+    (a dropped connection, a gateway's 502/504 after the document and its
+    line items were written) read as "could not be uploaded… try again". Each
+    chosen file now carries a filing key minted once (`keyFor`), sent on every
+    attempt at that file, and the server answers a repeat with what it filed
+    (`lib/invoice-filing-replay.ts`, the phone's TL-2 replay). The wait is
+    bounded at the phone's 90 s, and a lost answer reloads the history and
+    says the invoice may already be there.
+
+    ⚠ Keyed per *choice*, on the `File` object: the same invoice chosen again
+    later is a new `File` and a new key — a deliberate second filing, filed.
+  */
+  const filingKeys = useRef(new WeakMap<File, string>());
+  const keyFor = (file: File): string => {
+    let key = filingKeys.current.get(file);
+    if (!key) {
+      key = mintFilingKey();
+      filingKeys.current.set(file, key);
+    }
+    return key;
+  };
+
+  const markFiled = (original: File) => {
+    setSelectedFiles((prev) => prev.filter((f) => f !== original));
+  };
+
+  /** Whatever did land is shown — a refusal mid-batch must not hide the filings before it. */
+  const reloadHistory = () => {
+    onUploadComplete?.();
+    invalidateDashboardCache(vehicleId);
+    router.refresh();
+  };
+
+  const answerLost = (fileName: string) => {
+    setError(lostWebFilingAnswer(fileName));
+    toast.error(`Tappet did not hear back about ${fileName}.`);
+    reloadHistory();
+  };
+
+  const runUpload = async (bypassVehicleCheck: boolean = false, files: File[] = selectedFiles) => {
+    if (files.length === 0) return;
 
     setUploading(true);
     setError('');
 
-    try {
-      let totalItemsExtracted = 0;
-      let successCount = 0;
+    let totalItemsExtracted = 0;
+    let successCount = 0;
+    const stopAfterRefusal = () => {
+      if (successCount > 0) reloadHistory();
+      setUploading(false);
+    };
 
-      for (let i = 0; i < selectedFiles.length; i++) {
+    try {
+      for (let i = 0; i < files.length; i++) {
         // The name the user recognises stays the original's throughout — the
         // reduced copy carries the encoder's extension, and telling someone
         // their `invoice.jpg` failed as `invoice.webp` is a small lie in the
         // one message they are reading closely.
-        const original = selectedFiles[i];
+        const original = files[i];
 
         /*
           Two stages, two awaits. `prepareForUpload` reduces the image locally;
-          the `fetch` below is the long one, and everything the server does
+          the filing below is the long one, and everything the server does
           inside it is a single opaque wait from here.
         */
         setScan({
           stage: 'preparing',
           fileName: original.name,
           fileIndex: i + 1,
-          fileCount: selectedFiles.length,
+          fileCount: files.length,
           itemsExtracted: totalItemsExtracted,
         });
 
         const file = await prepareForUpload(original);
 
         setScan((prev) => ({ ...prev, stage: 'reading' }));
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('vehicleId', vehicleId);
-        if (bypassVehicleCheck) {
-          formData.append('bypassVehicleCheck', 'true');
+        const key = keyFor(original);
+        const answer = await postFiling(file, vehicleId, key, bypassVehicleCheck);
+
+        if (answer.kind === 'lost') {
+          answerLost(original.name);
+          setUploading(false);
+          return;
         }
 
-        const response = await fetch('/api/v1/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
+        if (answer.kind === 'refused') {
+          const refusal = refusedWebFilingAnswer(original.name, answer.status);
+          setError(refusal);
+          toast.error(`${original.name} was not filed.`);
+          stopAfterRefusal();
+          return;
+        }
 
-        const result = await response.json();
+        const result = answer.result;
         if (!result.success) {
           if (result.error === 'NOT_AUTOMOTIVE_INVOICE') {
             setError(result.message || 'This document does not appear to be an automotive service invoice.');
             toast.error(`${original.name}: Not an automotive invoice`);
-            setUploading(false);
+            stopAfterRefusal();
             return;
           }
 
           if (result.error === 'VEHICLE_MISMATCH') {
             setVehicleMismatchData({
-              extractedVehicle: result.extractedVehicle || 'Unknown vehicle',
-              expectedVehicle: result.expectedVehicle || 'Unknown vehicle'
+              extractedVehicle: result.extractedVehicle || 'No car named',
+              expectedVehicle: result.expectedVehicle || 'This car'
             });
             // The prepared copy, not the original — "Continue anyway" re-uploads
             // this, and it should not pay the reduction twice or send the full
-            // 3 MB on the retry path specifically.
-            setCurrentFileForMismatch(file);
-            setRemainingFiles(selectedFiles.slice(i + 1));
+            // 3 MB on the retry path specifically. It carries the original's key.
+            filingKeys.current.set(file, key);
+            setCurrentFileForMismatch({ original, prepared: file });
+            setRemainingFiles(files.slice(i + 1));
             setShowVehicleMismatchDialog(true);
-            setUploading(false);
+            stopAfterRefusal();
             return;
           }
 
-          setError(result.error || result.message || 'Upload failed');
-          toast.error(`Failed to process ${original.name}: ${result.error || result.message}`);
-          setUploading(false);
+          if (result.code === 'filing-in-progress') {
+            setError(FILING_IN_PROGRESS_WEB_MESSAGE);
+            toast.error(`${original.name}: still being read`);
+            stopAfterRefusal();
+            return;
+          }
+
+          const refusal = answerSentence(result, COULD_NOT_READ_INVOICE);
+          setError(refusal);
+          toast.error(`${original.name}: ${refusal}`);
+          stopAfterRefusal();
           return;
         }
 
+        markFiled(original);
         successCount++;
         if (result.itemsExtracted) {
           totalItemsExtracted += result.itemsExtracted;
@@ -322,19 +427,26 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
         fetch('/api/v1/performance-stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vehicleId, forceRefresh: true }),
+          // The upload itself waited for this browser's yes (LEGAL-11 names it to the route).
+          body: JSON.stringify({ vehicleId, forceRefresh: true, aiConsent: readWebAiConsent() }),
         }).catch(() => {});
       }
 
-      generateVehicleHealthSummary(vehicleId, true).then(() => {
-        invalidateDashboardCache(vehicleId);
-        router.refresh();
-      });
+      /*
+        TL-32: best-effort, as the server's own refresh is — a thrown action
+        here (a lost answer, the model's 503) was an unhandled rejection.
+      */
+      generateVehicleHealthSummary(vehicleId, true)
+        .then(() => {
+          invalidateDashboardCache(vehicleId);
+          router.refresh();
+        })
+        .catch(() => {});
 
       router.refresh();
     } catch (err) {
       setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
-      toast.error('Upload failed');
+      toast.error('That invoice was not uploaded.');
     } finally {
       setUploading(false);
     }
@@ -350,6 +462,8 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
 
   const handleContinueAnyway = async () => {
     if (!currentFileForMismatch) return;
+    const { original, prepared } = currentFileForMismatch;
+    const rest = remainingFiles;
 
     setShowVehicleMismatchDialog(false);
     setVehicleMismatchData(null);
@@ -367,51 +481,60 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
     */
     setScan({
       stage: 'reading',
-      fileName: currentFileForMismatch.name,
+      fileName: original.name,
       fileIndex: 1,
-      fileCount: 1 + remainingFiles.length,
+      fileCount: 1 + rest.length,
       itemsExtracted: 0,
     });
 
     try {
-      const formData = new FormData();
-      formData.append('file', currentFileForMismatch);
-      formData.append('vehicleId', vehicleId);
-      formData.append('bypassVehicleCheck', 'true');
+      const answer = await postFiling(prepared, vehicleId, keyFor(prepared), true);
+      setCurrentFileForMismatch(null);
+      setRemainingFiles([]);
 
-      const response = await fetch('/api/v1/upload-document', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-      if (!result.success) {
-        setError(result.error || 'Upload failed');
-        toast.error(`Failed to process ${currentFileForMismatch.name}`);
+      if (answer.kind === 'lost') {
+        answerLost(original.name);
         setUploading(false);
-        setCurrentFileForMismatch(null);
-        setRemainingFiles([]);
         return;
       }
 
-      toast.success(`Successfully processed ${currentFileForMismatch.name}`);
+      if (answer.kind === 'refused') {
+        setError(refusedWebFilingAnswer(original.name, answer.status));
+        toast.error(`${original.name} was not filed.`);
+        setUploading(false);
+        return;
+      }
+
+      const result = answer.result;
+      if (!result.success) {
+        if (result.code === 'filing-in-progress') {
+          setError(FILING_IN_PROGRESS_WEB_MESSAGE);
+        } else {
+          setError(answerSentence(result, COULD_NOT_READ_INVOICE));
+        }
+        toast.error(`${original.name} was not filed.`);
+        setUploading(false);
+        return;
+      }
+
+      markFiled(original);
+      toast.success(`Successfully processed ${original.name}`);
 
       setScan((prev) => ({
         ...prev,
         itemsExtracted: prev.itemsExtracted + (result.itemsExtracted ?? 0),
       }));
 
-      if (remainingFiles.length > 0) {
-        setSelectedFiles(remainingFiles);
-        setCurrentFileForMismatch(null);
-        setRemainingFiles([]);
+      if (rest.length > 0) {
         setUploading(false);
-        /* Already past the consent gate — this is the same upload continuing. */
-        await runUpload(false);
+        /*
+          Already past the consent gate — this is the same upload continuing.
+          ⚠ Handed `rest` explicitly: `runUpload`'s default is the list this
+          render's closure holds, which still names the file just filed.
+        */
+        await runUpload(false, rest);
       } else {
         setSelectedFiles([]);
-        setCurrentFileForMismatch(null);
-        setRemainingFiles([]);
         setError('');
         onOpenChange(false);
 
@@ -425,7 +548,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
       }
     } catch (err) {
       setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
-      toast.error('Upload failed');
+      toast.error('That invoice was not uploaded.');
       setUploading(false);
       setCurrentFileForMismatch(null);
       setRemainingFiles([]);
@@ -439,7 +562,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
           {uploading ? (
             <>
               <DialogHeader>
-                <DialogTitle className="text-white">Processing Invoice</DialogTitle>
+                <DialogTitle className="text-white">Reading the invoice</DialogTitle>
                 <DialogDescription className="text-white/50">
                   We&apos;re analyzing your document and extracting the details
                 </DialogDescription>
@@ -449,7 +572,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle className="text-white">Upload Invoices or Documents</DialogTitle>
+                <DialogTitle className="text-white">Upload invoices or documents</DialogTitle>
                 <DialogDescription className="text-white/50">
                   Upload service invoices and we&apos;ll automatically extract details including line items
                 </DialogDescription>
@@ -484,7 +607,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
                               </span>
                               <span className="text-white/50"> or drag and drop</span>
                             </Label>
-                            <p className="text-xs text-white/50 mt-1.5">PNG, JPG, PDF up to 10MB each. Multiple files supported.</p>
+                            <p className="text-xs text-white/50 mt-1.5">PNG, JPG, PDF up to 10 MB each. Multiple files supported.</p>
                           </>
                         )}
                       </div>
@@ -656,10 +779,10 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
               <div className="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-400/25 flex items-center justify-center">
                 <AlertTriangle className="h-4 w-4 text-orange-400" />
               </div>
-              <AlertDialogTitle className="text-white">Vehicle Mismatch Detected</AlertDialogTitle>
+              <AlertDialogTitle className="text-white">This invoice may be for another car</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-white/50 space-y-3 pt-1">
-              <p>The invoice appears to be for a different vehicle:</p>
+              <p>The invoice appears to be for a different car:</p>
               <div className="bg-orange-500/8 border border-orange-400/20 rounded-xl p-4 space-y-3">
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-widest text-white/50">Invoice shows</span>
@@ -689,7 +812,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
               onClick={handleContinueAnyway}
               className="bg-orange-600 hover:bg-orange-500 text-white"
             >
-              Continue Anyway
+              Continue anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

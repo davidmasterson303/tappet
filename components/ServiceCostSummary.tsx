@@ -74,7 +74,7 @@ export default function ServiceCostSummary({ maintenanceLineItems = [] }: Servic
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-white text-base">
           <DollarSign className="h-5 w-5 text-info" />
-          Service Cost Summary
+          Service cost summary
         </CardTitle>
       </CardHeader>
       <CardContent>

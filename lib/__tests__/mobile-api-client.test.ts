@@ -171,6 +171,32 @@ describe('failures a phone actually hits', () => {
     });
   });
 
+  /*
+    ⚠ Audit 360, COPY-5 (1 Oct). Removing a Needs item during a database
+    hiccup showed an alert titled "Could not remove that" whose body was
+    "Internal server error". A server sentence is shown; developer-speak is not.
+  */
+  it.each([
+    'Internal server error',
+    'Failed to create maintenance record',
+    'Invalid JSON body',
+    'Missing vehicleId',
+  ])('never surfaces developer-speak — %s', async (error) => {
+    fetchMock.mockResolvedValue(reply(500, { error }));
+
+    await expect(apiRequest('/wishlist')).rejects.toMatchObject({
+      status: 500,
+      message: 'Tappet could not complete that. Try again in a moment.',
+    });
+  });
+
+  it('still surfaces a server sentence on a 5xx (anti-vacuous)', async () => {
+    const sentence = 'Tappet could not save that just now. Try again in a moment.';
+    fetchMock.mockResolvedValue(reply(500, { error: sentence }));
+
+    await expect(apiRequest('/tires', { method: 'POST', body: {} })).rejects.toMatchObject({ message: sentence });
+  });
+
   it('falls back to the status when the error body is not a string', async () => {
     fetchMock.mockResolvedValue(reply(500, { error: { nested: true } }));
 

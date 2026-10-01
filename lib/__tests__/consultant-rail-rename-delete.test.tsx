@@ -24,6 +24,7 @@
  * `consultant-session-actions.test.ts`.
  */
 
+import { AI_CONSENT_STORAGE_KEY } from '@tappet/core/ai-consent-copy';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 jest.mock('next/navigation', () => ({
@@ -133,7 +134,7 @@ async function beginRename(title: string) {
 beforeEach(() => {
   // The advisor asks for AI consent before the first question (23 Sep);
   // these cases are about the thread rail, so it is already given.
-  window.localStorage.setItem('tappet.aiConsent', 'granted');
+  window.localStorage.setItem(AI_CONSENT_STORAGE_KEY, 'granted');
   toasts.length = 0;
   renameConsultantSession.mockReset();
   deleteConsultantSession.mockReset();
@@ -229,7 +230,7 @@ describe('rename', () => {
       name finds the row; searching for the old name finds nothing — which is
       the assertion that there is one list, not a rail and a stale copy.
     */
-    const search = screen.getByPlaceholderText('Search chats...');
+    const search = screen.getByPlaceholderText('Search chats…');
     fireEvent.change(search, { target: { value: 'PS4S' } });
     expect(railTitles()).toEqual(['Tyres — settled on PS4S']);
     fireEvent.change(search, { target: { value: 'track days' } });

@@ -4,6 +4,7 @@ import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     if (!vehicleId || !documentId) {
       return Response.json(
-        { success: false, error: 'Missing vehicleId or documentId' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }

@@ -924,7 +924,7 @@ describe('add a car', () => {
     await view.findByText('Add to my garage');
     expect(belowFloor(auditText(view))).toEqual([]);
 
-    await user.type(view.getByLabelText('Odometer, miles'), '94800');
+    await user.type(view.getByLabelText('Odometer, miles, required'), '94800');
     await user.press(view.getByLabelText('Just done'));
     expect(view.getByLabelText('Add to my garage').props.accessibilityState).toMatchObject({ disabled: false });
     // Both the chosen and the unchosen chip, since they are different inks.

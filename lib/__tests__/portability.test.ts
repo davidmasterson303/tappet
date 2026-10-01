@@ -170,6 +170,25 @@ const PORTABLE: string[] = [
   */
   'lib/legal.ts',
   /*
+    Added 1 Oct (audit 360, TL-24). No imports at all, so it qualifies — and
+    it stays in lib/ on purpose: the Netlify scheduler relative-imports it,
+    and a function bundle must not depend on the package's path alias. It is
+    one log line's wording, which no other client has any use for.
+  */
+  'lib/sweep-scheduler-verdict.ts',
+  /*
+    Audit 360, TL-25 (1 Oct). No imports: classifies an auth answer and holds
+    two sentences. Stays in lib/ because only the web's delete dialog asks
+    it — the phone's half of TL-7 probes `GET /account` instead.
+  */
+  'lib/account-gone.ts',
+  /*
+    Audit 360, SEC-12/14 (round 3). Imports only `@tappet/core/input-bounds`:
+    the writable columns of two web server actions. Stays in lib/ because the
+    phone writes through the API routes, which build their own payloads.
+  */
+  'lib/action-patches.ts',
+  /*
     Added 20 Aug with the demo-banner gate. Pure string parsing, no imports at
     all, so it qualifies mechanically — and this list is the honest home for it.
 
@@ -226,6 +245,27 @@ const PORTABLE: string[] = [
     on the server only because that is where the stored pages are.
   */
   'lib/invoice-pdf.ts',
+  /*
+    1 Oct, audit 360 TL-2 and TL-6. A repeat invoice filing answered from the
+    filed document, and a repeated advisor question answered from the thread.
+    No imports — each takes its client or its history as a parameter — so
+    both qualify mechanically. They stay in lib/ because only the routes
+    decide a replay; the phone is told the answer, never asked.
+  */
+  'lib/invoice-filing-replay.ts',
+  'lib/consultant-replay.ts',
+  /*
+    1 Oct, audit 360 SEC-4. Where a sign-in may send somebody — imports
+    nothing. Stays in lib/ because only the web's sign-in pages read a
+    `?redirect=`; the phone has no such parameter.
+  */
+  'lib/safe-redirect.ts',
+  /*
+    1 Oct, audit 360 COPY-5. The sentences an /api/v1 route answers a failure
+    with — imports nothing. Stays in lib/ because only the routes say them;
+    the phone's side of the rule is `@tappet/core/customer-copy`.
+  */
+  'lib/api-error-copy.ts',
 ];
 
 /**
@@ -265,6 +305,7 @@ const NOT_PORTABLE: Record<string, string> = {
     could write this table could grant itself the paid tier.
   */
   'lib/entitlement-store.ts': 'writes with the service role — reaches Supabase through lib/supabase',
+  'lib/orphaned-subscriptions.ts': 'reads and stamps a service-role-only table through lib/supabase (TL-29)',
   'lib/supabase.ts': 'constructs Supabase clients',
   'lib/plates.ts': 'builds a service-role Supabase client for the plate library',
   /*
@@ -279,6 +320,22 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/vehicle-deletion.ts': 'the one removal path — storage purge, then the row, with the service role',
   'lib/internal-secret.ts': 'node:crypto timingSafeEqual — the internal routes\' gate, server-only',
   'lib/api-auth.ts': 'Supabase, and reads next/headers',
+  /*
+    1 Oct, audit 360 SEC-1. Whose car a refused VIN is — a query on the
+    service-role client the save paths already hold.
+  */
+  'lib/vin-conflict.ts': 'Supabase client types, and asks the vehicles table with the service role',
+  'lib/consultant-thread.ts': 'Supabase client types; reads and appends to a stored advisor thread (TL-18)',
+  /*
+    1 Oct, audit 360 SEC-3. Applies the advisor's status tags by exact name.
+    Only the server applies model output to an owner's records.
+  */
+  'lib/advisor-status-commands.ts': 'Supabase client types — writes tracked issues and Needs on the server',
+  /*
+    1 Oct, audit 360 SEC-5. Removes a deleted document's file from the
+    private bucket with the service role.
+  */
+  'lib/document-file.ts': 'removes storage objects through lib/storage-objects with the service role',
   'lib/account-data.ts': 'reaches Supabase through lib/supabase',
   'lib/performance-stats.ts': 'Supabase types, and calls Gemini',
   'lib/rate-limit.ts': 'reaches Supabase through lib/supabase',
@@ -357,6 +414,13 @@ const NOT_PORTABLE: Record<string, string> = {
   */
   'lib/quote-check.ts': 'calls Gemini through lib/gemini — a build-time server key',
   'lib/sign-out.ts': 'Supabase types',
+  /*
+    1 Oct, audit 360 LEGAL-7. The web's AI-consent answer lives in
+    localStorage; the phone keeps its own in the Keychain
+    (`apps/mobile/src/onboarding/ai-consent.ts`). The words and the key are
+    shared through `@tappet/core/ai-consent-copy`.
+  */
+  'lib/ai-consent-web.ts': 'reads and writes window.localStorage — the web half of the AI consent',
   /*
     The precedence rule — owner photo over stock, the unphotographed-demo
     carve-out — is portable and duplicated in hooks/useSignedUrl.ts. What is

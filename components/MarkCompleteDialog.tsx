@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 
 interface WishlistItem {
@@ -51,7 +52,7 @@ export function MarkCompleteDialog({
     e.preventDefault();
 
     if (!isDIY && !formData.shopName.trim()) {
-      toast.error('Please enter shop name or mark as DIY');
+      toast.error('Add the shop’s name, or mark it as done yourself.');
       return;
     }
 
@@ -76,11 +77,11 @@ export function MarkCompleteDialog({
         onSuccess();
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark as complete');
+        toast.error(answerSentence(data, COULD_NOT_SAVE));
       }
     } catch (error) {
       logger.error('MARK_COMPLETE_DIALOG:SUBMIT', error as Error);
-      toast.error('Failed to mark as complete');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
     }
@@ -90,13 +91,13 @@ export function MarkCompleteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Mark as Complete: {wishlistItem.item_name}</DialogTitle>
+          <DialogTitle>Mark as done: {wishlistItem.item_name}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="serviceDate">Service Date</Label>
+              <Label htmlFor="serviceDate">Service date</Label>
               <Input
                 id="serviceDate"
                 type="date"
@@ -115,13 +116,13 @@ export function MarkCompleteDialog({
                 onCheckedChange={(checked) => setIsDIY(checked as boolean)}
               />
               <Label htmlFor="isDIY" className="cursor-pointer">
-                This was a DIY (Do It Yourself) job
+                I did this job myself
               </Label>
             </div>
 
             {!isDIY && (
               <div>
-                <Label htmlFor="shopName">Shop Name</Label>
+                <Label htmlFor="shopName">Shop name</Label>
                 <Input
                   id="shopName"
                   value={formData.shopName}
@@ -136,7 +137,7 @@ export function MarkCompleteDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="partsCost">Parts Cost ($)</Label>
+                <Label htmlFor="partsCost">Parts cost ($)</Label>
                 <Input
                   id="partsCost"
                   type="number"
@@ -153,7 +154,7 @@ export function MarkCompleteDialog({
               </div>
 
               <div>
-                <Label htmlFor="laborCost">Labor Cost ($)</Label>
+                <Label htmlFor="laborCost">Labor cost ($)</Label>
                 <Input
                   id="laborCost"
                   type="number"
@@ -172,7 +173,7 @@ export function MarkCompleteDialog({
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Total Cost</Label>
+                <Label>Total cost</Label>
                 <span className="text-lg font-semibold text-foreground">
                   ${(formData.partsCost + formData.laborCost).toFixed(2)}
                 </span>
@@ -180,14 +181,14 @@ export function MarkCompleteDialog({
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Any additional notes about this service..."
+                placeholder="Any additional notes about this service…"
                 rows={3}
               />
             </div>
@@ -203,7 +204,7 @@ export function MarkCompleteDialog({
               Cancel
             </Button>
             <Button type="submit" busy={loading} busyLabel="Saving">
-              Mark as Complete
+              Mark as done
             </Button>
           </DialogFooter>
         </form>

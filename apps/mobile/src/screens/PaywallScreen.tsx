@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Well from '../components/Well';
 import Working from '../components/Working';
 import { API_BASE_URL } from '../config';
+import { APPLE_MANAGE_SUBSCRIPTIONS_URL } from '@tappet/core/account-deletion';
 import { border, radius, space, surface, text, type } from '../theme';
 import type { PurchaseResolution } from '@tappet/core/purchase-flow';
 import {
@@ -99,12 +100,48 @@ export function featuresHeadline(count: number): string {
   return `${word} ${count === 1 ? 'feature' : 'features'}, one subscription`;
 }
 
+/**
+ * What the server says this account already holds, when it holds Plus.
+ *
+ * Audit 360, UX-7 (1 Oct). A subscriber opening this screen from Account was
+ * shown two buy buttons and no word about the subscription they already pay
+ * for — the screen read as a sale, on the one visit that is about managing
+ * it. Given, the buy controls give way to the status and Apple's manage link;
+ * Restore stays, because a second device is still a reason to need it.
+ *
+ * Only a *certain* live answer makes one (`PaywallHost`): an unread
+ * subscription keeps the buy buttons, as before, and StoreKit itself says
+ * "already subscribed" if it comes to that.
+ *
+ * ⚠ **Only Apple's billing replaces the buy buttons (LEGAL-20, 1 Oct).** UX-7
+ * hid them for every standing, which included the hand-granted account App
+ * Review signs in with — `tier: paid`, no transaction — whose review notes say
+ * "You can still buy either plan in the sandbox". A reviewer who cannot find
+ * the purchase rejects the subscriptions. A comped grant therefore shows its
+ * status *and* both prices: a sandbox purchase cannot overwrite the grant
+ * (`5d360b8`), and a production one takes over, so either way the purchase
+ * means what Apple's sheet says. Only `billedByApple: true` — StoreKit would
+ * answer "already subscribed" — keeps them off the screen.
+ */
+export interface SubscriberStanding {
+  /** `subscriptionStatusLine` — "Active", "Active — renews …", "Active until …". */
+  line: string;
+  /**
+   * True only when Apple is charging for it: the manage link, and no buy
+   * buttons. False for a comped grant: nothing at Apple to manage, and the
+   * prices stay (LEGAL-20).
+   */
+  billedByApple: boolean;
+}
+
 export default function PaywallScreen({
   visible,
   options,
   loadFailed = false,
   unavailable = false,
   feature = null,
+  subscriber = null,
+  standingPending = false,
   onPurchase,
   onRestore,
   onClose,
@@ -124,6 +161,16 @@ export default function PaywallScreen({
    * they are being asked to pay for. `null` when opened from settings.
    */
   feature?: PaidFeature | null;
+  /** The account already subscribes — see `SubscriberStanding`. */
+  subscriber?: SubscriberStanding | null;
+  /**
+   * What the account holds has not been read yet on this opening (UX-17).
+   * The prices wait for it: StoreKit's cached catalogue usually lands before
+   * the server's answer, and a subscriber Apple bills saw the buy buttons
+   * draw under their thumb and then vanish. Bounded by the request's own
+   * timeout — `getSubscription` never throws, so this always ends.
+   */
+  standingPending?: boolean;
   onPurchase: (productId: string) => Promise<PurchaseResolution>;
   onRestore: () => Promise<PurchaseResolution>;
   onClose: () => void;
@@ -253,7 +300,64 @@ export default function PaywallScreen({
             </View>
           )}
 
-          {unavailable ? (
+          {subscriber ? (
+            /*
+              UX-7: what they hold, and where Apple lets them change it. The
+              status line is the server's (`subscriptionStatusLine`), the same
+              words the Account row shows, so the two cannot disagree.
+            */
+            <Well style={styles.notice}>
+              <View style={styles.standing}>
+                <Text style={styles.featureLabel}>Your subscription</Text>
+                <Text style={styles.noticeText}>{subscriber.line}</Text>
+                {subscriber.billedByApple ? (
+                  <Pressable
+                    onPress={() => void Linking.openURL(APPLE_MANAGE_SUBSCRIPTIONS_URL)}
+                    disabled={working}
+                    accessibilityRole="link"
+                    accessibilityLabel="Manage your subscription, opens your Apple Account subscriptions"
+                    style={styles.legalRow}
+                  >
+                    {({ pressed }) => (
+                      <Text style={[styles.legalText, pressed && styles.legalTextPressed]}>
+                        Manage your subscription
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : (
+                  /*
+                    COPY-28 (1 Oct): "nothing to manage" then "you can still
+                    subscribe" left a comped owner unable to tell whether
+                    paying adds anything. It does not, and the line says so.
+                  */
+                  <Text style={styles.featureBlurb}>
+                    Tappet added Plus to this account, so there is nothing to manage in your Apple
+                    Account. You can still subscribe below — Apple bills it, and this account keeps
+                    the same features either way.
+                  </Text>
+                )}
+              </View>
+            </Well>
+          ) : null}
+
+          {/*
+            LEGAL-20: the buy controls give way only to a subscription Apple
+            already bills. Everyone else — a comped grant included — reaches
+            the ladder below.
+          */}
+          {subscriber?.billedByApple ? null : standingPending ? (
+            /*
+              UX-17: the account is being read on this opening. Named for what
+              is being waited on, as every wait in the app is.
+            */
+            <Well style={styles.notice}>
+              <Working
+                variant="compact"
+                line="Checking your subscription"
+                detail="From your Tappet account."
+              />
+            </Well>
+          ) : unavailable ? (
             /*
               Expo Go, or any build without the native module. The adapter
               reports it as a state rather than an error, and the sentence
@@ -342,7 +446,7 @@ export default function PaywallScreen({
             <Text style={styles.termsText}>
               Payment is taken by Apple when you confirm. A subscription renews automatically for
               the same period unless you turn renewal off at least 24 hours before it ends. You can
-              cancel any time in your Apple ID settings — deleting your Tappet account does not
+              cancel any time in your Apple Account settings — deleting your Tappet account does not
               stop the billing.
             </Text>
           </View>
@@ -431,6 +535,7 @@ const styles = StyleSheet.create({
   banner: { marginTop: space.xs },
 
   notice: { padding: space.lg },
+  standing: { gap: space.xs },
   noticeText: { ...type.body, color: text.secondary },
 
   options: { gap: space.md },

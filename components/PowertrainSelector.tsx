@@ -168,7 +168,7 @@ export default function PowertrainSelector({
         options.transmission_options.length <= 1 &&
         options.drivetrain_options.length <= 1 && (
           <p className="text-sm text-[color:var(--text-muted)]">
-            Only one configuration available for this vehicle. Auto-selected.
+            Only one configuration is listed for this car, so it is already chosen.
           </p>
         )}
     </div>

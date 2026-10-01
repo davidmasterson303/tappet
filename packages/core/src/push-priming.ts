@@ -163,14 +163,62 @@ export const PUSH_PRIMER_COPY = {
     loud: the tire alert exists only because the owner entered the interval.
   */
   title: 'Three kinds of alert, and nothing else',
-  body: 'Tappet can tell you when a service is coming due for your car, when a safety recall is issued for it, and — if you have entered your tires’ rotation interval — when you are past it. Nothing else — no offers, no news, no reminders to open the app.',
-  detail: 'A service or tire reminder arrives at most once a month per car. A recall arrives when the manufacturer issues one, which for most cars is never.',
+  body: 'Tappet can tell you when a service is coming due for your car, when a safety recall is issued for its year, make and model, and — if you have entered your tires’ rotation interval — when you are past it. Nothing else — no offers, no news, no reminders to open the app.',
+  /*
+    ⚠ Audit 360, COPY-7 (1 Oct). It said a recall "for most cars is never"
+    comes — a number Tappet does not hold, on the screen that decides whether
+    the do-not-drive notice can reach the owner at all. And "issued for it"
+    claimed the car, where every other surface says year, make and model.
+  */
+  detail: 'A service or tire reminder arrives at most once a month per car. A recall arrives only when the manufacturer issues one for your car’s year, make and model — some models never have one, some have several.',
   accept: 'Turn on alerts',
   decline: 'Not now',
   /**
    * Shown under the decline button. The reassurance is load-bearing: a primer
    * that feels like a trap gets declined, and the decline is the outcome that
    * costs nothing *only* if the person believes they can change their mind.
+   *
+   * ⚠ **1 Oct · it named a door the app does not have** (audit 360, UX-1).
+   * It said "You can turn these on later from your account", and the
+   * Account screen has no notifications row — the only way back after
+   * NOT NOW is this screen returning when `PRIMER_COOLDOWN_DAYS` has run.
+   * So the sentence said that, which was the one promise the binary kept.
+   * The Alerts row now exists (`ALERTS_ROW_COPY`, built the same day as the
+   * held item's recommended answer), so it names Account again — and
+   * `push-priming.test.ts` still refuses "account" if that row is removed.
    */
-  reassurance: 'You can turn these on later from your account.',
+  reassurance: 'Not now costs nothing — turn them on from Account any time, or Tappet will ask again in a month.',
 } as const;
+
+/**
+ * The Alerts row on Account — what the permission is, and what pressing does.
+ *
+ * Audit 360, UX-1 (1 Oct, built as the recommended answer). An owner who
+ * said Don't Allow at the system dialog was never told alerts were off, and
+ * one who said NOT NOW waited thirty days for the primer to come back. The
+ * row reads `currentPushPermission()` and offers the one door each state has:
+ *
+ *   undetermined → the system dialog (iOS still offers it), via registration
+ *   denied       → iOS Settings, the only place that answer can change
+ *   granted      → iOS Settings too, which is where they are turned off
+ *
+ * `null` (not read yet) keeps the row's neutral name, as the Subscription
+ * row does: a status it does not have is not drawn.
+ */
+export const ALERTS_ROW_COPY: Record<PushPermission, { status: string; detail: string; spoken: string }> = {
+  undetermined: {
+    status: 'Not turned on',
+    detail: 'Service, recall and tire alerts for your cars. Turn them on.',
+    spoken: 'Alerts, not turned on. Turn on alerts',
+  },
+  denied: {
+    status: 'Off',
+    detail: 'Turned off in iOS Settings. Open Settings to turn them on.',
+    spoken: 'Alerts, off. Opens Settings',
+  },
+  granted: {
+    status: 'On',
+    detail: 'Service, recall and tire alerts for your cars. Change this in iOS Settings.',
+    spoken: 'Alerts, on. Opens Settings',
+  },
+};

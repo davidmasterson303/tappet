@@ -40,8 +40,17 @@ export interface ConsultantHealth {
   detail: string;
 }
 
-/** The literal string the client renders when a consultant call fails. */
-export const CLIENT_ERROR_FALLBACK = 'Sorry, I encountered an error. Please try again.';
+/**
+ * The literal string the client renders when a consultant call fails.
+ *
+ * ⚠ Audit 360, COPY-14 (1 Oct). It was "Sorry, I encountered an error.
+ * Please try again." — an apology in the first person, posted under the
+ * advisor's byline, saying nothing about whether the question survived. It
+ * is now the phone's sentence (`AdvisorScreen.tsx`, the 502 branch), so one
+ * product says one thing. The canary matches on this constant, never on the
+ * words, so the two cannot drift.
+ */
+export const CLIENT_ERROR_FALLBACK = 'The advisor could not answer that one. Your question is still here — try again.';
 
 /**
  * Upstream conditions that are Google being unavailable rather than us being

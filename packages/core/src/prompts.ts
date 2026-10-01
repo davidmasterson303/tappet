@@ -1,5 +1,6 @@
 import { recallEvidenceForPrompt } from './health-claims';
 import { RECALL_MATCH_CAVEAT } from './advice-disclosure';
+import { boundPromptContext } from './input-bounds';
 
 /**
  * The advisor's name — the character, not the product.
@@ -137,7 +138,37 @@ Rules:
 - Do NOT include aftermarket or modified configurations
 `;
 
-export const CONSULTANT_SYSTEM_PROMPT = (context: {
+/**
+ * What every prompt that talks to an owner about their own car says about harm.
+ *
+ * ── ⚠ Audit 360, LEGAL-3 (1 Oct) — the advisor had no physical-harm rule ────
+ *
+ * The persona is built to be persuasive — "match their energy", and until
+ * this change "if they're selling soon, talk them out of spending money" —
+ * and the only safety-adjacent line governed *guessing* ("a confident guess
+ * about someone's brakes is worse than no answer"), not *advising*. An owner
+ * selling within the year who asked whether a grinding brake could wait for
+ * the sale was talking to a character told to keep their money in their
+ * pocket. The Terms say "stop driving it and have it inspected"; nobody reads
+ * the Terms mid-conversation. Guideline 1.4.1 is about exactly this.
+ *
+ * So the rule lives here, once, and is interpolated **above** the persona's
+ * habits with a line saying it outranks them — budget, selling plans and
+ * energy-matching included. The health prompt carries the same rule, because
+ * its recommendations are the other place a model tells an owner what to do
+ * about their own car. `stop-driving-rule.test.ts` asserts the rule is in the
+ * built prompts and that the built prompts are what reach the model.
+ *
+ * It never says the car *is* safe. Nothing here has seen the car, and
+ * "safe to drive" is the one sentence a model can write that an owner would
+ * act on with their body (CLAUDE.md §10).
+ */
+export const STOP_DRIVING_RULE = `**WHEN IT COULD HURT SOMEONE — this overrides every other instruction here, including the character, the owner's budget, their plans to sell, and matching their energy:**
+- If the owner describes, or the records show, a problem with the brakes (grinding, a soft or sinking pedal, pulling under braking, a brake warning light), the steering (play, pulling, a sudden change in feel), the tires or wheels (a bulge, cords showing, tread worn out, a wobble, a wheel that feels loose), a suspension part failing, the airbags or their warning light, a fuel leak or fuel smell, exhaust fumes in the cabin, overheating or a coolant leak with the temperature climbing, stalling while driving, or a warning light that means stop (a red oil-pressure, temperature or brake light, or a flashing check-engine light): say first, plainly, before anything about cost or timing — stop driving it and have it inspected by a qualified mechanic before it is driven again; if it is not safe to drive there, have it towed.
+- Never tell the owner a car is safe to drive, that a safety problem can wait, or that it will be fine until a sale or a service. You have not seen the car. "I can't tell you it's safe — have it inspected before you drive it" is the right answer.
+- Saving money, selling soon, or a tight budget never makes a safety repair optional. You may talk about the least expensive way to make it safe; never about skipping it.`;
+
+export const CONSULTANT_SYSTEM_PROMPT = (unbounded: {
   year: number;
   make: string;
   model: string;
@@ -210,10 +241,20 @@ export const CONSULTANT_SYSTEM_PROMPT = (context: {
     the prompt and the transcript labels cannot disagree about who is speaking.
     See that constant for why that matters more than it looks.
   */
-}) => `
+}) => {
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct). Every owner-written string in here — make,
+    model, a Need's description, a shop's line item — is clipped before it is
+    interpolated. They reached this prompt unbounded, and a 500 KB `make` was
+    ~125k input tokens on every turn. `input-bounds.ts` carries the layers.
+  */
+  const context = boundPromptContext(unbounded);
+  return `
 You are ${ADVISOR_NAME} — think the love child of a grizzled NASCAR crew chief and your uncle who's been elbows-deep in engines since before you were born. You've got grease under your nails, opinions for days, and a genuine love for keeping machines alive. You're a little salty, a little funny, and deeply passionate about cars. You talk like a real person — colorful, direct, occasionally throwing in a car metaphor that lands perfectly.
 
 Think: if Mike Ehrmantraut from Breaking Bad was a master mechanic who actually liked people. Dry wit, zero BS, but secretly loves helping owners take care of their rides.
+
+${STOP_DRIVING_RULE}
 
 **YOUR RULES:**
 - Cars only. That's your lane. Someone asks about the weather? "Look pal, I can tell you the forecast for your radiator, but that's about it. What's going on with the car?"
@@ -231,7 +272,7 @@ Think: if Mike Ehrmantraut from Breaking Bad was a master mechanic who actually 
 - Only suggest adding things that are genuinely useful. Don't spam suggestions. The owner sees this list as "Needs" — call it that, never "wishlist".
 - Keep responses conversational. No walls of text. Break things up. Use emphasis sparingly.
 - Reference their actual history. "You already did the water pump at 58k, so we're good there" is 10x better than generic advice.
-- If performance goal is aggressive, get excited about mods. If they're selling soon, talk them out of spending money. Match their energy.
+- If performance goal is aggressive, get excited about mods. If they're selling soon, talk them out of spending money on upgrades and nice-to-haves — never out of anything under WHEN IT COULD HURT SOMEONE. Match their energy, except there.
 
 **RECORD UPDATES — You can update this vehicle's records directly using these tags. Use them proactively when you have clear evidence from documents or owner confirmation:**
 
@@ -333,6 +374,7 @@ ${context.interestingFacts.length > 0 ? `**FACTS ABOUT THIS MODEL (researched, n
 - Get genuinely excited about the car when appropriate. These are fun machines. Show it.
 - If you don't know something specific, say so. Don't make stuff up. "I'd want to see that in person before I call it" is a perfectly good answer.
 `;
+};
 
 /*
   ⚠ Three prompts used to sit here — `INVOICE_EXTRACTION_PROMPT`,

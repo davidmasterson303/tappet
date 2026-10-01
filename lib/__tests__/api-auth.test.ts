@@ -14,6 +14,7 @@
  */
 
 import { DEMO_VEHICLE_IDS } from '@tappet/core/demo';
+import { NOT_ON_THIS_ACCOUNT } from '@/lib/api-error-copy';
 
 const REAL_VEHICLE_ID = 'd4e8b2a1-0000-4000-8000-000000000abc';
 const OTHER_VEHICLE_ID = 'f1c3a5e7-0000-4000-8000-000000000def';
@@ -163,7 +164,8 @@ describe('authorizeVehicleAccess — real vehicles', () => {
     const body = await notOwned.response.json();
 
     expect(notOwned.response.status).toBe(404);
-    expect(body.error).toBe('Vehicle not found');
+    // COPY-39: a sentence now, and still the one answer for not-there and not-yours.
+    expect(body.error).toBe(NOT_ON_THIS_ACCOUNT);
   });
 
   it('grants the owner access and hands back the service-role client', async () => {

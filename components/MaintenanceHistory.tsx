@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence, removedInvoice } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 import MaintenanceItemDetailsDialog from './MaintenanceItemDetailsDialog';
 import DocumentUploadDialog from './DocumentUploadDialog';
@@ -77,12 +78,12 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       const data = await response.json();
       if (!response.ok || !data.success) {
         logger.warn('CLIENT:DELETE_ERROR', 'Delete API error', { itemType, itemId, error: data.error });
-        return { success: false, error: data.error || 'Failed to delete item' };
+        return { success: false, error: answerSentence(data, COULD_NOT_REMOVE) };
       }
       return { success: true };
     } catch (error) {
       logger.error('CLIENT:DELETE_EXCEPTION', error as Error, { itemType, itemId });
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: NO_ANSWER };
     }
   };
 
@@ -194,9 +195,9 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
         }
         const result = await deleteMaintenanceLineItem(itemToDelete.sourceDocId, 'document');
         if (result.success) {
-          toast.success(`Deleted ${itemsToDelete.length} items from invoice`);
+          toast.success(removedInvoice(itemsToDelete.filter((item) => idsToDelete.has(item.id)).length));
         } else {
-          toast.error(result.error || 'Failed to delete invoice');
+          toast.error(answerSentence(result, COULD_NOT_REMOVE));
           idsToDelete.delete(itemToDelete.sourceDocId);
         }
       } else {
@@ -205,14 +206,14 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
         if (result.success) {
           toast.success('Item deleted');
         } else {
-          toast.error(result.error || 'Failed to delete item');
+          toast.error(answerSentence(result, COULD_NOT_REMOVE));
           idsToDelete.delete(itemToDelete.id);
         }
       }
       setDeletedItemIds(prev => { const s = new Set(prev); idsToDelete.forEach(id => s.add(id)); return s; });
       onItemDeleted?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unknown error occurred');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
       setDeleteDialogOpen(false);
@@ -237,7 +238,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
           <div>
             <CardTitle className="text-white flex items-center gap-2">
               <Wrench className="h-5 w-5 text-info" />
-              Maintenance History
+              Service history
             </CardTitle>
             <p className="text-sm text-white/50 mt-0.5">
               {sortedRecords.length} record{sortedRecords.length !== 1 ? 's' : ''}
@@ -249,7 +250,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
             className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-9 px-4 text-sm gap-2"
           >
             <Upload className="h-4 w-4" />
-            Upload Invoice
+            Upload invoice
           </Button>
         </div>
 
@@ -266,7 +267,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
             <Search className="h-4 w-4" />
             <Input
               fieldSize="sm"
-              placeholder="Search description, shop, part number..."
+              placeholder="Search description, shop, part number…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -314,7 +315,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
               className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 gap-2 text-xs"
             >
               <Upload className="h-3.5 w-3.5" />
-              Upload Your First Invoice
+              Upload your first invoice
             </Button>
           </div>
         ) : sortedRecords.length === 0 ? (
@@ -410,7 +411,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-[hsl(var(--card))] border-[color:var(--border)] max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Maintenance Record</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Delete this service record</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <div className="text-white/60 text-sm">You are about to delete: <span className="text-white font-medium">&quot;{itemToDelete?.description}&quot;</span></div>

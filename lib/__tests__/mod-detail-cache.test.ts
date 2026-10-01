@@ -28,7 +28,6 @@ const BASE: ModDetailFacts = {
   model: 'Accord',
   modName: 'Cold air intake',
   performanceGoal: 'moderate',
-  ownershipObjective: 'keep forever',
 };
 
 describe('the key contains everything the prompt varies on', () => {
@@ -79,7 +78,6 @@ describe('the key contains everything the prompt varies on', () => {
       performanceGoal: 'performanceGoal',
       'performanceGoal.toUpperCase()': 'performanceGoal',
       'GOAL_CONTEXT[performanceGoal]': 'performanceGoal',
-      'vehicle.ownership_objective': 'ownershipObjective',
     };
 
     const interpolations = Array.from(prompt.matchAll(/\$\{([^}]+)\}/g)).map((m) =>
@@ -105,19 +103,18 @@ describe('two owners of the same car share one answer', () => {
       model: 'accord',
       modName: 'Cold  air   intake',
       performanceGoal: 'MODERATE',
-      ownershipObjective: 'Keep Forever',
     };
 
     expect(modDetailCacheKey(other)).toBe(modDetailCacheKey(BASE));
   });
 
-  it('does not merge a missing objective with a present one', () => {
+  it('does not merge two different goals', () => {
     /*
       Anti-vacuous in the direction that matters: normalisation must not be so
       eager that two genuinely different questions collide.
     */
-    const noObjective = { ...BASE, ownershipObjective: null };
-    expect(modDetailCacheKey(noObjective)).not.toBe(modDetailCacheKey(BASE));
+    const aggressive = { ...BASE, performanceGoal: 'aggressive' };
+    expect(modDetailCacheKey(aggressive)).not.toBe(modDetailCacheKey(BASE));
   });
 
   it('cannot be collided by punctuation inside a field', () => {
@@ -281,5 +278,34 @@ describe('the call site uses it, and does not cache a failure', () => {
     // Anti-vacuous: the same check still fails on the select it replaced.
     const before = ".select('details, cached_at')";
     expect(readBack.some((column) => !before.includes(column))).toBe(true);
+  });
+});
+
+describe('no free text the owner wrote — audit 360, LEGAL-14', () => {
+  /*
+    The ownership objective is free text ("what you want out of it"). It went
+    to Google from this path with no consent sheet, and sat verbatim in a key
+    every owner of the same car reads from. Neither the prompt nor the key may
+    carry it.
+  */
+  const actions = readFileSync(join(__dirname, '..', '..', 'app', 'actions.ts'), 'utf8');
+  const start = actions.indexOf('export async function generateModificationDetails');
+  const body = actions.slice(start, actions.indexOf('recordAiUsageInBackground', start));
+  const code = body.replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+  it('found the function and its prompt', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(code).toContain('You are an expert automotive consultant');
+    expect(code).toContain('modDetailCacheKey(');
+  });
+
+  it('sends no ownership objective, and keys on none', () => {
+    expect(code).not.toMatch(/ownership_objective|ownershipObjective/);
+    expect(MOD_DETAIL_KEY_FIELDS).not.toContain('ownershipObjective' as never);
+  });
+
+  it('can still detect the old prompt line (anti-vacuous)', () => {
+    const old = 'const x = `- Ownership Objective: ${vehicle.ownership_objective || \'Not specified\'}`;';
+    expect(old).toMatch(/ownership_objective|ownershipObjective/);
   });
 });

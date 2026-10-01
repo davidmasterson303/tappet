@@ -41,10 +41,10 @@ function renderHero({ isDemo }: { isDemo: boolean }) {
 }
 
 describe('the product host asks you to use the product', () => {
-  it('leads with "Add your vehicle", pointing at signup', () => {
+  it('leads with "Add your car", pointing at signup', () => {
     renderHero({ isDemo: false });
 
-    const primary = screen.getByRole('link', { name: /add your vehicle/i });
+    const primary = screen.getByRole('link', { name: /add your car/i });
     expect(primary).toHaveAttribute('href', '/signup');
   });
 
@@ -85,7 +85,7 @@ describe('the recruiter host is unchanged', () => {
     // Asking the wrong person for the wrong thing. They were sent to look.
     renderHero({ isDemo: true });
 
-    expect(screen.queryByRole('link', { name: /add your vehicle/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /add your car/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /see a sample garage/i })).not.toBeInTheDocument();
   });
 });
@@ -115,7 +115,7 @@ describe('the default direction, if the flag never arrives', () => {
     const onEnter = jest.fn();
     render(<LandingHero onEnter={onEnter} />);
 
-    expect(screen.getByRole('link', { name: /add your vehicle/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /add your car/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /enter demo/i })).not.toBeInTheDocument();
   });
 });

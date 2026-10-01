@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createBrowserSupabaseClient } from '@/lib/supabase';
+import { authErrorSentence } from '@/lib/api-error-copy';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -28,14 +29,14 @@ export default function ForgotPasswordPage() {
       setLoading(false);
 
       if (resetError) {
-        setError(resetError.message);
+        setError(authErrorSentence(resetError, 'reset-request'));
         return;
       }
 
       setSent(true);
     } catch (err) {
       setLoading(false);
-      setError('Something went wrong. Please try again.');
+      setError(authErrorSentence(err, 'reset-request'));
     }
   }
 
@@ -55,7 +56,7 @@ export default function ForgotPasswordPage() {
             <Link href="/login">
               <Button variant="outline" className="border-white/15 text-white/70 hover:bg-white/5 rounded-xl h-10">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Sign In
+                Back to sign in
               </Button>
             </Link>
           </div>
@@ -106,14 +107,14 @@ export default function ForgotPasswordPage() {
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all"
               busy={loading}
             >
-              Send Reset Link
+              Send reset link
             </Button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/8 text-center">
             <Link href="/login" className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/60 text-sm transition-colors">
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to Sign In
+              Back to sign in
             </Link>
           </div>
         </div>

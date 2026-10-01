@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -52,7 +53,7 @@ export function AddWishlistItemDialog({
     e.preventDefault();
 
     if (!formData.itemName.trim()) {
-      toast.error('Please enter an item name');
+      toast.error('Give it a name first.');
       return;
     }
 
@@ -98,12 +99,12 @@ export function AddWishlistItemDialog({
         if (response.status === 409) {
           toast.error('That is already in Needs');
         } else {
-          toast.error(data.error || 'Failed to add item');
+          toast.error(answerSentence(data, COULD_NOT_SAVE));
         }
       }
     } catch (error) {
       logger.error('ADD_WISHLIST_DIALOG:SUBMIT', error as Error);
-      toast.error('Failed to add item');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
     }
@@ -119,7 +120,7 @@ export function AddWishlistItemDialog({
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="itemType">Item Type</Label>
+              <Label htmlFor="itemType">Item type</Label>
               <Select
                 value={formData.itemType}
                 onValueChange={(value: 'issue' | 'maintenance' | 'modification') =>
@@ -130,22 +131,22 @@ export function AddWishlistItemDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="issue">Issue / Repair</SelectItem>
+                  <SelectItem value="issue">Issue or repair</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="modification">Modification / Upgrade</SelectItem>
+                  <SelectItem value="modification">Modification or upgrade</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label htmlFor="itemName">Item Name *</Label>
+              <Label htmlFor="itemName">Item name *</Label>
               <Input
                 id="itemName"
                 value={formData.itemName}
                 onChange={(e) =>
                   setFormData({ ...formData, itemName: e.target.value })
                 }
-                placeholder="e.g., Oil Change, New Tires, Cold Air Intake"
+                placeholder="e.g., oil change, new tires, cold air intake"
                 required
               />
             </div>
@@ -158,7 +159,7 @@ export function AddWishlistItemDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="Additional details about this item..."
+                placeholder="Additional details about this item…"
                 rows={3}
               />
             </div>
@@ -171,13 +172,13 @@ export function AddWishlistItemDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, category: e.target.value })
                 }
-                placeholder="e.g., Fluids, Brakes, Engine, Suspension"
+                placeholder="e.g., fluids, brakes, engine, suspension"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="estimatedCostParts">Est. Parts Cost ($)</Label>
+                <Label htmlFor="estimatedCostParts">Estimated parts cost ($)</Label>
                 <Input
                   id="estimatedCostParts"
                   type="number"
@@ -194,7 +195,7 @@ export function AddWishlistItemDialog({
               </div>
 
               <div>
-                <Label htmlFor="estimatedCostLabor">Est. Labor Cost ($)</Label>
+                <Label htmlFor="estimatedCostLabor">Estimated labor cost ($)</Label>
                 <Input
                   id="estimatedCostLabor"
                   type="number"
@@ -212,7 +213,7 @@ export function AddWishlistItemDialog({
             </div>
 
             <div>
-              <Label htmlFor="estimatedLaborHours">Est. Labor Hours</Label>
+              <Label htmlFor="estimatedLaborHours">Estimated labor hours</Label>
               <Input
                 id="estimatedLaborHours"
                 type="number"
@@ -236,7 +237,7 @@ export function AddWishlistItemDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                placeholder="Any additional notes..."
+                placeholder="Any additional notes…"
                 rows={2}
               />
             </div>

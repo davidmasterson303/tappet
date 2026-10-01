@@ -47,11 +47,14 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { deleteVehicle, updateVehicleMileage } from '@/app/actions';
+import { correctionAction } from '@tappet/core/mileage-tracking';
 import { logger } from '@tappet/core/logger';
 import { isDemoVehicleId } from '@tappet/core/demo';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { questionToast } from '@/components/question-toast';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { queryClient } from '@tappet/core/query-client';
 import { MileageUpdatePrompt } from './MileageUpdatePrompt';
@@ -172,11 +175,11 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
         toast.success(`${vehicle.year} ${vehicle.make} ${vehicle.model} removed from garage`);
       } else {
         setIsDeleting(false);
-        toast.error(result.error || 'Failed to delete vehicle');
+        toast.error(answerSentence(result, COULD_NOT_REMOVE));
       }
     } catch (error) {
       setIsDeleting(false);
-      toast.error('An unexpected error occurred during deletion');
+      toast.error(NO_ANSWER);
       logger.error('VEHICLE_CARD:DELETE', error as Error);
     }
   };
@@ -188,21 +191,35 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
       return;
     }
     const newMileage = parseInt(mileageInput);
-    if (isNaN(newMileage) || newMileage < displayVehicle.current_mileage) {
-      toast.error('Mileage must be greater than current mileage');
+    if (isNaN(newMileage)) {
+      toast.error('Enter the reading as a whole number.');
       return;
     }
+    await saveMileage(newMileage, false);
+  };
+
+  /*
+    Audit 360, TL-26: the rule is the server's (`validateMileageUpdate`, the
+    phone's PATCH rule), not a `<` here. A refusal that asks a question —
+    "Correcting an earlier mistake?" — carries its answer as the toast's
+    action, which re-sends with `isCorrection`, as the phone's alert does.
+  */
+  const saveMileage = async (newMileage: number, isCorrection: boolean) => {
     setIsUpdatingMileage(true);
     setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: newMileage }));
     setShowMileageDialog(false);
-    const result = await updateVehicleMileage(vehicle.id, newMileage);
+    const result = await updateVehicleMileage(vehicle.id, newMileage, { isCorrection });
     if (result.success) {
       toast.success('Mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update mileage');
+      const answer = correctionAction(result.reason);
+      toast.error(
+        result.error || 'Tappet could not save the reading. Try again in a moment.',
+        answer ? questionToast(answer, () => void saveMileage(newMileage, true)) : undefined
+      );
       setDisplayVehicle((prev: any) => ({ ...prev, current_mileage: vehicle.current_mileage }));
-      setMileageInput(vehicle.current_mileage.toString());
+      setMileageInput(vehicle.current_mileage?.toString() ?? '');
     }
     setIsUpdatingMileage(false);
   };
@@ -424,7 +441,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <button
                   className="reveal-on-hover tap-target-44 group/options flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  aria-label="Vehicle options"
+                  aria-label="Car options"
                 >
                   <span
                     aria-hidden="true"
@@ -447,7 +464,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                   className="text-white/80 hover:text-white focus:text-white hover:bg-white/8 focus:bg-white/8 cursor-pointer"
                 >
                   <Pencil className="h-4 w-4 mr-2 text-[color:var(--info-strong)]" />
-                  Update Mileage
+                  Update mileage
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -456,7 +473,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Vehicle
+                    Remove car
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
               </DropdownMenuContent>
@@ -464,7 +481,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
 
             <AlertDialogContent onClick={(e) => e.stopPropagation()} className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-white">Delete Vehicle</AlertDialogTitle>
+                <AlertDialogTitle className="text-white">Remove car</AlertDialogTitle>
                 <AlertDialogDescription className="text-white/60">
                   Are you sure you want to remove {vehicle.year} {vehicle.make} {vehicle.model} from your garage?
                 </AlertDialogDescription>
@@ -472,7 +489,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className="border-white/15 text-white/70 hover:text-white hover:bg-white/8">Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  {isDeleting ? 'Deleting...' : 'Delete Vehicle'}
+                  {isDeleting ? 'Removing…' : 'Remove car'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -759,14 +776,14 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
       <Dialog open={showMileageDialog} onOpenChange={setShowMileageDialog}>
         <DialogContent className="bg-[hsl(var(--popover))] border-[color:var(--border)]">
           <DialogHeader>
-            <DialogTitle className="text-white">Update Mileage</DialogTitle>
+            <DialogTitle className="text-white">Update mileage</DialogTitle>
             <DialogDescription className="text-white/60">
               Enter the current mileage for your {vehicle.year} {vehicle.make} {vehicle.model}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="mileage" className="text-white/80">Current Mileage (miles)</Label>
+              <Label htmlFor="mileage" className="text-white/80">Current mileage (miles)</Label>
               <Input
                 id="mileage"
                 type="number"
@@ -781,7 +798,7 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
                 Cancel
               </Button>
               <Button onClick={handleUpdateMileage} disabled={isUpdatingMileage} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
-                {isUpdatingMileage ? 'Updating...' : 'Update Mileage'}
+                {isUpdatingMileage ? 'Updating…' : 'Update mileage'}
               </Button>
             </div>
           </div>

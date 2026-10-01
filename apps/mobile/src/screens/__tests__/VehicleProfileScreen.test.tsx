@@ -75,7 +75,8 @@ describe('the odometer', () => {
     expect((patches[0][1] as { body: Record<string, unknown> }).body).not.toHaveProperty('avgMilesPerMonth');
   });
 
-  it('refuses a reading that goes backwards with the rule\'s own words, and sends nothing', async () => {
+  it('asks about a reading that goes backwards with the rule\'s own words, and sends nothing until answered', async () => {
+    const alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
     const user = userEvent.setup();
     const { props, view } = await mount();
     const field = await (await view).findByLabelText(/^Odometer/);
@@ -84,10 +85,52 @@ describe('the odometer', () => {
     await user.type(field, '160000');
     await user.press((await view).getByText('Save'));
 
-    await (await view).findByText('Not saved');
-    await (await view).findByText(/below the 168,400 miles already recorded/);
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0][1]).toMatch(/below the 168,400 miles already recorded/);
     expect(props.onSaved).not.toHaveBeenCalled();
     expect(request.mock.calls.some(([, init]) => (init as { method?: string } | undefined)?.method === 'PATCH')).toBe(false);
+    alert.mockRestore();
+  });
+
+  it('sends the correction when the owner says the lower reading is right — audit 360, TL-3', async () => {
+    /*
+      Nothing on the phone sent `isCorrection`, so the rule's question —
+      "Correcting an earlier mistake?" — had no answer and a mistyped
+      odometer was locked. Answering it re-sends with the flag.
+    */
+    const alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { props, view } = await mount();
+    const field = await (await view).findByLabelText(/^Odometer/);
+
+    await user.clear(field);
+    await user.type(field, '68400');
+    await user.press((await view).getByText('Save'));
+
+    const correct = (alert.mock.calls[0]?.[2] ?? []).find((b) => b.text === 'Yes, correct it');
+    expect(correct).toBeTruthy();
+    await act(async () => correct?.onPress?.());
+
+    await waitFor(() => expect(props.onSaved).toHaveBeenCalledTimes(1));
+    const patches = request.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method === 'PATCH');
+    expect(patches).toHaveLength(1);
+    expect(patches[0][1]).toMatchObject({ body: { vehicleId: 'v1', currentMileage: 68_400, isCorrection: true } });
+    alert.mockRestore();
+  });
+
+  it('offers no correction for an out-of-range reading, which is shown inline (anti-vacuous)', async () => {
+    const alert = jest.spyOn(RN.Alert, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { view } = await mount();
+    const field = await (await view).findByLabelText(/^Odometer/);
+
+    await user.clear(field);
+    await user.type(field, '9999999');
+    await user.press((await view).getByText('Save'));
+
+    await (await view).findByText('Not saved');
+    expect(alert).not.toHaveBeenCalled();
+    alert.mockRestore();
   });
 
   it('is left alone when it did not change — the answers save as before', async () => {

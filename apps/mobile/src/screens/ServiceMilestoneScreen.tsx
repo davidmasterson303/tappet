@@ -24,7 +24,13 @@ import {
   serviceBasis,
 } from '@tappet/core/service-provenance';
 import { historyLookups, type ServiceHistoryRow } from '@tappet/core/service-history';
-import { mileageCheckIn, validateMileageUpdate, type MileageCheckIn } from '@tappet/core/mileage-tracking';
+import {
+  correctionAction,
+  mileageCheckIn,
+  odometerReading,
+  validateMileageUpdate,
+  type MileageCheckIn,
+} from '@tappet/core/mileage-tracking';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import {
   CONTROL_HEIGHT,
@@ -319,7 +325,9 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
 
       const vehicle = body.vehicle;
       // Null, never 0: a car with no odometer on file was told "Still around 0 miles?" (23 Sep).
-      const mileage = typeof vehicle?.current_mileage === 'number' ? vehicle.current_mileage : null;
+      // ⚠ 1 Oct · audit 360, TL-5: and `0` is no odometer too — the column's
+      // default, and what the sweep has always read as none.
+      const mileage = odometerReading(vehicle?.current_mileage);
       const rawSchedule = body.knowledge?.maintenance_schedule;
       /*
         ── 13 Sep · monthly, with a number worked out ──────────────────────
@@ -390,13 +398,28 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
   // Quiet on focus: a service marked done elsewhere leaves ADDED here (20 Sep).
   useRefetchOnFocus(load);
 
-  const confirm = useCallback(async () => {
+  const confirm = useCallback(async (isCorrection = false) => {
     if (state.kind !== 'ready' || saving) return;
 
     const next = Number(reading.replace(/[^0-9]/g, ''));
-    const decision = validateMileageUpdate({ current: state.mileage, next });
+    const decision = validateMileageUpdate({ current: state.mileage, next, isCorrection });
 
     if (!decision.ok) {
+      /*
+        ⚠ 1 Oct · audit 360, TL-3. "Correcting an earlier mistake?" asked a
+        question with OK as the only answer, and nothing on the phone sent
+        `isCorrection` — so an odometer typed one digit long could never be
+        brought back. A refusal that can be overruled now offers the answer,
+        which re-sends with the flag the route already accepts.
+      */
+      const answer = correctionAction(decision.reason);
+      if (answer) {
+        Alert.alert('Check that reading', decision.message ?? 'That does not look right.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: answer, onPress: () => void confirm(true) },
+        ]);
+        return;
+      }
       /*
         The rule's own message, not one written here. It is phrased for the
         person who typed the number — "that is below the 60,000 already
@@ -419,7 +442,7 @@ export function ServiceMilestoneScreen({ vehicleId, onSignOut }: Props) {
     try {
       await apiRequest('/vehicles', {
         method: 'PATCH',
-        body: { vehicleId, currentMileage: next },
+        body: { vehicleId, currentMileage: next, ...(isCorrection ? { isCorrection: true } : {}) },
       });
       setState({ ...state, mileage: next });
       setConfirmed(true);

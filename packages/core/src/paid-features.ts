@@ -116,14 +116,14 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
   },
   'invoice-scanning': {
     label: 'Invoice scanning',
-    blurb: 'Photograph a receipt and have the work read off it into your service log.',
+    blurb: 'Photograph an invoice and have the work read off it into your service history.',
   },
   recalls: {
     label: 'Recall alerts',
     blurb: 'Open safety recalls from NHTSA, with a notification when a new one lands.',
   },
   dossier: {
-    label: 'The vehicle dossier',
+    label: 'The car’s dossier',
     blurb: 'Known issues, a typical service schedule and modification guidance for your car.',
   },
 };
@@ -186,9 +186,9 @@ export const PAID_FEATURE_COPY: Record<PaidFeature, FeatureCopy> = {
  * record.
  */
 export const FREE_FEATURE_COPY: Record<FreeFeature, FeatureCopy> = {
-  garage: { label: 'Your garage', blurb: 'Every vehicle you own, with photos and details.' },
+  garage: { label: 'Your garage', blurb: 'Every car you own, with photos and details.' },
   'service-log': {
-    label: 'Service log',
+    label: 'Service history',
     blurb: 'Everything that has been done, entered by hand or scanned in while you had Plus.',
   },
   mileage: { label: 'Mileage tracking', blurb: 'Odometer readings and what is due by distance.' },

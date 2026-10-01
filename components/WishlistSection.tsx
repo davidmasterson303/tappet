@@ -18,6 +18,7 @@ import { Plus, Trash2, CircleCheck as CheckCircle, Wrench, TriangleAlert as Aler
 import { Working, WorkingMark } from '@/components/Working';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { getQuoteRequestHistory } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
 import { MarkCompleteDialog } from './MarkCompleteDialog';
@@ -112,11 +113,11 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
         toast.success('Removed from Needs');
       } else {
         logger.error('WISHLIST_SECTION:DELETE', new Error(data.error || 'Delete failed'));
-        toast.error(data.error || 'Failed to remove item');
+        toast.error(answerSentence(data, COULD_NOT_REMOVE));
       }
     } catch (error) {
       logger.error('WISHLIST_SECTION:DELETE_EXCEPTION', error as Error);
-      toast.error('Failed to remove item');
+      toast.error(NO_ANSWER);
     } finally {
       setDeletingId(null);
     }
@@ -249,7 +250,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
               className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-3 text-xs gap-1.5 rounded-lg"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Item
+              Add item
             </Button>
           </div>
         </div>
@@ -261,7 +262,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
             </div>
             <p className="text-sm font-medium text-white/50 mb-1">Nothing in Needs yet</p>
             <p className="text-xs text-white/50 mb-5 max-w-xs leading-relaxed">
-              Track repairs, upgrades, and modifications you want done on your vehicle.
+              Track repairs, upgrades, and modifications you want done on your car.
             </p>
             <Button
               onClick={() => setShowAddDialog(true)}
@@ -269,7 +270,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
               className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 text-xs gap-1.5 rounded-xl"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Your First Item
+              Add your first item
             </Button>
           </div>
         ) : (
@@ -413,7 +414,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
       <Dialog open={showQuoteHistoryDialog} onOpenChange={setShowQuoteHistoryDialog}>
         <DialogContent className="max-w-2xl bg-slate-950 border-white/15">
           <DialogHeader>
-            <DialogTitle className="text-white">Past Quotes</DialogTitle>
+            <DialogTitle className="text-white">Past quotes</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-2 mt-2">
@@ -439,7 +440,7 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold text-white mb-1 truncate">
-                          {quote.name || 'Unnamed Quote'}
+                          {quote.name || 'Unnamed quote'}
                         </h3>
                         <div className="flex flex-wrap gap-3 text-xs text-white/50">
                           <span>{formatDate(quote.created_at)}</span>

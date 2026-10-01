@@ -4,9 +4,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { logger } from '@tappet/core/logger';
+import { COULD_NOT_REMOVE } from '@/lib/api-error-copy';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import type { WishlistSourceData } from '@tappet/core/wishlist-source';
 import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
+import { wishlistFieldProblem } from '@tappet/core/input-bounds';
 
 /*
  * These are 'use server' exports, which Next.js compiles into POST endpoints
@@ -91,6 +93,12 @@ export async function addItemToWishlist(
   itemType: WishlistItemType
 ): Promise<{ success: boolean; error?: string; data?: unknown; alreadyExisted?: boolean }> {
   try {
+    // Audit 360, SEC-2: the name reaches the advisor's prompt on every turn.
+    const nameTrouble = wishlistFieldProblem({ itemName });
+    if (nameTrouble) {
+      return { success: false, error: nameTrouble };
+    }
+
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };
@@ -172,7 +180,7 @@ export async function removeFromWishlist(
 
       if (error) {
         logger.error('WISHLIST:REMOVE_ERROR', error as Error, { vehicleId, itemType });
-        return { success: false, error: `Database error: ${error.message}` };
+        return { success: false, error: COULD_NOT_REMOVE };
       }
     } else {
       const { error } = await client
@@ -183,14 +191,14 @@ export async function removeFromWishlist(
 
       if (error) {
         logger.error('WISHLIST:REMOVE_LEGACY_ERROR', error as Error, { vehicleId });
-        return { success: false, error: `Database error: ${error.message}` };
+        return { success: false, error: COULD_NOT_REMOVE };
       }
     }
 
     return { success: true };
   } catch (error) {
     logger.error('WISHLIST:REMOVE_EXCEPTION', error as Error, { vehicleId });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    return { success: false, error: COULD_NOT_REMOVE };
   }
 }
 

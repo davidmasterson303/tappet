@@ -1,6 +1,8 @@
 import { AppState, type AppStateStatus } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
+import { authErrorSentence } from '@tappet/core/auth-error-copy';
+
 import { API_BASE_URL } from '../config';
 import { supabase } from './supabase';
 
@@ -118,22 +120,21 @@ export async function signUp(
   if (error) {
     logAuthFailure('signUp', error);
 
-    const isNetwork = /network|fetch|timeout/i.test(error.message);
-    if (isNetwork) {
-      return {
-        ok: false,
-        error: 'Could not reach Tappet. Check your connection and try again.',
-      };
-    }
-
     /*
-      Supabase's own message is surfaced here rather than replaced. Sign-in can
-      afford one flat "did not match" because the causes are indistinguishable
-      and equally recoverable; sign-up cannot — "password too short", "already
-      registered" and "invalid email" each need a different action, and a
-      generic sentence would send someone round the same loop.
+      Sign-in can afford one flat "did not match" because the causes are
+      indistinguishable and equally recoverable; sign-up cannot — "password
+      too short", "already registered" and "invalid email" each need a
+      different action, and a generic sentence would send someone round the
+      same loop.
+
+      ⚠ Audit 360, COPY-30 (1 Oct). That argument once surfaced Supabase's own
+      message, which put the library's English on screen ("Password should be
+      at least 6 characters.") and, on a 5xx, the two characters `{}` — auth-js
+      builds a retryable error's message by stringifying the `Response`.
+      `authErrorSentence` keeps the argument (a sentence per cause, the web's
+      word for word) and never returns the library's words.
     */
-    return { ok: false, error: error.message };
+    return { ok: false, error: authErrorSentence(error, 'sign-up') };
   }
 
   // A session means confirmation is off and they are already in. No session

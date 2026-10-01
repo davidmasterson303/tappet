@@ -56,7 +56,7 @@ async function fillOdometer(
   view: Awaited<ReturnType<typeof render>>,
   mileage = '94800'
 ) {
-  await user.type(view.getByLabelText('Odometer, miles'), mileage);
+  await user.type(view.getByLabelText('Odometer, miles, required'), mileage);
 }
 
 beforeEach(() => {
@@ -132,6 +132,20 @@ describe('adding the car', () => {
 });
 
 describe('the mileage rule', () => {
+  it('says the odometer is the one answer the primary waits on — audit 360, UX-6', async () => {
+    /*
+      ADD TO MY GARAGE is disabled until a reading is typed, and the field
+      only said "miles": an owner who did not know the reading answered both
+      chip rows and pressed a dead button with nothing on screen saying why.
+    */
+    const { view } = mount();
+
+    expect((await view).getByText('miles, required')).toBeTruthy();
+    expect((await view).getByLabelText('Add to my garage').props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+  });
+
   it('refuses an implausible reading without spending a round trip, and says why', async () => {
     const user = userEvent.setup();
     const { view } = mount();
@@ -251,7 +265,7 @@ describe('when the request fails', () => {
     expect((await view).getByText('A car with that VIN is already in a garage.')).toBeTruthy();
     expect(props.onSignOut).not.toHaveBeenCalled();
     expect(props.onAdded).not.toHaveBeenCalled();
-    expect((await view).getByLabelText('Odometer, miles').props.value).toBe('94800');
+    expect((await view).getByLabelText('Odometer, miles, required').props.value).toBe('94800');
   });
 
   it('reports a 200 that carried no vehicle rather than navigating nowhere', async () => {

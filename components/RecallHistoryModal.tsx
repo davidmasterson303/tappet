@@ -59,19 +59,19 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
-              Recall History
+              Recall history
             </DialogTitle>
             <DialogDescription>
               {recalls.length > 0
-                ? `${recalls.length} recall${recalls.length !== 1 ? 's' : ''} found for this vehicle`
+                ? `${recalls.length} recall${recalls.length !== 1 ? 's' : ''} found for this year, make and model`
                 : checked
-                  ? 'This vehicle has no recalls to date'
-                  : 'We have not checked this vehicle for recalls yet'}
+                  ? 'NHTSA lists no recalls to date for this year, make and model'
+                  : 'We have not checked recalls for this year, make and model yet'}
             </DialogDescription>
             {/*
-              ⚠ §10 / D11. The description above says "found for this vehicle"
-              and "no recalls to date" — both of which an owner will read as
-              being about their car. The match was on year, make and model;
+              ⚠ §10 / D11. The description above said "found for this vehicle"
+              and "This vehicle has no recalls to date" — both of which an owner
+              will read as being about their car (reworded audit 360, COPY-8). The match was on year, make and model;
               there is no VIN in this lookup and never has been. Same constant
               as the alert card and the mobile screen.
             */}
@@ -85,7 +85,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
               <div className="text-center py-12">
                 <AlertCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
                 <p className="text-muted-foreground font-medium">No recalls to date</p>
-                <p className="text-slate-500 text-sm mt-2">This vehicle has a clean safety record</p>
+                <p className="text-slate-500 text-sm mt-2">That is NHTSA’s record, not a guarantee — a dealer can check your VIN.</p>
               </div>
             ) : (
               /*
@@ -111,13 +111,13 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                        <h3 className="font-semibold text-foreground">{recall.Component || 'Component Unknown'}</h3>
+                        <h3 className="font-semibold text-foreground">{recall.Component || 'Component not named'}</h3>
                       </div>
                       <p className="text-sm text-slate-700 mb-3">{unshout(recall.Summary || recall.Description, [recall.Manufacturer]) || 'No summary available'}</p>
                       <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground mb-3">
                         {recall.NHTSACampaignNumber && (
                           <div>
-                            <span className="font-semibold">Campaign Number:</span>
+                            <span className="font-semibold">Campaign number:</span>
                             <div className="text-slate-700 mono mt-1">{recall.NHTSACampaignNumber}</div>
                           </div>
                         )}
@@ -129,13 +129,13 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                         )}
                         {recall.ReportReceivedDate && (
                           <div>
-                            <span className="font-semibold">Date Reported:</span>
+                            <span className="font-semibold">Date reported:</span>
                             <div className="text-slate-700 mt-1">{new Date(recall.ReportReceivedDate).toLocaleDateString()}</div>
                           </div>
                         )}
                         {recall.PotentialNumberOfAffectedVehicles && (
                           <div>
-                            <span className="font-semibold">Affected Vehicles:</span>
+                            <span className="font-semibold">Cars affected:</span>
                             <div className="text-slate-700 mt-1">{recall.PotentialNumberOfAffectedVehicles.toLocaleString()}</div>
                           </div>
                         )}
@@ -154,7 +154,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                       )}
                       {recall.CorrectiveActionsSummary && (
                         <div>
-                          <p className="text-xs font-semibold text-slate-700 mb-1">Corrective Action:</p>
+                          <p className="text-xs font-semibold text-slate-700 mb-1">Corrective action:</p>
                           <p className="text-xs text-muted-foreground">{recall.CorrectiveActionsSummary}</p>
                         </div>
                       )}
@@ -168,7 +168,7 @@ export default function RecallHistoryModal({ recalls, trigger, checked }: Recall
                 className="w-full"
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
-                View More on NHTSA.gov
+                View more on NHTSA.gov
               </Button>
             </div>
           )}

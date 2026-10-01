@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadInvoice, uploadInvoicePages, type InvoiceFilingResult } from '@/app/actions';
+import { FILING_IN_PROGRESS_MESSAGE } from '@/lib/invoice-filing-replay';
 import { logger } from '@tappet/core/logger';
 import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
+import { RATE_LIMITED_CODE } from '@tappet/core/ai/advisor-failure';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const vehicleId = typeof json?.vehicleId === 'string' ? json.vehicleId : '';
       if (!vehicleId || !Array.isArray(json?.pagePaths)) {
         return NextResponse.json(
-          { success: false, error: 'Missing pagePaths or vehicleId' } as ApiResponse,
+          { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
           { status: 400 }
         );
       }
@@ -63,6 +66,14 @@ export async function POST(request: NextRequest): Promise<Response> {
         name: a path list that is not this car's pages, and a page that is no
         longer there — which the phone answers by sending that page again.
       */
+      /*
+        Audit 360, TL-2: a retry that overtook the filing it repeats. 409 with
+        a sentence a build-2 phone shows as it stands (it reads `error`), and
+        a `code` a later build can read; the next Try again gets the filed
+        document (`lib/invoice-filing-replay.ts`).
+      */
+      // `FILING_IN_PROGRESS` → 409 lives in `respond`: since TL-31 both forms reach it.
+
       if (!result.success && (result.error === 'INVALID_PAGES' || result.error === 'PAGE_MISSING')) {
         return NextResponse.json(
           {
@@ -104,7 +115,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         hasVehicleId: !!vehicleId
       });
       return NextResponse.json(
-        { success: false, error: 'Missing file or vehicleId' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
@@ -155,7 +166,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         allowedTypes: ALLOWED_DOCUMENT_TYPES
       });
       return NextResponse.json(
-        { success: false, error: 'Invalid file type' } as ApiResponse,
+        { success: false, error: 'That file type cannot be read. Choose a photo or a PDF.' } as ApiResponse,
         { status: 400 }
       );
     }
@@ -174,13 +185,22 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (bypassFlag) {
       uploadFormData.append('bypassVehicleCheck', 'true');
     }
+    /*
+      Audit 360, TL-31: the website's filing key, passed through as it came —
+      `uploadInvoice` validates it and replays an earlier filing that carried
+      it. A caller that sends none files exactly as before.
+    */
+    const filingKey = formData.get('filingKey');
+    if (typeof filingKey === 'string' && filingKey) {
+      uploadFormData.append('filingKey', filingKey);
+    }
 
     const result = await uploadInvoice(uploadFormData);
     return respond(result, vehicleId);
   } catch (error) {
     logger.error('API:UPLOAD_INVOICE', error as Error);
     return NextResponse.json(
-      { success: false, error: (error as Error).message || 'Upload failed' } as ApiResponse,
+      { success: false, error: 'Tappet could not store that invoice just now. Try again in a moment.' } as ApiResponse,
       { status: 500 }
     );
   }
@@ -188,6 +208,19 @@ export async function POST(request: NextRequest): Promise<Response> {
 
 /** One mapping from a filing to HTTP, for both forms. */
 function respond(result: InvoiceFilingResult, vehicleId: string): Response {
+  /*
+    Audit 360, TL-2 / TL-31: a retry that overtook the filing it repeats.
+    409 with a sentence a build-2 phone shows as it stands (it reads `error`),
+    and a `code` the website and a later build read; the next Try again gets
+    the filed document (`lib/invoice-filing-replay.ts`).
+  */
+  if (!result.success && result.error === 'FILING_IN_PROGRESS') {
+    return NextResponse.json(
+      { success: false, error: FILING_IN_PROGRESS_MESSAGE, code: 'filing-in-progress' },
+      { status: 409 }
+    );
+  }
+
   if (!result.success) {
     logger.warn('API:UPLOAD_INVOICE', 'Upload failed', {
       error: result.error,
@@ -225,16 +258,29 @@ function respond(result: InvoiceFilingResult, vehicleId: string): Response {
       );
     }
 
-    let errorMessage = result.error || 'Upload failed';
+    /*
+      Audit 360, TL-35: the AI tier's limiter, as 429 with its `code` — the
+      consultant route's shape. It was a 500 under the limiter's sentence. A
+      phone reads 429 as "Too many uploads just now" (`documents.ts`), on
+      build 2 as on build 3.
+    */
+    if (result.code === RATE_LIMITED_CODE) {
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code },
+        { status: 429 }
+      );
+    }
+
+    let errorMessage = result.error || 'Tappet could not store that invoice just now. Try again in a moment.';
     let statusCode = 500;
 
     if (errorMessage.includes('Bucket not found')) {
-      errorMessage = 'Storage bucket not configured. Please contact support.';
+      errorMessage = 'Invoice storage is unavailable right now. Your photo was not lost — try again later.';
       statusCode = 503;
     } else if (errorMessage.includes('Failed to upload file')) {
-      errorMessage = 'Failed to upload file to storage. Please try again.';
+      errorMessage = 'Tappet could not store that invoice just now. Try again in a moment.';
     } else if (errorMessage.includes('Failed to create document record')) {
-      errorMessage = 'Failed to save document record. Please try again.';
+      errorMessage = 'Tappet could not save that invoice just now. Try again in a moment.';
     }
 
     return NextResponse.json(

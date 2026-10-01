@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { NOT_ON_THIS_ACCOUNT as NOT_FOUND_MESSAGE } from '@/lib/api-error-copy';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { inventoryVehicleRemoval, removeVehicle } from '@/lib/vehicle-deletion';
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const inventory = await inventoryVehicleRemoval(vehicleId as string);
   if (!inventory) {
-    return Response.json({ success: false, error: 'Vehicle not found' } as ApiResponse, { status: 404 });
+    return Response.json({ success: false, error: NOT_FOUND_MESSAGE } as ApiResponse, { status: 404 });
   }
   return Response.json({ success: true, inventory } as ApiResponse);
 }

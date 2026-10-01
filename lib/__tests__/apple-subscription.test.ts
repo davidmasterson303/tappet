@@ -395,10 +395,15 @@ describe('sandbox cannot replace access granted by hand', () => {
   });
 
   it('marks no other refusal as keeping access', () => {
-    // A stale event must never be read as an entitlement by the verify route.
+    /*
+      A stale event from a DIFFERENT original transaction must never be read
+      as an entitlement by the verify route — even against a row that is live
+      and paid, so the absence of `keeps` is not merely the clock's doing.
+    */
     const decision = applyAppleNotification(
-      stored(),
-      event({ signedDate: at('2026-08-18T08:00:00Z') })
+      stored({ expiresAt: '2026-09-18T10:00:00.000Z' }),
+      event({ signedDate: at('2026-08-18T08:00:00Z'), originalTransactionId: '2000000000000077' }),
+      new Date('2026-08-20T00:00:00Z')
     );
     expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event' });
     expect('keeps' in decision && decision.keeps !== undefined).toBe(false);
@@ -452,6 +457,139 @@ describe('auto-renew status is recorded but never decides entitlement', () => {
     expect(record.autoRenewStatus).toBe(false);
     expect(record.tier).toBe('paid');
     expect(resolveEntitledTier(record, new Date('2026-09-01T00:00:00Z')).name).toBe('paid');
+  });
+});
+
+/**
+ * ── Audit 360, TL-21: the device's transaction against Apple's newer row ────
+ *
+ * Restore and the quiet check send the device's transaction, signed at
+ * purchase; Apple's notification for the same subscription is signed later and
+ * moves `lastSignedDate` past it. And in the other ordering a re-signed device
+ * transaction is newer than the notification, but carries no renewal info.
+ */
+describe('the subscriber’s own transaction against a row Apple has moved on', () => {
+  const NOW = new Date('2026-08-20T00:00:00Z');
+  /** The row after Apple's SUBSCRIBED notification, signed seconds after the purchase. */
+  const NOTIFIED = stored({
+    expiresAt: '2026-09-18T10:00:00.000Z',
+    lastSignedDate: '2026-08-18T10:00:05.000Z',
+  });
+  /** What Restore sends: the same subscription, signed at purchase. */
+  const restored = (over: Partial<AppleSubscriptionEvent> = {}) =>
+    event({ notificationType: 'SUBSCRIBED', fromDevice: true, signedDate: at('2026-08-18T10:00:00Z'), ...over });
+
+  it('keeps the row’s live tier for a stale event of the same subscription', () => {
+    const decision = applyAppleNotification(NOTIFIED, restored(), NOW);
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event', keeps: 'paid' });
+  });
+
+  it('keeps it for a stale notification of the same subscription too — nothing is written', () => {
+    const decision = applyAppleNotification(NOTIFIED, event({ signedDate: at('2026-08-18T09:30:00Z') }), NOW);
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event', keeps: 'paid' });
+  });
+
+  it('keeps nothing when the same subscription has lapsed on the row', () => {
+    const decision = applyAppleNotification(NOTIFIED, restored(), new Date('2026-10-01T00:00:00Z'));
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event' });
+    expect('keeps' in decision && decision.keeps !== undefined).toBe(false);
+  });
+
+  it('keeps nothing when the row was refunded after the device’s transaction', () => {
+    const refunded = stored({
+      tier: 'free',
+      expiresAt: '2026-08-19T00:00:00.000Z',
+      revokedAt: '2026-08-19T00:00:00.000Z',
+      autoRenewStatus: false,
+      lastSignedDate: '2026-08-19T00:00:00.000Z',
+    });
+    const decision = applyAppleNotification(refunded, restored(), NOW);
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event' });
+    expect('keeps' in decision && decision.keeps !== undefined).toBe(false);
+  });
+
+  it('keeps nothing for a stale transaction from a different subscription', () => {
+    const decision = applyAppleNotification(
+      NOTIFIED,
+      restored({ originalTransactionId: '2000000000000077' }),
+      NOW
+    );
+    expect(decision).toMatchObject({ action: 'ignore', reason: 'stale-event' });
+    expect('keeps' in decision && decision.keeps !== undefined).toBe(false);
+  });
+
+  it('does not loosen the hand-grant rule: a sandbox purchase still never replaces a grant', () => {
+    const grant = stored({
+      expiresAt: null, originalTransactionId: null, productId: null, environment: null,
+      autoRenewStatus: null, latestTransactionId: null, lastSignedDate: null,
+    });
+    expect(
+      applyAppleNotification(grant, restored({ environment: 'Sandbox' }), NOW)
+    ).toMatchObject({ action: 'ignore', reason: 'sandbox-would-overwrite-grant', keeps: 'paid' });
+  });
+
+  /** The row DID_FAIL_TO_RENEW wrote: in grace until the 25th, renewal on. */
+  const IN_GRACE = stored({
+    expiresAt: '2026-08-25T10:00:00.000Z',
+    autoRenewStatus: true,
+    lastSignedDate: '2026-08-18T10:00:05.000Z',
+  });
+  /** A re-signed device transaction, newer than the notification, no renewal info. */
+  const resigned = (over: Partial<AppleSubscriptionEvent> = {}) =>
+    restored({ signedDate: at('2026-08-20T00:00:00Z'), expiresDate: at('2026-08-18T10:00:00Z'), ...over });
+
+  it('never shortens a stored grace-period expiry from a device transaction', () => {
+    const record = writeOf(applyAppleNotification(IN_GRACE, resigned(), NOW));
+    expect(record.expiresAt).toBe('2026-08-25T10:00:00.000Z');
+    expect(resolveEntitledTier(record, new Date('2026-08-21T00:00:00Z')).name).toBe('paid');
+  });
+
+  it('never nulls a stored renewal status from a device transaction', () => {
+    const cancelled = stored({ ...IN_GRACE, autoRenewStatus: false });
+    expect(writeOf(applyAppleNotification(cancelled, resigned(), NOW)).autoRenewStatus).toBe(false);
+    expect(writeOf(applyAppleNotification(IN_GRACE, resigned(), NOW)).autoRenewStatus).toBe(true);
+  });
+
+  it('still takes a later expiry from the device — a renewal it knows of first', () => {
+    const record = writeOf(
+      applyAppleNotification(IN_GRACE, resigned({ expiresDate: at('2026-09-18T10:00:00Z') }), NOW)
+    );
+    expect(record.expiresAt).toBe('2026-09-18T10:00:00.000Z');
+  });
+
+  it('carries nothing from a different subscription’s row', () => {
+    const record = writeOf(
+      applyAppleNotification(IN_GRACE, resigned({ originalTransactionId: '2000000000000077' }), NOW)
+    );
+    expect(record.expiresAt).toBe('2026-08-18T10:00:00.000Z');
+    expect(record.autoRenewStatus).toBeNull();
+  });
+
+  it('carries nothing onto a notification — an absent grace date there means grace ended', () => {
+    const record = writeOf(
+      applyAppleNotification(
+        IN_GRACE,
+        resigned({ fromDevice: undefined, notificationType: 'GRACE_PERIOD_EXPIRED' }),
+        NOW
+      )
+    );
+    expect(record.expiresAt).toBe('2026-08-18T10:00:00.000Z');
+    expect(record.autoRenewStatus).toBeNull();
+  });
+
+  it('carries nothing from a revoked row, and a device revocation still revokes', () => {
+    const revoked = stored({
+      ...IN_GRACE, tier: 'free', revokedAt: '2026-08-19T00:00:00.000Z', expiresAt: '2026-08-19T00:00:00.000Z',
+    });
+    expect(writeOf(applyAppleNotification(revoked, resigned(), NOW)).expiresAt).toBe('2026-08-18T10:00:00.000Z');
+    const revoke = writeOf(
+      applyAppleNotification(
+        IN_GRACE,
+        resigned({ notificationType: 'REVOKE', revocationDate: at('2026-08-19T12:00:00Z') }),
+        NOW
+      )
+    );
+    expect(revoke).toMatchObject({ tier: 'free', revokedAt: '2026-08-19T12:00:00.000Z' });
   });
 });
 

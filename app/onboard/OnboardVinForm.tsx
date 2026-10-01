@@ -151,7 +151,7 @@ export default function OnboardVinForm() {
               {fromDemo ? 'Demo garage' : 'Garage'}
             </Link>
           }
-          title="Add a vehicle"
+          title="Add a car"
           lede="Enter the 17-character VIN. We decode it and research the car."
         />
 

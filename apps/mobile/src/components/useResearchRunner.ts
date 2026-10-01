@@ -9,6 +9,7 @@ import {
   type ResearchObservation,
 } from '@tappet/core/research-milestones';
 import { apiRequest, type ApiRequestError } from '../api/client';
+import type { AiConsent } from '../onboarding/ai-consent';
 
 /**
  * Drive a car's research from the phone, and narrate it.
@@ -25,6 +26,14 @@ import { apiRequest, type ApiRequestError } from '../api/client';
  * 3. When the dossier has landed and there is no score, one
  *    `POST /api/v1/health` with `refresh: true` — the free tier's one model
  *    call, exactly as the web's `VehicleInsights` forces it after research.
+ *    ⚠ **Only on a granted AI consent** (audit 360, LEGAL-1, 1 Oct). This
+ *    post sent the owner's mileage, service log and invoice lines to Google
+ *    at add-a-car with no sheet in front of it — before the owner had been
+ *    asked anything. Now the score step waits for the answer: `unknown`
+ *    raises `consentNeeded` (the screen shows `HEALTH_AI_CONSENT`), `null`
+ *    (still reading the Keychain) waits, and `declined` answers the line as
+ *    not scored, with the retry asking again. A quiet re-score runs only on
+ *    `granted` and otherwise does nothing.
  * 4. It stops when every line has its answer, or when `DEADLINE_MS` passes
  *    with something still running. The deadline is the client's to observe:
  *    the server cannot know a wait is being watched. Nothing here may spin
@@ -59,6 +68,29 @@ export interface ResearchRunner {
   settled: boolean;
   failed: boolean;
   retry: () => void;
+  /** The score is next and nobody has said yes to Google's AI — show the sheet. */
+  consentNeeded: boolean;
+  /** The sheet was answered no: stop showing it until the next retry. */
+  consentDeclined: () => void;
+  /**
+   * A researched car with no score whose owner said no on an earlier visit
+   * (audit 360, UX-15, 1 Oct). The automatic start leaves it idle — a decline
+   * is the answer, and no log fails on every open — so without this the only
+   * door to a score was the advisor's sheet, which nothing mentioned, while
+   * HealthScreen and the sheet's own note sent the owner to this page. The
+   * screen shows a "Score this car" control; `askScore` is it.
+   */
+  canAskScore: boolean;
+  /** The owner asked: run the score step alone, and show the sheet again. */
+  askScore: () => void;
+  /**
+   * The run settled and its one failed line is the owner's own *Not now*
+   * (audit 360, UX-22, 1 Oct). Nothing went wrong and nothing needs
+   * researching again, so the log's control is the score's door — the same
+   * *Score this car* the page shows on a later open — not *Retry the
+   * research*, a button named for finished work and the act just declined.
+   */
+  declinedOnly: boolean;
 }
 
 type Phase = 'idle' | 'running' | 'settled';
@@ -75,10 +107,15 @@ export function useResearchRunner(params: {
   observation: ResearchObservation | null;
   /** The screen's own loader, quiet: no spinner, no pull-to-refresh state. */
   reload: () => Promise<void>;
+  /**
+   * The owner's AI answer — `readAiConsent`, or `null` while it is read.
+   * Required, so no caller can reach the score without deciding (LEGAL-1).
+   */
+  consent: AiConsent | null;
   /** Injected for tests; the wall clock otherwise. */
   now?: () => number;
 }): ResearchRunner {
-  const { vehicleId, observation, reload } = params;
+  const { vehicleId, observation, reload, consent } = params;
   const now = params.now ?? Date.now;
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -96,11 +133,25 @@ export function useResearchRunner(params: {
   const healthAsked = useRef(false);
   const started = useRef(false);
   const inFlight = useRef(false);
+  /** A retry after a decline asks again; until then a decline is the answer. */
+  const [reask, setReask] = useState(false);
 
   const status = observation?.knowledge?.research_status ?? null;
+  const dossierDone = status === 'completed' || status === 'unsupported';
+  const scoreOutstanding =
+    !quietRun &&
+    observation !== null &&
+    dossierDone &&
+    !(hasScore(observation) && !observation.scoreStale) &&
+    !healthAsked.current;
+  const consentNeeded =
+    phase === 'running' && scoreOutstanding && (consent === 'unknown' || (consent === 'declined' && reask));
+  // Not tied to `running`: the declined line is what settles the run, and it
+  // has to stay answered once it has.
+  const scoreDeclined = phase !== 'idle' && scoreOutstanding && consent === 'declined' && !reask;
 
   const milestones = observation
-    ? researchMilestones({ ...observation, healthFailure, stalled })
+    ? researchMilestones({ ...observation, healthFailure, stalled, scoreDeclined })
     : [];
   const settled = milestones.length > 0 && researchSettled(milestones);
 
@@ -138,6 +189,12 @@ export function useResearchRunner(params: {
       setPhase('settled');
     } else if ((status === 'completed' || status === 'unsupported') && !hasScore(observation)) {
       /*
+        LEGAL-1: an owner who said no is not shown a log that fails on every
+        open of the car; the score line and its retry appear on a research
+        run, and HealthScreen says why there is no score.
+      */
+      if (consent === null || consent === 'declined') return;
+      /*
         Researched but never scored — a car the web or the sweep researched,
         or one researched before the phone could ask (the Accord, 20 Sep: a
         day after it was added, "No score yet" under copy saying its page
@@ -148,7 +205,7 @@ export function useResearchRunner(params: {
       started.current = true;
       startedAt.current = now();
       setPhase('running');
-    } else if ((status === 'completed' || status === 'unsupported') && observation.scoreStale) {
+    } else if ((status === 'completed' || status === 'unsupported') && observation.scoreStale && consent === 'granted') {
       /*
         Scored, and overtaken: a record was filed (an invoice, a job marked
         done) and the score was stamped stale — the web refreshes it on the
@@ -160,13 +217,16 @@ export function useResearchRunner(params: {
       setQuietRun(true);
       setPhase('running');
     }
-  }, [now, observation, phase, start, status]);
+  }, [consent, now, observation, phase, start, status]);
 
-  /* The score: asked once, after the dossier, when no reading exists. */
+  /*
+    The score: asked once, after the dossier, when no reading exists — and
+    only once the owner has said yes to Google's AI (LEGAL-1, above).
+  */
   useEffect(() => {
     if (phase !== 'running' || !observation || healthAsked.current) return;
-    const dossierDone = status === 'completed' || status === 'unsupported';
     if (!dossierDone || (hasScore(observation) && !observation.scoreStale)) return;
+    if (consent !== 'granted') return;
     healthAsked.current = true;
     void (async () => {
       try {
@@ -176,7 +236,10 @@ export function useResearchRunner(params: {
         setHealthFailure((error as ApiRequestError).message ?? 'Could not score this car.');
       }
     })();
-  }, [observation, phase, reload, status, vehicleId]);
+  }, [consent, dossierDone, observation, phase, reload, vehicleId]);
+
+  const waitingOnOwner = useRef(false);
+  waitingOnOwner.current = consentNeeded;
 
   /* Settle when every line has its answer. */
   useEffect(() => {
@@ -187,6 +250,12 @@ export function useResearchRunner(params: {
   useEffect(() => {
     if (phase !== 'running') return;
     const timer = setInterval(() => {
+      // Waiting on the owner's answer is not the pipeline stalling: the
+      // deadline counts from when they answer.
+      if (waitingOnOwner.current) {
+        startedAt.current = now();
+        return;
+      }
       if (startedAt.current !== null && now() - startedAt.current > DEADLINE_MS) {
         setStalled(true);
         setPhase('settled');
@@ -202,8 +271,32 @@ export function useResearchRunner(params: {
   }, [now, phase, reload]);
 
   const retry = useCallback(() => {
+    // A retry is the owner asking: after a decline, it shows the sheet again.
+    setReask(true);
     void start();
   }, [start]);
+
+  const consentDeclined = useCallback(() => setReask(false), []);
+
+  const canAskScore =
+    phase === 'idle' && observation !== null && dossierDone && !hasScore(observation) && consent === 'declined';
+
+  /*
+    The score-only run the automatic start makes for an unscored car, begun
+    by the owner instead: no research trigger (the dossier exists and the
+    route would be a second spend), `reask` so the sheet shows, and the
+    deadline counting from their answer as it always does.
+  */
+  const askScore = useCallback(() => {
+    setReask(true);
+    started.current = true;
+    healthAsked.current = false;
+    setHealthFailure(null);
+    setStalled(false);
+    setQuietRun(false);
+    startedAt.current = now();
+    setPhase('running');
+  }, [now]);
 
   return {
     visible: phase !== 'idle' && !quietRun,
@@ -213,5 +306,13 @@ export function useResearchRunner(params: {
     settled: phase === 'settled',
     failed: researchHasFailure(milestones),
     retry,
+    consentNeeded,
+    consentDeclined,
+    canAskScore,
+    askScore,
+    declinedOnly:
+      phase === 'settled' &&
+      scoreDeclined &&
+      milestones.filter((milestone) => milestone.state === 'failed').length === 1,
   };
 }

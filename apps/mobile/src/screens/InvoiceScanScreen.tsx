@@ -3,13 +3,13 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
 
 import {
-  uploadInvoice,
   uploadInvoicePage,
   fileInvoicePages,
   discardInvoicePages,
   describeUploadError,
   diagnoseUploadError,
   PageMissingError,
+  InvoiceFileError,
   type ExtractedVehicle,
   type InvoiceFile,
   type InvoiceUploadResult,
@@ -26,7 +26,9 @@ import { requestUpgrade } from '../purchases/upgrade-prompt';
 import { PAGE_BODY, space, text, type } from '../theme';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
-import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { declineAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
+import { useScreenFocused } from '../navigation/useScreenFocused';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -159,10 +161,44 @@ interface Page {
   /** The stored page, once its upload has answered. */
   path?: string;
   /**
-   * The API this phone talks to has no `/invoice-pages` (a 404 — §8's "new
-   * route, unpromoted host"). A one-page scan then files the old way.
+   * The page's upload answered 404: the car is not this account's any more
+   * (removed elsewhere, or a link to a removed car). `/invoice-pages`
+   * authorizes with `authorizeVehicleAccess`, whose only 404 is the car.
+   *
+   * ⚠ Audit 360, TL-15 (1 Oct). This was `legacy` — a 404 read as an API
+   * that predated pages, so a multi-page scan of a removed car said "needs a
+   * newer version of the Tappet API… remove all but one page". The route is
+   * deployed on every host the app talks to, as `document-url` was when
+   * TL-9 dropped its twin of this branch.
    */
-  legacy?: boolean;
+  carGone?: boolean;
+  /**
+   * Why a failed page failed, as far as the phone can tell — so the sentence
+   * blames the connection only when the request never reached Tappet.
+   *
+   * ⚠ Audit 360, COPY-6 (1 Oct). Every failure said "Check your connection",
+   * including a 500 from our own storage: an owner on full Wi-Fi toggled
+   * airplane mode and concluded the phone was the problem. `offline` is a
+   * request that never arrived (`kind: 'offline'`); `timeout` could be either
+   * end and says only that no answer came; `file` is the phone's own refusal
+   * of the photograph, whose message says why; anything else reached us and
+   * failed there.
+   */
+  failure?: { cause: 'offline' | 'timeout' | 'file' | 'server'; message?: string };
+}
+
+/** What a page's failed send says, by cause. */
+function pageFailureMessage(failures: ReadonlyArray<Page['failure']>): string {
+  const kept = 'Your pages are still here and nothing has been filed yet.';
+  const file = failures.find((f) => f?.cause === 'file' && f.message);
+  if (file?.message) return `${file.message} ${kept}`;
+  if (failures.length > 0 && failures.every((f) => f?.cause === 'offline')) {
+    return 'Your pages are still here. Check your connection and try again — nothing has been filed yet.';
+  }
+  if (failures.some((f) => f?.cause === 'timeout') && !failures.some((f) => f?.cause === 'server')) {
+    return `Tappet did not answer in time. ${kept} Try again.`;
+  }
+  return `Tappet could not store ${failures.length === 1 ? 'that page' : 'those pages'} — the fault is on our side, not your connection. ${kept} Try again in a moment.`;
 }
 
 const two = (n: number) => String(n).padStart(2, '0');
@@ -241,24 +277,27 @@ export function InvoiceScanScreen({
     deep-link path consumed the one-shot ref before consent had resolved,
     leaving the question unasked forever.
   */
-  const [consent, setConsent] = useState<AiConsent | null>(null);
+  /*
+    ⚠ Audit 360, UX-25 (1 Oct) — **re-read on every return**, as the car's
+    page and the advisor do (UX-23). This screen is a route in the Service
+    tab's stack, so it stays mounted under a tab switch; it read the answer
+    once, and a yes given on the advisor meanwhile came back to a foot still
+    saying AI is off — whose *Change that* asked again, and whose *Not now*
+    wrote `declined` over the yes. `useAiConsent` reads on mount and on each
+    focus. Every gate (the sheet, the viewfinder, the library) reads
+    `consent`, which is `null` until a read taken since the screen came back
+    has landed; what the screen *draws* reads `aiAnswer`, so the foot does
+    not blink on return.
+  */
+  const screenFocused = useScreenFocused();
+  const { answer: aiAnswer, fresh: aiAnswerFresh, set: setConsent } = useAiConsent(screenFocused);
+  const consent: AiConsent | null = aiAnswerFresh ? aiAnswer : null;
   /*
     "Change that" from the declined state re-opens the sheet without
     forgetting the answer it is revisiting — declining twice must still read
     as declined, not as unknown.
   */
   const [reasking, setReasking] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    void readAiConsent().then((answer) => {
-      if (live) setConsent(answer);
-    });
-
-    return () => {
-      live = false;
-    };
-  }, []);
   /*
     ── The pages (27 Sep) ─────────────────────────────────────────────────────
 
@@ -297,7 +336,7 @@ export function InvoiceScanScreen({
     (key: string) => {
       const page = pagesRef.current.find((p) => p.key === key);
       if (!page) return Promise.resolve();
-      setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sending', legacy: false } : p)));
+      setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sending', carGone: false } : p)));
 
       const upload = uploadInvoicePage(vehicleId, page.file).then(
         (path) => {
@@ -309,10 +348,16 @@ export function InvoiceScanScreen({
           setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sent', path } : p)));
         },
         (caught) => {
-          const legacy = caught instanceof ApiRequestError && caught.status === 404;
-          setPages((all) =>
-            all.map((p) => (p.key === key ? { ...p, state: legacy ? 'sent' : 'failed', legacy } : p))
-          );
+          const carGone = caught instanceof ApiRequestError && caught.status === 404;
+          const failure: Page['failure'] =
+            caught instanceof InvoiceFileError
+              ? { cause: 'file', message: caught.message }
+              : caught instanceof ApiRequestError && caught.kind === 'offline'
+                ? { cause: 'offline' }
+                : caught instanceof ApiRequestError && caught.kind === 'timeout'
+                  ? { cause: 'timeout' }
+                  : { cause: 'server' };
+          setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'failed', carGone, failure } : p)));
         }
       );
       uploads.current.set(key, upload);
@@ -489,7 +534,7 @@ export function InvoiceScanScreen({
 
       try {
         await Promise.all([...uploads.current.values()]);
-        const unsent = pagesRef.current.filter((p) => p.state === 'failed' || (!p.path && !p.legacy));
+        const unsent = pagesRef.current.filter((p) => p.state === 'failed' || !p.path);
         await Promise.all(unsent.map((p) => sendPage(p.key)));
 
         const current = pagesRef.current;
@@ -498,22 +543,11 @@ export function InvoiceScanScreen({
           return;
         }
 
-        if (current.some((p) => p.legacy)) {
-          /*
-            The API this phone is talking to predates pages. One page files
-            the way it always did; more cannot be filed as one invoice there,
-            and saying so beats filing them as several.
-          */
-          if (current.length === 1) {
-            if (!confirmVehicle) setState({ status: 'working', phase: 'reading', source: source.current });
-            settle(await uploadInvoice({ vehicleId, file: current[0].file, confirmVehicle }));
-            return;
-          }
+        if (current.some((p) => p.carGone)) {
           setState({
             status: 'error',
-            heading: 'That did not upload',
-            message:
-              'Filing more than one page needs a newer version of the Tappet API than this app is talking to. Remove all but one page, or try again later.',
+            heading: 'That car is no longer here',
+            message: 'It was removed from your garage, so there is nothing to file these pages against. Nothing has been filed.',
             retryable: false,
           });
           return;
@@ -524,8 +558,7 @@ export function InvoiceScanScreen({
           setState({
             status: 'error',
             heading: failed.length === 1 ? `Page ${two(current.indexOf(failed[0]) + 1)} did not send` : 'Some pages did not send',
-            message:
-              'Your pages are still here. Check your connection and try again — nothing has been filed yet.',
+            message: pageFailureMessage(failed.map((p) => p.failure)),
             retryable: true,
           });
           return;
@@ -665,7 +698,7 @@ export function InvoiceScanScreen({
     the history and the recall list are all useful without a model.
   */
   const idleFoot =
-    consent === 'declined' ? (
+    aiAnswer === 'declined' ? (
       <View style={styles.block}>
         <Text style={styles.body_}>{INVOICE_AI_CONSENT.declineNote}</Text>
         <Button
@@ -699,7 +732,7 @@ export function InvoiceScanScreen({
         length: an explainer page became one line at the frame's foot.
       */
       <Text style={styles.caveat}>
-        A model reads the line items into this car's history — check them afterwards.
+        Google’s AI reads the line items into this car's history — check them afterwards.
       </Text>
     );
 
@@ -755,7 +788,8 @@ export function InvoiceScanScreen({
       onDecline={() => {
         setReasking(false);
         setConsent('declined');
-        void recordAiConsent('declined');
+        // UX-25: read before write — a yes given on another screen since this one's read stands.
+        void declineAiConsent();
       }}
     />
 
@@ -853,7 +887,7 @@ export function InvoiceScanScreen({
           />
           )
         }
-        foot={count > 0 && consent === 'granted' ? scanFoot : idleFoot}
+        foot={count > 0 && aiAnswer === 'granted' ? scanFoot : idleFoot}
       />
     ) : (
     <ScrollView

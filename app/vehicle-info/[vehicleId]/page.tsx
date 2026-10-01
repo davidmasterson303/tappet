@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import SpecBand from '@/components/SpecBand';
 import { Working } from '@/components/Working';
 import ResearchButton from '@/components/ResearchButton';
-import { adviceDisclosure } from '@tappet/core/advice-disclosure';
+import { adviceDisclosure, MODIFIED_FIGURES_DISCLOSURE } from '@tappet/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
+import { carPageSentence, CAR_NOT_FOUND, isCarNotFound } from '@/lib/api-error-copy';
+import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { logger } from '@tappet/core/logger';
 import TCOCard from '@/components/TCOCard';
 import TCOInputsModal from '@/components/TCOInputsModal';
@@ -113,7 +115,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
       ]);
 
       if (vehicleResult.error) throw vehicleResult.error;
-      if (!vehicleResult.data) throw new Error('Vehicle not found');
+      if (!vehicleResult.data) throw new Error(CAR_NOT_FOUND);
 
       return {
         vehicle: vehicleResult.data,
@@ -122,14 +124,26 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
     },
   });
 
+  /*
+    ── Audit 360, LEGAL-11 (1 Oct) · the figures wait for a yes ────────────
+
+    Refreshing the figures sends every service line recorded on this car to
+    Google (`lib/performance-stats.ts`), and this ran on every first view with
+    no answer read. It now runs only on this browser's granted answer — the
+    one the advisor, the upload and the health score read — and says so to
+    the route, which sends nothing without it. Without a yes the page shows
+    the figures the row already holds, or a dash; it does not raise a sheet
+    over a page of specifications.
+  */
   const fetchPerformanceStats = useCallback(async (forceRefresh = false) => {
     if (!data?.vehicle) return;
+    if (readWebAiConsent() !== 'granted') return;
     setPerfLoading(true);
     try {
       const response = await fetch('/api/v1/performance-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehicleId: params.vehicleId, forceRefresh }),
+        body: JSON.stringify({ vehicleId: params.vehicleId, forceRefresh, aiConsent: 'granted' }),
       });
       const json = await response.json();
       if (json.success && json.stats) {
@@ -179,7 +193,7 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
   }
 
   if (error) {
-    if (error.message === 'Vehicle not found') {
+    if (isCarNotFound(error)) {
       router.replace('/garage');
       return null;
     }
@@ -187,10 +201,10 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
       <div className="min-h-screen bg-[#080808] flex items-center justify-center">
         <div className="max-w-md w-full mx-auto px-4 sm:px-6">
           <div className="bg-red-500/10 border border-red-400/25 rounded-2xl p-4 sm:p-6">
-            <h2 className="text-red-300 font-semibold mb-2">Error Loading Vehicle Info</h2>
-            <p className="text-red-200/60 mb-5 text-sm">{error.message}</p>
+            <h2 className="text-red-300 font-semibold mb-2">Could not open the specifications</h2>
+            <p className="text-red-200/60 mb-5 text-sm">{carPageSentence(error, 'the specifications')}</p>
             <Button onClick={() => router.push('/garage')} variant="outline" className="border-white/15 text-white/70 hover:bg-white/8">
-              Back to Garage
+              Back to garage
             </Button>
           </div>
         </div>
@@ -400,6 +414,18 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
                     </div>
                   ))}
                 </div>
+
+                {/*
+                  Audit 360, LEGAL-16 (1 Oct): the modified figures are drawn
+                  from this car's recorded work, and the only line on the page
+                  said the opposite ("not from your specific car"). The
+                  research line at the foot still covers the stock figures.
+                */}
+                {hasModifications ? (
+                  <p className="mono mt-4 max-w-2xl text-xs leading-relaxed text-white/50">
+                    {MODIFIED_FIGURES_DISCLOSURE}
+                  </p>
+                ) : null}
 
                 {/*
                   ⚠ The second loading indicator is gone.

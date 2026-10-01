@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { generateVehicleDossier } from '@/app/actions';
 import { toast } from 'sonner';
+import { NO_ANSWER, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { useRouter } from 'next/navigation';
 import { logger } from '@tappet/core/logger';
 
@@ -21,7 +22,7 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
 
   const handleResearch = async () => {
     setIsResearching(true);
-    toast.loading('Researching vehicle information...', { id: 'research' });
+    toast.loading('Researching the model…', { id: 'research' });
 
     try {
       const vehicleData = { id: vehicleId, year, make, model };
@@ -31,14 +32,13 @@ export default function ResearchButton({ vehicleId, year, make, model, hasData }
         toast.success('Research finished. Reloading…', { id: 'research' });
         router.refresh();
       } else {
-        const errorMsg = result.error || 'Research failed. Please try again.';
+        const errorMsg = answerSentence(result, couldNotMake('the research'));
         logger.error('RESEARCH_BUTTON:FAILED', new Error(errorMsg));
         toast.error(errorMsg, { id: 'research' });
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred';
       logger.error('RESEARCH_BUTTON:EXCEPTION', error as Error);
-      toast.error(errorMsg, { id: 'research' });
+      toast.error(NO_ANSWER, { id: 'research' });
     } finally {
       setIsResearching(false);
     }

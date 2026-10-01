@@ -125,7 +125,7 @@ export default function ServiceDueList({
   }, [due]);
 
   if (schedule.length === 0) {
-    return <p className="text-sm text-white/60 py-8">No maintenance schedule for this vehicle yet.</p>;
+    return <p className="text-sm text-white/60 py-8">No service schedule for this car yet.</p>;
   }
 
   const rows: Array<{ entry: ScheduleEntry; due: ServiceDue | null }> =

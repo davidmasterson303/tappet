@@ -446,7 +446,7 @@ export function VehicleIdentity({
               transition: 'opacity 200ms ease-out',
             }}
             role="img"
-            aria-label={[lead, model].filter(Boolean).join(' ') || 'Vehicle photo'}
+            aria-label={[lead, model].filter(Boolean).join(' ') || 'Car photo'}
           />
           {/*
             A CSS background can report neither a load failure nor a load, and

@@ -65,10 +65,18 @@ describe('removeVehiclePhoto', () => {
   });
 
   it('prefers the server’s sentence on a 200-shaped failure', async () => {
+    const sentence = 'Tappet could not remove that photo just now. Try again in a moment.';
+    mockApiRequest.mockResolvedValue({ success: false, error: sentence });
+
+    await expect(removeVehiclePhoto('vehicle-1')).rejects.toThrow(sentence);
+    await expect(removeVehiclePhoto('vehicle-1')).rejects.toBeInstanceOf(VehiclePhotoError);
+  });
+
+  it('never shows developer-speak, even when the server sent it (audit 360, COPY-5)', async () => {
+    // What build 2's server said for this exact failure.
     mockApiRequest.mockResolvedValue({ success: false, error: 'Failed to remove photo' });
 
-    await expect(removeVehiclePhoto('vehicle-1')).rejects.toThrow('Failed to remove photo');
-    await expect(removeVehiclePhoto('vehicle-1')).rejects.toBeInstanceOf(VehiclePhotoError);
+    await expect(removeVehiclePhoto('vehicle-1')).rejects.toThrow('That photo could not be removed.');
   });
 
   it('has a sentence of its own when the failure carries none', async () => {

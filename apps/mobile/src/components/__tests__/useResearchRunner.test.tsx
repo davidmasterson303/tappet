@@ -10,6 +10,8 @@ import { act, renderHook } from '@testing-library/react-native';
 import type { ResearchObservation } from '@tappet/core/research-milestones';
 import { apiRequest } from '../../api/client';
 import { DEADLINE_MS, POLL_MS, useResearchRunner } from '../useResearchRunner';
+import type { AiConsent } from '../../onboarding/ai-consent';
+import { SCORE_DECLINED_ANSWER } from '@tappet/core/research-milestones';
 
 jest.mock('../../api/client', () => {
   const actual = jest.requireActual('../../api/client');
@@ -30,12 +32,14 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-async function mount(initial: ResearchObservation | null) {
+type Props = { observation: ResearchObservation | null; consent?: AiConsent | null };
+
+async function mount(initial: ResearchObservation | null, consent: AiConsent | null = 'granted') {
   const reload = jest.fn().mockResolvedValue(undefined);
   const hook = await renderHook(
-    ({ observation }: { observation: ResearchObservation | null }) =>
-      useResearchRunner({ vehicleId: 'v1', observation, reload }),
-    { initialProps: { observation: initial } }
+    ({ observation, consent: answer }: Props) =>
+      useResearchRunner({ vehicleId: 'v1', observation, reload, consent: answer === undefined ? 'granted' : answer }),
+    { initialProps: { observation: initial, consent } as Props }
   );
   return { ...hook, reload };
 }
@@ -255,5 +259,169 @@ describe('the margin', () => {
       },
     });
     expect(result.current.marginalia).toBe("NHTSA's record for this model runs 15 years, from 2004 to 2019.");
+  });
+});
+
+/*
+  ── Audit 360, LEGAL-1 (1 Oct) · the score waits for a yes ─────────────────
+
+  The runner posted `/health` the moment the dossier landed — the owner's
+  mileage, service log and invoice lines to Google, with no sheet in front of
+  it. These fail on the old runner, which posted regardless of the answer.
+*/
+describe('the score and the AI consent (LEGAL-1)', () => {
+  const researched = (): ResearchObservation => ({
+    vehicle: ACCORD,
+    plate: PLATE,
+    knowledge: { research_status: 'completed', known_issues: [1] },
+    nhtsa: { recalls: [], lookup_status: 'matched' },
+    health: null,
+  });
+
+  it('a pending car whose owner was never asked: research runs, the score waits, the sheet is wanted', async () => {
+    const { result, rerender } = await mount(pending(), 'unknown');
+    await act(async () => {});
+    expect(calls('/research')).toHaveLength(1);
+    await rerender({ observation: researched(), consent: 'unknown' });
+    await act(async () => {});
+    expect(calls('/health')).toHaveLength(0);
+    expect(result.current.consentNeeded).toBe(true);
+    // Waiting on the owner is not a stall, however long they read.
+    await act(async () => {
+      jest.advanceTimersByTime(DEADLINE_MS + POLL_MS * 2);
+    });
+    expect(result.current.milestones.find((m) => m.key === 'score')!.state).toBe('active');
+
+    // They say yes: one score, and the sheet is no longer wanted.
+    await rerender({ observation: researched(), consent: 'granted' });
+    await act(async () => {});
+    expect(calls('/health')).toHaveLength(1);
+    expect(result.current.consentNeeded).toBe(false);
+  });
+
+  it('holds while the stored answer is still being read', async () => {
+    const { result } = await mount(researched(), null);
+    await act(async () => {});
+    expect(request).not.toHaveBeenCalled();
+    expect(result.current.consentNeeded).toBe(false);
+  });
+
+  it('a decline is an answer: no score, a stated line, and the retry asks again', async () => {
+    const { result, rerender } = await mount(pending(), 'declined');
+    await act(async () => {});
+    await rerender({ observation: researched(), consent: 'declined' });
+    await act(async () => {});
+    expect(calls('/health')).toHaveLength(0);
+    expect(result.current.consentNeeded).toBe(false);
+    const score = result.current.milestones.find((m) => m.key === 'score')!;
+    expect(score).toMatchObject({ state: 'failed', answer: SCORE_DECLINED_ANSWER });
+    expect(result.current.settled).toBe(true);
+
+    await act(async () => result.current.retry());
+    await act(async () => {});
+    expect(result.current.consentNeeded).toBe(true);
+    expect(calls('/health')).toHaveLength(0);
+    // Not now again: the sheet goes, the line stays answered.
+    await act(async () => result.current.consentDeclined());
+    expect(result.current.consentNeeded).toBe(false);
+  });
+
+  /*
+    Audit 360, UX-22 (1 Oct). A decline settled the log on its one failed
+    line with *Retry the research* — a button named for finished work, for
+    the act just declined — while the page called the same act *Score this
+    car*. When the decline is the only failure, the runner says so and the
+    log's control is the score's door.
+  */
+  it('a run settled only on the owner’s Not now says so, and the door asks without a research post (UX-22)', async () => {
+    const { result, rerender } = await mount(pending(), 'declined');
+    await act(async () => {});
+    await rerender({ observation: researched(), consent: 'declined' });
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.declinedOnly).toBe(true);
+    const posts = calls('/research').length;
+
+    await act(async () => result.current.askScore());
+    await act(async () => {});
+    expect(result.current.consentNeeded).toBe(true);
+    expect(result.current.declinedOnly).toBe(false);
+    expect(calls('/research')).toHaveLength(posts);
+    expect(calls('/health')).toHaveLength(0);
+
+    // Not now again: settled on the same line, and the same door.
+    await act(async () => result.current.consentDeclined());
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.declinedOnly).toBe(true);
+  });
+
+  it('a decline beside a real failure is not "declined only" — the retry stays (anti-vacuous)', async () => {
+    const { result, rerender } = await mount(pending(), 'declined');
+    await act(async () => {});
+    await rerender({
+      observation: { ...researched(), nhtsa: { recalls: [], lookup_status: 'failed' } },
+      consent: 'declined',
+    });
+    await act(async () => {});
+    expect(result.current.settled).toBe(true);
+    expect(result.current.failed).toBe(true);
+    expect(result.current.declinedOnly).toBe(false);
+  });
+
+  it('an owner who said no is not shown a failing log on every open of a researched car', async () => {
+    const { result } = await mount(researched(), 'declined');
+    await act(async () => {});
+    expect(request).not.toHaveBeenCalled();
+    expect(result.current.visible).toBe(false);
+  });
+
+  /*
+    Audit 360, UX-15 (1 Oct). The case above is right, and it was the whole
+    story: on a later open a declined car was idle, with no log, no sheet and
+    no door, while HealthScreen said the car's page asks. The runner now says
+    the owner can ask (`canAskScore`) and runs the score step when they do.
+  */
+  it('a declined car, opened later, offers the score — and asking shows the sheet, posting nothing until yes', async () => {
+    const { result, rerender } = await mount(researched(), 'declined');
+    await act(async () => {});
+    expect(result.current.visible).toBe(false);
+    expect(result.current.canAskScore).toBe(true);
+
+    await act(async () => result.current.askScore());
+    await act(async () => {});
+    expect(result.current.consentNeeded).toBe(true);
+    expect(result.current.canAskScore).toBe(false);
+    expect(result.current.visible).toBe(true);
+    // No research trigger: the dossier exists.
+    expect(calls('/research')).toHaveLength(0);
+    expect(calls('/health')).toHaveLength(0);
+
+    await rerender({ observation: researched(), consent: 'granted' });
+    await act(async () => {});
+    expect(calls('/health')).toHaveLength(1);
+  });
+
+  it('offers no score door where there is nothing to ask (anti-vacuous)', async () => {
+    for (const [why, observation, answer] of [
+      ['already scored', { ...researched(), health: { health_score: 70, last_generated: '2026-09-01T00:00:00.000Z' } }, 'declined'],
+      ['still researching', pending(), 'declined'],
+      ['never asked: the sheet itself asks', researched(), 'unknown'],
+      ['answer still being read', researched(), null],
+    ] as const) {
+      request.mockClear();
+      const { result } = await mount(observation as ResearchObservation, answer);
+      await act(async () => {});
+      expect([why, result.current.canAskScore]).toEqual([why, false]);
+    }
+  });
+
+  it('never re-scores quietly without a yes', async () => {
+    for (const answer of ['unknown', 'declined', null] as const) {
+      request.mockClear();
+      const { result } = await mount({ ...researched(), health: { health_score: 70, last_generated: '2000-01-01T00:00:00.000Z' }, scoreStale: true }, answer);
+      await act(async () => {});
+      expect([answer, calls('/health').length, result.current.consentNeeded]).toEqual([answer, 0, false]);
+    }
   });
 });

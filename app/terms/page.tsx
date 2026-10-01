@@ -1,7 +1,13 @@
 import type { Metadata } from 'next';
 
 import LegalDocument, { LegalSection } from '@/components/legal/LegalDocument';
-import { CONTACT_EMAIL, OPERATOR, SUBSCRIPTION_CANCEL_PATH } from '@/lib/legal';
+import {
+  APPLE_STANDARD_EULA_URL,
+  CONTACT_EMAIL,
+  GOVERNING_STATE,
+  OPERATOR,
+  SUBSCRIPTION_CANCEL_PATH,
+} from '@/lib/legal';
 import { TRADEMARK_NOTICE } from '@tappet/core/brand';
 
 export const metadata: Metadata = {
@@ -78,9 +84,11 @@ export default function TermsPage() {
       <LegalSection>Your account</LegalSection>
 
       <p>
-        Keep your password to yourself; you are responsible for what happens under your account. Tell
-        us if you think someone else has access to it. You can delete your account at any time from
-        inside the app or the website.
+        You must be at least 13 to use Tappet. If you are under 18, use it with a parent&rsquo;s or
+        guardian&rsquo;s permission: they accept these terms for you, including any subscription
+        bought on your Apple Account. Keep your password to yourself; you are responsible
+        for what happens under your account. Tell us if you think someone else has access to it. You
+        can delete your account at any time from inside the app or the website.
       </p>
 
       <LegalSection>What you upload</LegalSection>
@@ -88,7 +96,8 @@ export default function TermsPage() {
       <p>
         Your photographs, invoices and notes stay yours. You give us permission to store and process
         them for the sole purpose of operating Tappet for you — including sending the relevant
-        details to the AI provider described in the Privacy Policy in order to answer your questions.
+        details to the AI provider described in the Privacy Policy in order to score your car, read
+        your invoices and answer your questions.
         We do not use your content to train models, and we do not publish it.
       </p>
 
@@ -120,6 +129,35 @@ export default function TermsPage() {
         Refunds are handled by Apple under their terms.
       </p>
 
+      {/*
+        Audit 360, the legal agent's call (1 Oct). `RECALL_ALERTS_AFTER_LAPSE`
+        is false (core/access.ts): the sweep stops a lapsed account's recall
+        pushes once paid features are enforced. "May stop" is true before and
+        after that switch; `legal-pages.test.ts` fails if the constant flips.
+      */}
+      <p>
+        Recall notifications are part of Tappet Plus and may stop when a subscription ends. Your
+        garage, service history and mileage stay, and stay free.
+      </p>
+
+      {/*
+        Audit 360, LEGAL-17 (1 Oct): the listing names Apple's standard EULA as
+        the app's licence, and the paywall's "Terms of Use" opens this page.
+        Saying so here means the link reaches both documents. LEGAL-19: the
+        sentence also says which one decides a conflict, and about what — "applies
+        alongside" decided nothing, and an ambiguity is read against the drafter.
+      */}
+      <p>
+        The iPhone app is licensed to you under Apple&rsquo;s{' '}
+        <a href={APPLE_STANDARD_EULA_URL} className="underline underline-offset-2 text-white/90">
+          standard Licensed Application End User License Agreement
+        </a>
+        . That agreement governs the app itself — the license to use it and Apple&rsquo;s
+        role — and where it and these terms differ about the app, it wins. These terms govern
+        the service behind the app: your account, what you upload and your subscription; where the
+        two differ about those, these terms win.
+      </p>
+
       <LegalSection>Availability</LegalSection>
 
       <p>
@@ -135,6 +173,26 @@ export default function TermsPage() {
       <p>
         You can stop using Tappet and delete your account whenever you like. We may suspend or
         close an account that breaks these terms.
+      </p>
+
+      {/*
+        Audit 360, the legal agent's call (1 Oct): Colorado law and courts,
+        because the operator is a Colorado LLC; no arbitration clause and no
+        class waiver, and a small-claims carve-out. Named at the state level —
+        no county has been given (lib/legal.ts). The last sentence keeps the
+        clause from overreaching against a state's non-waivable consumer law.
+      */}
+      <LegalSection>Disputes</LegalSection>
+
+      <p>
+        If something goes wrong, write to us first — most problems can be settled by email. These
+        terms are governed by the laws of the State of {GOVERNING_STATE}, without regard to its
+        conflict-of-laws rules. A dispute about Tappet or these terms will be heard in the state
+        courts of {GOVERNING_STATE} or the United States District Court for the District of{' '}
+        {GOVERNING_STATE}, and you and {OPERATOR} agree to their jurisdiction. Either of us may
+        instead bring a claim in a small-claims court where you live. Nothing in these terms takes
+        away a right that the consumer-protection law of the state where you live gives you and does
+        not allow to be waived.
       </p>
 
       <LegalSection>Changes</LegalSection>

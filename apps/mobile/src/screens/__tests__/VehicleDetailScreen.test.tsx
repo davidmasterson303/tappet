@@ -1,6 +1,8 @@
 import { act, render, userEvent, waitFor, within } from '@testing-library/react-native';
 
 import { VehicleDetailScreen } from '../VehicleDetailScreen';
+import { NavigationContext } from '@react-navigation/native';
+import { ASK_SETTLE_MS } from '../../components/useAskTurns';
 import { REFERENCE, SHORTEST, withSafeArea } from '../../test-support/safe-area';
 import {
   HERO_NAV_FADE_SPAN,
@@ -360,6 +362,8 @@ describe('the counts on the binnacle', () => {
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
     const history = view.getByLabelText(/^History, 1 /);
+    // Audit 360, COPY-9: spoken as drawn — "1 recorded service", never "1 recorded services".
+    expect(history.props.accessibilityLabel).toBe('History, 1 recorded service.');
     expect(readoutColor(within(history).getByText('1'))).toBe(text.primary);
     expect(within(history).getByText('record')).toBeTruthy();
     // And the recall count carries its word beneath: "2 / open" — one word for the block (IA I5, UX U5).
@@ -379,13 +383,13 @@ describe('the counts on the binnacle', () => {
     respond({ nhtsa_data: null, vehicle_health_summary: null });
     const never = await mount();
     await never.view.findAllByText(/2018 Honda Accord/);
-    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.');
+    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the recall list.');
     expect(within(unchecked).queryByText(/^\d+$/)).toBeNull();
 
     respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
     const clean = await mount();
     await clean.view.findAllByText(/2018 Honda Accord/);
-    const cleared = clean.view.getByLabelText('View 0 open recalls');
+    const cleared = clean.view.getByLabelText('Recalls, none open for this model. Opens the recall list.');
     // Cleared: a sentence in the legend's ink, never a dimmed 0 (22 Sep).
     expect(readoutColor(within(cleared).getByText('None open'))).toBe(text.muted);
   });
@@ -637,11 +641,13 @@ describe('what this screen leads to stays reachable', () => {
     respond();
 
     const tall = await mount(REFERENCE);
-    const tallTitle = (await tall.view.findAllByText(/2018 Honda Accord/))[0];
+    // The plate's title is withheld from VoiceOver since UX-11, so it is found
+    // among hidden elements; [0] is still the plate's, drawn before the nav title.
+    const tallTitle = (await tall.view.findAllByText(/2018 Honda Accord/, { includeHiddenElements: true }))[0];
     expect(readoutSizes([tallTitle])).toEqual([36]);
 
     const short = await mount(SHORTEST);
-    const shortTitle = (await short.view.findAllByText(/2018 Honda Accord/))[0];
+    const shortTitle = (await short.view.findAllByText(/2018 Honda Accord/, { includeHiddenElements: true }))[0];
     expect(readoutSizes([shortTitle])).toEqual([28]);
   });
 });
@@ -1374,6 +1380,23 @@ describe('the photograph, on the hub', () => {
     expect(hasHouseGrade({ props: { style: [{ mixBlendMode: 'multiply' }] }, children: [] })).toBe(true);
   });
 
+  it('says the car’s name once to VoiceOver on the plate — audit 360, UX-11', async () => {
+    /*
+      The identity block's name and the invisible door's label both began
+      with the name, so a screen-reader user heard it twice in a row. The
+      block's copy is hidden; the door, which also says where it goes, keeps it.
+    */
+    respond();
+    const { view } = await mount();
+    await view.findAllByText(/2018 Honda Accord/);
+
+    const drawn = view.getAllByText(/^2018 Honda Accord$/, { includeHiddenElements: true });
+    const spoken = view.queryAllByText(/^2018 Honda Accord$/);
+    // Exactly one drawn copy — the plate's — is withheld from assistive tech.
+    expect(drawn.length - spoken.length).toBe(1);
+    view.getByLabelText(/^2018 Honda Accord\. Opens the car's details/);
+  });
+
   it('carries no photo control — the plate opens THIS CAR, where the photograph is changed (22 Sep)', async () => {
     respond({ photo_url: PHOTO, photo_kind: 'owner' });
     const { view } = await mount();
@@ -1436,6 +1459,422 @@ describe('the research log (20 Sep)', () => {
     expect(view.queryByTestId('research-log')).toBeNull();
     expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(0);
     expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+});
+
+describe('the score asks before the records go to Google (audit 360, LEGAL-1)', () => {
+  /*
+    The runner posted `/health` the moment the research had landed: mileage,
+    service log and invoice lines to Gemini at add-a-car, before anything had
+    asked. A researched car with no score, on a phone that has never answered,
+    now shows the health sheet first, and only "Score this car" sends.
+  */
+  function respondUnscored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  it('shows the sheet, sends nothing until yes, then scores once', async () => {
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('The health score is written by Google’s AI');
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(view.getByText('Score this car'));
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+    expect(request.mock.calls.find(([p]) => p === '/health')?.[1]).toMatchObject({ method: 'POST', body: { vehicleId: 'v1', refresh: true } });
+  });
+
+  it('"Not now" sends nothing and says the car was not scored', async () => {
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText('The health score is written by Google’s AI');
+    await user.press(view.getByLabelText('Not now'));
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+});
+
+/*
+  Audit 360, UX-15 and UX-16 (1 Oct). A "Not now" to the score's sheet left a
+  researched car with "No score yet" and no door, while HealthScreen said this
+  page asks; and on a car already researched, the push primer, iOS's dialog
+  and the score's sheet stacked on the first open. One ask at a time now, and
+  the decline has a door.
+*/
+describe('the asks on a car’s page, one at a time, and a door after "Not now"', () => {
+  const SecureStore = jest.requireMock('expo-secure-store') as { getItemAsync: jest.Mock };
+  const Notifications = jest.requireMock('expo-notifications') as { getPermissionsAsync: jest.Mock };
+  const { AI_CONSENT_STORAGE_KEY } = jest.requireActual('@tappet/core/ai-consent-copy');
+  const PRIMER_TITLE = 'Three kinds of alert, and nothing else';
+  const SHEET_TITLE = 'The health score is written by Google’s AI';
+
+  function respondUnscored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  function storedConsent(answer: string | null) {
+    SecureStore.getItemAsync.mockImplementation(async (key: string) =>
+      key === AI_CONSENT_STORAGE_KEY ? answer : null
+    );
+  }
+
+  afterEach(() => {
+    SecureStore.getItemAsync.mockImplementation(async () => null);
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: true, canAskAgain: true }));
+  });
+
+  it('a declined car opened later offers Score this car, which shows the sheet and scores only on yes (UX-15)', async () => {
+    storedConsent('declined');
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    const door = await view.findByLabelText(/^Score this car, asks before/);
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(door);
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+
+    await user.press(view.getByLabelText('Score this car'));
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+  });
+
+  it('shows no door to a car that is already scored (anti-vacuous)', async () => {
+    storedConsent('declined');
+    respondResearchScored();
+    const { view } = await mount();
+    await view.findByText('61');
+    expect(view.queryByLabelText(/^Score this car, asks before/)).toBeNull();
+  });
+
+  function respondResearchScored() {
+    request.mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: { health_score: 61, summary: 'Fair.' },
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+  }
+
+  it('on a researched car never asked, the score’s sheet comes first and the primer waits for its answer (UX-16)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+  });
+
+  it('a "Not now" on the score’s sheet does not present the primer in the same pass, nor this visit (UX-19)', async () => {
+    /*
+      The old shape, pinned by this suite as the intended one: the decline
+      settled the run, the hold lifted, and the primer was on screen in the
+      next render — sliding up over the sheet sliding down. Now the decline
+      ends this visit's asking; the primer asks on the next open.
+    */
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
+    await user.press(view.getByLabelText('Not now'));
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    // Past the coordinator's bound: still nothing — a refusal is this visit's answer.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // UX-22: the settled log's one control is the page's name for the act, and it asks again.
+    expect(view.queryByText('Retry the research')).toBeNull();
+    const researchPosts = request.mock.calls.filter(([p]) => p === '/research').length;
+    await user.press(view.getByLabelText(/^Score this car, asks before/));
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/research')).toHaveLength(researchPosts);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a yes on the score’s sheet still leads to the primer once the reading lands (anti-vacuous for UX-19)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    let scored = false;
+    request.mockImplementation(async (path: string) => {
+      if (String(path) === '/health') {
+        scored = true;
+        return {} as never;
+      }
+      if (String(path).startsWith('/load-vehicle')) {
+        return {
+          vehicle: {
+            id: 'v1', year: 2003, make: 'Honda', model: 'Accord', current_mileage: 170_000,
+            vehicle_health_summary: scored ? { health_score: 61, summary: 'Fair.' } : null,
+            nhtsa_data: { recalls: [], lookup_status: 'matched' },
+          },
+          plate: { generation: '7th-generation', year_from: 2003, year_to: 2007 },
+          knowledge: { research_status: 'completed', known_issues: [1] },
+        } as never;
+      }
+      return {} as never;
+    });
+    const user = userEvent.setup();
+    const { view } = await mount();
+
+    await view.findByText(SHEET_TITLE);
+    await user.press(view.getByLabelText('Score this car'));
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await view.findByText(PRIMER_TITLE, undefined, { timeout: 4000 });
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+  });
+
+  it('an ask that comes due after the owner has left the page waits until they are back (UX-20)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    respondUnscored();
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+
+    jest.spyOn(RN.Dimensions, 'get').mockReturnValue({
+      width: REFERENCE.frame.width, height: REFERENCE.frame.height, scale: 3, fontScale: 1,
+    });
+    const props = {
+      vehicleId: 'v1', onBack: jest.fn(), onSignOut: jest.fn(), onScanInvoice: jest.fn(),
+      onViewRecalls: jest.fn(), onOpenWishlist: jest.fn(), onOpenHistory: jest.fn(),
+      onOpenHealth: jest.fn(), onOpenMilestone: jest.fn(), onOpenProfile: jest.fn(),
+    };
+    // The owner taps away in the same moment the page opens, before the car and the AI answer are read.
+    focused = false;
+    const view = await render(
+      withSafeArea(
+        <NavigationContext.Provider value={navigation as never}>
+          <VehicleDetailScreen {...props} />
+        </NavigationContext.Provider>,
+        REFERENCE
+      )
+    );
+
+    // The car loads and the score's sheet is wanted — but the owner is elsewhere.
+    await view.findAllByText(/Accord/);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // Back on the car's page: the ask is still unanswered, and now it presents.
+    await emit('focus');
+    await view.findByText(SHEET_TITLE);
+
+    // Anti-vacuous for the gate: leaving again takes it down.
+    await emit('blur');
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+  });
+
+  /*
+    Audit 360, UX-23 / UX-24 (1 Oct). The page is the Car tab's root and never
+    remounts; its asks wait for the owner's return (UX-20). It read the AI
+    answer and the primer's eligibility once, at mount — so an answer given
+    elsewhere while it waited was asked for again on return, and a *Not now*
+    to that sheet overwrote the yes.
+  */
+  function fakeNavigation(initiallyFocused: boolean) {
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = initiallyFocused;
+    const navigation = {
+      isFocused: () => focused,
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event]) callback();
+      });
+    };
+    return { navigation, emit };
+  }
+
+  async function mountInNavigation(initiallyFocused: boolean) {
+    const { navigation, emit } = fakeNavigation(initiallyFocused);
+    jest.spyOn(RN.Dimensions, 'get').mockReturnValue({
+      width: REFERENCE.frame.width, height: REFERENCE.frame.height, scale: 3, fontScale: 1,
+    });
+    const props = {
+      vehicleId: 'v1', onBack: jest.fn(), onSignOut: jest.fn(), onScanInvoice: jest.fn(),
+      onViewRecalls: jest.fn(), onOpenWishlist: jest.fn(), onOpenHistory: jest.fn(),
+      onOpenHealth: jest.fn(), onOpenMilestone: jest.fn(), onOpenProfile: jest.fn(),
+    };
+    const view = await render(
+      withSafeArea(
+        <NavigationContext.Provider value={navigation as never}>
+          <VehicleDetailScreen {...props} />
+        </NavigationContext.Provider>,
+        REFERENCE
+      )
+    );
+    return { view, emit };
+  }
+
+  const pastTheBound = () =>
+    act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ASK_SETTLE_MS + 100));
+    });
+
+  it('a yes given on the advisor while the page waited: no sheet on return, and the car is scored (UX-23)', async () => {
+    storedConsent(null);
+    respondUnscored();
+    const { view, emit } = await mountInNavigation(true);
+    await view.findByText(SHEET_TITLE);
+
+    // The owner taps away to the advisor and says yes there.
+    await emit('blur');
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    storedConsent('granted');
+
+    await emit('focus');
+    await pastTheBound();
+    expect(view.queryByText(SHEET_TITLE)).toBeNull();
+    await waitFor(() => expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(1));
+  });
+
+  it('nothing answered elsewhere: the sheet is back on return (anti-vacuous for UX-23)', async () => {
+    storedConsent(null);
+    respondUnscored();
+    const { view, emit } = await mountInNavigation(true);
+    await view.findByText(SHEET_TITLE);
+    await emit('blur');
+    await emit('focus');
+    await view.findByText(SHEET_TITLE);
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a "Not now" here after a yes elsewhere does not overwrite the yes (UX-23, read before write)', async () => {
+    const SecureWrite = jest.requireMock('expo-secure-store') as { setItemAsync: jest.Mock };
+    storedConsent(null);
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText(SHEET_TITLE);
+
+    // The yes lands in the store after this page read it.
+    storedConsent('granted');
+    SecureWrite.setItemAsync.mockClear();
+    await user.press(view.getByLabelText('Not now'));
+    await view.findByText(/Not scored — the score is written by Google’s AI/);
+    await act(async () => {});
+    expect(SecureWrite.setItemAsync).not.toHaveBeenCalledWith(AI_CONSENT_STORAGE_KEY, 'declined');
+    // This visit honours the Not now: nothing went to Google.
+    expect(request.mock.calls.filter(([p]) => p === '/health')).toHaveLength(0);
+  });
+
+  it('a "Not now" with no yes anywhere is stored (anti-vacuous for the read)', async () => {
+    const SecureWrite = jest.requireMock('expo-secure-store') as { setItemAsync: jest.Mock };
+    storedConsent(null);
+    respondUnscored();
+    const user = userEvent.setup();
+    const { view } = await mount();
+    await view.findByText(SHEET_TITLE);
+    SecureWrite.setItemAsync.mockClear();
+    await user.press(view.getByLabelText('Not now'));
+    await waitFor(() => expect(SecureWrite.setItemAsync).toHaveBeenCalledWith(AI_CONSENT_STORAGE_KEY, 'declined'));
+  });
+
+  it('alerts turned on from Account while the page waited: no primer on return (UX-24)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view, emit } = await mountInNavigation(false);
+    await view.findAllByText(/Accord/);
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+
+    // Account → Alerts → Allow.
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: true, canAskAgain: true }));
+    await emit('focus');
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+  });
+
+  it('nothing settled on Account: the primer asks on return (anti-vacuous for UX-24)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view, emit } = await mountInNavigation(false);
+    await view.findAllByText(/Accord/);
+    await pastTheBound();
+    expect(view.queryByText(PRIMER_TITLE)).toBeNull();
+    await emit('focus');
+    await view.findByText(PRIMER_TITLE);
+  });
+
+  it('the primer still asks on a car with nothing else to ask (anti-vacuous)', async () => {
+    Notifications.getPermissionsAsync.mockImplementation(async () => ({ granted: false, canAskAgain: true }));
+    storedConsent('granted');
+    respondResearchScored();
+    const { view } = await mount();
+
+    await view.findByText(PRIMER_TITLE);
   });
 });
 

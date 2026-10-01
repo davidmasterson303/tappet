@@ -217,7 +217,11 @@ describe('the label that keeps it honest', () => {
       join(__dirname, '..', '..', 'app', 'api', 'v1', 'consultant', 'route.ts'),
       'utf8'
     ).replace(/\/\*[\s\S]*?\*\//g, '');
-    const success = route.slice(route.indexOf('success: true,'), route.indexOf('} as ApiResponse);', route.indexOf('success: true,')));
+    // The model answer's response — after `sendConsultantMessage`, since the
+    // TL-6 replay (never a demo car) answers above it with a block of its own.
+    const answered = route.indexOf('success: true,', route.indexOf('await sendConsultantMessage('));
+    expect(route.indexOf('await sendConsultantMessage(')).toBeGreaterThan(-1);
+    const success = route.slice(answered, route.indexOf('} as ApiResponse);', answered));
     expect(success).toMatch(/\.\.\.\(result\.isSample \? \{ isSample: true \} : \{\}\)/);
     // Anti-vacuous: the same reader against the shape that shipped.
     const before = `

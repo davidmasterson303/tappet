@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Zap, ChartBar as BarChart3, DollarSign, Wrench,
 import { Working } from '@/components/Working';
 import { generateModificationDetails, addModificationToWishlist } from '@/app/actions';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 
 interface ModificationDetailsCardProps {
   vehicleId: string;
@@ -46,7 +47,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
         toast.success('Modification analysis generated');
       }
     } else if (!isAuto) {
-      toast.error('Failed to generate analysis');
+      toast.error(answerSentence(result, couldNotMake('this analysis')));
     }
 
     if (isAuto) {
@@ -64,7 +65,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
       setAddedToWishlist(true);
       toast.success('Added to Needs');
     } else {
-      toast.error(result.error || 'Could not add that to Needs');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
     }
     setIsAddingToWishlist(false);
   };
@@ -117,7 +118,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             busyLabel="Analyzing"
             className="whitespace-nowrap transition-colors flex-shrink-0"
           >
-            Analyze Mod
+            Analyze this mod
           </Button>
         </div>
       </div>
@@ -141,12 +142,12 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
           >
             {isExpanded ? (
               <>
-                <span className="mr-2 text-xs">Show Less</span>
+                <span className="mr-2 text-xs">Show less</span>
                 <ChevronUp className="h-4 w-4" />
               </>
             ) : (
               <>
-                <span className="mr-2 text-xs">See Details</span>
+                <span className="mr-2 text-xs">See details</span>
                 <ChevronDown className="h-4 w-4" />
               </>
             )}
@@ -160,7 +161,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             <div className="flex gap-3">
               <Zap className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h5 className="text-white/80 text-xs font-semibold mb-1">Performance Impact</h5>
+                <h5 className="text-white/80 text-xs font-semibold mb-1">Performance impact</h5>
                 <p className="text-white/60 text-xs leading-relaxed">{details.performance_impact}</p>
               </div>
             </div>
@@ -170,7 +171,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             <div className="flex gap-3">
               <AlertCircle className="h-4 w-4 text-info flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h5 className="text-white/80 text-xs font-semibold mb-1">Reliability Impact</h5>
+                <h5 className="text-white/80 text-xs font-semibold mb-1">Reliability impact</h5>
                 <p className="text-white/60 text-xs leading-relaxed">{details.reliability_impact}</p>
               </div>
             </div>
@@ -180,7 +181,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             <div className="flex gap-3">
               <DollarSign className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h5 className="text-white/80 text-xs font-semibold mb-1">Cost & Value</h5>
+                <h5 className="text-white/80 text-xs font-semibold mb-1">Cost & value</h5>
                 <p className="text-white/60 text-xs leading-relaxed">{details.cost_benefit_analysis}</p>
               </div>
             </div>
@@ -190,7 +191,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
             <div className="flex gap-3">
               <Wrench className="h-4 w-4 text-orange-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h5 className="text-white/80 text-xs font-semibold mb-1">Installation Notes</h5>
+                <h5 className="text-white/80 text-xs font-semibold mb-1">Installation notes</h5>
                 <p className="text-white/60 text-xs leading-relaxed">{details.installation_notes}</p>
               </div>
             </div>

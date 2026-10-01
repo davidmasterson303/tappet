@@ -99,7 +99,11 @@ export function MarkDoneSheet({
         dismissed the keyboard. The sheet is its own window, so `padding`
         with no offset is the right arithmetic (VehicleProfileScreen's note).
       */}
-      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.bar}>
           <Pressable onPress={onCancel} hitSlop={12} disabled={saving} accessibilityRole="button">
             <Text style={[styles.barAction, saving && styles.dim]}>Cancel</Text>
@@ -161,6 +165,15 @@ export function MarkDoneSheet({
               placeholder="YYYY-MM-DD"
               placeholderTextColor={text.muted}
               accessibilityLabel="Service date"
+              /*
+                ⚠ Audit 360, UX-12 (1 Oct): digits and the hyphen on one
+                plane, not QWERTY, and the format spoken — the placeholder
+                is gone the moment the chips fill the field. Still no date
+                picker: that is a native module (see the docblock).
+              */
+              accessibilityHint="Year, month and day, as in 2026-09-27."
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
               autoCapitalize="none"
               autoCorrect={false}
             />

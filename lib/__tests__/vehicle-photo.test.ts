@@ -450,7 +450,7 @@ describe('clearVehiclePhoto', () => {
     const tolerated = clientForRemoval({ path: 'p', removeError: 'gone already' });
     await expect(clearVehiclePhoto(tolerated, VEHICLE_ID)).resolves.toEqual({ success: true });
     const fatal = clientForRemoval({ path: 'p', updateError: 'rls' });
-    await expect(clearVehiclePhoto(fatal, VEHICLE_ID)).resolves.toEqual({ success: false, error: 'Failed to remove photo' });
+    await expect(clearVehiclePhoto(fatal, VEHICLE_ID)).resolves.toEqual({ success: false, error: 'Tappet could not remove that photo just now. Try again in a moment.' });
   });
 });
 

@@ -20,6 +20,8 @@ import { withSafeArea } from '../../test-support/safe-area';
 import { requestUpgrade } from '../upgrade-prompt';
 import { verifyPurchase } from '../../api/purchases';
 import { applePurchase } from '../../test-support/purchases';
+import { getSubscription } from '../../api/account';
+import { subscriberFrom } from '../PaywallHost';
 
 let mockNativeModule: unknown = null;
 jest.mock('expo', () => ({
@@ -27,12 +29,15 @@ jest.mock('expo', () => ({
 }));
 
 jest.mock('../../api/purchases', () => ({ verifyPurchase: jest.fn() }));
+// UX-7: the host reads what the account holds on every opening.
+jest.mock('../../api/account', () => ({ getSubscription: jest.fn() }));
 
 type Iap = typeof import('expo-iap') & {
   __emit: (event: 'purchase-updated' | 'purchase-error', payload: unknown) => void;
 };
 const iap = jest.requireMock('expo-iap') as jest.MockedObject<Iap>;
 const verify = verifyPurchase as jest.MockedFunction<typeof verifyPurchase>;
+const standing = getSubscription as jest.MockedFunction<typeof getSubscription>;
 
 const MONTHLY = 'com.southmoordigital.tappet.paid.monthly';
 
@@ -46,6 +51,8 @@ beforeEach(() => {
     here by one test would be verified by the next one's mount.
   */
   iap.getAvailablePurchases.mockResolvedValue([]);
+  // The ordinary account: nothing held.
+  standing.mockResolvedValue({ live: false, certain: true });
 });
 
 describe('opening', () => {
@@ -333,6 +340,117 @@ describe('restore', () => {
   before any account exists. Apple's notice for it names nobody and the
   server drops it; the app is where the transaction and an account meet.
 */
+/*
+  Audit 360, UX-7 (1 Oct). A subscriber opening the paywall from Account saw
+  buy buttons and no standing. The host now reads the account on each opening.
+*/
+describe('a subscriber opening it', () => {
+  beforeEach(() => {
+    mockNativeModule = {};
+    iap.fetchProducts.mockResolvedValue([
+      { id: MONTHLY, displayPrice: '£7.99', platform: 'ios', type: 'subs', subscriptionPeriodUnitIOS: 'month' },
+    ] as never);
+  });
+
+  it('sees the server’s status line and no price', async () => {
+    standing.mockResolvedValue({ live: true, certain: true, billedByApple: true, until: null });
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+
+    expect(await view.findByText('Your subscription')).toBeTruthy();
+    expect(view.getByText('Active')).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+    expect(standing).toHaveBeenCalled();
+  });
+
+  it('an unread subscription is not a standing: the prices stay', async () => {
+    standing.mockResolvedValue({ live: true, certain: false });
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+
+    expect(await view.findByText('£7.99 / month')).toBeTruthy();
+    expect(view.queryByText('Your subscription')).toBeNull();
+  });
+
+  /*
+    LEGAL-20 (1 Oct). The App Review account, exactly as the server answers
+    it: hand-granted Plus, no Apple transaction, no expiry. Its review notes
+    say it can buy either plan in the sandbox, so it sees both prices.
+  */
+  it('the App Review account — a comped grant — sees its standing and both prices', async () => {
+    iap.fetchProducts.mockResolvedValue([
+      { id: MONTHLY, displayPrice: '£7.99', platform: 'ios', type: 'subs', subscriptionPeriodUnitIOS: 'month' },
+      {
+        id: 'com.southmoordigital.tappet.paid.annual',
+        displayPrice: '£69.99',
+        platform: 'ios',
+        type: 'subs',
+        subscriptionPeriodUnitIOS: 'year',
+      },
+    ] as never);
+    standing.mockResolvedValue({ live: true, certain: true, billedByApple: false, until: null, renews: null });
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+
+    expect(await view.findByText('Your subscription')).toBeTruthy();
+    expect(view.getByText('Active')).toBeTruthy();
+    expect(view.queryByLabelText(/^Manage your subscription/)).toBeNull();
+    expect(await view.findByText('£7.99 / month')).toBeTruthy();
+    expect(view.getByText('£69.99 / year')).toBeTruthy();
+  });
+
+  /*
+    UX-17 (1 Oct). The catalogue is local and usually answers first; the
+    prices must not draw for a subscriber Apple bills and then vanish.
+  */
+  it('draws no price while the account is unread, and none once Apple’s billing is known', async () => {
+    let answer: (value: Awaited<ReturnType<typeof getSubscription>>) => void = () => undefined;
+    standing.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      })
+    );
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+    // The catalogue has landed; the account has not.
+    await waitFor(() => expect(iap.fetchProducts).toHaveBeenCalled());
+    expect(await view.findByText('Checking your subscription')).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+
+    await act(async () => {
+      answer({ live: true, certain: true, billedByApple: true, until: null });
+    });
+
+    expect(await view.findByText('Your subscription')).toBeTruthy();
+    expect(view.queryByText('Checking your subscription')).toBeNull();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+  });
+
+  it('subscriberFrom: only a certain, live answer makes one', () => {
+    expect(subscriberFrom(null)).toBeNull();
+    expect(subscriberFrom({ live: false, certain: true })).toBeNull();
+    expect(subscriberFrom({ live: true, certain: false })).toBeNull();
+    // LEGAL-20: a missing flag is not a transaction, so it does not hide the prices.
+    expect(subscriberFrom({ live: true, certain: true })).toEqual({ line: 'Active', billedByApple: false });
+    expect(subscriberFrom({ live: true, certain: true, billedByApple: true })).toEqual({
+      line: 'Active',
+      billedByApple: true,
+    });
+    expect(subscriberFrom({ live: true, certain: true, billedByApple: false })).toEqual({
+      line: 'Active',
+      billedByApple: false,
+    });
+  });
+});
+
 describe('the quiet check on sign-in and foreground', () => {
   beforeEach(() => {
     mockNativeModule = {};

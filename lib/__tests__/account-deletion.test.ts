@@ -402,6 +402,50 @@ describe('subscriptionNotice — Guideline 3.1.2 and the E5 rejection reason', (
   });
 });
 
+/*
+  Audit 360, COPY-20 (1 Oct). LEGAL-15 made an unread subscription warn — and
+  the one sentence stated it as the owner's fact. Both rules now hold: the
+  warning always shows on a failed read, and it says what Tappet could not
+  check instead of what the owner has.
+*/
+describe('subscriptionNotice — an unread subscription warns, conditionally', () => {
+  const { subscriptionNotice, SUBSCRIPTION_CANCEL_PATH } = require('@tappet/core/account-deletion');
+
+  it('still warns when the read failed (LEGAL-15)', () => {
+    const notice = subscriptionNotice(true, false);
+    expect(notice).not.toBeNull();
+    expect(notice.action).toContain(SUBSCRIPTION_CANCEL_PATH);
+    expect(notice.action.toLowerCase()).toContain('cancel it first');
+  });
+
+  it('says it could not check, and puts the subscription behind an "if" (COPY-20)', () => {
+    const notice = subscriptionNotice(true, false);
+    const text = `${notice.headline} ${notice.action}`;
+    expect(notice.headline).toMatch(/^If you subscribe through Apple, /);
+    expect(text).toMatch(/could not check/);
+    expect(text).not.toMatch(/Your subscription is billed by Apple|you will keep being charged/);
+    expect(text.toLowerCase()).not.toMatch(/we will cancel|automatically cancel/);
+  });
+
+  it('a read answer keeps the definite sentence (anti-vacuous)', () => {
+    expect(subscriptionNotice(true).headline).toBe('Deleting your account does not cancel your subscription.');
+    expect(subscriptionNotice(true, true).action).toMatch(/^Your subscription is billed by Apple/);
+    expect(subscriptionNotice(false, false)).toBeNull();
+  });
+
+  it('both surfaces pass the read’s certainty, not only whether to warn', () => {
+    const read = (p: string) =>
+      require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', p), 'utf8');
+    expect(read('components/DeleteAccountDialog.tsx')).toMatch(
+      /subscriptionNotice\(hasLiveSubscription, subscriptionCertain\)/
+    );
+    expect(read('apps/mobile/src/screens/AccountScreen.tsx')).toMatch(/subscription\?\.certain === true/);
+    expect(read('app/settings/SettingsView.tsx')).toMatch(/subscriptionCertain=\{initial\.subscriptionCertain === true\}/);
+    // The web's read says when its `true` was assumed on a failed entitlement read.
+    expect(read('lib/account-data.ts')).toMatch(/subscriptionCertain: !\(entitlementError && !tableAbsent\)/);
+  });
+});
+
 describe('both delete surfaces show the subscription notice', () => {
   /*
     The parity check, and the reason `subscriptionNotice` lives in core at all.
@@ -572,5 +616,34 @@ describe('deleteAccount — the rate-limit trail', () => {
     // The delete is keyed on `userId`, which the session supplies — but the
     // ordering rule is the same one every other step here follows.
     expect(deletedRateLimitIdentifiers).toHaveLength(1);
+  });
+});
+
+describe('the web’s inventory is the phone’s (COPY-32)', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires */
+  const { DELETION_INVENTORY, deletionCarCount } = require('@tappet/core/account-deletion');
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  /* eslint-enable @typescript-eslint/no-var-requires */
+
+  it('counts cars in words that read at 0, 1 and many', () => {
+    expect(deletionCarCount(0)).toBe('This account has no cars.');
+    expect(deletionCarCount(1)).toBe('This account has one car.');
+    expect(deletionCarCount(3)).toBe('This account has 3 cars.');
+    for (const n of [0, 1, 2, 9]) expect(deletionCarCount(n)).not.toMatch(/vehicle|\b1 cars\b/);
+  });
+
+  it('renders DELETION_INVENTORY rather than a list of its own', () => {
+    const dialog = readFileSync(join(__dirname, '..', '..', 'components', 'DeleteAccountDialog.tsx'), 'utf8');
+    expect(dialog).toMatch(/DELETION_INVENTORY\.map\(/);
+    expect(dialog).toMatch(/deletionCarCount\(vehicleCount\)/);
+    // The list as it shipped.
+    expect(dialog).not.toMatch(/and their full history|All maintenance records/);
+    expect(DELETION_INVENTORY[0]).toBe('Every car, with its service history and dossier');
+  });
+
+  it('the settings paragraph names the same things', () => {
+    const settings = readFileSync(join(__dirname, '..', '..', 'app', 'settings', 'SettingsView.tsx'), 'utf8');
+    expect(settings).toMatch(/This deletes your cars, service history, invoices and advisor/);
   });
 });

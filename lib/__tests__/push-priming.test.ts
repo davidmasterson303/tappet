@@ -23,6 +23,8 @@ import {
   type PrimingInput,
 } from '@tappet/core/push-priming';
 import { SERVICE_COOLDOWN_DAYS } from '@tappet/core/notification-sweep';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const TODAY = '2026-08-12';
 
@@ -165,9 +167,77 @@ describe('the primer copy', () => {
     expect(text).toMatch(/service|due/);
   });
 
+  /*
+    ⚠ Audit 360, COPY-7 (1 Oct). The detail said a recall "for most cars is
+    never" comes — a figure Tappet does not hold, on the screen that decides
+    whether the do-not-drive notice can reach anyone — and the body said a
+    recall is "issued for it", the car, where the lookup matches year, make
+    and model (CLAUDE.md §10).
+  */
+  it('scopes the recall to the model and invents no frequency', () => {
+    const text = `${PUSH_PRIMER_COPY.body} ${PUSH_PRIMER_COPY.detail}`;
+    const invented = /most cars|for it\b|rarely|almost never/i;
+    expect('A recall arrives when the manufacturer issues one, which for most cars is never.').toMatch(invented);
+    expect(text).not.toMatch(invented);
+    expect(PUSH_PRIMER_COPY.body).toMatch(/recall is issued for its year, make and model/);
+    expect(PUSH_PRIMER_COPY.detail).toMatch(/year, make and model/);
+  });
+
   it('offers a refusal that costs nothing, and says so', () => {
     expect(PUSH_PRIMER_COPY.decline).toBeTruthy();
-    expect(PUSH_PRIMER_COPY.reassurance.toLowerCase()).toMatch(/later|account|settings/);
+    expect(PUSH_PRIMER_COPY.reassurance.toLowerCase()).toMatch(/later|again|account|settings/);
+  });
+
+  /*
+    ⚠ Audit 360, UX-1 (1 Oct). The reassurance said "You can turn these on
+    later from your account" and the Account screen had no such row — a
+    promise made on the screen that decides the one irreversible iOS ask.
+    So the reassurance may only name a door that exists.
+  */
+  describe('the reassurance names only a way back the app has', () => {
+    const account = readFileSync(
+      join(__dirname, '..', '..', 'apps', 'mobile', 'src', 'screens', 'AccountScreen.tsx'),
+      'utf8'
+    );
+    /** Whether the Account screen draws anything about notifications. */
+    const accountHasAlertsRow = (source: string) =>
+      /currentPushPermission|openSettings|Notifications|Alerts/.test(
+        source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+      );
+
+    it('read the Account screen', () => {
+      expect(account.length).toBeGreaterThan(1000);
+      expect(account).toMatch(/export (default )?function AccountScreen/);
+    });
+
+    it('can still tell a promise of an account door from one without it', () => {
+      // Anti-vacuous: the shape that shipped is caught.
+      const shipped = 'You can turn these on later from your account.';
+      expect(/account/i.test(shipped) && !accountHasAlertsRow('function AccountScreen() {}')).toBe(true);
+      expect(accountHasAlertsRow('const p = await currentPushPermission();')).toBe(true);
+    });
+
+    it('does not promise an account row the account screen does not draw', () => {
+      if (/account/i.test(PUSH_PRIMER_COPY.reassurance)) {
+        expect(accountHasAlertsRow(account)).toBe(true);
+      }
+    });
+
+    it('names Account now that it draws the row, with both doors (UX-1, built)', () => {
+      const shown = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+      expect(PUSH_PRIMER_COPY.reassurance).toMatch(/from Account/);
+      expect(shown).toMatch(/ALERTS_ROW_COPY\[alerts\]\.status/);
+      expect(shown).toMatch(/Linking\.openSettings\(\)/);
+      expect(shown).toMatch(/await registerForPush\(\)/);
+    });
+
+    it('states the interval the cooldown actually keeps', () => {
+      // "a month" is 30 days; a change to either must move the other.
+      if (/a month/.test(PUSH_PRIMER_COPY.reassurance)) {
+        expect(PRIMER_COOLDOWN_DAYS).toBe(30);
+      }
+      expect(PUSH_PRIMER_COPY.reassurance).toMatch(/again/);
+    });
   });
 
   it('does not promise anything the product cannot do', () => {

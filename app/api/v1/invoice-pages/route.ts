@@ -4,6 +4,7 @@ import { MAX_FILE_SIZE, ALLOWED_INVOICE_PAGE_TYPES, INVOICE_PAGE_LIMIT } from '@
 import { invoicePagePath, isInvoicePagePath } from '@tappet/core/storage-paths';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const vehicleId = formData.get('vehicleId');
 
     if (!(file instanceof File) || typeof vehicleId !== 'string' || !vehicleId) {
-      return NextResponse.json({ success: false, error: 'Missing file or vehicleId' }, { status: 400 });
+      return NextResponse.json({ success: false, error: UNREADABLE_REQUEST }, { status: 400 });
     }
 
     // Before the file is inspected — the upload route's order, for its reason.
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
     if (!ALLOWED_INVOICE_PAGE_TYPES.includes(file.type)) {
-      return NextResponse.json({ success: false, error: 'Invalid file type' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'That file type cannot be read. Choose a photo.' }, { status: 400 });
     }
 
     const path = invoicePagePath(vehicleId, file.name || 'page.jpg');
@@ -73,13 +74,13 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (error) {
       logger.error('API:INVOICE_PAGE', new Error(error.message), { vehicleId });
-      return NextResponse.json({ success: false, error: 'Failed to store the page. Please try again.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Tappet could not store that page just now. Try again in a moment.' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, path });
   } catch (error) {
     logger.error('API:INVOICE_PAGE', error as Error);
-    return NextResponse.json({ success: false, error: 'Failed to store the page.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Tappet could not store that page just now. Try again in a moment.' }, { status: 500 });
   }
 }
 
@@ -90,7 +91,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     const paths = body?.paths;
 
     if (!vehicleId || !Array.isArray(paths) || paths.length === 0) {
-      return NextResponse.json({ success: false, error: 'Missing paths or vehicleId' }, { status: 400 });
+      return NextResponse.json({ success: false, error: UNREADABLE_REQUEST }, { status: 400 });
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
@@ -108,12 +109,12 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     const { error } = await access.client.storage.from('vehicle-documents').remove(paths as string[]);
     if (error) {
       logger.error('API:INVOICE_PAGE_DISCARD', new Error(error.message), { vehicleId });
-      return NextResponse.json({ success: false, error: 'Failed to discard pages' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Tappet could not discard those pages just now.' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('API:INVOICE_PAGE_DISCARD', error as Error);
-    return NextResponse.json({ success: false, error: 'Failed to discard pages' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Tappet could not discard those pages just now.' }, { status: 500 });
   }
 }

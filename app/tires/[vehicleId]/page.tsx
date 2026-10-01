@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { CAR_NOT_FOUND, NO_ANSWER, carPageSentence, isCarNotFound } from '@/lib/api-error-copy';
 import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { formatDateMono, formatMiles } from '@tappet/core/tires';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -11,7 +13,8 @@ import TireRecord from '@/components/TireRecord';
 import { TireIntervalDialog, TireRotationDialog, TireSetDialog } from '@/components/TireDialogs';
 import { Working } from '@/components/Working';
 import { Button } from '@/components/ui/button';
-import { removeTireRotation, tireRecordsKey, useTireRecords } from '@/hooks/useTireRecords';
+import { TireRequestError, removeTireRotation, tireRecordsKey, useTireRecords } from '@/hooks/useTireRecords';
+import { customerSentence } from '@tappet/core/customer-copy';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { getClientSupabase } from '@/lib/supabase';
 
@@ -33,6 +36,7 @@ import { getClientSupabase } from '@/lib/supabase';
  */
 export default function TiresPage({ params }: { params: { vehicleId: string } }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [setDialog, setSetDialog] = useState<{ open: boolean; set: TireSet | null }>({ open: false, set: null });
   const [intervalDialog, setIntervalDialog] = useState<{ open: boolean; set: TireSet | null }>({ open: false, set: null });
   const [rotationDialog, setRotationDialog] = useState<{ open: boolean; set: TireSet | null; rotations: TireRotation[] }>({
@@ -49,7 +53,7 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
       const supabase = getClientSupabase();
       const { data, error } = await supabase.from('vehicles').select('*').eq('id', params.vehicleId).maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Vehicle not found');
+      if (!data) throw new Error(CAR_NOT_FOUND);
       return data;
     },
   });
@@ -67,7 +71,9 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
       await removeTireRotation(rotation.id);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Not removed.');
+      toast.error(
+        error instanceof TireRequestError ? customerSentence(error.message, 'That rotation was not removed.') : NO_ANSWER
+      );
     }
   }
 
@@ -79,10 +85,20 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
     );
   }
 
+  /*
+    Audit 360, COPY-36: a car that is not there goes to the garage, as the
+    dashboard, the specifications and the advisor do. It read "Reload the
+    page to try again", which reloads into the same sentence.
+  */
+  if (vehicleQuery.error && isCarNotFound(vehicleQuery.error)) {
+    router.replace('/garage');
+    return null;
+  }
+
   if (vehicleQuery.error || !vehicleQuery.data) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8 text-center">
-        <p className="text-white/70">Could not load this vehicle.</p>
+        <p className="text-white/70">{carPageSentence(vehicleQuery.error, 'this car')}</p>
       </div>
     );
   }

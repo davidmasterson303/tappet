@@ -364,11 +364,391 @@ describe('who operates the service, and who to write to about it', () => {
       `20268142644`, EIN issued the same morning) — the claim the pages had
       carried for two weeks became true, which is the substance changing for a
       reader (Cowork's ruling, 14 Sep). Promoted the same evening, MT.
+
+      ⚠ Moved to 1 October with audit 360's legal round: the policy now names
+      Expo, every Gemini path, crash reports, the quote check and the
+      transaction id kept after deletion — substance for a reader. Written
+      ahead of its promote, like 30 Aug; if the promote lands on a later day,
+      move it to that day.
     */
-    expect(LAST_UPDATED).toBe('13 September 2026');
+    expect(LAST_UPDATED).toBe('1 October 2026');
     expect(new Date(LAST_UPDATED).getTime()).not.toBeNaN();
     expect(new Date(LAST_UPDATED).getTime()).toBeGreaterThanOrEqual(
       new Date('14 August 2026').getTime(),
     );
+  });
+});
+
+/**
+ * ── Audit 360, legal round 01 (1 Oct) — what the policy said less than ────────
+ *
+ * Each claim below was checked against the code that makes it true, and each
+ * anchor is the code, not the page: if the code stops doing the thing, the
+ * sentence is what has to go.
+ */
+describe('the policy names every path and every processor (LEGAL-1, 4, 5, 6)', () => {
+  const src = (p: string) => read(p);
+  const google = privacyText.slice(privacyText.indexOf('<strong className="text-white/90">Google</strong>'));
+
+  it('found the Google bullet at all', () => {
+    expect(google.length).toBeGreaterThan(200);
+  });
+
+  it.each([
+    ['the health score', 'app/actions.ts', /export async function generateVehicleHealthSummary/, /the health score/],
+    ['reading invoices', 'app/actions.ts', /export async function parseInvoiceLineItems/, /reading invoices/],
+    ['the quote check', 'lib/quote-check.ts', /inlineData: \{ mimeType, data: fileBase64 \}/, /the quote check/],
+    ['web advisor attachments', 'app/actions.ts', /data: buffer\.toString\('base64'\)/, /document you attach to an advisor question on the website/],
+    ['quote requests and the ZIP', 'app/actions.ts', /Location Zip Code: \$\{zipCode\}/, /the ZIP code you typed/],
+  ])('Google: %s', (_name, file, code, sentence) => {
+    expect(src(file)).toMatch(code);
+    expect(google).toMatch(sentence);
+  });
+
+  it('names Expo, because every push goes through exp.host', () => {
+    expect(src('lib/push-send.ts')).toMatch(/exp\.host/);
+    expect(privacyText).toMatch(/<strong className="text-white\/90">Expo<\/strong>/);
+  });
+
+  it('says crash reports leave the device, and to whom', () => {
+    expect(src('apps/mobile/src/api/client-errors.ts')).toMatch(/'\/client-errors'/);
+    expect(privacyText).toMatch(/Crash reports\.<\/strong> If the app fails unexpectedly/);
+    // The third-party claim stays true: no crash SDK (privacy-manifest.test.ts).
+    expect(privacyText).toMatch(/No third-party analytics, attribution or crash-reporting service/);
+  });
+
+  it('says the quote check sends the estimate to Google and keeps the answer, not the photo', () => {
+    expect(privacyText).toMatch(/photo or text of your estimate is sent to Google/);
+    expect(privacyText).toMatch(/We do not keep the photo/);
+    expect(src('lib/quote-check.ts')).toMatch(/export const UNCLAIMED_SCAN_TTL_DAYS = 30;/);
+  });
+
+  it('discloses what survives a deletion: the transaction id, and the id in the log line', () => {
+    expect(src('lib/account-data.ts')).toMatch(/from\('orphaned_apple_subscriptions'\)\.upsert/);
+    expect(privacyText).toMatch(/keep Apple&rsquo;s transaction identifier/);
+    expect(src('lib/account-data.ts')).toMatch(/'ACCOUNT_DELETE:COMPLETE', 'Account deleted', \{\s*userId,/);
+    expect(privacyText).toMatch(/its internal account identifier/);
+    expect(privacyText).not.toMatch(/except the operational line described below/);
+  });
+
+  /*
+    LEGAL-21 (1 Oct): log lines carrying an account id were disclosed one at a
+    time, and new ones (PUSH_TOKEN:CLAIMED, two ids) arrived undisclosed. The
+    policy now states the rule; this holds the rule true of the code.
+  */
+  describe('operational logs, as a rule rather than a list (LEGAL-21)', () => {
+    const serverSources = (dir: string): string[] =>
+      readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+        const rel = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) return entry.name === '__tests__' ? [] : serverSources(rel);
+        return /\.tsx?$/.test(entry.name) ? [rel] : [];
+      });
+    const sources = [...serverSources('app'), ...serverSources('lib')];
+    /*
+      A logger call's context object, read to its closing parenthesis on the
+      next few lines. LEGAL-22: and a `console.*` call — the rule is about the
+      log, not the helper that writes to it.
+    */
+    const LOG_CALL = /(?:logger|console)\.(?:info|warn|error|debug|log)\([\s\S]{0,400}?\);/g;
+    const logCalls = sources.flatMap((file) => src(file).match(LOG_CALL) ?? []);
+
+    it('found the log lines that carry an account id', () => {
+      expect(sources.length).toBeGreaterThan(100);
+      expect(logCalls.filter((call) => /userId/.test(call)).length).toBeGreaterThan(5);
+      expect(src('app/api/v1/push-token/route.ts')).toMatch(/displacedUserId/);
+    });
+
+    it('states the rule: an internal identifier may be logged, a name or email is not', () => {
+      expect(flat(privacyText)).toMatch(/Operational logs\.<\/strong> Our server keeps a running log/);
+      expect(flat(privacyText)).toMatch(/may carry your account&rsquo;s internal identifier/);
+      expect(flat(privacyText)).toMatch(/we do not write your name or email to it/);
+      expect(flat(privacyText)).toMatch(/not removed when you delete your account/);
+    });
+
+    it('keeps the rule true: no log line carries an email or a name', () => {
+      const offenders = logCalls.filter((call) => /\b(email|displayName|display_name|fullName|full_name)\s*[:,}]/.test(call));
+      expect(offenders).toEqual([]);
+    });
+
+    it('can still see an email in a log line (anti-vacuous)', () => {
+      const shipped = `logger.warn('X', 'y', { userId, email: user.email });`;
+      expect(shipped.match(LOG_CALL)?.some((call) => /\b(email|displayName|display_name)\s*[:,}]/.test(call))).toBe(true);
+      // LEGAL-22: written through console instead, it is still seen.
+      const viaConsole = `console.error('[X] failed', { userId, email: user.email });`;
+      expect(viaConsole.match(LOG_CALL)?.some((call) => /\b(email|displayName|display_name)\s*[:,}]/.test(call))).toBe(true);
+    });
+
+    it('found console lines as well as logger lines', () => {
+      expect(logCalls.filter((call) => call.startsWith('console.')).length).toBeGreaterThan(20);
+      expect(logCalls.filter((call) => call.startsWith('logger.')).length).toBeGreaterThan(100);
+    });
+
+    /*
+      LEGAL-22: the quote path's failure lines wrote the model's raw reply
+      (and so the owner's typed note) to the log. They carry ids and lengths
+      now; a value written from the owner's words is never an argument.
+    */
+    describe('the quote path logs lengths, not what the owner wrote (LEGAL-22)', () => {
+      const actions = src('app/actions.ts');
+      const body = (name: string) => {
+        const start = actions.indexOf(`async function ${name}(`);
+        expect(start).toBeGreaterThan(-1);
+        const next = actions.indexOf('\nasync function ', start + 10);
+        const nextExport = actions.indexOf('\nexport ', start + 10);
+        return actions.slice(start, Math.min(...[next, nextExport].filter((i) => i > -1)));
+      };
+      // A raw value as a log argument: `, result)`, `, emailDraft)`, `{ estimateData }`, `, error)`.
+      const RAW = /[,{]\s*(result|emailDraft|emailText|text|estimateData|additionalNotes|apiError|error|item)\s*[,})]/;
+      const calls = (name: string) => body(name).match(LOG_CALL) ?? [];
+
+      it.each(['estimateCosts', 'generateEmailDraft'])('%s writes no console line and no raw value', (name) => {
+        expect(body(name).length).toBeGreaterThan(1000);
+        expect(calls(name).length).toBeGreaterThan(3);
+        expect(body(name)).not.toMatch(/console\./);
+        expect(calls(name).filter((call) => RAW.test(call.replace(/^[^(]*\(\s*'[^']*'\s*/, '')))).toEqual([]);
+      });
+
+      it('can still see the lines that shipped (anti-vacuous)', () => {
+        const shipped = [
+          `console.error('[Generate Email Draft] Email draft too short or empty:', emailDraft);`,
+          `console.error('[Generate Email Draft] Full error object:', error);`,
+          `logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('x'), { estimateData });`,
+        ];
+        for (const line of shipped) {
+          const [call] = line.match(LOG_CALL) ?? [];
+          expect(call).toBeDefined();
+          expect(RAW.test((call ?? '').replace(/^[^(]*\(\s*'[^']*'\s*/, ''))).toBe(true);
+        }
+      });
+    });
+  });
+
+  it('can still detect the sentences that shipped', () => {
+    // Anti-vacuous: the 13 Sep text, which every assertion above must reject.
+    const shipped =
+      'Google — the advisor and the dossier are generated by Google&rsquo;s Gemini models. ' +
+      'Apple — delivers push notifications. nothing is kept after it closes except the operational line described below';
+    expect(shipped).not.toMatch(/the health score/);
+    expect(shipped).not.toMatch(/Expo/);
+    expect(shipped).toMatch(/except the operational line described below/);
+  });
+});
+
+describe('the Terms carry an age line, and the web asks at the door (LEGAL-10)', () => {
+  it('sets a minimum age consistent with the policy', () => {
+    expect(termsText).toMatch(/You must be at least 13 to use Tappet/);
+    expect(privacyText).toMatch(/not directed at children under 13/);
+  });
+
+  it.each([
+    ['web sign-up', 'app/signup/page.tsx'],
+    ['web sign-in', 'app/login/page.tsx'],
+    ['phone sign-in', 'apps/mobile/src/screens/SignInScreen.tsx'],
+  ])('%s links both documents', (_name, file) => {
+    const body = read(file).replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(body).toMatch(/\/terms/);
+    expect(body).toMatch(/\/privacy/);
+  });
+
+  it('web sign-up says creating an account is agreeing', () => {
+    expect(flat(read('app/signup/page.tsx'))).toMatch(/By creating an account you agree to the/);
+  });
+
+  it('can still detect a door with no links', () => {
+    const shipped = '<Button type="submit">Create Account</Button></form>';
+    expect(shipped).not.toMatch(/\/terms/);
+  });
+});
+
+describe('the front door says where the estimate goes, before the press (LEGAL-4)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { FRONT_DOOR_AI_NOTICE } = require('@tappet/core/quote-check');
+  // Comments anchored to a line start: `accept="image/*"` opens an unanchored `/*` (text-contrast-floor.test.ts).
+  const page = read('app/check/page.tsx').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\*[\s\S]*?\*\//gm, '');
+  const route = read('app/api/v1/front-door/check/route.ts');
+
+  it('names Google and says the photo is not kept', () => {
+    expect(FRONT_DOOR_AI_NOTICE).toMatch(/Google’s Gemini/);
+    expect(FRONT_DOOR_AI_NOTICE).toMatch(/We do not keep the photo/);
+  });
+
+  it('renders the notice and a privacy link under the button that sends, before any answer', () => {
+    const notice = page.indexOf('{FRONT_DOOR_AI_NOTICE}');
+    const button = page.indexOf('Check this quote');
+    const answer = page.indexOf('{answer && <AnswerCard');
+    expect(button).toBeGreaterThan(-1);
+    expect(notice).toBeGreaterThan(button);
+    expect(answer).toBeGreaterThan(notice);
+    expect(page.slice(notice, notice + 400)).toMatch(/href="\/privacy"/);
+    expect(page).toMatch(/adviceDisclosure\('estimate'\)/);
+  });
+
+  it('is true of the route: the upload is never written anywhere', () => {
+    // Anchored to the code: if the route ever stores the image, "We do not keep the photo" must go.
+    expect(route).toMatch(/fileBase64 = Buffer\.from\(await file\.arrayBuffer\(\)\)/);
+    expect(route).not.toMatch(/\.storage\b|\.upload\(/);
+    expect(read('lib/quote-check.ts')).not.toMatch(/\.storage\b|\.upload\(|fileBase64,?\s*\}\)\s*;?\s*$/m);
+  });
+
+  it('can still detect a page that says nothing', () => {
+    const shipped = "Photograph the estimate. We'll tell you what that job typically costs. No account, no sign-up.";
+    expect(shipped).not.toMatch(/Google/);
+  });
+});
+
+/**
+ * ── Audit 360, legal round 02 (1 Oct) ─────────────────────────────────────────
+ *
+ * Three paths the Google bullet named without saying what they send: the
+ * performance figures (every service line on the car), the quote request
+ * (the mileage and the owner's note as well as the ZIP), and a modification's
+ * guidance (the owner's goal and what they wrote they want out of the car),
+ * under a sentence saying the research uses only the year, make and model.
+ * Anchored to the prompt text that makes each sentence true.
+ */
+describe('the Google bullet says what the figures, the quote and a mod card send (LEGAL-11, 12, 14)', () => {
+  const start = privacyText.indexOf('<strong className="text-white/90">Google</strong>');
+  const bullet = privacyText.slice(start, privacyText.indexOf('</li>', start)).replace(/\s+/g, ' ');
+  const src = (p: string) => read(p);
+
+  it('found the bullet, and only the bullet', () => {
+    expect(start).toBeGreaterThan(0);
+    expect(bullet.length).toBeGreaterThan(400);
+    expect(bullet).not.toMatch(/Expo/);
+  });
+
+  it.each([
+    ['performance figures', 'lib/performance-stats.ts', /from\('maintenance_line_items'\)[\s\S]*Service history:/, /Performance figures send the line items of your car&rsquo;s service history/],
+    ['quote requests', 'app/actions.ts', /Current Mileage:[\s\S]*Location Zip Code: \$\{zipCode\}[\s\S]*Additional Notes from Owner/, /A quote request sends the work listed, the mileage, the ZIP code you typed and any note you add\./],
+    ['modification guidance', 'app/actions.ts', /Owner's Performance Goal: \$\{performanceGoal\.toUpperCase\(\)\}/, /guidance on a modification also sends the performance goal you chose for the car\./],
+    ['the advisor', 'packages/core/src/prompts.ts', /- Ownership Goal: \$\{context\.objective\}/, /the advisor also receives what you wrote about how you use the car and what you want out of it\./],
+  ])('%s', (_name, file, code, sentence) => {
+    expect(src(file)).toMatch(code);
+    expect(bullet).toMatch(sentence);
+  });
+
+  it('can still detect the round-01 bullet', () => {
+    const shipped =
+      'A quote request sends the work listed and the ZIP code you typed. The research and the pictures use only the year, make and model.';
+    expect(shipped).not.toMatch(/Performance figures send/);
+    expect(shipped).not.toMatch(/any note you add/);
+    expect(shipped).toMatch(/use only the year, make and model\.$/);
+  });
+});
+
+/**
+ * ── Audit 360, legal round 03 (1 Oct) — the calls the legal agent made ───────
+ *
+ * David: "let legal agent make those calls". Each sentence below is tied to
+ * the constant or the code that makes it true; the reasons are in
+ * `design-loop/audit-360/held-for-david.md` → "legal — decided".
+ */
+describe('the calls the legal agent made (round 03)', () => {
+  const { GOVERNING_STATE, APPLE_STANDARD_EULA_URL } = require('@/lib/legal');
+  const { RECALL_ALERTS_AFTER_LAPSE } = require('@tappet/core/access');
+
+  it('LEGAL-14: the policy no longer says a mod card sends what the owner wrote', () => {
+    expect(privacyText).not.toMatch(/guidance on a modification also sends[^.]*what you wrote/);
+    const actions = read('app/actions.ts');
+    const fn = actions.slice(actions.indexOf('export async function generateModificationDetails'));
+    const prompt = fn.slice(fn.indexOf('You are an expert automotive consultant'), fn.indexOf('Format as valid JSON only'));
+    expect(prompt.length).toBeGreaterThan(400);
+    expect(prompt).not.toMatch(/ownership_objective/);
+  });
+
+  it('governing law and courts: Colorado, from the constant, with a small-claims carve-out', () => {
+    expect(GOVERNING_STATE).toBe('Colorado');
+    expect(termsText).toMatch(/governed by the laws of the State of \{GOVERNING_STATE\}/);
+    expect(termsText).toMatch(/United States District Court for the District of\{' '\} \{GOVERNING_STATE\}/);
+    expect(termsText).toMatch(/you and \{OPERATOR\} agree to their jurisdiction/);
+    expect(termsText).toMatch(/small-claims court where you live/);
+    expect(termsText).toMatch(/does not allow to be waived/);
+  });
+
+  it('no arbitration and no class waiver — a decision, so a change to it is deliberate', () => {
+    // What renders, not what the comments discuss (CLAUDE.md §5).
+    const shown = termsText.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(shown).toMatch(/LegalSection>Disputes</);
+    expect(shown).not.toMatch(/arbitrat/i);
+    expect(shown).not.toMatch(/class action/i);
+    // And no county was invented (lib/legal.ts: none has been given).
+    expect(shown).not.toMatch(/County/);
+  });
+
+  it('age: 13 to use it, and a parent or guardian for anyone under 18', () => {
+    expect(termsText).toMatch(/You must be at least 13 to use Tappet/);
+    expect(termsText).toMatch(/If you are under 18, use it with a parent&rsquo;s or guardian&rsquo;s permission/);
+    expect(termsText).toMatch(/including any subscription bought on your Apple Account/);
+  });
+
+  it('recall notifications may stop at lapse — tied to the constant that stops them', () => {
+    /*
+      If RECALL_ALERTS_AFTER_LAPSE flips to true, a lapsed account keeps its
+      recall pushes and this sentence overstates what it loses: rewrite it.
+    */
+    expect(RECALL_ALERTS_AFTER_LAPSE).toBe(false);
+    expect(termsText).toMatch(/Recall notifications are part of Tappet Plus and may stop when a subscription ends/);
+    expect(read('packages/core/src/access.ts')).toMatch(/export const RECALL_ALERTS_AFTER_LAPSE = false;/);
+  });
+
+  it('LEGAL-17: the Terms the paywall opens name and link Apple’s standard EULA', () => {
+    expect(APPLE_STANDARD_EULA_URL).toBe('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+    expect(termsText).toMatch(/href=\{APPLE_STANDARD_EULA_URL\}/);
+    expect(termsText).toMatch(/standard Licensed Application End User License Agreement/);
+    // The paywall's Terms link is the page that now carries it.
+    const paywall = read('apps/mobile/src/screens/PaywallScreen.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(paywall).toMatch(/label="Terms of Use" path="\/terms"/);
+  });
+
+  it('both pages show an effective date', () => {
+    expect(read('components/legal/LegalDocument.tsx')).toMatch(/>Effective \{LAST_UPDATED\}</);
+  });
+
+  it('can still detect Terms with none of it (anti-vacuous)', () => {
+    const shipped = flat(
+      '<LegalSection>Changes</LegalSection><p>You must be at least 13 to use Tappet. Keep your password to yourself.</p>'
+    );
+    expect(shipped).not.toMatch(/governed by the laws of the State of/);
+    expect(shipped).not.toMatch(/under 18/);
+    expect(shipped).not.toMatch(/APPLE_STANDARD_EULA_URL/);
+  });
+});
+
+/*
+ * Audit 360, round 04 polish (1 Oct).
+ *
+ * LEGAL-19: the Terms said Apple's EULA "applies alongside" them and gave no
+ * rule for a conflict — the one place the two documents meet decided nothing.
+ * UX-14: the legal pages had no <main> landmark while the landing page did.
+ */
+describe('the Terms say which document decides, and the pages carry a landmark', () => {
+  const precedence = (text: string) =>
+    /governs the app itself[^.]*where it and these terms differ about the app, it wins/.test(text) &&
+    /These terms govern the service behind the app[^.]*these terms win/.test(text);
+
+  it('LEGAL-19: the EULA decides about the app, these Terms about the service', () => {
+    expect(precedence(termsText)).toBe(true);
+    expect(termsText).not.toMatch(/applies alongside these terms/);
+  });
+
+  it('LEGAL-19: can still detect the sentence that shipped (anti-vacuous)', () => {
+    const shipped = flat(
+      'End User License Agreement </a> , which applies alongside these terms. These terms cover the service behind the app: your account, what you upload and your subscription.'
+    );
+    expect(precedence(shipped)).toBe(false);
+  });
+
+  it('UX-14: the document sits in a <main>, opened and closed', () => {
+    const shell = read('components/legal/LegalDocument.tsx').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+    expect(shell).toMatch(/<main className="mx-auto w-full max-w-2xl/);
+    expect(shell).toMatch(/<\/main>/);
+    // Both pages use the shell, so both get it.
+    expect(privacy).toMatch(/<LegalDocument/);
+    expect(terms).toMatch(/<LegalDocument/);
+  });
+
+  it('UX-14: can still detect a shell with no landmark (anti-vacuous)', () => {
+    const shipped = '<div className="min-h-screen"><div className="mx-auto w-full max-w-2xl px-5 py-14"><h1>x</h1></div></div>';
+    expect(shipped).not.toMatch(/<main className="mx-auto w-full max-w-2xl/);
   });
 });

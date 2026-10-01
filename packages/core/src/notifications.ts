@@ -89,7 +89,7 @@ export function tiresUrl(vehicleId: string): string {
  * the question pre-typed until 7 Aug 2026, which explained a notice well and
  * gave nobody a way to act on it. David's call: the point of the alert is to
  * drive an action. So the destination carries the notice, what it means, what
- * NHTSA says the remedy is, and the fact that the repair is free — and the
+ * NHTSA says the remedy is, and who does the repair — and the
  * advisor is reachable from there, per recall, still carrying the question.
  *
  * The old reasoning was not wrong, only incomplete: "FMVSS 111 rear visibility"
@@ -181,7 +181,16 @@ export function serviceDueNotification(params: {
  *   `11,400 miles since the last rotation. Your interval is 6,000. You are
  *   currently outside your warranty's terms.`
  *
- * ⚠ **Tappet may say "outside your warranty's terms" only because the owner
+ * ⚠ **Audit 360, LEGAL-9 (1 Oct) — the sentence is now about the interval,
+ * not the warranty.** It read "You are currently outside your warranty's
+ * terms." — a legal conclusion about a contract the app has never seen, on a
+ * lock screen, from one number the owner typed (perhaps half-remembered).
+ * What the data supports is that the set is past the interval the owner
+ * entered from the card (CLAUDE.md §10), and that is what it now says. The
+ * approved string above is the 20 Sep design copy; the deviation is logged in
+ * `docs/design-system-drift.md`.
+ *
+ * ⚠ **Tappet may name the warranty card at all only because the owner
  * entered the interval.** The caller proves that with `mayClaimWarrantyTerms`
  * before it gets here; this function refuses to build the sentence otherwise
  * rather than trusting the caller, because a push cannot be recalled. No
@@ -220,7 +229,7 @@ export function tireRotationNotification(params: {
 
   return {
     title: `Tire rotation due — ${vehicleName}`,
-    body: `${counted} Your interval is ${interval}. You are currently outside your warranty's terms.`,
+    body: `${counted} That is past the ${interval}-mile interval you entered from your warranty card.`,
     url: tiresUrl(vehicleId),
   };
 }

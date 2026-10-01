@@ -100,3 +100,27 @@ export function slugify(str: string): string {
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+/**
+ * A recorded cost, or `null` when none was recorded (audit 360, TL-27).
+ *
+ * CLAUDE.md §6: a missing cost is "no cost recorded", never `$0.00` — the
+ * mark-done route keeps `null` and the sums skip it. A typed 0 is a real
+ * answer (a warranty job) and survives; `undefined`, `null`, `NaN` and
+ * negatives do not.
+ */
+export function recordedCost(amount: number | null | undefined): number | null {
+  return typeof amount === 'number' && Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+/** The sum of the recorded parts, or `null` when neither was recorded. */
+export function sumRecordedCosts(...amounts: Array<number | null | undefined>): number | null {
+  const known = amounts.map(recordedCost).filter((n): n is number => n !== null);
+  return known.length === 0 ? null : known.reduce((a, b) => a + b, 0);
+}
+
+/** `$12.50`, or an em dash for a cost nobody recorded. */
+export function formatRecordedCost(amount: number | null | undefined): string {
+  const cost = recordedCost(amount);
+  return cost === null ? '—' : `$${cost.toFixed(2)}`;
+}

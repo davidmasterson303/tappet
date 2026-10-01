@@ -1,5 +1,26 @@
-import PaywallScreen from '../screens/PaywallScreen';
+import { useEffect, useState } from 'react';
+import { subscriptionStatusLine } from '@tappet/core/subscription-status';
+
+import { getSubscription, type AccountSubscription } from '../api/account';
+import PaywallScreen, { type SubscriberStanding } from '../screens/PaywallScreen';
 import { usePaywall } from './usePaywall';
+
+/**
+ * The subscriber view's input, from the server's answer — or null. Only a
+ * certain, live answer with a sentence makes one: an unread subscription
+ * (`certain: false`) is not a standing.
+ *
+ * ⚠ `billedByApple` is true only when the server said so (LEGAL-20). It is
+ * the flag that takes the buy buttons away, and a missing flag is not a
+ * transaction: before 1 Oct it read `!== false`, so an answer without it hid
+ * the prices from an account nobody bills.
+ */
+export function subscriberFrom(answer: AccountSubscription | null): SubscriberStanding | null {
+  if (!answer || !answer.certain || !answer.live) return null;
+  const line = subscriptionStatusLine(answer);
+  if (!line) return null;
+  return { line, billedByApple: answer.billedByApple === true };
+}
 
 /**
  * The paywall, mounted once.
@@ -27,8 +48,32 @@ export function PaywallHost({
    */
   onEntitled?: () => void;
 } = {}) {
-  const paywall = usePaywall({ onEntitled });
+  /*
+    Audit 360, UX-7: what this account already holds, read on every opening
+    and again after a purchase or restore entitles it, so a subscriber sees
+    their standing instead of buy buttons. `getSubscription` never throws.
+  */
+  const [standing, setStanding] = useState<AccountSubscription | null>(null);
+  const [entitledEpoch, setEntitledEpoch] = useState(0);
+  const paywall = usePaywall({
+    onEntitled: () => {
+      setEntitledEpoch((n) => n + 1);
+      onEntitled?.();
+    },
+  });
   const catalog = paywall.catalog;
+
+  useEffect(() => {
+    setStanding(null);
+    if (!paywall.visible) return;
+    let cancelled = false;
+    void getSubscription().then((answer) => {
+      if (!cancelled) setStanding(answer);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [paywall.visible, entitledEpoch]);
 
   return (
     /*
@@ -44,6 +89,12 @@ export function PaywallHost({
       key={paywall.visible ? 'open' : 'closed'}
       visible={paywall.visible}
       feature={paywall.feature}
+      subscriber={subscriberFrom(standing)}
+      /*
+        UX-17: until this opening's read lands, the prices wait — a cached
+        catalogue otherwise drew buy buttons a subscriber then watched vanish.
+      */
+      standingPending={paywall.visible && standing === null}
       /*
         The catalogue, unpacked into the screen's states. `null` is still
         loading; `ready` carries the options and `none` is the empty list —

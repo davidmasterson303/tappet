@@ -82,11 +82,24 @@ export function describeDeletion(deleted: Partial<DeletionCounts> | null | undef
  * can quietly drop an item.
  */
 export const DELETION_INVENTORY: readonly string[] = [
-  'Every vehicle, with its service history and dossier',
+  // COPY-25 (L7): car, as every screen says it.
+  'Every car, with its service history and dossier',
   'Every invoice and document you have uploaded, including the images',
-  'Every consultant conversation',
+  // Audit 360, COPY-4: "consultant" is a word the app never uses for it.
+  'Every conversation with the advisor',
   'Your profile and sign-in',
 ];
+
+/**
+ * The count the web's dialog leads its inventory with. Audit 360, COPY-32:
+ * it said "1 vehicle and their full history" beside its own list, in words
+ * the phone's list does not use; it now renders `DELETION_INVENTORY` as the
+ * phone does, and this line says how many cars that is.
+ */
+export function deletionCarCount(cars: number): string {
+  if (cars <= 0) return 'This account has no cars.';
+  return cars === 1 ? 'This account has one car.' : `This account has ${cars} cars.`;
+}
 
 /**
  * What a subscriber has to be told before deleting, and why it is a warning
@@ -118,6 +131,14 @@ export const DELETION_INVENTORY: readonly string[] = [
  */
 export const SUBSCRIPTION_CANCEL_PATH = 'Settings → your name → Subscriptions';
 
+/**
+ * Apple's own page for a person's subscriptions — opened from the paywall when
+ * the account already subscribes (audit 360, UX-7). Apple documents this URL
+ * as the way an app sends someone to manage or cancel; on an iPhone it opens
+ * the App Store's Subscriptions sheet. No StoreKit call, so no build.
+ */
+export const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+
 export interface SubscriptionNotice {
   /** One line stating the problem. */
   headline: string;
@@ -134,9 +155,32 @@ export interface SubscriptionNotice {
  * that is not there, and they would reasonably conclude the deletion had not
  * worked. `hasLiveEntitlement` is the only thing that should decide this, so it
  * is passed in rather than re-derived here.
+ *
+ * ── ⚠ `certain` (audit 360, COPY-20, 1 Oct) ─────────────────────────────────
+ *
+ * LEGAL-15 made a failed subscription read warn anyway — the right rule: a
+ * warning withheld from a subscriber is a charge they cannot stop. But the one
+ * sentence stated the subscription as the owner's fact ("Your subscription is
+ * billed by Apple … you will keep being charged") to a free user whose read
+ * timed out on a train, while the Account row on the same screen honestly
+ * said nothing. So an unread standing still warns — LEGAL-15 holds — and the
+ * warning is conditional: what Tappet could not check, and what is true *if*
+ * there is one. Both lenses: the warning always shows when the read fails
+ * (legal), and it claims nothing the read did not say (copy, §10).
+ * Defaults to certain only for callers that read the answer themselves.
  */
-export function subscriptionNotice(hasLiveSubscription: boolean): SubscriptionNotice | null {
+export function subscriptionNotice(
+  hasLiveSubscription: boolean,
+  certain: boolean = true
+): SubscriptionNotice | null {
   if (!hasLiveSubscription) return null;
+
+  if (!certain) {
+    return {
+      headline: 'If you subscribe through Apple, deleting your account does not stop the billing.',
+      action: `Tappet could not check this account’s subscription just now. If it has one, only you can stop it — in ${SUBSCRIPTION_CANCEL_PATH}. Cancel it first, or Apple keeps charging after this account is gone.`,
+    };
+  }
 
   return {
     headline: 'Deleting your account does not cancel your subscription.',

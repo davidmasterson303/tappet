@@ -12,6 +12,7 @@ import { formatDate } from '@tappet/core/formatting-utils';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientSupabase } from '@/lib/supabase';
+import { CAR_NOT_FOUND } from '@/lib/api-error-copy';
 import { Button } from '@/components/ui/button';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 
@@ -139,7 +140,7 @@ export default function DocumentsPage({ params }: { params: { vehicleId: string 
         .eq('id', params.vehicleId)
         .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Vehicle not found');
+      if (!data) throw new Error(CAR_NOT_FOUND);
       return data;
     },
   });

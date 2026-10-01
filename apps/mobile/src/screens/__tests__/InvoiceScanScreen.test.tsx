@@ -1,4 +1,5 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import { NavigationContext } from '@react-navigation/native';
 import { Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -13,6 +14,7 @@ import {
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
 import { READOUT } from '../../components/Viewfinder';
+import { declineAiConsent, recordAiConsent } from '../../onboarding/ai-consent';
 
 /**
  * Scanning an invoice.
@@ -73,6 +75,7 @@ let mockConsent: 'granted' | 'declined' | 'unknown' = 'granted';
 jest.mock('../../onboarding/ai-consent', () => ({
   readAiConsent: jest.fn(async () => mockConsent),
   recordAiConsent: jest.fn(async () => {}),
+  declineAiConsent: jest.fn(async () => 'declined'),
 }));
 
 jest.mock('../../api/documents', () => {
@@ -206,7 +209,9 @@ describe('the first frame is the viewfinder — brief B9', () => {
     const { view } = await mount();
 
     await view.findByTestId('camera-view');
-    view.getByText(/A model reads the line items into this car's history/);
+    // Audit 360, COPY-10: "a model" is a car's model on every other line of this app.
+    view.getByText(/Google’s AI reads the line items into this car's history/);
+    expect(view.queryByText(/A model reads/)).toBeNull();
   });
 
   it('says READY only once the camera has, and finds a lens', async () => {
@@ -789,6 +794,84 @@ describe('asking before an invoice goes to Google', () => {
     await view.findByText(/You can still add services by hand/);
     expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
   });
+
+  /*
+    Audit 360, UX-25 (1 Oct). The scan is a route in the Service tab's stack,
+    so it stays mounted under a tab switch. It read the answer once: a yes
+    given on the advisor meanwhile came back to a foot still saying AI is off.
+  */
+  function focusable() {
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      canGoBack: () => true,
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+      setOptions: jest.fn(),
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event] ?? []) callback();
+      });
+    };
+    return { navigation, emit };
+  }
+
+  it('re-reads the answer when the owner comes back: a yes given on the advisor arms the camera (UX-25)', async () => {
+    mockConsent = 'declined';
+    const { navigation, emit } = focusable();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText(/You can still add services by hand/);
+
+    // Away on the Advisor tab, where the owner says yes.
+    await emit('blur');
+    mockConsent = 'granted';
+    await emit('focus');
+
+    await view.findByTestId('camera-view');
+    expect(view.queryByText('Change that')).toBeNull();
+    expect(view.queryByText(/You can still add services by hand/)).toBeNull();
+  });
+
+  it('anti-vacuous: with no answer given elsewhere, the return still reads as declined', async () => {
+    mockConsent = 'declined';
+    const { navigation, emit } = focusable();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText(/You can still add services by hand/);
+    await emit('blur');
+    await emit('focus');
+    await view.findByText('Change that');
+    expect(view.queryByTestId('camera-view')).toBeNull();
+  });
+
+  it('a Not now here reads before it writes (UX-25)', async () => {
+    mockConsent = 'unknown';
+    (declineAiConsent as jest.Mock).mockClear();
+    (recordAiConsent as jest.Mock).mockClear();
+    const user = userEvent.setup();
+    const view = await render(
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+    );
+    await user.press(await view.findByText('Not now'));
+    expect(declineAiConsent).toHaveBeenCalledTimes(1);
+    expect(recordAiConsent).not.toHaveBeenCalledWith('declined');
+  });
 });
 
 /**
@@ -936,6 +1019,8 @@ describe('an invoice of several pages', () => {
     await user.press(await view.findByRole('button', { name: 'Done · 2 pages' }));
 
     await view.findByText('Page 02 did not send');
+    // The request never left the phone: this is the one case that may name the connection.
+    expect(view.getByText(/Check your connection/)).toBeTruthy();
     // Sent once as it was added, once more at DONE — then it stops.
     expect(sendPage.mock.calls.filter(([, f]) => f.name === 'p2.jpg')).toHaveLength(2);
     expect(upload).not.toHaveBeenCalled();
@@ -961,16 +1046,42 @@ describe('an invoice of several pages', () => {
     expect(discard).toHaveBeenCalledWith('v1', [path]);
   });
 
-  it('files a one-page scan the old way when the API has no pages route (§8)', async () => {
+  /*
+    ⚠ Audit 360, TL-15 (1 Oct). A 404 from a page's upload was read as an API
+    that predated pages: a one-page scan filed "the old way", and a
+    multi-page scan said it needed "a newer version of the Tappet API". The
+    pages route is on every host; its only 404 is a car that is no longer
+    this account's.
+  */
+  it('says the car is gone when a page upload answers 404, and files nothing (TL-15)', async () => {
     const user = userEvent.setup();
-    sendPage.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
-    legacyUpload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 2 } as never);
+    sendPage.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Vehicle not found' }));
     const { view } = await mount();
 
     await pickAndFile(view, user);
 
-    await view.findByText('2 line items added to this car\'s history.');
-    expect(legacyUpload).toHaveBeenCalledTimes(1);
+    await view.findByText('That car is no longer here');
+    expect(view.queryByText(/newer version of the Tappet API/)).toBeNull();
+    expect(legacyUpload).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('still calls a page that failed for another reason a failed send (anti-vacuous)', async () => {
+    const user = userEvent.setup();
+    sendPage.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Failed to store the page.' }));
+    const { view } = await mount();
+
+    await pickAndFile(view, user);
+
+    await view.findByText(/did not send/);
+    expect(view.queryByText('That car is no longer here')).toBeNull();
+    /*
+      ⚠ Audit 360, COPY-6 (1 Oct). Our storage answered 500, and the screen
+      told an owner on full Wi-Fi to check their connection. It reached us; it
+      failed here, and the sentence says so — and still says nothing was lost.
+    */
+    expect(view.queryByText(/Check your connection/)).toBeNull();
+    expect(view.getByText(/on our side, not your connection/)).toBeTruthy();
+    expect(view.getByText(/Your pages are still here and nothing has been filed yet/)).toBeTruthy();
   });
 });

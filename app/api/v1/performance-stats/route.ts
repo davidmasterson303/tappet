@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { vehicleId, forceRefresh } = await request.json();
+    const { vehicleId, forceRefresh, aiConsent } = await request.json();
 
     // Authorize before spending anything: this route invokes Gemini, so an
     // unauthenticated caller must not get as far as the model.
@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
       client: access.client,
       userId: access.userId,
       isDemo: access.isDemo,
+      /*
+        LEGAL-11: the browser's answer, sent by the caller. Absent is no —
+        the row's figures are served and nothing goes to Google. Only the
+        website calls this route; no phone build does.
+      */
+      consented: aiConsent === 'granted',
       forceRefresh,
     });
 
@@ -52,9 +58,10 @@ export async function POST(request: NextRequest) {
       success: true,
       cached: result.cached,
       stats: result.stats,
+      ...(result.consentNeeded ? { consentNeeded: true } : {}),
     });
   } catch (error) {
     logger.error('PERF_STATS:EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Tappet could not work out those figures just now. Try again in a moment.' }, { status: 500 });
   }
 }

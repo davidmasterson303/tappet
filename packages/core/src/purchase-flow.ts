@@ -118,7 +118,7 @@ export function resolvePurchase(
       return {
         status: 'declined',
         grantsAccess: false,
-        message: 'You already have a subscription on this Apple ID. Restore it to use it here.',
+        message: 'You already have a subscription on this Apple Account. Restore it to use it here.',
         offerRestore: true,
       };
 
@@ -126,7 +126,7 @@ export function resolvePurchase(
       return {
         status: 'declined',
         grantsAccess: false,
-        message: 'No previous subscription was found on this Apple ID.',
+        message: 'No previous subscription was found on this Apple Account.',
         offerRestore: false,
       };
 

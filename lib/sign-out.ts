@@ -34,6 +34,7 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { clearWebAiConsent } from './ai-consent-web';
 
 /**
  * End the session and drop every cached query.
@@ -52,5 +53,11 @@ export async function signOutAndClearCache(
     // Sign out locally regardless — see above.
   } finally {
     queryClient.clear();
+    /*
+      Audit 360, LEGAL-7 (1 Oct): the AI consent was this person's. It lived
+      under a per-browser key that sign-out never touched, so the next account
+      on this browser sent its records to Google on the last one's yes.
+    */
+    if (typeof window !== 'undefined') clearWebAiConsent();
   }
 }

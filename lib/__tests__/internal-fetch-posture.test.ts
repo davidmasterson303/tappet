@@ -138,11 +138,12 @@ describe('the internal-fetch posture', () => {
     }
   });
 
-  it('keeps the wishlist route calling the recompute in process', () => {
+  it('keeps the wishlist route free of the loopback hop', () => {
     const source = readFileSync(join(ROOT, 'app/api/v1/wishlist/complete/route.ts'), 'utf8');
 
-    expect(source).toContain("from '@/lib/performance-stats'");
-    expect(source).toContain('recomputePerformanceStats');
+    // Since LEGAL-11 (1 Oct) the route does not recompute at all — it cannot
+    // read the owner's AI answer (`performance-stats.test.ts` holds that).
+    expect(source.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/recomputePerformanceStats/);
     // The specific regression: any fetch at all in this route is suspicious,
     // since the only thing it ever called out to was itself.
     expect(source.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/\bfetch\s*\(/);

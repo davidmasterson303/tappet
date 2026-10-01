@@ -90,75 +90,55 @@ beforeEach(() => {
 });
 
 describe('a VIN held by another account', () => {
+  /*
+    ⚠ Audit 360, SEC-1 (1 Oct). Until then this block asserted the refusal
+    "This VIN is already registered to another Tappet account" — at the
+    decode step, before anything was saved. That sentence was a free oracle
+    for whether a car is in Tappet and a dead end for a used car's buyer. A
+    VIN is now unique per owner (`20261001120000`), so the decode answers a
+    stranger's VIN exactly as it answers one nobody has. What the 22 Aug
+    fix established still holds and is still asserted: no "in your garage"
+    claim, no other account's vehicle id, and the only question asked is
+    about the caller's own rows.
+  */
   const strangersCar = { id: 'their-vehicle', vin: VIN, user_id: 'somebody-else' };
 
-  it('does not claim it is in the caller’s garage', async () => {
-    // The sentence asserted ownership the query had never established.
+  it('decodes it, exactly as if nobody had it — the decode is not an oracle', async () => {
     serviceRole.mockReturnValue(clientWithVehicles([strangersCar]).client);
 
     const result = await decodeVIN(VIN);
 
-    expect(result.success).toBe(false);
-    expect(result.error).not.toMatch(/in your garage/i);
-    /*
-      ⚠ Pinned against the refusal this test would otherwise accept. Without a
-      client stub the action throws, the catch returns "check your internet
-      connection", and every assertion above passes while the branch under test
-      never runs. Found by writing it that way first.
-    */
-    expect(result.error).not.toMatch(/internet connection/i);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.vehicle).toMatchObject({ make: 'HONDA', model: 'Accord', year: 2003 });
   });
 
   it('never hands back the other account’s vehicle id', async () => {
-    /*
-      ⚠ The assertion that removes the dead end. `vehicleId` is what the form
-      redirects on, and there is nowhere to send this person — the vehicle is
-      not theirs to open. Returning it produced a two-second wait followed by
-      an unexplained bounce.
-    */
     serviceRole.mockReturnValue(clientWithVehicles([strangersCar]).client);
 
     const result = await decodeVIN(VIN);
 
     expect(result).not.toHaveProperty('vehicleId');
+    expect(JSON.stringify(result)).not.toContain('their-vehicle');
   });
 
-  it('says what happened and what to do about it', async () => {
-    serviceRole.mockReturnValue(clientWithVehicles([strangersCar]).client);
-
-    const result = await decodeVIN(VIN);
-
-    expect(result.error).toMatch(/This VIN is already registered to another Tappet account\./i);
-    // Somebody who has just bought the car needs a path, not a closed door.
-    expect(result.error).toMatch(/@/);
-  });
-
-  it('discloses no identifier for the other account or its vehicle', async () => {
-    /*
-      The message admits a VIN is registered, which is the minimum needed to
-      explain the refusal. It must not name the owner or the row.
-    */
-    serviceRole.mockReturnValue(clientWithVehicles([strangersCar]).client);
-
-    const result = await decodeVIN(VIN);
-
-    expect(result.error).not.toContain('their-vehicle');
-    expect(result.error).not.toContain('somebody-else');
-  });
-
-  it('scopes the ownership question to the caller', async () => {
-    /*
-      The root cause, asserted directly: the first lookup must filter on
-      `user_id`. Without it the query answers "does anyone have this VIN",
-      which is a different question from the one the copy answers.
-    */
+  it('asks only about the caller’s own rows — never "does anybody have this VIN"', async () => {
     const { client, seen } = clientWithVehicles([strangersCar]);
     serviceRole.mockReturnValue(client);
 
     await decodeVIN(VIN);
 
+    // Anti-vacuous: the lookup ran at all.
     expect(seen.length).toBeGreaterThan(0);
-    expect(seen[0]).toContainEqual(['user_id', CALLER]);
+    for (const filters of seen) {
+      expect(filters).toContainEqual(['user_id', CALLER]);
+    }
+  });
+
+  it('can still detect the unscoped lookup that shipped', () => {
+    // The 1 Oct shape: a second query filtered on the VIN alone.
+    const shipped: Filters[] = [[['vin', VIN], ['user_id', CALLER]], [['vin', VIN]]];
+    expect(shipped.every((filters) => filters.some(([column]) => column === 'user_id'))).toBe(false);
   });
 });
 
