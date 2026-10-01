@@ -177,6 +177,12 @@ const PORTABLE: string[] = [
   */
   'lib/sweep-scheduler-verdict.ts',
   /*
+    Audit 360, TL-25 (1 Oct). No imports: classifies an auth answer and holds
+    two sentences. Stays in lib/ because only the web's delete dialog asks
+    it — the phone's half of TL-7 probes `GET /account` instead.
+  */
+  'lib/account-gone.ts',
+  /*
     Added 20 Aug with the demo-banner gate. Pure string parsing, no imports at
     all, so it qualifies mechanically — and this list is the honest home for it.
 
