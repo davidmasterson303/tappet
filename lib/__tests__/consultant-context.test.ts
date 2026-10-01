@@ -212,8 +212,10 @@ describe('sendConsultantMessage derives its context', () => {
   });
 
   it('takes only the caller-owned fields from params', () => {
-    // messageHistory and attachedDocuments stay client-supplied on purpose —
-    // see the notes on the signature. Everything else must not.
+    // attachedDocuments stays client-supplied on purpose — see the notes on
+    // the signature. messageHistory is read as `params.messageHistory` for
+    // the demo only; a stored thread's history is the row's (TL-18,
+    // `consultant-thread.test.ts`). Everything else must not.
     const destructure = /const \{([^}]*)\} = params;/.exec(body());
 
     expect(destructure).not.toBeNull();
@@ -223,7 +225,8 @@ describe('sendConsultantMessage derives its context', () => {
       .filter(Boolean);
 
     expect(names.sort()).toEqual(
-      ['attachedDocuments', 'message', 'messageHistory', 'sessionId', 'vehicleId'].sort()
+      ['attachedDocuments', 'message', 'sessionId', 'vehicleId'].sort()
     );
+    expect(body()).toMatch(/let messageHistory: any\[\] = params\.messageHistory;\s*if \(!isDemoVehicle\)/);
   });
 });

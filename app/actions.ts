@@ -23,6 +23,7 @@ import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONS
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
+import { appendToStoredThread, storedThreadHistory } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
 import {
@@ -1146,6 +1147,10 @@ export async function sendConsultantMessage(params: {
    * a demo session is never persisted, so there is no server-side record to
    * read it from. It is the user's own conversation — the worst a caller can
    * do by editing it is mislead their own advisor.
+   *
+   * ⚠ Read for the demo only (TL-18). A stored thread's history is the row's,
+   * read here and appended to at the write — the web's copy is the browser's
+   * from when the thread opened, and storing it dropped the phone's turns.
    */
   messageHistory: any[];
   /**
@@ -1341,7 +1346,24 @@ export async function sendConsultantMessage(params: {
       }
     }
 
-    const { vehicleId, sessionId, message, messageHistory, attachedDocuments } = params;
+    const { vehicleId, sessionId, message, attachedDocuments } = params;
+
+    /*
+      ⚠ Audit 360, TL-18 (round 3) · a stored thread's history is the row's,
+      not the caller's copy. The web passed the browser's copy, loaded when
+      the thread was opened, and the write below stored that copy plus the
+      new pair — so turns the phone had added to the same thread were
+      dropped. The demo keeps the caller's copy: nothing is stored for it.
+      `lib/consultant-thread.ts`.
+    */
+    let messageHistory: any[] = params.messageHistory;
+    if (!isDemoVehicle) {
+      const stored = await storedThreadHistory(getServiceRoleClient(), sessionId, vehicleId);
+      if (!stored) {
+        return { success: false, error: 'That conversation is no longer here. Start a new one.' };
+      }
+      messageHistory = stored;
+    }
 
     /*
       Context is derived from vehicleId, never taken from the caller.
@@ -1749,19 +1771,19 @@ export async function sendConsultantMessage(params: {
         ...(attachedDocuments && attachedDocuments.length > 0 && { documents: attachedDocuments }),
       };
 
-      const updatedHistory = [
-        ...messageHistory,
-        userMessage,
-        { role: 'assistant', content: response, timestamp: new Date().toISOString(), wishlistActions: wishlistActions.length > 0 ? wishlistActions : undefined, ...(estimate ? { estimate } : {}) },
-      ];
-
-      await client
-        .from('consultant_conversations')
-        .update({
-          message_history: updatedHistory,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', sessionId);
+      // TL-18: appended to the thread as stored now, re-read after the model
+      // answered, so a turn another device added meanwhile is kept.
+      const stored = await appendToStoredThread(client, {
+        sessionId,
+        vehicleId,
+        turns: [
+          userMessage,
+          { role: 'assistant', content: response, timestamp: new Date().toISOString(), wishlistActions: wishlistActions.length > 0 ? wishlistActions : undefined, ...(estimate ? { estimate } : {}) },
+        ],
+      });
+      if (!stored) {
+        logger.warn('CONSULTANT', 'The answer could not be stored in its thread', { vehicleId });
+      }
     }
 
     /*
