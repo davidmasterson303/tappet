@@ -55,7 +55,8 @@
 > 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
 >    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
 >    upload body limit.
-> 6. Build 3 → TestFlight → the phone walks: Restore says "active"; primer → iOS
+> 6. ✅ Build 3 built 1 Oct (EAS `af2409ee`, 1.0.0 (3), from `6adb187`) and uploaded to App Store
+>    Connect (submission `aa0fec5b`). Next → TestFlight → the phone walks: Restore says "active"; primer → iOS
 >    alert → consent sheet one at a time; Alerts row → Settings and back; DELETE
 >    field above the keyboard; 3- and 6-page scan timing.
 > 7. Then roadmap steps 4–9 (screenshots, submit).
