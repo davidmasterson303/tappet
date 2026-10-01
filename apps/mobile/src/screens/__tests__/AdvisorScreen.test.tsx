@@ -600,6 +600,21 @@ describe('asking before a question goes to Google', () => {
     view.getByText('Change that');
   });
 
+  it('draws the way back as a button VoiceOver can reach, and it opens the sheet (UX-26)', async () => {
+    /*
+      A nested Text span with onPress and no role is not its own
+      accessibility element on iOS — the one way back to the AI on this
+      screen was unreachable. The role is the assertion; the press is the
+      anti-vacuous half (a role on something inert would pass for nothing).
+    */
+    mockConsent = 'declined';
+    const user = userEvent.setup();
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    const control = await view.findByRole('button', { name: 'Change that' });
+    await user.press(control);
+    await view.findByText('The advisor is Google’s AI');
+  });
+
   it('sends nothing after a decline — ASK opens the sheet again (audit 360, UX-9)', async () => {
     /*
       The composer's send tested `consent === 'unknown'` and let every other

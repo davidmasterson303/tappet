@@ -4251,3 +4251,17 @@ No new token, type style or treatment.
 **What Design needs to decide:** nothing that blocks; whether the phone's
 asks (primer, score's sheet) want a visible beat between them is now a
 timing the code owns (`useAskTurns`, onDismiss then the next).
+
+## The advisor's way back is a button (audit 360, UX-26, final sweep, 1 Oct, for Design)
+
+No new token, type style or treatment.
+
+- **Phone · Advisor, declined** (UX-26). *Change that* was an underlined
+  accent span inside the decline note — a nested `Text` that VoiceOver could
+  not reach. It is now the small outline `Button` the scan screen already
+  draws for the same act, on its own line under the note, at the note's
+  inset (`space.lg`). The note keeps `text.muted`.
+
+**What Design needs to decide:** nothing that blocks; whether both screens'
+*Change that* want the inline-link treatment back would need a role-bearing
+link component, which the system does not have.

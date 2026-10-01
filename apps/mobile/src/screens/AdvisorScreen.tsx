@@ -846,12 +846,24 @@ export function AdvisorScreen({
             </CutSurface>
 
             {aiAnswer === 'declined' ? (
-              <Text style={styles.declineNote}>
-                {ADVISOR_AI_CONSENT.declineNote}{' '}
-                <Text style={styles.declineAction} onPress={() => setConsentOpen(true)}>
-                  Change that
-                </Text>
-              </Text>
+              /*
+                ⚠ Audit 360, UX-26 (1 Oct). *Change that* was a nested `Text`
+                span with an `onPress` and no role: on iOS a nested span is not
+                its own accessibility element, so VoiceOver read one static
+                sentence and the screen's only way back to the AI was not
+                reachable. A real control now, and the same one the scan
+                screen draws for the same act (L10).
+              */
+              <View>
+                <Text style={styles.declineNote}>{ADVISOR_AI_CONSENT.declineNote}</Text>
+                <Button
+                  label="Change that"
+                  variant="outline"
+                  size="small"
+                  onPress={() => setConsentOpen(true)}
+                  style={styles.declineAction}
+                />
+              </View>
             ) : null}
 
             {overLength ? (
@@ -1163,8 +1175,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: space.sm,
   },
-  /* The way back. Underlined, because a coloured word is not a control. */
-  declineAction: { color: brand.accent, textDecorationLine: 'underline' },
+  /* The way back — a control, under the note's own inset (UX-26). */
+  declineAction: { alignSelf: 'flex-start', marginLeft: space.lg, marginBottom: space.sm },
 
   /* ── R52 · the context row ────────────────────────────────────────────── */
   context: {

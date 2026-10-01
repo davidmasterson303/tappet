@@ -1,4 +1,5 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import { NavigationContext } from '@react-navigation/native';
 import { Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -13,6 +14,7 @@ import {
 import { ApiRequestError } from '../../api/client';
 import { onUpgradeRequested } from '../../purchases/upgrade-prompt';
 import { READOUT } from '../../components/Viewfinder';
+import { declineAiConsent, recordAiConsent } from '../../onboarding/ai-consent';
 
 /**
  * Scanning an invoice.
@@ -73,6 +75,7 @@ let mockConsent: 'granted' | 'declined' | 'unknown' = 'granted';
 jest.mock('../../onboarding/ai-consent', () => ({
   readAiConsent: jest.fn(async () => mockConsent),
   recordAiConsent: jest.fn(async () => {}),
+  declineAiConsent: jest.fn(async () => 'declined'),
 }));
 
 jest.mock('../../api/documents', () => {
@@ -790,6 +793,84 @@ describe('asking before an invoice goes to Google', () => {
 
     await view.findByText(/You can still add services by hand/);
     expect(view.queryByRole('button', { name: 'Capture' })).toBeNull();
+  });
+
+  /*
+    Audit 360, UX-25 (1 Oct). The scan is a route in the Service tab's stack,
+    so it stays mounted under a tab switch. It read the answer once: a yes
+    given on the advisor meanwhile came back to a foot still saying AI is off.
+  */
+  function focusable() {
+    const listeners: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      canGoBack: () => true,
+      goBack: jest.fn(),
+      navigate: jest.fn(),
+      setOptions: jest.fn(),
+      addListener: (event: string, callback: () => void) => {
+        (listeners[event] ??= []).push(callback);
+        return () => {
+          listeners[event] = listeners[event].filter((c) => c !== callback);
+        };
+      },
+    };
+    const emit = async (event: 'focus' | 'blur') => {
+      focused = event === 'focus';
+      await act(async () => {
+        for (const callback of listeners[event] ?? []) callback();
+      });
+    };
+    return { navigation, emit };
+  }
+
+  it('re-reads the answer when the owner comes back: a yes given on the advisor arms the camera (UX-25)', async () => {
+    mockConsent = 'declined';
+    const { navigation, emit } = focusable();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText(/You can still add services by hand/);
+
+    // Away on the Advisor tab, where the owner says yes.
+    await emit('blur');
+    mockConsent = 'granted';
+    await emit('focus');
+
+    await view.findByTestId('camera-view');
+    expect(view.queryByText('Change that')).toBeNull();
+    expect(view.queryByText(/You can still add services by hand/)).toBeNull();
+  });
+
+  it('anti-vacuous: with no answer given elsewhere, the return still reads as declined', async () => {
+    mockConsent = 'declined';
+    const { navigation, emit } = focusable();
+    const view = await render(
+      <NavigationContext.Provider value={navigation as never}>
+        <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+      </NavigationContext.Provider>
+    );
+    await view.findByText(/You can still add services by hand/);
+    await emit('blur');
+    await emit('focus');
+    await view.findByText('Change that');
+    expect(view.queryByTestId('camera-view')).toBeNull();
+  });
+
+  it('a Not now here reads before it writes (UX-25)', async () => {
+    mockConsent = 'unknown';
+    (declineAiConsent as jest.Mock).mockClear();
+    (recordAiConsent as jest.Mock).mockClear();
+    const user = userEvent.setup();
+    const view = await render(
+      <InvoiceScanScreen vehicleId="v1" pickImages={jest.fn(async () => [])} onSignOut={jest.fn()} />
+    );
+    await user.press(await view.findByText('Not now'));
+    expect(declineAiConsent).toHaveBeenCalledTimes(1);
+    expect(recordAiConsent).not.toHaveBeenCalledWith('declined');
   });
 });
 

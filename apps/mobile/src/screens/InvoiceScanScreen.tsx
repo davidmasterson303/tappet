@@ -26,7 +26,9 @@ import { requestUpgrade } from '../purchases/upgrade-prompt';
 import { PAGE_BODY, space, text, type } from '../theme';
 import AiConsentSheet from '../components/AiConsentSheet';
 import { INVOICE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
-import { readAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { declineAiConsent, recordAiConsent, type AiConsent } from '../onboarding/ai-consent';
+import { useAiConsent } from '../onboarding/useAiConsent';
+import { useScreenFocused } from '../navigation/useScreenFocused';
 import { interFace } from '../theme/fonts';
 
 /**
@@ -275,24 +277,27 @@ export function InvoiceScanScreen({
     deep-link path consumed the one-shot ref before consent had resolved,
     leaving the question unasked forever.
   */
-  const [consent, setConsent] = useState<AiConsent | null>(null);
+  /*
+    ⚠ Audit 360, UX-25 (1 Oct) — **re-read on every return**, as the car's
+    page and the advisor do (UX-23). This screen is a route in the Service
+    tab's stack, so it stays mounted under a tab switch; it read the answer
+    once, and a yes given on the advisor meanwhile came back to a foot still
+    saying AI is off — whose *Change that* asked again, and whose *Not now*
+    wrote `declined` over the yes. `useAiConsent` reads on mount and on each
+    focus. Every gate (the sheet, the viewfinder, the library) reads
+    `consent`, which is `null` until a read taken since the screen came back
+    has landed; what the screen *draws* reads `aiAnswer`, so the foot does
+    not blink on return.
+  */
+  const screenFocused = useScreenFocused();
+  const { answer: aiAnswer, fresh: aiAnswerFresh, set: setConsent } = useAiConsent(screenFocused);
+  const consent: AiConsent | null = aiAnswerFresh ? aiAnswer : null;
   /*
     "Change that" from the declined state re-opens the sheet without
     forgetting the answer it is revisiting — declining twice must still read
     as declined, not as unknown.
   */
   const [reasking, setReasking] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    void readAiConsent().then((answer) => {
-      if (live) setConsent(answer);
-    });
-
-    return () => {
-      live = false;
-    };
-  }, []);
   /*
     ── The pages (27 Sep) ─────────────────────────────────────────────────────
 
@@ -693,7 +698,7 @@ export function InvoiceScanScreen({
     the history and the recall list are all useful without a model.
   */
   const idleFoot =
-    consent === 'declined' ? (
+    aiAnswer === 'declined' ? (
       <View style={styles.block}>
         <Text style={styles.body_}>{INVOICE_AI_CONSENT.declineNote}</Text>
         <Button
@@ -783,7 +788,8 @@ export function InvoiceScanScreen({
       onDecline={() => {
         setReasking(false);
         setConsent('declined');
-        void recordAiConsent('declined');
+        // UX-25: read before write — a yes given on another screen since this one's read stands.
+        void declineAiConsent();
       }}
     />
 
@@ -881,7 +887,7 @@ export function InvoiceScanScreen({
           />
           )
         }
-        foot={count > 0 && consent === 'granted' ? scanFoot : idleFoot}
+        foot={count > 0 && aiAnswer === 'granted' ? scanFoot : idleFoot}
       />
     ) : (
     <ScrollView
