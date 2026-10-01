@@ -23,7 +23,7 @@ import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONS
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
-import { appendToStoredThread, storedThreadHistory } from '@/lib/consultant-thread';
+import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 import { NO_HISTORY_RECOMMENDATION, shapeRecommendations } from '@tappet/core/health-recommendations';
 import { healthClaim, recallEvidenceForPrompt } from '@tappet/core/health-claims';
 import {
@@ -1358,7 +1358,19 @@ export async function sendConsultantMessage(params: {
     */
     let messageHistory: any[] = params.messageHistory;
     if (!isDemoVehicle) {
-      const stored = await storedThreadHistory(getServiceRoleClient(), sessionId, vehicleId);
+      let stored: unknown[] | null;
+      try {
+        stored = await storedThreadHistory(getServiceRoleClient(), sessionId, vehicleId);
+      } catch (error) {
+        if (!(error instanceof ThreadReadError)) throw error;
+        /*
+          TL-22: a read that failed is not a thread that is gone. No code, so
+          the route answers 502 and both clients say "try again" — which a
+          dropped connection deserves, and "start a new one" would fork.
+        */
+        logger.warn('CONSULTANT', 'Could not read the thread before answering', { vehicleId, code: error.code });
+        return { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' };
+      }
       if (!stored) {
         return { success: false, error: 'That conversation is no longer here. Start a new one.' };
       }

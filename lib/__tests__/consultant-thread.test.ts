@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { appendToStoredThread, storedThreadHistory } from '@/lib/consultant-thread';
+import { appendToStoredThread, storedThreadHistory, ThreadReadError } from '@/lib/consultant-thread';
 
 type Row = { id: string; vehicle_id: string; message_history: unknown[]; updated_at?: string };
 
@@ -80,6 +80,43 @@ describe('appendToStoredThread (TL-18)', () => {
   });
 });
 
+describe('a read that failed is not a thread that is gone (TL-22)', () => {
+  /** The same table, except every read answers a PostgREST error. */
+  function failing(rows: Row[]) {
+    const ok = table(rows) as unknown as { from: (n: string) => Record<string, unknown> };
+    return {
+      from: (name: string) => {
+        const chain = ok.from(name);
+        return {
+          ...chain,
+          select: () => ({
+            eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: '08006', message: 'connection reset' } }) }) }),
+          }),
+        };
+      },
+    } as never;
+  }
+
+  const rows = (): Row[] => [{ id: 't1', vehicle_id: 'car-1', message_history: [turn('user', 'q1')] }];
+
+  it('throws ThreadReadError rather than answering null', async () => {
+    await expect(storedThreadHistory(failing(rows()), 't1', 'car-1')).rejects.toBeInstanceOf(ThreadReadError);
+  });
+
+  it('still answers null for a thread that is genuinely absent', async () => {
+    // Anti-vacuous: the healthy table's miss is null, not a throw.
+    await expect(storedThreadHistory(table(rows()), 'gone', 'car-1')).resolves.toBeNull();
+  });
+
+  it('appends nothing when the read at the write fails, and says so', async () => {
+    const r = rows();
+    await expect(
+      appendToStoredThread(failing(r), { sessionId: 't1', vehicleId: 'car-1', turns: [turn('user', 'x')] })
+    ).resolves.toBe(false);
+    expect(r[0].message_history).toHaveLength(1);
+  });
+});
+
 describe('sendConsultantMessage reads and appends to the stored thread', () => {
   const ROOT = join(__dirname, '..', '..');
   const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -102,6 +139,21 @@ describe('sendConsultantMessage reads and appends to the stored thread', () => {
     expect(body).toMatch(/storedThreadHistory\(getServiceRoleClient\(\), sessionId, vehicleId\)/);
     expect(body).toMatch(/appendToStoredThread\(client, \{/);
     expect(writesCallersCopy(body)).toBe(false);
+  });
+
+  it('answers a failed read with the retry sentence, keeping "no longer here" for an absent row (TL-22)', () => {
+    const body = action(readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8'));
+    const read = body.indexOf('storedThreadHistory(getServiceRoleClient()');
+    const gone = body.indexOf('That conversation is no longer here');
+    expect(read).toBeGreaterThan(0);
+    expect(gone).toBeGreaterThan(read);
+    const between = body.slice(read, gone);
+    expect(between).toMatch(/catch \(error\)/);
+    expect(between).toMatch(/error instanceof ThreadReadError/);
+    expect(between).toMatch(/Your question is still here — try again\./);
+    // Anti-vacuous: the shape that shipped had nothing between the read and the sentence.
+    const shipped = "const stored = await storedThreadHistory(getServiceRoleClient(), sessionId, vehicleId);\n if (!stored) { return { success: false, error: 'That conversation is no longer here. Start a new one.' }; }";
+    expect(/instanceof ThreadReadError/.test(shipped)).toBe(false);
   });
 
   it('can still detect the shape that shipped', () => {

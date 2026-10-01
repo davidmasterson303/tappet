@@ -29,7 +29,25 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 type Client = Pick<SupabaseClient, 'from'>;
 
-/** The thread's stored turns, or `null` when the id is not a thread of this car. */
+/**
+ * A read of the thread that failed — not a thread that is gone.
+ *
+ * Audit 360, TL-22. Both used to be `null`, and the action answered a dropped
+ * connection with "That conversation is no longer here. Start a new one." —
+ * so the owner forked a thread that a retry would have reached. A failed read
+ * throws this; only a row that is genuinely absent is `null`.
+ */
+export class ThreadReadError extends Error {
+  constructor(readonly code: string | null, message: string) {
+    super(`consultant thread read failed: ${message}`);
+    this.name = 'ThreadReadError';
+  }
+}
+
+/**
+ * The thread's stored turns, or `null` when the id is not a thread of this car.
+ * Throws `ThreadReadError` when the read itself failed.
+ */
 export async function storedThreadHistory(
   client: Client,
   sessionId: string,
@@ -41,7 +59,8 @@ export async function storedThreadHistory(
     .eq('id', sessionId)
     .eq('vehicle_id', vehicleId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw new ThreadReadError(error.code ?? null, error.message);
+  if (!data) return null;
   const history = (data as { message_history?: unknown }).message_history;
   return Array.isArray(history) ? history : [];
 }
@@ -54,7 +73,12 @@ export async function appendToStoredThread(
   client: Client,
   { sessionId, vehicleId, turns }: { sessionId: string; vehicleId: string; turns: unknown[] }
 ): Promise<boolean> {
-  const stored = await storedThreadHistory(client, sessionId, vehicleId);
+  let stored: unknown[] | null;
+  try {
+    stored = await storedThreadHistory(client, sessionId, vehicleId);
+  } catch {
+    return false;
+  }
   if (!stored) return false;
 
   const { error } = await client
