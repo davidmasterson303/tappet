@@ -19,7 +19,7 @@ import { ADVISOR_UNAVAILABLE_MESSAGE } from '@tappet/core/ai/advisor-failure';
 import { checkFeatureAccess, featureRefusal, type FeatureRefusal } from '@/lib/feature-gate';
 import { checkStoredPhotoSize } from '@tappet/core/image-resize';
 import { budgetMessage, demoBudgetMessage } from '@tappet/core/ai/budget';
-import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT } from '@tappet/core/prompts';
+import { ADVISOR_NAME, POWERTRAIN_OPTIONS_PROMPT, CONSULTANT_SYSTEM_PROMPT, CONSULTANT_DOCUMENT_VALIDATION_PROMPT, STOP_DRIVING_RULE } from '@tappet/core/prompts';
 import { researchVehicleDossier } from '@/lib/vehicle-research';
 import { showsModifications } from '@tappet/core/mod-progression';
 import { logger } from '@tappet/core/logger';
@@ -2439,6 +2439,9 @@ all is a fact about our lookup, not about the car, and we write that sentence
 ourselves — see \`recall_status\` below. A model-authored "no recalls to date"
 would be rendered verbatim beside a vehicle NHTSA was never asked about.
 - recommendations (array of 2-3 actions, each a direct imperative)
+
+${STOP_DRIVING_RULE}
+Here that means: when this car's own records (not the known issues for the model) show such a problem that is not recorded as repaired, it is the first red flag and the first recommendation, written as an imperative to have it inspected before the car is driven again. No summary, red flag or recommendation may say or imply that the car is safe to drive.
 
 Ground every recommendation in the records listed above or in the known issues for this model. Do not recommend anything that presumes a fault nobody has documented. Write each recommendation as a direct imperative. Do not begin recommendations with a shared preamble, and do not restate the basis of the assessment in each one — it is stated once in the summary. Leave fields empty/null if no data is available. Do not make assumptions about hidden problems.
 ${
