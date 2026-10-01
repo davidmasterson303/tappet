@@ -961,16 +961,34 @@ describe('an invoice of several pages', () => {
     expect(discard).toHaveBeenCalledWith('v1', [path]);
   });
 
-  it('files a one-page scan the old way when the API has no pages route (§8)', async () => {
+  /*
+    ⚠ Audit 360, TL-15 (1 Oct). A 404 from a page's upload was read as an API
+    that predated pages: a one-page scan filed "the old way", and a
+    multi-page scan said it needed "a newer version of the Tappet API". The
+    pages route is on every host; its only 404 is a car that is no longer
+    this account's.
+  */
+  it('says the car is gone when a page upload answers 404, and files nothing (TL-15)', async () => {
     const user = userEvent.setup();
-    sendPage.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Not found' }));
-    legacyUpload.mockResolvedValue({ status: 'uploaded', documentId: 'd1', itemsExtracted: 2 } as never);
+    sendPage.mockRejectedValue(new ApiRequestError({ status: 404, message: 'Vehicle not found' }));
     const { view } = await mount();
 
     await pickAndFile(view, user);
 
-    await view.findByText('2 line items added to this car\'s history.');
-    expect(legacyUpload).toHaveBeenCalledTimes(1);
+    await view.findByText('That car is no longer here');
+    expect(view.queryByText(/newer version of the Tappet API/)).toBeNull();
+    expect(legacyUpload).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('still calls a page that failed for another reason a failed send (anti-vacuous)', async () => {
+    const user = userEvent.setup();
+    sendPage.mockRejectedValue(new ApiRequestError({ status: 500, message: 'Failed to store the page.' }));
+    const { view } = await mount();
+
+    await pickAndFile(view, user);
+
+    await view.findByText(/did not send/);
+    expect(view.queryByText('That car is no longer here')).toBeNull();
   });
 });

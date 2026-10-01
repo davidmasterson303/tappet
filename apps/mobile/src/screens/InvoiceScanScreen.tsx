@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/Text';
 
 import {
-  uploadInvoice,
   uploadInvoicePage,
   fileInvoicePages,
   discardInvoicePages,
@@ -159,10 +158,17 @@ interface Page {
   /** The stored page, once its upload has answered. */
   path?: string;
   /**
-   * The API this phone talks to has no `/invoice-pages` (a 404 — §8's "new
-   * route, unpromoted host"). A one-page scan then files the old way.
+   * The page's upload answered 404: the car is not this account's any more
+   * (removed elsewhere, or a link to a removed car). `/invoice-pages`
+   * authorizes with `authorizeVehicleAccess`, whose only 404 is the car.
+   *
+   * ⚠ Audit 360, TL-15 (1 Oct). This was `legacy` — a 404 read as an API
+   * that predated pages, so a multi-page scan of a removed car said "needs a
+   * newer version of the Tappet API… remove all but one page". The route is
+   * deployed on every host the app talks to, as `document-url` was when
+   * TL-9 dropped its twin of this branch.
    */
-  legacy?: boolean;
+  carGone?: boolean;
 }
 
 const two = (n: number) => String(n).padStart(2, '0');
@@ -297,7 +303,7 @@ export function InvoiceScanScreen({
     (key: string) => {
       const page = pagesRef.current.find((p) => p.key === key);
       if (!page) return Promise.resolve();
-      setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sending', legacy: false } : p)));
+      setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sending', carGone: false } : p)));
 
       const upload = uploadInvoicePage(vehicleId, page.file).then(
         (path) => {
@@ -309,10 +315,8 @@ export function InvoiceScanScreen({
           setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'sent', path } : p)));
         },
         (caught) => {
-          const legacy = caught instanceof ApiRequestError && caught.status === 404;
-          setPages((all) =>
-            all.map((p) => (p.key === key ? { ...p, state: legacy ? 'sent' : 'failed', legacy } : p))
-          );
+          const carGone = caught instanceof ApiRequestError && caught.status === 404;
+          setPages((all) => all.map((p) => (p.key === key ? { ...p, state: 'failed', carGone } : p)));
         }
       );
       uploads.current.set(key, upload);
@@ -489,7 +493,7 @@ export function InvoiceScanScreen({
 
       try {
         await Promise.all([...uploads.current.values()]);
-        const unsent = pagesRef.current.filter((p) => p.state === 'failed' || (!p.path && !p.legacy));
+        const unsent = pagesRef.current.filter((p) => p.state === 'failed' || !p.path);
         await Promise.all(unsent.map((p) => sendPage(p.key)));
 
         const current = pagesRef.current;
@@ -498,22 +502,11 @@ export function InvoiceScanScreen({
           return;
         }
 
-        if (current.some((p) => p.legacy)) {
-          /*
-            The API this phone is talking to predates pages. One page files
-            the way it always did; more cannot be filed as one invoice there,
-            and saying so beats filing them as several.
-          */
-          if (current.length === 1) {
-            if (!confirmVehicle) setState({ status: 'working', phase: 'reading', source: source.current });
-            settle(await uploadInvoice({ vehicleId, file: current[0].file, confirmVehicle }));
-            return;
-          }
+        if (current.some((p) => p.carGone)) {
           setState({
             status: 'error',
-            heading: 'That did not upload',
-            message:
-              'Filing more than one page needs a newer version of the Tappet API than this app is talking to. Remove all but one page, or try again later.',
+            heading: 'That car is no longer here',
+            message: 'It was removed from your garage, so there is nothing to file these pages against. Nothing has been filed.',
             retryable: false,
           });
           return;
