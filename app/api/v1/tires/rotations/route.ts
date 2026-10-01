@@ -5,6 +5,7 @@ import { rotationPayloadProblems, type TireRotationRow } from '@tappet/core/tire
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { tireTablesMissing } from '@/lib/tires-store';
+import { COULD_NOT_SAVE } from '@/lib/api-error-copy';
 
 /**
  * A rotation, logged against a set — and taken back.
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ rotation: rotation as TireRotationRow }, { status: 201 });
   } catch (error) {
     logger.error('TIRE_ROTATIONS_API:POST_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: COULD_NOT_SAVE }, { status: 500 });
   }
 }
 
@@ -162,6 +163,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('TIRE_ROTATIONS_API:DELETE_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Tappet could not remove that rotation just now. Try again in a moment.' }, { status: 500 });
   }
 }

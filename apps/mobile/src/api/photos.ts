@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type { InvoiceFile } from './documents';
 import { ALLOWED_IMAGE_TYPES } from '@tappet/core/validation';
+import { customerSentence } from '@tappet/core/customer-copy';
 import { MAX_STORED_PHOTO_BYTES } from '@tappet/core/image-resize';
 
 /**
@@ -92,7 +93,7 @@ export async function uploadVehiclePhoto(
   */
   if (body.success === false) {
     throw new VehiclePhotoError(
-      typeof body.error === 'string' ? body.error : 'That photo could not be saved.',
+      customerSentence(body.error, 'That photo could not be saved.'),
     );
   }
 
@@ -131,12 +132,13 @@ export async function removeVehiclePhoto(vehicleId: string): Promise<void> {
   /*
     The same belt to the same braces as the upload: the route answers a real
     status for every failure it owns, and this is for the 200-shaped one. The
-    server's sentence is preferred — "Failed to remove photo" is a storage
-    failure the owner can retry, which is more than a generic line says.
+    server's sentence is preferred — "Tappet could not remove that photo just
+    now" is a storage failure the owner can retry, which is more than a generic
+    line says. Developer-speak is not (audit 360, COPY-5).
   */
   if (body.success === false) {
     throw new VehiclePhotoError(
-      typeof body.error === 'string' ? body.error : 'That photo could not be removed.',
+      customerSentence(body.error, 'That photo could not be removed.'),
     );
   }
 }

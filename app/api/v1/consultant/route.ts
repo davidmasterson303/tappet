@@ -12,6 +12,7 @@ import {
   generateSessionTitle,
 } from '@/app/actions';
 import { parseClientTurnId, replayedAnswer } from '@/lib/consultant-replay';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     body = (await request.json()) as ConsultantRequestBody;
   } catch {
     return Response.json(
-      { success: false, error: 'Invalid JSON body' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
@@ -129,14 +130,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   if (!vehicleId) {
     return Response.json(
-      { success: false, error: 'Missing vehicleId' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
 
   if (!message) {
     return Response.json(
-      { success: false, error: 'Missing message' } as ApiResponse,
+      { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
       { status: 400 }
     );
   }
@@ -336,7 +337,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:CONSULTANT', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to answer' } as ApiResponse,
+      { success: false, error: 'The advisor could not answer that one. Your question is still here — try again.' } as ApiResponse,
       { status: 500 }
     );
   }
@@ -408,7 +409,7 @@ async function resolveThread({
   const created = await createConsultantSession(vehicleId, await generateSessionTitle(message));
 
   if (!created.success || !created.sessionId) {
-    return { ok: false, error: 'Failed to start a conversation', status: 500 };
+    return { ok: false, error: 'The advisor could not start that conversation. Your question is still here — try again.', status: 500 };
   }
 
   return { ok: true, sessionId: created.sessionId, messageHistory: [] };

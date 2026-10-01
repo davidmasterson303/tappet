@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleScopedRow, type VehicleScopedTable } from '@/lib/api-auth';
 import { removeDocumentFile } from '@/lib/document-file';
 import { getServiceRoleClient } from '@/lib/supabase';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 /**
  * Client-supplied item types map to a fixed set of tables. The map is the
@@ -37,16 +38,16 @@ export async function POST(request: NextRequest): Promise<Response> {
         itemType: !!itemType,
       });
       return NextResponse.json(
-        { success: false, error: 'Missing itemId or itemType' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
 
     const tableName = TABLE_BY_ITEM_TYPE[itemType];
     if (!tableName) {
-      logger.warn('API:DELETE_ITEM', 'Invalid item type', { itemType });
+      logger.warn('API:DELETE_ITEM', UNREADABLE_REQUEST, { itemType });
       return NextResponse.json(
-        { success: false, error: 'Invalid item type' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         code: error.code,
       });
       return NextResponse.json(
-        { success: false, error: 'Failed to delete item' } as ApiResponse,
+        { success: false, error: 'Tappet could not remove that just now. Try again in a moment.' } as ApiResponse,
         { status: 500 }
       );
     }

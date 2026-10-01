@@ -307,7 +307,7 @@ export async function clearVehiclePhoto(
     .maybeSingle();
   if (vehicleError) {
     logger.error('PHOTO:REMOVE_FETCH', new Error(vehicleError.message), { vehicleId });
-    return { success: false, error: 'Failed to fetch vehicle' };
+    return { success: false, error: 'Tappet could not find that car just now. Try again in a moment.' };
   }
   const path = (vehicle as { custom_image_storage_path?: string | null } | null)?.custom_image_storage_path;
   if (path) {
@@ -322,7 +322,7 @@ export async function clearVehiclePhoto(
     .eq('id', vehicleId);
   if (updateError) {
     logger.error('PHOTO:REMOVE_UPDATE', new Error(updateError.message), { vehicleId });
-    return { success: false, error: 'Failed to remove photo' };
+    return { success: false, error: 'Tappet could not remove that photo just now. Try again in a moment.' };
   }
   return { success: true };
 }

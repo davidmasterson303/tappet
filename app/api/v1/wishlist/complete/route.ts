@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       logger.error('WISHLIST_COMPLETE:MAINTENANCE_INSERT', insertError as Error, { itemId });
       return NextResponse.json(
-        { error: 'Failed to create maintenance record' },
+        { error: 'Tappet could not record that service just now. It is still on your Needs list — try again in a moment.' },
         { status: 500 }
       );
     }
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error('WISHLIST_COMPLETE:EXCEPTION', error as Error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Tappet could not mark that done just now. Try again in a moment.' },
       { status: 500 }
     );
   }

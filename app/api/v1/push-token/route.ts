@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { requireCaller } from '@/lib/api-auth';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { isExpoPushToken } from '@tappet/core/push-tokens';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = (await request.json()) as RegisterBody;
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   if (!deviceId) {
-    return Response.json({ success: false, error: 'Missing deviceId' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
@@ -169,7 +170,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
 
   const deviceId = request.nextUrl.searchParams.get('deviceId');
   if (!deviceId) {
-    return Response.json({ success: false, error: 'Missing deviceId' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }

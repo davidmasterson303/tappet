@@ -5,6 +5,7 @@ import { normaliseRecalls, recallRecordDescription } from '@tappet/core/recalls'
 import { authorizeVehicleAccess } from '@/lib/api-auth';
 import { getServiceRoleClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
+import { couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,7 +184,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   if (error) {
     logger.error('RECALLS_API:GET', new Error(error.message), { vehicleId });
-    return NextResponse.json({ error: 'Failed to read recall history' }, { status: 500 });
+    return NextResponse.json({ error: couldNotLoad("this car’s recalls") }, { status: 500 });
   }
 
   return NextResponse.json({ addressed: rows(data) });

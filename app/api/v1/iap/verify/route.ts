@@ -10,6 +10,7 @@ import {
   applyVerifiedAppleEvent,
   findUserByOriginalTransactionId,
 } from '@/lib/entitlement-store';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON' } as ApiResponse<never>, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse<never>, {
       status: 400,
     });
   }

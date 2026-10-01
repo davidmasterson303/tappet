@@ -6,6 +6,7 @@ import { MAX_FILE_SIZE, ALLOWED_DOCUMENT_TYPES } from '@tappet/core/validation';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const vehicleId = typeof json?.vehicleId === 'string' ? json.vehicleId : '';
       if (!vehicleId || !Array.isArray(json?.pagePaths)) {
         return NextResponse.json(
-          { success: false, error: 'Missing pagePaths or vehicleId' } as ApiResponse,
+          { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
           { status: 400 }
         );
       }
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         hasVehicleId: !!vehicleId
       });
       return NextResponse.json(
-        { success: false, error: 'Missing file or vehicleId' } as ApiResponse,
+        { success: false, error: UNREADABLE_REQUEST } as ApiResponse,
         { status: 400 }
       );
     }
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         allowedTypes: ALLOWED_DOCUMENT_TYPES
       });
       return NextResponse.json(
-        { success: false, error: 'Invalid file type' } as ApiResponse,
+        { success: false, error: 'That file type cannot be read. Choose a photo or a PDF.' } as ApiResponse,
         { status: 400 }
       );
     }
@@ -194,7 +195,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:UPLOAD_INVOICE', error as Error);
     return NextResponse.json(
-      { success: false, error: (error as Error).message || 'Upload failed' } as ApiResponse,
+      { success: false, error: 'Tappet could not store that invoice just now. Try again in a moment.' } as ApiResponse,
       { status: 500 }
     );
   }
@@ -239,16 +240,16 @@ function respond(result: InvoiceFilingResult, vehicleId: string): Response {
       );
     }
 
-    let errorMessage = result.error || 'Upload failed';
+    let errorMessage = result.error || 'Tappet could not store that invoice just now. Try again in a moment.';
     let statusCode = 500;
 
     if (errorMessage.includes('Bucket not found')) {
-      errorMessage = 'Storage bucket not configured. Please contact support.';
+      errorMessage = 'Invoice storage is unavailable right now. Your photo was not lost — try again later.';
       statusCode = 503;
     } else if (errorMessage.includes('Failed to upload file')) {
-      errorMessage = 'Failed to upload file to storage. Please try again.';
+      errorMessage = 'Tappet could not store that invoice just now. Try again in a moment.';
     } else if (errorMessage.includes('Failed to create document record')) {
-      errorMessage = 'Failed to save document record. Please try again.';
+      errorMessage = 'Tappet could not save that invoice just now. Try again in a moment.';
     }
 
     return NextResponse.json(

@@ -241,6 +241,12 @@ const PORTABLE: string[] = [
     `?redirect=`; the phone has no such parameter.
   */
   'lib/safe-redirect.ts',
+  /*
+    1 Oct, audit 360 COPY-5. The sentences an /api/v1 route answers a failure
+    with — imports nothing. Stays in lib/ because only the routes say them;
+    the phone's side of the rule is `@tappet/core/customer-copy`.
+  */
+  'lib/api-error-copy.ts',
 ];
 
 /**

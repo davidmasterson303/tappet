@@ -13,6 +13,7 @@ import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baselin
 import { getServiceRoleClient } from '@/lib/supabase';
 import { explainVinConflict } from '@/lib/vin-conflict';
 import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
+import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 /**
  * How long a described car's add may be answered with the car it already
@@ -251,7 +252,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:GET_VEHICLES', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to load vehicles', vehicles: [] } as ApiResponse,
+      { success: false, error: couldNotLoad('your garage'), vehicles: [] } as ApiResponse,
       { status: 500 }
     );
   }
@@ -294,14 +295,14 @@ export async function PATCH(request: NextRequest): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
 
   const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId : '';
   if (!vehicleId) {
-    return Response.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }
@@ -532,7 +533,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body' } as ApiResponse, {
+    return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, {
       status: 400,
     });
   }

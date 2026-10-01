@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { UNREADABLE_REQUEST } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     if (!vehicleId || !Array.isArray(itemIdentifiers)) {
       return NextResponse.json(
-        { error: 'vehicleId and itemIdentifiers array are required' },
+        { error: UNREADABLE_REQUEST },
         { status: 400 }
       );
     }
@@ -50,6 +51,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ wishlistMap });
   } catch (error) {
     logger.error('WISHLIST_CHECK_API:POST_EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not check Needs' }, { status: 500 });
   }
 }

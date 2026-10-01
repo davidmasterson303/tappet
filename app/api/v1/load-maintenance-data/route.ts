@@ -3,6 +3,7 @@ import { type NextRequest } from 'next/server';
 import type { ApiResponse } from '@tappet/core/types';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess } from '@/lib/api-auth';
+import { UNREADABLE_REQUEST, couldNotLoad } from '@/lib/api-error-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     if (!vehicleId) {
       logger.warn('API:LOAD_MAINTENANCE', 'Missing vehicleId parameter');
-      return Response.json({ success: false, error: 'Missing vehicleId' } as ApiResponse, { status: 400 });
+      return Response.json({ success: false, error: UNREADABLE_REQUEST } as ApiResponse, { status: 400 });
     }
 
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'read' });
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         logger.error('API:LOAD_MAINTENANCE', new Error(`${label}: ${error.message}`), { vehicleId });
       }
       return Response.json(
-        { success: false, error: 'Failed to load maintenance data' } as ApiResponse,
+        { success: false, error: couldNotLoad("this car’s service history") } as ApiResponse,
         { status: 500 }
       );
     }
@@ -190,7 +191,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     logger.error('API:LOAD_MAINTENANCE', error as Error);
     return Response.json(
-      { success: false, error: 'Failed to load maintenance data' } as ApiResponse,
+      { success: false, error: couldNotLoad("this car’s service history") } as ApiResponse,
       { status: 500 }
     );
   }

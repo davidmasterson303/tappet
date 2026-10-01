@@ -1,4 +1,5 @@
 import { apiRequest, ApiRequestError } from './client';
+import { customerSentence } from '@tappet/core/customer-copy';
 import {
   MAX_FILE_SIZE,
   ALLOWED_DOCUMENT_TYPES,
@@ -247,7 +248,7 @@ function readFiling(body: FilingBody): InvoiceUploadResult {
     */
     throw new ApiRequestError({
       status: 200,
-      message: typeof body.error === 'string' ? body.error : 'The invoice could not be read.',
+      message: customerSentence(body.error, 'The invoice could not be read.'),
     });
   }
 
@@ -303,7 +304,7 @@ export async function uploadInvoicePage(vehicleId: string, file: InvoiceFile): P
   if (typeof body.path !== 'string') {
     throw new ApiRequestError({
       status: 200,
-      message: typeof body.error === 'string' ? body.error : 'That page could not be stored.',
+      message: customerSentence(body.error, 'That page could not be stored.'),
     });
   }
   return body.path;

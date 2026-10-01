@@ -55,6 +55,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('PERF_STATS:EXCEPTION', error as Error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Tappet could not work out those figures just now. Try again in a moment.' }, { status: 500 });
   }
 }
