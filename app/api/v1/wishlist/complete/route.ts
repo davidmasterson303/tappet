@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleScopedRow } from '@/lib/api-auth';
-import { recomputePerformanceStats } from '@/lib/performance-stats';
 import { projectNextService } from '@/lib/next-service';
 import { validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { storagePathFromStoredUrl, vehicleIdFromStoragePath } from '@tappet/core/storage-paths';
@@ -211,45 +210,21 @@ export async function POST(request: NextRequest) {
       logger.warn('WISHLIST_COMPLETE:STALE_SCORE', 'Could not mark the score stale', { vehicleId, error: staleError.message });
     }
 
-    if (wishlistItem.item_type === 'modification') {
-      /*
-        Completing a mod changes the vehicle's service history, so its
-        performance stats are now stale. Recomputed in process.
+    /*
+      ── ⚠ Audit 360, LEGAL-11 (1 Oct) · no performance recompute here ─────
 
-        This used to POST to `${request.nextUrl.origin}/api/performance-stats`
-        with the caller's session cookie forwarded, so the inner route could
-        authorize the hop. `nextUrl.origin` comes from the request's host
-        headers, which made the destination of a request carrying a user's
-        session cookie depend on a header the caller influences and on whether
-        the platform in front of the app normalises it — a safety property
-        owned by someone else's proxy config, invisible to every test here,
-        and able to change without this code changing.
+      Completing a mod used to recompute the car's performance figures in
+      process, which sends every service line ever recorded on the car to
+      Google (`lib/performance-stats.ts`). This route cannot know whether the
+      owner said yes — the answer lives on the phone or in the browser, and
+      no build sends it here — so a phone owner who had said "Not now" sent
+      the whole history by marking a mod done.
 
-        Calling directly removes the question. `access` above already proved
-        write access to this item's parent vehicle, which is strictly better
-        evidence than a re-derived cookie, and `intent: 'write'` means a demo
-        vehicle never reaches here.
-
-        Best-effort and deliberately not awaited: the stats are derived display
-        data, the dashboard recomputes on next view because the mod hash will
-        differ, and marking an item complete should not wait on Gemini.
-      */
-      const rateLimit = await checkRateLimit(access.userId ?? identifier, 'ai');
-      if (rateLimit.allowed) {
-        recomputePerformanceStats({
-          vehicleId: wishlistItem.vehicle_id,
-          client,
-          userId: access.userId,
-          isDemo: false,
-        }).catch(err => {
-          logger.error('WISHLIST_COMPLETE:PERF_RECALC', err as Error, { vehicleId: wishlistItem.vehicle_id });
-        });
-      } else {
-        logger.warn('WISHLIST_COMPLETE:PERF_RECALC_RATE_LIMIT', 'Skipped stat recompute', {
-          vehicleId: wishlistItem.vehicle_id,
-        });
-      }
-    }
+      Nothing is lost by dropping it. The phone never shows the figures; the
+      website's car page recomputes on its next view, because the mod hash
+      will differ, and that page asks for the browser's answer first. Dropping
+      it also stops build-2 phones sending it, which a consent flag could not.
+    */
 
     return NextResponse.json({
       success: true,

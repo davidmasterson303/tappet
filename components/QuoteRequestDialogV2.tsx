@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,18 @@ import { generateQuoteRequestV2 } from '@/app/actions';
 import { CostBreakdownTable } from './CostBreakdownTable';
 import { EmailDraftDisplay } from './EmailDraftDisplay';
 import { QuoteGenerationProgress } from './QuoteGenerationProgress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { QUOTE_AI_CONSENT } from '@tappet/core/ai-consent-copy';
+import { readWebAiConsent, recordWebAiConsent } from '@/lib/ai-consent-web';
 
 interface ServiceItem {
   id: string;
@@ -159,6 +171,7 @@ export function QuoteRequestDialogV2({
     ...initialState,
     zipCode: preferredZipCode || '',
   });
+  const [consentOpen, setConsentOpen] = useState(false);
 
   /*
     `preselectedItemIds` is joined rather than passed by reference: a caller
@@ -209,6 +222,19 @@ export function QuoteRequestDialogV2({
       const error = validateStep2();
       if (error) {
         dispatch({ type: 'SET_ERROR', error });
+        return;
+      }
+      /*
+        ── Audit 360, LEGAL-12 (1 Oct, round 02) · the ZIP waits for a yes ──
+
+        The request sends the work, the mileage, the ZIP code and the note to
+        Google, and nothing asked: this dialog opens from Needs without the
+        advisor's sheet ever having been in front of it. It now reads the
+        same browser answer every other AI path reads, and asks with
+        `QUOTE_AI_CONSENT` when it is not a yes. "Not now" sends nothing.
+      */
+      if (readWebAiConsent() !== 'granted') {
+        setConsentOpen(true);
         return;
       }
       handleGenerate();
@@ -289,7 +315,45 @@ export function QuoteRequestDialogV2({
 
   const allSelected = wishlistItems.length > 0 && state.selectedItemIds.size === wishlistItems.length;
 
+  const consentDialog = (
+    <AlertDialog open={consentOpen} onOpenChange={setConsentOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{QUOTE_AI_CONSENT.title}</AlertDialogTitle>
+          <AlertDialogDescription>{QUOTE_AI_CONSENT.body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <ul className="space-y-1.5 text-sm text-white/70 list-disc pl-5">
+          {QUOTE_AI_CONSENT.points.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="text-xs text-white/70">{QUOTE_AI_CONSENT.declineNote}</p>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              recordWebAiConsent('declined');
+              setConsentOpen(false);
+            }}
+          >
+            {QUOTE_AI_CONSENT.decline}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              recordWebAiConsent('granted');
+              setConsentOpen(false);
+              void handleGenerate();
+            }}
+          >
+            {QUOTE_AI_CONSENT.accept}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   return (
+    <>
+    {consentDialog}
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-[#0d1117] border-white/12 p-0">
         <div className="px-4 sm:px-6 pt-6 pb-5 border-b border-white/8">
@@ -511,5 +575,6 @@ export function QuoteRequestDialogV2({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }

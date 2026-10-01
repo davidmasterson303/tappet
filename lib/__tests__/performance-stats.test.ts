@@ -98,6 +98,7 @@ describe('a demo vehicle never reaches the model', () => {
       client,
       userId: null,
       isDemo: true,
+      consented: false,
     });
 
     expect(generateContent).not.toHaveBeenCalled();
@@ -119,7 +120,7 @@ describe('a demo vehicle never reaches the model', () => {
   it('writes nothing back to shared demo data', async () => {
     const client = fakeClient({ vehicles: { data: DEMO_VEHICLE, error: null } });
 
-    await recomputePerformanceStats({ vehicleId: 'demo-1', client, userId: null, isDemo: true });
+    await recomputePerformanceStats({ vehicleId: 'demo-1', client, userId: null, isDemo: true, consented: false });
 
     expect(client.updates).toHaveLength(0);
   });
@@ -133,6 +134,7 @@ describe('a demo vehicle never reaches the model', () => {
       client,
       userId: null,
       isDemo: true,
+      consented: false,
       forceRefresh: true,
     });
 
@@ -159,6 +161,7 @@ describe('an unchanged service history never reaches the model', () => {
       client,
       userId: 'owner-1',
       isDemo: false,
+      consented: true,
     });
 
     expect(generateContent).not.toHaveBeenCalled();
@@ -189,6 +192,7 @@ describe('an unchanged service history never reaches the model', () => {
       client,
       userId: 'owner-1',
       isDemo: false,
+      consented: true,
     });
 
     expect(generateContent).not.toHaveBeenCalled();
@@ -222,11 +226,79 @@ describe('an unchanged service history never reaches the model', () => {
       client,
       userId: 'owner-1',
       isDemo: false,
+      consented: true,
     });
 
     expect(generateContent).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ ok: true, cached: false });
     expect(client.updates[0]).toMatchObject({ modified_hp: 230 });
+  });
+});
+
+describe('the service history goes to Google only on a yes (LEGAL-11)', () => {
+  /*
+    Audit 360, legal round 02 (1 Oct). The prompt lists every service line on
+    the car, and this ran on the web car page's first view and after a mod was
+    marked done — the phone's Plan tab included — with no answer read. The
+    answer lives on the client, so the caller says it; without it the row's
+    figures are served and nothing is sent.
+  */
+  const CHANGED = {
+    ...DEMO_VEHICLE,
+    id: 'owned-2',
+    perf_stats_mod_hash: 'Oil change',
+  };
+  const tables = () => ({
+    vehicles: { data: CHANGED, error: null },
+    modification_tracking: { data: [{ mod_name: 'Downpipe' }], error: null },
+    maintenance_line_items: { data: [{ item_description: 'Oil change' }, { item_description: 'Brake pads' }], error: null },
+  });
+
+  it('sends nothing, writes nothing, and says why, when the owner has not said yes', async () => {
+    const client = fakeClient(tables());
+    const result = await recomputePerformanceStats({
+      vehicleId: 'owned-2',
+      client,
+      userId: 'owner-1',
+      isDemo: false,
+      consented: false,
+      forceRefresh: true,
+    });
+
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(client.updates).toEqual([]);
+    expect(result).toMatchObject({ ok: true, cached: true, consentNeeded: true });
+    // The row's figures, as they are — null stays null, never a reading.
+    expect(result.ok && result.stats.stock_hp).toBe(CHANGED.stock_hp ?? null);
+  });
+
+  it('can still reach the model on a yes — the same history, so the guard above is not vacuous', async () => {
+    generateContent.mockResolvedValue({ text: '{"stock":{"hp":192,"torque":192,"zero_to_sixty":7.2},"performance_mods":[]}' });
+    const client = fakeClient(tables());
+    await recomputePerformanceStats({
+      vehicleId: 'owned-2',
+      client,
+      userId: 'owner-1',
+      isDemo: false,
+      consented: true,
+    });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    const prompt = String((generateContent.mock.calls[0][0] as { contents: string }).contents);
+    // What the policy now says this sends.
+    expect(prompt).toMatch(/Service history:\n1\. /);
+    expect(prompt).toMatch(/Brake pads/);
+  });
+
+  it('every caller states the answer; mark-done is no longer one of them', () => {
+    const { readFileSync } = jest.requireActual('node:fs') as typeof import('node:fs');
+    const { join } = jest.requireActual('node:path') as typeof import('node:path');
+    const ROOT = join(__dirname, '..', '..');
+    const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const route = strip(readFileSync(join(ROOT, 'app/api/v1/performance-stats/route.ts'), 'utf8'));
+    expect(route).toMatch(/consented: aiConsent === 'granted'/);
+    const complete = strip(readFileSync(join(ROOT, 'app/api/v1/wishlist/complete/route.ts'), 'utf8'));
+    expect(complete.length).toBeGreaterThan(1000);
+    expect(complete).not.toMatch(/recomputePerformanceStats/);
   });
 });
 
@@ -239,6 +311,7 @@ describe('a missing vehicle is a 404, not a crash', () => {
       client,
       userId: 'owner-1',
       isDemo: false,
+      consented: true,
     });
 
     expect(generateContent).not.toHaveBeenCalled();

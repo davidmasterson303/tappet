@@ -69,9 +69,24 @@ export const AI_CONSENT_LEGACY_KEY = 'tappet.aiConsent';
  *
  * Named, not summarised — the photograph is the part somebody would not
  * expect a "yes" to the health score to reach.
+ *
+ * ⚠ Audit 360, LEGAL-11/12 (1 Oct, round 02). This said "the health score and
+ * the advisor" while two more paths sent a car's records with no answer read
+ * at all: the performance figures (every service line on the car) and the
+ * website's quote request (the work, the mileage, the ZIP and a note). Both
+ * now wait for this answer, so both are named. Widened under the same key
+ * (`v2`) because no `v2` answer had reached a customer: `web-live` was on
+ * `5f8c973` (28 Sep) and build 3 had not shipped when this changed.
  */
 export const AI_CONSENT_SCOPE =
-  'One answer covers all of Tappet’s AI: the health score and the advisor send this car’s records, and an invoice you scan or a file you attach is sent as it is, photograph and all.';
+  'One answer covers all of Tappet’s AI: the health score, the advisor, the performance figures and quote requests send this car’s records, and an invoice you scan or a file you attach is sent as it is, photograph and all.';
+
+/**
+ * What declining leaves working. One sentence for every sheet, because one
+ * answer covers every AI path: "everything else works the same" was true of
+ * the sheet's own feature and false of the other AI the same "Not now" stops.
+ */
+const DECLINE_LEAVES = 'Everything in Tappet that is not AI works the same without it.';
 
 /**
  * The sheet shown before the first invoice scan.
@@ -93,7 +108,7 @@ export const INVOICE_AI_CONSENT: AiConsentCopy = {
   accept: 'Scan invoices',
   decline: 'Not now',
   declineNote:
-    'You can still add services by hand, and everything else in Tappet works the same. Ask again any time from a scan.',
+    `You can still add services by hand. ${DECLINE_LEAVES} Ask again any time from a scan.`,
 };
 
 /**
@@ -118,7 +133,7 @@ export const ADVISOR_AI_CONSENT: AiConsentCopy = {
   accept: 'Ask the advisor',
   decline: 'Not now',
   declineNote:
-    'Everything else in Tappet works the same without it. Ask again any time from this screen.',
+    `${DECLINE_LEAVES} Ask again any time from this screen.`,
 };
 
 /**
@@ -166,5 +181,29 @@ export const HEALTH_AI_CONSENT: AiConsentCopy = {
   accept: 'Score this car',
   decline: 'Not now',
   declineNote:
-    'Everything else about this car works the same without it — the score stays empty until you say yes. Ask again from this car’s research.',
+    `The score stays empty until you say yes. ${DECLINE_LEAVES} Ask again from this car’s research.`,
+};
+
+/**
+ * The website's quote request. ⚠ Audit 360, LEGAL-12 (1 Oct, round 02).
+ *
+ * `generateQuoteRequestV2` sends the jobs picked, the car's year, make,
+ * model, trim and mileage, the ZIP code typed and the owner's note to Gemini
+ * (`estimateCosts`, `generateEmailDraft`). It is reachable from Needs without
+ * ever opening the advisor, so no sheet stood in front of it. A five-digit
+ * ZIP is a coarse location, and the note is free text somebody may not
+ * expect a model to read — so both are named.
+ */
+export const QUOTE_AI_CONSENT: AiConsentCopy = {
+  title: 'A quote request uses Google’s AI',
+  body:
+    'To estimate the work and draft your email to a shop, Tappet sends the jobs you picked, this car’s year, make, model and mileage, the ZIP code you type and any note you add to Google’s Gemini service.',
+  points: [
+    'Your ZIP code and your note go to Google with the work you picked.',
+    AI_CONSENT_SCOPE,
+    'We do not publish it, and we do not sell it.',
+  ],
+  accept: 'Estimate the work',
+  decline: 'Not now',
+  declineNote: `${DECLINE_LEAVES} Ask again from this request.`,
 };

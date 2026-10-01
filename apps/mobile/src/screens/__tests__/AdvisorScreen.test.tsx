@@ -593,7 +593,7 @@ describe('asking before a question goes to Google', () => {
 
     const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
 
-    await view.findByText(/Everything else in Tappet works the same/);
+    await view.findByText(/Everything in Tappet that is not AI works the same/);
     view.getByLabelText('Ask about this car');
     view.getByText('Change that');
   });
@@ -608,7 +608,7 @@ describe('asking before a question goes to Google', () => {
     const user = userEvent.setup();
 
     const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
-    await view.findByText(/Everything else in Tappet works the same/);
+    await view.findByText(/Everything in Tappet that is not AI works the same/);
 
     await user.type(view.getByLabelText('Ask about this car'), 'Is the timing belt due?');
     await user.press(view.getByLabelText('Send question to the advisor'));

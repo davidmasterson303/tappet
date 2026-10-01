@@ -10,6 +10,7 @@ import { Working } from '@/components/Working';
 import ResearchButton from '@/components/ResearchButton';
 import { adviceDisclosure } from '@tappet/core/advice-disclosure';
 import { getClientSupabase } from '@/lib/supabase';
+import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { logger } from '@tappet/core/logger';
 import TCOCard from '@/components/TCOCard';
 import TCOInputsModal from '@/components/TCOInputsModal';
@@ -122,14 +123,26 @@ export default function VehicleInfoPage({ params }: { params: { vehicleId: strin
     },
   });
 
+  /*
+    ── Audit 360, LEGAL-11 (1 Oct) · the figures wait for a yes ────────────
+
+    Refreshing the figures sends every service line recorded on this car to
+    Google (`lib/performance-stats.ts`), and this ran on every first view with
+    no answer read. It now runs only on this browser's granted answer — the
+    one the advisor, the upload and the health score read — and says so to
+    the route, which sends nothing without it. Without a yes the page shows
+    the figures the row already holds, or a dash; it does not raise a sheet
+    over a page of specifications.
+  */
   const fetchPerformanceStats = useCallback(async (forceRefresh = false) => {
     if (!data?.vehicle) return;
+    if (readWebAiConsent() !== 'granted') return;
     setPerfLoading(true);
     try {
       const response = await fetch('/api/v1/performance-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehicleId: params.vehicleId, forceRefresh }),
+        body: JSON.stringify({ vehicleId: params.vehicleId, forceRefresh, aiConsent: 'granted' }),
       });
       const json = await response.json();
       if (json.success && json.stats) {

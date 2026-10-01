@@ -4886,6 +4886,9 @@ async function fileStoredInvoice({
           client,
           userId: access.userId,
           isDemo: false,
+          // An invoice reaches here only through a consent sheet — the scan,
+          // the web upload, an advisor attachment — so the yes was given.
+          consented: true,
           forceRefresh: true,
         }).catch((statsError: unknown) => {
           console.warn('[Upload] Performance stats refresh failed:', statsError);

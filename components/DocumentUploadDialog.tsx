@@ -310,7 +310,8 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
         fetch('/api/v1/performance-stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vehicleId, forceRefresh: true }),
+          // The upload itself waited for this browser's yes (LEGAL-11 names it to the route).
+          body: JSON.stringify({ vehicleId, forceRefresh: true, aiConsent: readWebAiConsent() }),
         }).catch(() => {});
       }
 

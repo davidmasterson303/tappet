@@ -293,11 +293,13 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
       await loadTracking();
     };
 
+    // LEGAL-11: the figures send the service history, so only on this browser's yes.
     const triggerPerfStatsRecalc = () => {
+      if (readWebAiConsent() !== 'granted') return;
       fetch('/api/v1/performance-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehicleId: vehicle.id }),
+        body: JSON.stringify({ vehicleId: vehicle.id, aiConsent: 'granted' }),
       }).catch(() => {});
     };
 

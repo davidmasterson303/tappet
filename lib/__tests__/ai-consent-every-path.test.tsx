@@ -23,7 +23,8 @@ import { join } from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import HealthSummary from '@/components/HealthSummary';
-import { generateVehicleHealthSummary } from '@/app/actions';
+import { QuoteRequestDialogV2 } from '@/components/QuoteRequestDialogV2';
+import { generateQuoteRequestV2, generateVehicleHealthSummary } from '@/app/actions';
 import { signOutAndClearCache } from '@/lib/sign-out';
 import { readWebAiConsent } from '@/lib/ai-consent-web';
 import {
@@ -33,6 +34,7 @@ import {
   AI_CONSENT_STORAGE_KEY,
   HEALTH_AI_CONSENT,
   INVOICE_AI_CONSENT,
+  QUOTE_AI_CONSENT,
   WEB_ADVISOR_AI_CONSENT,
 } from '@tappet/core/ai-consent-copy';
 
@@ -42,9 +44,11 @@ jest.mock('next/navigation', () => ({
 // See recall-row-does-not-contradict-itself.test.tsx: the action pulls an ESM SDK.
 jest.mock('@/app/actions', () => ({
   generateVehicleHealthSummary: jest.fn(async () => ({ success: true })),
+  generateQuoteRequestV2: jest.fn(async () => ({ success: false, error: 'stub' })),
 }));
 
 const generate = generateVehicleHealthSummary as jest.Mock;
+const quote = generateQuoteRequestV2 as jest.Mock;
 const ROOT = join(__dirname, '..', '..');
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 /** Source without comments, so a scan cannot match prose about the rule. */
@@ -52,6 +56,7 @@ const code = (src: string) => src.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/
 
 beforeEach(() => {
   generate.mockClear();
+  quote.mockClear();
   window.localStorage.clear();
 });
 
@@ -142,6 +147,7 @@ describe('every sheet tells the truth about what one answer covers (LEGAL-2)', (
     ['advisor (phone)', ADVISOR_AI_CONSENT],
     ['advisor (web)', WEB_ADVISOR_AI_CONSENT],
     ['health score', HEALTH_AI_CONSENT],
+    ['quote request (web)', QUOTE_AI_CONSENT],
   ] as const;
 
   it.each(sheets)('%s carries the scope, names Google, and promises no narrower consent than it takes', (_name, copy) => {
@@ -154,6 +160,18 @@ describe('every sheet tells the truth about what one answer covers (LEGAL-2)', (
     expect(AI_CONSENT_SCOPE).toMatch(/health score/);
     expect(AI_CONSENT_SCOPE).toMatch(/advisor/);
     expect(AI_CONSENT_SCOPE).toMatch(/photograph/);
+    // Round 02 (LEGAL-11, 12): the two paths that read no answer, now named.
+    expect(AI_CONSENT_SCOPE).toMatch(/performance figures/);
+    expect(AI_CONSENT_SCOPE).toMatch(/quote requests/);
+  });
+
+  it('no sheet says the rest of Tappet works the same, when the same "Not now" stops the other AI', () => {
+    for (const [, copy] of sheets) {
+      expect(copy.declineNote).not.toMatch(/Everything else/);
+      expect(copy.declineNote).toMatch(/Everything in Tappet that is not AI works the same/);
+    }
+    // Anti-vacuous: the sentence that shipped on the health sheet.
+    expect('Everything else about this car works the same without it').toMatch(/Everything else/);
   });
 
   it('the web advisor says attachments go, and renders its own sheet', () => {
@@ -177,5 +195,88 @@ describe('every sheet tells the truth about what one answer covers (LEGAL-2)', (
     const shipped = ['Your question and this car’s records go to Google.', 'No photographs and no documents are sent from here.'];
     expect(shipped.join(' ')).toMatch(/No photographs and no documents/);
     expect(shipped).not.toContain(AI_CONSENT_SCOPE);
+  });
+});
+
+/**
+ * ── Round 02 (1 Oct) ────────────────────────────────────────────────────────
+ *
+ * - **LEGAL-12** — the website's quote request sent the work, the mileage,
+ *   the ZIP and the owner's note to Google from Needs, where no sheet had been.
+ * - **LEGAL-11** — the performance figures sent every service line on the car
+ *   on the car page's first view. The server half (the route refuses without
+ *   the answer, mark-done no longer recomputes) is in
+ *   `performance-stats.test.ts`; the browser half is here.
+ */
+describe('the quote request waits for a yes (LEGAL-12)', () => {
+  async function toGenerate() {
+    render(
+      <QuoteRequestDialogV2
+        open
+        onOpenChange={() => {}}
+        vehicleId="v-owner"
+        wishlistItems={[{ id: 'w1', description: 'Front brake pads', category: 'repair' }]}
+        preselectedItemIds={['w1']}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
+    fireEvent.change(await screen.findByLabelText(/Zip Code/), { target: { value: '80202' } });
+    fireEvent.click(screen.getByRole('button', { name: /Generate/ }));
+  }
+
+  it('asks before the ZIP goes; "Not now" sends nothing; the yes sends once', async () => {
+    await toGenerate();
+    await screen.findByText(QUOTE_AI_CONSENT.title);
+    expect(quote).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: QUOTE_AI_CONSENT.decline }));
+    expect(quote).not.toHaveBeenCalled();
+    expect(readWebAiConsent()).toBe('declined');
+
+    fireEvent.click(screen.getByRole('button', { name: /Generate/ }));
+    await screen.findByText(QUOTE_AI_CONSENT.title);
+    fireEvent.click(screen.getByRole('button', { name: QUOTE_AI_CONSENT.accept }));
+    await waitFor(() => expect(quote).toHaveBeenCalledTimes(1));
+    expect(quote.mock.calls[0][2]).toBe('80202');
+    expect(readWebAiConsent()).toBe('granted');
+  });
+
+  it('goes straight through on a yes already given — so the sheet above is not vacuous', async () => {
+    window.localStorage.setItem(AI_CONSENT_STORAGE_KEY, 'granted');
+    await toGenerate();
+    await waitFor(() => expect(quote).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(QUOTE_AI_CONSENT.title)).toBeNull();
+  });
+});
+
+describe('the performance figures wait for a yes on the website (LEGAL-11)', () => {
+  const CALLERS = ['app/vehicle-info/[vehicleId]/page.tsx', 'components/VehicleInsights.tsx', 'components/DocumentUploadDialog.tsx'];
+  const FETCH = /fetch\('\/api\/v1\/performance-stats'[\s\S]*?body: JSON\.stringify\(\{([^}]*)\}\)/g;
+
+  it('every fetch of the figures names the answer to the route', () => {
+    let found = 0;
+    for (const file of CALLERS) {
+      for (const m of Array.from(code(read(file)).matchAll(FETCH))) {
+        found += 1;
+        expect([file, /aiConsent/.test(m[1])]).toEqual([file, true]);
+      }
+    }
+    // Found sources: one per file, and nothing else in the web calls the route.
+    expect(found).toBe(3);
+  });
+
+  it('the car page and the dashboard read the answer before they fetch', () => {
+    const page = code(read('app/vehicle-info/[vehicleId]/page.tsx'));
+    const body = page.slice(page.indexOf('const fetchPerformanceStats'), page.indexOf("fetch('/api/v1/performance-stats'"));
+    expect(body).toMatch(/if \(readWebAiConsent\(\) !== 'granted'\) return;/);
+    const insights = code(read('components/VehicleInsights.tsx'));
+    const trigger = insights.slice(insights.indexOf('const triggerPerfStatsRecalc'), insights.indexOf("fetch('/api/v1/performance-stats'"));
+    expect(trigger).toMatch(/if \(readWebAiConsent\(\) !== 'granted'\) return;/);
+  });
+
+  it('can still detect the fetch that shipped', () => {
+    const shipped = "fetch('/api/v1/performance-stats', {\n method: 'POST',\n body: JSON.stringify({ vehicleId: params.vehicleId, forceRefresh }),\n });";
+    const m = Array.from(shipped.matchAll(FETCH));
+    expect(m).toHaveLength(1);
+    expect(/aiConsent/.test(m[0][1])).toBe(false);
   });
 });
