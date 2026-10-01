@@ -16,6 +16,7 @@ import {
   loadAdvisorThread,
   loadStarterSource,
   MAX_MESSAGE_LENGTH,
+  newTurnId,
   type AdvisorThread,
 } from '../api/consultant';
 import { advisorStarters, GENERIC_STARTERS } from '@tappet/core/advisor-starters';
@@ -264,6 +265,15 @@ export function AdvisorScreen({
 
   const sessionId = useRef<string | null>(null);
   const listRef = useRef<FlatList<Turn>>(null);
+  /*
+    ⚠ Audit 360, TL-12 · the question whose answer never arrived, with the id
+    it was sent under. Sending the same text again in the same thread reuses
+    the id — that is a resend, and the server answers it from the thread if
+    the first answer was stored after all. Anything else, including the same
+    word typed afresh once an answer *did* arrive, gets a new id and a new
+    answer. Cleared on every answer.
+  */
+  const unanswered = useRef<{ text: string; id: string; sessionId: string | null } | null>(null);
   /** The arrival (`questionKey`) already asked, or `null` before the first. */
   const askedOnOpen = useRef<number | null>(null);
 
@@ -299,12 +309,19 @@ export function AdvisorScreen({
     setError(null);
     setTurns((current) => [...current, { id: nextId(), role: 'you', text: question }]);
 
+    const prior = unanswered.current;
+    const clientTurnId =
+      prior && prior.text === question && prior.sessionId === sessionId.current ? prior.id : newTurnId();
+    unanswered.current = { text: question, id: clientTurnId, sessionId: sessionId.current };
+
     try {
       const answer = await askAdvisor({
         vehicleId,
         message: question,
         sessionId: sessionId.current,
+        clientTurnId,
       });
+      unanswered.current = null;
 
       sessionId.current = answer.sessionId || sessionId.current;
       setCurrentId(sessionId.current);

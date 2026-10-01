@@ -789,3 +789,64 @@ describe('when asking again cannot help — the other three codes, 17 Sep', () =
     expect(await view.findByText(/try again in a minute/i)).toBeTruthy();
   });
 });
+
+/*
+  ── Audit 360, TL-12 · a resend carries its question's id; a new message does not ──
+
+  The server answers a resend from the thread when the stored turn carries
+  the same id (`lib/consultant-replay.ts`). So the screen must reuse the id
+  only for the question whose answer never arrived, and must give the same
+  words a new id once an answer has arrived — "yes", then "yes".
+*/
+describe('the turn id the advisor is sent (TL-12)', () => {
+  const idOf = (call: number) => (ask.mock.calls[call][0] as { clientTurnId?: string }).clientTurnId;
+
+  it('gives "yes" a new id each time it is answered', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'Added. Anything else?', contextKinds: [] })
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'Go on.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'yes');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Added. Anything else?');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'yes');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('Go on.');
+
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(idOf(0)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(idOf(1)).not.toBe(idOf(0));
+  });
+
+  it('sends the same id again with the resend of a question whose answer was lost', async () => {
+    ask
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'First.', contextKinds: [] })
+      .mockRejectedValueOnce(
+        new ApiRequestError({ status: 0, message: 'Tappet did not answer within 60 seconds.', origin: 'device', kind: 'timeout' })
+      )
+      .mockResolvedValueOnce({ sessionId: 's1', response: 'About $900.', contextKinds: [] });
+    const user = userEvent.setup();
+
+    const view = await render(<AdvisorScreen vehicleId="v1" onSignOut={jest.fn()} />);
+    await user.type(view.getByLabelText('Ask about this car'), 'hello');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('First.');
+
+    await user.type(view.getByLabelText('Ask about this car'), 'Is $1,400 fair?');
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText(/did not answer within 60 seconds/);
+    // The question is still in the composer; the owner presses send again.
+    await user.press(view.getByLabelText('Send question to the advisor'));
+    await view.findByText('About $900.');
+
+    expect(ask).toHaveBeenCalledTimes(3);
+    expect(ask.mock.calls[2][0]).toMatchObject({ message: 'Is $1,400 fair?', sessionId: 's1' });
+    expect(idOf(2)).toBe(idOf(1));
+    // Anti-vacuous: the earlier, answered question had its own.
+    expect(idOf(1)).not.toBe(idOf(0));
+  });
+});

@@ -44,6 +44,14 @@ export interface AskAdvisorParams {
   message: string;
   /** Omit on the first message of a thread; the response returns the new id. */
   sessionId?: string | null;
+  /**
+   * This question's own id (audit 360, TL-12). Sent again **only** with a
+   * resend of a question whose answer never arrived, so the server can tell
+   * that resend from the same words asked anew ("yes", then "yes") and
+   * answer it from the thread instead of storing it twice. Build-2 phones
+   * send none; the server's rule for them is in `lib/consultant-replay.ts`.
+   */
+  clientTurnId?: string;
 }
 
 export interface AdvisorAnswer {
@@ -114,6 +122,15 @@ function isEstimateLine(value: unknown): value is EstimateLine {
   return typeof line.label === 'string' && line.label !== '' && isAdviceRange(line.range);
 }
 
+/**
+ * A fresh id for one question: base-36 time and randomness, within the
+ * route's `[A-Za-z0-9_-]{8,64}`. Identity only within one thread's last turn,
+ * so no dependency is worth adding for it.
+ */
+export function newTurnId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10).padEnd(8, '0')}`;
+}
+
 /** Matches the route's own ceiling, so an over-long message fails before the flight. */
 export const MAX_MESSAGE_LENGTH = 4000;
 
@@ -121,6 +138,7 @@ export async function askAdvisor({
   vehicleId,
   message,
   sessionId,
+  clientTurnId,
 }: AskAdvisorParams): Promise<AdvisorAnswer> {
   const body = await apiRequest<{
     sessionId?: unknown;
@@ -154,6 +172,7 @@ export async function askAdvisor({
         writing it that way keeps the request honest about the intent.
       */
       ...(sessionId ? { sessionId } : {}),
+      ...(clientTurnId ? { clientTurnId } : {}),
     },
   });
 

@@ -1156,6 +1156,12 @@ export async function sendConsultantMessage(params: {
    * with the service role.
    */
   attachedDocuments?: any[];
+  /**
+   * The phone's id for this question (build 3), stored on the user turn so a
+   * resend of the same question can be told from the same words asked anew —
+   * `lib/consultant-replay.ts` (audit 360, TL-12). The route validates it.
+   */
+  clientTurnId?: string | null;
   /*
    * There is deliberately no vehicle, knowledge, wishlist, service history,
    * document, issue, mod, recall or health parameter here, and no `isDemo`.
@@ -1173,6 +1179,13 @@ export async function sendConsultantMessage(params: {
    * caller, like one that works.
    */
 }) {
+  /*
+    ⚠ Audit 360, TL-12 · when the question was taken up, first thing, stored
+    beside the answer's own timestamp. Without a turn id (build 2) the only
+    sign that the phone gave up on an answer is that the answer took longer
+    than the phone waits — `lib/consultant-replay.ts`.
+  */
+  const askedAt = new Date().toISOString();
   try {
     /*
      * The intent has to match what this function actually does, and what it
@@ -1732,6 +1745,8 @@ export async function sendConsultantMessage(params: {
         role: 'user',
         content: message,
         timestamp: new Date().toISOString(),
+        askedAt,
+        ...(params.clientTurnId ? { clientTurnId: params.clientTurnId } : {}),
         ...(attachedDocuments && attachedDocuments.length > 0 && { documents: attachedDocuments }),
       };
 

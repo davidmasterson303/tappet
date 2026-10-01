@@ -11,7 +11,7 @@ import {
   getConsultantSession,
   generateSessionTitle,
 } from '@/app/actions';
-import { replayedAnswer } from '@/lib/consultant-replay';
+import { parseClientTurnId, replayedAnswer } from '@/lib/consultant-replay';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +52,8 @@ interface ConsultantRequestBody {
   sessionId?: unknown;
   messageHistory?: unknown;
   attachedDocuments?: unknown;
+  /** The phone's id for this question (build 3) — `lib/consultant-replay.ts`. */
+  clientTurnId?: unknown;
 }
 
 /** Keeps a single message from becoming an unbounded prompt. */
@@ -204,11 +206,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       ⚠ 1 Oct · audit 360, TL-6 · the same question, sent again because the
       phone stopped waiting for an answer this thread already stored. Answered
       from the thread: no second model call, no second pair of turns.
+      ⚠ TL-12: the same *words* are not the same question — "yes" twice is
+      two answers. A resend is named by the phone's turn id (build 3) or, for
+      build 2, by an answer slower than the phone waits.
       `lib/consultant-replay.ts`.
     */
+    const clientTurnId = parseClientTurnId(body.clientTurnId);
     const replay = isDemoVehicle
       ? null
-      : replayedAnswer(thread.messageHistory, message, body.attachedDocuments);
+      : replayedAnswer(thread.messageHistory, message, body.attachedDocuments, clientTurnId);
     if (replay) {
       logger.info('API:CONSULTANT', 'Answered a repeated question from the thread', { vehicleId });
       return Response.json({
@@ -226,6 +232,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       sessionId: thread.sessionId,
       message,
       messageHistory: thread.messageHistory,
+      clientTurnId,
       // Each attachment is an inline image part in the prompt; the count is ours to cap, not the caller's.
       attachedDocuments: Array.isArray(body.attachedDocuments) ? body.attachedDocuments.slice(0, MAX_ATTACHMENTS) : undefined,
     });
