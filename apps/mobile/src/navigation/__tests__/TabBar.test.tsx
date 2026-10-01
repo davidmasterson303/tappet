@@ -2,7 +2,7 @@ import { render, userEvent } from '@testing-library/react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import TabBar from '../TabBar';
-import { rememberGarageSize, rememberVehicle } from '../last-vehicle';
+import { forgetAllVehicles, forgetVehicle, rememberGarageSize, rememberVehicle } from '../last-vehicle';
 import { TAB_NAMES, type TabName } from '../tab-target';
 import { withSafeArea } from '../../test-support/safe-area';
 
@@ -217,6 +217,46 @@ describe('the tab bar', () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ payload: { name: 'ServiceTab' } })
     );
+  });
+
+  it('drops a tab about a car just removed back to no car — audit 360, TL-4', async () => {
+    /*
+      The only car removed: the Car tab showed "No cars yet", but Service
+      still held the removed car, carried no params on the press (there is no
+      car left to carry), refetched on focus and answered 404.
+    */
+    forgetAllVehicles();
+    rememberVehicle('car-a');
+    forgetVehicle('car-a');
+    const { navigation, dispatch } = helpers();
+    const view = await render(
+      withSafeArea(
+        <TabBar state={tabState(0, { ServiceTab: { vehicleId: 'car-a' } })} navigation={navigation} />
+      )
+    );
+
+    await userEvent.press(view.getByLabelText('Service'));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: { name: 'ServiceTab', params: { screen: 'Service', params: undefined, pop: true } },
+      })
+    );
+    forgetAllVehicles();
+  });
+
+  it('leaves a tab about a car that is still here alone when no car is remembered (anti-vacuous)', async () => {
+    forgetAllVehicles();
+    const { navigation, dispatch } = helpers();
+    const view = await render(
+      withSafeArea(
+        <TabBar state={tabState(0, { PlanTab: { vehicleId: 'car-c' } })} navigation={navigation} />
+      )
+    );
+
+    await userEvent.press(view.getByLabelText('Plan'));
+
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ payload: { name: 'PlanTab' } }));
   });
 
   it('does not navigate on the focused tab — its stack answers the re-tap', async () => {

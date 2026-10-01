@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon, { type IconName } from '../components/Icon';
 import { TARGET_MIN, border, brand, space, surface, text, type } from '../theme';
-import { lastVehicle } from './last-vehicle';
+import { lastVehicle, wasRemoved } from './last-vehicle';
 import { tabTarget, type TabName } from './tab-target';
 
 /*
@@ -184,7 +184,7 @@ export default function TabBar({ state, navigation }: Pick<BottomTabBarProps, 's
           */
           if (selected || event.defaultPrevented) return;
 
-          const target = tabTarget(route.name as TabName, mountedVehicle(route), lastVehicle());
+          const target = tabTarget(route.name as TabName, mountedVehicle(route), lastVehicle(), wasRemoved);
 
           navigation.dispatch({
             ...CommonActions.navigate(target.name, target.params),

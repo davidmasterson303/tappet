@@ -66,10 +66,27 @@ export { lastVehicle };
 export function forgetVehicle(vehicleId: string) {
   if (lastOpenedVehicle?.vehicleId === vehicleId) lastOpenedVehicle = null;
   if (soleVehicle?.vehicleId === vehicleId) soleVehicle = null;
+  removedVehicles.add(vehicleId);
+}
+
+/**
+ * ⚠ 1 Oct · audit 360, TL-4 · the cars this app removed, this session.
+ *
+ * Forgetting the last car was not enough. With none left `lastVehicle()` is
+ * null, so a press on Service, Plan or Advisor carried no car — and those
+ * tabs' roots still held the removed car's id from before, refetched it on
+ * focus and showed a 404 about the owner's own act. `tabTarget` reads this
+ * to drop such a root back to "no car" rather than leave it where it was.
+ */
+const removedVehicles = new Set<string>();
+
+export function wasRemoved(vehicleId: string): boolean {
+  return removedVehicles.has(vehicleId);
 }
 
 /** Sign-out: the next account must not be steered to this one's car. */
 export function forgetAllVehicles() {
   lastOpenedVehicle = null;
   soleVehicle = null;
+  removedVehicles.clear();
 }

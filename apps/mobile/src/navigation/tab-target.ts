@@ -68,7 +68,7 @@ export type TabTarget =
       name: TabName;
       params: {
         screen: 'VehicleDetail' | 'Service' | 'Plan' | 'Advisor';
-        params: { vehicleId: string; title?: string; segment?: ServiceSegment | PlanSegment };
+        params: { vehicleId: string; title?: string; segment?: ServiceSegment | PlanSegment } | undefined;
         pop: true;
       };
     };
@@ -105,8 +105,19 @@ export type TabTarget =
 export function tabTarget(
   tab: TabName,
   mountedVehicleId: string | undefined,
-  car: Car | null
+  car: Car | null,
+  removed: (vehicleId: string) => boolean = () => false
 ): TabTarget {
+  /*
+    ⚠ 1 Oct · audit 360, TL-4 · a tab about a car that was just removed.
+    With no car left to carry, the press used to leave the root as it was —
+    about the removed car, which answered 404 on focus. Dropped to its root
+    with no car instead, which is `FirstCar`: the invitation, or the next car.
+  */
+  if (!car && mountedVehicleId && removed(mountedVehicleId)) {
+    return { name: tab, params: { screen: CAR_TAB_ROOT[tab].screen, params: undefined, pop: true } };
+  }
+
   /*
     ⚠ 23 Sep · **no garage branch any more.** The Garage tab used to pop its
     stack to the garage on every press, because David asked for a tab whose
