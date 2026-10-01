@@ -79,6 +79,24 @@ export function odometerReading(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }
 
+/**
+ * The odometer as a prompt states it (audit 360, TL-28). The health prompt
+ * read `current_mileage.toLocaleString()` raw: a stored 0 told the model "0
+ * miles" — scored as a new car, nothing mileage-based due — and a null threw.
+ * No reading is said as unknown, the way `odometerReading` reads it.
+ */
+export function odometerForPrompt(value: unknown): string {
+  const reading = odometerReading(value);
+  return reading === null ? 'Unknown (no reading recorded)' : `${reading.toLocaleString('en-US')} miles`;
+}
+
+/** Average monthly miles for a prompt: a positive figure, or unknown — never "null" or "0". */
+export function monthlyMilesForPrompt(value: unknown): string {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? `${Math.round(value).toLocaleString('en-US')} miles a month`
+    : 'Unknown';
+}
+
 export function validateMileageUpdate(params: {
   current: number | null;
   next: unknown;

@@ -4,7 +4,7 @@ import { supabase, getServiceRoleClient, createServerActionClient, getServerClie
 import { attachPlateToVehicle, ensurePlate } from '@/lib/plates';
 import { removeVehicle } from '@/lib/vehicle-deletion';
 import { recordedCost, sumRecordedCosts } from '@tappet/core/formatting-utils';
-import { odometerReading, validateMileageUpdate, type MileageRejection } from '@tappet/core/mileage-tracking';
+import { monthlyMilesForPrompt, odometerForPrompt, odometerReading, validateMileageUpdate, type MileageRejection } from '@tappet/core/mileage-tracking';
 import { projectNextService } from '@/lib/next-service';
 import { threadTitle } from '@tappet/core/thread-title';
 import { clearVehiclePhoto } from '@/lib/vehicle-photo';
@@ -2442,8 +2442,8 @@ export async function generateVehicleHealthSummary(vehicleId: string, forceRefre
 
 VEHICLE INFORMATION:
 - ${vehicle.year} ${vehicle.make} ${vehicle.model}
-- Current Mileage: ${vehicle.current_mileage.toLocaleString()} miles
-- Average Monthly Miles: ${vehicle.avg_miles_per_month}
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
+- Average Monthly Miles: ${monthlyMilesForPrompt(vehicle.avg_miles_per_month)}
 - Performance Mindset: ${vehicle.performance_mindedness}
 
 OWNER-PROVIDED SERVICE HISTORY:
@@ -5843,7 +5843,7 @@ Vehicle Information:
 - Make: ${vehicle.make}
 - Model: ${vehicle.model}
 - Trim: ${vehicle.trim || 'Standard'}
-- Current Mileage: ${vehicle.current_mileage?.toLocaleString() || 'Unknown'} miles
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
 - Location Zip Code: ${zipCode}
 
 Service Items Requested:
@@ -6042,7 +6042,7 @@ Vehicle Details:
 - Make: ${vehicle.make}
 - Model: ${vehicle.model}
 - Trim: ${vehicle.trim || 'Standard'}
-- Current Mileage: ${vehicle.current_mileage?.toLocaleString() || 'Unknown'} miles
+- Current Mileage: ${odometerForPrompt(vehicle.current_mileage)}
 
 Requested Services:
 ${itemsList}${notesSection}
