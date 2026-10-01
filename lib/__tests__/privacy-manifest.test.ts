@@ -27,7 +27,7 @@
  * two that would be actively false.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..', '..');
@@ -112,20 +112,53 @@ describe('the iOS privacy manifest', () => {
     expect(declared).toContain('DeviceID');
   });
 
-  it('declares coarse location while a ZIP code is still collected', () => {
+  describe('declares coarse location exactly when the iOS binary collects one', () => {
     /*
-      The one the roadmap got wrong. E4 was described as "genuinely short by
-      design: no hardware inventory, no notification history, no location" —
-      but `savePreferredZipCode` writes `vehicles.preferred_zip_code`, and the
-      quote-request dialog reads it.
+      ⚠ Audit 360, LEGAL-8 (1 Oct). This was anchored to `app/actions.ts` —
+      `savePreferredZipCode`, a **web** server action — so it held the iOS
+      manifest to a ZIP field that is not in the binary. The phone has no ZIP
+      field, no location permission and no location module; the manifest
+      declared Coarse Location for an app with no location feature.
 
-      If the ZIP is ever removed, this test fails and the declaration should
-      come out with it — an over-declared label is not free, it is a promise
-      about behaviour that invites a question nobody can answer.
+      The manifest describes the binary, so the anchor is the binary's source.
+      If the phone ever asks for a ZIP, a postal code or the device's position,
+      the declaration comes back — this fails until it does. (The App Store
+      label is App Store Connect's, and David's call: see held-for-david.md.)
     */
-    const collectsZip = source('app/actions.ts').includes('preferred_zip_code');
-    expect(collectsZip).toBe(true);
-    expect(declared).toContain('CoarseLocation');
+    const LOCATION = /\bzip(_?code)?\b|zipCode|postal|expo-location|getCurrentPositionAsync|requestForegroundPermissionsAsync/i;
+
+    function walk(dir: string): string[] {
+      return readdirSync(join(ROOT, dir)).flatMap((name) => {
+        const rel = `${dir}/${name}`;
+        if (statSync(join(ROOT, rel)).isDirectory()) return name === '__tests__' ? [] : walk(rel);
+        return /\.(ts|tsx)$/.test(name) ? [rel] : [];
+      });
+    }
+    const files = walk('apps/mobile/src');
+    const deps = JSON.stringify(JSON.parse(source('apps/mobile/package.json')).dependencies ?? {});
+    const collecting = files.filter((f) => LOCATION.test(source(f)));
+
+    it('read the phone at all', () => {
+      expect(files.length).toBeGreaterThan(50);
+      expect(files).toContain('apps/mobile/src/screens/AccountScreen.tsx');
+    });
+
+    it('can still detect a location field', () => {
+      expect(LOCATION.test("const [zip, setZip] = useState('');")).toBe(true);
+      expect(LOCATION.test("import * as Location from 'expo-location';")).toBe(true);
+      expect(LOCATION.test('body: { preferred_zip_code: zip }')).toBe(true);
+    });
+
+    it('matches the declaration to the source', () => {
+      const collects = collecting.length > 0 || deps.includes('expo-location');
+      expect({ collects, declared: declared.includes('CoarseLocation'), files: collecting }).toEqual({
+        collects,
+        declared: collects,
+        files: collecting,
+      });
+      // And today the phone collects none.
+      expect(collects).toBe(false);
+    });
   });
 
   it('declares user content, because conversations and invoices are stored', () => {
