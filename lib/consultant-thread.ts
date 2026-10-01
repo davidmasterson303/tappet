@@ -39,7 +39,7 @@ type Client = Pick<SupabaseClient, 'from'>;
  */
 export class ThreadReadError extends Error {
   constructor(readonly code: string | null, message: string) {
-    super(`consultant thread read failed: ${message}`);
+    super(`advisor thread read failed: ${message}`);
     this.name = 'ThreadReadError';
   }
 }
