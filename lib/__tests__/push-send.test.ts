@@ -27,6 +27,7 @@ jest.mock('@tappet/core/logger', () => ({
 
 import {
   EXPO_PUSH_ENDPOINT,
+  EXPO_SEND_TIMEOUT_MS,
   chunk,
   deliver,
   interpretTickets,
@@ -168,6 +169,44 @@ describe('deliver', () => {
       failed: 1,
       retire: [],
     });
+  });
+});
+
+describe('a batch Expo never answers (TL-23)', () => {
+  /** A fetch that accepts the request and never answers — unless aborted. */
+  function hangs(_url: string, init?: RequestInit): Promise<Response> {
+    return new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason ?? new Error('aborted')));
+    });
+  }
+
+  it('gives up on the hung batch and carries on to the next', async () => {
+    const messages = Array.from({ length: 150 }, (_, i) => message(token(i)));
+    (global.fetch as jest.Mock)
+      .mockImplementationOnce(hangs)
+      .mockReturnValueOnce(expoResponds(Array.from({ length: 50 }, () => ({ status: 'ok' as const }))));
+
+    const outcome = await deliver(messages, { timeoutMs: 20 });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({ delivered: 50, failed: 100, retire: [] });
+  });
+
+  it('bounds every request by default, at a few seconds', async () => {
+    (global.fetch as jest.Mock).mockReturnValueOnce(expoResponds([{ status: 'ok' }]));
+    await deliver([message(token(1))]);
+    const init = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(EXPO_SEND_TIMEOUT_MS).toBeGreaterThanOrEqual(2_000);
+    expect(EXPO_SEND_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
+  });
+
+  it('can still detect an unbounded send: with no signal, the hung fetch never settles', async () => {
+    // Anti-vacuous: the stub only rejects through the signal.
+    const settled = jest.fn();
+    hangs(EXPO_PUSH_ENDPOINT, {}).then(settled, settled);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(settled).not.toHaveBeenCalled();
   });
 });
 
