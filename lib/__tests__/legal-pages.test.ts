@@ -444,8 +444,12 @@ describe('the policy names every path and every processor (LEGAL-1, 4, 5, 6)', (
         return /\.tsx?$/.test(entry.name) ? [rel] : [];
       });
     const sources = [...serverSources('app'), ...serverSources('lib')];
-    // A logger call's context object, read to its closing parenthesis on the next few lines.
-    const LOG_CALL = /logger\.(?:info|warn|error|debug)\([\s\S]{0,400}?\);/g;
+    /*
+      A logger call's context object, read to its closing parenthesis on the
+      next few lines. LEGAL-22: and a `console.*` call — the rule is about the
+      log, not the helper that writes to it.
+    */
+    const LOG_CALL = /(?:logger|console)\.(?:info|warn|error|debug|log)\([\s\S]{0,400}?\);/g;
     const logCalls = sources.flatMap((file) => src(file).match(LOG_CALL) ?? []);
 
     it('found the log lines that carry an account id', () => {
@@ -469,6 +473,53 @@ describe('the policy names every path and every processor (LEGAL-1, 4, 5, 6)', (
     it('can still see an email in a log line (anti-vacuous)', () => {
       const shipped = `logger.warn('X', 'y', { userId, email: user.email });`;
       expect(shipped.match(LOG_CALL)?.some((call) => /\b(email|displayName|display_name)\s*[:,}]/.test(call))).toBe(true);
+      // LEGAL-22: written through console instead, it is still seen.
+      const viaConsole = `console.error('[X] failed', { userId, email: user.email });`;
+      expect(viaConsole.match(LOG_CALL)?.some((call) => /\b(email|displayName|display_name)\s*[:,}]/.test(call))).toBe(true);
+    });
+
+    it('found console lines as well as logger lines', () => {
+      expect(logCalls.filter((call) => call.startsWith('console.')).length).toBeGreaterThan(20);
+      expect(logCalls.filter((call) => call.startsWith('logger.')).length).toBeGreaterThan(100);
+    });
+
+    /*
+      LEGAL-22: the quote path's failure lines wrote the model's raw reply
+      (and so the owner's typed note) to the log. They carry ids and lengths
+      now; a value written from the owner's words is never an argument.
+    */
+    describe('the quote path logs lengths, not what the owner wrote (LEGAL-22)', () => {
+      const actions = src('app/actions.ts');
+      const body = (name: string) => {
+        const start = actions.indexOf(`async function ${name}(`);
+        expect(start).toBeGreaterThan(-1);
+        const next = actions.indexOf('\nasync function ', start + 10);
+        const nextExport = actions.indexOf('\nexport ', start + 10);
+        return actions.slice(start, Math.min(...[next, nextExport].filter((i) => i > -1)));
+      };
+      // A raw value as a log argument: `, result)`, `, emailDraft)`, `{ estimateData }`, `, error)`.
+      const RAW = /[,{]\s*(result|emailDraft|emailText|text|estimateData|additionalNotes|apiError|error|item)\s*[,})]/;
+      const calls = (name: string) => body(name).match(LOG_CALL) ?? [];
+
+      it.each(['estimateCosts', 'generateEmailDraft'])('%s writes no console line and no raw value', (name) => {
+        expect(body(name).length).toBeGreaterThan(1000);
+        expect(calls(name).length).toBeGreaterThan(3);
+        expect(body(name)).not.toMatch(/console\./);
+        expect(calls(name).filter((call) => RAW.test(call.replace(/^[^(]*\(\s*'[^']*'\s*/, '')))).toEqual([]);
+      });
+
+      it('can still see the lines that shipped (anti-vacuous)', () => {
+        const shipped = [
+          `console.error('[Generate Email Draft] Email draft too short or empty:', emailDraft);`,
+          `console.error('[Generate Email Draft] Full error object:', error);`,
+          `logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('x'), { estimateData });`,
+        ];
+        for (const line of shipped) {
+          const [call] = line.match(LOG_CALL) ?? [];
+          expect(call).toBeDefined();
+          expect(RAW.test((call ?? '').replace(/^[^(]*\(\s*'[^']*'\s*/, ''))).toBe(true);
+        }
+      });
     });
   });
 

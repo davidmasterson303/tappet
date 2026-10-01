@@ -6038,7 +6038,7 @@ async function estimateCosts(
       `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (Category: ${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
 
-    console.log('[Estimate Costs] Preparing prompt for cost estimation');
+    logger.debug('ESTIMATE:PROMPT', 'Preparing prompt for cost estimation', { itemCount: serviceItems.length });
     const prompt = `You are an automotive cost estimation expert. Estimate repair/maintenance costs for the following vehicle and service items.
 
 Vehicle Information:
@@ -6120,19 +6120,13 @@ Return ONLY valid JSON with no additional text.`;
           }
         }
       );
-      console.log('[Estimate Costs] Received response object:', typeof result);
     } catch (apiError: any) {
-      console.error('[Estimate Costs] API call failed:', apiError);
-      console.error('[Estimate Costs] Error details:', {
-        message: apiError.message,
-        name: apiError.name,
-        stack: apiError.stack
-      });
+      logger.error('ESTIMATE:API_FAILED', apiError instanceof Error ? apiError : new Error('Non-Error thrown by the model call'));
       throw new Error(`Gemini API call failed: ${apiError.message}`);
     }
 
     if (!result || typeof result !== 'object') {
-      console.error('[Estimate Costs] Invalid response object:', result);
+      logger.error('ESTIMATE:INVALID_RESPONSE', new Error('Invalid response object from API'), { responseType: typeof result });
       throw new Error('Invalid response object from API');
     }
 
@@ -6141,16 +6135,14 @@ Return ONLY valid JSON with no additional text.`;
       result.usageMetadata
     );
 
-    console.log('[Estimate Costs] Response object keys:', Object.keys(result));
 
     const text = result.text;
     if (!text || typeof text !== 'string') {
-      console.error('[Estimate Costs] No text in response. Result structure:', JSON.stringify(result, null, 2));
+      logger.error('ESTIMATE:NO_TEXT', new Error('No response text from API'));
       throw new Error('No response text from API');
     }
 
-    console.log('[Estimate Costs] Response text length:', text.length);
-    console.log('[Estimate Costs] Response text preview:', text.substring(0, 300));
+    logger.debug('ESTIMATE:RESPONSE', 'Response text received', { textLength: text.length });
 
     logger.debug('ESTIMATE:PARSE', 'Parsing JSON response');
     const estimateData = extractJSON(text) as unknown as Record<string, unknown>;
@@ -6161,12 +6153,12 @@ Return ONLY valid JSON with no additional text.`;
     }
 
     if (!estimateData.items || !Array.isArray(estimateData.items) || estimateData.items.length === 0) {
-      logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('Invalid estimate structure'), { estimateData });
+      logger.error('ESTIMATE:INVALID_STRUCTURE', new Error('Invalid estimate structure'), { textLength: text.length });
       throw new Error('Invalid cost estimate structure from AI');
     }
 
     if (!estimateData.total_low || !estimateData.total_high) {
-      logger.error('ESTIMATE:MISSING_TOTALS', new Error('Missing total fields'), { estimateData });
+      logger.error('ESTIMATE:MISSING_TOTALS', new Error('Missing total fields'), { itemCount: (estimateData.items as unknown[]).length });
       throw new Error('Missing total cost fields in estimate');
     }
 
@@ -6175,19 +6167,16 @@ Return ONLY valid JSON with no additional text.`;
     for (let i = 0; i < estimate.items.length; i++) {
       const item = estimate.items[i];
       if (!item.description || typeof item.parts_cost_low !== 'number' || typeof item.labor_cost_low !== 'number') {
-        console.error('[Estimate Costs] Invalid item structure at index', i, item);
+        logger.error('ESTIMATE:INVALID_ITEM', new Error('Invalid item structure'), { index: i });
         throw new Error(`Invalid item structure at index ${i}`);
       }
     }
 
-    console.log('[Estimate Costs] Successfully validated and parsed cost estimate with', estimate.items.length, 'items');
+    logger.info('ESTIMATE:COMPLETE', 'Cost estimate parsed', { itemCount: estimate.items.length });
     return { success: true, data: estimate };
   } catch (error: any) {
-    console.error('[Estimate Costs] Error:', error.message || error);
-    console.error('[Estimate Costs] Full error object:', error);
-    if (error.stack) {
-      console.error('[Estimate Costs] Stack trace:', error.stack);
-    }
+    // LEGAL-22: the error's own message only — never the raw object, which can carry the model's reply.
+    logger.error('ESTIMATE:FAILED', error instanceof Error ? error : new Error('Non-Error thrown while estimating'));
     return {
       success: false,
       error: couldNotMake('the cost estimates')
@@ -6231,7 +6220,7 @@ async function generateEmailDraft(
       return { success: false, error: access.error };
     }
 
-    console.log('[Generate Email Draft] Starting email generation');
+    logger.debug('EMAIL_DRAFT:START', 'Starting email generation', { itemCount: serviceItems.length, notesLength: additionalNotes ? String(additionalNotes).length : 0 });
     const itemsList = serviceItems.map((item, idx) =>
       `${idx + 1}. ${clipForPrompt(String(item.description ?? ''))} (${clipForPrompt(String(item.category ?? ''), QUOTE_LIMITS.category)})`
     ).join('\n');
@@ -6299,10 +6288,9 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
       }
     );
 
-    console.log('[Generate Email Draft] Received response object');
 
     if (!result || typeof result !== 'object') {
-      console.error('[Generate Email Draft] Invalid response object:', result);
+      logger.error('EMAIL_DRAFT:INVALID_RESPONSE', new Error('Invalid response object from API'), { responseType: typeof result });
       throw new Error('Invalid response object from API');
     }
 
@@ -6313,26 +6301,24 @@ Return ONLY the email body text. Do NOT include a subject line. The email should
 
     const emailText = result.text;
     if (!emailText || typeof emailText !== 'string') {
-      console.error('[Generate Email Draft] No text in response:', result);
+      logger.error('EMAIL_DRAFT:NO_TEXT', new Error('No response text from API'));
       throw new Error('No response text from API');
     }
 
-    console.log('[Generate Email Draft] Response text length:', emailText.length);
+    logger.debug('EMAIL_DRAFT:RESPONSE', 'Response text received', { textLength: emailText.length });
     const emailDraft = emailText.trim();
 
     if (!emailDraft || emailDraft.length < 50) {
-      console.error('[Generate Email Draft] Email draft too short or empty:', emailDraft);
+      // LEGAL-22: the length, never the draft — it is written from the owner's note.
+      logger.error('EMAIL_DRAFT:TOO_SHORT', new Error('Generated email is too short or empty'), { draftLength: emailDraft.length });
       throw new Error('Generated email is too short or empty');
     }
 
-    console.log('[Generate Email Draft] Successfully generated email with', emailDraft.length, 'characters');
+    logger.info('EMAIL_DRAFT:COMPLETE', 'Email draft generated', { draftLength: emailDraft.length });
     return { success: true, data: emailDraft };
   } catch (error: any) {
-    console.error('[Generate Email Draft] Error:', error.message || error);
-    console.error('[Generate Email Draft] Full error object:', error);
-    if (error.stack) {
-      console.error('[Generate Email Draft] Stack trace:', error.stack);
-    }
+    // LEGAL-22: the error's own message only — never the raw object.
+    logger.error('EMAIL_DRAFT:FAILED', error instanceof Error ? error : new Error('Non-Error thrown while drafting'));
     return {
       success: false,
       error: couldNotMake('the email draft')
