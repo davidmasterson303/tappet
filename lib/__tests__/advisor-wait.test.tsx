@@ -123,7 +123,7 @@ describe('the turn being written', () => {
     expect(status).toHaveAttribute('data-motion', 'live');
     expect(status.textContent).toContain('Answering');
     // The fact that is true for the whole call, naming the car it was handed.
-    expect(status.textContent).toContain('Your 2015 BMW M235i’s records go to the model with the question.');
+    expect(status.textContent).toContain('Your 2015 BMW M235i’s records go to Google’s AI with the question.');
     expect(container.querySelector('.animate-spin')).toBeNull();
     expect(container.querySelector('.working-sweep.is-live')).not.toBeNull();
     // Jay's byline sits above the instrument, where the answer will land.
@@ -279,7 +279,7 @@ describe('opening a conversation is a wait; an empty thread is not', () => {
 describe('the turn on its own', () => {
   it('prints the model sentence for a real car and not for the demo, which calls no model', () => {
     const live = render(<AdvisorWait vehicle={{ year: 2018, make: 'Honda', model: 'Accord' }} demo={false} />);
-    expect(live.container.textContent).toContain('Your 2018 Honda Accord’s records go to the model with the question.');
+    expect(live.container.textContent).toContain('Your 2018 Honda Accord’s records go to Google’s AI with the question.');
     live.unmount();
 
     const demo = render(<AdvisorWait vehicle={{ year: 2018, make: 'Honda', model: 'Accord' }} demo />);

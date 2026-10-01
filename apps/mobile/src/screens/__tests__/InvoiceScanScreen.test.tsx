@@ -206,7 +206,9 @@ describe('the first frame is the viewfinder — brief B9', () => {
     const { view } = await mount();
 
     await view.findByTestId('camera-view');
-    view.getByText(/A model reads the line items into this car's history/);
+    // Audit 360, COPY-10: "a model" is a car's model on every other line of this app.
+    view.getByText(/Google’s AI reads the line items into this car's history/);
+    expect(view.queryByText(/A model reads/)).toBeNull();
   });
 
   it('says READY only once the camera has, and finds a lens', async () => {

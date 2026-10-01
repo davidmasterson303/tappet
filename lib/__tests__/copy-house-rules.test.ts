@@ -17,6 +17,7 @@
  *   COPY-12  service history, not service log; door jamb, not door-jamb
  *   COPY-13  Apple Account, not Apple ID (Apple's name since Sept 2024)
  *   COPY-14  no first-person apology, no "Failed to load"
+ *   COPY-10  the AI is never "the model" — that word is the car's
  *
  * Scanned: string literals and JSX text, comments removed, template holes
  * blanked, logger lines skipped — the same reading `needs-not-wishlist`
@@ -87,6 +88,11 @@ const RULES: Rule[] = [
   { id: 'COPY-12 door-jamb', pattern: /door-jamb/i },
   { id: 'COPY-13 Apple ID', pattern: /\bApple ID\b/ },
   { id: 'COPY-14 apology', pattern: /sorry, i encountered|^\s*failed to load\b/i },
+  /*
+    COPY-10: "model" is the car's model on every other line of this app, so
+    the AI is never "the model" or "a model" in a sentence an owner reads.
+  */
+  { id: 'COPY-10 the model', pattern: /\bgo(?:es)? to the model\b|\ba model reads\b/i, exempt: MODEL_AND_MONITOR },
 ];
 
 function withoutComments(source: string): string {
@@ -175,12 +181,14 @@ describe('the copy lens’s house rules', () => {
       `export const WISHLIST_SOURCES = ['dossier', 'consultant', 'manual'] as const;`,
       `// "the repair is free" was the old banner`,
       `logger.error('Failed to load vehicles', error);`,
+      // COPY-10, last so the line numbers above stand
+      "detail={`${'${vehicleTitle}'} records go to the model with the question.`}",
     ].join('\n');
     expect(
       violations('fixture.tsx', fixture)
         .map((v) => v.line)
         .sort((a, b) => a - b)
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16]);
   });
 
   it('holds everywhere a customer reads', () => {

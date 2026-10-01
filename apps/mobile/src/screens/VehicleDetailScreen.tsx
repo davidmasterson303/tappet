@@ -1265,11 +1265,17 @@ export function VehicleDetailScreen({
     : openRecallCount === 0
       ? { text: 'None open', muted: true }
       : { text: `${openRecallCount} open`, muted: false };
+  /*
+    ⚠ Audit 360, COPY-9 (1 Oct). The spoken names said "Opens the account of
+    the score" — and this cell opens the recall list, not the score, while
+    "account" is a screen two taps away. A cleared car heard "View 0 open
+    recalls", a verb on nothing.
+  */
   const recallsSpoken = !recallsChecked
-    ? 'Recalls, not checked yet. Opens the account of the score.'
+    ? 'Recalls, not checked yet. Opens the recall list.'
     : openRecallCount === 0
-      ? 'View 0 open recalls'
-      : `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}, matched to this model, not this car. Opens the account of the score.`;
+      ? 'Recalls, none open for this model. Opens the recall list.'
+      : `View ${openRecallCount} open ${openRecallCount === 1 ? 'recall' : 'recalls'}, matched to this model, not this car.`;
 
   /*
     ── The page's one act — in the sheet since 22 Sep, not on the plate ──────
@@ -2096,7 +2102,13 @@ export function VehicleDetailScreen({
                 legend="History"
                 rule
                 onPress={onOpenHistory}
-                accessibilityLabel={historyCount ? `History, ${historyCount} recorded services.` : 'History.'}
+                accessibilityLabel={
+                  historyCount === null
+                    ? 'History.'
+                    : historyCount === '0'
+                      ? 'History, no records yet.'
+                      : `History, ${historyCount} recorded ${historyCount === '1' ? 'service' : 'services'}.`
+                }
               >
                 {historyCount ? (
                   historyCount === '0' ? (

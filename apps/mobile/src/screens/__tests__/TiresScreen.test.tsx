@@ -250,6 +250,8 @@ describe('until the migrations are applied', () => {
     );
     const view = await render(<TiresScreen vehicleId="v1" {...handlers()} />);
     await waitFor(() => expect(view.getByText('Tire records are not switched on yet')).toBeTruthy());
+    // Audit 360, COPY-11: "once it is" read aloud as "once [the car] is [wrong]".
+    expect(view.getByText('Nothing is wrong with this car. The record opens once they are.')).toBeTruthy();
     expect(view.queryByLabelText('Try again')).toBeNull();
     expect(view.queryByLabelText('Add a tire set')).toBeNull();
   });

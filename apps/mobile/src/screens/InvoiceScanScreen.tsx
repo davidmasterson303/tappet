@@ -727,7 +727,7 @@ export function InvoiceScanScreen({
         length: an explainer page became one line at the frame's foot.
       */
       <Text style={styles.caveat}>
-        A model reads the line items into this car's history — check them afterwards.
+        Google’s AI reads the line items into this car's history — check them afterwards.
       </Text>
     );
 

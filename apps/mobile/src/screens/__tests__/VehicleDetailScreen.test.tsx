@@ -360,6 +360,8 @@ describe('the counts on the binnacle', () => {
 
     // The anti-vacuous half: a count that is not zero is set in the value's ink.
     const history = view.getByLabelText(/^History, 1 /);
+    // Audit 360, COPY-9: spoken as drawn — "1 recorded service", never "1 recorded services".
+    expect(history.props.accessibilityLabel).toBe('History, 1 recorded service.');
     expect(readoutColor(within(history).getByText('1'))).toBe(text.primary);
     expect(within(history).getByText('record')).toBeTruthy();
     // And the recall count carries its word beneath: "2 / open" — one word for the block (IA I5, UX U5).
@@ -379,13 +381,13 @@ describe('the counts on the binnacle', () => {
     respond({ nhtsa_data: null, vehicle_health_summary: null });
     const never = await mount();
     await never.view.findAllByText(/2018 Honda Accord/);
-    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the account of the score.');
+    const unchecked = never.view.getByLabelText('Recalls, not checked yet. Opens the recall list.');
     expect(within(unchecked).queryByText(/^\d+$/)).toBeNull();
 
     respond({ nhtsa_data: { recalls: [] }, vehicle_health_summary: null });
     const clean = await mount();
     await clean.view.findAllByText(/2018 Honda Accord/);
-    const cleared = clean.view.getByLabelText('View 0 open recalls');
+    const cleared = clean.view.getByLabelText('Recalls, none open for this model. Opens the recall list.');
     // Cleared: a sentence in the legend's ink, never a dimmed 0 (22 Sep).
     expect(readoutColor(within(cleared).getByText('None open'))).toBe(text.muted);
   });

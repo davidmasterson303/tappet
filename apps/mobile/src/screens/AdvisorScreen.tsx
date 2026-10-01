@@ -394,7 +394,7 @@ export function AdvisorScreen({
       } else if (apiError.status === 401) {
         setError('Tappet could not confirm who you are just now. Try again in a moment.');
       } else if (apiError.status === 429) {
-        setError('This car has asked a lot of questions recently. Try again in a minute.');
+        setError('You have asked a lot of questions in a short time. Try again in a minute.');
       } else if (apiError.status === 502) {
         setError('The advisor could not answer that one. Your question is still here — try again.');
       } else {
@@ -730,7 +730,7 @@ export function AdvisorScreen({
                 <Working
                   variant="compact"
                   line="Answering"
-                  detail={`${vehicleTitle ? `Your ${vehicleTitle}’s` : 'The car’s'} records go to the model with the question.`}
+                  detail={`${vehicleTitle ? `Your ${vehicleTitle}’s` : 'The car’s'} records go to Google’s AI with the question.`}
                 />
               </View>
             ) : null}

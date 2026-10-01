@@ -793,6 +793,9 @@ describe('when asking again cannot help — the other three codes, 17 Sep', () =
     const view = await renderAdvisor();
 
     expect(await view.findByText(/try again in a minute/i)).toBeTruthy();
+    // Audit 360, COPY-11: the limiter counts the person asking, not the car.
+    expect(view.getByText(/^You have asked a lot of questions/)).toBeTruthy();
+    expect(view.queryByText(/This car has asked/)).toBeNull();
   });
 });
 
