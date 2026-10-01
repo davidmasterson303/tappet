@@ -31,6 +31,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import * as ts from 'typescript';
 
 const ROOT = join(__dirname, '..', '..');
 
@@ -48,100 +49,10 @@ function walk(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
-/**
- * The source with every comment blanked and strings kept — the docblocks in
- * `app/actions.ts` quote the shapes this scanner looks for, on purpose.
- */
-export function stripComments(source: string): string {
-  let out = '';
-  let i = 0;
-  let quote: string | null = null;
-  while (i < source.length) {
-    const c = source[i];
-    const next = source[i + 1];
-    if (quote) {
-      out += c;
-      if (c === '\\') {
-        out += next ?? '';
-        i += 2;
-        continue;
-      }
-      if (c === quote) quote = null;
-      i++;
-    } else if (c === '/' && next === '*') {
-      const end = source.indexOf('*/', i + 2);
-      const stop = end === -1 ? source.length : end + 2;
-      out += source.slice(i, stop).replace(/[^\n]/g, ' ');
-      i = stop;
-    } else if (c === '/' && next === '/') {
-      const end = source.indexOf('\n', i);
-      const stop = end === -1 ? source.length : end;
-      out += ' '.repeat(stop - i);
-      i = stop;
-    } else {
-      if (c === "'" || c === '"' || c === '`') quote = c;
-      out += c;
-      i++;
-    }
-  }
-  return out;
-}
-
 /** True when the module's first statement is the directive (comments aside). */
 export function isServerModule(source: string): boolean {
   const code = source.replace(/^(\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*/, '');
   return /^['"]use server['"]/.test(code);
-}
-
-/** The text between an opening bracket at `open` and its match. */
-function balanced(source: string, open: number): string {
-  const pairs: Record<string, string> = { '(': ')', '{': '}', '[': ']' };
-  const stack: string[] = [];
-  for (let i = open; i < source.length; i++) {
-    const c = source[i];
-    if (c in pairs) stack.push(pairs[c]);
-    else if (c === stack[stack.length - 1]) {
-      stack.pop();
-      if (stack.length === 0) return source.slice(open + 1, i);
-    }
-  }
-  return source.slice(open + 1);
-}
-
-/** Split at commas that are not inside any bracket. */
-function topLevel(list: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < list.length; i++) {
-    const c = list[i];
-    if ('({[<'.includes(c)) depth++;
-    else if (')}]>'.includes(c)) depth--;
-    else if (c === ',' && depth === 0) {
-      parts.push(list.slice(start, i));
-      start = i + 1;
-    }
-  }
-  parts.push(list.slice(start));
-  return parts.map((p) => p.trim()).filter(Boolean);
-}
-
-/** Every name a client can set: plain parameters and destructured ones. */
-function parameterNames(params: string): string[] {
-  const names: string[] = [];
-  for (const param of topLevel(params)) {
-    if (param.startsWith('{')) {
-      const inner = balanced(param, 0);
-      for (const field of topLevel(inner)) {
-        const m = /^(?:\.\.\.)?\s*([A-Za-z_$][\w$]*)\s*(?::\s*([A-Za-z_$][\w$]*))?/.exec(field);
-        if (m) names.push(m[2] ?? m[1]);
-      }
-    } else {
-      const m = /^([A-Za-z_$][\w$]*)/.exec(param);
-      if (m) names.push(m[1]);
-    }
-  }
-  return names;
 }
 
 export interface WriteFinding {
@@ -150,46 +61,194 @@ export interface WriteFinding {
 }
 
 export interface ScanResult {
+  /** Exported functions — each one a POST endpoint. */
   exports: number;
+  /** Every named function scanned, exported or not. */
+  functions: number;
   writes: number;
   findings: WriteFinding[];
 }
 
-/**
- * Every `.update(` / `.insert(` / `.upsert(` inside an exported function
- * whose payload is a parameter (or a member of one), or spreads one.
+/*
+ * ⚠ Audit 360, SEC-19 (round 4). The first version of this scanner was a
+ * regex over the text between one `export` and the next, and it flagged a
+ * write only when the payload *was* a parameter or spread one. The reviewer
+ * ran it and every one of these came back clean: an alias
+ * (`const row = { ...fields }; .update(row)`), a plain rename, an
+ * `Object.assign({}, updates)`, a nested destructure in the signature, and a
+ * non-exported helper — which sat outside every export's slice, so its write
+ * was not even counted. It now reads the TypeScript syntax tree (the compiler
+ * is already a root devDependency), so comments and strings are not code by
+ * construction, and it follows a client value through the function: a
+ * parameter is tainted; so is anything declared, assigned, destructured,
+ * `Object.assign`ed or iterated from a tainted value. Every named function is
+ * scanned, exported or not: a helper that writes whatever it is handed is
+ * flagged, because its caller is one refactor from handing it a client object.
+ *
+ * Not followed, deliberately: a value passed through a call to a function of
+ * our own (`tcoPatch(fields)` is how an allow-list is written), a property
+ * value (`{ vehicle_id: vehicleId }`), and `.filter`/`.map` results.
  */
-export function findClientObjectWrites(raw: string): ScanResult {
-  const source = stripComments(raw);
-  const result: ScanResult = { exports: 0, writes: 0, findings: [] };
-  const exportRe = /export\s+async\s+function\s+([A-Za-z_$][\w$]*)\s*(<[^>]*>)?\s*\(/g;
-  const starts: Array<{ name: string; paren: number; at: number }> = [];
-  let m: RegExpExecArray | null;
-  while ((m = exportRe.exec(source))) {
-    starts.push({ name: m[1], paren: m.index + m[0].length - 1, at: m.index });
+
+type FnLike = ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration;
+
+const WRITE_METHODS = new Set(['update', 'insert', 'upsert']);
+
+function bindingNames(name: ts.BindingName, acc: string[] = []): string[] {
+  if (ts.isIdentifier(name)) acc.push(name.text);
+  else for (const el of name.elements) if (!ts.isOmittedExpression(el)) bindingNames(el.name, acc);
+  return acc;
+}
+
+function unwrap(expr: ts.Expression): ts.Expression {
+  let e = expr;
+  for (;;) {
+    if (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e) || ts.isTypeAssertionExpression(e)) e = e.expression;
+    else if (ts.isSatisfiesExpression(e)) e = e.expression;
+    else return e;
   }
-  result.exports = starts.length;
+}
 
-  starts.forEach((start, i) => {
-    const params = balanced(source, start.paren);
-    const end = i + 1 < starts.length ? starts[i + 1].at : source.length;
-    const body = source.slice(start.paren + params.length + 2, end);
-    const names = parameterNames(params);
+function calleeName(call: ts.CallExpression): string {
+  const callee = call.expression;
+  if (ts.isIdentifier(callee)) return callee.text;
+  if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
+    return `${callee.expression.text}.${callee.name.text}`;
+  }
+  return '';
+}
 
-    const writeRe = /\.(update|insert|upsert)\s*\(/g;
-    let w: RegExpExecArray | null;
-    while ((w = writeRe.exec(body))) {
-      result.writes++;
-      const args = balanced(body, w.index + w[0].length - 1);
-      const payload = topLevel(args)[0] ?? '';
-      const bare = /^([A-Za-z_$][\w$]*)(\.[\w$.]+)?(\s+as\s+.*)?$/.exec(payload);
-      const passesParam = bare !== null && names.includes(bare[1]);
-      const spreadsParam = names.some((n) => new RegExp(`\\.\\.\\.\\s*${n.replace(/\$/g, '\\$')}\\b`).test(payload));
-      if (passesParam || spreadsParam) {
-        result.findings.push({ fn: start.name, call: `.${w[1]}(${payload.slice(0, 60)})` });
+const PASS_THROUGH = new Set(['Object.assign', 'structuredClone', 'JSON.parse', 'JSON.stringify', 'Object.fromEntries', 'Object.entries', 'Array.from']);
+
+/** Whether this expression carries a tainted value whole (not a field of it by name). */
+function isTainted(expr: ts.Expression, tainted: Set<string>): boolean {
+  const e = unwrap(expr);
+  if (ts.isIdentifier(e)) return tainted.has(e.text);
+  if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) return isTainted(e.expression, tainted);
+  if (ts.isObjectLiteralExpression(e)) {
+    return e.properties.some((p) => ts.isSpreadAssignment(p) && isTainted(p.expression, tainted));
+  }
+  if (ts.isArrayLiteralExpression(e)) {
+    return e.elements.some((el) => (ts.isSpreadElement(el) ? isTainted(el.expression, tainted) : isTainted(el, tainted)));
+  }
+  if (ts.isConditionalExpression(e)) return isTainted(e.whenTrue, tainted) || isTainted(e.whenFalse, tainted);
+  if (ts.isBinaryExpression(e)) {
+    const op = e.operatorToken.kind;
+    if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return isTainted(e.left, tainted) || isTainted(e.right, tainted);
+    }
+    return false;
+  }
+  if (ts.isAwaitExpression(e)) return isTainted(e.expression, tainted);
+  if (ts.isCallExpression(e) && PASS_THROUGH.has(calleeName(e))) {
+    return e.arguments.some((a) => (ts.isSpreadElement(a) ? isTainted(a.expression, tainted) : isTainted(a, tainted)));
+  }
+  return false;
+}
+
+function isFunctionLike(node: ts.Node): node is FnLike {
+  return ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node) || ts.isMethodDeclaration(node);
+}
+
+/** Every name in `fn` that can hold a client value, to a fixed point. */
+function taintOf(fn: FnLike): Set<string> {
+  const tainted = new Set<string>();
+  for (const p of fn.parameters) bindingNames(p.name, []).forEach((n) => tainted.add(n));
+  if (!fn.body) return tainted;
+
+  let grew = true;
+  const add = (names: string[]) => {
+    for (const n of names) if (!tainted.has(n)) { tainted.add(n); grew = true; }
+  };
+  while (grew) {
+    grew = false;
+    const visit = (node: ts.Node) => {
+      if (ts.isVariableDeclaration(node) && node.initializer && isTainted(node.initializer, tainted)) {
+        add(bindingNames(node.name));
+      } else if (
+        ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isIdentifier(node.left) && isTainted(node.right, tainted)
+      ) {
+        add([node.left.text]);
+      } else if (ts.isCallExpression(node)) {
+        // Object.assign(row, updates) taints `row`.
+        const [target, ...rest] = node.arguments;
+        if (calleeName(node) === 'Object.assign' && target && ts.isIdentifier(unwrap(target)) &&
+            rest.some((a) => isTainted(ts.isSpreadElement(a) ? a.expression : a, tainted))) {
+          add([(unwrap(target) as ts.Identifier).text]);
+        }
+        // updates.forEach((u) => …) taints `u`.
+        const callee = node.expression;
+        if (ts.isPropertyAccessExpression(callee) && isTainted(callee.expression, tainted)) {
+          for (const a of node.arguments) {
+            if (ts.isArrowFunction(a) || ts.isFunctionExpression(a)) {
+              for (const p of a.parameters) add(bindingNames(p.name));
+            }
+          }
+        }
+      } else if ((ts.isForOfStatement(node) || ts.isForInStatement(node)) && isTainted(node.expression, tainted)) {
+        const init = node.initializer;
+        if (ts.isVariableDeclarationList(init)) init.declarations.forEach((d) => add(bindingNames(d.name)));
+        else if (ts.isIdentifier(init)) add([init.text]);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(fn.body);
+  }
+  return tainted;
+}
+
+/** The top-level named functions: declarations and `const f = (…) => …`. */
+function namedFunctions(sf: ts.SourceFile): Array<{ name: string; fn: FnLike; exported: boolean }> {
+  const out: Array<{ name: string; fn: FnLike; exported: boolean }> = [];
+  const isExported = (node: ts.Node) =>
+    (ts.canHaveModifiers(node) ? ts.getModifiers(node) ?? [] : []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+  for (const stmt of sf.statements) {
+    if (ts.isFunctionDeclaration(stmt) && stmt.name) {
+      out.push({ name: stmt.name.text, fn: stmt, exported: isExported(stmt) });
+    } else if (ts.isVariableStatement(stmt)) {
+      for (const d of stmt.declarationList.declarations) {
+        const init = d.initializer && unwrap(d.initializer);
+        if (init && ts.isIdentifier(d.name) && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) {
+          out.push({ name: d.name.text, fn: init, exported: isExported(stmt) });
+        }
       }
     }
-  });
+  }
+  return out;
+}
+
+/**
+ * Every `.update(` / `.insert(` / `.upsert(` in the module, and the ones
+ * whose payload carries a function's parameter whole — directly, through an
+ * alias, a spread, `Object.assign`, a destructure or a loop.
+ */
+export function findClientObjectWrites(raw: string): ScanResult {
+  const sf = ts.createSourceFile('scan.ts', raw, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const fns = namedFunctions(sf);
+  const result: ScanResult = { exports: fns.filter((f) => f.exported).length, functions: fns.length, writes: 0, findings: [] };
+  const taintCache = new Map<FnLike, Set<string>>();
+  const owner = new Map<FnLike, string>(fns.map((f) => [f.fn, f.name]));
+
+  const visit = (node: ts.Node, outer: FnLike | null) => {
+    const scope = outer ?? (isFunctionLike(node) && owner.has(node) ? node : null);
+    if (
+      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+      WRITE_METHODS.has(node.expression.name.text) && node.arguments.length > 0
+    ) {
+      result.writes++;
+      if (scope) {
+        if (!taintCache.has(scope)) taintCache.set(scope, taintOf(scope));
+        const payload = node.arguments[0];
+        if (isTainted(payload, taintCache.get(scope)!)) {
+          const text = payload.getText(sf).replace(/\s+/g, ' ');
+          result.findings.push({ fn: owner.get(scope)!, call: `.${node.expression.name.text}(${text.slice(0, 60)})` });
+        }
+      }
+    }
+    ts.forEachChild(node, (child) => visit(child, scope));
+  };
+  visit(sf, null);
   return result;
 }
 
@@ -215,7 +274,95 @@ describe('no server action writes a client object without an allow-list', () => 
   it('read the whole of app/actions.ts, not a fragment of it', () => {
     const scan = findClientObjectWrites(readFileSync(join(ROOT, 'app', 'actions.ts'), 'utf8'));
     expect(scan.exports).toBeGreaterThanOrEqual(70);
+    // SEC-19: the helpers too — 91 named functions on 1 Oct, 16 not exported.
+    expect(scan.functions - scan.exports).toBeGreaterThanOrEqual(10);
     expect(scan.writes).toBeGreaterThanOrEqual(50);
+  });
+
+  /*
+    SEC-19 (round 4): each shape the reviewer ran against the regex scanner
+    and got zero findings from. One finding each, and the helper's write is
+    counted.
+  */
+  it.each([
+    ['an alias of a spread', `export async function a(vehicleId: string, fields: any) {
+      const row = { ...fields };
+      await client.from('vehicles').update(row).eq('id', vehicleId);
+    }`],
+    ['a plain alias', `export async function a(itemId: string, updates: any) {
+      const patch = updates;
+      await client.from('service_items').update(patch).eq('id', itemId);
+    }`],
+    ['Object.assign inline', `export async function a(itemId: string, updates: any) {
+      await client.from('service_items').update(Object.assign({}, updates, { updated_at: now })).eq('id', itemId);
+    }`],
+    ['Object.assign into a local', `export async function a(itemId: string, updates: any) {
+      const row: Record<string, unknown> = {};
+      Object.assign(row, updates);
+      await client.from('service_items').update(row).eq('id', itemId);
+    }`],
+    ['a nested destructure in the signature', `export async function a({ vehicleId, body: { row } }: Input) {
+      await client.from('things').insert(row);
+    }`],
+    ['a destructure in the body', `export async function a(input: Input) {
+      const { body: { row } } = input;
+      await client.from('things').insert(row);
+    }`],
+    ['a reassigned let', `export async function a(input: Input) {
+      let row;
+      row = input.row;
+      await client.from('things').insert(row);
+    }`],
+    ['a loop over a parameter', `export async function a(rows: Row[]) {
+      for (const row of rows) await client.from('things').insert(row);
+    }`],
+    ['a callback over a parameter', `export async function a(rows: Row[]) {
+      await Promise.all(rows.map((row) => client.from('things').insert(row)));
+    }`],
+    ['a defaulted payload', `export async function a(itemId: string, updates?: any) {
+      await client.from('service_items').update(updates ?? {}).eq('id', itemId);
+    }`],
+    ['an array of it', `export async function a(row: any) {
+      await client.from('things').insert([row]);
+    }`],
+  ])('SEC-19 · can still detect %s', (_shape, source) => {
+    const scan = findClientObjectWrites(source);
+    expect(scan.writes).toBe(1);
+    expect(scan.findings).toHaveLength(1);
+  });
+
+  it('SEC-19 · can still detect a non-exported helper, and counts its write', () => {
+    const source = `
+      async function persist(client: Client, updates: any) {
+        await client.from('service_items').update(updates).eq('id', updates.id);
+      }
+      const persistArrow = async (client: Client, row: any) => {
+        await client.from('things').insert({ ...row });
+      };
+      export async function updateServiceItem(itemId: string, updates: unknown) {
+        await persist(getServiceRoleClient(), updates);
+        await persistArrow(getServiceRoleClient(), updates);
+      }`;
+    const scan = findClientObjectWrites(source);
+    expect(scan.exports).toBe(1);
+    expect(scan.functions).toBe(3);
+    expect(scan.writes).toBe(2);
+    expect(scan.findings.map((f) => f.fn)).toEqual(['persist', 'persistArrow']);
+  });
+
+  it('SEC-19 · passes what an allow-list, a stored row or a named column produces', () => {
+    const clean = `export async function a(vehicleId: string, fields: unknown, names: string[]) {
+      const checked = tcoPatch(fields);
+      const row = { ...checked.patch, updated_at: now };
+      await client.from('vehicles').update(row).eq('id', vehicleId);
+      const { data: stored } = await client.from('service_items').select('*').eq('vehicle_id', vehicleId);
+      for (const item of stored ?? []) await client.from('history').insert({ vehicle_id: vehicleId, description: item.description });
+      await Promise.all((stored ?? []).map((item) => client.from('copies').insert(item)));
+      await client.from('queue').upsert(names.map((name) => ({ vehicle_id: vehicleId, mod_name: name })));
+    }`;
+    const scan = findClientObjectWrites(clean);
+    expect(scan.writes).toBe(4);
+    expect(scan.findings).toEqual([]);
   });
 
   it('can still detect each shape that shipped (anti-vacuous)', () => {
