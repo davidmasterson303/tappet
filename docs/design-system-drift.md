@@ -4206,3 +4206,29 @@ second word for one thing:
 
 **What Design needs to decide:** nothing — every changed string sits in a
 wrapping text block whose style is unchanged; not re-shot.
+
+## Two new states on the phone, from existing parts (audit 360, LEGAL-20 / UX-15 / UX-17, 1 Oct, for Design)
+
+No new token, type style or treatment; recorded because each is a state no
+board has drawn.
+
+- **Hub · Score this car** (UX-15). A researched car whose owner said *Not
+  now* to the health score's sheet on an earlier visit now shows one outline
+  `Button` labelled `Score this car` (the sheet's own accept) in the research
+  log's slot, above the readings binnacle, padded as the log is
+  (`styles.researchLog`). It replaces nothing: before, that slot was empty
+  and the HEALTH cell said "No score yet" with no way on. Pressing it runs the
+  score step with the log and shows the sheet.
+- **Paywall · comped account** (LEGAL-20). The "Your subscription" well and
+  both price buttons now stand together for a hand-granted account (the App
+  Review account), the well first. The well's second line reads "…nothing to
+  manage in your Apple Account. You can still subscribe below, and Apple then
+  bills it." An Apple-billed subscriber still sees the well alone.
+- **Paywall · checking** (UX-17). While this opening's account read is out,
+  the price slot shows the compact `Working` well — "Checking your
+  subscription / From your Tappet account." — the same instrument as
+  "Loading prices".
+
+**What Design needs to decide:** whether the hub's outline button wants the
+plate's act treatment instead, and whether the comped well should sit below
+the prices. Neither blocks build 3.
