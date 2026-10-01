@@ -194,9 +194,15 @@ export function OwnerAnswersScreen({
           {identity.vin ? <Text style={styles.carVin}>{identity.vin}</Text> : null}
         </View>
 
+        {/*
+          ⚠ Audit 360, UX-6 (1 Oct): the one answer ADD TO MY GARAGE waits
+          on, and nothing said so — the primary was simply dead until a
+          reading was typed, under two chip rows that need nothing. The hint
+          says it, and VoiceOver reads it with the label.
+        */}
         <Field
           label="Odometer"
-          hint="miles"
+          hint="miles, required"
           value={mileage}
           onChangeText={setMileage}
           keyboardType="number-pad"
