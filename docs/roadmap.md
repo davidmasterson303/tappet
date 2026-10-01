@@ -51,7 +51,7 @@
 > 2. ✅ Both applied 1 Oct (David). Verified: the VIN dry insert now answers `23503` (FK), not
 >    `23505`; `quote_estimate` passes the purpose CHECK, a made-up purpose gets `23514`.
 > 3. ✅ Confirm email on (1 Oct): `/auth/v1/settings` → `mailer_autoconfirm: false`.
-> 4. ⏳ Cowork clearing `mod_detail_cache` (11 rows) → `[]` (in progress 1 Oct).
+> 4. ✅ `mod_detail_cache` cleared by Cowork 1 Oct (11 rows → `[]`, re-read here: table answers 200, empty).
 > 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
 >    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
 >    upload body limit.
