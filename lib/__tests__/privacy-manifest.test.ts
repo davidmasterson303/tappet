@@ -161,6 +161,42 @@ describe('the iOS privacy manifest', () => {
     });
   });
 
+  describe('declares crash data, linked, because a signed-in report carries the account id', () => {
+    /*
+      Audit 360, the legal agent's call (1 Oct). Since SEC-7 the phone's crash
+      report is logged with the account id when it carries a sign-in, so it is
+      Crash Data, Linked, App Functionality — and the manifest declared it
+      nowhere. Anchored to the code that sends it and the line that links it:
+      if the report stops leaving the phone, or stops carrying the id, this
+      fails and the declaration is revisited.
+    */
+    const client = source('apps/mobile/src/api/client-errors.ts');
+    const route = source('app/api/v1/client-errors/route.ts');
+    const LINKS = /const reporter = caller\.ok \? caller\.userId : 'anonymous';/;
+
+    it('found the sender and the route', () => {
+      expect(client).toMatch(/apiRequest\('\/client-errors'/);
+      expect(route).toMatch(/reporter,/);
+    });
+
+    it('declares it, linked, for app functionality', () => {
+      expect(LINKS.test(route)).toBe(true);
+      const entry = manifest.NSPrivacyCollectedDataTypes.find(
+        (e: any) => e.NSPrivacyCollectedDataType === 'NSPrivacyCollectedDataTypeCrashData'
+      );
+      expect(entry).toEqual({
+        NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeCrashData',
+        NSPrivacyCollectedDataTypeLinked: true,
+        NSPrivacyCollectedDataTypeTracking: false,
+        NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+      });
+    });
+
+    it('can still tell an anonymous report from a linked one (anti-vacuous)', () => {
+      expect(LINKS.test("const reporter = 'anonymous';")).toBe(false);
+    });
+  });
+
   it('declares user content, because conversations and invoices are stored', () => {
     expect(declared).toContain('OtherUserContent');
   });
