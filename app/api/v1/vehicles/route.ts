@@ -6,7 +6,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
-import { vehicleNameProblem } from '@tappet/core/input-bounds';
+import { clipVehicleTrim, vehicleNameProblem } from '@tappet/core/input-bounds';
 import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
@@ -563,7 +563,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     was ~125k input tokens a message. `vehicleSchema`'s 50, which the web's
     form already applies. `@tappet/core/input-bounds`.
   */
-  const nameTrouble = vehicleNameProblem({ make, model, trim: body.trim });
+  /*
+    ⚠ TL-20 (round 3): make and model are refused; a trim is clipped below
+    (`clipVehicleTrim`). A build-2 phone sends vPIC's decoded trim unbounded
+    from a screen with no trim field, and a refusal there had nothing to edit.
+  */
+  const nameTrouble = vehicleNameProblem({ make, model });
   if (nameTrouble) {
     return Response.json({ success: false, error: nameTrouble } as ApiResponse, { status: 422 });
   }
@@ -601,7 +606,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const client = getServiceRoleClient();
-  const trim = typeof body.trim === 'string' ? body.trim.trim() : '';
+  const trim = typeof body.trim === 'string' ? clipVehicleTrim(body.trim) : '';
 
   /*
     ⚠ Audit 360, TL-13 (1 Oct) · a described car's add, sent again.

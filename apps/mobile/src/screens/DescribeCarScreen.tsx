@@ -20,6 +20,7 @@ import {
   suggestNames,
   vinProblem,
 } from '@tappet/core/vehicle-catalog';
+import { VEHICLE_NAME_MAX } from '@tappet/core/input-bounds';
 import { PAGE_BODY, space, status, surface, text, type } from '../theme';
 
 /**
@@ -245,6 +246,7 @@ export function DescribeCarScreen({
 
         <Suggest
           label="Make"
+          maxLength={VEHICLE_NAME_MAX}
           value={make}
           onChangeText={setMake}
           onPick={(picked) => {
@@ -266,6 +268,7 @@ export function DescribeCarScreen({
 
         <Suggest
           label="Model"
+          maxLength={VEHICLE_NAME_MAX}
           value={model}
           onChangeText={setModel}
           onPick={(picked) => {
@@ -289,7 +292,15 @@ export function DescribeCarScreen({
           autoCapitalize="words"
         />
 
-        <Field label="Trim" hint="optional" value={trim} onChangeText={setTrim} autoCapitalize="words" />
+        {/* TL-20: the route's own bound, so it is never a refusal after CONTINUE. */}
+        <Field
+          label="Trim"
+          hint="optional"
+          value={trim}
+          onChangeText={setTrim}
+          autoCapitalize="words"
+          maxLength={VEHICLE_NAME_MAX}
+        />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

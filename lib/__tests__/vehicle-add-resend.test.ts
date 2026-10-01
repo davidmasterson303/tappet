@@ -169,3 +169,27 @@ describe('POST /api/v1/vehicles — a resent scanned add (TL-17)', () => {
     expect(rows).toHaveLength(2);
   });
 });
+
+/*
+  TL-20 (round 3) · a scanned car's decoded trim. vPIC's `Trim` is unbounded,
+  build-2 phones send it as decoded, and the answers screen has no trim field
+  — a 422 about trim there had nothing to edit. The route clips it.
+*/
+describe('POST /api/v1/vehicles — a long decoded trim (TL-20)', () => {
+  const LONG = 'Sport Utility 4D Limited Platinum Reserve Edition w/ Advanced Package';
+
+  it('adds the car with the trim clipped to fifty, rather than refusing it', async () => {
+    const response = await POST(post({ ...CIVIC, vin: '1FM5K8GC0MGA00000', trim: LONG }));
+
+    expect(response.status).toBe(201);
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0].trim).length).toBeLessThanOrEqual(50);
+    expect(LONG.startsWith(String(rows[0].trim))).toBe(true);
+  });
+
+  it('still refuses an oversized make or model — those have fields (anti-vacuous)', async () => {
+    const response = await POST(post({ ...CIVIC, model: 'M'.repeat(51) }));
+    expect(response.status).toBe(422);
+    expect(rows).toHaveLength(0);
+  });
+});

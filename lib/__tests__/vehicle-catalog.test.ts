@@ -36,6 +36,7 @@ import {
   vpicDecodeUrl,
   vpicModelsUrl,
 } from '@tappet/core/vehicle-catalog';
+import { VEHICLE_NAME_MAX, vehicleNameProblem } from '@tappet/core/input-bounds';
 
 const AUGUST = new Date('2026-08-23T12:00:00Z');
 
@@ -218,6 +219,18 @@ describe('the decode as a sentence', () => {
     expect(
       describeDecodedVin({ year: 2015, make: 'BMW', model: 'M235i', trim: null, confidence: 'clean', engine: null })
     ).toBe('2015 BMW M235i.');
+  });
+
+  it('clips a decoded trim to the bound the route keeps, and leaves a short one alone (TL-20)', () => {
+    const long = 'Sport Utility 4D Limited Platinum Reserve Edition w/ Advanced Package';
+    expect(long.length).toBeGreaterThan(VEHICLE_NAME_MAX);
+    const decoded = parseVpicDecode({ Results: [{ ErrorCode: '0', ModelYear: '2021', Make: 'FORD', Model: 'Explorer', Trim: long }] });
+    expect(decoded?.trim?.length).toBeLessThanOrEqual(VEHICLE_NAME_MAX);
+    expect(long.startsWith(decoded!.trim!)).toBe(true);
+    expect(vehicleNameProblem({ trim: decoded!.trim })).toBeNull();
+    // Anti-vacuous: the unclipped value is the one the route used to refuse.
+    expect(vehicleNameProblem({ trim: long })).toMatch(/^Trim/);
+    expect(parseVpicDecode({ Results: [{ ErrorCode: '0', ModelYear: '2003', Make: 'HONDA', Model: 'Accord', Trim: ' EX-V6 ' }] })?.trim).toBe('EX-V6');
   });
 
   it('reads the engine off a live-shaped row', () => {

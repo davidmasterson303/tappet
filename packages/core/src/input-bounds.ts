@@ -67,6 +67,22 @@ export function vehicleNameProblem(names: { make?: unknown; model?: unknown; tri
   return null;
 }
 
+/**
+ * A trim cut to `VEHICLE_NAME_MAX` rather than refused.
+ *
+ * ⚠ Audit 360, TL-20 (round 3). A trim is the one name a scan supplies that
+ * the owner never typed: vPIC's `Trim` arrives unbounded, the answers screen
+ * has no trim field, and the scan screen is already replaced. Refusing it
+ * told the owner "Trim must be 50 characters or fewer" with nothing to edit.
+ * Make and model are still refused (the describe screen has both fields);
+ * a trim is clipped at the decode and at the route, which bounds the prompt
+ * just the same.
+ */
+export function clipVehicleTrim(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length <= VEHICLE_NAME_MAX ? trimmed : trimmed.slice(0, VEHICLE_NAME_MAX).trimEnd();
+}
+
 /** Null when every given wishlist field fits; otherwise the sentence to show. */
 export function wishlistFieldProblem(fields: {
   itemName?: unknown;

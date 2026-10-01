@@ -54,9 +54,13 @@ describe('refused at the door', () => {
   it('the phone’s create route asks before the insert', () => {
     const route = read('app', 'api', 'v1', 'vehicles', 'route.ts');
     const post = route.slice(route.indexOf('export async function POST'));
-    const check = post.indexOf('vehicleNameProblem({ make, model, trim: body.trim })');
+    const check = post.indexOf('vehicleNameProblem({ make, model })');
     expect(check).toBeGreaterThan(-1);
     expect(check).toBeLessThan(post.indexOf(".from('vehicles')"));
+    // TL-20: the trim is bounded by clipping, not refused — still before the insert.
+    const clip = post.indexOf("clipVehicleTrim(body.trim)");
+    expect(clip).toBeGreaterThan(-1);
+    expect(clip).toBeLessThan(post.indexOf(".from('vehicles')"));
   });
 
   it('the wishlist route and the web action ask before the insert', () => {
