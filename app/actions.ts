@@ -32,7 +32,7 @@ import {
   scoreInRange,
 } from '@tappet/core/model-json';
 import { recallsWereChecked } from '@tappet/core/nhtsa-lookup';
-import { CONTACT_EMAIL } from '@/lib/legal';
+import { explainVinConflict } from '@/lib/vin-conflict';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
   isModDetailCacheFresh,
@@ -201,45 +201,20 @@ export async function decodeVIN(vin: string) {
     }
 
     /*
-      Not the caller's, but somebody's. The insert would fail on the UNIQUE
-      constraint anyway, and it would fail as "Failed to save vehicle" six
-      screens later — after the whole wizard had been filled in.
+      ⚠ Audit 360, SEC-1 (1 Oct) · there is no "registered elsewhere" step.
 
-      ⚠ **No `vehicleId` here, deliberately.** That field is what the form
-      redirects on, and there is nowhere to send this person: the vehicle is
-      not theirs to open. Returning it produced the silent bounce.
-
-      ⚠ The message says a VIN is registered and nothing else. No owner, no id,
-      no "belongs to <someone>". It is a real if small disclosure — you can
-      learn a given VIN is in Tappet — and the alternative is a dead end
-      with no explanation, which is worse for the one person who has a genuine
-      reason to be here: somebody who has just bought the car.
-
-      ⚠ Which is a product limitation this does not fix. A `UNIQUE` VIN means a
-      sold car can never be added by its new owner, and the honest answer for
-      them is a support conversation rather than a self-service path. Changing
-      that is a migration and a decision about what transferring a vehicle
-      means; naming it here so the next reader knows the constraint is the
-      cause and not this branch.
+      This used to ask the whole table whether *anybody* held the VIN and,
+      if so, refuse with "This VIN is already registered to another Tappet
+      account" — before a single thing had been saved. That made the decode
+      step a free oracle for whether a given car is in Tappet, and it
+      refused a used car's buyer because its previous owner had not deleted
+      it. A VIN is now unique per owner
+      (`20261001120000_a_vin_is_unique_within_a_garage.sql`), so asking
+      about other accounts here would refuse a car the database accepts.
+      Until that migration is applied the save itself can still meet a
+      stranger's VIN; `createVehicle` answers it with the same sentence,
+      through `lib/vin-conflict.ts`.
     */
-    const { data: registeredElsewhere } = await client
-      .from('vehicles')
-      .select('id')
-      .eq('vin', vinUpper)
-      .maybeSingle();
-
-    if (registeredElsewhere) {
-      logger.warn('VIN:REGISTERED_ELSEWHERE', 'VIN belongs to another account', {
-        // Not the vehicle id: this log line is about a caller who does not own
-        // it, and an id here is one copy-paste from a support reply.
-        vinLength: vinUpper.length,
-      });
-      return {
-        success: false,
-        error: `This VIN is already registered to another Tappet account. If you have just bought this vehicle, contact ${CONTACT_EMAIL} and we will transfer it.`,
-      };
-    }
-
     logger.debug('VIN:FETCHING_NHTSA', 'Fetching NHTSA data');
     const response = await fetch(
       `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vinUpper}?format=json`
@@ -357,6 +332,13 @@ export async function createVehicle(vehicleData: {
       })
       .select()
       .single();
+
+    if (vehicleError?.code === '23505') {
+      // The VIN's key — the caller's own car, or (until 20261001120000 is
+      // applied) a stranger's. `lib/vin-conflict.ts`; audit 360, SEC-1.
+      const conflict = await explainVinConflict(client, user.id, vehicleData.vin);
+      return { success: false, error: conflict.error };
+    }
 
     if (vehicleError || !vehicle) {
       logger.error('VEHICLE:INSERT_FAILED', new Error(vehicleError?.message || 'Unknown error'));

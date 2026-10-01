@@ -10,6 +10,7 @@ import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
 import { getServiceRoleClient } from '@/lib/supabase';
+import { explainVinConflict } from '@/lib/vin-conflict';
 import { platePresence, resolveVehiclePhotos, vehiclePhotoKind, type VehiclePhotoColumns } from '@/lib/vehicle-photo';
 
 export const dynamic = 'force-dynamic';
@@ -613,13 +614,17 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   if (error?.code === '23505') {
     /*
-      `vin` is the only UNIQUE column besides the key, so this is a VIN that
-      is already somebody's car — possibly this owner's, added twice. Said
-      plainly rather than as a 500: the number is on the windscreen, and the
-      fix is theirs to make.
+      ⚠ Audit 360, SEC-1 (1 Oct). `vin` is the only UNIQUE column besides the
+      key. Until 1 Oct this answered "A car with that VIN is already in a
+      garage." for every 23505 — an oracle for whether a car is in Tappet,
+      and a dead end for a used car's buyer. `explainVinConflict` asks
+      whether it is the *caller's* car; once
+      `20261001120000_a_vin_is_unique_within_a_garage.sql` is applied that is
+      the only way to reach here.
     */
+    const conflict = await explainVinConflict(client, caller.userId, vin);
     return Response.json(
-      { success: false, error: 'A car with that VIN is already in a garage.' } as ApiResponse,
+      { success: false, error: conflict.error, ...(conflict.vehicleId ? { vehicleId: conflict.vehicleId } : {}) },
       { status: 409 }
     );
   }
