@@ -18,6 +18,7 @@ import { Plus, Trash2, CircleCheck as CheckCircle, Wrench, TriangleAlert as Aler
 import { Working, WorkingMark } from '@/components/Working';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { getQuoteRequestHistory } from '@/app/actions';
 import { logger } from '@tappet/core/logger';
 import { MarkCompleteDialog } from './MarkCompleteDialog';
@@ -112,11 +113,11 @@ export function WishlistSection({ vehicleId, openAdd = false }: WishlistSectionP
         toast.success('Removed from Needs');
       } else {
         logger.error('WISHLIST_SECTION:DELETE', new Error(data.error || 'Delete failed'));
-        toast.error(data.error || 'Failed to remove item');
+        toast.error(answerSentence(data, COULD_NOT_REMOVE));
       }
     } catch (error) {
       logger.error('WISHLIST_SECTION:DELETE_EXCEPTION', error as Error);
-      toast.error('Failed to remove item');
+      toast.error(NO_ANSWER);
     } finally {
       setDeletingId(null);
     }

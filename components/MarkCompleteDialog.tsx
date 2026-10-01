@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 
 interface WishlistItem {
@@ -51,7 +52,7 @@ export function MarkCompleteDialog({
     e.preventDefault();
 
     if (!isDIY && !formData.shopName.trim()) {
-      toast.error('Please enter shop name or mark as DIY');
+      toast.error('Add the shop’s name, or mark it as done yourself.');
       return;
     }
 
@@ -76,11 +77,11 @@ export function MarkCompleteDialog({
         onSuccess();
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark as complete');
+        toast.error(answerSentence(data, COULD_NOT_SAVE));
       }
     } catch (error) {
       logger.error('MARK_COMPLETE_DIALOG:SUBMIT', error as Error);
-      toast.error('Failed to mark as complete');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { NO_ANSWER } from '@/lib/api-error-copy';
 import {
   draftFromTireSet,
   emptyRotationDraft,
@@ -22,7 +23,18 @@ import { localToday } from '@tappet/core/garage-next-service';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormField } from '@/components/ui/form-field';
-import { addTireRotation, createTireSet, updateTireSet } from '@/hooks/useTireRecords';
+import { TireRequestError, addTireRotation, createTireSet, updateTireSet } from '@/hooks/useTireRecords';
+import { customerSentence } from '@tappet/core/customer-copy';
+
+/**
+ * Audit 360, COPY-19: what a failed save says. The route's own sentence when
+ * it answered (a `TireRequestError` carries it), the dialog's line when
+ * that sentence is not fit to show, and never a thrown exception's text —
+ * "Failed to fetch" is the browser's words, not ours.
+ */
+function tireRefusal(error: unknown, fallback: string): string {
+  return error instanceof TireRequestError ? customerSentence(error.message, fallback) : NO_ANSWER;
+}
 
 /**
  * The three entry dialogs — the phone's three entry screens, as dialogs.
@@ -88,7 +100,7 @@ export function TireSetDialog({
       onSaved();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'That was not saved.');
+      toast.error(tireRefusal(error, 'That was not saved.'));
     } finally {
       setSaving(false);
     }
@@ -179,7 +191,7 @@ export function TireIntervalDialog({
       onSaved();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'That was not saved.');
+      toast.error(tireRefusal(error, 'That was not saved.'));
     } finally {
       setSaving(false);
     }
@@ -262,7 +274,7 @@ export function TireRotationDialog({
       onSaved();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'That was not saved.');
+      toast.error(tireRefusal(error, 'That was not saved.'));
     } finally {
       setSaving(false);
     }

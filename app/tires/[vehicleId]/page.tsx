@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { NO_ANSWER } from '@/lib/api-error-copy';
 import type { TireRotation, TireSet } from '@tappet/core/tires';
 import { formatDateMono, formatMiles } from '@tappet/core/tires';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -11,7 +12,8 @@ import TireRecord from '@/components/TireRecord';
 import { TireIntervalDialog, TireRotationDialog, TireSetDialog } from '@/components/TireDialogs';
 import { Working } from '@/components/Working';
 import { Button } from '@/components/ui/button';
-import { removeTireRotation, tireRecordsKey, useTireRecords } from '@/hooks/useTireRecords';
+import { TireRequestError, removeTireRotation, tireRecordsKey, useTireRecords } from '@/hooks/useTireRecords';
+import { customerSentence } from '@tappet/core/customer-copy';
 import { useVehicleImage } from '@/hooks/useSignedUrl';
 import { getClientSupabase } from '@/lib/supabase';
 
@@ -67,7 +69,9 @@ export default function TiresPage({ params }: { params: { vehicleId: string } })
       await removeTireRotation(rotation.id);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Not removed.');
+      toast.error(
+        error instanceof TireRequestError ? customerSentence(error.message, 'That rotation was not removed.') : NO_ANSWER
+      );
     }
   }
 

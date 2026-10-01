@@ -8,6 +8,7 @@ import { ShieldAlert, ExternalLink, ChevronDown, ChevronUp, Check } from 'lucide
 import { WorkingMark } from '@/components/Working';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE } from '@/lib/api-error-copy';
 
 interface RecallAlertsProps {
   recalls: any[];
@@ -53,7 +54,7 @@ export default function RecallAlerts({ recalls, vehicleId, addressedCampaigns = 
         onRecallAddressed(campaignNumber);
       }
     } catch (err) {
-      toast.error('Failed to mark recall as addressed');
+      toast.error(COULD_NOT_SAVE);
     } finally {
       setAddressingId(null);
     }

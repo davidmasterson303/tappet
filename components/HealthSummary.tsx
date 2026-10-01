@@ -32,6 +32,7 @@ import { HEALTH_AI_CONSENT } from '@tappet/core/ai-consent-copy';
 import { readWebAiConsent, recordWebAiConsent, type WebAiConsent } from '@/lib/ai-consent-web';
 import { Working, WorkingMark } from '@/components/Working';
 import { toast } from 'sonner';
+import { answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { useRouter } from 'next/navigation';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import RecallHistoryModal from './RecallHistoryModal';
@@ -554,7 +555,7 @@ export default function HealthSummary({
       invalidateDashboardCache(vehicleId);
       router.refresh();
     } else {
-      toast.error('Failed to update health summary');
+      toast.error(answerSentence(result, couldNotMake('the health summary')));
     }
     setIsRefreshing(false);
   }

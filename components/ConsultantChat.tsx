@@ -49,6 +49,7 @@ import {
 } from '@/app/actions';
 import { QuoteRequestDialogV2 } from './QuoteRequestDialogV2';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, COULD_NOT_SAVE, NO_ANSWER, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { queryClient } from '@tappet/core/query-client';
 import { useSignedUrl } from '@/hooks/useSignedUrl';
@@ -418,10 +419,10 @@ export default function ConsultantChat({
         });
         toast.success(`Added "${action.name}" to Needs`);
       } else {
-        toast.error(result.error || 'Could not add that to Needs');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
     } catch {
-      toast.error('Could not add that to Needs');
+      toast.error(NO_ANSWER);
     } finally {
       setAddingWishlistItem(null);
     }
@@ -551,7 +552,7 @@ export default function ConsultantChat({
     const result = await renameConsultantSession(edit.id, normalized.title);
     if (!result.success) {
       setSessions((prev) => prev.map((s) => (s.id === edit.id ? { ...s, title: previous } : s)));
-      toast.error(result.error || 'Could not rename this conversation');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
     }
   };
 
@@ -592,7 +593,7 @@ export default function ConsultantChat({
         )
       );
       if (wasActive) handleSessionClick(session.id);
-      toast.error(result.error || 'Could not delete this conversation');
+      toast.error(answerSentence(result, COULD_NOT_REMOVE));
     }
   };
 
@@ -600,14 +601,14 @@ export default function ConsultantChat({
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter((file) => {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Maximum size is 10MB.`);
+        toast.error(`${file.name} is over 10 MB. Choose a smaller file.`);
         return false;
       }
       return true;
     });
 
     if (selectedFiles.length + validFiles.length > 3) {
-      toast.error('Maximum 3 files can be attached per message');
+      toast.error('A message can carry up to three files.');
       return;
     }
 
@@ -644,12 +645,12 @@ export default function ConsultantChat({
         const result = await response.json();
 
         if (result.rejected) {
-          toast.error(`That file didn't appear to relate to your car. I've deleted it.`);
+          toast.error(`${file.name} does not look like it is about your car, so it was not kept.`);
           continue;
         }
 
         if (!result.success) {
-          toast.error(`Failed to upload ${file.name}`);
+          toast.error(answerSentence(result, `Tappet could not upload ${file.name} just now. Try again in a moment.`));
           continue;
         }
 
@@ -660,7 +661,7 @@ export default function ConsultantChat({
       return uploadedDocs;
     } catch (error) {
       logger.error('CONSULTANT_CHAT:UPLOAD', error as Error);
-      toast.error('Failed to upload files');
+      toast.error(NO_ANSWER);
       return [];
     } finally {
       setUploading(null);
@@ -713,7 +714,7 @@ export default function ConsultantChat({
       const createResult = await createConsultantSession(vehicleId, title);
 
       if (!createResult.success || !createResult.sessionId) {
-        toast.error('Failed to create session');
+        toast.error(answerSentence(createResult, couldNotMake('a new conversation')));
         setLoading(false);
         return;
       }
@@ -728,7 +729,7 @@ export default function ConsultantChat({
     }
 
     if (!currentSessionId && !demo) {
-      toast.error('Failed to create session');
+      toast.error(couldNotMake('a new conversation'));
       setLoading(false);
       return;
     }

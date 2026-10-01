@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 
@@ -52,7 +53,7 @@ export function AddWishlistItemDialog({
     e.preventDefault();
 
     if (!formData.itemName.trim()) {
-      toast.error('Please enter an item name');
+      toast.error('Give it a name first.');
       return;
     }
 
@@ -98,12 +99,12 @@ export function AddWishlistItemDialog({
         if (response.status === 409) {
           toast.error('That is already in Needs');
         } else {
-          toast.error(data.error || 'Failed to add item');
+          toast.error(answerSentence(data, COULD_NOT_SAVE));
         }
       }
     } catch (error) {
       logger.error('ADD_WISHLIST_DIALOG:SUBMIT', error as Error);
-      toast.error('Failed to add item');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
     }

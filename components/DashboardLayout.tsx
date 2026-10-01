@@ -11,6 +11,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 import { updateVehicleAvgMileage, updateVehicleMileage, updateVehicleStatus } from '@/app/actions';
 import { correctionAction } from '@tappet/core/mileage-tracking';
 import { USAGE_PROFILES, usageProfileChip } from '@tappet/core/usage-profile';
@@ -222,7 +223,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
       toast.success(`Status updated to ${usageProfileChip(status).label}`);
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error('Failed to update status');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
       setDisplayVehicle((d: any) => ({ ...d, vehicle_status: prev }));
     }
   };
@@ -280,7 +281,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
   const handleSaveAvgMileage = async () => {
     const value = parseInt(avgMileage);
     if (isNaN(value) || value < 0) {
-      toast.error('Please enter a valid number');
+      toast.error('Enter the miles a month as a whole number.');
       return;
     }
     setIsSaving(true);
@@ -291,7 +292,7 @@ export default function DashboardLayout({ vehicle, knowledge, currentPage, child
       toast.success('Average mileage updated');
       invalidateDashboardCache(vehicle.id);
     } else {
-      toast.error(result.error || 'Failed to update');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
       setDisplayVehicle((prev: any) => ({ ...prev, avg_miles_per_month: vehicle.avg_miles_per_month }));
       setAvgMileage(vehicle.avg_miles_per_month?.toString() || '');
     }

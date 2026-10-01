@@ -1,6 +1,7 @@
 'use client';
 
 import { useReducer, useEffect, useState } from 'react';
+import { NO_ANSWER, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -279,10 +280,10 @@ export function QuoteRequestDialogV2({
           onQuoteSaved(result.data.quoteRequestId);
         }
       } else {
-        dispatch({ type: 'SET_ERROR', error: result.error || 'Failed to generate quote' });
+        dispatch({ type: 'SET_ERROR', error: answerSentence(result, couldNotMake('the estimate')) });
       }
     } catch (error: any) {
-      dispatch({ type: 'SET_ERROR', error: error.message || 'An unexpected error occurred' });
+      dispatch({ type: 'SET_ERROR', error: NO_ANSWER });
     }
   };
 

@@ -615,7 +615,7 @@ export default function OnboardingWizard({ vehicleData }: OnboardingWizardProps)
                         <>
                           <Upload className="h-7 w-7" />
                           <span className="text-sm font-medium">Click to upload or drag and drop</span>
-                          <span className="text-xs text-white/50">JPEG, PNG, or WebP up to 5MB</span>
+                          <span className="text-xs text-white/50">JPEG, PNG or WebP, up to 5 MB</span>
                         </>
                       )}
                     </div>

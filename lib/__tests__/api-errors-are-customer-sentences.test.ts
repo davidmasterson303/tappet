@@ -55,6 +55,33 @@ const FILES = [
   join(ROOT, 'app', 'onboard', 'OnboardVinForm.tsx'),
 ];
 
+/*
+  Audit 360, COPY-19 (1 Oct): the web's components and pages. COPY-15 fixed
+  the actions' sentences and the components overwrote them with their own
+  ("Failed to mark issue as fixed") or showed an exception's text. Every
+  `.ts`/`.tsx` under `components/` and `app/` is walked, except the routes
+  (listed above), `app/dev` (never served to an owner) and `components/ui`
+  (the primitives, which carry no copy).
+*/
+const SKIPPED_DIRS = new Set([
+  join(ROOT, 'app', 'api'),
+  join(ROOT, 'app', 'dev'),
+  join(ROOT, 'components', 'ui'),
+]);
+
+function webSources(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      return entry.name === '__tests__' || SKIPPED_DIRS.has(full) ? [] : webSources(full);
+    }
+    return /\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name) ? [full] : [];
+  });
+}
+const WEB = [...webSources(join(ROOT, 'components')), ...webSources(join(ROOT, 'app'))].filter(
+  (file) => !FILES.includes(file)
+);
+
 function withoutComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
@@ -76,7 +103,8 @@ export function scan(rel: string, source: string): Hit[] {
     .forEach((line, index) => {
       if (/\blogger\.|\bconsole\./.test(line)) return;
       // COPY-15: `setError(` too — the web wizard shows what it is handed.
-      if (!/\berror\s*:|\berrorMessage\s*=|\bsetError\(/.test(line)) return;
+      // COPY-19: and what a web component shows — a toast, or the quote dialog's reducer.
+      if (!/\berror\s*:|\berrorMessage\s*=|\bsetError\(|\btoast\.error\(|type: 'SET_ERROR'/.test(line)) return;
       STRING_LITERAL.lastIndex = 0;
       for (let m = STRING_LITERAL.exec(line); m; m = STRING_LITERAL.exec(line)) {
         const text = (m[1] ?? m[2] ?? m[3] ?? '').replace(/\$\{[^}]*\}/g, '');
@@ -120,13 +148,86 @@ describe('route errors are customer sentences', () => {
       `setError('Please select all powertrain options');`,
       `setError('Please wait while we check available configurations...');`,
       `return { success: false, error: 'An unexpected error occurred' };`,
+      // COPY-19: the web's components, as they shipped.
+      `toast.error('Failed to mark issue as fixed');`,
+      "toast.error(`Failed to upload ${file.name}`);",
+      `dispatch({ type: 'SET_ERROR', error: result.error || 'Failed to generate quote' });`,
       // and what must pass
       `return NextResponse.json({ error: 'That rotation is not on record.' }, { status: 404 });`,
       `return NextResponse.json({ error: COULD_NOT_SAVE }, { status: 500 });`,
       `logger.error('TIRES_API:GET_EXCEPTION', { error: 'Internal server error' });`,
       `// { error: 'Internal server error' } was the old answer`,
     ].join('\n');
-    expect(scan('fixture.ts', fixture).map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(scan('fixture.ts', fixture).map((h) => h.line)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+  });
+
+  it('walked the web’s components and pages (COPY-19)', () => {
+    expect(WEB.length).toBeGreaterThan(80);
+    for (const file of [
+      'components/VehicleInsights.tsx',
+      'components/ConsultantChat.tsx',
+      'components/HealthSummary.tsx',
+      'components/DocumentUploadDialog.tsx',
+      'components/QuoteRequestDialogV2.tsx',
+      'app/tires/[vehicleId]/page.tsx',
+    ]) {
+      expect(WEB).toContain(join(ROOT, ...file.split('/')));
+    }
+  });
+
+  it('holds for the web’s components and pages (COPY-19)', () => {
+    const offenders = WEB.flatMap((file) => scan(file.slice(ROOT.length + 1), readFileSync(file, 'utf8')));
+    expect(offenders.map((h) => `${h.file}:${h.line}  ${JSON.stringify(h.text)}`)).toEqual([]);
+  });
+
+  /*
+    A thrown exception's text is the browser's or the library's words —
+    "Failed to fetch", "Load failed", "NetworkError when attempting…". None of
+    the shapes above sees it, because it is not a literal.
+  */
+  const SHOWS_EXCEPTION = /\b(toast\.error|setError|SET_ERROR)\b.*\b(error|err|e)\.message\b/;
+
+  it('never shows an exception’s message in a toast or an error line (COPY-19)', () => {
+    const offenders = WEB.flatMap((file) =>
+      withoutComments(readFileSync(file, 'utf8'))
+        .split('\n')
+        .map((line, index) => ({ line, at: `${file.slice(ROOT.length + 1)}:${index + 1}` }))
+        .filter(({ line }) => SHOWS_EXCEPTION.test(line))
+        .map(({ at, line }) => `${at}  ${line.trim()}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('can still see an exception’s message on screen (anti-vacuous)', () => {
+    expect(SHOWS_EXCEPTION.test(`toast.error(error instanceof Error ? error.message : 'That was not saved.');`)).toBe(true);
+    expect(SHOWS_EXCEPTION.test(`dispatch({ type: 'SET_ERROR', error: error.message || 'x' });`)).toBe(true);
+    expect(SHOWS_EXCEPTION.test(`toast.error(tireRefusal(error, 'That was not saved.'));`)).toBe(false);
+  });
+
+  it('the rejected-file toast speaks in the product’s voice, not the first person (COPY-19)', () => {
+    const chat = readFileSync(join(ROOT, 'components', 'ConsultantChat.tsx'), 'utf8');
+    expect(chat).not.toMatch(/I've deleted it|I’ve deleted it/);
+    expect(chat).toMatch(/does not look like it is about your car, so it was not kept\./);
+  });
+
+  /*
+    COPY-23: megabytes were written four ways, two of them in one dialog.
+    "10 MB", with the space, everywhere a customer reads a size.
+  */
+  const UNSPACED_MB = /\d(MB|mb)\b/;
+
+  it('writes a size as "10 MB", with the space (COPY-23)', () => {
+    const offenders = WEB.flatMap((file) =>
+      withoutComments(readFileSync(file, 'utf8'))
+        .split('\n')
+        .map((line, index) => ({ line, at: `${file.slice(ROOT.length + 1)}:${index + 1}` }))
+        .filter(({ line }) => UNSPACED_MB.test(line))
+        .map(({ at, line }) => `${at}  ${line.trim()}`)
+    );
+    expect(offenders).toEqual([]);
+    // Anti-vacuous: the shapes it shipped with.
+    expect(UNSPACED_MB.test('Maximum size is 10MB.')).toBe(true);
+    expect(UNSPACED_MB.test('PNG, JPG, PDF up to 10 MB each.')).toBe(false);
   });
 
   it('holds for every route', () => {

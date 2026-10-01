@@ -78,8 +78,8 @@ export function QuoteDetailDialog({
       });
     } catch (error) {
       toast({
-        title: 'Failed to copy',
-        description: 'Please select and copy the text manually.',
+        title: 'Could not copy that',
+        description: 'Select the text and copy it by hand.',
         variant: 'destructive',
       });
     }
@@ -95,8 +95,8 @@ export function QuoteDetailDialog({
       });
     } catch (error) {
       toast({
-        title: 'Failed to copy',
-        description: 'Please select and copy the text manually.',
+        title: 'Could not copy that',
+        description: 'Select the text and copy it by hand.',
         variant: 'destructive',
       });
     }

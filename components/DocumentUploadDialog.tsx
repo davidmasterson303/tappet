@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, FileText, Camera, X, TriangleAlert as AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_READ_INVOICE, answerSentence } from '@/lib/api-error-copy';
 import InvoiceProcessingLoader from './InvoiceProcessingLoader';
 import type { ScanProgress } from '@tappet/core/scan-progress';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
@@ -171,7 +172,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
   const validateAndAddFiles = (files: File[]) => {
     const validFiles = files.filter(file => {
       if (file.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB');
+        setError(`${file.name} is over 10 MB. Choose a smaller file.`);
         return false;
       }
       return true;
@@ -373,8 +374,9 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
             return;
           }
 
-          setError(result.error || result.message || 'Upload failed');
-          toast.error(`Failed to process ${original.name}: ${result.error || result.message}`);
+          const refusal = answerSentence(result, COULD_NOT_READ_INVOICE);
+          setError(refusal);
+          toast.error(`${original.name}: ${refusal}`);
           stopAfterRefusal();
           return;
         }
@@ -434,7 +436,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
       router.refresh();
     } catch (err) {
       setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
-      toast.error('Upload failed');
+      toast.error('That invoice was not uploaded.');
     } finally {
       setUploading(false);
     }
@@ -491,9 +493,9 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
         if (result.code === 'filing-in-progress') {
           setError(FILING_IN_PROGRESS_WEB_MESSAGE);
         } else {
-          setError(result.error || 'Upload failed');
+          setError(answerSentence(result, COULD_NOT_READ_INVOICE));
         }
-        toast.error(`Failed to process ${original.name}`);
+        toast.error(`${original.name} was not filed.`);
         setUploading(false);
         return;
       }
@@ -529,7 +531,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
       }
     } catch (err) {
       setError('That invoice could not be uploaded. Check it is a PDF or photo under 10 MB and try again.');
-      toast.error('Upload failed');
+      toast.error('That invoice was not uploaded.');
       setUploading(false);
       setCurrentFileForMismatch(null);
       setRemainingFiles([]);
@@ -588,7 +590,7 @@ export default function DocumentUploadDialog({ vehicleId, open, onOpenChange, on
                               </span>
                               <span className="text-white/50"> or drag and drop</span>
                             </Label>
-                            <p className="text-xs text-white/50 mt-1.5">PNG, JPG, PDF up to 10MB each. Multiple files supported.</p>
+                            <p className="text-xs text-white/50 mt-1.5">PNG, JPG, PDF up to 10 MB each. Multiple files supported.</p>
                           </>
                         )}
                       </div>

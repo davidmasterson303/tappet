@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Wrench } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 
 import { setModificationsVisible } from '@/app/actions';
 
@@ -85,7 +86,7 @@ export default function RegisterSwitch({
           */
           onApply(visible);
           toast.error(
-            result.error || `Could not ${next ? 'show' : 'hide'} modifications`
+            answerSentence(result, COULD_NOT_SAVE)
           );
         }
       }}

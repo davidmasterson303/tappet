@@ -53,6 +53,7 @@ import { isDemoVehicleId } from '@tappet/core/demo';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import { queryClient } from '@tappet/core/query-client';
 import { MileageUpdatePrompt } from './MileageUpdatePrompt';
@@ -173,11 +174,11 @@ export function VehicleCard({ vehicle, activeRecalls, healthSummary, alerts }: V
         toast.success(`${vehicle.year} ${vehicle.make} ${vehicle.model} removed from garage`);
       } else {
         setIsDeleting(false);
-        toast.error(result.error || 'Failed to delete vehicle');
+        toast.error(answerSentence(result, COULD_NOT_REMOVE));
       }
     } catch (error) {
       setIsDeleting(false);
-      toast.error('An unexpected error occurred during deletion');
+      toast.error(NO_ANSWER);
       logger.error('VEHICLE_CARD:DELETE', error as Error);
     }
   };

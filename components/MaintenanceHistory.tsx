@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, NO_ANSWER, answerSentence } from '@/lib/api-error-copy';
 import { logger } from '@tappet/core/logger';
 import MaintenanceItemDetailsDialog from './MaintenanceItemDetailsDialog';
 import DocumentUploadDialog from './DocumentUploadDialog';
@@ -77,12 +78,12 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
       const data = await response.json();
       if (!response.ok || !data.success) {
         logger.warn('CLIENT:DELETE_ERROR', 'Delete API error', { itemType, itemId, error: data.error });
-        return { success: false, error: data.error || 'Failed to delete item' };
+        return { success: false, error: answerSentence(data, COULD_NOT_REMOVE) };
       }
       return { success: true };
     } catch (error) {
       logger.error('CLIENT:DELETE_EXCEPTION', error as Error, { itemType, itemId });
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: NO_ANSWER };
     }
   };
 
@@ -196,7 +197,7 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
         if (result.success) {
           toast.success(`Deleted ${itemsToDelete.length} items from invoice`);
         } else {
-          toast.error(result.error || 'Failed to delete invoice');
+          toast.error(answerSentence(result, COULD_NOT_REMOVE));
           idsToDelete.delete(itemToDelete.sourceDocId);
         }
       } else {
@@ -205,14 +206,14 @@ export default function MaintenanceHistory({ vehicleId, documents, lineItems = [
         if (result.success) {
           toast.success('Item deleted');
         } else {
-          toast.error(result.error || 'Failed to delete item');
+          toast.error(answerSentence(result, COULD_NOT_REMOVE));
           idsToDelete.delete(itemToDelete.id);
         }
       }
       setDeletedItemIds(prev => { const s = new Set(prev); idsToDelete.forEach(id => s.add(id)); return s; });
       onItemDeleted?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unknown error occurred');
+      toast.error(NO_ANSWER);
     } finally {
       setLoading(false);
       setDeleteDialogOpen(false);

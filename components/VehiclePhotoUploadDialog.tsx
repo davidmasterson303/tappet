@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Upload, X, Move } from 'lucide-react';
 import { toast } from 'sonner';
+import { COULD_NOT_REMOVE, COULD_NOT_UPLOAD, answerSentence } from '@/lib/api-error-copy';
 import { uploadVehiclePhoto, removeVehiclePhoto } from '@/app/actions';
 import { downscaleImage } from '@/lib/image-downscale';
 import { useRouter } from 'next/navigation';
@@ -85,7 +86,7 @@ export function VehiclePhotoUploadDialog({
 
   const handleFileSelect = (file: File) => {
     if (!file.type.match(/^image\/(jpeg|png|jpg|webp)$/)) {
-      toast.error('Please select a valid image file (JPEG, PNG, or WEBP)');
+      toast.error('Choose a JPEG, PNG or WebP photo.');
       return;
     }
     /*
@@ -97,7 +98,7 @@ export function VehiclePhotoUploadDialog({
       bomb.
     */
     if (file.size > 40 * 1024 * 1024) {
-      toast.error('That image is unusually large — please choose a photo under 40MB');
+      toast.error('That image is unusually large. Choose a photo under 40 MB.');
       return;
     }
     setSelectedFile(file);
@@ -211,7 +212,7 @@ export function VehiclePhotoUploadDialog({
       onOpenChange(false);
       refreshVehicleViews(router);
     } else {
-      toast.error(result.error || 'Failed to upload photo');
+      toast.error(answerSentence(result, COULD_NOT_UPLOAD));
     }
     setIsUploading(false);
   };
@@ -224,7 +225,7 @@ export function VehiclePhotoUploadDialog({
       onOpenChange(false);
       refreshVehicleViews(router);
     } else {
-      toast.error(result.error || 'Failed to remove photo');
+      toast.error(answerSentence(result, COULD_NOT_REMOVE));
     }
     setIsRemoving(false);
   };
@@ -280,7 +281,7 @@ export function VehiclePhotoUploadDialog({
                     <p className="text-sm font-medium text-white">Drag and drop your photo here</p>
                     <p className="text-xs text-white/50 mt-1">or click to browse</p>
                   </div>
-                  <p className="text-xs text-white/50">JPEG, PNG, WEBP — max 5MB</p>
+                  <p className="text-xs text-white/50">JPEG, PNG or WebP, up to 40 MB</p>
                 </div>
                 <input
                   ref={fileInputRef}

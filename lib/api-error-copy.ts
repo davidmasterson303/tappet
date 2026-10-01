@@ -20,6 +20,8 @@
  * for an `error:` literal that reads as developer-speak.
  */
 
+import { customerSentence } from '@tappet/core/customer-copy';
+
 /**
  * A request the route could not read — a malformed body or a missing field.
  * Only a client bug or an old build sends one, so the remedy is the app, and
@@ -67,3 +69,28 @@ export const COULD_NOT_READ_INVOICE =
 export function couldNotMake(what: string): string {
   return `Tappet could not put together ${what} just now. Try again in a moment.`;
 }
+
+/*
+ * ── Audit 360, COPY-19 (1 Oct) · the web's components ───────────────────────
+ *
+ * COPY-15 made the server actions answer in sentences, and the components
+ * threw them away: "Failed to mark issue as fixed" where the action said
+ * "Tappet could not save that just now", "Failed to update health summary"
+ * where it said wait a minute — and in places a thrown exception's own text
+ * ("Failed to fetch"). A component now shows the action's `error` when it is
+ * a customer sentence and its own fallback otherwise, and never shows an
+ * exception's message.
+ */
+
+/** The action's `error`, when it is fit to show; otherwise `fallback`. */
+export function answerSentence(result: unknown, fallback: string): string {
+  const error = result && typeof result === 'object' ? (result as { error?: unknown }).error : undefined;
+  return customerSentence(error, fallback);
+}
+
+/**
+ * A request that threw before it answered. It may have reached Tappet, so
+ * nothing is promised either way: the page is the place to check.
+ */
+export const NO_ANSWER =
+  'Tappet did not answer, so that may not have gone through. Reload the page to check before trying again.';

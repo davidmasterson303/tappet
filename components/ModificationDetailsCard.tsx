@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Zap, ChartBar as BarChart3, DollarSign, Wrench,
 import { Working } from '@/components/Working';
 import { generateModificationDetails, addModificationToWishlist } from '@/app/actions';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence, couldNotMake } from '@/lib/api-error-copy';
 
 interface ModificationDetailsCardProps {
   vehicleId: string;
@@ -46,7 +47,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
         toast.success('Modification analysis generated');
       }
     } else if (!isAuto) {
-      toast.error('Failed to generate analysis');
+      toast.error(answerSentence(result, couldNotMake('this analysis')));
     }
 
     if (isAuto) {
@@ -64,7 +65,7 @@ export default function ModificationDetailsCard({ vehicleId, modName, vehicle, d
       setAddedToWishlist(true);
       toast.success('Added to Needs');
     } else {
-      toast.error(result.error || 'Could not add that to Needs');
+      toast.error(answerSentence(result, COULD_NOT_SAVE));
     }
     setIsAddingToWishlist(false);
   };

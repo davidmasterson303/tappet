@@ -25,6 +25,7 @@ import {
 import { readWebAiConsent } from '@/lib/ai-consent-web';
 import { useWishlistData } from '@/hooks/useWishlistData';
 import { toast } from 'sonner';
+import { COULD_NOT_SAVE, answerSentence } from '@/lib/api-error-copy';
 import { useRouter } from 'next/navigation';
 import { invalidateDashboardCache } from '@tappet/core/query-invalidation';
 import IssueFixDialog from './IssueFixDialog';
@@ -284,7 +285,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to update issue status');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -327,7 +328,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         triggerPerfStatsRecalc();
         router.refresh();
       } else {
-        toast.error('Failed to update modification status');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -374,7 +375,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to mark issue as fixed');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
@@ -396,7 +397,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
           data.dateCompleted
         );
         if (!modResult.success) {
-          toast.error('Failed to update modification status');
+          toast.error(answerSentence(modResult, COULD_NOT_SAVE));
           setLoading(false);
           return;
         }
@@ -431,7 +432,7 @@ const VehicleInsights = forwardRef<{ getSavedItemNames: () => Set<string> }, Veh
         invalidateDashboardCache(vehicle.id);
         router.refresh();
       } else {
-        toast.error('Failed to add maintenance history');
+        toast.error(answerSentence(result, COULD_NOT_SAVE));
       }
       setLoading(false);
     };
