@@ -376,11 +376,74 @@ describe('a subscriber opening it', () => {
     expect(view.queryByText('Your subscription')).toBeNull();
   });
 
+  /*
+    LEGAL-20 (1 Oct). The App Review account, exactly as the server answers
+    it: hand-granted Plus, no Apple transaction, no expiry. Its review notes
+    say it can buy either plan in the sandbox, so it sees both prices.
+  */
+  it('the App Review account — a comped grant — sees its standing and both prices', async () => {
+    iap.fetchProducts.mockResolvedValue([
+      { id: MONTHLY, displayPrice: '£7.99', platform: 'ios', type: 'subs', subscriptionPeriodUnitIOS: 'month' },
+      {
+        id: 'com.southmoordigital.tappet.paid.annual',
+        displayPrice: '£69.99',
+        platform: 'ios',
+        type: 'subs',
+        subscriptionPeriodUnitIOS: 'year',
+      },
+    ] as never);
+    standing.mockResolvedValue({ live: true, certain: true, billedByApple: false, until: null, renews: null });
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+
+    expect(await view.findByText('Your subscription')).toBeTruthy();
+    expect(view.getByText('Active')).toBeTruthy();
+    expect(view.queryByLabelText(/^Manage your subscription/)).toBeNull();
+    expect(await view.findByText('£7.99 / month')).toBeTruthy();
+    expect(view.getByText('£69.99 / year')).toBeTruthy();
+  });
+
+  /*
+    UX-17 (1 Oct). The catalogue is local and usually answers first; the
+    prices must not draw for a subscriber Apple bills and then vanish.
+  */
+  it('draws no price while the account is unread, and none once Apple’s billing is known', async () => {
+    let answer: (value: Awaited<ReturnType<typeof getSubscription>>) => void = () => undefined;
+    standing.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      })
+    );
+    const view = await render(withSafeArea(<PaywallHost />));
+    await act(async () => {
+      requestUpgrade(null);
+    });
+    // The catalogue has landed; the account has not.
+    await waitFor(() => expect(iap.fetchProducts).toHaveBeenCalled());
+    expect(await view.findByText('Checking your subscription')).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+
+    await act(async () => {
+      answer({ live: true, certain: true, billedByApple: true, until: null });
+    });
+
+    expect(await view.findByText('Your subscription')).toBeTruthy();
+    expect(view.queryByText('Checking your subscription')).toBeNull();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+  });
+
   it('subscriberFrom: only a certain, live answer makes one', () => {
     expect(subscriberFrom(null)).toBeNull();
     expect(subscriberFrom({ live: false, certain: true })).toBeNull();
     expect(subscriberFrom({ live: true, certain: false })).toBeNull();
-    expect(subscriberFrom({ live: true, certain: true })).toEqual({ line: 'Active', billedByApple: true });
+    // LEGAL-20: a missing flag is not a transaction, so it does not hide the prices.
+    expect(subscriberFrom({ live: true, certain: true })).toEqual({ line: 'Active', billedByApple: false });
+    expect(subscriberFrom({ live: true, certain: true, billedByApple: true })).toEqual({
+      line: 'Active',
+      billedByApple: true,
+    });
     expect(subscriberFrom({ live: true, certain: true, billedByApple: false })).toEqual({
       line: 'Active',
       billedByApple: false,

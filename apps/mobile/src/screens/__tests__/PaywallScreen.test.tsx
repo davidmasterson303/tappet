@@ -372,13 +372,39 @@ describe('a subscriber sees their standing, not a sale', () => {
     open.mockRestore();
   });
 
-  it('offers no Apple link for a grant Apple does not bill', async () => {
-    const view = await mountWith({ line: 'Active', billedByApple: false });
+  /*
+    LEGAL-20 (1 Oct) flips this case on purpose. It pinned the prices *away*
+    from a comped grant — which is the App Review account, whose notes say
+    it can still buy either plan in the sandbox. A reviewer who finds no
+    purchase rejects the subscriptions; a sandbox purchase cannot overwrite
+    the grant (`5d360b8`), so the buttons were always safe to show.
+  */
+  it('offers no Apple link for a grant Apple does not bill — and keeps both prices', async () => {
+    const onPurchase = jest.fn(async () => ENTITLED);
+    const view = await render(
+      withSafeArea(
+        <PaywallScreen
+          visible
+          options={OPTIONS}
+          subscriber={{ line: 'Active', billedByApple: false }}
+          onPurchase={onPurchase}
+          onRestore={jest.fn(async () => ENTITLED)}
+          onClose={jest.fn()}
+        />
+      )
+    );
 
     expect(view.getByText('Active')).toBeTruthy();
     expect(view.queryByLabelText(/^Manage your subscription/)).toBeNull();
     expect(view.getByText(/nothing to manage in your Apple Account/)).toBeTruthy();
-    expect(view.queryByText('£7.99 / month')).toBeNull();
+    expect(view.getByText(/You can still subscribe below/)).toBeTruthy();
+    expect(view.getByText('£7.99 / month')).toBeTruthy();
+    expect(view.getByText('£69.99 / year')).toBeTruthy();
+
+    await userEvent.setup().press(view.getByText('£69.99 / year'));
+    await waitFor(() =>
+      expect(onPurchase).toHaveBeenCalledWith('com.southmoordigital.tappet.paid.annual')
+    );
   });
 
   it('keeps the buy buttons for everyone else (the old shape, still right there)', async () => {
@@ -386,5 +412,46 @@ describe('a subscriber sees their standing, not a sale', () => {
 
     expect(view.getByText('£7.99 / month')).toBeTruthy();
     expect(view.queryByText('Your subscription')).toBeNull();
+  });
+});
+
+/*
+  Audit 360, UX-17 (1 Oct). StoreKit's cached catalogue beat the server's
+  answer about the account, so a subscriber Apple bills saw the buy buttons
+  draw and then vanish under their thumb. While the standing is unread on
+  this opening, the prices wait.
+*/
+describe('the prices wait for the account to be read', () => {
+  async function mount(props: Partial<React.ComponentProps<typeof PaywallScreen>>) {
+    return render(
+      withSafeArea(
+        <PaywallScreen
+          visible
+          options={OPTIONS}
+          onPurchase={jest.fn(async () => ENTITLED)}
+          onRestore={jest.fn(async () => ENTITLED)}
+          onClose={jest.fn()}
+          {...props}
+        />
+      )
+    );
+  }
+
+  it('says what it is waiting on, and draws no price', async () => {
+    const view = await mount({ standingPending: true });
+
+    expect(view.getByText('Checking your subscription')).toBeTruthy();
+    expect(view.queryByText('£7.99 / month')).toBeNull();
+    expect(view.queryByText('£69.99 / year')).toBeNull();
+    // Restore and the 3.1.2 block do not wait.
+    expect(view.getByText('Restore purchases')).toBeTruthy();
+    expect(view.getByText('Terms of Use')).toBeTruthy();
+  });
+
+  it('can still show the prices once it is read (anti-vacuous)', async () => {
+    const view = await mount({ standingPending: false });
+
+    expect(view.queryByText('Checking your subscription')).toBeNull();
+    expect(view.getByText('£7.99 / month')).toBeTruthy();
   });
 });

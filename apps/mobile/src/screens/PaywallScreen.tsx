@@ -112,11 +112,25 @@ export function featuresHeadline(count: number): string {
  * Only a *certain* live answer makes one (`PaywallHost`): an unread
  * subscription keeps the buy buttons, as before, and StoreKit itself says
  * "already subscribed" if it comes to that.
+ *
+ * ⚠ **Only Apple's billing replaces the buy buttons (LEGAL-20, 1 Oct).** UX-7
+ * hid them for every standing, which included the hand-granted account App
+ * Review signs in with — `tier: paid`, no transaction — whose review notes say
+ * "You can still buy either plan in the sandbox". A reviewer who cannot find
+ * the purchase rejects the subscriptions. A comped grant therefore shows its
+ * status *and* both prices: a sandbox purchase cannot overwrite the grant
+ * (`5d360b8`), and a production one takes over, so either way the purchase
+ * means what Apple's sheet says. Only `billedByApple: true` — StoreKit would
+ * answer "already subscribed" — keeps them off the screen.
  */
 export interface SubscriberStanding {
   /** `subscriptionStatusLine` — "Active", "Active — renews …", "Active until …". */
   line: string;
-  /** False for a comped grant: nothing at Apple to manage, so no link. */
+  /**
+   * True only when Apple is charging for it: the manage link, and no buy
+   * buttons. False for a comped grant: nothing at Apple to manage, and the
+   * prices stay (LEGAL-20).
+   */
   billedByApple: boolean;
 }
 
@@ -127,6 +141,7 @@ export default function PaywallScreen({
   unavailable = false,
   feature = null,
   subscriber = null,
+  standingPending = false,
   onPurchase,
   onRestore,
   onClose,
@@ -148,6 +163,14 @@ export default function PaywallScreen({
   feature?: PaidFeature | null;
   /** The account already subscribes — see `SubscriberStanding`. */
   subscriber?: SubscriberStanding | null;
+  /**
+   * What the account holds has not been read yet on this opening (UX-17).
+   * The prices wait for it: StoreKit's cached catalogue usually lands before
+   * the server's answer, and a subscriber Apple bills saw the buy buttons
+   * draw under their thumb and then vanish. Bounded by the request's own
+   * timeout — `getSubscription` never throws, so this always ends.
+   */
+  standingPending?: boolean;
   onPurchase: (productId: string) => Promise<PurchaseResolution>;
   onRestore: () => Promise<PurchaseResolution>;
   onClose: () => void;
@@ -304,10 +327,29 @@ export default function PaywallScreen({
                 ) : (
                   <Text style={styles.featureBlurb}>
                     Tappet Plus was added to this account, so there is nothing to manage in your
-                    Apple Account.
+                    Apple Account. You can still subscribe below, and Apple then bills it.
                   </Text>
                 )}
               </View>
+            </Well>
+          ) : null}
+
+          {/*
+            LEGAL-20: the buy controls give way only to a subscription Apple
+            already bills. Everyone else — a comped grant included — reaches
+            the ladder below.
+          */}
+          {subscriber?.billedByApple ? null : standingPending ? (
+            /*
+              UX-17: the account is being read on this opening. Named for what
+              is being waited on, as every wait in the app is.
+            */
+            <Well style={styles.notice}>
+              <Working
+                variant="compact"
+                line="Checking your subscription"
+                detail="From your Tappet account."
+              />
             </Well>
           ) : unavailable ? (
             /*
