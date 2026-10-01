@@ -226,6 +226,15 @@ const PORTABLE: string[] = [
     on the server only because that is where the stored pages are.
   */
   'lib/invoice-pdf.ts',
+  /*
+    1 Oct, audit 360 TL-2 and TL-6. A repeat invoice filing answered from the
+    filed document, and a repeated advisor question answered from the thread.
+    No imports — each takes its client or its history as a parameter — so
+    both qualify mechanically. They stay in lib/ because only the routes
+    decide a replay; the phone is told the answer, never asked.
+  */
+  'lib/invoice-filing-replay.ts',
+  'lib/consultant-replay.ts',
 ];
 
 /**
