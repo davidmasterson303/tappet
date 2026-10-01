@@ -1,5 +1,6 @@
 import { recallEvidenceForPrompt } from './health-claims';
 import { RECALL_MATCH_CAVEAT } from './advice-disclosure';
+import { boundPromptContext } from './input-bounds';
 
 /**
  * The advisor's name — the character, not the product.
@@ -137,7 +138,7 @@ Rules:
 - Do NOT include aftermarket or modified configurations
 `;
 
-export const CONSULTANT_SYSTEM_PROMPT = (context: {
+export const CONSULTANT_SYSTEM_PROMPT = (unbounded: {
   year: number;
   make: string;
   model: string;
@@ -210,7 +211,15 @@ export const CONSULTANT_SYSTEM_PROMPT = (context: {
     the prompt and the transcript labels cannot disagree about who is speaking.
     See that constant for why that matters more than it looks.
   */
-}) => `
+}) => {
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct). Every owner-written string in here — make,
+    model, a Need's description, a shop's line item — is clipped before it is
+    interpolated. They reached this prompt unbounded, and a 500 KB `make` was
+    ~125k input tokens on every turn. `input-bounds.ts` carries the layers.
+  */
+  const context = boundPromptContext(unbounded);
+  return `
 You are ${ADVISOR_NAME} — think the love child of a grizzled NASCAR crew chief and your uncle who's been elbows-deep in engines since before you were born. You've got grease under your nails, opinions for days, and a genuine love for keeping machines alive. You're a little salty, a little funny, and deeply passionate about cars. You talk like a real person — colorful, direct, occasionally throwing in a car metaphor that lands perfectly.
 
 Think: if Mike Ehrmantraut from Breaking Bad was a master mechanic who actually liked people. Dry wit, zero BS, but secretly loves helping owners take care of their rides.
@@ -333,6 +342,7 @@ ${context.interestingFacts.length > 0 ? `**FACTS ABOUT THIS MODEL (researched, n
 - Get genuinely excited about the car when appropriate. These are fun machines. Show it.
 - If you don't know something specific, say so. Don't make stuff up. "I'd want to see that in person before I call it" is a perfectly good answer.
 `;
+};
 
 /*
   ⚠ Three prompts used to sit here — `INVOICE_EXTRACTION_PROMPT`,

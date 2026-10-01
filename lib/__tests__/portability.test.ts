@@ -235,6 +235,12 @@ const PORTABLE: string[] = [
   */
   'lib/invoice-filing-replay.ts',
   'lib/consultant-replay.ts',
+  /*
+    1 Oct, audit 360 SEC-4. Where a sign-in may send somebody — imports
+    nothing. Stays in lib/ because only the web's sign-in pages read a
+    `?redirect=`; the phone has no such parameter.
+  */
+  'lib/safe-redirect.ts',
 ];
 
 /**
@@ -288,6 +294,11 @@ const NOT_PORTABLE: Record<string, string> = {
   'lib/vehicle-deletion.ts': 'the one removal path — storage purge, then the row, with the service role',
   'lib/internal-secret.ts': 'node:crypto timingSafeEqual — the internal routes\' gate, server-only',
   'lib/api-auth.ts': 'Supabase, and reads next/headers',
+  /*
+    1 Oct, audit 360 SEC-1. Whose car a refused VIN is — a query on the
+    service-role client the save paths already hold.
+  */
+  'lib/vin-conflict.ts': 'Supabase client types, and asks the vehicles table with the service role',
   'lib/account-data.ts': 'reaches Supabase through lib/supabase',
   'lib/performance-stats.ts': 'Supabase types, and calls Gemini',
   'lib/rate-limit.ts': 'reaches Supabase through lib/supabase',

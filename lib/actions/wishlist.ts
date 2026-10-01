@@ -7,6 +7,7 @@ import { logger } from '@tappet/core/logger';
 import { wishlistItemIdentifier } from '@tappet/core/wishlist-identifier';
 import type { WishlistSourceData } from '@tappet/core/wishlist-source';
 import { suggestionsFor } from '@tappet/core/wishlist-suggestions';
+import { wishlistFieldProblem } from '@tappet/core/input-bounds';
 
 /*
  * These are 'use server' exports, which Next.js compiles into POST endpoints
@@ -91,6 +92,12 @@ export async function addItemToWishlist(
   itemType: WishlistItemType
 ): Promise<{ success: boolean; error?: string; data?: unknown; alreadyExisted?: boolean }> {
   try {
+    // Audit 360, SEC-2: the name reaches the advisor's prompt on every turn.
+    const nameTrouble = wishlistFieldProblem({ itemName });
+    if (nameTrouble) {
+      return { success: false, error: nameTrouble };
+    }
+
     const access = await authorizeVehicleAccess(vehicleId, { intent: 'write' });
     if (!access.ok) {
       return { success: false, error: access.error };

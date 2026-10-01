@@ -4,6 +4,7 @@ import { logger } from '@tappet/core/logger';
 import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/rate-limit';
 import { authorizeVehicleAccess, authorizeVehicleScopedRow } from '@/lib/api-auth';
 import { isWishlistSource, WISHLIST_SOURCES } from '@tappet/core/wishlist-source';
+import { wishlistFieldProblem } from '@tappet/core/input-bounds';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +107,24 @@ export async function POST(request: NextRequest) {
 
     if (!['issue', 'maintenance', 'modification'].includes(itemType)) {
       return NextResponse.json({ error: 'Invalid item type' }, { status: 400 });
+    }
+
+    /*
+      ⚠ Audit 360, SEC-2 (1 Oct). Stored whole until now, and each of these
+      reaches the advisor's system prompt on every turn. The limits sit far
+      above anything the phone sends (often the dossier's own sentence sent
+      back); they stop an abuse, not an owner. `@tappet/core/input-bounds`.
+    */
+    const fieldTrouble = wishlistFieldProblem({
+      itemName,
+      itemIdentifier,
+      category,
+      description,
+      notes,
+      sourceData,
+    });
+    if (fieldTrouble) {
+      return NextResponse.json({ error: fieldTrouble }, { status: 422 });
     }
 
     /*

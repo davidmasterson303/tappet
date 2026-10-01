@@ -26,6 +26,16 @@
  */
 
 /** The billable quantity a budget is measured in. See `billableTokens`. */
+/**
+ * How many input tokens bill like one output token, for the fuse.
+ *
+ * `pricing.ts`: output bills at ~12× input on Flash, which runs the advisor
+ * and invoice reading. 10 rounds toward counting input *more* than it costs —
+ * the conservative direction for a fuse — and is not a price; `PRICING`
+ * still owns those. Audit 360, SEC-2.
+ */
+export const INPUT_TOKENS_PER_OUTPUT_EQUIVALENT = 10;
+
 export interface MonthlyUsage {
   /** Input tokens billed at the full rate, this calendar month. */
   inputTokens: number;
@@ -408,7 +418,19 @@ export interface BudgetDecision {
  * remainder, a NaN from a missing row — and none of those throw.
  */
 export function decideBudget(usage: MonthlyUsage, tier: Tier): BudgetDecision {
-  const used = Math.max(0, Math.round(usage.outputTokens || 0));
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct) · input counts. This read `outputTokens` alone,
+    on `pricing.ts`'s argument that input is single-digit percent of a call —
+    true while prompts are bounded, and they were not: a 500 KB string in a
+    car's record was ~125k input tokens a turn and counted as nothing, so the
+    fuse could not see the one way to spend without limit. Input now counts
+    at its output-equivalent weight. Ordinary use moves a little (an advisor
+    turn's few thousand input tokens add a few hundred); the abuse becomes
+    one the fuse stops.
+  */
+  const outputEquivalent =
+    (usage.outputTokens || 0) + (usage.inputTokens || 0) / INPUT_TOKENS_PER_OUTPUT_EQUIVALENT;
+  const used = Math.max(0, Math.round(Number.isFinite(outputEquivalent) ? outputEquivalent : 0));
   const limit = tier.monthlyOutputTokens;
 
   /*

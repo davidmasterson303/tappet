@@ -290,7 +290,7 @@ export async function checkMonthlyBudget(userId: string | null): Promise<BudgetD
     */
     const { data, error } = await client
       .from('ai_usage_events')
-      .select('output_tokens, thoughts_tokens')
+      .select('prompt_tokens, output_tokens, thoughts_tokens')
       .eq('user_id', userId)
       .gte('created_at', since);
 
@@ -313,7 +313,14 @@ export async function checkMonthlyBudget(userId: string | null): Promise<BudgetD
       0
     );
 
-    const decision = decideBudget({ inputTokens: 0, outputTokens }, await readTier(client, userId));
+    /*
+      ⚠ Input counts too (audit 360, SEC-2) — `prompt_tokens`, recorded on
+      every row by `lib/ai-usage.ts` and read by nothing until now. A prompt
+      inflated by an unbounded string in the car's record was invisible here.
+    */
+    const inputTokens = (data ?? []).reduce((sum, row) => sum + (row.prompt_tokens ?? 0), 0);
+
+    const decision = decideBudget({ inputTokens, outputTokens }, await readTier(client, userId));
 
     if (decision.state !== 'ok') {
       logger.warn('AI_BUDGET:' + decision.state.toUpperCase(), 'Account is at or near its monthly AI budget', {

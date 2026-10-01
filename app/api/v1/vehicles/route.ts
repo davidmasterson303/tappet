@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIdentifier, rateLimitResponse } from '@/lib/ra
 import { authorizeVehicleAccess, requireCaller } from '@/lib/api-auth';
 import { odometerReading, validateMileageUpdate } from '@tappet/core/mileage-tracking';
 import { normaliseVin, vinProblem } from '@tappet/core/vehicle-catalog';
+import { vehicleNameProblem } from '@tappet/core/input-bounds';
 import { projectNextService } from '@/lib/next-service';
 import { validateProfileUpdate } from '@tappet/core/vehicle-profile';
 import { buildBaselineRow, isBaselineAge } from '@tappet/core/onboarding-baseline';
@@ -544,6 +545,17 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: false, error: 'Make and model are required' } as ApiResponse,
       { status: 400 }
     );
+  }
+
+  /*
+    ⚠ Audit 360, SEC-2 (1 Oct). These three were unbounded, and every one of
+    them is in the advisor's system prompt on every turn — a 500 KB `make`
+    was ~125k input tokens a message. `vehicleSchema`'s 50, which the web's
+    form already applies. `@tappet/core/input-bounds`.
+  */
+  const nameTrouble = vehicleNameProblem({ make, model, trim: body.trim });
+  if (nameTrouble) {
+    return Response.json({ success: false, error: nameTrouble } as ApiResponse, { status: 422 });
   }
 
   /*
