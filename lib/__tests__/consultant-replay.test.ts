@@ -277,7 +277,7 @@ describe('a thread’s first question, resent (TL-16)', () => {
       from: jest.fn(() => {
         const filters: Array<(r: Row) => boolean> = [];
         let n = Infinity;
-        const chain = {
+        const chain: Record<string, unknown> = {
           select: jest.fn(() => chain),
           eq: jest.fn((c: keyof Row, v: unknown) => (filters.push((r) => r[c] === v), chain)),
           gte: jest.fn((c: keyof Row, v: string) => (filters.push((r) => String(r[c]) >= v), chain)),
