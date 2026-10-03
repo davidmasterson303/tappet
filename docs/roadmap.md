@@ -13,6 +13,25 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ 3 Oct — a public TestFlight beta before release (David)
+>
+> Build 3 goes to external TestFlight testers while App Store review runs, and
+> version 1.0 is set to **Manually release**, so approval publishes nothing.
+> Paste source: `TAPPET_TESTFLIGHT_BETA_PACK_2026-10-03.md`. Cowork's setup:
+> `COWORK_PROMPT_testflight_beta_2026-10-03.md` (both in the decision-docs folder).
+>
+> ⚠ **Possible gate on the public link (and on launch):** confirmation is on
+> (`mailer_autoconfirm: false`, rechecked 3 Oct), and the last measurement of
+> the mailer (15 Aug) was Supabase's built-in sender, **2 emails/h for the whole
+> project**. Nothing in the repo shows custom SMTP. Cowork checks which mailer
+> is in use. If it is built-in, a mail provider comes before anyone is invited.
+>
+> Order: phone walk (step 6 below) → Beta App Review on build 3 + App Store
+> submit (manual release) → public link, capped at 25 → release when the
+> feedback says so.
+> Testers' purchases are sandbox (free, accepted by `apple-subscription.ts`).
+> Their accounts and Gemini spend are production.
+
 > ### ✅ 1 Oct — the 360 audit: all five lenses at 9/10, 99 commits on `main`, nothing promoted
 >
 > Five Fable reviewers (legal, copy, tech lead, security, UI/UX) graded against
