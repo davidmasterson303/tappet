@@ -114,13 +114,34 @@ export async function startResearch(vehicleId: string): Promise<TriggerOutcome> 
     write returned the row triggers the job. The other reports `researching`,
     which is true.
   */
-  const cutoff = new Date(Date.now() - IN_FLIGHT_MS).toISOString();
-  const { data: claimed } = await client
+  /*
+    ── 3 Oct · compare-and-swap on what was read, not a window ───────────────
+
+    The 23 Sep claim was `status <> 'pending' OR marker older than the
+    window`. A freshly seeded row is `pending` with its marker equal to its
+    creation instant — not in flight by the rule above, and refused by that
+    filter for the window's first four minutes. Every new car's first POST
+    therefore claimed nothing, triggered nothing and answered `researching`,
+    and the phone asks once: the 2003 Accord added on the TestFlight walk sat
+    at `pending` with no model call at all. The mocked test passed because
+    its mock always said the claim was won.
+
+    Now the write matches only the row exactly as this request read it. Two
+    requests that read the same row race for one write; the loser finds the
+    marker moved and reports `researching`, which is the 23 Sep guarantee
+    kept without the window.
+  */
+  const update = client
     .from('vehicle_knowledge_base')
     .update({ research_status: 'pending', last_research_date: new Date().toISOString() })
-    .eq('vehicle_id', vehicleId)
-    .or(`research_status.neq.pending,last_research_date.lt.${cutoff}`)
-    .select('vehicle_id');
+    .eq('vehicle_id', vehicleId);
+  const sameStatus = row.research_status === null
+    ? update.is('research_status', null)
+    : update.eq('research_status', row.research_status);
+  const sameMarker = row.last_research_date === null
+    ? sameStatus.is('last_research_date', null)
+    : sameStatus.eq('last_research_date', row.last_research_date);
+  const { data: claimed } = await sameMarker.select('vehicle_id');
 
   if (!claimed || claimed.length === 0) return 'researching';
 
