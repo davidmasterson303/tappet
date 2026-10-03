@@ -31,6 +31,26 @@
 > feedback says so.
 > Testers' purchases are sandbox (free, accepted by `apple-subscription.ts`).
 > Their accounts and Gemini spend are production.
+>
+> **Walk, 3 Oct (build 3, David's account):** Restore on nothing → "No previous
+> subscription…" ✅. Buy Monthly → row moved to a new transaction, Sandbox,
+> expiry **+1 day** (TestFlight's renewal clock) → Restore "active" ✅. Alerts
+> primer → iOS alert ✅ (token filed 15:28:51). ❌ **A new car's research never
+> started:** the 23 Sep claim refused every freshly seeded row for its first
+> 4 min, and the phone asks once. Fixed in `46b12f5` (compare-and-swap) and
+> promoted: `web-live` serves `f19c8131`. Server-only, so build 3 is
+> unaffected. Still owed: the consent sheet after research, DELETE field, and
+> 3- and 6-page scan timing.
+> **For build 4:** the mods question on the mileage screen pre-selects Yes,
+> so David skipped it unseen. It must require an answer (David).
+>
+> **Cowork found (`COWORK_NOTE_testflight_beta_2026-10-03.md`):** built-in
+> mailer confirmed (2/h, locked). Site URL is still the dead Bolt demo, and
+> the tappet host is not in the redirect allow list. So the phone's sign-up
+> confirmation **and** its "Forgot password" (`session.ts` `redirectTo`) land
+> on a 404. That matters for App Review too. Fix: `COWORK_PROMPT_supabase_email_and_redirects_2026-10-03.md`
+> (URL config now; Resend SMTP once David has the account). Done in ASC:
+> the Early drivers group, What to Test on build 3, **Manually release**.
 
 > ### ✅ 1 Oct — the 360 audit: all five lenses at 9/10, 99 commits on `main`, nothing promoted
 >
