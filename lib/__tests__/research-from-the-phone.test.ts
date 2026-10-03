@@ -27,8 +27,42 @@ const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\
 /* The job's reads and writes, mocked at the seam. */
 const seeded: { row: Record<string, unknown> | null } = { row: null };
 const updates: Array<Record<string, unknown>> = [];
-/** Whether the conditional marker write returns the row — i.e. this request claimed the job. */
-const claim = { won: true };
+/**
+ * The row as the database holds it when the claim lands — `seeded.row` unless
+ * a test moves it between the read and the write (another request won).
+ *
+ * The claim's filters are *evaluated* against it, as Postgres would. Until
+ * 3 Oct this mock answered "won" whatever the filter said, so a claim that
+ * refused every freshly seeded car passed here while the phone's first car
+ * on TestFlight sat at `pending` with no job (CLAUDE.md §5).
+ */
+const stored: { row: Record<string, unknown> | null } = { row: null };
+type Filter = (row: Record<string, unknown>) => boolean;
+function claimBuilder(filters: Filter[]) {
+  const builder = {
+    eq: (column: string, value: unknown) =>
+      claimBuilder([...filters, (row) => column === 'vehicle_id' || row[column] === value]),
+    is: (column: string, value: null) => claimBuilder([...filters, (row) => row[column] === value]),
+    or: (expression: string) =>
+      claimBuilder([...filters, (row) => orMatches(expression, row)]),
+    select: () => {
+      const row = stored.row ?? seeded.row;
+      const won = row !== null && filters.every((f) => f(row));
+      return Promise.resolve({ data: won ? [{ vehicle_id: 'v1' }] : [], error: null });
+    },
+  };
+  return builder;
+}
+/** PostgREST's `or=(a.op.v,b.op.v)` for the operators the old claim used. */
+function orMatches(expression: string, row: Record<string, unknown>): boolean {
+  return expression.split(',').some((clause) => {
+    const [column, op, ...rest] = clause.split('.');
+    const value = rest.join('.');
+    if (op === 'neq') return row[column] !== value;
+    if (op === 'lt') return Date.parse(String(row[column])) < Date.parse(value);
+    throw new Error(`orMatches: unhandled operator ${op}`);
+  });
+}
 jest.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => ({
     from: () => ({
@@ -37,14 +71,7 @@ jest.mock('@/lib/supabase', () => ({
       }),
       update: (values: Record<string, unknown>) => {
         updates.push(values);
-        // The conditional claim: `data` is the row when this request won it.
-        return {
-          eq: () => ({
-            or: () => ({
-              select: () => Promise.resolve({ data: claim.won ? [{ vehicle_id: 'v1' }] : [], error: null }),
-            }),
-          }),
-        };
+        return claimBuilder([]);
       },
     }),
   }),
@@ -67,6 +94,7 @@ const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
 beforeEach(() => {
   seeded.row = null;
+  stored.row = null;
   updates.length = 0;
   triggered.length = 0;
   // No URL/CRON_SECRET: the trigger takes the in-process branch (jest is
@@ -115,13 +143,49 @@ describe('startResearch — idempotent, and it never spends on a dossier that ex
   });
 
   it('starts a fresh car: the marker moves, then the job is handed off', async () => {
-    const created = ago(5_000);
-    seeded.row = { research_status: 'pending', last_research_date: created, created_at: created };
-    expect(await startResearch('v1')).toBe('researching');
-    expect(updates).toHaveLength(1);
-    expect(updates[0]).toMatchObject({ research_status: 'pending' });
-    expect(typeof updates[0].last_research_date).toBe('string');
-    expect(Date.parse(updates[0].last_research_date as string)).toBeGreaterThan(Date.parse(created));
+    /*
+      3 Oct: "an update was attempted" is not "the job started". The 23 Sep
+      claim attempted this update on a seed row and matched nothing, so no
+      phone-added car was ever researched by its first open. The hand-off is
+      the assertion.
+    */
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 202 } as Response);
+    const previous = { URL: process.env.URL, CRON_SECRET: process.env.CRON_SECRET };
+    process.env.URL = 'https://example.test';
+    process.env.CRON_SECRET = 'secret';
+    try {
+      const created = ago(5_000);
+      seeded.row = { research_status: 'pending', last_research_date: created, created_at: created };
+      expect(await startResearch('v1')).toBe('researching');
+      expect(updates).toHaveLength(1);
+      expect(updates[0]).toMatchObject({ research_status: 'pending' });
+      expect(Date.parse(updates[0].last_research_date as string)).toBeGreaterThan(Date.parse(created));
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.URL = previous.URL;
+      process.env.CRON_SECRET = previous.CRON_SECRET;
+    }
+  });
+
+  it('a job that died past the window is claimed again', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 202 } as Response);
+    const previous = { URL: process.env.URL, CRON_SECRET: process.env.CRON_SECRET };
+    process.env.URL = 'https://example.test';
+    process.env.CRON_SECRET = 'secret';
+    try {
+      seeded.row = {
+        research_status: 'pending',
+        last_research_date: ago(IN_FLIGHT_MS + 60_000),
+        created_at: ago(IN_FLIGHT_MS + 600_000),
+      };
+      expect(await startResearch('v1')).toBe('researching');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.URL = previous.URL;
+      process.env.CRON_SECRET = previous.CRON_SECRET;
+    }
   });
 
   it('a request that did not win the marker does not trigger a second job', async () => {
@@ -139,17 +203,17 @@ describe('startResearch — idempotent, and it never spends on a dossier that ex
       const created = ago(5_000);
       seeded.row = { research_status: 'pending', last_research_date: created, created_at: created };
 
-      claim.won = false;
+      // Another request moved the marker between this one's read and write.
+      stored.row = { ...seeded.row, last_research_date: ago(1_000) };
       expect(await startResearch('v1')).toBe('researching');
       expect(updates).toHaveLength(1);
       expect(fetchSpy).not.toHaveBeenCalled();
 
-      // Anti-vacuous: the same row, and the write that wins, does hand off.
-      claim.won = true;
+      // Anti-vacuous: the same row, unmoved, is claimed and handed off.
+      stored.row = null;
       expect(await startResearch('v1')).toBe('researching');
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     } finally {
-      claim.won = true;
       fetchSpy.mockRestore();
       process.env.URL = previous.URL;
       process.env.CRON_SECRET = previous.CRON_SECRET;

@@ -13,6 +13,25 @@
 > anything here, and over this page's own status claims (CLAUDE.md §1).
 
 
+> ### ▶ 3 Oct — a public TestFlight beta before release (David)
+>
+> Build 3 goes to external TestFlight testers while App Store review runs, and
+> version 1.0 is set to **Manually release**, so approval publishes nothing.
+> Paste source: `TAPPET_TESTFLIGHT_BETA_PACK_2026-10-03.md`. Cowork's setup:
+> `COWORK_PROMPT_testflight_beta_2026-10-03.md` (both in the decision-docs folder).
+>
+> ⚠ **Possible gate on the public link (and on launch):** confirmation is on
+> (`mailer_autoconfirm: false`, rechecked 3 Oct), and the last measurement of
+> the mailer (15 Aug) was Supabase's built-in sender, **2 emails/h for the whole
+> project**. Nothing in the repo shows custom SMTP. Cowork checks which mailer
+> is in use. If it is built-in, a mail provider comes before anyone is invited.
+>
+> Order: phone walk (step 6 below) → Beta App Review on build 3 + App Store
+> submit (manual release) → public link, capped at 25 → release when the
+> feedback says so.
+> Testers' purchases are sandbox (free, accepted by `apple-subscription.ts`).
+> Their accounts and Gemini spend are production.
+
 > ### ✅ 1 Oct — the 360 audit: all five lenses at 9/10, 99 commits on `main`, nothing promoted
 >
 > Five Fable reviewers (legal, copy, tech lead, security, UI/UX) graded against
@@ -47,15 +66,16 @@
 > changes: Coarse Location removed, Crash Data linked).
 >
 > **David's list, in order:**
-> 1. `promote-web --apply` (Claude, on David's OK) → read `/api/version` for the merge commit.
-> 2. SQL editor: `20261001120000` (VIN unique per garage) and `20260917120000`
->    (demo quote meter) — both in `supabase/migrations/`, verify per their headers.
-> 3. Supabase Auth: turn on **Confirm email**.
-> 4. After the promote: Cowork clears `mod_detail_cache` (11 rows) and verifies `[]`.
+> 1. ✅ `promote-web --apply` 1 Oct — `web-live` serves `cebd5955` (the merge commit), old hosts 301, a bare upload POST answers 400.
+> 2. ✅ Both applied 1 Oct (David). Verified: the VIN dry insert now answers `23503` (FK), not
+>    `23505`; `quote_estimate` passes the purpose CHECK, a made-up purpose gets `23514`.
+> 3. ✅ Confirm email on (1 Oct): `/auth/v1/settings` → `mailer_autoconfirm: false`.
+> 4. ✅ `mod_detail_cache` cleared by Cowork 1 Oct (11 rows → `[]`, re-read here: table answers 200, empty).
 > 5. Optional: the 7 dead demo rows in `mod_detail_queue`; the TL-33 probe
 >    (`rounds/07-tech-lead.md` — one curl, no data change) to measure the platform's
 >    upload body limit.
-> 6. Build 3 → TestFlight → the phone walks: Restore says "active"; primer → iOS
+> 6. ✅ Build 3 built 1 Oct (EAS `af2409ee`, 1.0.0 (3), from `6adb187`) and uploaded to App Store
+>    Connect (submission `aa0fec5b`). Next → TestFlight → the phone walks: Restore says "active"; primer → iOS
 >    alert → consent sheet one at a time; Alerts row → Settings and back; DELETE
 >    field above the keyboard; 3- and 6-page scan timing.
 > 7. Then roadmap steps 4–9 (screenshots, submit).
